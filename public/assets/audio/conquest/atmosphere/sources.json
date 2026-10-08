@@ -1,0 +1,2164 @@
+{
+ "bank": "conquest/atmosphere",
+ "title": "Conquest ambience beds, positional emitters, artillery and flag cues",
+ "retrieved": "2026-10-08",
+ "integrated": "2026-10-08",
+ "format": "Ogg Opus 48 kHz via libopus (-fflags +bitexact); mono 96 kbit/s, stereo beds 128 kbit/s",
+ "licensePolicy": "CC0 1.0, CC BY 3.0/4.0, U.S. federal government works (YouTube CC BY field verified with yt-dlp) and project-original synthesis only. CC BY credits: docs/audio/conquest-sfx.md and LICENSES.md.",
+ "notes": "Freesound items are the public HQ previews (Ogg Vorbis) because original downloads need a login. The download_sha256 is the hash of that retrieved file. Build recipes: .conquest-work/wip/sfx/work-*/ (local).",
+ "files": [
+  {
+   "id": "distant_battle_bed",
+   "file": "battle-bed-high.ogg",
+   "durationS": 84.0,
+   "loop": true,
+   "loudnessLUFS": -23.02,
+   "peakDb": -3.09,
+   "channels": 2,
+   "format": "Ogg Opus stereo 48 kHz 128 kbit/s (libopus, bitexact)",
+   "output_sha256": "47396acafe104e1fa0a748b0eb570dede13c069aaf833be03bd26430c275928a",
+   "sizeBytes": 1379881,
+   "variant": "high intensity (contested flags, many kills)",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 6
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.00587,
+     "median_step": 0.00206,
+     "p99_step": 0.01438,
+     "level_jump_db": -0.45
+    },
+    "booms": 26,
+    "mg_bursts": 18,
+    "loop_len_s": 84.0,
+    "overlap_s": 1.5,
+    "limiter_gain_reduction_db": 6.0,
+    "seam_decoded": {
+     "boundary_step": 0.00202,
+     "median_step": 0.00156,
+     "p99_step": 0.01047,
+     "level_jump_db": -0.36
+    }
+   },
+   "path": "conquest/atmosphere/battle-bed-high.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Cheeseheadburger/sounds/170478/",
+     "title": "Distant WW2 Gunfire Kent.wav",
+     "author": "Cheeseheadburger",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "44.000-68.500 s, 16.000-42.000 s, 4.000-36.000 s, 14.000-44.000 s, 2.000-30.000 s, 40.000-68.500 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 6.0 dB GR); normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: distant gunfire stream",
+     "download_sha256": "c962ab505d7cab2fe51bb55816b357d7d5ca05e937c6e5561f164eabfa47d5c0",
+     "file_url": "https://cdn.freesound.org/previews/170/170478_2479316-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "A recording of a distant re-enactment ww2 battle from inside a wood in Kent 2012. Mono. Schoeps CMIT and 744",
+     "cuts": [
+      [
+       44.0,
+       68.5
+      ],
+      [
+       16.0,
+       42.0
+      ],
+      [
+       4.0,
+       36.0
+      ],
+      [
+       14.0,
+       44.0
+      ],
+      [
+       2.0,
+       30.0
+      ],
+      [
+       40.0,
+       68.5
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/Jim-Bretherick/sounds/823852/",
+     "title": "(Distant)rumbling battle1",
+     "author": "Jim-Bretherick",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "4.000-89.600 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 6.0 dB GR); normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: synthetic low battle rumble (CC0)",
+     "download_sha256": "c0a4dad6ac0c91e4352563653781374cd9f9e9324a04d3748abce095436ee401",
+     "file_url": "https://cdn.freesound.org/previews/823/823852_10983022-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Rumble of battle getting closer. Mix with ambient Karplus Strong sounds. Experimental Totally synthetic. Rendered at 48kHz 32 bit in Reaper with markers for all you (Morphagene) battle freaks out there. Enjoy the rumbling!",
+     "cuts": [
+      [
+       4.0,
+       89.6
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/nofeedbak/sounds/95129/",
+     "title": "Salute_Cannons.MP3",
+     "author": "nofeedbak",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "32.997-37.617 s, 22.889-27.509 s, 48.836-53.456 s, 7.248-11.868 s, 38.238-42.858 s, 13.028-17.648 s, 17.911-22.531 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 6.0 dB GR); normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: distant boom",
+     "download_sha256": "e91656f110a44a9736182c4b87f904cf1accf14c3379c97e82268dd6da04c19d",
+     "file_url": "https://cdn.freesound.org/previews/95/95129_87792-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Recorded 70mm salute cannons at a distance of about a half a mile. The battery of cannons in near a river in a valley on the Hudson River.",
+     "cuts": [
+      [
+       32.997,
+       37.617
+      ],
+      [
+       22.889,
+       27.509
+      ],
+      [
+       48.836,
+       53.456
+      ],
+      [
+       7.248,
+       11.868
+      ],
+      [
+       38.238,
+       42.858
+      ],
+      [
+       13.028,
+       17.648
+      ],
+      [
+       17.911,
+       22.531
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/Kostrava/sounds/320788/",
+     "title": "distant explosions",
+     "author": "Kostrava",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "42.085-45.705 s, 30.075-33.695 s, 21.614-25.234 s, 34.712-38.332 s, 15.014-18.634 s, 26.193-29.813 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 6.0 dB GR); normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: distant boom",
+     "download_sha256": "fe0edbc6fbad1b7ba4f9e9888fdd129ec5172653aad443a56f8024368af93e04",
+     "file_url": "https://cdn.freesound.org/previews/320/320788_1134415-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "distant explosions coming in and fade out",
+     "cuts": [
+      [
+       42.085,
+       45.705
+      ],
+      [
+       30.075,
+       33.695
+      ],
+      [
+       21.614,
+       25.234
+      ],
+      [
+       34.712,
+       38.332
+      ],
+      [
+       15.014,
+       18.634
+      ],
+      [
+       26.193,
+       29.813
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/CGEffex/sounds/158979/",
+     "title": "Distant_gunfire_01.wav",
+     "author": "CGEffex",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.170-1.600 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 6.0 dB GR); normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: distant MG burst",
+     "download_sha256": "a2d24947b74c01c0039adbb7dd53b7fed63b0a5658178d4c0495763bb82d6dd3",
+     "file_url": "https://cdn.freesound.org/previews/158/158979_1386366-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Distant gunfire. Not suitable for close-range shots, but could work as well as distant shots or even explosions.",
+     "cuts": [
+      [
+       0.17,
+       1.6
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/adrilahan/sounds/337242/",
+     "title": "Distant Three Round Burst",
+     "author": "adrilahan",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-1.400 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 6.0 dB GR); normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: distant MG burst",
+     "download_sha256": "006c46fba20c72907d55b88545e4a1787704b7fb38f9a75b843bc6705f276c8c",
+     "file_url": "https://cdn.freesound.org/previews/337/337242_3221261-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Distant three round burst gunfire. Layering of my single gunshot sound. Synth.",
+     "cuts": [
+      [
+       0.0,
+       1.4
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "distant_battle_bed",
+   "file": "battle-bed-low.ogg",
+   "durationS": 96.0,
+   "loop": true,
+   "loudnessLUFS": -24.19,
+   "peakDb": -3.09,
+   "channels": 2,
+   "format": "Ogg Opus stereo 48 kHz 128 kbit/s (libopus, bitexact)",
+   "output_sha256": "6be7c1f7ee0227910198894726ebdc672ab61cc322d74663b69982ff007d4e5f",
+   "sizeBytes": 1574111,
+   "variant": "low intensity (quiet sectors)",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 6
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.00433,
+     "median_step": 0.00143,
+     "p99_step": 0.01001,
+     "level_jump_db": 0.6
+    },
+    "booms": 9,
+    "mg_bursts": 5,
+    "loop_len_s": 96.0,
+    "overlap_s": 1.5,
+    "limiter_gain_reduction_db": 5.44,
+    "seam_decoded": {
+     "boundary_step": 0.00694,
+     "median_step": 0.00144,
+     "p99_step": 0.00974,
+     "level_jump_db": 0.63
+    }
+   },
+   "path": "conquest/atmosphere/battle-bed-low.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Cheeseheadburger/sounds/170478/",
+     "title": "Distant WW2 Gunfire Kent.wav",
+     "author": "Cheeseheadburger",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "14.000-44.000 s, 2.000-30.000 s, 40.000-68.500 s, 44.000-68.500 s, 16.000-42.000 s, 4.000-36.000 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 5.4 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant gunfire stream",
+     "download_sha256": "c962ab505d7cab2fe51bb55816b357d7d5ca05e937c6e5561f164eabfa47d5c0",
+     "file_url": "https://cdn.freesound.org/previews/170/170478_2479316-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "A recording of a distant re-enactment ww2 battle from inside a wood in Kent 2012. Mono. Schoeps CMIT and 744",
+     "cuts": [
+      [
+       14.0,
+       44.0
+      ],
+      [
+       2.0,
+       30.0
+      ],
+      [
+       40.0,
+       68.5
+      ],
+      [
+       44.0,
+       68.5
+      ],
+      [
+       16.0,
+       42.0
+      ],
+      [
+       4.0,
+       36.0
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/Jim-Bretherick/sounds/823852/",
+     "title": "(Distant)rumbling battle1",
+     "author": "Jim-Bretherick",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "4.000-101.600 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 5.4 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: synthetic low battle rumble (CC0)",
+     "download_sha256": "c0a4dad6ac0c91e4352563653781374cd9f9e9324a04d3748abce095436ee401",
+     "file_url": "https://cdn.freesound.org/previews/823/823852_10983022-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Rumble of battle getting closer. Mix with ambient Karplus Strong sounds. Experimental Totally synthetic. Rendered at 48kHz 32 bit in Reaper with markers for all you (Morphagene) battle freaks out there. Enjoy the rumbling!",
+     "cuts": [
+      [
+       4.0,
+       101.6
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/nofeedbak/sounds/95129/",
+     "title": "Salute_Cannons.MP3",
+     "author": "nofeedbak",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "32.997-37.617 s, 48.836-53.456 s, 27.959-32.579 s, 7.248-11.868 s, 17.911-22.531 s, 13.028-17.648 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 5.4 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant boom",
+     "download_sha256": "e91656f110a44a9736182c4b87f904cf1accf14c3379c97e82268dd6da04c19d",
+     "file_url": "https://cdn.freesound.org/previews/95/95129_87792-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Recorded 70mm salute cannons at a distance of about a half a mile. The battery of cannons in near a river in a valley on the Hudson River.",
+     "cuts": [
+      [
+       32.997,
+       37.617
+      ],
+      [
+       48.836,
+       53.456
+      ],
+      [
+       27.959,
+       32.579
+      ],
+      [
+       7.248,
+       11.868
+      ],
+      [
+       17.911,
+       22.531
+      ],
+      [
+       13.028,
+       17.648
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/Kostrava/sounds/320788/",
+     "title": "distant explosions",
+     "author": "Kostrava",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "21.614-25.234 s, 15.014-18.634 s, 42.085-45.705 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 5.4 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant boom",
+     "download_sha256": "fe0edbc6fbad1b7ba4f9e9888fdd129ec5172653aad443a56f8024368af93e04",
+     "file_url": "https://cdn.freesound.org/previews/320/320788_1134415-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "distant explosions coming in and fade out",
+     "cuts": [
+      [
+       21.614,
+       25.234
+      ],
+      [
+       15.014,
+       18.634
+      ],
+      [
+       42.085,
+       45.705
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/adrilahan/sounds/337242/",
+     "title": "Distant Three Round Burst",
+     "author": "adrilahan",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-1.400 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 5.4 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant MG burst",
+     "download_sha256": "006c46fba20c72907d55b88545e4a1787704b7fb38f9a75b843bc6705f276c8c",
+     "file_url": "https://cdn.freesound.org/previews/337/337242_3221261-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Distant three round burst gunfire. Layering of my single gunshot sound. Synth.",
+     "cuts": [
+      [
+       0.0,
+       1.4
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/CGEffex/sounds/158979/",
+     "title": "Distant_gunfire_01.wav",
+     "author": "CGEffex",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.170-1.600 s",
+     "processing": "stereo bed; distant re-enactment gunfire stream resequenced with 0.6 s equal-power crossfades, decorrelated L/R from different passages, HP 90 Hz (removes recording wind rumble) / LP 3.2 kHz (distance); synthetic rumble layer LP 220 Hz; sparse distant booms (LP 0.9-1.6 kHz, constant-power random pan) and MG bursts (LP 1.6-2.6 kHz) placed circularly so tails wrap; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 5.4 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant MG burst",
+     "download_sha256": "a2d24947b74c01c0039adbb7dd53b7fed63b0a5658178d4c0495763bb82d6dd3",
+     "file_url": "https://cdn.freesound.org/previews/158/158979_1386366-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Distant gunfire. Not suitable for close-range shots, but could work as well as distant shots or even explosions.",
+     "cuts": [
+      [
+       0.17,
+       1.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "offmap_artillery_salvo",
+   "file": "artillery-distant-1.ogg",
+   "durationS": 5.415,
+   "loop": false,
+   "loudnessLUFS": -25.48,
+   "peakDb": -3.19,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "bed5b519da3e86a26fcaef5e26a1179e0d3761bdff31c5268cd4e0e216414d26",
+   "sizeBytes": 55900,
+   "variant": "shot 1",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 6.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.145,
+    "limiter_gain_reduction_db": 6.0
+   },
+   "usage_note": "One shot per file, onset at t=0; schedule 3 per salvo and delay each by distance/343 m/s after the flash.",
+   "path": "conquest/atmosphere/artillery-distant-1.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/nofeedbak/sounds/95129/",
+     "title": "Salute_Cannons.MP3",
+     "author": "nofeedbak",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "22.879-27.609 s",
+     "processing": "mono; onset-aligned (4 ms pre-roll; the game adds the distance/343 m/s delay); HP 28 Hz; LP shaping for range; leading crack limited by 5 dB (1 ms look-ahead, 60 ms release); valley echo = 2-3 discrete low-passed reflections (0.4-1.6 s, -9 to -18 dB, original code); expander on the recording ambience after the tail; cosine fade-out; look-ahead peak limiter (2 ms, 80 ms release, up to 6.0 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant gun report with natural valley tail",
+     "download_sha256": "e91656f110a44a9736182c4b87f904cf1accf14c3379c97e82268dd6da04c19d",
+     "file_url": "https://cdn.freesound.org/previews/95/95129_87792-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Recorded 70mm salute cannons at a distance of about a half a mile. The battery of cannons in near a river in a valley on the Hudson River.",
+     "cuts": [
+      [
+       22.879,
+       27.609
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "offmap_artillery_salvo",
+   "file": "artillery-distant-2.ogg",
+   "durationS": 5.469,
+   "loop": false,
+   "loudnessLUFS": -25.01,
+   "peakDb": -3.07,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "ca42530c152d49afb954bd3027c020f039bd6f7b799921b8845a9de7ea076c16",
+   "sizeBytes": 56508,
+   "variant": "shot 2",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 6.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.138,
+    "limiter_gain_reduction_db": 4.02
+   },
+   "usage_note": "One shot per file, onset at t=0; schedule 3 per salvo and delay each by distance/343 m/s after the flash.",
+   "path": "conquest/atmosphere/artillery-distant-2.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/nofeedbak/sounds/95129/",
+     "title": "Salute_Cannons.MP3",
+     "author": "nofeedbak",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "32.987-37.717 s",
+     "processing": "mono; onset-aligned (4 ms pre-roll; the game adds the distance/343 m/s delay); HP 28 Hz; LP shaping for range; leading crack limited by 5 dB (1 ms look-ahead, 60 ms release); valley echo = 2-3 discrete low-passed reflections (0.4-1.6 s, -9 to -18 dB, original code); expander on the recording ambience after the tail; cosine fade-out; look-ahead peak limiter (2 ms, 80 ms release, up to 4.0 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant gun report with natural valley tail",
+     "download_sha256": "e91656f110a44a9736182c4b87f904cf1accf14c3379c97e82268dd6da04c19d",
+     "file_url": "https://cdn.freesound.org/previews/95/95129_87792-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Recorded 70mm salute cannons at a distance of about a half a mile. The battery of cannons in near a river in a valley on the Hudson River.",
+     "cuts": [
+      [
+       32.987,
+       37.717
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "offmap_artillery_salvo",
+   "file": "artillery-distant-3.ogg",
+   "durationS": 5.967,
+   "loop": false,
+   "loudnessLUFS": -24.54,
+   "peakDb": -3.27,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "989cf93aea0d573cafa380c368174c952aba4cc0153ec6d687469d74e99ed997",
+   "sizeBytes": 70673,
+   "variant": "shot 3",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 6.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.164,
+    "limiter_gain_reduction_db": 4.83
+   },
+   "usage_note": "One shot per file, onset at t=0; schedule 3 per salvo and delay each by distance/343 m/s after the flash.",
+   "path": "conquest/atmosphere/artillery-distant-3.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/nofeedbak/sounds/95129/",
+     "title": "Salute_Cannons.MP3",
+     "author": "nofeedbak",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "48.826-53.556 s",
+     "processing": "mono; onset-aligned (4 ms pre-roll; the game adds the distance/343 m/s delay); HP 28 Hz; LP shaping for range; leading crack limited by 5 dB (1 ms look-ahead, 60 ms release); valley echo = 2-3 discrete low-passed reflections (0.4-1.6 s, -9 to -18 dB, original code); expander on the recording ambience after the tail; cosine fade-out; look-ahead peak limiter (2 ms, 80 ms release, up to 4.8 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant gun report with natural valley tail",
+     "download_sha256": "e91656f110a44a9736182c4b87f904cf1accf14c3379c97e82268dd6da04c19d",
+     "file_url": "https://cdn.freesound.org/previews/95/95129_87792-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Recorded 70mm salute cannons at a distance of about a half a mile. The battery of cannons in near a river in a valley on the Hudson River.",
+     "cuts": [
+      [
+       48.826,
+       53.556
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "offmap_artillery_salvo",
+   "file": "artillery-distant-4.ogg",
+   "durationS": 5.506,
+   "loop": false,
+   "loudnessLUFS": -24.57,
+   "peakDb": -2.89,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "19caa3154022ab3a2c76199084b224348cfc8e53b1543c78b4fe5cbd58848489",
+   "sizeBytes": 58893,
+   "variant": "shot 4",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 6.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.13,
+    "limiter_gain_reduction_db": 3.13
+   },
+   "usage_note": "One shot per file, onset at t=0; schedule 3 per salvo and delay each by distance/343 m/s after the flash.",
+   "path": "conquest/atmosphere/artillery-distant-4.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/nofeedbak/sounds/95129/",
+     "title": "Salute_Cannons.MP3",
+     "author": "nofeedbak",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "7.238-11.968 s",
+     "processing": "mono; onset-aligned (4 ms pre-roll; the game adds the distance/343 m/s delay); HP 28 Hz; LP shaping for range; leading crack limited by 5 dB (1 ms look-ahead, 60 ms release); valley echo = 2-3 discrete low-passed reflections (0.4-1.6 s, -9 to -18 dB, original code); expander on the recording ambience after the tail; cosine fade-out; look-ahead peak limiter (2 ms, 80 ms release, up to 3.1 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant gun report with natural valley tail",
+     "download_sha256": "e91656f110a44a9736182c4b87f904cf1accf14c3379c97e82268dd6da04c19d",
+     "file_url": "https://cdn.freesound.org/previews/95/95129_87792-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Recorded 70mm salute cannons at a distance of about a half a mile. The battery of cannons in near a river in a valley on the Hudson River.",
+     "cuts": [
+      [
+       7.238,
+       11.968
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "offmap_artillery_salvo",
+   "file": "artillery-distant-5.ogg",
+   "durationS": 5.516,
+   "loop": false,
+   "loudnessLUFS": -24.82,
+   "peakDb": -3.21,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "e46541dcbfe04d33208360aa6734be5799c0233dc1f07902166e25a85b0e88be",
+   "sizeBytes": 58849,
+   "variant": "shot 5",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 6.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.195,
+    "limiter_gain_reduction_db": 4.48
+   },
+   "usage_note": "One shot per file, onset at t=0; schedule 3 per salvo and delay each by distance/343 m/s after the flash.",
+   "path": "conquest/atmosphere/artillery-distant-5.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/nofeedbak/sounds/95129/",
+     "title": "Salute_Cannons.MP3",
+     "author": "nofeedbak",
+     "license": "CC BY 4.0",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "retrieved": "2026-10-08",
+     "cut": "38.228-42.958 s",
+     "processing": "mono; onset-aligned (4 ms pre-roll; the game adds the distance/343 m/s delay); HP 28 Hz; LP shaping for range; leading crack limited by 5 dB (1 ms look-ahead, 60 ms release); valley echo = 2-3 discrete low-passed reflections (0.4-1.6 s, -9 to -18 dB, original code); expander on the recording ambience after the tail; cosine fade-out; look-ahead peak limiter (2 ms, 80 ms release, up to 4.5 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: distant gun report with natural valley tail",
+     "download_sha256": "e91656f110a44a9736182c4b87f904cf1accf14c3379c97e82268dd6da04c19d",
+     "file_url": "https://cdn.freesound.org/previews/95/95129_87792-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Recorded 70mm salute cannons at a distance of about a half a mile. The battery of cannons in near a river in a valley on the Hudson River.",
+     "cuts": [
+      [
+       38.228,
+       42.958
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "wind_valley",
+   "file": "wind-gust-swell.ogg",
+   "durationS": 9.983,
+   "loop": false,
+   "loudnessLUFS": -24.0,
+   "peakDb": -8.78,
+   "channels": 2,
+   "format": "Ogg Opus stereo 48 kHz 128 kbit/s (libopus, bitexact)",
+   "output_sha256": "6b247e937efbb5689f268f86ef1acc6131e587a79a629432c31dbe7fdf8ab9c4",
+   "sizeBytes": 146746,
+   "variant": "one-shot gust swell",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 2.0
+   },
+   "path": "conquest/atmosphere/wind-gust-swell.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/BudJillett/sounds/109485/",
+     "title": "Wind-Gusts-late-autumn.wav",
+     "author": "BudJillett",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "3.000-13.000 s",
+     "processing": "stereo; HP 170 Hz; 1.2 s sine fade-in, 2.0 s cosine fade-out shaping a single gust; normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: single wind gust through pines",
+     "download_sha256": "67b408bef416872ebebe14e4c10cb61023ffa29e1d6e06abfc9cc2eb3b0db623",
+     "file_url": "https://cdn.freesound.org/previews/109/109485_1213320-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Field recording in late autumn, New England, during 20+ MPH wind gusts. Pine forest.",
+     "cuts": [
+      [
+       3.0,
+       13.0
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "wind_valley",
+   "file": "wind-ridge-whistle.ogg",
+   "durationS": 58.0,
+   "loop": true,
+   "loudnessLUFS": -24.99,
+   "peakDb": -8.85,
+   "channels": 2,
+   "format": "Ogg Opus stereo 48 kHz 128 kbit/s (libopus, bitexact)",
+   "output_sha256": "b33eccae0ce052efe588dfd4ccb396034706306e2da7c4079a1e59d23159347d",
+   "sizeBytes": 833574,
+   "variant": "ridge / bunker exposure layer: moaning, whistling",
+   "normalization": {
+    "lufs_target": -25,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 0
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.00039,
+     "median_step": 0.00149,
+     "p99_step": 0.00672,
+     "level_jump_db": 1.42
+    },
+    "seam_decoded": {
+     "boundary_step": 0.00259,
+     "median_step": 0.00172,
+     "p99_step": 0.0075,
+     "level_jump_db": 1.34
+    }
+   },
+   "path": "conquest/atmosphere/wind-ridge-whistle.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/felix.blume/sounds/160469/",
+     "title": "Wind blowing in an antenna on the High Atlas mountain (Morocco).",
+     "author": "felix.blume",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "30.000-90.100 s",
+     "processing": "stereo; HP 140 Hz (removes mic wind buffeting / rumble); presence peak +3 dB @ 750 Hz; seamless fixed-length loop (2.0 s equal-power continuation overlap); linear gain only after looping; normalized toward -25 LUFS with peak cap -3.0 dBFS; layer: wind field recording",
+     "download_sha256": "85bcd1152f6323284e832e4b55021790577ca76f1e92d6523f0ffd4a391171b9",
+     "file_url": "https://cdn.freesound.org/previews/160/160469_1661766-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Wind blowing in an antenna on the High Atlas mountain (Morocco). Some bass rumble sometimes. Birds in background. Sound recorded by a MS setup Schoeps Microphone CCM41+CCM8 Sound Devices 744T recorder + Sound Devices 552 mixer MS is encoded in STEREO Left-Right sound reference: @PAS120324T013 record",
+     "cuts": [
+      [
+       30.0,
+       90.1
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "wind_valley",
+   "file": "wind-valley-bed.ogg",
+   "durationS": 56.0,
+   "loop": true,
+   "loudnessLUFS": -25.99,
+   "peakDb": -7.2,
+   "channels": 2,
+   "format": "Ogg Opus stereo 48 kHz 128 kbit/s (libopus, bitexact)",
+   "output_sha256": "2f700cbef66d3123e8bc785745943bbe1713f38b143161637ef3c84b2ad075c7",
+   "sizeBytes": 802212,
+   "variant": "soft open-valley bed",
+   "normalization": {
+    "lufs_target": -26,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 0
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.00071,
+     "median_step": 0.00026,
+     "p99_step": 0.00207,
+     "level_jump_db": -0.44
+    },
+    "seam_decoded": {
+     "boundary_step": 0.00684,
+     "median_step": 0.00175,
+     "p99_step": 0.01396,
+     "level_jump_db": -0.36
+    }
+   },
+   "path": "conquest/atmosphere/wind-valley-bed.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/454092/",
+     "title": "mountain wind heavy strong gusts Swiss Alps.flac",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "78.000-136.100 s",
+     "processing": "stereo; HP 70 Hz (removes mic wind buffeting / rumble); LP 9 kHz; seamless fixed-length loop (2.0 s equal-power continuation overlap); linear gain only after looping; normalized toward -26 LUFS with peak cap -3.0 dBFS; layer: wind field recording",
+     "download_sha256": "fc059051fb0f60adb4dc42e889e6b9d33c8b242280d46d516dd2fccdd6fac4fe",
+     "file_url": "https://cdn.freesound.org/previews/454/454092_612689-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "mountain wind heavy strong gusts Swiss Alps.flac",
+     "cuts": [
+      [
+       78.0,
+       136.1
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "wind_valley",
+   "file": "wind-valley-gusty.ogg",
+   "durationS": 64.0,
+   "loop": true,
+   "loudnessLUFS": -24.0,
+   "peakDb": -3.45,
+   "channels": 2,
+   "format": "Ogg Opus stereo 48 kHz 128 kbit/s (libopus, bitexact)",
+   "output_sha256": "5862d04384c50e4eb6547f5fed4ac2aec2d616c862c9cf898dbe5607e6655c6e",
+   "sizeBytes": 919582,
+   "variant": "gusty layer (scaled by weather wind 0.8/1.6/2.2)",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 3
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.0,
+     "median_step": 0.00144,
+     "p99_step": 0.01131,
+     "level_jump_db": -0.19
+    },
+    "limiter_gain_reduction_db": 1.71,
+    "seam_decoded": {
+     "boundary_step": 0.00026,
+     "median_step": 0.00613,
+     "p99_step": 0.04785,
+     "level_jump_db": -0.23
+    }
+   },
+   "path": "conquest/atmosphere/wind-valley-gusty.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/BudJillett/sounds/109485/",
+     "title": "Wind-Gusts-late-autumn.wav",
+     "author": "BudJillett",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "78.000-144.600 s",
+     "processing": "stereo; HP 170 Hz (removes mic wind buffeting / rumble); low shelf +3 dB @ 300 Hz; seamless fixed-length loop (2.5 s equal-power continuation overlap); linear gain only after looping; circular look-ahead peak limiter (2 ms, 80 ms release, up to 1.7 dB GR); normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: wind field recording",
+     "download_sha256": "67b408bef416872ebebe14e4c10cb61023ffa29e1d6e06abfc9cc2eb3b0db623",
+     "file_url": "https://cdn.freesound.org/previews/109/109485_1213320-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Field recording in late autumn, New England, during 20+ MPH wind gusts. Pine forest.",
+     "cuts": [
+      [
+       78.0,
+       144.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "river_flow",
+   "file": "river-flow.ogg",
+   "durationS": 36.0,
+   "loop": true,
+   "loudnessLUFS": -24.0,
+   "peakDb": -7.82,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "e6c40508514ab397d00ce1302176955f1f24348ca0139060edb6ee456bb7ff47",
+   "sizeBytes": 394823,
+   "variant": "gentle river flow (along the bank)",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 0
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.00152,
+     "median_step": 0.00188,
+     "p99_step": 0.0076,
+     "level_jump_db": -0.56
+    },
+    "seam_decoded": {
+     "boundary_step": 0.00675,
+     "median_step": 0.00806,
+     "p99_step": 0.03251,
+     "level_jump_db": -0.54
+    }
+   },
+   "path": "conquest/atmosphere/river-flow.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Garuda1982/sounds/690137/",
+     "title": "river flowing",
+     "author": "Garuda1982",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "40.000-77.600 s",
+     "processing": "mono; HP 60 Hz, LP 7 kHz, gentle 2 kHz dip; seamless fixed-length loop (1.5 s equal-power continuation overlap); linear gain only; normalized toward -24 LUFS with peak cap -3.0 dBFS; layer: river flow",
+     "download_sha256": "c64ee8128842aa911c3d532e25ac54565a01ffd09c522cb27a79fe7272dfcee2",
+     "file_url": "https://cdn.freesound.org/previews/690/690137_2061858-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "river flowing recorded with Zoom F3 recorder and Rycote HC15 microphone. 24bit/96khz. Time 11:00AM Germany/Leipzig/Lupe (River) GPS: 51.37434, 12.27996. Weather 25° Celsius, 1016 hPa, humidity 50% If you’re interested in how and where these sounds were recorded, feel free to check out my YouTube cha",
+     "cuts": [
+      [
+       40.0,
+       77.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "river_flow",
+   "file": "river-ford-rapids.ogg",
+   "durationS": 30.0,
+   "loop": true,
+   "loudnessLUFS": -21.99,
+   "peakDb": -5.96,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "2a117ba4aad840fd06ad79aa04b9452b1e487dace0a5b4e372aa87996ce3780f",
+   "sizeBytes": 335225,
+   "variant": "shallow ford / under-bridge rapids",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 0
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.01226,
+     "median_step": 0.01173,
+     "p99_step": 0.04942,
+     "level_jump_db": -0.43
+    },
+    "seam_decoded": {
+     "boundary_step": 0.01085,
+     "median_step": 0.00965,
+     "p99_step": 0.04058,
+     "level_jump_db": -0.38
+    }
+   },
+   "path": "conquest/atmosphere/river-ford-rapids.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/naturenotesuk/sounds/520077/",
+     "title": "Flowing Water - River Wid",
+     "author": "naturenotesuk",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "100.000-131.600 s",
+     "processing": "mono; HP 80 Hz, LP 4.2 kHz (tames distant bird calls); seamless fixed-length loop (1.5 s overlap); linear gain only; normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: water running across a road ford",
+     "download_sha256": "56d3a5dc1005d70be8ecff4214040f31640de743795a3668b408d9128e9c1b73",
+     "file_url": "https://cdn.freesound.org/previews/520/520077_7455632-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Recorded at Buttsbury Wash, part of the River Wid, Essex, UK. This is a part of the river that flows across a minor road (a ford). Birds can be heard in the background but the main sound is from the flowing water. Recorded with a Sennheiser ME66/K6 attached to a Zoom H5.",
+     "cuts": [
+      [
+       100.0,
+       131.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "birds_farm_village",
+   "file": "birds-countryside-bed.ogg",
+   "durationS": 60.0,
+   "loop": true,
+   "loudnessLUFS": -27.99,
+   "peakDb": -11.43,
+   "channels": 2,
+   "format": "Ogg Opus stereo 48 kHz 128 kbit/s (libopus, bitexact)",
+   "output_sha256": "d6c361cb9b2e6a721f0c7c0040f97a25f72ab74f2a3dd6e2304aec6dde25422e",
+   "sizeBytes": 931195,
+   "variant": "songbird bed (farm A)",
+   "normalization": {
+    "lufs_target": -28,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 0
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.0004,
+     "median_step": 0.0006,
+     "p99_step": 0.00425,
+     "level_jump_db": -0.15
+    },
+    "seam_decoded": {
+     "boundary_step": 0.00163,
+     "median_step": 0.00264,
+     "p99_step": 0.01871,
+     "level_jump_db": -0.15
+    }
+   },
+   "path": "conquest/atmosphere/birds-countryside-bed.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/jakubp.jp/sounds/566147/",
+     "title": "AMBBird_Birds In Rural Area Early Spring Morning_Jaku5.wav",
+     "author": "jakubp.jp",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "118.000-180.100 s",
+     "processing": "stereo; HP 280 Hz (removes traffic/wind rumble), LP 11 kHz; seamless fixed-length loop (2 s overlap); linear gain only; normalized toward -28 LUFS with peak cap -3.0 dBFS; layer: rural spring morning birdsong",
+     "download_sha256": "049c33e19c375b45b8ae3205e566338a75cbca5b09aae1c9d921233acafe5804",
+     "file_url": "https://cdn.freesound.org/previews/566/566147_3921235-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Birds singing in rural area on early spring int the morning. Recorded from open window perspective with mikroUsi in AB setup.",
+     "cuts": [
+      [
+       118.0,
+       180.1
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "birds_farm_village",
+   "file": "birds-meadow-bed.ogg",
+   "durationS": 56.0,
+   "loop": true,
+   "loudnessLUFS": -27.98,
+   "peakDb": -12.11,
+   "channels": 2,
+   "format": "Ogg Opus stereo 48 kHz 128 kbit/s (libopus, bitexact)",
+   "output_sha256": "7fa1eb3b587de63fccc3b8a14bce85f3b8040de8a0d647d412c3ffab65677721",
+   "sizeBytes": 684420,
+   "variant": "songbird bed (village B / meadows)",
+   "normalization": {
+    "lufs_target": -28,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 0
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.00059,
+     "median_step": 0.00139,
+     "p99_step": 0.00555,
+     "level_jump_db": 0.48
+    },
+    "seam_decoded": {
+     "boundary_step": 0.00319,
+     "median_step": 0.00667,
+     "p99_step": 0.02667,
+     "level_jump_db": 0.5
+    }
+   },
+   "path": "conquest/atmosphere/birds-meadow-bed.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/rubindaniel/sounds/847380/",
+     "title": "Springtime birdsong with soft wind ambiance",
+     "author": "rubindaniel",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "140.000-198.100 s",
+     "processing": "stereo; HP 380 Hz (removes wind rumble), LP 11 kHz; seamless fixed-length loop (2 s overlap); linear gain only; normalized toward -28 LUFS with peak cap -3.0 dBFS; layer: spring meadow birdsong",
+     "download_sha256": "3f0c84e54bac8d39d2ae04814591f127d76c14370bb1a8faf69332f8838587fa",
+     "file_url": "https://cdn.freesound.org/previews/847/847380_15082088-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Various birds and soft wind on an early spring meadow. Recorded in Nagykovacsi, Hungary. If you like it, rate it!",
+     "cuts": [
+      [
+       140.0,
+       198.1
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "birds_farm_village",
+   "file": "birds-scatter.ogg",
+   "durationS": 4.481,
+   "loop": false,
+   "loudnessLUFS": -22.71,
+   "peakDb": -3.96,
+   "channels": 2,
+   "format": "Ogg Opus stereo 48 kHz 128 kbit/s (libopus, bitexact)",
+   "output_sha256": "7b8784d27f3ebcf55c778219de494b14a9fe8a18e4f8c8162be141214c6dfb5a",
+   "sizeBytes": 70704,
+   "variant": "flock takes off after a nearby blast",
+   "normalization": {
+    "lufs_target": -21,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 4.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.019,
+    "limiter_gain_reduction_db": 4.0
+   },
+   "path": "conquest/atmosphere/birds-scatter.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/TRP/sounds/616623/",
+     "title": "121003 Pigeon flock fly away, wing flaps, Toronto.wav",
+     "author": "TRP",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "1.100-5.600 s",
+     "processing": "stereo; HP 200 Hz; onset 30 ms pre-roll; 0.8 s fade-out; look-ahead peak limiter (2 ms, 80 ms release, 4.0 dB GR); normalized toward -21 LUFS with peak cap -3.0 dBFS; layer: pigeon flock flies away, wing flaps",
+     "download_sha256": "80f57cb179bf7a683db8620d9d6309b1bbf7060c4f9b21d8b4ef4893d6411b3b",
+     "file_url": "https://cdn.freesound.org/previews/616/616623_97550-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Flock of pigeons flies away, wind flaps, urban. Sony M10. 2012.",
+     "cuts": [
+      [
+       1.1,
+       5.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "birds_farm_village",
+   "file": "crow-caw-1.ogg",
+   "durationS": 1.508,
+   "loop": false,
+   "loudnessLUFS": -21.98,
+   "peakDb": -9.03,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "c0a71b1aff8288c6ec5515fafdc157b3ffc7360c50bd93e077e4009d5bc63f8f",
+   "sizeBytes": 18760,
+   "variant": "hooded crow caws",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 4.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.042
+   },
+   "path": "conquest/atmosphere/crow-caw-1.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Mish7913/sounds/741366/",
+     "title": "Hooded Crow: Cawing",
+     "author": "Mish7913",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.100-1.650 s",
+     "processing": "mono; HP 250 Hz; cut to three caws; 5 ms fade-in, 0.3 s fade-out; normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: hooded crow cawing",
+     "download_sha256": "38e27a7a56990f391eb2349c1130b9f2135c9d5e0809ba4d3aa37b0a3d17c38a",
+     "file_url": "https://cdn.freesound.org/previews/741/741366_16104671-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "I recorded this sound in 2018, it's a sound of hooded crow cawing when he's bored.",
+     "cuts": [
+      [
+       0.1,
+       1.65
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "birds_farm_village",
+   "file": "crow-caw-2.ogg",
+   "durationS": 2.24,
+   "loop": false,
+   "loudnessLUFS": -21.99,
+   "peakDb": -9.84,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "9863d8adcbbe16f7327710c7ec38eaaee1c0a5e7fa8c09b026d16e8ef0caa64d",
+   "sizeBytes": 31105,
+   "variant": "crow call flying off",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 4.0
+   },
+   "path": "conquest/atmosphere/crow-caw-2.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/nigelcoop/sounds/75162/",
+     "title": "crow.wav",
+     "author": "nigelcoop",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.060-2.300 s",
+     "processing": "mono; HP 300 Hz; 5 ms fade-in, 0.4 s fade-out; normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: crow cawing while flying off",
+     "download_sha256": "2c0be5a02cd0feebb0a8ea2258378850e0c87fb1b30140bd0792de54d437e523",
+     "file_url": "https://cdn.freesound.org/previews/75/75162_1088850-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Crow cawing loudly whilst flying off. Field recording. Background noise filtered out for easy mixing with other sounds",
+     "cuts": [
+      [
+       0.06,
+       2.3
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "church_bell",
+   "file": "church-bell-toll.ogg",
+   "durationS": 13.157,
+   "loop": false,
+   "loudnessLUFS": -23.13,
+   "peakDb": -3.21,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "7735fd3283508b7f98f88a62ac0c4979d3e2074ebce799b8196f590f89d7fa5a",
+   "sizeBytes": 155978,
+   "variant": "single distant toll",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 4.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.923,
+    "limiter_gain_reduction_db": 3.75
+   },
+   "path": "conquest/atmosphere/church-bell-toll.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Sadiquecat/sounds/852491/",
+     "title": "20260420_23h30 Church bell half hour mark",
+     "author": "Sadiquecat",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.400-14.500 s",
+     "processing": "mono; HP 90 Hz; onset 10 ms pre-roll; natural decay kept (~13 s); expander on ambience after 9 s; 2.5 s fade-out; look-ahead peak limiter (2 ms, 80 ms release, 3.7 dB GR); normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: village church bell strike, night",
+     "download_sha256": "9f0215e02d5cef69c72fac7fb09e773a518223295ea1d7c6bc1beb7bf68f909a",
+     "file_url": "https://cdn.freesound.org/previews/852/852491_5287430-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Subject : The bells from the church in Rouvenac. Date YMD : 2026 April 20 Location : Albi 81000 Tarn Occitanie France. Hardware : DJI Mic 3 TX. Weather : Processing : Trimmed and normalised in Audacity. Notes : Church bells rings all day with two tones. One half-hour mark hit. X hour hits (even at n",
+     "cuts": [
+      [
+       0.4,
+       14.5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "kessler_works_industrial",
+   "file": "industrial-creak-clank.ogg",
+   "durationS": 3.345,
+   "loop": false,
+   "loudnessLUFS": -22.01,
+   "peakDb": -5.82,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "0c1f2d3f723700c8a6853dfabe6292626d959167945ce93a483f667a507a525d",
+   "sizeBytes": 37061,
+   "variant": "occasional metal creak + clank",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 4.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.231
+   },
+   "path": "conquest/atmosphere/industrial-creak-clank.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Soapuel/sounds/489442/",
+     "title": "Creaking Metal.wav",
+     "author": "Soapuel",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "16.600-18.900 s",
+     "processing": "mono; metal creak HP 120 Hz, LP 6 kHz; clang placed 0.9 s after the creak start at -2 dB, LP 5 kHz; synthetic 0.35 s / 0.8 s low-passed reflections at -12/-18 dB; 0.8 s fade-out; normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: creaking metal",
+     "download_sha256": "a8b76103eca2eebcd2208a65eceb4794840497fada6546895f3e285f137c7b2d",
+     "file_url": "https://cdn.freesound.org/previews/489/489442_10448599-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "The sounds of metal creaking",
+     "cuts": [
+      [
+       16.6,
+       18.9
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/tomwilkinson/sounds/568787/",
+     "title": "Two metallic clangs",
+     "author": "tomwilkinson",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.620-2.900 s",
+     "processing": "mono; metal creak HP 120 Hz, LP 6 kHz; clang placed 0.9 s after the creak start at -2 dB, LP 5 kHz; synthetic 0.35 s / 0.8 s low-passed reflections at -12/-18 dB; 0.8 s fade-out; normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: metallic clang",
+     "download_sha256": "00cdd42918805f6e634d1c7078ee9825e2273220bdab4bac74eccb60d814878e",
+     "file_url": "https://cdn.freesound.org/previews/568/568787_1650856-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Two metallic clangs with a few seconds' reverb, generated by hitting a metal magazine rack. recorded on a handheld Zoom H6N.",
+     "cuts": [
+      [
+       0.62,
+       2.9
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "kessler_works_industrial",
+   "file": "industrial-drone.ogg",
+   "durationS": 26.0,
+   "loop": true,
+   "loudnessLUFS": -22.0,
+   "peakDb": -7.58,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "bc9bb8e27302c115f6279de844ea3fea83590392eec1dff5921daa56657cad3d",
+   "sizeBytes": 285576,
+   "variant": "low drone + steam hiss loop",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 0
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.05091,
+     "median_step": 0.06385,
+     "p99_step": 0.24677,
+     "level_jump_db": 1.32
+    },
+    "seam_decoded": {
+     "boundary_step": 0.00163,
+     "median_step": 0.00538,
+     "p99_step": 0.02078,
+     "level_jump_db": 1.36
+    }
+   },
+   "path": "conquest/atmosphere/industrial-drone.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/455816/",
+     "title": "noisy industrial factory ambience2 with releases.flac",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "6.000-33.600 s",
+     "processing": "mono; factory drone HP 30 Hz, LP 2.4 kHz, low shelf +3 dB @ 120 Hz (heard from outside); steam-pipe hiss layer BP 1.5-9 kHz at -16 dB; seamless fixed-length loop (1.5 s overlap); linear gain only; normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: industrial factory ambience (drone)",
+     "download_sha256": "ac3058e8ec4bdc2a1ebb215882814ae5a544cf30f5e9fd8d0b8666797a953be1",
+     "file_url": "https://cdn.freesound.org/previews/455/455816_612689-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "noisy industrial factory ambience2 with releases.flac",
+     "cuts": [
+      [
+       6.0,
+       33.6
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/kyles/sounds/453462/",
+     "title": "industrial steam pipes hiss hum.flac",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "10.000-37.600 s",
+     "processing": "mono; factory drone HP 30 Hz, LP 2.4 kHz, low shelf +3 dB @ 120 Hz (heard from outside); steam-pipe hiss layer BP 1.5-9 kHz at -16 dB; seamless fixed-length loop (1.5 s overlap); linear gain only; normalized toward -22 LUFS with peak cap -3.0 dBFS; layer: industrial steam pipes hiss",
+     "download_sha256": "16d22c4a301d4624ac0e65541fd6d670594e7a8e4eec8ae08425570245fd20be",
+     "file_url": "https://cdn.freesound.org/previews/453/453462_612689-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "industrial steam pipes hiss hum.flac",
+     "cuts": [
+      [
+       10.0,
+       37.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "kessler_works_industrial",
+   "file": "industrial-steam-release.ogg",
+   "durationS": 5.6,
+   "loop": false,
+   "loudnessLUFS": -23.08,
+   "peakDb": -10.67,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "fad88501b4025e0ba734ad4005cf044c2871112e47d5e2794ed9483550e9dfdc",
+   "sizeBytes": 61095,
+   "variant": "occasional steam release burst",
+   "normalization": {
+    "lufs_target": -23,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 4.0
+   },
+   "path": "conquest/atmosphere/industrial-steam-release.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/455816/",
+     "title": "noisy industrial factory ambience2 with releases.flac",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "33.200-38.800 s",
+     "processing": "mono; factory steam release HP 200 Hz, LP 10 kHz; 0.25 s fade-in, 1.2 s fade-out; normalized toward -23 LUFS with peak cap -3.0 dBFS; layer: steam release in factory",
+     "download_sha256": "ac3058e8ec4bdc2a1ebb215882814ae5a544cf30f5e9fd8d0b8666797a953be1",
+     "file_url": "https://cdn.freesound.org/previews/455/455816_612689-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "noisy industrial factory ambience2 with releases.flac",
+     "cuts": [
+      [
+       33.2,
+       38.8
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "burning_wreck_props",
+   "file": "wreck-fire-crackle.ogg",
+   "durationS": 24.0,
+   "loop": true,
+   "loudnessLUFS": -26.0,
+   "peakDb": -5.34,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "fffad6127c062dc8679f98c4587d0d6773d7f61de5d28f70b046d27776626c5c",
+   "sizeBytes": 315949,
+   "variant": "quiet positional crackle loop",
+   "normalization": {
+    "lufs_target": -26,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 10
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.0149,
+     "median_step": 0.03961,
+     "p99_step": 0.50452,
+     "level_jump_db": -1.83
+    },
+    "seam_decoded": {
+     "boundary_step": 0.00238,
+     "median_step": 0.0038,
+     "p99_step": 0.04798,
+     "level_jump_db": -1.93
+    }
+   },
+   "usage_note": "Dedicated quiet crackle loop; the vehicle_burning loop from the vehicles bank can be used instead at lower gain.",
+   "path": "conquest/atmosphere/wreck-fire-crackle.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/TheWoodlandNomad/sounds/363093/",
+     "title": "Fire Crackle and Flames 001",
+     "author": "TheWoodlandNomad",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "2.000-26.900 s",
+     "processing": "mono; log-fire crackle (HP 120 Hz) + flame body/pops layer (HP 60 Hz, -4 dB); LP 9 kHz; pop tamer (limiter, crest <= 14 dB); seamless fixed-length loop (0.8 s overlap); linear gain only; normalized toward -26 LUFS with peak cap -3.0 dBFS; layer: fire crackle and flames",
+     "download_sha256": "c4ed578302d433be5176b580a32373c3ef7c42ef37ae0f2ba4e956a32bf5c3b5",
+     "file_url": "https://cdn.freesound.org/previews/363/363093_6612464-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Crackling log fire with dancing flames. Occasional popping from logs. Recorded on a Zoom H1.",
+     "cuts": [
+      [
+       2.0,
+       26.9
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/ahriik/sounds/508110/",
+     "title": "fire ambience, flames, crackles, pops, burning",
+     "author": "ahriik",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "1.000-25.900 s",
+     "processing": "mono; log-fire crackle (HP 120 Hz) + flame body/pops layer (HP 60 Hz, -4 dB); LP 9 kHz; pop tamer (limiter, crest <= 14 dB); seamless fixed-length loop (0.8 s overlap); linear gain only; normalized toward -26 LUFS with peak cap -3.0 dBFS; layer: fire ambience, flames, pops",
+     "download_sha256": "ea808f3f156314a8efc55a85748ede6dff3a6a69247547cc7324bbd12df6f0c4",
+     "file_url": "https://cdn.freesound.org/previews/508/508110_6657854-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Fire ambience sound, with some small crackles and pops throughout. Good for campfire or indoor fire sfx/ambience/tone. Recorded with a Sennheiser MKH-50 into a Zoom F4 recorder.",
+     "cuts": [
+      [
+       1.0,
+       25.9
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "radio_chatter",
+   "file": "radio-chatter-1.ogg",
+   "durationS": 2.17,
+   "loop": false,
+   "loudnessLUFS": -23.55,
+   "peakDb": -4.28,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "50fd2cfb5ed3b60762f39d2f5630d8feaf90ced5d25de8e15d38aada5bdc48a4",
+   "sizeBytes": 35076,
+   "variant": "garbled transmission 1 (1.6 s)",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -4.0,
+    "limiter_max_gr_db": 7.0
+   },
+   "notes": {
+    "limiter_gain_reduction_db": 7.0
+   },
+   "path": "conquest/atmosphere/radio-chatter-1.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/crcavol/sounds/154654/",
+     "title": "Walkie_Talkie_Static.aif",
+     "author": "crcavol",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "1.000-3.200 s",
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); look-ahead peak limiter (2 ms, 80 ms release, up to 7.0 dB GR); normalized toward -22 LUFS with peak cap -4.0 dBFS; layer: radio static bed",
+     "download_sha256": "ac25e9dd41880d706312fb0d00d24c752f44dadb85a3e518ba9014fccc7b4ad5",
+     "file_url": "https://cdn.freesound.org/previews/154/154654_2592500-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "walkie talkie static",
+     "cuts": [
+      [
+       1.0,
+       3.2
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/LukaCafuka/sounds/760245/",
+     "title": "Walkie-talkie end of transmission",
+     "author": "LukaCafuka",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-0.400 s",
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); look-ahead peak limiter (2 ms, 80 ms release, up to 7.0 dB GR); normalized toward -22 LUFS with peak cap -4.0 dBFS; layer: end-of-transmission squelch",
+     "download_sha256": "c1198be3b265bf3b1c34a24ad3ef60ecfaa3a7d51c2b108a2fd0156fcc79a375",
+     "file_url": "https://cdn.freesound.org/previews/760/760245_16236894-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Static-like sound of an ELBEX GT 410 walkie-talkie, when the transmit button is released. Recorded with Zoom H1n",
+     "cuts": [
+      [
+       0.0,
+       0.4
+      ]
+     ]
+    },
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); look-ahead peak limiter (2 ms, 80 ms release, up to 7.0 dB GR); normalized toward -22 LUFS with peak cap -4.0 dBFS",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "radio_chatter",
+   "file": "radio-chatter-2.ogg",
+   "durationS": 2.936,
+   "loop": false,
+   "loudnessLUFS": -22.0,
+   "peakDb": -6.87,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "0f69edff5ec67d9e13cf832692c925ede4e010daa7cdaea7e7b6422a2184678f",
+   "sizeBytes": 36742,
+   "variant": "garbled transmission 2 (2.4 s)",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -4.0,
+    "limiter_max_gr_db": 5.0
+   },
+   "path": "conquest/atmosphere/radio-chatter-2.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/JovianSounds/sounds/524204/",
+     "title": "Radio Static",
+     "author": "JovianSounds",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.500-3.500 s",
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); normalized toward -22 LUFS with peak cap -4.0 dBFS; layer: radio static bed",
+     "download_sha256": "26b5b456e1654d287b7c5253d87e6a92ab17a44ca2f2bd1be745c9db36569863",
+     "file_url": "https://cdn.freesound.org/previews/524/524204_9561949-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Background static of a walkie-talkie radio. Good to place in the background of radio dialogue, or any other purpose you can think of.",
+     "cuts": [
+      [
+       0.5,
+       3.5
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/ReadeOnly/sounds/47646/",
+     "title": "End radio transmission",
+     "author": "ReadeOnly",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-0.400 s",
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); normalized toward -22 LUFS with peak cap -4.0 dBFS; layer: end-of-transmission squelch",
+     "download_sha256": "ee40d52afb6545be601345535681c693f6428073604d36bd61d0a51f96843a7e",
+     "file_url": "https://cdn.freesound.org/previews/47/47646_545448-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "The burst of static at the end of a radio transmission, a toy walkie-talkie in this case.",
+     "cuts": [
+      [
+       0.0,
+       0.4
+      ]
+     ]
+    },
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); normalized toward -22 LUFS with peak cap -4.0 dBFS",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "radio_chatter",
+   "file": "radio-chatter-3.ogg",
+   "durationS": 1.509,
+   "loop": false,
+   "loudnessLUFS": -21.99,
+   "peakDb": -6.3,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "3cf509f102be2c08e5aea8639c50508b954d18599f189b5b4b92b1581eb51985",
+   "sizeBytes": 22259,
+   "variant": "garbled transmission 3 (1.1 s)",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -4.0,
+    "limiter_max_gr_db": 5.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.911
+   },
+   "path": "conquest/atmosphere/radio-chatter-3.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/crcavol/sounds/154654/",
+     "title": "Walkie_Talkie_Static.aif",
+     "author": "crcavol",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "4.000-5.700 s",
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); normalized toward -22 LUFS with peak cap -4.0 dBFS; layer: radio static bed",
+     "download_sha256": "ac25e9dd41880d706312fb0d00d24c752f44dadb85a3e518ba9014fccc7b4ad5",
+     "file_url": "https://cdn.freesound.org/previews/154/154654_2592500-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "walkie talkie static",
+     "cuts": [
+      [
+       4.0,
+       5.7
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/JovianSounds/sounds/524205/",
+     "title": "Radio Sign Off / Squelch",
+     "author": "JovianSounds",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-1.150 s",
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); normalized toward -22 LUFS with peak cap -4.0 dBFS; layer: end-of-transmission squelch",
+     "download_sha256": "3e9bf7dfce302a139b7d89ee4f91266c3c84c1ae06ffcec7450ad116e7c51a6e",
+     "file_url": "https://cdn.freesound.org/previews/524/524205_9561949-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Sound that plays when ending conversation on a walkie-talkie radio.",
+     "cuts": [
+      [
+       0.0,
+       1.15
+      ]
+     ]
+    },
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); normalized toward -22 LUFS with peak cap -4.0 dBFS",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "radio_chatter",
+   "file": "radio-chatter-4.ogg",
+   "durationS": 3.57,
+   "loop": false,
+   "loudnessLUFS": -22.0,
+   "peakDb": -4.4,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "c4c3eb307ababb819f697b05fef136034a2378042884fe01deeb147dacbacb8b",
+   "sizeBytes": 44279,
+   "variant": "garbled transmission 4 (3.0 s)",
+   "normalization": {
+    "lufs_target": -22,
+    "peak_cap_db": -4.0,
+    "limiter_max_gr_db": 5.0
+   },
+   "path": "conquest/atmosphere/radio-chatter-4.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/JovianSounds/sounds/524204/",
+     "title": "Radio Static",
+     "author": "JovianSounds",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "1.800-5.400 s",
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); normalized toward -22 LUFS with peak cap -4.0 dBFS; layer: radio static bed",
+     "download_sha256": "26b5b456e1654d287b7c5253d87e6a92ab17a44ca2f2bd1be745c9db36569863",
+     "file_url": "https://cdn.freesound.org/previews/524/524204_9561949-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Background static of a walkie-talkie radio. Good to place in the background of radio dialogue, or any other purpose you can think of.",
+     "cuts": [
+      [
+       1.8,
+       5.4
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/LukaCafuka/sounds/760245/",
+     "title": "Walkie-talkie end of transmission",
+     "author": "LukaCafuka",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-0.400 s",
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); normalized toward -22 LUFS with peak cap -4.0 dBFS; layer: end-of-transmission squelch",
+     "download_sha256": "c1198be3b265bf3b1c34a24ad3ef60ecfaa3a7d51c2b108a2fd0156fcc79a375",
+     "file_url": "https://cdn.freesound.org/previews/760/760245_16236894-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Static-like sound of an ELBEX GT 410 walkie-talkie, when the transmit button is released. Recorded with Zoom H1n",
+     "cuts": [
+      [
+       0.0,
+       0.4
+      ]
+     ]
+    },
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedurally formant-synthesized unintelligible male babble (random vowel/consonant syllables, original code; no recorded voices), radio chain: BP 380-2700 Hz, tanh saturation, +4 dB @ 1.6 kHz; walkie-talkie static bed (CC0) under the voice; key-up click + end-of-transmission squelch tail (CC0); normalized toward -22 LUFS with peak cap -4.0 dBFS",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "radio_chatter",
+   "file": "radio-squelch-1.ogg",
+   "durationS": 0.549,
+   "loop": false,
+   "loudnessLUFS": -24.0,
+   "peakDb": -7.68,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "f5ed7657d35b2b6ee8eb9200de9160a318616dda70a26f36370c3eb13e0eb13e",
+   "sizeBytes": 7215,
+   "variant": "squelch burst (open + static + close)",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -4.0,
+    "limiter_max_gr_db": 3.0
+   },
+   "path": "conquest/atmosphere/radio-squelch-1.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/crcavol/sounds/154654/",
+     "title": "Walkie_Talkie_Static.aif",
+     "author": "crcavol",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "6.000-6.600 s",
+     "processing": "mono; key-up click, 0.45 s band-limited static (BP 300-4 kHz) with fast swell, CC0 squelch tail; normalized toward -24 LUFS with peak cap -4.0 dBFS; layer: walkie-talkie static",
+     "download_sha256": "ac25e9dd41880d706312fb0d00d24c752f44dadb85a3e518ba9014fccc7b4ad5",
+     "file_url": "https://cdn.freesound.org/previews/154/154654_2592500-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "walkie talkie static",
+     "cuts": [
+      [
+       6.0,
+       6.6
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/magnuswaker/sounds/522164/",
+     "title": "Radio Buzz / Squelch 1",
+     "author": "magnuswaker",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-0.300 s",
+     "processing": "mono; key-up click, 0.45 s band-limited static (BP 300-4 kHz) with fast swell, CC0 squelch tail; normalized toward -24 LUFS with peak cap -4.0 dBFS; layer: radio buzz squelch",
+     "download_sha256": "6e50f3f0191d773f6302d3d500abe45ca638812c2ee611c072174834752bf094",
+     "file_url": "https://cdn.freesound.org/previews/522/522164_11537497-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Simply put, the creation of this was amplification of sound to noise ratio noise from a recording put on a high gain with a bit of saturation. Could be used for the radio commnunication between two parties, exchanging intel.",
+     "cuts": [
+      [
+       0.0,
+       0.3
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "radio_chatter",
+   "file": "radio-squelch-2.ogg",
+   "durationS": 0.849,
+   "loop": false,
+   "loudnessLUFS": -23.99,
+   "peakDb": -8.12,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "27eec6034b1412c0348f25368c02c92a015b8279ff2fc6ff00c9a4dc4ad71127",
+   "sizeBytes": 12565,
+   "variant": "double squelch break (no voice)",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -4.0,
+    "limiter_max_gr_db": 3.0
+   },
+   "path": "conquest/atmosphere/radio-squelch-2.ogg",
+   "sources": [
+    {
+     "url": "https://freesound.org/people/JovianSounds/sounds/524204/",
+     "title": "Radio Static",
+     "author": "JovianSounds",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "2.000-3.000 s",
+     "processing": "mono; two short static bursts (0.18 s / 0.3 s) from CC0 radio static, BP 300-4 kHz; CC0 sign-off squelch tail; normalized toward -24 LUFS with peak cap -4.0 dBFS; layer: radio static",
+     "download_sha256": "26b5b456e1654d287b7c5253d87e6a92ab17a44ca2f2bd1be745c9db36569863",
+     "file_url": "https://cdn.freesound.org/previews/524/524204_9561949-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Background static of a walkie-talkie radio. Good to place in the background of radio dialogue, or any other purpose you can think of.",
+     "cuts": [
+      [
+       2.0,
+       3.0
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/JovianSounds/sounds/524205/",
+     "title": "Radio Sign Off / Squelch",
+     "author": "JovianSounds",
+     "license": "CC0 1.0",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-1.150 s",
+     "processing": "mono; two short static bursts (0.18 s / 0.3 s) from CC0 radio static, BP 300-4 kHz; CC0 sign-off squelch tail; normalized toward -24 LUFS with peak cap -4.0 dBFS; layer: radio sign-off squelch",
+     "download_sha256": "3e9bf7dfce302a139b7d89ee4f91266c3c84c1ae06ffcec7450ad116e7c51a6e",
+     "file_url": "https://cdn.freesound.org/previews/524/524205_9561949-hq.ogg",
+     "source_format": "Freesound HQ preview (Ogg Vorbis); original download requires login",
+     "provenance_note": "Sound that plays when ending conversation on a walkie-talkie radio.",
+     "cuts": [
+      [
+       0.0,
+       1.15
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "flag_capture_cues",
+   "file": "flag-capture-progress-loop.ogg",
+   "durationS": 2.0,
+   "loop": true,
+   "loudnessLUFS": -24.94,
+   "peakDb": -2.99,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "441ce635649f195bf8630f5c7125faa39b7c03c7b98afbbc3112b9b289f450f7",
+   "sizeBytes": 48012,
+   "variant": "capture progress tick loop while in zone (pitch with playbackRate by progress)",
+   "normalization": {
+    "lufs_target": -24,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 0
+   },
+   "notes": {
+    "seam": {
+     "boundary_step": 0.01121,
+     "median_step": 0.00074,
+     "p99_step": 0.14634,
+     "level_jump_db": 6.51
+    },
+    "loudness_limited_by_peak_cap": true,
+    "seam_decoded": {
+     "boundary_step": 0.00266,
+     "median_step": 0.00032,
+     "p99_step": 0.06239,
+     "level_jump_db": 6.48
+    }
+   },
+   "path": "conquest/atmosphere/flag-capture-progress-loop.ogg",
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedural synthesis (original code: polyBLEP oscillators, filtered noise, envelopes); no samples; exact 2.000 s loop, ticks at 4 Hz, circular placement; normalized toward -24 LUFS with peak cap -3.0 dBFS",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "flag_capture_cues",
+   "file": "flag-capture-start.ogg",
+   "durationS": 0.6,
+   "loop": false,
+   "loudnessLUFS": -21.85,
+   "peakDb": -3.34,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "3e3bb83211a92ee0f7d290948c95b8e0d14c25f4242983774833a2cd3b62aa3d",
+   "sizeBytes": 11031,
+   "variant": "entering zone / capture begins",
+   "normalization": {
+    "lufs_target": -21,
+    "peak_cap_db": -3.0,
+    "limiter_max_gr_db": 3.0
+   },
+   "notes": {
+    "limiter_gain_reduction_db": 1.29
+   },
+   "path": "conquest/atmosphere/flag-capture-start.ogg",
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedural synthesis (original code: polyBLEP oscillators, filtered noise, envelopes); no samples; two rising ticks + short sine glide 700->1050 Hz; look-ahead peak limiter (2 ms, 80 ms release, 1.3 dB GR); normalized toward -21 LUFS with peak cap -3.0 dBFS",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "flag_capture_cues",
+   "file": "flag-captured.ogg",
+   "durationS": 1.763,
+   "loop": false,
+   "loudnessLUFS": -18.86,
+   "peakDb": -2.11,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "5117edb62bc69b3daf87ebcffd629c8f15eb52afcdb6c844953d36a75103df6a",
+   "sizeBytes": 25425,
+   "variant": "punchy flag captured confirm",
+   "normalization": {
+    "lufs_target": -18,
+    "peak_cap_db": -2.0,
+    "limiter_max_gr_db": 3.0
+   },
+   "notes": {
+    "trimmed_tail_s": 0.037,
+    "limiter_gain_reduction_db": 2.75
+   },
+   "path": "conquest/atmosphere/flag-captured.ogg",
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedural synthesis (original code: polyBLEP oscillators, filtered noise, envelopes); no samples; sub thump 140->48 Hz, two-step rising saw/square chord stab (A3+E4 -> D4+A4+D5), noise shimmer, LP sweep; look-ahead peak limiter (2 ms, 80 ms release, 2.8 dB GR); normalized toward -18 LUFS with peak cap -2.0 dBFS",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "flag_capture_cues",
+   "file": "flag-lost.ogg",
+   "durationS": 1.9,
+   "loop": false,
+   "loudnessLUFS": -18.0,
+   "peakDb": -4.24,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "68255ca20fa2097d913378119c219aab13afabca77492bbd067d40c774b5c107",
+   "sizeBytes": 29446,
+   "variant": "alarming flag lost klaxon alert",
+   "normalization": {
+    "lufs_target": -18,
+    "peak_cap_db": -2.0,
+    "limiter_max_gr_db": 3.0
+   },
+   "path": "conquest/atmosphere/flag-lost.ogg",
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedural synthesis (original code: polyBLEP oscillators, filtered noise, envelopes); no samples; two-tone descending klaxon (square+saw 660/494 Hz, 3 cycles, 12 Hz tremolo, LP 2.2 kHz), low hit 90->40 Hz; normalized toward -18 LUFS with peak cap -2.0 dBFS",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "flag_capture_cues",
+   "file": "flag-neutralized.ogg",
+   "durationS": 1.1,
+   "loop": false,
+   "loudnessLUFS": -21.03,
+   "peakDb": -2.5,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "6e7503d0f507b859b82f1fccc824704175de711b8d818280000d3152c4cd74bd",
+   "sizeBytes": 21359,
+   "variant": "flag neutralized (power-down drop)",
+   "normalization": {
+    "lufs_target": -19,
+    "peak_cap_db": -2.0,
+    "limiter_max_gr_db": 3.0
+   },
+   "notes": {
+    "limiter_gain_reduction_db": 2.93
+   },
+   "path": "conquest/atmosphere/flag-neutralized.ogg",
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedural synthesis (original code: polyBLEP oscillators, filtered noise, envelopes); no samples; descending saw sweep 520->130 Hz through closing LP, mid thump 110->55 Hz, noise swish; look-ahead peak limiter (2 ms, 80 ms release, 2.9 dB GR); normalized toward -19 LUFS with peak cap -2.0 dBFS",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "flag_capture_cues",
+   "file": "tickets-low-urgency.ogg",
+   "durationS": 2.6,
+   "loop": false,
+   "loudnessLUFS": -19.85,
+   "peakDb": -2.24,
+   "channels": 1,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "300dcb4e06cb0a2b587345f250d371647ad28ec9bbff1ed4c56ca6500f1c4aa8",
+   "sizeBytes": 48330,
+   "variant": "low-tickets urgency stinger",
+   "normalization": {
+    "lufs_target": -19,
+    "peak_cap_db": -2.0,
+    "limiter_max_gr_db": 3.0
+   },
+   "notes": {
+    "limiter_gain_reduction_db": 1.49
+   },
+   "path": "conquest/atmosphere/tickets-low-urgency.ogg",
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (work-atmosphere/recipes_synth.py)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "mono; procedural synthesis (original code: polyBLEP oscillators, filtered noise, envelopes); no samples; double heartbeat sub pulses (62 Hz) x2, filtered minor-second alarm swell (A3/Bb3 saw), ticking hi-hat noise; look-ahead peak limiter (2 ms, 80 ms release, 1.5 dB GR); normalized toward -19 LUFS with peak cap -2.0 dBFS",
+     "cuts": []
+    }
+   ]
+  }
+ ],
+ "skipped": [
+  {
+   "id": "church_bell",
+   "file": "church-bell-toll-3x.ogg",
+   "reason": "Not shipped: the game schedules the single toll three times for match start and end (saves 3.5 MB of decoded PCM)."
+  }
+ ]
+}

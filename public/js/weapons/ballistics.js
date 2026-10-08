@@ -3,7 +3,7 @@ import * as THREE from '../vendor/three.module.js';
 import { WEAPONS, HITSCAN_REACH, chargeShotProfile } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { ballisticLaunch, ballisticPoint, ballisticProfile, traceBallistic } from '../../../shared/bullet-ballistics.js';
-import { isSolidBlock } from '../../../shared/world/blocks.js';
+import { FLUID_BLOCKS, isSolidBlock } from '../../../shared/world/blocks.js';
 import { freeOldestIndex, hideInstance } from './instancing.js';
 import { FLASH_FRAMES, FLASH_GAIN, flashAtlasTexture } from '../guns/kit.js';
 
@@ -168,6 +168,9 @@ function directionInto(target, value) {
   return target.set(value.x, value.y, value.z);
 }
 
+/** Water-entry probe of a bullet path: radius (m) around the listener, minimum distance from the muzzle. */
+export const WATER_PROBE = Object.freeze({ radius: 50, minT: 0.5 });
+
 export class TracerFX {
   constructor(scene, worldGetBlockFn, onWallImpact) {
     this.scene = scene;
@@ -175,6 +178,13 @@ export class TracerFX {
     // Fluids, portals and ghost blocks never stop authoritative bullets either.
     this.solidAt = (x, y, z) => isSolidBlock(this.getBlockFn(x, y, z));
     this.onWallImpact = typeof onWallImpact === 'function' ? onWallImpact : null;
+    // Optional water entry hook (point, local) for rounds that cross a fluid surface
+    // (rounds pass through water, so wall impacts never report it). `waterFocus`
+    // returns the listener [x, y, z]: only the stretch of a path within
+    // WATER_PROBE.radius of it is probed.
+    this.onWaterImpact = null;
+    this.waterFocus = null;
+    this.fluidAt = (x, y, z) => FLUID_BLOCKS.has(this.getBlockFn(x, y, z));
 
     this._matrix = new THREE.Matrix4();
     this._rotation = new THREE.Quaternion();
@@ -288,6 +298,32 @@ export class TracerFX {
   }
 
   /**
+   * First water surface a straight path (`origin`, unit `direction`, `length`)
+   * enters near the listener: calls onWaterImpact(point, local). A path that
+   * starts in water reports nothing.
+   */
+  probeWater(origin, direction, length, local) {
+    if (!this.onWaterImpact || !(length > WATER_PROBE.minT)) return false;
+    const focus = typeof this.waterFocus === 'function' ? this.waterFocus() : null;
+    if (!Array.isArray(focus) || !focus.every(Number.isFinite)) return false;
+    const [ox, oy, oz] = origin;
+    const norm = Math.hypot(direction.x, direction.y, direction.z);
+    if (!(norm > 0) || ![ox, oy, oz].every(Number.isFinite)) return false;
+    const dx = direction.x / norm, dy = direction.y / norm, dz = direction.z / norm;
+    const t = Math.max(0, Math.min(length, (focus[0] - ox) * dx + (focus[1] - oy) * dy + (focus[2] - oz) * dz));
+    const miss = Math.hypot(ox + dx * t - focus[0], oy + dy * t - focus[1], oz + dz * t - focus[2]);
+    if (miss > WATER_PROBE.radius) return false;
+    const reach = Math.sqrt(WATER_PROBE.radius * WATER_PROBE.radius - miss * miss);
+    const from = Math.max(0, t - reach), to = Math.min(length, t + reach);
+    const sx = ox + dx * from, sy = oy + dy * from, sz = oz + dz * from;
+    if (from > 0 && this.fluidAt(Math.floor(sx), Math.floor(sy), Math.floor(sz))) return false;
+    const hit = raycastVoxels(this.fluidAt, sx, sy, sz, dx, dy, dz, to - from);
+    if (!hit || hit.y < 0 || from + hit.t < WATER_PROBE.minT || !this.fluidAt(hit.x, hit.y, hit.z)) return false;
+    this.onWaterImpact([sx + dx * hit.t, sy + dy * hit.t, sz + dz * hit.t], local);
+    return true;
+  }
+
+  /**
    * Consume the server shot wire shape without changing its array/object
    * direction conventions. Only the first terrain hit emits wall feedback.
    */
@@ -333,6 +369,7 @@ export class TracerFX {
         direction.z,
         HITSCAN_REACH,
       );
+      if (i === 0) this.probeWater([ox, oy, oz], direction, hit ? hit.t : HITSCAN_REACH, local);
       if (hit) {
         if (i === 0 && this.onWallImpact) this.onWallImpact(hit, local);
         // Prediction stops at the first contact; authority supplies continuation paths.
@@ -361,6 +398,7 @@ export class TracerFX {
         const distance = direction.length();
         if (distance > 0.001) {
           direction.multiplyScalar(1 / distance);
+          this.probeWater(segment.o, direction, distance, false);
           this.spawnTracer(segment.o, direction, Math.min(distance, definition.tracer.len), definition, null, event.charge ?? 1, 0, pinned);
         }
         if (segment.hit && this.onWallImpact) this.onWallImpact(segment.hit, false);

@@ -174,6 +174,19 @@ const frames = (h, rows, count, dt = 1 / 60, players = []) => {
   frames(h, rows, 3);
   check(() => assert.equal(calledWith(h.sfx, 'missileFlight').length, loopsBefore, 'no rocket motor loop for a shell'));
   check(() => assert.equal(h.vfx.missiles.size, 0));
+  check(() => assert.equal(calledWith(h.sfx, 'shellFlyby').length, 0, 'the own shell has no pass-by cue'));
+  // Someone else's shell passing 3 m from the camera: the crack lands on the closest approach (1 s away).
+  h.vfx.handleEvent({ kind: 'projectileLaunch', id: 'enemy', pid: 's9', type: 'shell', o: [3, 14, 30 - 250], v: [0, 0, 250], vehicleWeapon: 'tankAP', g: 0 }, 'me');
+  const pass = calledWith(h.sfx, 'shellFlyby').at(-1);
+  check(() => assert.ok(pass, 'a near pass plays the shell flyby'));
+  check(() => assert.ok(Math.abs(pass[2].delay - 1) < 1e-6 && pass[2].he === false, 'timed to the pass, AP crack'));
+  check(() => assert.ok(Math.hypot(pass[1][0] - 0, pass[1][2] - 30) < 3.01, 'at the closest-approach point'));
+  h.vfx.handleEvent({ kind: 'projectileLaunch', id: 'enemy', pid: 's10', type: 'shell', o: [60, 14, -200], v: [0, 0, 160], vehicleWeapon: 'tankHE', g: 0 }, 'me');
+  check(() => assert.equal(calledWith(h.sfx, 'shellFlyby').length, 1, 'a shell passing 60 m away is silent'));
+  check(() => assert.equal(pass[2].id, 's9', 'the pass cue is keyed by the projectile id'));
+  // The shell bursts before it reaches the camera: its pending pass cue is cancelled.
+  h.vfx.handleEvent({ kind: 'projectileExplode', pid: 's9', type: 'shell', x: 3, y: 14, z: -120, vehicleWeapon: 'tankAP' }, 'me');
+  check(() => assert.deepEqual(calledWith(h.sfx, 'cancelShellFlyby').map(call => call[1]), ['s9'], 'an early burst cancels the pass cue'));
   // Heavy shell impact: dust ring and distance shake.
   h.shake.reset();
   h.vfx.handleEvent({ kind: 'projectileExplode', pid: 's1', type: 'shell', x: 0, y: GROUND + 0.5, z: 25, vehicleWeapon: 'tankHE' }, 'me');
@@ -185,7 +198,8 @@ const frames = (h, rows, count, dt = 1 / 60, players = []) => {
   check(() => assert.equal(h.fx.emitsByKind.spark, sparks + 3));
   check(() => assert.equal(h.fx.emitsByKind.debris, debris, 'no chips for an ineffective round'));
   check(() => assert.equal(h.vfx.hullMarks.mesh.count, 0, 'no scorch for an ineffective round'));
-  check(() => assert.deepEqual(calledWith(h.sfx, 'vehicleHullHit').at(-1)[2], { zone: 'front', eff: 0, dmg: 0, self: true }));
+  check(() => assert.deepEqual(calledWith(h.sfx, 'vehicleHullHit').at(-1)[2], { zone: 'front', eff: 0, dmg: 0, self: true, cls: 'small', type: 'tank' },
+    'the hull class and the round class pick the recorded ping or plate crunch'));
   h.shake.reset();
   h.vfx.handleEvent({ kind: 'vehicle_hit', vehicleId: 'tank-1', attacker: 'x', dmg: 345, zone: 'side', cls: 'at', eff: 1, pos: [1.9, 11.5, 0] }, 'me');
   check(() => assert.ok(h.fx.emitsByKind.debris > debris));

@@ -11,6 +11,12 @@
  *   ticket_low       (own team)                             → ticket_low + tickets_low
  *   match end (phase → post, winner)                       → victory / defeat
  *
+ * With the Conquest bank decoded (`bank` = sfx.conquestAudio()), the
+ * capture-start, neutralized, captured, lost and low-tickets stingers play
+ * their synthesized bank takes (project-original, see docs/audio/conquest-sfx.md),
+ * and a progress tick loop runs while the local player
+ * stands in a zone whose control is moving (pitch follows the control level).
+ *
  * The live layer only damps repeats of the same call: the capture-start
  * stinger plays while the local player stands in that flag's zone (when the
  * integrator passes the self row to syncMatch) and at most once per
@@ -20,19 +26,44 @@
  */
 import { createVoices } from './primitives.js';
 import { OBJECTIVE_CUES, objectiveAnnouncerCue, objectiveCueUrl } from '../../../shared/announcer.js';
-import { FRONTIER_PLAN } from '../../../shared/conquest-contract.js';
+import { CONQUEST_RULES, FRONTIER_PLAN } from '../../../shared/conquest-contract.js';
 
 export const OBJECTIVE_STINGERS = Object.freeze(['capture_start', 'neutralized', 'captured', 'lost', 'ticket_low', 'victory', 'defeat']);
 const STINGER_GAIN = 0.5;
+/** Recorded stinger takes (Conquest bank groups) and their level against the announcer. */
+export const OBJECTIVE_SAMPLE_CUES = Object.freeze({
+  capture_start: 'cq.flag.start', neutralized: 'cq.flag.neutralized', captured: 'cq.flag.captured',
+  lost: 'cq.flag.lost', ticket_low: 'cq.flag.ticketsLow',
+});
+const SAMPLE_GAIN = 1.7;
+export const CAPTURE_LOOP = Object.freeze({ group: 'cq.flag.progress', level: 0.32, fade: 0.25, states: Object.freeze(['capturing', 'neutralizing', 'restoring']) });
 export const CAPTURE_START_REPEAT_MS = 4000;
 export const UNDER_ATTACK_REPEAT_MS = 20000;
 const FLAG_ZONES = new Map(FRONTIER_PLAN.flags.map(f => [f.id, f]));
 
-/** True when `pos` stands inside the flag's capture radius (plan coordinates; y is not needed for a sound gate). */
-export function insideFlagZone(flagId, pos) {
-  const flag = FLAG_ZONES.get(flagId);
+/**
+ * True when `pos` stands inside the flag's capture zone: within its radius and,
+ * when both heights are known, within CONQUEST_RULES.presenceDy of the flag
+ * like the server's presence test (a pilot flying over a flag is not in it).
+ * `zones` maps flag id -> {x, y?, z, radius} (default: the plan, which has no heights).
+ */
+export function insideFlagZone(flagId, pos, zones = FLAG_ZONES) {
+  const flag = zones.get(flagId);
   if (!flag || !Number.isFinite(pos?.x) || !Number.isFinite(pos?.z)) return false;
-  return Math.hypot(pos.x - flag.x, pos.z - flag.z) <= flag.radius;
+  if (Math.hypot(pos.x - flag.x, pos.z - flag.z) > flag.radius) return false;
+  return !Number.isFinite(flag.y) || !Number.isFinite(pos.y) || Math.abs(pos.y - flag.y) <= CONQUEST_RULES.presenceDy;
+}
+
+/** Plan flag zones with the heights (and any moved centres) of the map metadata flags. */
+export function flagZonesFrom(metaFlags) {
+  const zones = new Map(FLAG_ZONES);
+  for (const flag of Array.isArray(metaFlags) ? metaFlags : []) {
+    if (typeof flag?.id !== 'string' || !Number.isFinite(flag.x) || !Number.isFinite(flag.z)) continue;
+    const plan = FLAG_ZONES.get(flag.id);
+    zones.set(flag.id, { x: flag.x, y: Number.isFinite(flag.y) ? flag.y : null, z: flag.z,
+      radius: Number.isFinite(flag.radius) ? flag.radius : plan?.radius ?? 20 });
+  }
+  return zones;
 }
 
 /** Pure: the stinger an event earns for the local team, or null. */
@@ -125,7 +156,8 @@ const initialOwners = () => new Map(FRONTIER_PLAN.flags.map(f => [f.id, f.home ?
 const defaultClock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
 export function createObjectiveCues({ audioContext = null, announcer = null, fetchImpl = globalThis.fetch?.bind(globalThis),
-  hidden = () => globalThis.document?.hidden === true, now = defaultClock } = {}) {
+  hidden = () => globalThis.document?.hidden === true, now = defaultClock, bank = null, flagZones = null } = {}) {
+  const zones = flagZonesFrom(flagZones);
   const currentEngine = engineFrom(audioContext);
   let voices = null;
   let voicesCtx = null;
@@ -183,12 +215,65 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
     return loading;
   };
 
+  const bufferOf = group => (group && typeof bank?.getBuffer === 'function' ? bank.getBuffer(`${group}.1`) : null);
   const stinger = id => {
     if (!id || disposed || hidden()) return false;
     const engine = currentEngine();
     if (engine?.ctx?.state !== 'running' || !ensureVoices(engine)) return false;
     played.push(id);
+    const buffer = bufferOf(OBJECTIVE_SAMPLE_CUES[id]);
+    if (buffer) {
+      try {
+        const source = engine.ctx.createBufferSource();
+        const level = engine.ctx.createGain();
+        source.buffer = buffer;
+        level.gain.value = SAMPLE_GAIN;
+        source.connect(level).connect(output);
+        source.onended = () => { try { source.disconnect(); level.disconnect(); } catch { /* gone */ } };
+        source.start(engine.ctx.currentTime + 0.01);
+        return true;
+      } catch { /* fall through to the procedural score */ }
+    }
     return playStinger(voices, output, id, engine.ctx.currentTime + 0.01);
+  };
+
+  // Capture progress tick loop while the local player stands in a moving zone.
+  let progress = null;
+  const stopProgress = () => {
+    if (!progress) return;
+    const { source, level, ctx } = progress;
+    progress = null;
+    try {
+      const at = ctx.currentTime;
+      level.gain.cancelScheduledValues(at);
+      level.gain.setValueAtTime(level.gain.value, at);
+      level.gain.linearRampToValueAtTime(0, at + CAPTURE_LOOP.fade);
+      source.stop(at + CAPTURE_LOOP.fade + 0.05);
+      source.onended = () => { try { source.disconnect(); level.disconnect(); } catch { /* gone */ } };
+    } catch { /* context closed */ }
+  };
+  const updateProgress = flags => {
+    const buffer = bufferOf(CAPTURE_LOOP.group);
+    const engine = currentEngine();
+    const zone = selfPos && Array.isArray(flags)
+      ? flags.find(t => Array.isArray(t) && CAPTURE_LOOP.states.includes(t[3]) && insideFlagZone(String(t[0]), selfPos, zones)) : null;
+    if (!zone || !buffer || disposed || hidden() || engine?.ctx?.state !== 'running' || !ensureVoices(engine)) { stopProgress(); return; }
+    const ctx = engine.ctx;
+    const control = Math.min(1, Math.abs(Number(zone[1]) || 0) / 100);
+    const rate = 0.85 + 0.4 * control;
+    if (!progress || progress.ctx !== ctx) {
+      stopProgress();
+      const source = ctx.createBufferSource();
+      const level = ctx.createGain();
+      source.buffer = buffer;
+      source.loop = true;
+      level.gain.value = 0;
+      source.connect(level).connect(output);
+      source.start(ctx.currentTime);
+      level.gain.setTargetAtTime(CAPTURE_LOOP.level / STINGER_GAIN, ctx.currentTime, 0.05);
+      progress = { source, level, ctx };
+    }
+    progress.source.playbackRate.setTargetAtTime(rate, ctx.currentTime, 0.1);
   };
   const speak = cue => (cue && !disposed && typeof announcer?.play === 'function' ? announcer.play(cue) : false);
 
@@ -204,11 +289,14 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
     syncMatch(match, selfTeam, self = undefined) {
       if (self !== undefined) {
         selfKnown = true;
-        selfPos = self && self.state !== 'dead' && Number.isFinite(self.x) && Number.isFinite(self.z) ? { x: self.x, z: self.z } : null;
+        selfPos = self && self.state !== 'dead' && Number.isFinite(self.x) && Number.isFinite(self.z)
+          ? { x: self.x, y: Number.isFinite(self.y) ? self.y : null, z: self.z } : null;
       }
       if (match?.mode === 'conquest') load();
       const flags = match?.conquest?.flags;
       if (Array.isArray(flags)) for (const tuple of flags) if (Array.isArray(tuple)) owners.set(String(tuple[0]), tuple[2] ?? null);
+      if (match?.phase === 'post') stopProgress();
+      else if (selfKnown) updateProgress(flags);
       if (match?.mode === 'conquest' && match.phase === 'post' && selfTeam) {
         const key = `${match.conquest?.endsAt ?? ''}:${match.winner ?? 'draw'}`;
         if (key !== endKey) { endKey = key; this.handleEvent({ kind: 'match_end', winner: match.winner ?? null }, selfTeam); }
@@ -220,7 +308,7 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
       const ownerBefore = typeof ev.flag === 'string' ? owners.get(ev.flag) ?? null : null;
       let id = stingerForEvent(ev, selfTeam);
       let cue = ev.kind === 'match_end' ? matchEndCue(ev.winner, selfTeam) : objectiveAnnouncerCue(ev, selfTeam, ownerBefore);
-      if (id === 'capture_start' && ((selfKnown && !insideFlagZone(ev.flag, selfPos))
+      if (id === 'capture_start' && ((selfKnown && !insideFlagZone(ev.flag, selfPos, zones))
         || repeatBlocked(`start:${ev.flag}`, CAPTURE_START_REPEAT_MS))) id = null;
       if (cue && cue.startsWith('under_attack_') && repeatBlocked(cue, UNDER_ATTACK_REPEAT_MS)) cue = null;
       if (ev.kind === 'flag_captured') owners.set(ev.flag, ev.team ?? null);
@@ -229,8 +317,11 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
       if (cue) speak(cue);
       return { stinger: id, cue };
     },
+    /** True while the capture progress loop runs (tests and diagnostics). */
+    get capturing() { return !!progress; },
     dispose() {
       disposed = true;
+      stopProgress();
       try { output?.disconnect(); } catch { /* already gone */ }
       output = null; voices = null;
     },

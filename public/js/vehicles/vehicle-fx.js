@@ -22,6 +22,8 @@ export const VEHICLE_FX = Object.freeze({
   decalCapacity: 2048, decalFadeSeconds: 30, trackStamp: 0.42,
   hullMarkCapacity: 256, hullMarkSeconds: 60,
   lightCapacity: 256,
+  // Tank shell pass-by cue: closest approach within this radius (m) and flight time (s).
+  shellPassRadius: 14, shellPassSeconds: 3,
   rotorWashAgl: 14, contrailAgl: 120, vortexG: 3.2,
   damageSmokeBelow: 0.5, wreckColumn: [30, 45], wreckFireSeconds: 14,
   flashSeconds: 0.09,
@@ -323,7 +325,7 @@ export class VehicleFx {
     this.hullMarks = new DecalLayer(this.group, { capacity: VEHICLE_FX.hullMarkCapacity, fade: VEHICLE_FX.hullMarkSeconds, name: 'vehicle-hull-marks' });
     this.sprites = new LightSprites(this.group, VEHICLE_FX.lightCapacity);
     // Canopies, ejection seats and the jet's canopy glass (synced per frame from the player rows).
-    this.parachutes = new ParachuteFx({ group: this.group, fx, cameraShake });
+    this.parachutes = new ParachuteFx({ group: this.group, fx, cameraShake, sfx });
     this.state = new Map();       // vehicleId -> per-hull FX state
     this.missiles = new Map();    // projectile id -> trail
     this.flash = null;            // borrowed muzzle light
@@ -473,6 +475,7 @@ export class VehicleFx {
     const weapon = ev.vehicleWeapon, meta = VEHICLE_WEAPON_META[weapon];
     if (!meta) return false;
     this._count('launch');
+    if (weapon === 'tankAP' || weapon === 'tankHE') this._shellPass(ev, o, v, weapon);
     // Shells only flash at the muzzle (ProjectileFX draws their tracer); rockets and missiles carry a smoke trail.
     if (meta.kind !== 'rocket' && meta.kind !== 'missile') return true;
     if (this.missiles.size >= VEHICLE_FX.maxMissileTrails) {
@@ -503,6 +506,8 @@ export class VehicleFx {
   _explode(ev) {
     const ended = ev.pid != null && this._endTrail(ev.pid);
     if (typeof ev.vehicleWeapon !== 'string') return ended;
+    // A shell that bursts short of its pass point takes its pending whistle or crack with it.
+    if (ev.pid != null && (ev.vehicleWeapon === 'tankAP' || ev.vehicleWeapon === 'tankHE')) this.sfx?.cancelShellFlyby?.(ev.pid);
     const pos = [ev.x, ev.y, ev.z];
     if (!pos.every(Number.isFinite)) return ended;
     this._count('explode');
@@ -515,6 +520,29 @@ export class VehicleFx {
     }
     this.shake?.addExplosion(pos, radius, this.camera);
     return true;
+  }
+
+  /**
+   * A tank shell that will pass close to the camera: its supersonic crack (AP)
+   * or incoming whistle (HE) lands on the closest approach of the launch ray.
+   * Never for the crew that fired it.
+   */
+  _shellPass(ev, o, v, weapon) {
+    const eye = this.camera?.position;
+    if (!eye || String(ev.id) === this.selfId) return false;
+    const item = ev.vehicleId != null ? this.view?.item(ev.vehicleId) : null;
+    if (item && this._rowIsSelf(item.row)) return false;
+    const listener = [eye.x, eye.y, eye.z];
+    const vv = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+    if (!(vv > 1)) return false;
+    const time = -((o[0] - listener[0]) * v[0] + (o[1] - listener[1]) * v[1] + (o[2] - listener[2]) * v[2]) / vv;
+    if (!(time > 0.05) || time > VEHICLE_FX.shellPassSeconds) return false;
+    // Ballistic drop until the pass (gravity from the event, else the shell's own).
+    const g = finite(ev.g) || VEHICLE_WEAPON_META[weapon]?.gravity || 0;
+    const point = [o[0] + v[0] * time, o[1] + v[1] * time - 0.5 * g * time * time, o[2] + v[2] * time];
+    const miss = Math.hypot(point[0] - listener[0], point[1] - listener[1], point[2] - listener[2]);
+    if (miss > VEHICLE_FX.shellPassRadius) return false;
+    return !!this.sfx?.shellFlyby?.(point, { he: weapon === 'tankHE', delay: time, id: ev.pid ?? null });
   }
 
   /** A flat ring of dust racing outward (shockwave on the ground). */
@@ -535,7 +563,7 @@ export class VehicleFx {
     if (!ev.eff) {
       // Rounds that cannot hurt this armour: a white spark and a ping only.
       this.fx?.emit('spark', pos, { count: 3, speed: 0.6, scale: 0.8, color0: [3, 3, 3], color1: [1.4, 1.4, 1.4] });
-      this.sfx?.vehicleHullHit?.(pos, { zone: ev.zone, eff: 0, dmg: ev.dmg, self });
+      this.sfx?.vehicleHullHit?.(pos, { zone: ev.zone, eff: 0, dmg: ev.dmg, self, cls: ev.cls ?? null, type: item?.kind ?? null });
       return true;
     }
     const heavy = ['at', 'he', 'aa'].includes(ev.cls);
@@ -544,7 +572,7 @@ export class VehicleFx {
     this.fx?.emit('debris', pos, { count: heavy ? 6 : 2, speed: 0.6 });
     if (heavy) this.fx?.emit('smoke', pos, { count: 5, speed: 0.8, scale: 0.6 });
     if (item) this._hullMark(item, pos, ev.zone, heavy ? 0.8 : 0.35);
-    this.sfx?.vehicleHullHit?.(pos, { zone: ev.zone, eff: 1, dmg: ev.dmg, self });
+    this.sfx?.vehicleHullHit?.(pos, { zone: ev.zone, eff: 1, dmg: ev.dmg, self, cls: ev.cls ?? null, type: item?.kind ?? null });
     if (self && item) this.shake?.add(Math.min(0.6, finite(ev.dmg) / Math.max(1, vehicleMaxHp(item.row)) * VEHICLE_FX.hitShakePerFraction + 0.05));
     return true;
   }

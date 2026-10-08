@@ -5,7 +5,7 @@ import { FireFieldFX } from './fire-fields.js';
 import { TracerFX } from './ballistics.js';
 import { BrassPool } from './brass.js';
 import { GoreFX } from './gore.js';
-import { ImpactFX, blockSoundFor } from './impacts.js';
+import { ImpactFX, blockSoundFor, bulletSurfaceFor } from './impacts.js';
 import { ProjectileFX } from './projectiles.js';
 import { RailBeamFX } from './rail-beam.js';
 import { BOLT_RULES } from '../../../shared/bolt-rules.js';
@@ -15,7 +15,7 @@ import { GLAIVE_RULES, glaiveLaunch } from '../../../shared/glaive-rules.js';
 import { bubbleLaunch } from '../../../shared/bubble-rules.js';
 import { MGL_RULES, mglLaunch } from '../../../shared/mgl-rules.js';
 
-export { blockSoundFor };
+export { blockSoundFor, bulletSurfaceFor };
 
 /**
  * Window events for the local player's RIPTIDE discs, so the viewmodel/HUD can react
@@ -57,7 +57,7 @@ const BUBBLE_TRAIL_RANGE = 30;
 export class Effects {
   constructor(scene, camera, worldGetBlockFn, {
     getEntityPosition = null, onBounce = null, onGlaiveFlip = null, onGlaiveFlight = null,
-    getGlaiveSeekBodies = null,
+    getGlaiveSeekBodies = null, onWallImpact = null,
   } = {}) {
     this.scene = scene;
     this.camera = camera;
@@ -69,8 +69,20 @@ export class Effects {
     this.tracers = new TracerFX(
       scene,
       this.getBlockFn,
-      (hit, local) => this.impacts.wallDust(hit, local),
+      (hit, local) => {
+        this.impacts.wallDust(hit, local);
+        // Optional impact sound hook (Conquest bank): surface of the struck block and the face point.
+        if (typeof onWallImpact === 'function') {
+          onWallImpact(bulletSurfaceFor(this.getBlockFn(hit.x, hit.y, hit.z)),
+            [hit.x + 0.5 + (hit.nx || 0) * 0.5, hit.y + 0.5 + (hit.ny || 0) * 0.5, hit.z + 0.5 + (hit.nz || 0) * 0.5], local);
+        }
+      },
     );
+    if (typeof onWallImpact === 'function') {
+      // Rounds cross water without stopping: the entry splash sound comes from a probe near the listener.
+      this.tracers.onWaterImpact = (point, local) => onWallImpact('water', point, local);
+      this.tracers.waterFocus = () => (camera?.position ? [camera.position.x, camera.position.y, camera.position.z] : null);
+    }
     this.flames = new FlameFX(scene, this.getBlockFn);
     this.fireFields = new FireFieldFX(scene);
     this.railBeams = new RailBeamFX(scene, this.getBlockFn);

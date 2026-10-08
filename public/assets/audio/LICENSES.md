@@ -180,15 +180,78 @@ origin and license of every bundled recording remain auditable.
 
 ## Close bullet flyby
 
-- Source: [Auto Bullets Flyby - Short - Free Sound Effects](https://www.youtube.com/watch?v=8hVB1kChbvA), uploaded by Free SFX.
-- The uploader description states the effects are free to use and royalty-free.
-  This records the uploader's permission statement; no CC0 license is asserted.
-- Three excerpts from the user-selected video replace the generated candidates:
-  `combat/bullet-whiz.ogg` (1.80–2.34 s), `combat/bullet-whiz-2.ogg`
-  (2.34–2.78 s), and `combat/bullet-whiz-3.ogg` (2.78–3.80 s).
-- The excerpts contain overlapping flyby groups. Mono 48 kHz Opus, original
-  speed, pitch, level and tonal balance, with 2 ms entrance/20 ms exit fades.
-- `video-flyby-sources.json` retains attribution, source and output hashes,
-  exact cuts, processing and uploader permission wording. Rebuild with
-  `python3 tools/prepare-video-flyby.py` using the retained source in
-  `.artifacts/elevenlabs-remaining-2026-09-09/reference/`.
+- Source: ["Bullet passbys.wav"](https://freesound.org/people/Audionautics/sounds/134024/) by
+  Audionautics, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Attribution:
+  "Bullet passbys.wav" by Audionautics, CC BY 3.0; cut, filtered, level-adjusted and encoded as Opus.
+- The uploader made the whizzes from pitched and time-shifted layers of their own car pass-bys.
+  The Freesound HQ preview (Ogg Vorbis) was used, because the original download needs a login.
+- Three single whizzes: `combat/bullet-whiz.ogg` (7.12–7.37 s), `combat/bullet-whiz-2.ogg`
+  (11.59–11.84 s) and `combat/bullet-whiz-3.ogg` (12.62–12.89 s). Mono 48 kHz Opus at 96 kbit/s,
+  high-pass 120 Hz, the loudest 50 ms set near -20 dBFS RMS like the clips they replace,
+  2 ms fade-in and 40 ms fade-out.
+- `bullet-flyby-sources.json` records the source, its sha256, the cuts, gains and output hashes.
+  Rebuild with `python3 -I tools/prepare-bullet-flyby.py` from the retained preview in
+  `.conquest-work/wip/sfx/downloads/fs-134024/`.
+- **Replaced on 2026-10-08:** the previous excerpts of
+  `https://www.youtube.com/watch?v=8hVB1kChbvA` ("Free SFX") were under the standard YouTube
+  license (yt-dlp license field `NA`), with only a "royalty-free" note in the description. They
+  and their build script were removed.
+
+## Conquest sound banks
+
+- Folders: `conquest/vehicles/` (80 files), `conquest/explosions/` (68) and
+  `conquest/atmosphere/` (35). They are loaded only for a Conquest match.
+- Sources, by license:
+  - CC0 1.0 and CC BY 3.0/4.0 recordings from Freesound (the HQ previews; original
+    downloads need a login).
+  - U.S. federal government works from official U.S. Navy, Marines and Army YouTube
+    channels. Their YouTube license field reads "Creative Commons Attribution license
+    (reuse allowed)", checked per video with yt-dlp.
+  - Original synthesis made by the build scripts.
+- No ElevenLabs credits were used, and no game or film recordings were used.
+- Build scripts: `tools/conquest-sfx/` (recipes, encoding, `sources.json` and credit generation).
+- Layers from the Freesound user *craigsmith* were removed because the origin of that
+  library is doubtful.
+- Also removed on 2026-10-08 after a license audit: Freesound 855244 ("Distant Gunfire 3",
+  an excerpt of NATO b-roll that NATO licenses only under its own terms) from both battle beds,
+  and Freesound 611449 ("M61A2 Minigun", labelled CC0 while the uploader's profile restricts it
+  to non-commercial use) from `vehicles/jet-cannon-burst.ogg`, which is now cut from a U.S. Navy
+  Phalanx CIWS video (M61A1 20 mm, YouTube CC BY).
+- Each folder's `sources.json` records, for every file:
+  - source URL, title, author and license, and the retrieval date;
+  - the sha256 of the downloaded source;
+  - in/out cut seconds and the processing chain;
+  - the output sha256 and decoded measurements (duration, LUFS, peak, loop seams).
+- `docs/audio/conquest-sfx.md` has the full table, the in-game wiring and the mix notes.
+- Mono 48 kHz Opus at 96 kbit/s; the stereo ambience beds at 128 kbit/s (libopus, bitexact).
+
+## CC BY credits
+
+These recordings are used under Creative Commons Attribution licenses. Changes were made:
+cut, filtered, level-normalized, looped and/or layered, and encoded as Opus. The same list
+is served at `/assets/audio/conquest/CREDITS.txt`.
+
+- "Incoming Artillery.wav" by bendodge (https://freesound.org/people/bendodge/sounds/170991/), CC BY 3.0 — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/shell-incoming-he.ogg.
+- "Distant_gunfire_01.wav" by CGEffex (https://freesound.org/people/CGEffex/sounds/158979/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: atmosphere/battle-bed-high.ogg, atmosphere/battle-bed-low.ogg.
+- "Distant WW2 Gunfire Kent.wav" by Cheeseheadburger (https://freesound.org/people/Cheeseheadburger/sounds/170478/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: atmosphere/battle-bed-high.ogg, atmosphere/battle-bed-low.ogg.
+- "WAR-TANK, LEOPARD-ENGINE STAND BY-Leopard 2A4 48000 cc diesel engine close by-0003.wav" by JoniHeinonen (https://freesound.org/people/JoniHeinonen/sounds/161897/), CC BY 3.0 — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/tank-engine-idle.ogg.
+- "Distant explosion.wav" by juskiddink (https://freesound.org/people/juskiddink/sounds/108640/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: explosions/distant-boom-2.ogg.
+- "Apache AH-64 close 1223 PM 240501_0707" by klankbeeld (https://freesound.org/people/klankbeeld/sounds/734126/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/heli-rotor-distant.ogg.
+- "FlareGun_SizzleLoop01.wav" by marb7e (https://freesound.org/people/marb7e/sounds/674378/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: explosions/cookoff-1.ogg, vehicles/flares-salvo-1.ogg, vehicles/flares-salvo-2.ogg.
+- "Demolition Range" by Marines (https://www.youtube.com/watch?v=gGsJk41G5_A), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: explosions/frag-3.ogg, explosions/limpet-1.ogg.
+- "Post Blast" by Marines (https://www.youtube.com/watch?v=nMwFtsxM__Q), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: explosions/rocket-2.ogg.
+- "Car driving through a ford.Wav" by NeilSeggar (https://freesound.org/people/NeilSeggar/sounds/335622/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/vehicle-wade-loop.ogg.
+- "Salute_Cannons.MP3" by nofeedbak (https://freesound.org/people/nofeedbak/sounds/95129/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: atmosphere/artillery-distant-1.ogg, atmosphere/artillery-distant-2.ogg, atmosphere/artillery-distant-3.ogg, atmosphere/artillery-distant-4.ogg, atmosphere/artillery-distant-5.ogg, atmosphere/battle-bed-high.ogg, atmosphere/battle-bed-low.ogg.
+- "UH-1 "Huey" Iroquois Helicopter" by OroborosNZ (https://freesound.org/people/OroborosNZ/sounds/157722/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/rotor-spool-up.ogg, vehicles/transport-rotor-ext.ogg.
+- "DISTANT EXPLOSION 01.wav" by sandyrb (https://freesound.org/people/sandyrb/sounds/86291/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: explosions/distant-boom-4.ogg.
+- "car going through ford 1.mp3" by soundmary (https://freesound.org/people/soundmary/sounds/194967/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/vehicle-wade-splash.ogg.
+- "Live Claymore" by The U.S. Army (https://www.youtube.com/watch?v=KJiqP8hurLU), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: explosions/tank-he-3.ogg.
+- "Eurofighter Typhoon Flyby 005 – Close Proximity" by TimoSchmied (https://freesound.org/people/TimoSchmied/sounds/640505/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/jet-flyby-1.ogg.
+- "CIWS Shoot Aboard GHWB" by U.S. Navy (https://www.youtube.com/watch?v=mlB5YtGP5LA), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/jet-cannon-burst.ogg.
+- "MK 38 25mm gun live fire exercise" by U.S. Navy (https://www.youtube.com/watch?v=hWjXYw9eHRM), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/chin-cannon-1.ogg, vehicles/chin-cannon-2.ogg, vehicles/chin-cannon-3.ogg.
+- "GAU-17 "Vulcan" Minigun Training From USS USS John P. Murtha" by U.S. Navy (https://www.youtube.com/watch?v=6tnUDX0WT8Q), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/transport-cabin.ogg.
+- "What a sea mine explosion looks like" by U.S. Navy (https://www.youtube.com/watch?v=27Ia83p6rA4), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: explosions/explosion-water-1.ogg.
+- "Panssarivaunut maastossa / Tanks on terrain, tracks creaking" by YleArkisto (https://freesound.org/people/YleArkisto/sounds/386661/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/tank-tracks-pivot.ogg.
+- "Panssarivaunu ohi / Tank passing by and reversing back on sand, tracks creaking" by YleArkisto (https://freesound.org/people/YleArkisto/sounds/386590/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/tank-tracks.ogg.
+- "Helikopteri, lento, laskeutuminen, sisä / Helicopter, flying, starting to land, landing, engine shuts down slowly, rotor blade spins, interior, AB 412 Agusta, a 1986 model" by YleArkisto (https://freesound.org/people/YleArkisto/sounds/324971/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/rotor-spool-down.ogg.
+- "Pakettiauto, auton ovi, liukuovi / Sliding door of a van, car, open and close, exterior, Toyota Hiace, a 1990 model" by YleArkisto (https://freesound.org/people/YleArkisto/sounds/332853/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/hatch-heli-door.ogg.

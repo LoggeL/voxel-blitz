@@ -199,7 +199,12 @@ export class LocalSampleBank {
     return this._buffers.get(slot) || null;
   }
 
-  play(slot, output, { gain = 1, rate = 1, cleanupOwner = output } = {}) {
+  /**
+   * One-shot through `output`. `delay` (s) schedules the start on the audio
+   * clock and `offset` (s) skips into the buffer, so a pass-by can line up its
+   * loudest moment with the closest approach.
+   */
+  play(slot, output, { gain = 1, rate = 1, cleanupOwner = output, delay = 0, offset = 0 } = {}) {
     const ctx = this._getContext();
     const buffer = this.getBuffer(slot);
     if (!ctx || ctx.state === 'closed' || !buffer || !output) return false;
@@ -222,8 +227,24 @@ export class LocalSampleBank {
     this._addCleanup?.(cleanupOwner, cleanup);
     // VoicePool can retire a low-priority output before this source is started.
     if (cleaned) return false;
-    try { source.start(ctx.currentTime); } catch (_) { cleanup(); return false; }
+    const wait = Math.max(0, Number(delay) || 0);
+    const skip = Math.max(0, Math.min(buffer.duration - 0.01, Number(offset) || 0));
+    try {
+      if (wait || skip) source.start(ctx.currentTime + wait, skip);
+      else source.start(ctx.currentTime);
+    } catch (_) { cleanup(); return false; }
     return true;
+  }
+
+  /** Forget decoded buffers whose slot starts with `prefix` (a lazily loaded bank leaving memory). */
+  unload(prefix) {
+    if (typeof prefix !== 'string' || !prefix) return 0;
+    let removed = 0;
+    for (const slot of [...this._buffers.keys()]) {
+      if (slot.startsWith(prefix)) { this._buffers.delete(slot); removed++; }
+    }
+    for (const slot of [...this._loading.keys()]) if (slot.startsWith(prefix)) this._loading.delete(slot);
+    return removed;
   }
 
   clear() {

@@ -156,14 +156,16 @@ export class ConquestAmbience {
   /**
    * @param {{scene?:object, fx:{emit:Function, addEmitter:Function, removeEmitter:Function}|null,
    *   mapMeta:object, weather?:string, getBlock?:Function, seed?:number}} options fx is the
-   *   shared ParticleField; getBlock finds unlisted chimneys and the ground under the salvos.
+   *   shared ParticleField; getBlock finds unlisted chimneys and the ground under the salvos;
+   *   onArtillery(pos) hears each salvo flash (the soundscape delays its boom by distance).
    */
-  constructor({ scene = null, fx = null, mapMeta = null, weather = 'golden', getBlock = null, seed = 0x51ac7 } = {}) {
+  constructor({ scene = null, fx = null, mapMeta = null, weather = 'golden', getBlock = null, seed = 0x51ac7, onArtillery = null } = {}) {
     this.scene = scene;
     this.fx = fx && typeof fx.emit === 'function' && typeof fx.addEmitter === 'function' ? fx : null;
     this.weather = WEATHER[weather] ? weather : 'golden';
     this.look = WEATHER[this.weather];
     this.getBlock = typeof getBlock === 'function' ? getBlock : null;
+    this.onArtillery = typeof onArtillery === 'function' ? onArtillery : null;
     this.sources = conquestAmbienceSources(mapMeta, { getBlock: this.getBlock });
     this.rng = mulberry32(seed >>> 0);
     this.emitters = [];
@@ -267,6 +269,7 @@ export class ConquestAmbience {
       this.fx.emit('smoke', flash.pos, { count: 3, scale: 4.5, life: 1.6, speed: 1.5, spread: 1.2,
         alpha: 0.55, color0: this.look.flashSmoke, color1: this.look.flashSmoke, source: 'artillery' });
       this.flashes++;
+      try { this.onArtillery?.(flash.pos); } catch { /* presentation only */ }
     }
     if (started) this.lastUpdateMs = performance.now() - started;
   }

@@ -1,0 +1,3184 @@
+{
+ "bank": "conquest/vehicles",
+ "title": "Conquest vehicle sounds (engines, rotors, jets, weapons, crew cues)",
+ "retrieved": "2026-10-08",
+ "integrated": "2026-10-08",
+ "format": "Ogg Opus 48 kHz via libopus (-fflags +bitexact); mono 96 kbit/s, stereo beds 128 kbit/s",
+ "licensePolicy": "CC0 1.0, CC BY 3.0/4.0, U.S. federal government works (YouTube CC BY field verified with yt-dlp) and project-original synthesis only. CC BY credits: docs/audio/conquest-sfx.md and LICENSES.md.",
+ "notes": "Freesound items are the public HQ previews (Ogg Vorbis) because original downloads need a login. The download_sha256 is the hash of that retrieved file. Build recipes: .conquest-work/wip/sfx/work-*/ (local).",
+ "files": [
+  {
+   "id": "tank_engine_loop",
+   "file": "tank-engine-idle.ogg",
+   "durationS": 6.468,
+   "loop": true,
+   "loudnessLUFS": -18.01,
+   "peakDb": -5.21,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "5c3df9adf35e1835f20649733dbedfc8d7fc79208dfae7d9c80a84e56d5cd017",
+   "loopSeam": {
+    "boundary_step": 0.00409,
+    "step_p99": 0.04644
+   },
+   "notes": {
+    "rotated_s": 1.5869,
+    "loop_len_s": 6.468,
+    "overlap_s": 0.25,
+    "head_corr": 0.71,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/tank-engine-idle.ogg",
+   "sizeBytes": 74468,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/JoniHeinonen/sounds/161897/",
+     "title": "WAR-TANK, LEOPARD-ENGINE STAND BY-Leopard 2A4 48000 cc diesel engine close by-0003.wav",
+     "author": "JoniHeinonen",
+     "license": "CC BY 3.0",
+     "retrieved": "2026-10-08",
+     "cut": "18.000-26.000 s",
+     "processing": "mono; HP 22 Hz / LP 9 kHz (zero-phase); 7 s loop with 250 ms equal-power overlap; loudness-normalized; steady Leopard 2A4 idle",
+     "download_sha256": "6ac0d48c7e51273269dd4ea2bf3d9361b49ef8abf7eae146dc80f18076932d06",
+     "license_url": "https://creativecommons.org/licenses/by/3.0/",
+     "file_url": "https://cdn.freesound.org/previews/161/161897_2826383-hq.ogg",
+     "provenance_note": "Heavy trucks, tanks and other warfare recorded in Tampere, Finland in 2011. Thanks to Into Hiltunen for recording devices.",
+     "cuts": [
+      [
+       18.0,
+       26.0
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_engine_loop",
+   "file": "tank-engine-rev.ogg",
+   "durationS": 6.117,
+   "loop": true,
+   "loudnessLUFS": -17.99,
+   "peakDb": -5.9,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "34ecedce434db7003a8b577d64ca554fb24055b4f526e7a71d5647561f9bda6c",
+   "loopSeam": {
+    "boundary_step": 0.00014,
+    "step_p99": 0.04792
+   },
+   "notes": {
+    "rotated_s": 4.816,
+    "loop_len_s": 6.1165,
+    "overlap_s": 0.25,
+    "head_corr": 0.61,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/tank-engine-rev.ogg",
+   "sizeBytes": 68221,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/monosfera/sounds/572294/",
+     "title": "tank_engine.wav",
+     "author": "monosfera",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "28.750-35.350 s",
+     "processing": "mono; diesel bed HP 22 Hz / LP 9 kHz; turbine whine layer HP 700 Hz at -11 dB; 6 s loop, 250 ms equal-power overlap; loudness-normalized; steadiest high-load tank engine section",
+     "download_sha256": "7b9dde83bf381f62805c004bab06e7fac97b3ef79b06c79c2555df6cf54c4f0e",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/572/572294_3625175-hq.ogg",
+     "provenance_note": "silnik czołgu / tank engine",
+     "cuts": [
+      [
+       28.75,
+       35.35
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/adr1911/sounds/542582/",
+     "title": "Start-up Sound - U.S. Army M1A1 Tank - Gas Turbine Engine.mp3",
+     "author": "adr1911",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "10.000-16.600 s",
+     "processing": "mono; diesel bed HP 22 Hz / LP 9 kHz; turbine whine layer HP 700 Hz at -11 dB; 6 s loop, 250 ms equal-power overlap; loudness-normalized; M1A1 gas-turbine whine layer, HP 700 Hz, -11 dB",
+     "download_sha256": "be6a7f5df15e262e7dd53ea5ffe8d4ddcabca9207760d8c4266d987af70d5052",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/542/542582_10366986-hq.ogg",
+     "provenance_note": "Start-up Sound of a U.S. Army M1A1 Tank - Gas Turbine Engine. recorded during civilian parade, tanks for display. US Army Testing and displaying M1A1 tank for public. demonstration of turn on turbine ignition of the M1A1 tank. originally recorded with accompanying video from device.",
+     "cuts": [
+      [
+       10.0,
+       16.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_tracks_loop",
+   "file": "tank-tracks-pivot.ogg",
+   "durationS": 3.957,
+   "loop": true,
+   "loudnessLUFS": -24.08,
+   "peakDb": -3.47,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "16ebae57136be56ab9a57b6502b498112ba98ff037fe4a434c7f65a38cb240d2",
+   "loopSeam": {
+    "boundary_step": 0.0022,
+    "step_p99": 0.02724
+   },
+   "notes": {
+    "rotated_s": 2.0312,
+    "loop_len_s": 3.9565,
+    "overlap_s": 0.2,
+    "head_corr": 0.14,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/tank-tracks-pivot.ogg",
+   "sizeBytes": 47600,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/YleArkisto/sounds/386661/",
+     "title": "Panssarivaunut maastossa / Tanks on terrain, tracks creaking",
+     "author": "YleArkisto",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "66.000-70.500 s",
+     "processing": "mono; band 500 Hz-6 kHz with +5 dB peak at 2.2 kHz (squeal/creak emphasis), level-flattened; 4 s loop, 200 ms overlap; tracks creaking on terrain",
+     "download_sha256": "e7601d2031b6da76ccb16e8acdd9e204358994af46cd61689c02e9336493e0ef",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/386/386661_4415905-hq.ogg",
+     "provenance_note": "Panssarivaunut kulkevat maastossa, telaketjut kitisevät. Äänitetty / Rec: Analoginen nauha, Nagra / Analog tape, Nagra Paikka/Place: Suomi / Finland Aika/Date: 31.10.1984",
+     "cuts": [
+      [
+       66.0,
+       70.5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_tracks_loop",
+   "file": "tank-tracks.ogg",
+   "durationS": 4.473,
+   "loop": true,
+   "loudnessLUFS": -19.31,
+   "peakDb": -3.42,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "a665cc6e1396c43e580ff0f1e3c862c461a807b9fdca0d9a0bb6bdd7dbe2c012",
+   "loopSeam": {
+    "boundary_step": 0.0065,
+    "step_p99": 0.04094
+   },
+   "notes": {
+    "rotated_s": 2.611,
+    "loop_len_s": 4.4735,
+    "overlap_s": 0.2,
+    "head_corr": 0.195,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/tank-tracks.ogg",
+   "sizeBytes": 53065,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/YleArkisto/sounds/386590/",
+     "title": "Panssarivaunu ohi / Tank passing by and reversing back on sand, tracks creaking",
+     "author": "YleArkisto",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "50.000-55.000 s",
+     "processing": "mono; HP 160 Hz (removes engine rumble, keeps clank/rattle) / LP 10 kHz zero-phase; level-flattened with 1.5 s RMS; 4.5 s loop, 200 ms overlap; close track pass, link clank ~5 Hz",
+     "download_sha256": "4f923551185e3ad3991f4771f6154adfad2585c576cfa26b489b3d8eb562ee6f",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/386/386590_4415905-hq.ogg",
+     "provenance_note": "Panssarivaunu ajaa ohi ja peruuttaa takaisin hiekalla. Telaketjut kitisevät. Äänitetty / Rec: DAT Paikka/Place: Tanska / Denmark / Naestved Aika/Date: 06.10.1999",
+     "cuts": [
+      [
+       50.0,
+       55.0
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_turret_traverse",
+   "file": "tank-turret-stop.ogg",
+   "durationS": 1.25,
+   "loop": false,
+   "loudnessLUFS": -22.74,
+   "peakDb": -3.84,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "3d050b02bec4cfba12c9774c663ae5a973f6cf04682d2a06e567713a4d1253be",
+   "path": "conquest/vehicles/tank-turret-stop.ogg",
+   "sizeBytes": 14622,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/lorefold/sounds/607310/",
+     "title": "Rotating tank turret planetary electric motor",
+     "author": "lorefold",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "49.000-50.400 s",
+     "processing": "motor spin-down tail HP 60 Hz; stop clunk = printer mechanism hit pitched down x0.5, LP 3 kHz; 2 ms in / 150 ms out; motor spin-down",
+     "download_sha256": "728f3fed84489535bb6fcbdeba9de6a51b2e46676903b0a1c1094416b2d15abd",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/607/607310_4702348-hq.ogg",
+     "provenance_note": "KitchenAid blender motor sound pitched down to resemble a bigger motor used for rotating bigger things. Uncut, to include the slowing down sound.",
+     "cuts": [
+      [
+       49.0,
+       50.4
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/KieranKeegan/sounds/418882/",
+     "title": "Tank Reload",
+     "author": "KieranKeegan",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.270-0.520 s",
+     "processing": "motor spin-down tail HP 60 Hz; stop clunk = printer mechanism hit pitched down x0.5, LP 3 kHz; 2 ms in / 150 ms out; mechanical clunk, pitched down an octave",
+     "download_sha256": "9910661dd2b44a38568c0e29f34caf9776a5c6bedda30cd2b50f284699c13a0e",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/418/418882_6616210-hq.ogg",
+     "provenance_note": "Tank reload sound Recorded printer with zoom h2n",
+     "cuts": [
+      [
+       0.27,
+       0.52
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_turret_traverse",
+   "file": "tank-turret-traverse.ogg",
+   "durationS": 3.132,
+   "loop": true,
+   "loudnessLUFS": -18.0,
+   "peakDb": -5.75,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "27f688c020a6d81fa79cf6eb5923bda700ee019aff70440230035e8829105aed",
+   "loopSeam": {
+    "boundary_step": 0.00247,
+    "step_p99": 0.07142
+   },
+   "notes": {
+    "rotated_s": 2.2731,
+    "loop_len_s": 3.1325,
+    "overlap_s": 0.15,
+    "head_corr": 0.396,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/tank-turret-traverse.ogg",
+   "sizeBytes": 35695,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/lorefold/sounds/607310/",
+     "title": "Rotating tank turret planetary electric motor",
+     "author": "lorefold",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "12.000-15.500 s",
+     "processing": "mono; HP 60 Hz / LP 7 kHz; 3 s loop, 150 ms overlap (gate/soft-start in code); steady pitched-down motor whine",
+     "download_sha256": "728f3fed84489535bb6fcbdeba9de6a51b2e46676903b0a1c1094416b2d15abd",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/607/607310_4702348-hq.ogg",
+     "provenance_note": "KitchenAid blender motor sound pitched down to resemble a bigger motor used for rotating bigger things. Uncut, to include the slowing down sound.",
+     "cuts": [
+      [
+       12.0,
+       15.5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_cannon_fire",
+   "file": "tank-cannon-distant.ogg",
+   "durationS": 2.925,
+   "loop": false,
+   "loudnessLUFS": -28.68,
+   "peakDb": -3.79,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "5806bbba7376515726099c922577ac5c4ec034b494fb292775d47848249ca814",
+   "path": "conquest/vehicles/tank-cannon-distant.ogg",
+   "sizeBytes": 32832,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/184275/",
+     "title": "Distant Tank Shots.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "9.000-11.950 s",
+     "processing": "declipped; LP 700 Hz 4th order + low shelf +4 dB @120 Hz (no crack); 30 ms soft attack; 3.4 s with 900 ms fade; distant shot with echo tail",
+     "download_sha256": "adb9f61346ac07ace6345aa20fcb8c7d738280419fd7ae8217390417845448fb",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/184/184275_71257-hq.ogg",
+     "provenance_note": "Tank soldiers shooting their missiles on a training range. Extracted from a video () by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in",
+     "cuts": [
+      [
+       9.0,
+       11.95
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_cannon_fire",
+   "file": "tank-cannon-interior.ogg",
+   "durationS": 2.477,
+   "loop": false,
+   "loudnessLUFS": -19.99,
+   "peakDb": -3.72,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "5f8826196f39715c2affd69d1adc4e4e75a7764d28073b0939ab60cdc9ab81d1",
+   "path": "conquest/vehicles/tank-cannon-interior.ogg",
+   "sizeBytes": 31541,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/189344/",
+     "title": "Tanks Shooting.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "3.820-6.300 s",
+     "processing": "self/interior: shot LP 600 Hz (hull-muffled) + low shelf +5 dB; breech recoil clank (pitched-down mechanism, LP 4 kHz) at 90 ms; sub thump; 400 ms fade; shot, heavily muffled for interior perspective",
+     "download_sha256": "528af1924f51d1554d6143719c28e54a804cb9462169d6b34c909606ef8f6e9d",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/189/189344_71257-hq.ogg",
+     "provenance_note": "Tank shots fired on a training range. Extracted from a video () by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military sounds p",
+     "cuts": [
+      [
+       3.82,
+       6.3
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/KieranKeegan/sounds/418882/",
+     "title": "Tank Reload",
+     "author": "KieranKeegan",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.270-0.520 s",
+     "processing": "self/interior: shot LP 600 Hz (hull-muffled) + low shelf +5 dB; breech recoil clank (pitched-down mechanism, LP 4 kHz) at 90 ms; sub thump; 400 ms fade; breech/recoil clank layer, pitched x0.6",
+     "download_sha256": "9910661dd2b44a38568c0e29f34caf9776a5c6bedda30cd2b50f284699c13a0e",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/418/418882_6616210-hq.ogg",
+     "provenance_note": "Tank reload sound Recorded printer with zoom h2n",
+     "cuts": [
+      [
+       0.27,
+       0.52
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_cannon_fire",
+   "file": "tank-cannon-near-1.ogg",
+   "durationS": 2.704,
+   "loop": false,
+   "loudnessLUFS": -23.23,
+   "peakDb": -3.53,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "538a4b9f3df3dfe386189f38a48e7243cdea666781292b06938565d5ae2c6ce5",
+   "path": "conquest/vehicles/tank-cannon-near-1.ogg",
+   "sizeBytes": 27795,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/189344/",
+     "title": "Tanks Shooting.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "21.295-24.005 s",
+     "processing": "declipped (cubic spline over clipped runs); HP 25 Hz / LP 11 kHz; onset trimmed; + synthesized 75->40 Hz sub thump at -5 dB; 600 ms fade-out; tank shot, near, with range slapback tail",
+     "download_sha256": "528af1924f51d1554d6143719c28e54a804cb9462169d6b34c909606ef8f6e9d",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/189/189344_71257-hq.ogg",
+     "provenance_note": "Tank shots fired on a training range. Extracted from a video () by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military sounds p",
+     "cuts": [
+      [
+       21.295,
+       24.005
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_cannon_fire",
+   "file": "tank-cannon-near-2.ogg",
+   "durationS": 3.001,
+   "loop": false,
+   "loudnessLUFS": -26.25,
+   "peakDb": -3.88,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "ff85b082de0988e8ec5a411a06e6ff2427d6a20edbc0d2a25c6f1c31c9ddea9a",
+   "path": "conquest/vehicles/tank-cannon-near-2.ogg",
+   "sizeBytes": 30676,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/189344/",
+     "title": "Tanks Shooting.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "28.550-31.560 s",
+     "processing": "declipped; HP 25 Hz / LP 11 kHz; onset trimmed; + synthesized sub thump; 600 ms fade-out; tank shot, near, with range slapback tail",
+     "download_sha256": "528af1924f51d1554d6143719c28e54a804cb9462169d6b34c909606ef8f6e9d",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/189/189344_71257-hq.ogg",
+     "provenance_note": "Tank shots fired on a training range. Extracted from a video () by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military sounds p",
+     "cuts": [
+      [
+       28.55,
+       31.56
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_cannon_fire",
+   "file": "tank-cannon-near-3.ogg",
+   "durationS": 3.202,
+   "loop": false,
+   "loudnessLUFS": -19.81,
+   "peakDb": -3.36,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "4a5f56cc0339bf067ce13e32180b4be006326b73070c6688ae13a64a064ae643",
+   "path": "conquest/vehicles/tank-cannon-near-3.ogg",
+   "sizeBytes": 33391,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/189344/",
+     "title": "Tanks Shooting.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "14.655-17.865 s",
+     "processing": "declipped; HP 25 Hz / LP 11 kHz; onset trimmed; + synthesized sub thump; 600 ms fade-out; tank shot, near, with range slapback tail",
+     "download_sha256": "528af1924f51d1554d6143719c28e54a804cb9462169d6b34c909606ef8f6e9d",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/189/189344_71257-hq.ogg",
+     "provenance_note": "Tank shots fired on a training range. Extracted from a video () by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military sounds p",
+     "cuts": [
+      [
+       14.655,
+       17.865
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_breech_reload",
+   "file": "breech-heavy-1.ogg",
+   "durationS": 1.45,
+   "loop": false,
+   "loudnessLUFS": -21.5,
+   "peakDb": -3.57,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "463e0dfbfa0adf53f239479880552b2561156631084516ce708425d1bda11e3c",
+   "path": "conquest/vehicles/breech-heavy-1.ogg",
+   "sizeBytes": 17298,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/854481/",
+     "title": "Mortar Shell Loading Slide 3",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-0.600 s",
+     "processing": "shell ram (mortar shell slide) -> breech block slam (heavy hatch slam x0.7, LP 5 kHz) at 380 ms -> lock clank (steel latch) at 700 ms; HP 40 Hz; shell sliding into tube = ram",
+     "download_sha256": "18b648bbf5e0418963338f1e9f0fdcb4f3a47d5058c0978d5afa6d851ffb2331",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/854/854481_71257-hq.ogg",
+     "provenance_note": "Mortar shell sliding down a M120 (Soltam K6) cannon barrel tube. Extracted using Audacity from 1st Battalion, 1-151 Infantry Regiment Train at Camp Atterbury (B-Roll Package) (Apr 18, 2026) by Staff Sgt. Hector Tinoco - Camp Atterbury Indiana - EDINBURGH, INDIANA, UNITED STATES. Edited in Audacity.",
+     "cuts": [
+      [
+       0.0,
+       0.6
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/kyles/sounds/407323/",
+     "title": "metal heavy dungeon prison door unlatch open close thud rattle and hatch open close slide squeak various ext perspective on offmic +bg hostel kitchen sounds2.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "32.350-33.300 s",
+     "processing": "shell ram (mortar shell slide) -> breech block slam (heavy hatch slam x0.7, LP 5 kHz) at 380 ms -> lock clank (steel latch) at 700 ms; HP 40 Hz; slam as breech block",
+     "download_sha256": "47af04e594bed1a0402aff779bad14c981fa7baf0e37b87501f03ba0405e9ba7",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/407/407323_612689-hq.ogg",
+     "provenance_note": "metal heavy dungeon heavy metal prison door unlatch open close thud rattle and hatch open close slide squeak various ext perspective on offmic +bg hostel kitchen sounds2.wav",
+     "cuts": [
+      [
+       32.35,
+       33.3
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/Sandermotions/sounds/275441/",
+     "title": "Heavy steal door closing and locking.WAV",
+     "author": "Sandermotions",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "4.150-4.750 s",
+     "processing": "shell ram (mortar shell slide) -> breech block slam (heavy hatch slam x0.7, LP 5 kHz) at 380 ms -> lock clank (steel latch) at 700 ms; HP 40 Hz; lock clank",
+     "download_sha256": "1c6724599a76691d98972194f119b194aa7d8f71fc869a35deaf7d069937a92b",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/275/275441_1402315-hq.ogg",
+     "provenance_note": "Heavy steel door closing with a slam. then an automatic lock locking in. Field recording using a Zoom H1 recorder.",
+     "cuts": [
+      [
+       4.15,
+       4.75
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_breech_reload",
+   "file": "breech-heavy-2.ogg",
+   "durationS": 1.0,
+   "loop": false,
+   "loudnessLUFS": -18.95,
+   "peakDb": -3.48,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "028492075bb28d89ca062cd5d5b9c348b38b756e623643c9e41412864b41aa7d",
+   "path": "conquest/vehicles/breech-heavy-2.ogg",
+   "sizeBytes": 13802,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/406197/",
+     "title": "door metal big heavy close kinda slam thud echo offmic.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.280-1.000 s",
+     "processing": "breech slam (big metal door close, first 0.7 s, LP 6 kHz) + M2 charging-handle clack x0.7 at 250 ms; HP 40 Hz; big metal door slam as breech",
+     "download_sha256": "6e47d7beb4b93ff3d8517ae30b21d2915f9d7f52d7f0bc917b66aa4996f625fc",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/406/406197_612689-hq.ogg",
+     "provenance_note": "door metal big heavy close kinda slam thud echo offmic.wav",
+     "cuts": [
+      [
+       0.28,
+       1.0
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/areniporgen/sounds/737219/",
+     "title": "Browning M2 chamber",
+     "author": "areniporgen",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.030-0.450 s",
+     "processing": "breech slam (big metal door close, first 0.7 s, LP 6 kHz) + M2 charging-handle clack x0.7 at 250 ms; HP 40 Hz; M2 chamber cock",
+     "download_sha256": "00031ac99dba2535bdb0ed8b3aff0dbeb89c4168b5d980ff78172754d3325042",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/737/737219_15072041-hq.ogg",
+     "provenance_note": "Browning M2 chamber cock. Recorded indoor, edited in Adobe Audition.",
+     "cuts": [
+      [
+       0.03,
+       0.45
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_breech_reload",
+   "file": "feed-tray-clack.ogg",
+   "durationS": 0.72,
+   "loop": false,
+   "loudnessLUFS": -23.48,
+   "peakDb": -3.43,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "413f2592ea661a77111e448fd3dbf0427f8b8a5ea4e09ad4baf3568410d8064a",
+   "path": "conquest/vehicles/feed-tray-clack.ogg",
+   "sizeBytes": 9260,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/areniporgen/sounds/737219/",
+     "title": "Browning M2 chamber",
+     "author": "areniporgen",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.030-0.750 s",
+     "processing": "light feed-tray / charging clack for coax and HMG: Browning M2 chamber cock; HP 80 Hz; onset trimmed; 120 ms out; M2 chamber cock",
+     "download_sha256": "00031ac99dba2535bdb0ed8b3aff0dbeb89c4168b5d980ff78172754d3325042",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/737/737219_15072041-hq.ogg",
+     "provenance_note": "Browning M2 chamber cock. Recorded indoor, edited in Adobe Audition.",
+     "cuts": [
+      [
+       0.03,
+       0.75
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_mg_fire",
+   "file": "coax762-shot-1.ogg",
+   "durationS": 0.224,
+   "loop": false,
+   "loudnessLUFS": -22.09,
+   "peakDb": -3.49,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "afabb1a8e7497ab7b9566181f2aebbfcc159119550d4eb3b6ac8b32035744eb6",
+   "path": "conquest/vehicles/coax762-shot-1.ogg",
+   "sizeBytes": 3199,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/482122/",
+     "title": "Clean Machine Gun Burst",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "1.336-1.560 s",
+     "processing": "HP 90 Hz / LP 12 kHz; onset trimmed; tighter 7.62 report; fade-out; 7.62 MG, last shot of burst",
+     "download_sha256": "2112c1d49b38035818703e4b44981b7cd73f57c7704f93f6c0286e811f2882f4",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/482/482122_71257-hq.ogg",
+     "provenance_note": "Machine gun burst extracted from US military video (public domain).",
+     "cuts": [
+      [
+       1.336,
+       1.56
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_mg_fire",
+   "file": "coax762-shot-2.ogg",
+   "durationS": 0.087,
+   "loop": false,
+   "loudnessLUFS": -18.99,
+   "peakDb": -3.39,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "1adf2b1874309cd57d4007b4c73f9747cc3a89f2dae0e2442d793002d32bb190",
+   "path": "conquest/vehicles/coax762-shot-2.ogg",
+   "sizeBytes": 2128,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/482121/",
+     "title": "Machine Gun Burst",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "1.101-1.188 s",
+     "processing": "HP 90 Hz / LP 12 kHz; onset trimmed; tighter 7.62 report; fade-out; 7.62 MG, mid-burst dry shot",
+     "download_sha256": "724edc65a040d83918dc40976de4864c249779e4692185827c45212d69957930",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/482/482121_71257-hq.ogg",
+     "provenance_note": "Machine gun burst extracted from US military video (public domain).",
+     "cuts": [
+      [
+       1.101,
+       1.188
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_mg_fire",
+   "file": "coax762-shot-3.ogg",
+   "durationS": 0.088,
+   "loop": false,
+   "loudnessLUFS": -18.19,
+   "peakDb": -3.58,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "7f129c65be6af3d6f072333813698f55e623b07ad1d753486a3bf5d16a7589c2",
+   "path": "conquest/vehicles/coax762-shot-3.ogg",
+   "sizeBytes": 1682,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/482122/",
+     "title": "Clean Machine Gun Burst",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.991-1.077 s",
+     "processing": "HP 90 Hz / LP 12 kHz; onset trimmed; tighter 7.62 report; fade-out; dry mid-burst shot cut before the next round (82 ms); 7.62 MG, mid-burst dry shot",
+     "download_sha256": "2112c1d49b38035818703e4b44981b7cd73f57c7704f93f6c0286e811f2882f4",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/482/482122_71257-hq.ogg",
+     "provenance_note": "Machine gun burst extracted from US military video (public domain).",
+     "cuts": [
+      [
+       0.991,
+       1.077
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_mg_fire",
+   "file": "hmg50-shot-1.ogg",
+   "durationS": 0.549,
+   "loop": false,
+   "loudnessLUFS": -23.03,
+   "peakDb": -3.59,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "9e7dd1da4f95db9e3cafec895858d8bd83676be0f59672c1bb0da48f85a805da",
+   "path": "conquest/vehicles/hmg50-shot-1.ogg",
+   "sizeBytes": 6225,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/239138/",
+     "title": "50 Cal MG",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.511-1.060 s",
+     "processing": "declipped; HP 60 Hz / LP 12 kHz; onset trimmed to the shot transient; last shot of a burst so the tail is natural; 120 ms fade-out; .50 cal, last shot of burst 1",
+     "download_sha256": "be8c59409da56f19d9d770b6b3dc2276aa2c68d5d45f8463dcbdc1dcf93aaa64",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/239/239138_71257-hq.ogg",
+     "provenance_note": "Machine gun shots/bursts. Extracted from a video from ArmyVideoTube by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military soun",
+     "cuts": [
+      [
+       0.511,
+       1.06
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_mg_fire",
+   "file": "hmg50-shot-2.ogg",
+   "durationS": 0.659,
+   "loop": false,
+   "loudnessLUFS": -24.8,
+   "peakDb": -3.52,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "4c389d6b9e06e12c8776357ce63c4443f43715165287806e02818f7c203aefd0",
+   "path": "conquest/vehicles/hmg50-shot-2.ogg",
+   "sizeBytes": 7455,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/239138/",
+     "title": "50 Cal MG",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "1.791-2.450 s",
+     "processing": "declipped; HP 60 Hz / LP 12 kHz; onset trimmed to the shot transient; last shot of a burst so the tail is natural; 120 ms fade-out; .50 cal, last shot of burst 2",
+     "download_sha256": "be8c59409da56f19d9d770b6b3dc2276aa2c68d5d45f8463dcbdc1dcf93aaa64",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/239/239138_71257-hq.ogg",
+     "provenance_note": "Machine gun shots/bursts. Extracted from a video from ArmyVideoTube by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military soun",
+     "cuts": [
+      [
+       1.791,
+       2.45
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_mg_fire",
+   "file": "hmg50-shot-3.ogg",
+   "durationS": 0.389,
+   "loop": false,
+   "loudnessLUFS": -21.92,
+   "peakDb": -3.53,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "90b93ac6516cccb30f48c195fdeb14786fcf52ed52c3468d2019713d0f58bbc6",
+   "path": "conquest/vehicles/hmg50-shot-3.ogg",
+   "sizeBytes": 4755,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/239138/",
+     "title": "50 Cal MG",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "3.291-3.680 s",
+     "processing": "declipped; HP 60 Hz / LP 12 kHz; onset trimmed to the shot transient; last shot of a burst so the tail is natural; 120 ms fade-out; .50 cal, last shot of burst 3",
+     "download_sha256": "be8c59409da56f19d9d770b6b3dc2276aa2c68d5d45f8463dcbdc1dcf93aaa64",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/239/239138_71257-hq.ogg",
+     "provenance_note": "Machine gun shots/bursts. Extracted from a video from ArmyVideoTube by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military soun",
+     "cuts": [
+      [
+       3.291,
+       3.68
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "door_minigun_and_jet_cannon",
+   "file": "door-minigun-loop.ogg",
+   "durationS": 3.075,
+   "loop": true,
+   "loudnessLUFS": -17.99,
+   "peakDb": -10.66,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "05af71d532ede9098874040342543be9228321ce60463e51872c94b54fe4356b",
+   "loopSeam": {
+    "boundary_step": 0.00219,
+    "step_p99": 0.09501
+   },
+   "notes": {
+    "rotated_s": 0.3233,
+    "loop_len_s": 3.0755,
+    "overlap_s": 0.12,
+    "head_corr": 0.152,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/door-minigun-loop.ogg",
+   "sizeBytes": 34319,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/rob762x51/sounds/165042/",
+     "title": "Minigun Burst Audio",
+     "author": "rob762x51",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "10.000-13.400 s",
+     "processing": "M134 continuous fire; HP 50 Hz / LP 13 kHz zero-phase; 3 s loop, 120 ms equal-power overlap; steady M134 fire 4 ft from gun",
+     "download_sha256": "77ea5bdc1b6658c29c4fe5000952581d12fe5e8cb12dfe4a1862666867105756",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/165/165042_1190141-hq.ogg",
+     "provenance_note": "The Garwood M134G Minigun demo by R&R; Exotic Machines. Audio from HDV camera mics, 4 feet from gun.",
+     "cuts": [
+      [
+       10.0,
+       13.4
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "door_minigun_and_jet_cannon",
+   "file": "door-minigun-spindown.ogg",
+   "durationS": 1.615,
+   "loop": false,
+   "loudnessLUFS": -17.34,
+   "peakDb": -3.6,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "509bf45e1cb21f619dc683df5e31b47eba32f90b3d91346f8339028ef3339569",
+   "path": "conquest/vehicles/door-minigun-spindown.ogg",
+   "sizeBytes": 22147,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/rob762x51/sounds/165042/",
+     "title": "Minigun Burst Audio",
+     "author": "rob762x51",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "31.050-32.700 s",
+     "processing": "last 250 ms of fire into barrel/motor spin-down; HP 50 Hz; 5 ms fade-in, 200 ms fade-out; end of burst, spin-down",
+     "download_sha256": "77ea5bdc1b6658c29c4fe5000952581d12fe5e8cb12dfe4a1862666867105756",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/165/165042_1190141-hq.ogg",
+     "provenance_note": "The Garwood M134G Minigun demo by R&R; Exotic Machines. Audio from HDV camera mics, 4 feet from gun.",
+     "cuts": [
+      [
+       31.05,
+       32.7
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "door_minigun_and_jet_cannon",
+   "file": "jet-cannon-burst.ogg",
+   "durationS": 2.91,
+   "loop": false,
+   "loudnessLUFS": -15.42,
+   "peakDb": -3.75,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "cc8f36ce9a6cce764a503a7f856e6db01fe5c1c614a8490e7ca6216914ecfdf6",
+   "path": "conquest/vehicles/jet-cannon-burst.ogg",
+   "sizeBytes": 31209,
+   "sources": [
+    {
+     "url": "https://www.youtube.com/watch?v=mlB5YtGP5LA",
+     "title": "CIWS Shoot Aboard GHWB",
+     "author": "U.S. Navy",
+     "license": "Creative Commons Attribution license (reuse allowed)",
+     "retrieved": "2026-10-08",
+     "cut": "36.600-39.900 s",
+     "processing": "M61A1 20 mm (Phalanx CIWS, U.S. Navy): 60 ms motor spin-up plus the first 1.35 s of fire spliced (90 ms equal-power) onto the final 0.25 s of fire and the natural 1.3 s tail; HP 35 Hz; low shelf +4 dB below 200 Hz; 500 ms fade-out; Phalanx 20 mm burst 3 of 4 (fire 36.68-38.58 s); middle 0.6 s of fire removed",
+     "download_sha256": "639673d563097263a97df880952f2f8fac1d72572bf2f02fba4d7bfe09b53bc8",
+     "license_verified": "yt-dlp metadata license field",
+     "provenance_note": "U.S. federal government work (17 U.S.C. 105, public domain); YouTube license field: Creative Commons Attribution license (reuse allowed); uploaded 20180625. ATLANTIC OCEAN (June 9, 2018) A Phalanx 20 mm close-in weapons system (CIWS) is fired aboard the aircraft carrier USS George H.W. Bush (CVN 77). The ship is underway conducting routine training exercises to maintain carr",
+     "cuts": [
+      [
+       36.6,
+       39.9
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "door_minigun_and_jet_cannon",
+   "file": "jet-cannon-ground.ogg",
+   "durationS": 1.5,
+   "loop": false,
+   "loudnessLUFS": -17.59,
+   "peakDb": -3.38,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "f403fdc95d1c7da5d7cf985f601b808f8eef576feb9bf276d053c8ecdfbced86",
+   "path": "conquest/vehicles/jet-cannon-ground.ogg",
+   "sizeBytes": 33245,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/205582/",
+     "title": "A-10.ogg",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "79.250-80.750 s",
+     "processing": "GAU-8 \"brrrt\" heard from the ground (A-10 gun run); declipped; HP 30 Hz / LP 9 kHz; 1.5 s with 10 ms in / 450 ms out; A-10 cannon burst from ground perspective (first 1.5 s)",
+     "download_sha256": "542d0558662a81e69c700309656b6b84626effa9e2ed66e5834a31433f90f728",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/205/205582_71257-hq.ogg",
+     "provenance_note": "A-10 Warthog flyby and shooting. Extracted from a video () by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military sounds pack, ",
+     "cuts": [
+      [
+       79.25,
+       80.75
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "heli_chin_cannon_fire",
+   "file": "chin-cannon-1.ogg",
+   "durationS": 0.76,
+   "loop": false,
+   "loudnessLUFS": -15.79,
+   "peakDb": -3.44,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "7ddcddcfa4fbbb58d21e8b68706f29b681c1e4ec2b80ea8ff742e6ecf9993778",
+   "path": "conquest/vehicles/chin-cannon-1.ogg",
+   "sizeBytes": 6910,
+   "sources": [
+    {
+     "url": "https://www.youtube.com/watch?v=hWjXYw9eHRM",
+     "title": "MK 38 25mm gun live fire exercise",
+     "author": "U.S. Navy",
+     "license": "Creative Commons Attribution license (reuse allowed)",
+     "retrieved": "2026-10-08",
+     "cut": "3.990-4.750 s",
+     "processing": "US Navy MK 38 25 mm single shot; declipped; HP 45 Hz; ship ambience expanded down after 150 ms; 250 ms fade-out; 25 mm shot 1",
+     "download_sha256": "d74f2347e8f8d91b3ea3414de587ec9e37a16a24de93db7ee128eda9f12539e6",
+     "license_verified": "yt-dlp metadata license field",
+     "provenance_note": "U.S. federal government work (17 U.S.C. 105, public domain); YouTube license field: Creative Commons Attribution license (reuse allowed); uploaded 20150324. PACIFIC OCEAN (March 17, 2014) Sailors aboard the Arleigh Burke class guided-missile destroyer USS Fitzgerald (DDG 62) fire an MK 38 25mm gun during a live fire exercise. The MK-38 is a 25-mm machine gun installed for sh",
+     "cuts": [
+      [
+       3.99,
+       4.75
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "heli_chin_cannon_fire",
+   "file": "chin-cannon-2.ogg",
+   "durationS": 0.76,
+   "loop": false,
+   "loudnessLUFS": -16.86,
+   "peakDb": -3.97,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "42f27d68f5671feda6a663991dcaaaaad399469e20a1dcb90f40b1961094fd26",
+   "path": "conquest/vehicles/chin-cannon-2.ogg",
+   "sizeBytes": 7670,
+   "sources": [
+    {
+     "url": "https://www.youtube.com/watch?v=hWjXYw9eHRM",
+     "title": "MK 38 25mm gun live fire exercise",
+     "author": "U.S. Navy",
+     "license": "Creative Commons Attribution license (reuse allowed)",
+     "retrieved": "2026-10-08",
+     "cut": "6.760-7.520 s",
+     "processing": "US Navy MK 38 25 mm single shot; declipped; HP 45 Hz; ship ambience expanded down after 150 ms; 250 ms fade-out; 25 mm shot 3",
+     "download_sha256": "d74f2347e8f8d91b3ea3414de587ec9e37a16a24de93db7ee128eda9f12539e6",
+     "license_verified": "yt-dlp metadata license field",
+     "provenance_note": "U.S. federal government work (17 U.S.C. 105, public domain); YouTube license field: Creative Commons Attribution license (reuse allowed); uploaded 20150324. PACIFIC OCEAN (March 17, 2014) Sailors aboard the Arleigh Burke class guided-missile destroyer USS Fitzgerald (DDG 62) fire an MK 38 25mm gun during a live fire exercise. The MK-38 is a 25-mm machine gun installed for sh",
+     "cuts": [
+      [
+       6.76,
+       7.52
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "heli_chin_cannon_fire",
+   "file": "chin-cannon-3.ogg",
+   "durationS": 0.76,
+   "loop": false,
+   "loudnessLUFS": -17.23,
+   "peakDb": -3.76,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "b53c707e3b2ec391e812974ab2eea4ebe59a568aaae0591ddf3cdc2f464bad07",
+   "path": "conquest/vehicles/chin-cannon-3.ogg",
+   "sizeBytes": 7317,
+   "sources": [
+    {
+     "url": "https://www.youtube.com/watch?v=hWjXYw9eHRM",
+     "title": "MK 38 25mm gun live fire exercise",
+     "author": "U.S. Navy",
+     "license": "Creative Commons Attribution license (reuse allowed)",
+     "retrieved": "2026-10-08",
+     "cut": "9.830-10.590 s",
+     "processing": "US Navy MK 38 25 mm single shot; declipped; HP 45 Hz; ship ambience expanded down after 150 ms; 250 ms fade-out; 25 mm shot 5",
+     "download_sha256": "d74f2347e8f8d91b3ea3414de587ec9e37a16a24de93db7ee128eda9f12539e6",
+     "license_verified": "yt-dlp metadata license field",
+     "provenance_note": "U.S. federal government work (17 U.S.C. 105, public domain); YouTube license field: Creative Commons Attribution license (reuse allowed); uploaded 20150324. PACIFIC OCEAN (March 17, 2014) Sailors aboard the Arleigh Burke class guided-missile destroyer USS Fitzgerald (DDG 62) fire an MK 38 25mm gun during a live fire exercise. The MK-38 is a 25-mm machine gun installed for sh",
+     "cuts": [
+      [
+       9.83,
+       10.59
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_shell_flyby",
+   "file": "shell-flyby-ap.ogg",
+   "durationS": 0.9,
+   "loop": false,
+   "loudnessLUFS": -25.87,
+   "peakDb": -3.4,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "74a3b3d818bff97527b84300c1b912cdf7ee36d51f99c5df1c07996c98d1edcb",
+   "path": "conquest/vehicles/shell-flyby-ap.ogg",
+   "sizeBytes": 10352,
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (this project)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "original synthesis: N-wave sonic crack (+ground reflection 4 ms later) over a Doppler-swept band-noise whoosh (3.2 kHz -> 500 Hz), 0.9 s",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "tank_shell_flyby",
+   "file": "shell-incoming-he.ogg",
+   "durationS": 2.52,
+   "loop": false,
+   "loudnessLUFS": -13.63,
+   "peakDb": -3.5,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "0a5ee234c79a447ff0cccfdabaebcc4562dc08bd02b2fc1dafea91c163199bb9",
+   "path": "conquest/vehicles/shell-incoming-he.ogg",
+   "sizeBytes": 32888,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/bendodge/sounds/170991/",
+     "title": "Incoming Artillery.wav",
+     "author": "bendodge",
+     "license": "CC BY 3.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.300-2.820 s",
+     "processing": "descending incoming-shell whistle, cut before the explosion; HP 200 Hz; 300 ms in / 120 ms out; incoming whistle only (explosion removed)",
+     "download_sha256": "fb9b7e3eee2cf5733e8411ee044b7f081d4565fad99c265bbb681ca146fb3193",
+     "license_url": "https://creativecommons.org/licenses/by/3.0/",
+     "file_url": "https://cdn.freesound.org/previews/170/170991_2475499-hq.ogg",
+     "provenance_note": "A shell whistles overhead before exploding with debris. Includes some bass ambiance that sounds good on a subwoofer or headphones. (This was designed for theater.) The whistle effect isn't the best.",
+     "cuts": [
+      [
+       0.3,
+       2.82
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jeep_engine_loop",
+   "file": "jeep-engine-drive.ogg",
+   "durationS": 6.217,
+   "loop": true,
+   "loudnessLUFS": -18.07,
+   "peakDb": -3.52,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "d9912bbf26d64500e32d65ddec0cd78dd4d471fd026003300942bb8b002fde59",
+   "loopSeam": {
+    "boundary_step": 0.00169,
+    "step_p99": 0.02128
+   },
+   "notes": {
+    "rotated_s": 0.6611,
+    "loop_len_s": 6.217,
+    "overlap_s": 0.3,
+    "head_corr": 0.445,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/jeep-engine-drive.ogg",
+   "sizeBytes": 67925,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Alex_hears_things/sounds/379914/",
+     "title": "4WD Engine & Rev.wav",
+     "author": "Alex_hears_things",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "50.000-56.600 s",
+     "processing": "diesel 4x4 (Toyota Hilux) held high rev; HP 30 Hz / LP 10 kHz zero-phase; 1.5 s level-flattening; 6 s loop, 300 ms overlap; Hilux diesel held rev",
+     "download_sha256": "a26ac0de103e26c4ea4d2701206f19a4170300367634776ede63ed30ca1e10f3",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/379/379914_2309965-hq.ogg",
+     "provenance_note": "The ignition and engine rev of a large Toyota Hilux diesel 4x4. Recorded on Sennheiser MKH 805 to Zoom H4n @96/24. Alex Fitzwater/needle media 2017",
+     "cuts": [
+      [
+       50.0,
+       56.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jeep_engine_loop",
+   "file": "jeep-engine-idle.ogg",
+   "durationS": 3.838,
+   "loop": true,
+   "loudnessLUFS": -17.99,
+   "peakDb": -3.98,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "84a36ca7c51f2f079267027671c3fe3b20bab505c592b9bb28e1ea0770c481e4",
+   "loopSeam": {
+    "boundary_step": 0.00485,
+    "step_p99": 0.04278
+   },
+   "notes": {
+    "rotated_s": 2.4132,
+    "loop_len_s": 3.8385,
+    "overlap_s": 0.2,
+    "head_corr": 0.547,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/jeep-engine-idle.ogg",
+   "sizeBytes": 42356,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Mihacappy/sounds/840649/",
+     "title": "djeep_idle.wav",
+     "author": "Mihacappy",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.300-4.600 s",
+     "processing": "diesel 4x4 idle; HP 25 Hz / LP 10 kHz zero-phase; 4 s loop, 200 ms overlap; Jeep Grand Cherokee diesel idle",
+     "download_sha256": "7976fd19f1cb5ea1da3e69a7b7d397d7b882c0f35516292aed2e4d80c4c327e3",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/840/840649_10594370-hq.ogg",
+     "provenance_note": "Diesel Jeep Grand Cherokee idling in a parking lot. Loops nicely. Recorded with my phone.",
+     "cuts": [
+      [
+       0.3,
+       4.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jeep_tyres_offroad_loop",
+   "file": "jeep-skid-gravel.ogg",
+   "durationS": 1.1,
+   "loop": false,
+   "loudnessLUFS": -17.03,
+   "peakDb": -3.68,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "4d019dae8a68ed7a21d8b4efe7a103ae00e002349b984724bd0957b2dca67b40",
+   "path": "conquest/vehicles/jeep-skid-gravel.ogg",
+   "sizeBytes": 13133,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/637161/",
+     "title": "auto car or van stop brake skid gravel short.flac",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-1.100 s",
+     "processing": "optional hard-turn skid one-shot: brake skid on gravel; HP 80 Hz; 20 ms in / 200 ms out; gravel skid",
+     "download_sha256": "fd6d752fd07153da1d4dcf8716649229989d2a5b142d26f3603437aa2f465378",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/637/637161_612689-hq.ogg",
+     "provenance_note": "auto car or van stop brake skid gravel short recorded with Sony PCM-D50, Tascam DAP1 DAT with AT835 stereo mic, or Zoom H2",
+     "cuts": [
+      [
+       0.0,
+       1.1
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jeep_tyres_offroad_loop",
+   "file": "jeep-suspension-rattle.ogg",
+   "durationS": 4.037,
+   "loop": true,
+   "loudnessLUFS": -20.37,
+   "peakDb": -3.63,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "27a1bb28c0c322a27efffaa74d8c5b00f297ef7efbd2735ed1b270f5beb89fb8",
+   "loopSeam": {
+    "boundary_step": 0.00056,
+    "step_p99": 0.04998
+   },
+   "notes": {
+    "rotated_s": 0.927,
+    "loop_len_s": 4.037,
+    "overlap_s": 0.2,
+    "head_corr": 0.121,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/jeep-suspension-rattle.ogg",
+   "sizeBytes": 47735,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/451044/",
+     "title": "auto truck jeep onboard driving rough terrain dirt rock various speeds slow to stop and pull up MS.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "12.000-16.400 s",
+     "processing": "onboard rough-terrain rattles; HP 350 Hz (suppresses engine) / LP 9 kHz zero-phase; 1 s level-flattening; 4 s loop, 200 ms overlap; onboard rough dirt/rock terrain",
+     "download_sha256": "041db9ffb940f6db249b89a112b6d0e8500d73b0a78807cac33e5ac88d40441b",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/451/451044_612689-hq.ogg",
+     "provenance_note": "auto truck jeep onboard driving rough terrain dirt rock various speeds slow to stop and pull up MS.wav",
+     "cuts": [
+      [
+       12.0,
+       16.4
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jeep_tyres_offroad_loop",
+   "file": "jeep-tyres-gravel.ogg",
+   "durationS": 3.992,
+   "loop": true,
+   "loudnessLUFS": -17.99,
+   "peakDb": -4.19,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "87bb93e74f17c2d494e11bcb8c6d1217c80a84e113c9b7d10b8d11a263efe108",
+   "loopSeam": {
+    "boundary_step": 0.00272,
+    "step_p99": 0.05484
+   },
+   "notes": {
+    "rotated_s": 2.7711,
+    "loop_len_s": 3.992,
+    "overlap_s": 0.2,
+    "head_corr": 0.155,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/jeep-tyres-gravel.ogg",
+   "sizeBytes": 46180,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/OBXJohn/sounds/251662/",
+     "title": "Tires on Gravel Road 2",
+     "author": "OBXJohn",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "6.000-10.400 s",
+     "processing": "tyres rolling on gravel (no engine); HP 120 Hz / LP 11 kHz zero-phase; 1 s level-flattening; 4 s loop, 200 ms overlap; trailer tyres on gravel path",
+     "download_sha256": "9fc732709cd5ac532d5fd351dbc33ecaa655c0460645a4f2208e75de0bf34b71",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/251/251662_3719168-hq.ogg",
+     "provenance_note": "Recording of the tires of a flat bed trailer going over a gravel path. This was from a hayride where I was sitting in the back with a bunch of kids being pulled by the tractor. Recorder was just a couple of feet from the wheel so most of the kids noises and even the tractor engine get drowned out, b",
+     "cuts": [
+      [
+       6.0,
+       10.4
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "helicopter_rotor_loop",
+   "file": "heli-cockpit.ogg",
+   "durationS": 5.573,
+   "loop": true,
+   "loudnessLUFS": -18.12,
+   "peakDb": -3.4,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "1db53048cdc099cd117aff077c96cd0f865b41aea00080003f6f0b75b03122ef",
+   "loopSeam": {
+    "boundary_step": 0.00186,
+    "step_p99": 0.03522
+   },
+   "notes": {
+    "rotated_s": 1.9971,
+    "loop_len_s": 5.573,
+    "overlap_s": 0.3,
+    "head_corr": 0.277,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/heli-cockpit.ogg",
+   "sizeBytes": 62412,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Sanderboah/sounds/702748/",
+     "title": "Helicopter interior recording",
+     "author": "Sanderboah",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "20.000-26.600 s",
+     "processing": "helicopter interior; HP 30 Hz / LP 7 kHz zero-phase; +3 dB low shelf at 90 Hz (rotor pressure); 6 s loop, 300 ms overlap; steady interior cruise",
+     "download_sha256": "44679ccaf96bc7abcb9d7d8aa4c967d226434cac42b0e3136007b41d68fea392",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/702/702748_13017680-hq.ogg",
+     "provenance_note": "Helicopter interior sound I recommend bass boosting this sound",
+     "cuts": [
+      [
+       20.0,
+       26.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "helicopter_rotor_loop",
+   "file": "heli-rotor-distant.ogg",
+   "durationS": 5.649,
+   "loop": true,
+   "loudnessLUFS": -18.08,
+   "peakDb": -3.59,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "606e1000318eea2d9ec344e47c1d9b3182b8ea77a8cd78ee2f3f0b3e0a94c408",
+   "loopSeam": {
+    "boundary_step": 0.00449,
+    "step_p99": 0.00498
+   },
+   "notes": {
+    "rotated_s": 0.4984,
+    "loop_len_s": 5.649,
+    "overlap_s": 0.3,
+    "head_corr": 0.429,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/heli-rotor-distant.ogg",
+   "sizeBytes": 111355,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/klankbeeld/sounds/734126/",
+     "title": "Apache AH-64 close 1223 PM 240501_0707",
+     "author": "klankbeeld",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "4.000-10.600 s",
+     "processing": "far AH-64 hovering; LP 500 Hz 4th order (low blade thump only) + HP 25 Hz; level-flattened; 6 s loop, 300 ms overlap; AH-64 at distance, before the close approach",
+     "download_sha256": "1f3d6ef7e227fec3d88dcfe6410be789a9d8fe33a85c9b500245ac9ae9f0785c",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/734/734126_1648170-hq.ogg",
+     "provenance_note": "Ambient recording. The Boeing AH-64 Apache passing over river on 100m and flying 20m above the water. Spring Location: Floodplains of the river Maas near the city of 's-Hertogenbosch in the south of the Netherlands. Date/time: May 1 2024, START 12:23 PM Weather: 21c, sun, wind NNE 7-25 km/h, 1008 hP",
+     "cuts": [
+      [
+       4.0,
+       10.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "helicopter_rotor_loop",
+   "file": "heli-rotor-ext.ogg",
+   "durationS": 6.08,
+   "loop": true,
+   "loudnessLUFS": -21.56,
+   "peakDb": -3.41,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "93053966c84df6517aee822c5950b8bb6d00b1fc9aaa4b8e3c4e4f014d5214d5",
+   "loopSeam": {
+    "boundary_step": 0.00079,
+    "step_p99": 0.01499
+   },
+   "notes": {
+    "rotated_s": 4.2636,
+    "loop_len_s": 6.08,
+    "overlap_s": 0.3,
+    "head_corr": 0.204,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/heli-rotor-ext.ogg",
+   "sizeBytes": 66349,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/peter1955/sounds/645371/",
+     "title": "20220801 - Two Apache helicopters passing - Waalre NL  - Field-recording",
+     "author": "peter1955",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "18.000-24.600 s",
+     "processing": "AH-64 close pass, steadiest section; HP 25 Hz / LP 11 kHz zero-phase; 1.5 s RMS level-flattening (removes pass-by swell); 6 s loop, 300 ms equal-power overlap; two AH-64 Apaches, close section",
+     "download_sha256": "14dc465c8cfe681c152774b15080b494dc6e5309699b1c543a57509d451f361a",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/645/645371_109901-hq.ogg",
+     "provenance_note": "Recording (2022 August 1th) of the passing of two Apache helicopters in Waalre, the Netherlands. Recorded with a Samsung S10 cellphone and the PVD fieldrecording app, in stereo (wave 48khz 16bit format).",
+     "cuts": [
+      [
+       18.0,
+       24.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "transport_rotor_loop",
+   "file": "transport-cabin.ogg",
+   "durationS": 6.045,
+   "loop": true,
+   "loudnessLUFS": -18.0,
+   "peakDb": -5.92,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "07abe4a2ff44068e9d4a8fcb5034291e958cd94827d4bc551a297d68a27f73df",
+   "loopSeam": {
+    "boundary_step": 6e-05,
+    "step_p99": 0.12271
+   },
+   "notes": {
+    "rotated_s": 3.5451,
+    "loop_len_s": 6.0445,
+    "overlap_s": 0.3,
+    "head_corr": 0.092,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/transport-cabin.ogg",
+   "sizeBytes": 66452,
+   "sources": [
+    {
+     "url": "https://www.youtube.com/watch?v=6tnUDX0WT8Q",
+     "title": "GAU-17 \"Vulcan\" Minigun Training From USS USS John P. Murtha",
+     "author": "U.S. Navy",
+     "license": "Creative Commons Attribution license (reuse allowed)",
+     "retrieved": "2026-10-08",
+     "cut": "8.000-14.600 s",
+     "processing": "UH-1Y cabin at the open-door gunner station (turbine whine + door wind); HP 30 Hz / LP 10 kHz; 6 s loop, 300 ms overlap; UH-1Y cabin before the gun fires (US Navy / USMC footage, public domain)",
+     "download_sha256": "966385c181c5861d96a8e76b3740c8fb3b73ab0f3219af449e1f5e2fe82cb650",
+     "license_verified": "yt-dlp metadata license field",
+     "provenance_note": "U.S. federal government work (17 U.S.C. 105, public domain); YouTube license field: Creative Commons Attribution license (reuse allowed); uploaded 20190413. PACIFIC OCEAN (March 28, 2019) Marine Sgt. Cade Allen, from Bartlesville, Okla., fires a GAU-17 \"Vulcan\" minigun at a fast inshore attack craft during a live-fire exercise on board a UH-1Y Venom, assigned to Marine Mediu",
+     "cuts": [
+      [
+       8.0,
+       14.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "transport_rotor_loop",
+   "file": "transport-rotor-ext.ogg",
+   "durationS": 5.696,
+   "loop": true,
+   "loudnessLUFS": -18.0,
+   "peakDb": -3.55,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "3a04d7db95050d3f80a95f68fb5af268716960b647c9ca0939b859b1323314bf",
+   "loopSeam": {
+    "boundary_step": 0.00105,
+    "step_p99": 0.09308
+   },
+   "notes": {
+    "rotated_s": 5.1383,
+    "loop_len_s": 5.696,
+    "overlap_s": 0.3,
+    "head_corr": 0.214,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/transport-rotor-ext.ogg",
+   "sizeBytes": 66838,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/OroborosNZ/sounds/157722/",
+     "title": "UH-1 \"Huey\" Iroquois Helicopter",
+     "author": "OroborosNZ",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "70.000-76.600 s",
+     "processing": "UH-1 Huey hover/idle at close range (blade \"wop-wop\"); HP 25 Hz / LP 10 kHz zero-phase; 1.5 s level-flattening; 6 s loop, 300 ms overlap; UH-1 rotor at speed, close",
+     "download_sha256": "2099aaa812d9a10116ee983d8a4d1d5cc24a164fed7b5049e51472447bc6c875",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/157/157722_2051721-hq.ogg",
+     "provenance_note": "Ignition, start, lift-off, departs, returns for fly-by. Recorded At the Copthorne Kings Hotel, Sunday June 3 2012, after the Vietnam Veterans Reunion Service at Waitangi. \"Whenever we heard that sound, it meant 'going home'.\" Stereo record @ 44k1Hz XY coincident pair.",
+     "cuts": [
+      [
+       70.0,
+       76.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rotor_spool_up_down",
+   "file": "rotor-spool-down.ogg",
+   "durationS": 6.6,
+   "loop": false,
+   "loudnessLUFS": -17.63,
+   "peakDb": -3.78,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "77a931e8b02fe29642f1ce44d8affdc227f7413ea1cf6e713fc0d657837208d2",
+   "path": "conquest/vehicles/rotor-spool-down.ogg",
+   "sizeBytes": 76352,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/YleArkisto/sounds/324971/",
+     "title": "Helikopteri, lento, laskeutuminen, sisä / Helicopter, flying, starting to land, landing, engine shuts down slowly, rotor blade spins, interior, AB 412 Agusta, a 1986 model",
+     "author": "YleArkisto",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "191.000-197.600 s",
+     "processing": "AB 412 engine shut-down, turbine whine falling and blades slowing (interior perspective); 6.6 s to suit the ~2 s in-game rotor run-down; HP 25 Hz / LP 9 kHz; 200 ms in / 2.2 s out; engine shut-down and rotor run-down",
+     "download_sha256": "3bd408af500f9fc6f5b7d4fe53d9c589865ea64c8bad378c16dca745cd555c11",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/324/324971_4415905-hq.ogg",
+     "provenance_note": "AB 412 Agusta, vm 1986. Lentoa, alkaa laskeutua, laskeutuu, moottori sammuu hitaasti, roottorin lapa pyörii. Sisä. Äänitetty / Rec: DAT Paikka/Place: Suomi / Finland / Helsinki, Malmi Aika/Date: 06.10.1992",
+     "cuts": [
+      [
+       191.0,
+       197.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rotor_spool_up_down",
+   "file": "rotor-spool-up.ogg",
+   "durationS": 4.2,
+   "loop": false,
+   "loudnessLUFS": -15.52,
+   "peakDb": -3.42,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "c927d4c87cee2d4eaf6eeae8477332d25bb9819b7f7472ab4552c53cc879d4c6",
+   "path": "conquest/vehicles/rotor-spool-up.ogg",
+   "sizeBytes": 49708,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/OroborosNZ/sounds/157722/",
+     "title": "UH-1 \"Huey\" Iroquois Helicopter",
+     "author": "OroborosNZ",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "2.000-4.600 s",
+     "processing": "UH-1 turbine light-off whine sweep (2.0-4.6 s, gain ramp -10 dB -> matched) spliced with 900 ms equal-power overlap onto the rotor at near full speed (18.0-20.5 s); fits the ~1.2 s in-game rotor ramp; HP 25 Hz; 150 ms in / 800 ms out; ignition, turbine whine sweep",
+     "download_sha256": "2099aaa812d9a10116ee983d8a4d1d5cc24a164fed7b5049e51472447bc6c875",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/157/157722_2051721-hq.ogg",
+     "provenance_note": "Ignition, start, lift-off, departs, returns for fly-by. Recorded At the Copthorne Kings Hotel, Sunday June 3 2012, after the Vietnam Veterans Reunion Service at Waitangi. \"Whenever we heard that sound, it meant 'going home'.\" Stereo record @ 44k1Hz XY coincident pair.",
+     "cuts": [
+      [
+       2.0,
+       4.6
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/OroborosNZ/sounds/157722/",
+     "title": "UH-1 \"Huey\" Iroquois Helicopter",
+     "author": "OroborosNZ",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "18.000-20.500 s",
+     "processing": "UH-1 turbine light-off whine sweep (2.0-4.6 s, gain ramp -10 dB -> matched) spliced with 900 ms equal-power overlap onto the rotor at near full speed (18.0-20.5 s); fits the ~1.2 s in-game rotor ramp; HP 25 Hz; 150 ms in / 800 ms out; rotor near full speed",
+     "download_sha256": "2099aaa812d9a10116ee983d8a4d1d5cc24a164fed7b5049e51472447bc6c875",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/157/157722_2051721-hq.ogg",
+     "provenance_note": "Ignition, start, lift-off, departs, returns for fly-by. Recorded At the Copthorne Kings Hotel, Sunday June 3 2012, after the Vietnam Veterans Reunion Service at Waitangi. \"Whenever we heard that sound, it meant 'going home'.\" Stereo record @ 44k1Hz XY coincident pair.",
+     "cuts": [
+      [
+       18.0,
+       20.5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jet_engine_loop",
+   "file": "jet-engine-ext-low.ogg",
+   "durationS": 3.494,
+   "loop": true,
+   "loudnessLUFS": -17.98,
+   "peakDb": -12.64,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "d06e904579d9cc9f9a83b048204ee578ea87472a5028230b2a30cace971d6cd7",
+   "loopSeam": {
+    "boundary_step": 0.0027,
+    "step_p99": 0.09559
+   },
+   "notes": {
+    "rotated_s": 0.2537,
+    "loop_len_s": 3.4945,
+    "overlap_s": 0.25,
+    "head_corr": 0.131,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/jet-engine-ext-low.ogg",
+   "sizeBytes": 43597,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/205581/",
+     "title": "Jet Turbine Noise.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "63.200-67.000 s",
+     "processing": "same engine after throttling back (lower whine); HP 30 Hz / LP 12 kHz zero-phase; 3.5 s loop, 250 ms overlap; reduced-power engine run",
+     "download_sha256": "68b4505afed1789ffc403ec2151d1f4cc2574cf7b4af95075f3d76b0c5466339",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/205/205581_71257-hq.ogg",
+     "provenance_note": "Jet engine test. Extracted from a video () by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military sounds pack, also located on ",
+     "cuts": [
+      [
+       63.2,
+       67.0
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jet_engine_loop",
+   "file": "jet-engine-ext.ogg",
+   "durationS": 4.954,
+   "loop": true,
+   "loudnessLUFS": -17.99,
+   "peakDb": -11.36,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "aa3b82d80267ef43437e9ac20028f4abbef1c21588b91de8fdd09f5f0f06aa79",
+   "loopSeam": {
+    "boundary_step": 0.01768,
+    "step_p99": 0.11341
+   },
+   "notes": {
+    "rotated_s": 4.4792,
+    "loop_len_s": 4.9535,
+    "overlap_s": 0.25,
+    "head_corr": 0.067,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/jet-engine-ext.ogg",
+   "sizeBytes": 54155,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/205581/",
+     "title": "Jet Turbine Noise.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "20.000-25.400 s",
+     "processing": "jet engine ground run at high power (low rumble + whine); HP 30 Hz / LP 14 kHz zero-phase; 5 s loop, 250 ms overlap; steady high-power engine run (US government video, public domain)",
+     "download_sha256": "68b4505afed1789ffc403ec2151d1f4cc2574cf7b4af95075f3d76b0c5466339",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/205/205581_71257-hq.ogg",
+     "provenance_note": "Jet engine test. Extracted from a video () by a US Government agency, thus public domain. This sound is cc0/public domain but I highly recommend that you include a link to this page when using it, to avoid misunderstandings. Find many more military sounds in my military sounds pack, also located on ",
+     "cuts": [
+      [
+       20.0,
+       25.4
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jet_afterburner",
+   "file": "jet-afterburner-lightoff.ogg",
+   "durationS": 2.277,
+   "loop": false,
+   "loudnessLUFS": -17.75,
+   "peakDb": -3.67,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "b65830edb082503fe79c91a14b308de089c1e51be72e21b4833bfea60a9f87d3",
+   "path": "conquest/vehicles/jet-afterburner-lightoff.ogg",
+   "sizeBytes": 31611,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/TiesWijnen/sounds/413312/",
+     "title": "Afterburner",
+     "author": "TiesWijnen",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-2.300 s",
+     "processing": "turbojet afterburner light-off: onset thump and first 2 s of roar; HP 30 Hz; 1 ms in / 800 ms out; afterburner ignition",
+     "download_sha256": "03cfa3cb15567a03b25f62b146ec217399d5e243382732383402f78e6ff43aed",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/413/413312_1511977-hq.ogg",
+     "provenance_note": "Turbojet engine afterburner.",
+     "cuts": [
+      [
+       0.0,
+       2.3
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jet_afterburner",
+   "file": "jet-afterburner-loop.ogg",
+   "durationS": 3.245,
+   "loop": true,
+   "loudnessLUFS": -17.99,
+   "peakDb": -4.88,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "43389be504d035ea288b056aa9a45d7e36c758be70d5045c917a9f14e41cf02e",
+   "loopSeam": {
+    "boundary_step": 0.00166,
+    "step_p99": 0.05021
+   },
+   "notes": {
+    "rotated_s": 2.776,
+    "loop_len_s": 3.2455,
+    "overlap_s": 0.25,
+    "head_corr": 0.104,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/jet-afterburner-loop.ogg",
+   "sizeBytes": 38842,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/surrey_film/sounds/162242/",
+     "title": "Eurofighter afterburner woomph",
+     "author": "surrey_film",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "10.300-14.100 s",
+     "processing": "Eurofighter afterburner climb, crackling peak; HP 60 Hz / LP 12 kHz zero-phase; 1 s level-flattening; 3.5 s loop, 250 ms overlap; afterburner crackle at closest point",
+     "download_sha256": "688526f0d11499c880b71bad96840aaeda52f10beaac8945cd88f9e38506a0bb",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/162/162242_1328296-hq.ogg",
+     "provenance_note": "Eurofighter Typhoon climbs over crowd at Farnborough. Ignition of after-burners. Zoom H2 48khz",
+     "cuts": [
+      [
+       10.3,
+       14.1
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jet_flyby",
+   "file": "jet-flyby-1.ogg",
+   "durationS": 9.5,
+   "loop": false,
+   "loudnessLUFS": -20.52,
+   "peakDb": -3.28,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "3fc985ccc7263bb8ca8d955085681cb68e94b47985b9816207161acc22ae2dc6",
+   "path": "conquest/vehicles/jet-flyby-1.ogg",
+   "sizeBytes": 110081,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/TimoSchmied/sounds/640505/",
+     "title": "Eurofighter Typhoon Flyby 005 – Close Proximity",
+     "author": "TimoSchmied",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "1.000-10.500 s",
+     "processing": "mono; HP 30 Hz / LP 14 kHz; fades shaped so the pass builds and recedes; tanh soft-limit (drive 2.5) on the crackle peak; 9.5 s, 1 s in / 2.5 s out; Eurofighter Typhoon close flyby",
+     "download_sha256": "88cd49910c8e048e62d26d5fd48b6913876b117ce030ffc8cede9527c0fd5820",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/640/640505_4424897-hq.ogg",
+     "provenance_note": "A recording of a flyby of a Eurofighter Typhoon – a modern jet engine fighter airplane – at an airshow in Berlin, Germany. Recorded at ILA 2022. Recorded with two small-diaphragm condenser microphones in XY-configuration. The file is uploaded in recording level, no further processing took place, exc",
+     "cuts": [
+      [
+       1.0,
+       10.5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jet_flyby",
+   "file": "jet-flyby-2.ogg",
+   "durationS": 10.0,
+   "loop": false,
+   "loudnessLUFS": -19.87,
+   "peakDb": -3.7,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "6a4034c043002aca9759c0aebb6b62c76493c32373460a063fef41a4abe88011",
+   "path": "conquest/vehicles/jet-flyby-2.ogg",
+   "sizeBytes": 113144,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/klangfabrik/sounds/324370/",
+     "title": "F15 Eagle flyover.wav",
+     "author": "klangfabrik",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "5.500-15.500 s",
+     "processing": "mono; HP 30 Hz / LP 14 kHz; fades shaped so the pass builds and recedes; 10 s from the approach build-up through the overhead pass, 1.5 s in / 3 s out; F-15 overhead pass",
+     "download_sha256": "f8e4ea0f6c106639f370f61a4774b0671e8a8162d740e25fe109d437fd26d69a",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/324/324370_181941-hq.ogg",
+     "provenance_note": "F15 jet fighter flies overhead.",
+     "cuts": [
+      [
+       5.5,
+       15.5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "jet_flyby",
+   "file": "jet-flyby-3.ogg",
+   "durationS": 10.0,
+   "loop": false,
+   "loudnessLUFS": -19.29,
+   "peakDb": -3.6,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "4725b1078053a03f2777c4a9fd280e4af9356cd0384a6c0e6434c21e323ac70f",
+   "path": "conquest/vehicles/jet-flyby-3.ogg",
+   "sizeBytes": 109070,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/JoanCalsina/sounds/851222/",
+     "title": "Jet fighter flyby over Bardenas Reales Spain",
+     "author": "JoanCalsina",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "22.000-32.000 s",
+     "processing": "mono; HP 30 Hz / LP 14 kHz; fades shaped so the pass builds and recedes; 10 s low pass, 1.2 s in / 3 s out; fighter low pass over desert",
+     "download_sha256": "67387e6c6018d6b2ca07c8911889f78435d0b7523d23f40e5f280595a9bdb278",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/851/851222_15370528-hq.ogg",
+     "provenance_note": "Sound of a military jet fighter (likely an F-18) flying low over the Bardenas Reales desert in Navarre, Spain. High-speed flyby with a powerful engine roar and doppler effect. Recorded in an open field.",
+     "cuts": [
+      [
+       22.0,
+       32.0
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rocket_pod_launch",
+   "file": "rocket-pod-1.ogg",
+   "durationS": 1.7,
+   "loop": false,
+   "loudnessLUFS": -21.67,
+   "peakDb": -3.57,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "e11caefcb32ee6eb12f71d917e8458891ee14f32e678efa4b334453a4432a696",
+   "path": "conquest/vehicles/rocket-pod-1.ogg",
+   "sizeBytes": 18516,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/klangfabrik/sounds/249298/",
+     "title": "rpg launcher  three shots.wav",
+     "author": "klangfabrik",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.095-1.805 s",
+     "processing": "single rocket: ignition pop + short tearing whoosh; declipped; HP 40 Hz; onset trimmed; 600 ms fade-out (engine fires one per pod rocket); launcher firing 1",
+     "download_sha256": "dbdc20230154d0cb9bc893ace213ae54b766bb5ad34d51003fff78407e529f73",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/249/249298_181941-hq.ogg",
+     "provenance_note": "Three medium shot exterior firings of a rpg (rocket propelled grenade) launcher/anti-tank weapon.",
+     "cuts": [
+      [
+       0.095,
+       1.805
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rocket_pod_launch",
+   "file": "rocket-pod-2.ogg",
+   "durationS": 1.702,
+   "loop": false,
+   "loudnessLUFS": -19.87,
+   "peakDb": -3.4,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "db6f44a76e996707ed1c8829b27cb7cebd906a0bda9d96b072910789f6b2ef85",
+   "path": "conquest/vehicles/rocket-pod-2.ogg",
+   "sizeBytes": 18737,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/klangfabrik/sounds/249298/",
+     "title": "rpg launcher  three shots.wav",
+     "author": "klangfabrik",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "3.940-5.650 s",
+     "processing": "single rocket: ignition pop + short tearing whoosh; declipped; HP 40 Hz; onset trimmed; 600 ms fade-out (engine fires one per pod rocket); launcher firing 2",
+     "download_sha256": "dbdc20230154d0cb9bc893ace213ae54b766bb5ad34d51003fff78407e529f73",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/249/249298_181941-hq.ogg",
+     "provenance_note": "Three medium shot exterior firings of a rpg (rocket propelled grenade) launcher/anti-tank weapon.",
+     "cuts": [
+      [
+       3.94,
+       5.65
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rocket_pod_launch",
+   "file": "rocket-pod-3.ogg",
+   "durationS": 1.569,
+   "loop": false,
+   "loudnessLUFS": -18.14,
+   "peakDb": -3.73,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "5022ac17a699feea8829dfca73d298029da3e6b946f4f03b660aa754c10af1a9",
+   "path": "conquest/vehicles/rocket-pod-3.ogg",
+   "sizeBytes": 16577,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/klangfabrik/sounds/249298/",
+     "title": "rpg launcher  three shots.wav",
+     "author": "klangfabrik",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "7.855-9.565 s",
+     "processing": "single rocket: ignition pop + short tearing whoosh; declipped; HP 40 Hz; onset trimmed; 600 ms fade-out (engine fires one per pod rocket); pitched x1.08 for variety; launcher firing 3",
+     "download_sha256": "dbdc20230154d0cb9bc893ace213ae54b766bb5ad34d51003fff78407e529f73",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/249/249298_181941-hq.ogg",
+     "provenance_note": "Three medium shot exterior firings of a rpg (rocket propelled grenade) launcher/anti-tank weapon.",
+     "cuts": [
+      [
+       7.855,
+       9.565
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "aa_missile_launch_and_flight",
+   "file": "aa-missile-flight.ogg",
+   "durationS": 2.771,
+   "loop": true,
+   "loudnessLUFS": -18.01,
+   "peakDb": -7.23,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "f839646fb94e3f61aeb9ff63d430d759943db51432ede76b02e18418c45552d5",
+   "loopSeam": {
+    "boundary_step": 3e-05,
+    "step_p99": 0.00739
+   },
+   "notes": {
+    "rotated_s": 2.4267,
+    "loop_len_s": 2.7705,
+    "overlap_s": 0.2,
+    "head_corr": 0.347,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/aa-missile-flight.ogg",
+   "sizeBytes": 49729,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/LilMati/sounds/515122/",
+     "title": "Rocket Thrust 02",
+     "author": "LilMati",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "20.000-23.400 s",
+     "processing": "sustained rocket-motor thrust; HP 50 Hz / LP 12 kHz zero-phase; 1 s level-flattening; 3 s loop, 200 ms overlap (Doppler applied by playbackRate in game); steady thrust section",
+     "download_sha256": "324d0cc0fd710bebc8c77ecbb2356ca81db7a128f210b7e09980a21b56c50044",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/515/515122_6142149-hq.ogg",
+     "provenance_note": "[Rocket_Thrust_01.wav] Rocket Thrust If you enjoyed the sound, please STAR, COMMENT, SPREAD THE WORD! 🗣 It really helps! 🎯 ///Lil Mati",
+     "cuts": [
+      [
+       20.0,
+       23.4
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "aa_missile_launch_and_flight",
+   "file": "aa-missile-launch-1.ogg",
+   "durationS": 6.016,
+   "loop": false,
+   "loudnessLUFS": -25.88,
+   "peakDb": -3.43,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "f44e516387dca2559a6d46d1083a218b5128d6751771300c06cedbb88cac7c61",
+   "path": "conquest/vehicles/aa-missile-launch-1.ogg",
+   "sizeBytes": 73839,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/182794/",
+     "title": "Rocket Launch.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.560-6.600 s",
+     "processing": "ignition bang and long rocket-motor whoosh (US government video, public domain); declipped; HP 35 Hz / LP 13 kHz; onset trimmed; 1.2 s fade-out; rocket launch 1",
+     "download_sha256": "91dfe9729e6083936fa11c3e36c9aa7a1a3653bd4d6a0453698fbfaadc5ba34a",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/182/182794_71257-hq.ogg",
+     "provenance_note": "Launching a rocket. Extracted from a video (EoVEpS-mcIA) by a US Government agency, thus public domain. Find many more military sounds in my military sounds pack, also located on Freesound.",
+     "cuts": [
+      [
+       0.56,
+       6.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "aa_missile_launch_and_flight",
+   "file": "aa-missile-launch-2.ogg",
+   "durationS": 6.226,
+   "loop": false,
+   "loudnessLUFS": -25.88,
+   "peakDb": -3.4,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "d01f31b888f1ada114a6ae8614fcfde2dad4cdc09d9025053cfef92c3356f440",
+   "path": "conquest/vehicles/aa-missile-launch-2.ogg",
+   "sizeBytes": 80852,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/182794/",
+     "title": "Rocket Launch.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "7.250-13.500 s",
+     "processing": "second launch take (ignition + motor run); declipped; HP 35 Hz / LP 13 kHz; onset trimmed; 1.5 s fade-out; rocket launch 2",
+     "download_sha256": "91dfe9729e6083936fa11c3e36c9aa7a1a3653bd4d6a0453698fbfaadc5ba34a",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/182/182794_71257-hq.ogg",
+     "provenance_note": "Launching a rocket. Extracted from a video (EoVEpS-mcIA) by a US Government agency, thus public domain. Find many more military sounds in my military sounds pack, also located on Freesound.",
+     "cuts": [
+      [
+       7.25,
+       13.5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "lock_and_warning_tones",
+   "file": "lock-hull-locked.ogg",
+   "durationS": 1.0,
+   "loop": true,
+   "loudnessLUFS": -20.0,
+   "peakDb": -17.23,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "476bd7f79b8e8a6df09b59437d0f3e71833af3bf25a90d0c214a59f79b1e9082",
+   "loopSeam": {
+    "boundary_step": 0.04749,
+    "step_p99": 0.04622
+   },
+   "path": "conquest/vehicles/lock-hull-locked.ogg",
+   "sizeBytes": 18957,
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (this project)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "original synthesis (additive soft-square, raised-cosine gates); loop length is an integer number of carrier and gate periods; enemy locked: steady 1180 Hz with 8 Hz 30 % AM",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "lock_and_warning_tones",
+   "file": "lock-hull-locking.ogg",
+   "durationS": 1.0,
+   "loop": true,
+   "loudnessLUFS": -20.0,
+   "peakDb": -14.75,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "eb386b41bf5cc8af6141104842f3006058434d0c5640a604bae336720bd00fc8",
+   "loopSeam": {
+    "boundary_step": 0.02721,
+    "step_p99": 0.05485
+   },
+   "path": "conquest/vehicles/lock-hull-locking.ogg",
+   "sizeBytes": 15669,
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (this project)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "original synthesis (additive soft-square, raised-cosine gates); loop length is an integer number of carrier and gate periods; enemy locking: 980 Hz beeps at 4 Hz, 45 % duty",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "lock_and_warning_tones",
+   "file": "lock-missile-inbound.ogg",
+   "durationS": 1.0,
+   "loop": true,
+   "loudnessLUFS": -18.99,
+   "peakDb": -15.41,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "5c599065e0c49c3ce382f8dd78d5a4213dc07378d652b51268ebe10a2498a35b",
+   "loopSeam": {
+    "boundary_step": 0.04197,
+    "step_p99": 0.0819
+   },
+   "path": "conquest/vehicles/lock-missile-inbound.ogg",
+   "sizeBytes": 22675,
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (this project)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "original synthesis (additive soft-square, raised-cosine gates); loop length is an integer number of carrier and gate periods; missile inbound: fast 1460/1750 Hz alternating beeps at 11 Hz",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "lock_and_warning_tones",
+   "file": "lock-seeker-growl.ogg",
+   "durationS": 2.0,
+   "loop": true,
+   "loudnessLUFS": -20.0,
+   "peakDb": -16.6,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "37f4645bdb9cdbd7c38c6811f34e88d6ff6a0cb4fbab4bd050a4a5672d38bd87",
+   "loopSeam": {
+    "boundary_step": 0.03123,
+    "step_p99": 0.03954
+   },
+   "path": "conquest/vehicles/lock-seeker-growl.ogg",
+   "sizeBytes": 30927,
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (this project)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "original synthesis (additive soft-square, raised-cosine gates); loop length is an integer number of carrier and gate periods; acquire: 880 Hz with periodic 15-45 Hz random FM (seeker growl), 2.5 Hz soft pulse",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "lock_and_warning_tones",
+   "file": "lock-seeker-locked.ogg",
+   "durationS": 1.0,
+   "loop": true,
+   "loudnessLUFS": -20.0,
+   "peakDb": -18.71,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "b02ce3e326efd0b64355d05210c5758dd30b1c0b8001dff72f3bee87596ec1cb",
+   "loopSeam": {
+    "boundary_step": 0.04136,
+    "step_p99": 0.04272
+   },
+   "path": "conquest/vehicles/lock-seeker-locked.ogg",
+   "sizeBytes": 21252,
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (this project)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "original synthesis (additive soft-square, raised-cosine gates); loop length is an integer number of carrier and gate periods; lock: steady 1320 Hz with slight 6 Hz vibrato-free shimmer (2nd/3rd harmonics)",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "flares_countermeasure",
+   "file": "flares-salvo-1.ogg",
+   "durationS": 3.0,
+   "loop": false,
+   "loudnessLUFS": -21.72,
+   "peakDb": -3.54,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "e8055599bbbb5b55eb63a4a2e1c6a6a17b378c5776941e67fc3890e5efbb9857",
+   "path": "conquest/vehicles/flares-salvo-1.ogg",
+   "sizeBytes": 31454,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/450837/",
+     "title": "flare fire real dull crack slap.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.040-0.600 s",
+     "processing": "composited salvo: re-pitched flare-firing pops (0.9-1.15x, alternate pops LP 5.2 kHz) every 70-120 ms, fire whoosh (HP 120 Hz) per flare at -9 dB, magnesium sizzle (HP 400 Hz) decaying with 0.9 s time constant; 800 ms fade-out; 6 flares; flare firing crack (each pop re-pitched)",
+     "download_sha256": "85b453ae56fd47197d2fb8e29c7c7d432ec6e96c8ff2e41a2b80eff604560e90",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/450/450837_612689-hq.ogg",
+     "provenance_note": "flare fire real dull crack slap",
+     "cuts": [
+      [
+       0.04,
+       0.6
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/LookIMadeAThing/sounds/260555/",
+     "title": "Basic Fire Whoosh 2",
+     "author": "LookIMadeAThing",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-0.800 s",
+     "processing": "composited salvo: re-pitched flare-firing pops (0.9-1.15x, alternate pops LP 5.2 kHz) every 70-120 ms, fire whoosh (HP 120 Hz) per flare at -9 dB, magnesium sizzle (HP 400 Hz) decaying with 0.9 s time constant; 800 ms fade-out; 6 flares; fire whoosh per flare",
+     "download_sha256": "1606590a751692584abd85022eebb61912b1cf9c750edcd7f1959e5f2b8201ef",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/260/260555_3968707-hq.ogg",
+     "provenance_note": "The same as my other Fire Whoosh sound, but I used a hi-pass EQ at the 50hz mark to take out some of the \"mud.\" -- This is a quick fire sound I made using Qubodup's \"Swing 25\" Public Domain/CC0 upload on this site. It's a bamboo stick swinging, which I layered and toyed with to get the results here.",
+     "cuts": [
+      [
+       0.0,
+       0.8
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/marb7e/sounds/674378/",
+     "title": "FlareGun_SizzleLoop01.wav",
+     "author": "marb7e",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-2.100 s",
+     "processing": "composited salvo: re-pitched flare-firing pops (0.9-1.15x, alternate pops LP 5.2 kHz) every 70-120 ms, fire whoosh (HP 120 Hz) per flare at -9 dB, magnesium sizzle (HP 400 Hz) decaying with 0.9 s time constant; 800 ms fade-out; 6 flares; burning flare sizzle loop, tiled",
+     "download_sha256": "abb61ad551045a3465cd003183ac26498cb4fa5cf4da798223837e53b8a273e2",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/674/674378_13732472-hq.ogg",
+     "provenance_note": "Check the pack description :)",
+     "cuts": [
+      [
+       0.0,
+       2.1
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "flares_countermeasure",
+   "file": "flares-salvo-2.ogg",
+   "durationS": 3.0,
+   "loop": false,
+   "loudnessLUFS": -20.62,
+   "peakDb": -3.67,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "dacbe92dbc296c0bbb66bd7a5ad979141b84f23edd4294ac036d1afc37ea2790",
+   "path": "conquest/vehicles/flares-salvo-2.ogg",
+   "sizeBytes": 32116,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/450837/",
+     "title": "flare fire real dull crack slap.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.040-0.600 s",
+     "processing": "composited salvo: re-pitched flare-firing pops (0.9-1.15x, alternate pops LP 5.2 kHz) every 70-120 ms, fire whoosh (HP 120 Hz) per flare at -9 dB, magnesium sizzle (HP 400 Hz) decaying with 0.9 s time constant; 800 ms fade-out; 8 flares; flare firing crack (each pop re-pitched)",
+     "download_sha256": "85b453ae56fd47197d2fb8e29c7c7d432ec6e96c8ff2e41a2b80eff604560e90",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/450/450837_612689-hq.ogg",
+     "provenance_note": "flare fire real dull crack slap",
+     "cuts": [
+      [
+       0.04,
+       0.6
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/LookIMadeAThing/sounds/260555/",
+     "title": "Basic Fire Whoosh 2",
+     "author": "LookIMadeAThing",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-0.800 s",
+     "processing": "composited salvo: re-pitched flare-firing pops (0.9-1.15x, alternate pops LP 5.2 kHz) every 70-120 ms, fire whoosh (HP 120 Hz) per flare at -9 dB, magnesium sizzle (HP 400 Hz) decaying with 0.9 s time constant; 800 ms fade-out; 8 flares; fire whoosh per flare",
+     "download_sha256": "1606590a751692584abd85022eebb61912b1cf9c750edcd7f1959e5f2b8201ef",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/260/260555_3968707-hq.ogg",
+     "provenance_note": "The same as my other Fire Whoosh sound, but I used a hi-pass EQ at the 50hz mark to take out some of the \"mud.\" -- This is a quick fire sound I made using Qubodup's \"Swing 25\" Public Domain/CC0 upload on this site. It's a bamboo stick swinging, which I layered and toyed with to get the results here.",
+     "cuts": [
+      [
+       0.0,
+       0.8
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/marb7e/sounds/674378/",
+     "title": "FlareGun_SizzleLoop01.wav",
+     "author": "marb7e",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.000-2.100 s",
+     "processing": "composited salvo: re-pitched flare-firing pops (0.9-1.15x, alternate pops LP 5.2 kHz) every 70-120 ms, fire whoosh (HP 120 Hz) per flare at -9 dB, magnesium sizzle (HP 400 Hz) decaying with 0.9 s time constant; 800 ms fade-out; 8 flares; burning flare sizzle loop, tiled",
+     "download_sha256": "abb61ad551045a3465cd003183ac26498cb4fa5cf4da798223837e53b8a273e2",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/674/674378_13732472-hq.ogg",
+     "provenance_note": "Check the pack description :)",
+     "cuts": [
+      [
+       0.0,
+       2.1
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_smoke_launcher",
+   "file": "smoke-launcher-1.ogg",
+   "durationS": 3.208,
+   "loop": false,
+   "loudnessLUFS": -23.72,
+   "peakDb": -3.34,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "b80cb0a9c7044cdc7c0c71adb5d00686f5b4781673b8c15b5da897a76b15bea6",
+   "path": "conquest/vehicles/smoke-launcher-1.ogg",
+   "sizeBytes": 37093,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/182792/",
+     "title": "Mk 19 Auto Grenade Launcher.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.860-1.470 s",
+     "processing": "Mk 19 thump burst LP 2.5 kHz (mortar-like); billow = original synthesized brown/white noise mix BP 90-1400 Hz with 3.2 s Hann swell at -7 dB; 600 ms fade-out; 3 thumps; grenade-launcher thumps (US government video, public domain)",
+     "download_sha256": "11166a443281b2553d2ffe69ce49b4d4a0059075903001f8ebca247893d66979",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/182/182792_71257-hq.ogg",
+     "provenance_note": "Automatic grenade firing gun. Extracted from a video () by a US Government agency, thus public domain. Find many more military sounds in my military sounds pack, also located on Freesound. On FLAC and OGG Vorbis audio file formats. Contact me if you have interest in specific sounds for open source o",
+     "cuts": [
+      [
+       0.86,
+       1.47
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tank_smoke_launcher",
+   "file": "smoke-launcher-2.ogg",
+   "durationS": 3.422,
+   "loop": false,
+   "loudnessLUFS": -23.1,
+   "peakDb": -3.26,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "08692510945db08bf5fd4dcb2a020963ec5879af4db3b62cb7f089a4bd7d01b5",
+   "path": "conquest/vehicles/smoke-launcher-2.ogg",
+   "sizeBytes": 39956,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/182792/",
+     "title": "Mk 19 Auto Grenade Launcher.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.640-1.470 s",
+     "processing": "Mk 19 thump burst LP 2.5 kHz (mortar-like); billow = original synthesized brown/white noise mix BP 90-1400 Hz with 3.2 s Hann swell at -7 dB; 600 ms fade-out; 4 thumps; grenade-launcher thumps (US government video, public domain)",
+     "download_sha256": "11166a443281b2553d2ffe69ce49b4d4a0059075903001f8ebca247893d66979",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/182/182792_71257-hq.ogg",
+     "provenance_note": "Automatic grenade firing gun. Extracted from a video () by a US Government agency, thus public domain. Find many more military sounds in my military sounds pack, also located on Freesound. On FLAC and OGG Vorbis audio file formats. Contact me if you have interest in specific sounds for open source o",
+     "cuts": [
+      [
+       0.64,
+       1.47
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ejection_seat",
+   "file": "ejection-seat-1.ogg",
+   "durationS": 2.64,
+   "loop": false,
+   "loudnessLUFS": -24.7,
+   "peakDb": -3.41,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "fb3077c87114c3ff16bd2f3c3896c1df4f4adf2ff074fd4e993d13bb3bc5201e",
+   "path": "conquest/vehicles/ejection-seat-1.ogg",
+   "sizeBytes": 33558,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/klangfabrik/sounds/249298/",
+     "title": "rpg launcher  three shots.wav",
+     "author": "klangfabrik",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.095-0.355 s",
+     "processing": "composite: explosive-bolt bang (launcher crack, 250 ms) + canopy tear (metal slam HP 900 Hz, -6 dB) + rocket-seat whoosh (US gov. rocket launch, first 2.4 s) at +120 ms; 600 ms fade-out; explosive-bolt bang (launcher ignition crack)",
+     "download_sha256": "dbdc20230154d0cb9bc893ace213ae54b766bb5ad34d51003fff78407e529f73",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/249/249298_181941-hq.ogg",
+     "provenance_note": "Three medium shot exterior firings of a rpg (rocket propelled grenade) launcher/anti-tank weapon.",
+     "cuts": [
+      [
+       0.095,
+       0.355
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/182794/",
+     "title": "Rocket Launch.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.560-3.000 s",
+     "processing": "composite: explosive-bolt bang (launcher crack, 250 ms) + canopy tear (metal slam HP 900 Hz, -6 dB) + rocket-seat whoosh (US gov. rocket launch, first 2.4 s) at +120 ms; 600 ms fade-out; rocket motor launch whoosh as the seat rocket",
+     "download_sha256": "91dfe9729e6083936fa11c3e36c9aa7a1a3653bd4d6a0453698fbfaadc5ba34a",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/182/182794_71257-hq.ogg",
+     "provenance_note": "Launching a rocket. Extracted from a video (EoVEpS-mcIA) by a US Government agency, thus public domain. Find many more military sounds in my military sounds pack, also located on Freesound.",
+     "cuts": [
+      [
+       0.56,
+       3.0
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/kyles/sounds/406197/",
+     "title": "door metal big heavy close kinda slam thud echo offmic.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.280-0.900 s",
+     "processing": "composite: explosive-bolt bang (launcher crack, 250 ms) + canopy tear (metal slam HP 900 Hz, -6 dB) + rocket-seat whoosh (US gov. rocket launch, first 2.4 s) at +120 ms; 600 ms fade-out; heavy metal slam as canopy jettison/tear, HP 900 Hz",
+     "download_sha256": "6e47d7beb4b93ff3d8517ae30b21d2915f9d7f52d7f0bc917b66aa4996f625fc",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/406/406197_612689-hq.ogg",
+     "provenance_note": "door metal big heavy close kinda slam thud echo offmic.wav",
+     "cuts": [
+      [
+       0.28,
+       0.9
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ejection_seat",
+   "file": "ejection-seat-2.ogg",
+   "durationS": 2.5,
+   "loop": false,
+   "loudnessLUFS": -23.65,
+   "peakDb": -3.53,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "d21a2b52970bbada47620e100bada4e2b0c58d1e1fc9283b823760e8a5d107b5",
+   "path": "conquest/vehicles/ejection-seat-2.ogg",
+   "sizeBytes": 33118,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/klangfabrik/sounds/249298/",
+     "title": "rpg launcher  three shots.wav",
+     "author": "klangfabrik",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "3.940-4.200 s",
+     "processing": "composite: explosive-bolt bang (launcher crack, 250 ms) + canopy tear (metal slam HP 900 Hz, -6 dB) + rocket-seat whoosh (US gov. rocket launch, first 2.4 s) at +120 ms; 600 ms fade-out; explosive-bolt bang (launcher ignition crack)",
+     "download_sha256": "dbdc20230154d0cb9bc893ace213ae54b766bb5ad34d51003fff78407e529f73",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/249/249298_181941-hq.ogg",
+     "provenance_note": "Three medium shot exterior firings of a rpg (rocket propelled grenade) launcher/anti-tank weapon.",
+     "cuts": [
+      [
+       3.94,
+       4.2
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/qubodup/sounds/182794/",
+     "title": "Rocket Launch.flac",
+     "author": "qubodup",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "7.250-9.550 s",
+     "processing": "composite: explosive-bolt bang (launcher crack, 250 ms) + canopy tear (metal slam HP 900 Hz, -6 dB) + rocket-seat whoosh (US gov. rocket launch, first 2.4 s) at +120 ms; 600 ms fade-out; rocket motor launch whoosh as the seat rocket",
+     "download_sha256": "91dfe9729e6083936fa11c3e36c9aa7a1a3653bd4d6a0453698fbfaadc5ba34a",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/182/182794_71257-hq.ogg",
+     "provenance_note": "Launching a rocket. Extracted from a video (EoVEpS-mcIA) by a US Government agency, thus public domain. Find many more military sounds in my military sounds pack, also located on Freesound.",
+     "cuts": [
+      [
+       7.25,
+       9.55
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/kyles/sounds/406197/",
+     "title": "door metal big heavy close kinda slam thud echo offmic.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.280-0.900 s",
+     "processing": "composite: explosive-bolt bang (launcher crack, 250 ms) + canopy tear (metal slam HP 900 Hz, -6 dB) + rocket-seat whoosh (US gov. rocket launch, first 2.4 s) at +120 ms; 600 ms fade-out; heavy metal slam as canopy jettison/tear, HP 900 Hz",
+     "download_sha256": "6e47d7beb4b93ff3d8517ae30b21d2915f9d7f52d7f0bc917b66aa4996f625fc",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/406/406197_612689-hq.ogg",
+     "provenance_note": "door metal big heavy close kinda slam thud echo offmic.wav",
+     "cuts": [
+      [
+       0.28,
+       0.9
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "parachute_deploy_and_descent",
+   "file": "parachute-descent.ogg",
+   "durationS": 5.141,
+   "loop": true,
+   "loudnessLUFS": -18.0,
+   "peakDb": -3.93,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "b16f0b4a51be825f130e031f652ab758a3e9fb47494c61859e1eef2807f4a938",
+   "loopSeam": {
+    "boundary_step": 0.00339,
+    "step_p99": 0.03171
+   },
+   "notes": {
+    "rotated_s": 2.1026,
+    "loop_len_s": 5.1405,
+    "overlap_s": 0.3,
+    "head_corr": 0.14,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/parachute-descent.ogg",
+   "sizeBytes": 57465,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/DangerLaef/sounds/811077/",
+     "title": "Solo Skydive Interior Plane and Freefall",
+     "author": "DangerLaef",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "120.500-126.000 s",
+     "processing": "skydiver under canopy: wind + canopy flutter; HP 40 Hz / LP 9 kHz zero-phase; 1.5 s level-flattening; 5 s loop, 300 ms overlap; descent under canopy (camcorder)",
+     "download_sha256": "b09b8322064599bc0c732d85b06bee3c7802e13b8d471a4a7910fab48ee4c02f",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/811/811077_16473-hq.ogg",
+     "provenance_note": "Solo Skydive Interior plane freefall, descent under canopy and landing Recorded on SONY DCR-PC110 Video Camera",
+     "cuts": [
+      [
+       120.5,
+       126.0
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "parachute_deploy_and_descent",
+   "file": "parachute-open-1.ogg",
+   "durationS": 1.234,
+   "loop": false,
+   "loudnessLUFS": -21.01,
+   "peakDb": -3.74,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "bc892f08586f917dfa3ee88f031f7ffce91a2ec0bfb429186d03e5fed247bb5c",
+   "path": "conquest/vehicles/parachute-open-1.ogg",
+   "sizeBytes": 13312,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/2create/sounds/620310/",
+     "title": "Parachute Opening 2 Options",
+     "author": "2create",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.350-1.600 s",
+     "processing": "fabric snap/whoomp (coat foley) + synthesized 90->45 Hz whoomp at -8 dB; HP 40 Hz; 2 ms in / 400 ms out; canopy opening option 1",
+     "download_sha256": "1b4790474736349c29911d1915c5b03fef956a2b273f920309b7f5c22dfd207c",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/620/620310_621042-hq.ogg",
+     "provenance_note": "Created using a coat. Recorded with a Rode video mic pro hooked up to a phone.",
+     "cuts": [
+      [
+       0.35,
+       1.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "parachute_deploy_and_descent",
+   "file": "parachute-open-2.ogg",
+   "durationS": 1.097,
+   "loop": false,
+   "loudnessLUFS": -19.99,
+   "peakDb": -3.93,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "f0e0ff39b3c8aa3e6a293627b3fb927a0eacadee321cf7b81ece1caf6074ff45",
+   "path": "conquest/vehicles/parachute-open-2.ogg",
+   "sizeBytes": 12381,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/2create/sounds/620310/",
+     "title": "Parachute Opening 2 Options",
+     "author": "2create",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "1.950-3.300 s",
+     "processing": "fabric snap/whoomp (coat foley, option 2) pitched x0.9 + synthesized 80->40 Hz whoomp at -9 dB; HP 40 Hz; 2 ms in / 400 ms out; canopy opening option 2",
+     "download_sha256": "1b4790474736349c29911d1915c5b03fef956a2b273f920309b7f5c22dfd207c",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/620/620310_621042-hq.ogg",
+     "provenance_note": "Created using a coat. Recorded with a Rode video mic pro hooked up to a phone.",
+     "cuts": [
+      [
+       1.95,
+       3.3
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_hatch_enter_exit",
+   "file": "hatch-canopy-close.ogg",
+   "durationS": 1.699,
+   "loop": false,
+   "loudnessLUFS": -21.36,
+   "peakDb": -3.75,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "75450207c463630aef6c6a32fc72f76826adb9ed54f5582898ec55e490dff07a",
+   "path": "conquest/vehicles/hatch-canopy-close.ogg",
+   "sizeBytes": 21305,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/nuckan/sounds/212941/",
+     "title": "hydraulics.wav",
+     "author": "nuckan",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "4.450-5.750 s",
+     "processing": "canopy close: hydraulic actuator run (HP 120 Hz, 1.1 s with fades) then lock latch; 400 ms out; hydraulic actuator run",
+     "download_sha256": "ea44365474b856ff028b54802ec25931e884e55e3067c0d80821b079525ad658",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/212/212941_3910980-hq.ogg",
+     "provenance_note": "My forklift recorded using my phone at work. I just cut out and muted most of the ambience using Goldwave (http://www.goldwave.com/) to make it more just the hydraulics. If you cut out sections, scramble them and fool around with the speed in the sound, I think you can get a great variety of pneumat",
+     "cuts": [
+      [
+       4.45,
+       5.75
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/Sandermotions/sounds/275441/",
+     "title": "Heavy steal door closing and locking.WAV",
+     "author": "Sandermotions",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "4.150-4.750 s",
+     "processing": "canopy close: hydraulic actuator run (HP 120 Hz, 1.1 s with fades) then lock latch; 400 ms out; lock latch",
+     "download_sha256": "1c6724599a76691d98972194f119b194aa7d8f71fc869a35deaf7d069937a92b",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/275/275441_1402315-hq.ogg",
+     "provenance_note": "Heavy steel door closing with a slam. then an automatic lock locking in. Field recording using a Zoom H1 recorder.",
+     "cuts": [
+      [
+       4.15,
+       4.75
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_hatch_enter_exit",
+   "file": "hatch-heli-door.ogg",
+   "durationS": 3.03,
+   "loop": false,
+   "loudnessLUFS": -29.1,
+   "peakDb": -3.37,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "31aafde26be410e07d2ca3f2d8aad2c473d86166a68fe0fc31ec89607b2250f1",
+   "path": "conquest/vehicles/hatch-heli-door.ogg",
+   "sizeBytes": 35239,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/YleArkisto/sounds/332853/",
+     "title": "Pakettiauto, auton ovi, liukuovi / Sliding door of a van, car, open and close, exterior, Toyota Hiace, a 1990 model",
+     "author": "YleArkisto",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "13.400-16.450 s",
+     "processing": "sliding side door run and slam shut (van door as helicopter cabin door); HP 40 Hz; onset trimmed; short fades; sliding door close",
+     "download_sha256": "292c78af10b4592d1e89f678b0efbad5bdaaa470a9e805e7adb1d8d43086dfe9",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/332/332853_4415905-hq.ogg",
+     "provenance_note": "Auton liukuva sivuovi auki ja kiinni. Lähiääni. Ulko. (Toyota Hiace, vm 1990). Äänitetty / Rec: DAT Paikka/Place: Suomi / Finland / Vihti, Koisjärvi Aika/Date: 15.09.1991",
+     "cuts": [
+      [
+       13.4,
+       16.45
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_hatch_enter_exit",
+   "file": "hatch-jeep-close.ogg",
+   "durationS": 0.78,
+   "loop": false,
+   "loudnessLUFS": -23.33,
+   "peakDb": -3.42,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "dc653352e87beb8571a2c139fa867107113ca8db7132b54931a29ae6477d70ee",
+   "path": "conquest/vehicles/hatch-jeep-close.ogg",
+   "sizeBytes": 9481,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Filmscore/sounds/828775/",
+     "title": "Jeep Door Open-Close",
+     "author": "Filmscore",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "5.120-5.950 s",
+     "processing": "Jeep Wrangler door slam; HP 40 Hz; onset trimmed; short fades; door close",
+     "download_sha256": "6d2113a757c1785bf570e16be53b37d568e6c45a0afacb36df722b59708b0047",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/828/828775_843915-hq.ogg",
+     "provenance_note": "Jeep Wrangler Sahara door is opened and closed.",
+     "cuts": [
+      [
+       5.12,
+       5.95
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_hatch_enter_exit",
+   "file": "hatch-jeep-open.ogg",
+   "durationS": 0.948,
+   "loop": false,
+   "loudnessLUFS": -21.21,
+   "peakDb": -3.55,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "97168104827669e53203c98dbb9732b5043e330cda200c6e55e6507a57a648cc",
+   "path": "conquest/vehicles/hatch-jeep-open.ogg",
+   "sizeBytes": 11623,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/Filmscore/sounds/828775/",
+     "title": "Jeep Door Open-Close",
+     "author": "Filmscore",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "0.740-1.750 s",
+     "processing": "Jeep Wrangler door latch and open; HP 40 Hz; onset trimmed; short fades; door open",
+     "download_sha256": "6d2113a757c1785bf570e16be53b37d568e6c45a0afacb36df722b59708b0047",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/828/828775_843915-hq.ogg",
+     "provenance_note": "Jeep Wrangler Sahara door is opened and closed.",
+     "cuts": [
+      [
+       0.74,
+       1.75
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_hatch_enter_exit",
+   "file": "hatch-tank-close.ogg",
+   "durationS": 1.722,
+   "loop": false,
+   "loudnessLUFS": -23.87,
+   "peakDb": -3.62,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "37bb51672ab2e7e661e1611162afde8660bab1042522fdb9a8ae989b097aba8a",
+   "path": "conquest/vehicles/hatch-tank-close.ogg",
+   "sizeBytes": 18685,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/407323/",
+     "title": "metal heavy dungeon prison door unlatch open close thud rattle and hatch open close slide squeak various ext perspective on offmic +bg hostel kitchen sounds2.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "32.350-33.900 s",
+     "processing": "heavy hatch slam (x0.85) + steel lock latch at +380 ms; HP 40 Hz; onset trimmed; short fades; heavy hatch slam",
+     "download_sha256": "47af04e594bed1a0402aff779bad14c981fa7baf0e37b87501f03ba0405e9ba7",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/407/407323_612689-hq.ogg",
+     "provenance_note": "metal heavy dungeon heavy metal prison door unlatch open close thud rattle and hatch open close slide squeak various ext perspective on offmic +bg hostel kitchen sounds2.wav",
+     "cuts": [
+      [
+       32.35,
+       33.9
+      ]
+     ]
+    },
+    {
+     "url": "https://freesound.org/people/Sandermotions/sounds/275441/",
+     "title": "Heavy steal door closing and locking.WAV",
+     "author": "Sandermotions",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "4.150-4.750 s",
+     "processing": "heavy hatch slam (x0.85) + steel lock latch at +380 ms; HP 40 Hz; onset trimmed; short fades; automatic steel lock latch",
+     "download_sha256": "1c6724599a76691d98972194f119b194aa7d8f71fc869a35deaf7d069937a92b",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/275/275441_1402315-hq.ogg",
+     "provenance_note": "Heavy steel door closing with a slam. then an automatic lock locking in. Field recording using a Zoom H1 recorder.",
+     "cuts": [
+      [
+       4.15,
+       4.75
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_hatch_enter_exit",
+   "file": "hatch-tank-open.ogg",
+   "durationS": 2.415,
+   "loop": false,
+   "loudnessLUFS": -24.84,
+   "peakDb": -3.66,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "5c0f4f48edfb1a138abf91f1b6b4f8e2a9b37ba8545e7e0e9f15faa6db558e7b",
+   "path": "conquest/vehicles/hatch-tank-open.ogg",
+   "sizeBytes": 32848,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/kyles/sounds/407323/",
+     "title": "metal heavy dungeon prison door unlatch open close thud rattle and hatch open close slide squeak various ext perspective on offmic +bg hostel kitchen sounds2.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "26.250-28.300 s",
+     "processing": "heavy metal hatch unlatch + swing-open thud; HP 40 Hz; onset trimmed; short fades; pitched x0.85 (heavier); heavy hatch unlatch and open",
+     "download_sha256": "47af04e594bed1a0402aff779bad14c981fa7baf0e37b87501f03ba0405e9ba7",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/407/407323_612689-hq.ogg",
+     "provenance_note": "metal heavy dungeon heavy metal prison door unlatch open close thud rattle and hatch open close slide squeak various ext perspective on offmic +bg hostel kitchen sounds2.wav",
+     "cuts": [
+      [
+       26.25,
+       28.3
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_damage_alarm",
+   "file": "alarm-air-caution.ogg",
+   "durationS": 2.5,
+   "loop": true,
+   "loudnessLUFS": -20.0,
+   "peakDb": -7.73,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "01614f2212647c050fd82f6c99c0e0dff941ecb7370a0b9a249b80d0f2b24730",
+   "loopSeam": {
+    "boundary_step": 1e-05,
+    "step_p99": 0.05413
+   },
+   "path": "conquest/vehicles/alarm-air-caution.ogg",
+   "sizeBytes": 43640,
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (this project)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "original synthesis (additive soft-square, raised-cosine gates); loop length is an integer number of carrier and gate periods; aircraft master caution: double chime 1000/1250 Hz with 180 ms exponential decays, repeating every 1.25 s",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "vehicle_damage_alarm",
+   "file": "alarm-ground-klaxon.ogg",
+   "durationS": 2.5,
+   "loop": true,
+   "loudnessLUFS": -19.0,
+   "peakDb": -8.25,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "7e8e0eac8df9d00dbe9b9027406b939ef5db00d16ceca1179c0861d0f8252ae1",
+   "loopSeam": {
+    "boundary_step": 0.05139,
+    "step_p99": 0.09143
+   },
+   "path": "conquest/vehicles/alarm-ground-klaxon.ogg",
+   "sizeBytes": 33108,
+   "sources": [
+    {
+     "url": null,
+     "title": "Original procedural synthesis (this project)",
+     "author": "VOXEL BLITZ build script",
+     "license": "Project original (no third-party audio)",
+     "retrieved": "2026-10-08",
+     "cut": null,
+     "processing": "original synthesis (additive soft-square, raised-cosine gates); loop length is an integer number of carrier and gate periods; ground klaxon: 310 Hz buzzy horn (odd+even harmonics, BP 300-3000 Hz) gated at 1.6 Hz",
+     "cuts": []
+    }
+   ]
+  },
+  {
+   "id": "vehicle_burning_loop",
+   "file": "vehicle-burning-1.ogg",
+   "durationS": 5.886,
+   "loop": true,
+   "loudnessLUFS": -20.27,
+   "peakDb": -3.55,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "e843db3f01cd84442c965dc1f4a093b3313754aab5c6267ecfb0aa5d1df1c618",
+   "loopSeam": {
+    "boundary_step": 0.00391,
+    "step_p99": 0.03054
+   },
+   "notes": {
+    "rotated_s": 5.8005,
+    "loop_len_s": 5.886,
+    "overlap_s": 0.3,
+    "head_corr": 0.414,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/vehicle-burning-1.ogg",
+   "sizeBytes": 69104,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/florianreichelt/sounds/563765/",
+     "title": "Fire Auto - car on fire",
+     "author": "florianreichelt",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "4.000-10.600 s",
+     "processing": "car fire roar and crackle; HP 40 Hz / LP 12 kHz zero-phase; 6 s loop, 300 ms overlap; car on fire, steady",
+     "download_sha256": "aadb5024f1e53ae275b799481639d7cf5c187ae3540c44ff3f767436b31ac1a6",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/563/563765_6253486-hq.ogg",
+     "provenance_note": "YOU SCRATCH MY BACK AND I'LL SCRATCH YOURS: If you could make use of this sound think about subscribing to my Youtube to support me: https://www.youtube.com/c/florianreichelt27 If you want to support me and my work or acknowledge that I provide my soundeffects for free - how about signing up to Epid",
+     "cuts": [
+      [
+       4.0,
+       10.6
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_burning_loop",
+   "file": "vehicle-burning-2.ogg",
+   "durationS": 6.29,
+   "loop": true,
+   "loudnessLUFS": -21.35,
+   "peakDb": -3.46,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "416b7ec72b6e7fad2e98663eb4c559f24660ef78c642da452a8e58a361834341",
+   "loopSeam": {
+    "boundary_step": 9e-05,
+    "step_p99": 0.03218
+   },
+   "notes": {
+    "rotated_s": 1.1072,
+    "loop_len_s": 6.2905,
+    "overlap_s": 0.3,
+    "head_corr": 0.376,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/vehicle-burning-2.ogg",
+   "sizeBytes": 74143,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/florianreichelt/sounds/563765/",
+     "title": "Fire Auto - car on fire",
+     "author": "florianreichelt",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-08",
+     "cut": "10.800-17.400 s",
+     "processing": "car fire roar and crackle, later section (variant 2); HP 40 Hz / LP 12 kHz zero-phase; 6 s loop, 300 ms overlap; car on fire, later section",
+     "download_sha256": "aadb5024f1e53ae275b799481639d7cf5c187ae3540c44ff3f767436b31ac1a6",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/563/563765_6253486-hq.ogg",
+     "provenance_note": "YOU SCRATCH MY BACK AND I'LL SCRATCH YOURS: If you could make use of this sound think about subscribing to my Youtube to support me: https://www.youtube.com/c/florianreichelt27 If you want to support me and my work or acknowledge that I provide my soundeffects for free - how about signing up to Epid",
+     "cuts": [
+      [
+       10.8,
+       17.4
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_water_wade",
+   "file": "vehicle-wade-loop.ogg",
+   "durationS": 2.549,
+   "loop": true,
+   "loudnessLUFS": -17.99,
+   "peakDb": -5.41,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "233f3c504e4a280169505e05c0061c10d742c958d234dc99a8108a47594b2030",
+   "loopSeam": {
+    "boundary_step": 0.00201,
+    "step_p99": 0.10138
+   },
+   "notes": {
+    "rotated_s": 2.422,
+    "loop_len_s": 2.5485,
+    "overlap_s": 0.2,
+    "head_corr": 0.079,
+    "seam": "equal-power sin/cos overlap"
+   },
+   "path": "conquest/vehicles/vehicle-wade-loop.ogg",
+   "sizeBytes": 28148,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/NeilSeggar/sounds/335622/",
+     "title": "Car driving through a ford.Wav",
+     "author": "NeilSeggar",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "3.600-6.400 s",
+     "processing": "car through a ford, peak section; HP 60 Hz / LP 12 kHz zero-phase; 1 s level-flattening; 2.6 s loop, 200 ms overlap; water churn as the car crosses the ford",
+     "download_sha256": "6717973cb6de7fbe8ab39a1319a88938b3e8e3e7cb36db40c8dbd10c66643955",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/335/335622_2284034-hq.ogg",
+     "provenance_note": "A car driving through a ford",
+     "cuts": [
+      [
+       3.6,
+       6.4
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "vehicle_water_wade",
+   "file": "vehicle-wade-splash.ogg",
+   "durationS": 3.4,
+   "loop": false,
+   "loudnessLUFS": -19.43,
+   "peakDb": -3.28,
+   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
+   "output_sha256": "6e7215c896d973ae78f1b703f186a118b54138b6fb5f5890e736087c0659e570",
+   "path": "conquest/vehicles/vehicle-wade-splash.ogg",
+   "sizeBytes": 37727,
+   "sources": [
+    {
+     "url": "https://freesound.org/people/soundmary/sounds/194967/",
+     "title": "car going through ford 1.mp3",
+     "author": "soundmary",
+     "license": "CC BY 4.0",
+     "retrieved": "2026-10-08",
+     "cut": "21.000-24.400 s",
+     "processing": "entry splash/surge of a car through a ford; HP 60 Hz; 150 ms in / 700 ms out; ford crossing splash peak",
+     "download_sha256": "14e0e902e30ca53ce70216b69d02c0e69ac1588002d2c1908b943c7ddecef3a5",
+     "license_url": "https://creativecommons.org/licenses/by/4.0/",
+     "file_url": "https://cdn.freesound.org/previews/194/194967_1160789-hq.ogg",
+     "provenance_note": "Car driving through a ford",
+     "cuts": [
+      [
+       21.0,
+       24.4
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "skipped": [
+  {
+   "id": "jeep_horn",
+   "reason": "No horn input or authoritative event exists; the target says to add it only together with such an event, and game code is out of scope for this task."
+  }
+ ]
+}

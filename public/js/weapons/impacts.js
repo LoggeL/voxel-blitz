@@ -4,7 +4,7 @@ import { pickaxeMaterial } from '../audio/pickaxe.js';
 import { removedDamageCells } from '../engine/block-damage-geometry.js';
 import { FACE_SHADE } from '../engine/chunks.js';
 import * as THREE from '../vendor/three.module.js';
-import { GLASS, LEAVES, MC_GHOST_SOLID, MC_GLASS, MC_LEAVES, isSolidBlock } from '../../../shared/world/blocks.js';
+import { FLUID_BLOCKS, GLASS, LEAVES, MC_GHOST_SOLID, MC_GLASS, MC_LEAVES, isSolidBlock } from '../../../shared/world/blocks.js';
 import { freeOldestIndex, hideInstance, makeImpactCrossGeometry } from './instancing.js';
 
 const TAU = Math.PI * 2;
@@ -86,6 +86,15 @@ export function blockSoundFor(type) {
   if (type === LEAVES || type === MC_LEAVES) return 'wood';
   const surface = footstepMaterial(type);
   return surface === 'wood' || surface === 'metal' ? surface : 'stone';
+}
+
+/** Bullet impact surface for sound: water, glass, wood, metal, dirt (grass/gravel/sand) or stone. */
+export function bulletSurfaceFor(type) {
+  if (FLUID_BLOCKS.has(type)) return 'water';
+  const kind = blockSoundFor(type);
+  if (kind !== 'stone') return kind;
+  const surface = footstepMaterial(MC_GHOST_SOLID[type] ?? type);
+  return surface === 'grass' || surface === 'gravel' || surface === 'sand' ? 'dirt' : 'stone';
 }
 
 /** Flat 5x5-pixel plus with a hollow-free centre: the crit sparkle silhouette, unit size. */

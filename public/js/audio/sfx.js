@@ -269,6 +269,7 @@ const VEHICLE_CUES = Object.freeze({
   acquire: Object.freeze({ hz: 880, gate: 2.5, level: 0.05 }),
   lock: Object.freeze({ hz: 1320, gate: 0, level: 0.05 }),
   alarm: Object.freeze({ hz: 620, gate: 1.6, level: 0.06 }),
+  alarmAir: Object.freeze({ hz: 760, gate: 2.4, level: 0.055 }),
 });
 const gunLoops = new Map();
 const burnLoops = new Map();
@@ -290,10 +291,23 @@ function listenerDistance(pos) {
  * The muffled "far layer" of a heavy source: a low-passed rumble that grows
  * as the bright near layer rolls off past VEHICLE_SOUND.thumpFrom.
  */
-function farLayer(pos, { gain = 0.8, low = 52, lifetime = 2.4, delay = 0 } = {}) {
+function farLayer(pos, { gain = 0.8, low = 52, lifetime = 2.4, delay = 0, group = 'cq.distant' } = {}) {
   const distance = listenerDistance(pos);
   if (!(distance > VEHICLE_SOUND.thumpFrom) || distance > VEHICLE_SOUND.farRange) return false;
   const weight = Math.min(1, (distance - VEHICLE_SOUND.thumpFrom) / VEHICLE_SOUND.thumpFrom);
+  if (cqHas(group)) {
+    // Conquest bank: a recorded distant boom with its rolling valley tail,
+    // arriving after the flash (distance / 343 m/s).
+    // The voice is held for FAR_BOOM_HOLD only: the 4.5-6.5 s recordings would
+    // otherwise keep a priority-3 positional voice that gunfire can never evict.
+    run('farLayer', () => {
+      cqOneShot(group, { pos: pos.slice(0, 3), priority: 3, range: 'far', lowpass: 2600 }, {
+        gain: CONQUEST_MIX.distant * gain * (0.55 + 0.45 * weight), rate: 0.92 + Math.random() * 0.14,
+        delay: delay + distance / SOUND_SPEED, hold: FAR_BOOM_HOLD,
+      });
+    });
+    return true;
+  }
   run('farLayer', () => {
     const output = pool.acquire({ pos: pos.slice(0, 3), priority: 3, range: 'far', lowpass: 320 }, lifetime);
     const at = primitives.nowT(delay);
@@ -302,6 +316,19 @@ function farLayer(pos, { gain = 0.8, low = 52, lifetime = 2.4, delay = 0 } = {})
     sendEcho(output, primitives, 0.35, engine.echoIn, addCleanup);
   });
   return true;
+}
+
+/**
+ * Near take of a heavy source inside the far-layer band (VEHICLE_SOUND.thumpFrom
+ * to crackTo): it is delayed like the far layer (distance / 343 m/s) so the two
+ * land together, and its gain fades toward the far edge. Closer, it plays at
+ * once and in full.
+ */
+export function nearHandover(distance) {
+  const from = VEHICLE_SOUND.thumpFrom, to = VEHICLE_SOUND.crackTo;
+  if (!(distance > from)) return { gain: 1, delay: 0 };
+  const t = Math.min(1, (distance - from) / (to - from));
+  return { gain: Math.cos(t * Math.PI / 2), delay: distance / SOUND_SPEED };
 }
 
 /** Stop and forget one refreshed loop voice (gun, burn, missile, cue). */
@@ -342,7 +369,11 @@ function refreshLoop(map, key, { pos = null, priority = 1, range = 'near', hold,
     gain.connect(output);
     voice = { ctx, output, gain, sources: [], nodes: [gain], last: at, end: at };
     create(voice, at);
-    for (const source of voice.sources) source.start(at);
+    // Sampled loops may start part-way into their buffer (loopOffset).
+    for (const source of voice.sources) {
+      if (source.loopOffset > 0) source.start(at, source.loopOffset);
+      else source.start(at);
+    }
     map.set(key, voice);
     pool.addCleanup(output, () => {
       for (const source of voice.sources) { try { source.stop(); } catch {} source.disconnect(); }
@@ -557,6 +588,406 @@ function createReportLayer(output, gain) {
   return layer;
 }
 
+// ---------------------------------------------------------------------------
+// Conquest sample bank (slots `cq.<group>.<n>` from audio/conquest-bank.js,
+// decoded only for a Conquest match). Each Conquest cue prefers a decoded
+// variant and keeps its procedural voice as the fallback, so the menu, the
+// other modes and a match whose bank is still loading sound as before.
+// ---------------------------------------------------------------------------
+const CQ_PREFIX = 'cq.';
+const CQ_MAX_VARIANTS = 8;
+const cqLastVariant = new Map();
+let conquestBankPromise = null;
+let conquestBankGeneration = 0;
+/** Seconds before each retry of the Conquest files that failed to fetch or decode. */
+export const CONQUEST_BANK_RETRIES = Object.freeze([5, 20]);
+
+/**
+ * Load `manifest` into the sample bank; files that fail are retried in the
+ * background (CONQUEST_BANK_RETRIES) until the bank is unloaded. Resolves with
+ * the first attempt's result.
+ */
+function loadConquestSlots(manifest, fetchImpl, generation, attempt) {
+  return samples.load(manifest, fetchImpl)
+    .catch(() => Object.freeze({ loaded: 0, failed: Object.keys(manifest).length }))
+    .then(result => {
+      if (result.failed > 0 && attempt < CONQUEST_BANK_RETRIES.length && typeof setTimeout === 'function') {
+        const timer = setTimeout(() => {
+          if (generation !== conquestBankGeneration || !samples) return;
+          const missing = Object.fromEntries(Object.entries(manifest).filter(([slot]) => !samples.getBuffer(slot)));
+          if (Object.keys(missing).length) void loadConquestSlots(missing, fetchImpl, generation, attempt + 1);
+        }, CONQUEST_BANK_RETRIES[attempt] * 1000);
+        timer?.unref?.();
+      }
+      return result;
+    });
+}
+/** Decoded mix levels (bank loops sit near -18 LUFS, one-shots peak at -3.5 dBFS). */
+export const CONQUEST_MIX = Object.freeze({
+  tank: 0.55, jeep: 0.42, rotor: 0.62, plane: 0.62,
+  cannon: 1.2, cannonSelf: 0.9, distant: 0.85, blast: 1, gunShot: 0.85, gunLoop: 0.5, chin: 0.62, chinSelf: 0.5,
+  burning: 0.5, cue: 0.32, missile: 0.5, turret: 0.38, wade: 0.5, descent: 0.35, bullet: 0.7, debris: 0.85,
+});
+/**
+ * Per-take level trims (dB, by variant index) from the loudest 100 ms of each
+ * file, so one-shots of a group land near a common level: coax shots about
+ * -13 dB and HMG shots about -11 dB (the infantry rifle sits near -10 dB), the
+ * AA airbursts within 1 dB of each other and closer to the rocket blasts, and
+ * the CIWS-sourced jet burst level with its ground-heard take. The master
+ * limiter catches the hotter peaks.
+ */
+export const CONQUEST_TRIM_DB = Object.freeze({
+  'cq.gun.coaxMG': Object.freeze([7.5, 8, 7]),
+  'cq.gun.hmg': Object.freeze([6, 6.5, 5.5]),
+  'cq.blast.airburst': Object.freeze([5, 6]),
+  'cq.gun.planeCannon': Object.freeze([1.5]),
+});
+/** Seconds a recorded distant boom keeps its voice (the old procedural far layer lasted 2.4-3 s). */
+export const FAR_BOOM_HOLD = 3;
+/** Hull-hit sounds per window, like the bullet-impact and debris budgets. */
+export const HULL_HIT_SOUND = Object.freeze({ window: 0.25, budget: 4, selfBudget: 6 });
+/** Engine loop layers per hull kind: [layer, bank group]. */
+const SAMPLED_VEHICLE_LAYERS = Object.freeze({
+  tank: Object.freeze([['idle', 'cq.tank.idle'], ['rev', 'cq.tank.rev'], ['tracks', 'cq.tank.tracks'], ['pivot', 'cq.tank.pivot']]),
+  jeep: Object.freeze([['idle', 'cq.jeep.idle'], ['drive', 'cq.jeep.drive'], ['tyres', 'cq.jeep.tyres'], ['rattle', 'cq.jeep.rattle']]),
+  helicopter: Object.freeze([['ext', 'cq.heli.ext'], ['distant', 'cq.heli.distant'], ['cabin', 'cq.heli.cockpit']]),
+  transport: Object.freeze([['ext', 'cq.transport.ext'], ['distant', 'cq.heli.distant'], ['cabin', 'cq.transport.cabin']]),
+  plane: Object.freeze([['ext', 'cq.jet.ext'], ['low', 'cq.jet.low'], ['burner', 'cq.jet.burner']]),
+});
+/** Hatch takes per hull kind: [enter, exit]. */
+const HATCH_GROUPS = Object.freeze({
+  tank: ['cq.hatch.tankEnter', 'cq.hatch.tankExit'], jeep: ['cq.hatch.jeepEnter', 'cq.hatch.jeepExit'],
+  transport: ['cq.hatch.cabin', 'cq.hatch.cabin'], helicopter: ['cq.hatch.canopy', 'cq.hatch.cabin'], plane: ['cq.hatch.canopy', 'cq.hatch.canopy'],
+});
+const DESTRUCTION_GROUPS = Object.freeze({ tank: 'cq.destroy.tank', jeep: 'cq.destroy.jeep', helicopter: 'cq.destroy.heli',
+  transport: 'cq.destroy.heli', plane: 'cq.destroy.jet' });
+const BULLET_SURFACES = Object.freeze({ dirt: 'dirt', grass: 'dirt', gravel: 'dirt', sand: 'dirt', wood: 'wood', metal: 'metal',
+  water: 'water', stone: 'stone', glass: 'stone', cloth: 'dirt' });
+/** Bullet impacts: audible radius (m), budget per window, ricochet share of stone/metal hits. */
+export const BULLET_IMPACT_SOUND = Object.freeze({ range: 45, window: 0.25, budget: 8, ricochetRange: 30, ricochet: 0.12 });
+const DEBRIS_SOUND = Object.freeze({ window: 0.15, budget: 5 });
+/** Jet flyby takes: seconds from the start of each file to its loudest pass. */
+export const JET_FLYBY_PEAKS = Object.freeze([3.1, 2.1, 4.5]);
+const SOUND_SPEED = 343;
+const turretLoops = new Map();
+const wadeLoops = new Map();
+const chuteLoops = new Map();
+const gunShots = new Map();
+const gunTimers = new Map();
+const burstVoices = new Map();
+const cqBudgets = new Map();
+/** Pending shell pass voices by projectile id: { output, passAt } (audio clock). */
+const shellPasses = new Map();
+
+/** Decoded variants of a bank group, in slot order. */
+function cqSlots(group) {
+  const slots = [];
+  if (!samples) return slots;
+  for (let i = 1; i <= CQ_MAX_VARIANTS; i++) {
+    const slot = `${group}.${i}`;
+    if (samples.getBuffer(slot)) slots.push(slot);
+  }
+  return slots;
+}
+
+function cqHas(group) {
+  return !!samples?.getBuffer(`${group}.1`);
+}
+
+/** Random variant that never repeats the previous pick of the same group. */
+function cqPick(group, random = Math.random) {
+  const slots = cqSlots(group);
+  if (slots.length <= 1) return slots[0] || null;
+  let index = Math.floor(random() * slots.length) % slots.length;
+  if (slots[index] === cqLastVariant.get(group)) index = (index + 1) % slots.length;
+  cqLastVariant.set(group, slots[index]);
+  return slots[index];
+}
+
+/** Sliding budget so a burst of block breaks or bullet hits cannot flood the pool. */
+function cqBudget(name, window, budget) {
+  const now = engine.now;
+  const list = cqBudgets.get(name) || [];
+  while (list.length && now - list[0] > window) list.shift();
+  if (list.length >= budget) { cqBudgets.set(name, list); return false; }
+  list.push(now);
+  cqBudgets.set(name, list);
+  return true;
+}
+
+/**
+ * One random variant of `group` as its own pooled voice (`voice`: VoicePool
+ * options). Returns the output, or null when nothing has decoded (the caller
+ * then plays its procedural voice).
+ */
+function cqOneShot(group, voice, { gain = 1, rate = 1, delay = 0, offset = 0, echo = 0, slot: forced = null, hold = Infinity } = {}) {
+  const slot = forced || cqPick(group);
+  const buffer = slot ? samples.getBuffer(slot) : null;
+  if (!buffer) return null;
+  const speed = Math.max(0.25, Math.min(4, rate));
+  const skip = Math.max(0, Math.min(buffer.duration - 0.01, offset));
+  const wait = Math.max(0, delay);
+  const length = Math.max(0.05, (buffer.duration - skip) / speed);
+  // `hold`: the voice ends (with a 0.6 s fade) after this many seconds of sound.
+  const held = Number.isFinite(hold) && hold > 0.7 && hold < length;
+  const output = pool.acquire(voice, (held ? hold : length) + wait + 0.05);
+  const trim = CONQUEST_TRIM_DB[group]?.[Number(slot.slice(group.length + 1)) - 1] || 0;
+  if (!samples.play(slot, output, { gain: gain * 10 ** (trim / 20), rate: speed, delay: wait, offset: skip })) return null;
+  if (held) {
+    try {
+      const end = engine.now + wait + hold;
+      output.gain.setValueAtTime(output.gain.value, end - 0.6);
+      output.gain.linearRampToValueAtTime(0, end);
+    } catch { /* closed */ }
+  }
+  if (echo > 0) sendEcho(output, primitives, echo, engine.echoIn, addCleanup);
+  return output;
+}
+
+/** A looping BufferSource of `group` (variant `variant`) for refreshLoop voices. */
+function cqLoopSource(voice, group, { variant = 1, level = 1, rate = 1, dest = voice.gain, offset = 0 } = {}) {
+  const buffer = samples?.getBuffer(`${group}.${variant}`) || samples?.getBuffer(`${group}.1`);
+  if (!buffer) return null;
+  const source = voice.ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  source.playbackRate.value = rate;
+  source.loopOffset = Math.max(0, Math.min(buffer.duration - 0.01, offset));
+  const mix = voice.ctx.createGain();
+  mix.gain.value = level;
+  source.connect(mix).connect(dest);
+  voice.sources.push(source);
+  voice.nodes.push(mix);
+  return { source, mix };
+}
+
+/** Every layer of a hull kind's sampled engine voice has decoded. */
+function sampledVehicleReady(kind) {
+  const layers = SAMPLED_VEHICLE_LAYERS[kind];
+  return !!layers && layers.every(([, group]) => cqHas(group));
+}
+
+/** Sampled engine voice: looped layers (random start points) into a tone filter and the level gain. */
+function createSampledVehicleVoice(ctx, output, key, kind, at, self) {
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  const tone = ctx.createBiquadFilter();
+  tone.type = 'lowpass';
+  tone.frequency.value = 18000;
+  tone.Q.value = 0.5;
+  tone.connect(gain).connect(output);
+  const layers = {};
+  const sources = [];
+  const nodes = [tone, gain];
+  for (const [name, group] of SAMPLED_VEHICLE_LAYERS[kind]) {
+    const buffer = samples.getBuffer(`${group}.1`);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    const level = ctx.createGain();
+    level.gain.value = 0;
+    source.connect(level).connect(tone);
+    // Identical hulls side by side must not phase: each loop starts somewhere else.
+    source.start(at, Math.random() * Math.max(0, (buffer?.duration || 0) - 0.05));
+    layers[name] = { source, level };
+    sources.push(source);
+    nodes.push(level);
+  }
+  const voice = { ctx, output, key, kind, self, sampled: true, gain, tone, layers, sources, nodes, last: at, end: at };
+  pool.addCleanup(output, () => {
+    voice.cleaned = true;
+    for (const source of sources) {
+      try { source.stop(); } catch {}
+      source.disconnect();
+    }
+    for (const node of nodes) node.disconnect();
+    if (vehicleLoops.get(key) === voice) vehicleLoops.delete(key);
+  });
+  return voice;
+}
+
+/**
+ * Drive the sampled layers from the snapshot state: speed crossfades idle and
+ * load loops and pitches them, track speed runs the track clatter (pivot
+ * squeal when the tracks turn faster than the hull moves), rotor speed and
+ * engine power pitch the aircraft, and Doppler bends a passing aircraft.
+ * Returns the voice level.
+ */
+function tuneSampledVehicleVoice(voice, options, speed, trackSpeed, at, pos) {
+  const layers = voice.layers;
+  const set = (layer, level, rate) => {
+    if (!layer) return;
+    layer.level.gain.cancelScheduledValues(at);
+    layer.level.gain.setTargetAtTime(Math.max(0, level), at, 0.08);
+    if (rate) {
+      layer.source.playbackRate.cancelScheduledValues(at);
+      layer.source.playbackRate.setTargetAtTime(Math.max(0.3, Math.min(2.5, rate)), at, 0.12);
+    }
+  };
+  const quarter = Math.PI / 2;
+  const doppler = AIRCRAFT_KINDS.has(voice.kind) && !voice.self
+    ? dopplerRatio(pos, options?.velocity, engine.listenerPos?.()) : 1;
+  voice.tone.frequency.cancelScheduledValues(at);
+  voice.tone.frequency.setTargetAtTime(voice.kind === 'plane' && voice.self ? 1400 : 18000, at, 0.1);
+  if (voice.kind === 'tank') {
+    const load = Math.min(1, speed / 12);
+    const tracks = Math.min(1, trackSpeed / 8);
+    const pivot = Math.max(0, Math.min(1, (trackSpeed - speed - 0.8) / 3));
+    set(layers.idle, Math.cos(load * quarter), 1 + load * 0.22);
+    set(layers.rev, Math.sin(load * quarter) * 0.95, 0.86 + load * 0.3);
+    set(layers.tracks, tracks * 0.75, 0.75 + tracks * 0.5);
+    set(layers.pivot, pivot * 0.6, 0.9 + pivot * 0.2);
+    return CONQUEST_MIX.tank * (0.72 + 0.28 * Math.max(load, tracks));
+  }
+  if (voice.kind === 'jeep') {
+    const load = Math.min(1, speed / 18);
+    // Four gear bands: revs climb through each band and drop at the shift.
+    const gear = Math.min(3, Math.floor(speed / 6));
+    const within = Math.min(1, (speed - gear * 6) / 6);
+    set(layers.idle, Math.cos(Math.min(1, speed / 4) * quarter), 1 + Math.min(1, speed / 4) * 0.15);
+    set(layers.drive, Math.sin(Math.min(1, speed / 4) * quarter), 0.82 + within * 0.36 + gear * 0.05);
+    set(layers.tyres, Math.min(1, speed / 10) * 0.7, 0.8 + load * 0.4);
+    set(layers.rattle, Math.min(1, speed / 8) * 0.45, 0.9 + load * 0.2);
+    return CONQUEST_MIX.jeep * (0.75 + 0.25 * load);
+  }
+  if (ROTOR_KINDS.has(voice.kind)) {
+    const rotor = vehicleUnit(options?.rotorSpeed);
+    const far = voice.self ? 0 : Math.max(0, Math.min(1, (listenerDistance(pos) - 60) / 90));
+    const rate = (0.55 + 0.45 * rotor) * doppler;
+    set(layers.ext, voice.self ? 0.2 : Math.cos(far * quarter), rate);
+    set(layers.distant, voice.self ? 0 : Math.sin(far * quarter), rate * (voice.kind === 'transport' ? 0.85 : 1));
+    set(layers.cabin, voice.self ? 1 : 0, 0.7 + 0.3 * rotor);
+    return CONQUEST_MIX.rotor * rotor * (0.85 + 0.15 * Math.min(1, speed / 34));
+  }
+  const power = vehicleUnit(options?.enginePower);
+  set(layers.low, Math.cos(power * quarter), (0.85 + power * 0.2) * doppler);
+  set(layers.ext, Math.sin(power * quarter), (0.85 + power * 0.25) * doppler);
+  set(layers.burner, Math.max(0, (power - 0.8) / 0.2) * 0.9, doppler);
+  return CONQUEST_MIX.plane * (0.35 + 0.65 * power);
+}
+
+/** Close-blast ring for the stunned ear: in-head, fades with distance. */
+function flashbangRing(pos) {
+  const listenerPos = engine.listenerPos?.();
+  if (!Array.isArray(pos) || !pos.every(Number.isFinite) || !Array.isArray(listenerPos)) return;
+  const distance = Math.hypot(pos[0] - listenerPos[0], pos[1] - listenerPos[1], pos[2] - listenerPos[2]);
+  const proximity = Math.max(0, Math.min(1, 1 - distance / 18));
+  if (proximity <= 0) return;
+  run('flashbang', () => {
+    const output = pool.acquire(null, 2.4);
+    primitives.tone(output, {
+      t0: primitives.nowT(), type: 'sine', f0: 3400, f1: 3100,
+      att: 0.005, dec: 0.6 + proximity * 1.4, g: 0.05 + proximity * 0.22,
+    });
+  });
+}
+
+/**
+ * Conquest bank group of a blast: water geyser over a fluid block, tank AP
+ * (2.5 m) or HE (5.5 m) shell, AA airburst, rocket, 25 mm pop, limpet, frag.
+ */
+export function conquestBlastGroup(type, detail = null) {
+  if (detail?.fluid && type !== 'pulse') return 'cq.blast.water';
+  const weapon = detail?.vehicleWeapon;
+  if (type === 'shell') return weapon === 'tankAP' || (!weapon && Number(detail?.radius) > 0 && Number(detail.radius) < 4)
+    ? 'cq.blast.ap' : 'cq.blast.he';
+  if (weapon === 'aaMissile' || type === 'stinger') return 'cq.blast.airburst';
+  return { rocket: 'cq.blast.rocket', mgl: 'cq.blast.autocannon', frag: 'cq.blast.frag', limpet: 'cq.blast.limpet' }[type] || null;
+}
+
+/** Retire a pooled one-shot early with a short fade. */
+function fadeVoice(output, fade = 0.2) {
+  const ctx = engine.ctx;
+  if (!output || !ctx || ctx.state === 'closed') return;
+  try {
+    output.gain.cancelScheduledValues(ctx.currentTime);
+    output.gain.setValueAtTime(output.gain.value, ctx.currentTime);
+    output.gain.linearRampToValueAtTime(0, ctx.currentTime + fade);
+  } catch {}
+  pool?.refresh(output, null, fade);
+}
+
+/** Run `onStop` once the trigger lifts (no new round within the gun hold). */
+function armGunStop(key, onStop) {
+  clearTimeout(gunTimers.get(key));
+  gunTimers.set(key, setTimeout(() => {
+    gunTimers.delete(key);
+    try { if (pool) onStop(); } catch {}
+  }, (VEHICLE_SOUND.gunHold + 0.06) * 1000));
+}
+
+/**
+ * Conquest bank gun voices. Coax and HMG play one recorded round per
+ * authoritative shot (random take, at most three overlapping per mount); the
+ * door minigun runs its motor loop while rounds keep coming and spins down
+ * after the last; the jet cannon plays its burst take (the ground-heard take
+ * past 120 m), restarting every 1.2 s of continuous fire and fading when the
+ * trigger lifts. Returns false when the weapon has no decoded take.
+ */
+function sampledGun(key, at, weapon, self, heat) {
+  const pos = self ? null : at;
+  if (weapon === 'coaxMG' || weapon === 'hmg') {
+    const group = `cq.gun.${weapon}`;
+    if (!cqHas(group)) return false;
+    run('vehicleGun', () => {
+      const output = cqOneShot(group, { pos, priority: 2 }, {
+        gain: CONQUEST_MIX.gunShot * (self ? 0.8 : 1),
+        rate: 0.97 + Math.random() * 0.06 + heat * 0.03,
+      });
+      if (!output) return;
+      const shots = gunShots.get(key) || [];
+      shots.push(output);
+      while (shots.length > 3) fadeVoice(shots.shift(), 0.03);
+      gunShots.set(key, shots);
+    });
+    return true;
+  }
+  if (weapon === 'doorMinigun') {
+    if (!cqHas('cq.gun.doorMinigun')) return false;
+    run('vehicleGun', () => {
+      refreshLoop(gunLoops, key, {
+        pos, priority: 2, hold: VEHICLE_SOUND.gunHold, fade: VEHICLE_SOUND.gunFade, max: VEHICLE_SOUND.maxGunLoops,
+        level: CONQUEST_MIX.gunLoop * (self ? 0.85 : 1),
+        create: (voice) => { cqLoopSource(voice, 'cq.gun.doorMinigun', { offset: Math.random() * 2 }); },
+      });
+      armGunStop(key, () => cqOneShot('cq.gun.doorMinigunStop', { pos, priority: 1 }, { gain: self ? 0.6 : 0.75 }));
+    });
+    return true;
+  }
+  if (weapon === 'planeCannon') {
+    if (!cqHas('cq.gun.planeCannon')) return false;
+    run('vehicleGun', () => {
+      const now = engine.now;
+      let burst = burstVoices.get(key);
+      if (!burst || now - burst.started > 1.2) {
+        if (burst) fadeVoice(burst.output, 0.12);
+        const far = !self && listenerDistance(at) > 120 && cqHas('cq.gun.planeCannonFar');
+        const output = cqOneShot(far ? 'cq.gun.planeCannonFar' : 'cq.gun.planeCannon', { pos, priority: 2, range: 'far' }, {
+          gain: self ? 0.75 : 0.9, echo: self ? 0 : 0.15,
+        });
+        burst = { output, started: now };
+        burstVoices.set(key, burst);
+      }
+      armGunStop(key, () => {
+        const ending = burstVoices.get(key);
+        burstVoices.delete(key);
+        if (ending) fadeVoice(ending.output, 0.3);
+      });
+    });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Line a pass-by take up with the closest approach: `delay` is the time until
+ * the pass, `peak` the loudest moment in the file. Returns { delay, offset }.
+ */
+export function alignPeak(delay, peak) {
+  const until = Math.max(0, Number(delay) || 0);
+  return until >= peak ? { delay: until - peak, offset: 0 } : { delay: 0, offset: peak - until };
+}
+
 export const sfx = {
   init() {
     if (!engine.ensure()) return Promise.resolve(this);
@@ -612,9 +1043,13 @@ export const sfx = {
     menuMusic = null;
     pool = null;
     primitives = null;
+    this.stopVehicleCues();
     samples?.clear();
     samples = null;
     builtInSamplesPromise = null;
+    conquestBankPromise = null;
+    cqLastVariant.clear();
+    cqBudgets.clear();
     footstepVariations = new FootstepVariations();
     heartbeatAt = -Infinity;
     panicBreaths.reset();
@@ -854,8 +1289,13 @@ export const sfx = {
       const rpm = ground ? 1 + speed / (kind === 'tank' ? 15 : 12) : 1;
       const hz = (VEHICLE_DRONE[kind] ?? 100) * rpm;
       let targetLevel = ground ? VEHICLE_LEVEL * (0.28 + Math.min(1, speed / 12) * 0.55) : VEHICLE_LEVEL;
+      // Conquest bank loops replace the drone once every layer has decoded; the
+      // crew (self) hears its own hull in the head through the interior layers.
+      const sampled = sampledVehicleReady(kind);
+      const self = sampled && !!options?.self;
       let voice = vehicleLoops.get(key);
-      if (voice && (voice.ctx !== ctx || at >= voice.end || voice.kind !== kind)) {
+      if (voice && (voice.ctx !== ctx || at >= voice.end || voice.kind !== kind
+        || !!voice.sampled !== sampled || (sampled && voice.self !== self))) {
         releaseVehicleLoop(key, voice); voice = null;
       }
       if (!voice) {
@@ -863,8 +1303,13 @@ export const sfx = {
           const [oldKey, oldest] = [...vehicleLoops.entries()].reduce((a, b) => (a[1].last <= b[1].last ? a : b));
           releaseVehicleLoop(oldKey, oldest);
         }
-        const output = pool.acquire(deferredPos ? { pos: deferredPos, priority: 1 } : null, VEHICLE_HOLD + VEHICLE_FADE);
-        if (aircraft) {
+        const output = pool.acquire(self ? { priority: 1 } : deferredPos ? { pos: deferredPos, priority: 1 } : null,
+          VEHICLE_HOLD + VEHICLE_FADE);
+        if (sampled) {
+          voice = createSampledVehicleVoice(ctx, output, key, kind, at, self);
+          if (voice.cleaned) return;
+          vehicleLoops.set(key, voice);
+        } else if (aircraft) {
           voice = createAircraftVehicleVoice(ctx, output, key, kind, at);
           if (voice.cleaned) return;
           vehicleLoops.set(key, voice);
@@ -895,7 +1340,8 @@ export const sfx = {
           });
         }
       }
-      if (aircraft) targetLevel = tuneAircraftVehicleVoice(voice, options, speed, at);
+      if (voice.sampled) targetLevel = tuneSampledVehicleVoice(voice, options, speed, trackSpeed, at, deferredPos);
+      else if (aircraft) targetLevel = tuneAircraftVehicleVoice(voice, options, speed, at);
       const level = at >= voice.end ? 0 : voice.gain.gain.value;
       voice.last = at;
       voice.end = at + VEHICLE_HOLD + VEHICLE_FADE;
@@ -907,15 +1353,15 @@ export const sfx = {
       g.linearRampToValueAtTime(0, voice.end);
       // WebAudio permits replacing a future stop deadline until the source ends.
       for (const source of voice.sources ?? [voice.osc, voice.sub]) source.stop(voice.end + 0.05);
-      if (!aircraft) {
+      if (!aircraft && !voice.sampled) {
         voice.osc.frequency.setTargetAtTime(hz, at, 0.12);
         voice.sub.frequency.setTargetAtTime(kind === 'tank' ? 24 + trackSpeed * 2.8 : hz / 2, at, 0.12);
       }
-      if (kind === 'walker' && at >= voice.thudAt) {
+      if (kind === 'walker' && !voice.sampled && at >= voice.thudAt) {
         voice.thudAt = at + 0.7;
         primitives.tone(voice.output, { t0: at, type: 'sine', f0: 70, f1: 32, att: 0.004, dec: 0.22, g: 0.3 });
       }
-      pool.refresh(voice.output, deferredPos ? { pos: deferredPos } : null, VEHICLE_HOLD + VEHICLE_FADE);
+      pool.refresh(voice.output, deferredPos && !voice.self ? { pos: deferredPos } : null, VEHICLE_HOLD + VEHICLE_FADE);
     });
   },
 
@@ -1072,6 +1518,13 @@ export const sfx = {
       if (!params) return;
       let normalized = Math.min(1, Math.max(0, volume));
       if (params.cap) normalized = Math.min(normalized, params.cap);
+      if (cqHas(`cq.debris.${kind}`)) {
+        // Conquest bank: crumbling voxel chunks, budgeted so a blast that breaks
+        // dozens of blocks stacks a few takes instead of flooding the pool.
+        if (!cqBudget('debris', DEBRIS_SOUND.window, DEBRIS_SOUND.budget)) return;
+        if (cqOneShot(`cq.debris.${kind}`, { ...outputOptions(deferred), priority: 0 }, {
+          gain: CONQUEST_MIX.debris * normalized, rate: 0.92 + Math.random() * 0.16 })) return;
+      }
       const output = pool.acquire(outputOptions(deferred), kind === 'glass' ? 0.6 : 0.5);
       output.gain.value = 1.14;
       if (samples.play(`impact.${kind}`, output, { gain: normalized })) return;
@@ -1515,6 +1968,8 @@ export const sfx = {
    */
   explosion(pos, type = 'frag', detail = null) {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
+    // Conquest bank (when decoded): per-weapon blast takes, near/distant by range.
+    const conquestGroup = conquestBlastGroup(type, detail);
     // A Conquest tank shell bursts with the rocket's heavy blast bank.
     if (type === 'shell') type = 'rocket';
     // Bolt expiry shares the projectile event channel, but has no blast radius.
@@ -1554,6 +2009,27 @@ export const sfx = {
       return;
     }
     const profile = EXPLOSION_PROFILES[type] || EXPLOSION_PROFILES.frag;
+    if (conquestGroup && cqHas(conquestGroup) && Array.isArray(deferredPos) && deferredPos.every(Number.isFinite)) {
+      const distance = listenerDistance(deferredPos);
+      if (distance > VEHICLE_SOUND.farRange) return;
+      // The near take carries the crack and debris; past 150 m the sampled
+      // distant boom (delayed by the speed of sound) takes over, and beyond
+      // 260 m only that boom is left.
+      // Where both play (150-260 m) the near take arrives with the boom (distance /
+      // 343 m/s) and fades out across the band, so one blast never sounds twice.
+      if (distance <= VEHICLE_SOUND.crackTo) {
+        const handover = nearHandover(distance);
+        run('explosion', () => {
+          cqOneShot(conquestGroup, { pos: deferredPos, priority: 2, range: 'far' }, {
+            gain: CONQUEST_MIX.blast * profile.gain * 0.85 * handover.gain, rate: 0.95 + Math.random() * 0.1, echo: profile.echo * 0.4,
+            delay: handover.delay,
+          });
+        });
+      }
+      farLayer(deferredPos, { gain: profile.gain * 0.75, low: profile.lowHz, lifetime: profile.lifetime + 0.4 });
+      flashbangRing(deferredPos);
+      return;
+    }
     // Blasts carry to 400 m; past 150 m a low-passed rumble takes over.
     if (Array.isArray(deferredPos)) {
       if (listenerDistance(deferredPos) > VEHICLE_SOUND.farRange) return;
@@ -1618,21 +2094,7 @@ export const sfx = {
     });
     // Flashbang ring: a close blast leaves a high ringing that fades with
     // distance. In-head and non-positional, like a stunned ear.
-    const listenerPos = engine.listenerPos?.();
-    if (Array.isArray(deferredPos) && deferredPos.every(Number.isFinite) && Array.isArray(listenerPos)) {
-      const distance = Math.hypot(deferredPos[0] - listenerPos[0],
-        deferredPos[1] - listenerPos[1], deferredPos[2] - listenerPos[2]);
-      const proximity = Math.max(0, Math.min(1, 1 - distance / 18));
-      if (proximity > 0) {
-        run('flashbang', () => {
-          const output = pool.acquire(null, 2.4);
-          primitives.tone(output, {
-            t0: primitives.nowT(), type: 'sine', f0: 3400, f1: 3100,
-            att: 0.005, dec: 0.6 + proximity * 1.4, g: 0.05 + proximity * 0.22,
-          });
-        });
-      }
-    }
+    flashbangRing(deferredPos);
   },
 
   /**
@@ -1647,6 +2109,20 @@ export const sfx = {
     if (!self && distance > VEHICLE_SOUND.farRange) return { near: false, far: false };
     const near = self || distance <= VEHICLE_SOUND.crackTo;
     const he = weapon === 'tankHE';
+    if (cqHas('cq.cannon.near')) {
+      // Conquest bank: interior take for the crew, the near crack-boom with its
+      // slapback in range, and the recorded distant report past 150 m.
+      if (near) run('vehicleCannon', () => {
+        if (self && cqOneShot('cq.cannon.interior', { priority: 3 }, { gain: CONQUEST_MIX.cannonSelf, echo: 0.12 })) return;
+        const handover = self ? { gain: 1, delay: 0 } : nearHandover(distance);
+        cqOneShot('cq.cannon.near', { pos: self ? null : at, priority: 3, range: 'far' }, {
+          gain: CONQUEST_MIX.cannon * handover.gain, rate: (he ? 0.94 : 1) + Math.random() * 0.06, echo: 0.22,
+          delay: handover.delay,
+        });
+      });
+      const far = !self && farLayer(at, { gain: 1, low: 46, lifetime: 2.6, group: cqHas('cq.cannon.distant') ? 'cq.cannon.distant' : 'cq.distant' });
+      return { near, far };
+    }
     if (near) run('vehicleCannon', () => {
       const output = pool.acquire({ pos: self ? null : at, priority: 3, range: 'far' }, 2.6);
       output.gain.value = 1.2;
@@ -1672,6 +2148,8 @@ export const sfx = {
     const at = positionFrom(pos);
     if (!self && listenerDistance(at) > VEHICLE_SOUND.farRange) return false;
     run('vehicleAutocannon', () => {
+      if (cqOneShot('cq.chin', { pos: self ? null : at, priority: 2, range: 'far' }, {
+        gain: self ? CONQUEST_MIX.chinSelf : CONQUEST_MIX.chin, rate: 0.96 + Math.random() * 0.08 })) return;
       const output = pool.acquire({ pos: self ? null : at, priority: 2, range: 'far' }, 0.5);
       const t = primitives.nowT();
       primitives.hiss(output, { t0: t, filter: 'bandpass', f: 1700, q: 0.9, dec: 0.06, g: 0.5 });
@@ -1692,6 +2170,7 @@ export const sfx = {
     const hot = vehicleUnit(heat);
     if (!engine.ensure() || engine.ctx.state !== 'running') return false;
     if (!self && listenerDistance(at) > 260) { releaseLoop(gunLoops, key, gunLoops.get(key), VEHICLE_SOUND.gunFade); return false; }
+    if (sampledGun(key, at, weapon, self, hot)) return true;
     run('vehicleGun', () => {
       refreshLoop(gunLoops, key, {
         pos: self ? null : at, priority: 2, hold: VEHICLE_SOUND.gunHold, fade: VEHICLE_SOUND.gunFade,
@@ -1736,6 +2215,8 @@ export const sfx = {
     if (!self && listenerDistance(at) > VEHICLE_SOUND.farRange) return false;
     const pod = kind === 'pod';
     run('vehicleMissileLaunch', () => {
+      if (cqOneShot(pod ? 'cq.pod' : 'cq.aa.launch', { pos: self ? null : at, priority: 2, range: 'far' }, {
+        gain: pod ? 0.85 : 0.95, rate: 0.95 + Math.random() * 0.1, echo: pod ? 0.08 : 0.15 })) return;
       const output = pool.acquire({ pos: self ? null : at, priority: 2, range: 'far' }, pod ? 0.6 : 1.2);
       const t = primitives.nowT();
       primitives.hiss(output, { t0: t, filter: 'bandpass', f: pod ? 1900 : 1400, q: 0.8, dec: 0.05, g: 0.4 });
@@ -1754,8 +2235,11 @@ export const sfx = {
     run('missileFlight', () => {
       refreshLoop(missileLoops, key, {
         pos: at, priority: 1, range: 'far', hold: VEHICLE_SOUND.missileHold, fade: VEHICLE_SOUND.missileFade,
-        max: VEHICLE_SOUND.maxMissileLoops, level: 0.2,
-        create: (voice) => { loopNoise(voice, 'bandpass', 1400, 0.6, 1); loopNoise(voice, 'lowpass', 300, 0.5, 0.6); },
+        max: VEHICLE_SOUND.maxMissileLoops, level: cqHas('cq.aa.flight') ? CONQUEST_MIX.missile : 0.2,
+        create: (voice) => {
+          if (cqLoopSource(voice, 'cq.aa.flight', { offset: Math.random() })) return;
+          loopNoise(voice, 'bandpass', 1400, 0.6, 1); loopNoise(voice, 'lowpass', 300, 0.5, 0.6);
+        },
       });
     });
     return true;
@@ -1768,6 +2252,8 @@ export const sfx = {
     const at = positionFrom(pos);
     if (!self && listenerDistance(at) > 260) return false;
     run('vehicleCountermeasure', () => {
+      if (cqOneShot(kind === 'smoke' ? 'cq.smoke' : 'cq.flares', { pos: self ? null : at, priority: 2 }, {
+        gain: 0.85, rate: 0.96 + Math.random() * 0.08 })) return;
       const output = pool.acquire({ pos: self ? null : at, priority: 2 }, 1.8);
       const t = primitives.nowT();
       if (kind === 'smoke') {
@@ -1788,12 +2274,21 @@ export const sfx = {
    * Round on a hull. Effective hits ring the plate per zone (front glacis
    * deeper, rear and top thinner); ineffective small-arms hits only ping.
    */
-  vehicleHullHit(pos, { zone = 'side', eff = 1, dmg = 0, self = false } = {}) {
+  vehicleHullHit(pos, { zone = 'side', eff = 1, dmg = 0, self = false, cls = null, type = null } = {}) {
     const at = positionFrom(pos);
     if (!self && listenerDistance(at) > 170) return false;
     const pitch = { front: 0.8, side: 1, rear: 1.15, top: 1.25, bottom: 0.9 }[zone] ?? 1;
     const weight = Math.max(0.2, Math.min(1, (Number(dmg) || 0) / 120 + 0.25));
+    // Budgeted like bullet impacts: sustained HMG fire on a hull cannot crowd out weapon reports.
+    if (!cqBudget(self ? 'hullSelf' : 'hull', HULL_HIT_SOUND.window, self ? HULL_HIT_SOUND.selfBudget : HULL_HIT_SOUND.budget)) return false;
     run('vehicleHullHit', () => {
+      // Conquest bank: AT/HE/AA rounds crunch the plate (muffled interior take
+      // for the crew); rounds that cannot hurt it ping off, sheet metal on a jeep.
+      const heavy = eff && (cls ? ['at', 'he', 'aa'].includes(cls) : weight >= 0.6);
+      const group = heavy ? (self ? 'cq.hull.heavyIn' : 'cq.hull.heavy') : type === 'jeep' ? 'cq.hull.light' : 'cq.hull.small';
+      if (cqOneShot(group, { pos: self ? null : at, priority: eff ? 2 : 0 }, {
+        gain: heavy ? 0.95 : 0.55 + weight * 0.3, rate: pitch > 1 ? 1 + (pitch - 1) * 0.3 : 1 - (1 - pitch) * 0.3,
+      })) return;
       const output = pool.acquire({ pos: self ? null : at, priority: eff ? 2 : 0 }, 0.9);
       if (!eff) {
         primitives.tone(output, { t0: primitives.nowT(), type: 'triangle', f0: 2600 * pitch, f1: 1900 * pitch, att: 0.001, dec: 0.08, g: 0.14 });
@@ -1815,8 +2310,12 @@ export const sfx = {
     run('vehicleBurning', () => {
       refreshLoop(burnLoops, key, {
         pos: at, priority: 1, hold: VEHICLE_SOUND.burnHold, fade: VEHICLE_SOUND.burnFade,
-        max: VEHICLE_SOUND.maxBurnLoops, level: VEHICLE_SOUND.burnLevel * vehicleUnit(intensity),
+        max: VEHICLE_SOUND.maxBurnLoops,
+        level: (cqHas('cq.burning') ? CONQUEST_MIX.burning : VEHICLE_SOUND.burnLevel) * vehicleUnit(intensity),
         create: (voice) => {
+          // Conquest bank: one of the fire roar loops, picked per key so a wreck keeps its voice.
+          const variant = 1 + ([...key].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2);
+          if (cqLoopSource(voice, 'cq.burning', { variant, offset: Math.random() * 4 })) return;
           const ctx = voice.ctx;
           const crackle = ctx.createGain();
           crackle.gain.value = 0.2;
@@ -1840,10 +2339,12 @@ export const sfx = {
   stopVehicleBurning(id) { releaseLoop(burnLoops, String(id), burnLoops.get(String(id)), VEHICLE_SOUND.burnFade); },
 
   /** Hatch slam (enter) or latch and creak (exit). */
-  vehicleHatch(pos, { enter = true, self = false } = {}) {
+  vehicleHatch(pos, { enter = true, self = false } = {}, type = null) {
     const at = positionFrom(pos);
     if (!self && listenerDistance(at) > 60) return false;
     run('vehicleHatch', () => {
+      const groups = HATCH_GROUPS[type];
+      if (groups && cqOneShot(groups[enter ? 0 : 1], { pos: self ? null : at, priority: 0 }, { gain: self ? 0.7 : 0.9 })) return;
       const output = pool.acquire({ pos: self ? null : at, priority: 0 }, 0.8);
       const t = primitives.nowT();
       if (enter) {
@@ -1862,6 +2363,8 @@ export const sfx = {
     const at = positionFrom(pos);
     if (!self && listenerDistance(at) > 50) return false;
     run('vehicleReload', () => {
+      if (cqOneShot(heavy ? 'cq.reload.heavy' : 'cq.reload.light', { pos: self ? null : at, priority: 0 }, {
+        gain: self ? 0.75 : 0.9 })) return;
       const output = pool.acquire({ pos: self ? null : at, priority: 0 }, 0.6);
       const t = primitives.nowT();
       primitives.tone(output, { t0: t, type: 'square', f0: heavy ? 150 : 260, f1: heavy ? 80 : 160, att: 0.001, dec: 0.06, g: 0.14 });
@@ -1882,8 +2385,8 @@ export const sfx = {
   },
 
   /** Damage alarm (own hull below 30 %); refresh each frame while active. */
-  vehicleAlarm(active) {
-    this._cueLoop('alarm', active ? 'alarm' : null);
+  vehicleAlarm(active, { air = false } = {}) {
+    this._cueLoop('alarm', active ? (air ? 'alarmAir' : 'alarm') : null);
   },
 
   _cueLoop(slot, mode) {
@@ -1892,12 +2395,14 @@ export const sfx = {
     if (!cue) { if (voice) releaseLoop(cueLoops, slot, voice, VEHICLE_SOUND.cueFade); return false; }
     if (!engine.ensure() || engine.ctx.state !== 'running') return false;
     if (voice && voice.mode !== mode) releaseLoop(cueLoops, slot, voice, 0.02);
+    const sampled = cqHas(`cq.cue.${mode}`);
     run('vehicleCue', () => {
       refreshLoop(cueLoops, slot, {
-        priority: 2, hold: VEHICLE_SOUND.cueHold, fade: VEHICLE_SOUND.cueFade, max: 2, level: cue.level,
+        priority: 2, hold: VEHICLE_SOUND.cueHold, fade: VEHICLE_SOUND.cueFade, max: 2, level: sampled ? CONQUEST_MIX.cue : cue.level,
         create: (next) => {
           const ctx = next.ctx;
           next.mode = mode;
+          if (sampled && cqLoopSource(next, `cq.cue.${mode}`)) return;
           const tone = ctx.createOscillator();
           tone.type = 'square';
           tone.frequency.value = cue.hz;
@@ -1934,6 +2439,18 @@ export const sfx = {
     if (listenerDistance(at) > VEHICLE_SOUND.farRange) return { near: false, far: false };
     const heavy = type === 'tank' ? 1 : type === 'jeep' ? 0.7 : 0.85;
     const near = listenerDistance(at) <= VEHICLE_SOUND.crackTo;
+    const group = secondary ? 'cq.cookoff' : DESTRUCTION_GROUPS[type];
+    if (group && cqHas(group)) {
+      // Conquest bank: per-class fuel and ammo blast (airborne breakup and crash
+      // for aircraft) or a cook-off crackle, plus the recorded distant boom.
+      if (near) run('vehicleDestruction', () => {
+        cqOneShot(group, { pos: at, priority: 3, range: 'far' }, {
+          gain: secondary ? 0.85 : CONQUEST_MIX.blast * 1.1, rate: 0.96 + Math.random() * 0.08, echo: secondary ? 0.1 : 0.25,
+        });
+      });
+      const far = farLayer(at, { gain: secondary ? 0.6 : 1.1, low: 44, lifetime: secondary ? 1.6 : 3 });
+      return { near, far };
+    }
     if (near) run('vehicleDestruction', () => {
       const output = pool.acquire({ pos: at, priority: 3, range: 'far' }, secondary ? 1.4 : 3.2);
       output.gain.value = secondary ? 0.9 : 1.25;
@@ -1958,11 +2475,215 @@ export const sfx = {
     return { near, far };
   },
 
+  /**
+   * Turret servo whine while the main gun traverses (`speed01` = traverse
+   * rate 0..1, refreshed each frame); 0 stops it with the stop clunk. Quiet
+   * outside, full for the crew (self). Conquest bank only.
+   */
+  vehicleTurret(id, pos, speed01, { self = false } = {}) {
+    const key = String(id);
+    const at = positionFrom(pos);
+    const rate = vehicleUnit(speed01);
+    const voice = turretLoops.get(key);
+    if (rate <= 0.02) {
+      if (!voice) return false;
+      releaseLoop(turretLoops, key, voice, 0.1);
+      if (cqHas('cq.tank.turretStop')) {
+        run('vehicleTurret', () => cqOneShot('cq.tank.turretStop', { pos: self ? null : at, priority: 0 }, { gain: self ? 0.65 : 0.45 }));
+      }
+      return true;
+    }
+    if (!cqHas('cq.tank.turret') || !engine.ensure() || engine.ctx.state !== 'running') return false;
+    if (!self && listenerDistance(at) > 40) return false;
+    run('vehicleTurret', () => {
+      refreshLoop(turretLoops, key, {
+        pos: self ? null : at, priority: 1, hold: 0.15, fade: 0.12, max: 2,
+        level: CONQUEST_MIX.turret * (self ? 1 : 0.5) * (0.45 + 0.55 * rate),
+        create: (next) => { next.whine = cqLoopSource(next, 'cq.tank.turret', { rate: 0.7, offset: Math.random() * 2 }); },
+        retune: (next, t) => next.whine?.source.playbackRate.setTargetAtTime(0.8 + 0.4 * rate, t, 0.08),
+      });
+    });
+    return true;
+  },
+
+  stopVehicleTurret(id) { releaseLoop(turretLoops, String(id), turretLoops.get(String(id)), 0.1); },
+
+  /** Turbine wind-up ('up') or blades slowing ('down') of a rotorcraft. Conquest bank only. */
+  vehicleRotorSpool(pos, direction = 'up', { self = false, kind = 'helicopter' } = {}) {
+    const group = direction === 'down' ? 'cq.rotor.spoolDown' : 'cq.rotor.spoolUp';
+    const at = positionFrom(pos);
+    if (!cqHas(group) || (!self && listenerDistance(at) > VEHICLE_SOUND.crackTo)) return false;
+    run('vehicleRotorSpool', () => cqOneShot(group, { pos: self ? null : at, priority: 1, range: 'far' }, {
+      gain: self ? 0.5 : 0.8, rate: kind === 'transport' ? 0.86 : 1 }));
+    return true;
+  },
+
+  /**
+   * Jet pass: `pos` is the closest-approach point and `delay` the seconds
+   * until the jet gets there; the take's loudest moment lands on the pass.
+   */
+  jetFlyby(pos, { delay = 0 } = {}) {
+    const at = positionFrom(pos);
+    if (!at || !cqHas('cq.jet.flyby') || listenerDistance(at) > VEHICLE_SOUND.farRange) return false;
+    run('jetFlyby', () => {
+      const slot = cqPick('cq.jet.flyby');
+      const index = Math.max(0, Number(slot?.split('.').pop()) - 1) || 0;
+      const timing = alignPeak(delay, JET_FLYBY_PEAKS[index] ?? 3);
+      cqOneShot('cq.jet.flyby', { pos: at, priority: 2, range: 'far' }, { slot, gain: 0.95, ...timing });
+    });
+    return true;
+  },
+
+  /** Tank shell passing the listener: AP supersonic crack, HE incoming whistle, aligned to the pass. */
+  shellFlyby(pos, { he = false, delay = 0, id = null } = {}) {
+    const group = he ? 'cq.shell.he' : 'cq.shell.ap';
+    const at = positionFrom(pos);
+    if (!at || !cqHas(group)) return false;
+    run('shellFlyby', () => {
+      const output = cqOneShot(group, { pos: at, priority: 2 }, {
+        gain: he ? 0.7 : 0.9, rate: 0.96 + Math.random() * 0.08, ...alignPeak(delay, he ? 1.6 : 0.16) });
+      if (!output || id == null) return;
+      const now = engine.now;
+      for (const [key, entry] of shellPasses) if (entry.passAt < now) shellPasses.delete(key);
+      shellPasses.set(String(id), { output, passAt: now + Math.max(0, Number(delay) || 0) });
+    });
+    return true;
+  },
+
+  /** The shell `id` burst before its pass: silence its pending whistle or crack. */
+  cancelShellFlyby(id) {
+    const entry = shellPasses.get(String(id));
+    if (!entry) return false;
+    shellPasses.delete(String(id));
+    if (engine.now >= entry.passAt) return false;
+    fadeVoice(entry.output, 0.05);
+    return true;
+  },
+
+  /** Jeep skid on a hard turn (gravel). Conquest bank only. */
+  vehicleSkid(pos) {
+    const at = positionFrom(pos);
+    if (!cqHas('cq.jeep.skid') || listenerDistance(at) > 70) return false;
+    run('vehicleSkid', () => cqOneShot('cq.jeep.skid', { pos: at, priority: 0 }, { gain: 0.65, rate: 0.92 + Math.random() * 0.16 }));
+    return true;
+  },
+
+  /** Tracks or tyres churning through a ford; refresh each frame while wading. */
+  vehicleWade(id, pos, intensity = 1, { self = false } = {}) {
+    const at = positionFrom(pos);
+    if (!at || !cqHas('cq.wade.loop') || !engine.ensure() || engine.ctx.state !== 'running') return false;
+    if (!self && listenerDistance(at) > 70) return false;
+    const key = String(id);
+    run('vehicleWade', () => {
+      refreshLoop(wadeLoops, key, {
+        pos: self ? null : at, priority: 1, hold: 0.4, fade: 0.4, max: 2, level: CONQUEST_MIX.wade * vehicleUnit(intensity),
+        create: (voice) => { cqLoopSource(voice, 'cq.wade.loop', { offset: Math.random() * 2 }); },
+      });
+    });
+    return true;
+  },
+
+  stopVehicleWade(id) { releaseLoop(wadeLoops, String(id), wadeLoops.get(String(id)), 0.3); },
+
+  /** Bow splash as a hull drives into the water. */
+  vehicleWadeSplash(pos, { self = false } = {}) {
+    const at = positionFrom(pos);
+    if (!cqHas('cq.wade.splash') || (!self && listenerDistance(at) > 70)) return false;
+    run('vehicleWadeSplash', () => cqOneShot('cq.wade.splash', { pos: self ? null : at, priority: 0 }, { gain: 0.75 }));
+    return true;
+  },
+
+  /** Ejection seat fired: canopy bolts, canopy tear and the seat rocket. */
+  ejectionSeat(pos, { self = false } = {}) {
+    const at = positionFrom(pos);
+    if (!cqHas('cq.eject') || (!self && listenerDistance(at) > VEHICLE_SOUND.crackTo)) return false;
+    run('ejectionSeat', () => cqOneShot('cq.eject', { pos: self ? null : at, priority: 2, range: 'far' }, { gain: 0.9 }));
+    return true;
+  },
+
+  /** Canopy snapping open. */
+  parachuteOpen(pos, { self = false } = {}) {
+    const at = positionFrom(pos);
+    if (!cqHas('cq.chute.open') || (!self && listenerDistance(at) > 80)) return false;
+    run('parachuteOpen', () => cqOneShot('cq.chute.open', { pos: self ? null : at, priority: 0 }, { gain: self ? 0.8 : 0.7 }));
+    return true;
+  },
+
+  /** Wind and canopy flutter under an open chute; refresh each frame. */
+  parachuteDescent(id, pos, { self = false } = {}) {
+    const at = positionFrom(pos);
+    if (!at || !cqHas('cq.chute.descent') || !engine.ensure() || engine.ctx.state !== 'running') return false;
+    if (!self && listenerDistance(at) > 30) return false;
+    const key = String(id);
+    run('parachuteDescent', () => {
+      refreshLoop(chuteLoops, key, {
+        pos: self ? null : at, priority: 1, hold: 0.3, fade: 0.5, max: 2, level: CONQUEST_MIX.descent * (self ? 1 : 0.5),
+        create: (voice) => { cqLoopSource(voice, 'cq.chute.descent', { offset: Math.random() * 3 }); },
+      });
+    });
+    return true;
+  },
+
+  stopParachuteDescent(id) { releaseLoop(chuteLoops, String(id), chuteLoops.get(String(id)), 0.4); },
+
+  /**
+   * Bullet hitting the world (`surface`: dirt/grass/gravel/sand, stone, wood,
+   * metal, glass, water). Within 45 m, budgeted, with an occasional ricochet
+   * off stone and metal. Conquest bank only (other modes stay visual-only).
+   */
+  bulletImpact(surface, pos) {
+    const kind = BULLET_SURFACES[surface] || 'stone';
+    const group = `cq.bullet.${kind}`;
+    const at = positionFrom(pos);
+    if (!at || !cqHas(group)) return false;
+    const distance = listenerDistance(at);
+    if (distance > BULLET_IMPACT_SOUND.range) return false;
+    if (!cqBudget('bullet', BULLET_IMPACT_SOUND.window, BULLET_IMPACT_SOUND.budget)) return false;
+    run('bulletImpact', () => {
+      cqOneShot(group, { pos: at, priority: 0 }, { gain: CONQUEST_MIX.bullet, rate: 0.9 + Math.random() * 0.2 });
+      if ((kind === 'stone' || kind === 'metal') && distance <= BULLET_IMPACT_SOUND.ricochetRange
+        && Math.random() < BULLET_IMPACT_SOUND.ricochet) {
+        cqOneShot('cq.ricochet', { pos: at, priority: 0 }, { gain: CONQUEST_MIX.bullet * 0.8, rate: 0.9 + Math.random() * 0.2, delay: 0.015 });
+      }
+    });
+    return true;
+  },
+
+  /**
+   * Decode the Conquest bank (audio/conquest-bank.js manifest) in the
+   * background. Every cue keeps its procedural voice until its take decodes.
+   */
+  loadConquestBank(manifest, fetchImpl) {
+    if (!manifest || typeof manifest !== 'object' || !engine.ensure()) return Promise.resolve(Object.freeze({ loaded: 0, failed: 0 }));
+    ensureAudioModules();
+    conquestBankPromise ??= loadConquestSlots(manifest, fetchImpl, conquestBankGeneration, 0);
+    return conquestBankPromise;
+  },
+
+  /** Release the Conquest bank's decoded PCM after a Conquest match. */
+  unloadConquestBank() {
+    conquestBankPromise = null;
+    conquestBankGeneration++;
+    shellPasses.clear();
+    cqLastVariant.clear();
+    cqBudgets.clear();
+    return samples?.unload(CQ_PREFIX) || 0;
+  },
+
+  /** The shared engine and decoded bank for the Conquest soundscape and objective cues. */
+  conquestAudio() {
+    return { engine, getBuffer: slot => samples?.getBuffer(slot) || null, pick: group => cqPick(group), has: group => cqHas(group) };
+  },
+
   stopVehicleCues() {
-    for (const map of [gunLoops, burnLoops, missileLoops, cueLoops]) {
+    for (const map of [gunLoops, burnLoops, missileLoops, cueLoops, turretLoops, wadeLoops, chuteLoops]) {
       for (const [key, voice] of [...map]) releaseLoop(map, key, voice, 0.05);
       map.clear();
     }
+    for (const timer of gunTimers.values()) clearTimeout(timer);
+    gunTimers.clear();
+    burstVoices.clear();
+    gunShots.clear();
   },
 
   setListener(listener) {

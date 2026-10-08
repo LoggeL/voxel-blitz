@@ -7,6 +7,7 @@ import { blockSoundFor } from '../weapons/effects.js';
 import { THROWABLE_NAMES, WEAPON_NAMES } from '../ui/hud-support.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
+import { FLUID_BLOCKS } from '../../../shared/world/blocks.js';
 import { closestBulletFlyby, BULLET_FLYBY_COOLDOWN_MS, BULLET_FLYBY_RADIUS } from './bullet-flyby.js';
 
 /**
@@ -345,7 +346,10 @@ export class CombatFeedback {
           break;
         }
         this.effects.projectileExplode(ev);
-        this.sfx.explosion([ev.x, ev.y, ev.z], ev.type, ev.type === 'bubble' ? { radius: ev.radius } : null);
+        // radius tells a Big Bubble apart and a tank AP from an HE shell; the Conquest
+        // bank also reads the vehicle weapon and a water geyser over a fluid block.
+        this.sfx.explosion([ev.x, ev.y, ev.z], ev.type, { radius: ev.radius, vehicleWeapon: ev.vehicleWeapon ?? null,
+          fluid: this.isFluidAt(ev.x, ev.y, ev.z) });
         break;
       }
       case 'glaiveStock': {
@@ -385,6 +389,16 @@ export class CombatFeedback {
 
   blockSound(type) {
     return blockSoundFor(type);
+  }
+
+  /** A blast over water (the block at or just under the burst is a fluid). */
+  isFluidAt(x, y, z) {
+    if (typeof this.world?.getBlock !== 'function' || ![x, y, z].every(Number.isFinite)) return false;
+    const bx = Math.floor(x), bz = Math.floor(z);
+    for (let dy = 0; dy <= 1; dy++) {
+      if (FLUID_BLOCKS.has(this.world.getBlock(bx, Math.floor(y) - dy, bz))) return true;
+    }
+    return false;
   }
 
   isImpactVisible(ev) {

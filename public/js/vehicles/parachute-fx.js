@@ -87,10 +87,12 @@ const SEAT_BOXES = [
 ];
 
 export class ParachuteFx {
-  constructor({ group, fx = null, cameraShake = null } = {}) {
+  constructor({ group, fx = null, cameraShake = null, sfx = null } = {}) {
     this.group = group || null;
     this.fx = fx;
     this.shake = cameraShake;
+    // Optional audio facade: ejection bang, canopy snap and the descent wind loop.
+    this.sfx = sfx;
     this.material = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
     this.lineMaterial = new THREE.LineBasicMaterial({ color: PARACHUTE_FX.colors.line });
     this.glassMaterial = new THREE.MeshLambertMaterial({ color: PARACHUTE_FX.colors.glass, transparent: true, opacity: 0.6 });
@@ -131,7 +133,7 @@ export class ParachuteFx {
     const seat = new THREE.Mesh(this.geometries.seat, this.material);
     root.add(canopy, seat);
     this.group?.add(root);
-    body = { root, canopy, seat, rel, firstPerson, state: CHUTE.none, age: 0, plume: null, glow: null, pos: [0, 0, 0], seen: true };
+    body = { id, root, canopy, seat, rel, firstPerson, state: CHUTE.none, age: 0, plume: null, glow: null, pos: [0, 0, 0], seen: true };
     this.bodies.set(id, body);
     return body;
   }
@@ -146,6 +148,7 @@ export class ParachuteFx {
     const body = this.bodies.get(id);
     if (!body) return;
     this._endPlume(body);
+    if (body.state === CHUTE.open) this.sfx?.stopParachuteDescent?.(`chute:${id}`);
     body.root.removeFromParent();
     this.bodies.delete(id);
   }
@@ -171,7 +174,9 @@ export class ParachuteFx {
       [vel[0] * 0.4 + back[0] * 6, 12 + Math.max(0, vel[1] * 0.3), vel[2] * 0.4 + back[2] * 6], [3.1, 0.8, 2.2]);
     this.fx?.emit?.('muzzle', [pos[0], pos[1] + 0.3, pos[2]], { count: 1, scale: 0.9, dir: [0, -1, 0] });
     this.fx?.emit?.('smoke', [pos[0], pos[1], pos[2]], { count: 10, dir: [0, -1, 0], speed: 3, scale: 1.1, spread: 0.6 });
-    if (selfId != null && String(ev.id) === String(selfId)) this.shake?.add?.(0.55);
+    const self = selfId != null && String(ev.id) === String(selfId);
+    if (self) this.shake?.add?.(0.55);
+    this.sfx?.ejectionSeat?.(pos, { self });
     return true;
   }
 
@@ -211,6 +216,8 @@ export class ParachuteFx {
         this._debris(this.geometries.seat, this.material, [at.x, at.y + 0.2, at.z], [Math.sin(yaw) * 2, -1, Math.cos(yaw) * 2], [1.6, 0.4, 2.4]);
       }
       if (state !== CHUTE.seat) this._endPlume(body);
+      if (state === CHUTE.open) this.sfx?.parachuteOpen?.([at.x, at.y + 3, at.z], { self: body.firstPerson });
+      else if (body.state === CHUTE.open) this.sfx?.stopParachuteDescent?.(`chute:${body.id}`);
       body.state = state; body.age = 0;
     }
     body.age += step;
@@ -220,6 +227,7 @@ export class ParachuteFx {
     body.seat.visible = state === CHUTE.seat;
     body.canopy.visible = state === CHUTE.open;
     if (state === CHUTE.open) {
+      this.sfx?.parachuteDescent?.(`chute:${body.id}`, [at.x, at.y + 3, at.z], { self: body.firstPerson });
       const open = Math.min(1, 0.15 + body.age / PARACHUTE_FX.openSeconds);
       body.canopy.scale.set(open, Math.min(1, open * 1.2), open);
       // A slow pendulum sway under the canopy.

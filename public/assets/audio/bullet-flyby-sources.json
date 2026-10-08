@@ -1,0 +1,38 @@
+{
+  "source_url": "https://freesound.org/people/Audionautics/sounds/134024/",
+  "title": "Bullet passbys.wav",
+  "author": "Audionautics",
+  "license": "CC BY 3.0",
+  "license_url": "https://creativecommons.org/licenses/by/3.0/",
+  "attribution": "\"Bullet passbys.wav\" by Audionautics (https://freesound.org/people/Audionautics/sounds/134024/), CC BY 3.0. Cut, filtered, level-adjusted and encoded as Opus.",
+  "provenance": "Uploader description: pitched and time-shifted layers of cars passing, run through a sampler with randomized LFOs.",
+  "retrieved": "2026-10-08",
+  "file_url": "https://cdn.freesound.org/previews/134/134024_2451120-hq.ogg",
+  "source_format": "Freesound HQ preview (Ogg Vorbis); the original download requires a login",
+  "download_sha256": "18957000c143c27610077ad85465b67975671c16c36622cdb8446bc223636b85",
+  "replaces": "Excerpts of https://www.youtube.com/watch?v=8hVB1kChbvA (standard YouTube license), removed 2026-10-08.",
+  "processing": "Downmixed to mono, 48 kHz; high-pass 120 Hz; fixed gain so the loudest 50 ms sits near -20 dBFS RMS; 2 ms fade-in and 40 ms fade-out; Opus 96 kbit/s (libopus, bitexact).",
+  "clips": [
+    {
+      "file": "combat/bullet-whiz.ogg",
+      "start_seconds": 7.12,
+      "end_seconds": 7.37,
+      "gain_db": -7.7,
+      "sha256": "512a29d357bc899c8ab34bf0b2731d9b7526e4fb7c6437ad7b5a4fd0db03794c"
+    },
+    {
+      "file": "combat/bullet-whiz-2.ogg",
+      "start_seconds": 11.59,
+      "end_seconds": 11.84,
+      "gain_db": -7.9,
+      "sha256": "da5e378edabe792f1721b1f2ded249e4feefd1179b9dca1fe9f9de9f2344a967"
+    },
+    {
+      "file": "combat/bullet-whiz-3.ogg",
+      "start_seconds": 12.62,
+      "end_seconds": 12.89,
+      "gain_db": -8.1,
+      "sha256": "c84be8b82b81db0e50ccebbbf3dfbf513906fe45536cae45db2e53f06f9264ef"
+    }
+  ]
+}
