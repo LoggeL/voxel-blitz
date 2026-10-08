@@ -27,3 +27,11 @@ export const CONQUEST_CONTRACT = Object.freeze({ version: 3 });
 export const CONQUEST_KIT_IDS = 'assault,engineer,support,recon,medic,pyro,grenadier,raider,marksman';
 /** Event kinds added by the classes update: the Medic aura `heal {id, by, hp}` and `kit_unlocks {id, level, unlocked, newly}`. */
 export const CONQUEST_CLASS_EVENT_KINDS = 'heal,kit_unlocks';
+
+/** Structural integrity events (docs/structural-physics.md): sorted keys per kind. */
+export const STRUCTURE_EVENT_KEYS = Object.freeze({
+  creak: 'at,b,fall,id,kind,n,o,t',
+  collapse: 'at,b,g,id,k,kind,land,n,o,p,t,v,w',
+  collapseLand: 'at,id,kind,n,r,speed,t,x,y,z',
+  crumble: 'at,b,id,kind,n,o,t',
+});

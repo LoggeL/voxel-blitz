@@ -37,6 +37,10 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'powerup',
   'bastion_clear', 'bastion_wave', 'bastion_supply', 'bastion_alarm', 'bastion_charge', 'bastion_lane', 'bastion_buy', 'bastion_pickup',
   'bastion_stage', 'bastion_regroup', 'bastion_extract', 'bastion_build', 'bastion_structure', 'bastion_breach', 'bastion_vehicle', 'bastion_tier',
+  // The server refused a placement for want of structural support (docs/structural-physics.md).
+  'bastion_build_refused',
+  // Structure events (creak, collapse, collapseLand, crumble) are not forwarded here: the Game
+  // reads them from each snapshot on arrival and presents them on the server clock (structure-fx.js).
 ]);
 
 /** Training run course events emitted by the server's training policy. */

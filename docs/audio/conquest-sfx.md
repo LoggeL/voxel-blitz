@@ -78,6 +78,23 @@ take one of the 24 positional voices.
 | `ConquestSoundscape` | battle bed (low and high crossfaded by flag activity, kills and blasts); wind by weather and height; river and ford rapids; birds at A and B (silenced by nearby combat, scatter after a blast); crows; church bell (three tolls at match start and end, occasional single tolls); Kessler Works drone, steam and clanks; fire crackle at wreck props; radio chatter near the own HQ or in a vehicle | streams + `cq.amb.*` |
 | `ConquestAmbience` salvo flash (`onArtillery`) | distant artillery boom delayed by distance / 343 m/s, attenuated over 900 m down to a 0.15 floor (no second range fade, so salvos past 600 m stay audible) | `cq.amb.artillery` |
 
+## Structural collapses (every mode)
+
+The collapse cues (`sfx.structureCreak`, `structureImpact`, `structureCrumble`, driven by
+`public/js/fx/structure-fx.js`, see `docs/structural-physics.md`) play in every mode, so they
+reuse nine licensed files of this bank under their own slots. Outside Conquest, `main.js`
+calls `sfx.loadStructureBank(STRUCTURE_SAMPLE_MANIFEST)` at match boot (about 100 KB of Ogg,
+slots already decoded are skipped); a Conquest match plays the same files from its own groups.
+
+| Cue | Trigger | Slots (Conquest group) | Procedural layer (`public/js/audio/structure.js`) |
+|---|---|---|---|
+| creak | `creak` presented, within 90 m, at most 2 per 200 ms | `structure.creak.1` (`cq.amb.creak`): `atmosphere/industrial-creak-clank.ogg`, pitched per material (stone 0.62, wood 0.84, metal 1, glass 1.12) and lower for big clusters, low-passed for stone and wood, held for the warning plus 0.6 s | groan: a sawtooth bending down through a resonant band with a slow wobble, plus stick-slip ticks (wood, metal) or grit (stone) accelerating toward the fall |
+| landing | `collapseLand` presented, at most 3 per 200 ms | `structure.debris.<material>.1-2` (`cq.debris.*`): `explosions/debris-{stone,wood,metal,glass}-{1,2}.ogg`, slowed for big chunks, a second take for 24+ blocks | slam: falling sine thump and low-passed noise, scaled by block count and impact speed, then a settling rattle; big chunks add the far rumble (`farLayer`) |
+| crumble | `crumble` presented | the same debris takes | a small slam |
+
+Without decoded takes (a slow connection) the impact falls back to the procedural material
+impacts. Nobody has listened to these in the game yet.
+
 ## Licensing
 
 Only these are used:

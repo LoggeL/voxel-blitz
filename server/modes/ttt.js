@@ -215,6 +215,11 @@ export class TttPolicy extends FunPolicy {
       this.phase = 'prep'; this.phaseEndsAt = this.now + this.rules.prepMs;
       this.matchWinner = null; this.roles.clear(); this.wallets.clear(); this.equipment.clear(); this.traps.clear();
       this.corpses.clear(); this.participants.clear(); this.round++;
+      // Every round starts on the pristine map (Garry's Mod TTT cleans it up
+      // too): craters and collapses must not pile up across rounds. Traps
+      // reverted their own fills above, so the pristine voxels win. Clients
+      // get the restore as ordinary block deltas in this tick's snapshot.
+      if (typeof this.engine?.restoreWorld === 'function') this.engine.restoreWorld();
       for (const p of this._entities.values()) { p.kills=p.deaths=p.score=0; this._respawn(p); }
       this.seedWeapons();
       return;

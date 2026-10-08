@@ -41,6 +41,8 @@ export function createStateApi(
     dimensions,
     mapId,
     meta,
+    /** Optional (x, y, z, before, after) observer of every replacement (the server's structure system). */
+    onBlockChange: null,
     /** The pristine template voxels this state started from (shared, read-only), or null. */
     get templateBlocks() { return pristine; },
     /** Block replacements since creation (monotonic). */
@@ -90,6 +92,7 @@ export function createStateApi(
       }
       mutations++;
       blocks[index] = value;
+      if (world.onBlockChange) world.onBlockChange(x, y, z, before, value);
       const floor = meta?.navigationFloor;
       if (Number.isFinite(floor) && wasAir !== (value === AIR) && y >= floor && y <= floor + 2) {
         navigationChanges.push({ revision: ++navigationRevision, x, z });

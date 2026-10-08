@@ -750,9 +750,13 @@ export class TerrainWatch {
     const revision = game.blockRevision ?? 0;
     if (!set || revision === this.revision) return EMPTY;
     const changes = revision - this.revision, grown = set.size - this.cursor;
+    const since = this.revision;
     this.revision = revision;
-    if (grown < changes) { this.cursor = set.size; return null; }
     const { sx, sz } = worldDimensions(game.world);
+    if (grown < changes) {
+      this.cursor = set.size;
+      return journalColumns(game.blockJournal, since, changes, sx * sz);
+    }
     const out = new Set();
     let i = 0;
     for (const index of set) {
@@ -764,3 +768,12 @@ export class TerrainWatch {
   }
 }
 const EMPTY = new Set();
+
+/** Columns of the journaled deltas after `since`, or null unless every one of `changes` is logged. */
+function journalColumns(journal, since, changes, layer) {
+  if (!Array.isArray(journal) || !journal.length || journal[0] > since + 1) return null;
+  const out = new Set();
+  let found = 0;
+  for (let i = journal.length - 2; i >= 0 && journal[i] > since; i -= 2) { out.add(journal[i + 1] % layer); found++; }
+  return found === changes ? out : null;
+}

@@ -175,10 +175,11 @@ export class ModeController {
       spawnDummy: (id, name) => engine.addBot(id, name),
       blocks: {
         get: (x, y, z) => engine.world.getBlock(x, y, z),
-        set: (x, y, z, value) => {
+        // Scripted geometry (training gates): what it would orphan is pinned, not collapsed.
+        set: (x, y, z, value) => engine.structure.authored(() => {
           engine.world.setBlock(x, y, z, value);
           engine.pushBlockDelta(x, y, z, value);
-        },
+        }),
       },
     };
 

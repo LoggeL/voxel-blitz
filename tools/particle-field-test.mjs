@@ -9,7 +9,7 @@ let checks = 0;
 const check = (fn) => { fn(); checks++; };
 
 // Contract kinds (spec §3.6) and presets.
-check(() => assert.deepEqual([...FX_KINDS], ['dust', 'smoke', 'smokeColumn', 'fire', 'spark', 'debris', 'muzzle', 'exhaust', 'flare', 'water', 'ember', 'tracerPuff']));
+check(() => assert.deepEqual([...FX_KINDS], ['dust', 'smoke', 'smokeColumn', 'fire', 'spark', 'debris', 'muzzle', 'exhaust', 'flare', 'water', 'ember', 'tracerPuff', 'grit']));
 for (const kind of FX_KINDS) {
   const preset = FX_PRESETS[kind];
   check(() => assert.ok(preset, `${kind} has a preset`));

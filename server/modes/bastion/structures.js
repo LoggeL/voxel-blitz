@@ -71,8 +71,13 @@ export class BastionStructures {
     const { engine, policy } = this, def = BASTION_STRUCTURES[req.item];
     const res = canPlaceStructure({ getBlock: (x, y, z) => this.getBlock(x, y, z), layout: policy.layout, stageIndex: policy.stageIndex,
       kind: req.item, cell: req.cell, facing: req.facing, player: p, phase: policy.phase, budget: this.budget(),
-      credits: policy.availableCredits(), structures: this.rows(), occupied: cells => this.occupied(cells) });
-    if (!res.ok) return false;
+      credits: policy.availableCredits(), structures: this.rows(), occupied: cells => this.occupied(cells),
+      supported: cells => engine.structure?.canSupport(cells, BARRICADE) ?? true });
+    if (!res.ok) {
+      // The client ghost cannot see support; tell the builder why the server refused.
+      if (res.reason === 'unsupported') policy.emit('bastion_build_refused', { id: p.id, kind: req.item, reason: res.reason, x: req.cell?.x, y: req.cell?.y, z: req.cell?.z });
+      return false;
+    }
     const cell = req.cell, cells = structureFootprint(req.item, cell, req.facing);
     if (def.kind === 'block') {
       for (const c of cells) {

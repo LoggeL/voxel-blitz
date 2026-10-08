@@ -1,6 +1,7 @@
-// Conquest-only sound banks (public/assets/audio/conquest/<bank>/, provenance in
+// Conquest sound banks (public/assets/audio/conquest/<bank>/, provenance in
 // each bank's sources.json and docs/audio/conquest-sfx.md). The menu and the other
-// modes never fetch these: main.js hands CONQUEST_SAMPLE_MANIFEST to
+// modes only fetch STRUCTURE_SAMPLE_MANIFEST (collapse creak and debris, below)
+// from these: main.js hands CONQUEST_SAMPLE_MANIFEST to
 // sfx.loadConquestBank() when a Conquest match boots, and the long stereo beds in
 // CONQUEST_STREAMS are streamed by the soundscape instead of decoded to PCM.
 //
@@ -153,6 +154,17 @@ export const CONQUEST_SAMPLE_MANIFEST = Object.freeze(Object.fromEntries(
  */
 export const CONQUEST_SAMPLE_MANIFEST_LITE = Object.freeze(Object.fromEntries(
   Object.entries(CONQUEST_SAMPLE_GROUPS).map(([group, files]) => [`${group}.1`, `${ROOT}/${files[0]}`])));
+
+/**
+ * The collapse takes every mode decodes (sfx.structureCreak/Impact/Crumble):
+ * licensed Conquest files reused under `structure.*` slots, about 100 KB of
+ * Ogg. A Conquest match uses its own `cq.amb.creak` / `cq.debris.*` slots.
+ */
+export const STRUCTURE_SAMPLE_MANIFEST = Object.freeze({
+  'structure.creak.1': `${ROOT}/${CONQUEST_SAMPLE_GROUPS['cq.amb.creak'][0]}`,
+  ...Object.fromEntries(['stone', 'wood', 'metal', 'glass'].flatMap(material =>
+    CONQUEST_SAMPLE_GROUPS[`cq.debris.${material}`].map((file, index) => [`structure.debris.${material}.${index + 1}`, `${ROOT}/${file}`]))),
+});
 
 /** Every Conquest asset URL (decoded and streamed), for tests and the static contract. */
 export const CONQUEST_AUDIO_URLS = Object.freeze([

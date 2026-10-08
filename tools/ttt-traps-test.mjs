@@ -197,8 +197,25 @@ g.mode.tick(); assert.equal(policy.phase, 'post');
 for (const [x, y, z] of cells) assert.equal(g.world.getBlock(x, y, z), AIR, 'round end lifts the barricade');
 assert.equal(traps.fills.length, 0); assert.equal(traps.volumes.length, 0);
 for (const p of g.entities.values()) if (!p.bot) g.mode.approveContinuation(p.id, g.mode.matchSnapshot().continuation.id);
+// Craters and collapses from this round (the TNT above, a dug block) are still there in post...
+const { sx: MSX, sz: MSZ } = g.world.dimensions;
+const scarred = [...g.changedBlocks].filter((i) => {
+  const x = i % MSX, z = Math.floor(i / MSX) % MSZ, y = Math.floor(i / (MSX * MSZ));
+  return g.world.getBlock(x, y, z) !== g.world.templateBlock(x, y, z);
+});
+assert.ok(scarred.length > 0, 'the round left craters');
 g.now = g.mode.phaseEndsAt; g.mode.tick(); assert.equal(policy.phase, 'prep');
 assert.deepEqual(traps.defs.map((t) => traps.status(t).state), ['ready', 'ready', 'ready'], 'a new round re-arms every trap');
+// ...and the next round starts on the pristine map, sent as ordinary block deltas.
+for (const i of scarred) {
+  const x = i % MSX, z = Math.floor(i / MSX) % MSZ, y = Math.floor(i / (MSX * MSZ));
+  assert.equal(g.world.getBlock(x, y, z), g.world.templateBlock(x, y, z), `round reset restores ${x},${y},${z}`);
+}
+assert.ok(g.world.matchesTemplate(), 'every voxel is pristine again');
+assert.ok(g.structure.idle, 'nothing creaks or falls into the new round');
+g.step(TICK);
+const restored = new Set(snapshot.blocks.map((b) => b.i));
+assert.ok(scarred.every((i) => restored.has(i)), 'the restore reaches the clients as block deltas');
 
 // ---- 3. Waterworld: electrified pool, chlorine gas, tester sabotage by a bot.
 const w = new GameEngine({ mode: 'ttt', mapMeta: getMapMeta('waterworld'), broadcast: (s) => { snapshot = s; } });
@@ -267,4 +284,4 @@ assert.ok(N.v.hp < 100, 'the gas-main fire burns'); assert.equal(N.x.hp, 100);
 assert.equal(parseBuyFrame({ t: 'buy', weapon: 'ttt:trap:tnt' }), 'ttt:trap:tnt');
 assert.equal(parseBuyFrame({ t: 'buy', weapon: 'ttt:trap:../x' }), null);
 assert.equal(isTrapRequest('ttt:trap:'), false);
-console.log('TTT traps: placement on every map, role/phase/range gating, TNT, lava flood, lockdown, cooldown/uses, private state, round reset, pool shock, chlorine, bot tester sabotage, gas-main fire passed.');
+console.log('TTT traps: placement on every map, role/phase/range gating, TNT, lava flood, lockdown, cooldown/uses, private state, round reset (pristine map), pool shock, chlorine, bot tester sabotage, gas-main fire passed.');

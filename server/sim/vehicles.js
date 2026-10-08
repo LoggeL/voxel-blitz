@@ -1239,7 +1239,7 @@ export class VehicleSystem {
     let broken = 0, hardness = 0, harm = 0;
     for (const block of found) {
       if (broken >= allowed) break;
-      if (!port.destroyBlock(block.x, block.y, block.z)) continue;
+      if (!port.destroyBlock(block.x, block.y, block.z, v.occupantId ?? null)) continue;
       const h = BLOCK_HARDNESS[block.type] ?? 0;
       broken++; hardness += h; harm += Math.max(0, h - ram.armor);
     }

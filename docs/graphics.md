@@ -113,6 +113,12 @@ pollen, mist or drizzle.
 - Explosions (`explosion-fx.js`, `scorch-decals.js`): blasts take the
   highest-priority slot in the fixed four projectile point lights, instanced
   fireball and lingering smoke sprites, ground scorch that fades over ~20 s.
+- Structural collapses (`fx/structure-fx.js`, `docs/structural-physics.md`):
+  proxies and falling chunks are meshed by the terrain mesher and share the
+  terrain materials (the terrain vertex shader takes `modelMatrix` into the
+  voxel-light position, identity for chunks); live chunk meshes are capped per
+  tier (6 / 12 / 24 / 32), LOW draws 35 % of the grit, dust and chips and no
+  falling dust trails.
 - Contact shadows (`contact-shadows.js`): one instanced draw of soft blobs under
   avatars, vehicles and pickups; HIGH/ULTRA add a camera-following sun shadow
   map for dynamic casters only (`dynamic-shadows.js`).

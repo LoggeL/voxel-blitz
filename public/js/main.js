@@ -160,6 +160,11 @@ class Game {
             return;
           }
           if (event.kind === 'bastion_clear') { this.effects?.clearCombatHazards(); return; }
+          if (event.kind === 'bastion_build_refused') {
+            // The ghost cannot see structural support: the server's refusal reaches its builder.
+            if (String(event.id) === String(this.myId)) this.showBuildRefusal(event.reason);
+            return;
+          }
           if (event.kind === 'trap') {
             // Innocents hear the effect only; the button and its user stay private.
             if (event.effect !== 'explosion') sfx.bastionCue('bastion_alarm', [event.x, event.y, event.z]);
@@ -242,6 +247,12 @@ class Game {
       this.hud.openSettings();
     }, 1500);
     return true;
+  }
+
+  /** A Bastion placement the server refused (`bastion_build_refused`) for the local builder. */
+  showBuildRefusal(reason) {
+    const text = this.rt?.BUILD_REASON_TEXT?.[reason] || 'CANNOT BUILD HERE';
+    if (!this.build?.refused?.(reason)) this.hud.bastionBanner?.(text);
   }
 
   /** Banner copy for the bastion events that deserve a 4 s HUD read; null for the rest. */
@@ -424,13 +435,15 @@ class Game {
     // The low graphics tier (phones, weak laptops) decodes one take per group: about 58 instead of 85 MB of PCM.
     if (welcome.gameMode === 'conquest') {
       void sfx.loadConquestBank?.(graphics.tier === 'low' ? rt.CONQUEST_SAMPLE_MANIFEST_LITE : rt.CONQUEST_SAMPLE_MANIFEST);
-    }
+    } else void sfx.loadStructureBank?.(rt.STRUCTURE_SAMPLE_MANIFEST);
     this.worldview.scene.add(this.vehicleView.group);
+    // One shared particle field (2 draws): structure collapse dust in every mode; Conquest adds
+    // vehicle FX, destruction and the world ambience (the other modes need far fewer slots).
+    this.particleField = new rt.ParticleField({ scene: this.liveEffectsGroup,
+      capacity: welcome.gameMode === 'conquest' ? rt.particleCapacityForTier(graphics.tier) : Math.min(2048, rt.particleCapacityForTier(graphics.tier)) });
     if (welcome.gameMode === 'conquest') {
       this.worldview.dynamicShadows?.addCasterRoot(this.vehicleView.group, { coarse: true });
       this.worldview.addCharacterRoots(this.vehicleView.lightingRoot());
-      // One shared particle field (2 draws) for vehicle FX, destruction and the world ambience.
-      this.particleField = new rt.ParticleField({ scene: this.liveEffectsGroup, capacity: rt.particleCapacityForTier(graphics.tier) });
       this.conquestAmbience = new rt.ConquestAmbience({ scene: this.worldview.scene, fx: this.particleField,
         mapMeta: this.mapMeta, weather: this.worldview.weather || 'golden', getBlock,
         onArtillery: (pos) => this.conquestSoundscape?.artillery(pos) });
@@ -496,6 +509,11 @@ class Game {
       getFragments: (id, options) => this.vehicleView?.destructionFragments(id, options),
       fx: this.particleField, sfx, cameraShake: this.cameraShake,
     });
+    // Structural collapses in every mode (docs/structural-physics.md): proxies and falling
+    // chunks share the terrain mesher and materials, dust the particle field, chips the impacts.
+    this.structureFx = new rt.StructureFx({ parent: this.liveEffectsGroup, mesher: this.worldview.chunkStore, getBlock,
+      dimensions: this.worldview.dimensions, fx: this.particleField, chips: this.effects.impacts, audio: sfx,
+      cameraShake: this.cameraShake, getCamera: () => this.camera, tier: graphics.tier });
     this.worldview.scene.add(this.camera);
     this.ownBody = rt.makeFirstPersonBody();
     this.worldview.scene.add(this.ownBody.group);
@@ -576,7 +594,9 @@ class Game {
     this.roster.setBurnFX(this.effects.flames);
     this.killcam = new rt.Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
       mapBytes: worldBlocks(), blockDamage: [...net.blockDamage.values()],
-      terrainTime: net.latestSnapshots.at(-1)?.serverNow ?? -Infinity, audio: sfx, now: nowMs });
+      terrainTime: net.latestSnapshots.at(-1)?.serverNow ?? -Infinity, audio: sfx, now: nowMs,
+      // The replay shows recorded terrain: live collapse proxies give their cells back first.
+      onActivate: () => this.structureFx?.clear(), structureTier: graphics.tier });
     this.deathFade = new rt.DeathFade();
     this._deathAt = null;
     this.worldview.addCharacterRoots?.(this.liveAvatarsGroup, this.rig.root, this.killcam.group);
@@ -675,7 +695,12 @@ class Game {
     // the map bytes would overwrite them; bootLive replays the buffer after.
     if (this._bootBlockDeltas) {
       if (snapshot?.blocks?.length) this._bootBlockDeltas.push(snapshot.blocks);
-    } else applySnapshotBlocks?.(snapshot, this._world);
+    } else {
+      // Collapse proxies take over the cells this snapshot's structure events move, before
+      // its deltas remove them from the terrain (fx/structure-fx.js). Not during a replay.
+      if (this.running && phase === 'live' && !this.killcam?.active) this.structureFx?.receive(snapshot);
+      applySnapshotBlocks?.(snapshot, this._world);
+    }
     if (phase === 'booting') this.queueAuthoritativeSnapshot(snapshot);
     else if (this.running && phase === 'live') this.consumeAuthoritativeSnapshot(snapshot);
   }
@@ -1354,6 +1379,8 @@ class Game {
       this.conquestSoundscape?.update(dt, this.camera, { match: this.matchState, selfTeam: this.selfRow?.team,
         inVehicle: !!this.vehicleController?.active });
       this.worldview.update(dt, this.camera, { targetFps: this.frameRate.targetFps });
+      // After the terrain rebuild budget: proxies swap in the frame their chunk rebuilt.
+      this.structureFx?.update(frameDt, this.net?.presentedServerTime?.(performance.now()) ?? null);
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
       if (this.build) {
@@ -1532,6 +1559,7 @@ class Game {
     this.vehicleFx?.dispose(); this.vehicleFx = null;
     this.conquestAmbience?.dispose(); this.conquestAmbience = null;
     if (this.conquestSoundscape) { this.conquestSoundscape.dispose(); this.conquestSoundscape = null; sfx.unloadConquestBank?.(); }
+    this.structureFx?.dispose(); this.structureFx = null;
     this.particleField?.dispose(); this.particleField = null;
     this.cameraShake = null;
     this.vehicleAudio?.dispose(); this.vehicleAudio = null;

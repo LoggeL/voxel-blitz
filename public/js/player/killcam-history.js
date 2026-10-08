@@ -5,7 +5,9 @@ import { copySmokeFields } from '../../../shared/smoke-rules.js';
 const POSE_FIELDS = ['id', 'name', 'x', 'y', 'z', 'yaw', 'pitch', 'state', 'hp',
   'weapon', 'firing', 'ads', 'adsT', 'scopeZoom', 'attachments', 'reloading', 'deploying', 'grenadeHandling', 'crouch', 'proneT', 'leanT', 'grounded', 'vaulting', 'swimming', 'moveSpeed', 'team', 'charge'];
 const EVENT_KINDS = new Set(['shoot', 'bullet', 'hit', 'kill', 'mine', 'block', 'blockDamage',
-  'projectileLaunch', 'projectileUpdate', 'projectileStick', 'projectileExplode']);
+  'projectileLaunch', 'projectileUpdate', 'projectileStick', 'projectileExplode',
+  // Structural collapses (docs/structural-physics.md): replays drop the same chunks.
+  'creak', 'collapse', 'collapseLand', 'crumble']);
 const lerp = (a, b, t) => a + (b - a) * t;
 const angle = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
 

@@ -41,9 +41,11 @@ const fail = reason => ({ ok: false, reason });
  * Shared placement predicate, identical on server accept and client ghost.
  * First failing rule wins; the order is the contract.
  * @returns {{ok:boolean, reason:string|null}}
- *   reason ∈ kind|phase|alive|reach|zone|ingress|objective|spawn|air|floor|occupied|structure|budget|credits
+ *   reason ∈ kind|phase|alive|reach|zone|ingress|objective|spawn|air|floor|unsupported|occupied|structure|budget|credits
+ * `supported(cells)` (server only: the structure system's support field)
+ * refuses blocks that would have no structural support (`unsupported`).
  */
-export function canPlaceStructure({ getBlock, layout, stageIndex, kind, cell, facing, player, phase, budget, credits, structures, occupied }) {
+export function canPlaceStructure({ getBlock, layout, stageIndex, kind, cell, facing, player, phase, budget, credits, structures, occupied, supported }) {
   const def = BASTION_STRUCTURES[kind];
   if (!def || !cell || !Number.isInteger(cell.x) || !Number.isInteger(cell.y) || !Number.isInteger(cell.z)
     || !Number.isInteger(facing) || facing < 0 || facing > 3) return fail('kind');
@@ -62,6 +64,7 @@ export function canPlaceStructure({ getBlock, layout, stageIndex, kind, cell, fa
   if (cells.some(c => spawns.some(p => Math.hypot(c.x + 0.5 - p.x, c.z + 0.5 - p.z) <= 1.5))) return fail('spawn');
   if (cells.some(c => getBlock(c.x, c.y, c.z) !== AIR)) return fail('air');
   if (cells.some(c => c.y === cell.y && !isSolidBlock(getBlock(c.x, c.y - 1, c.z)))) return fail('floor');
+  if (def.kind === 'block' && typeof supported === 'function' && supported(cells) === false) return fail('unsupported');
   if (typeof occupied === 'function' && occupied(cells) === true) return fail('occupied');
   if ((structures ?? []).some(s => cells.some(c => Math.floor(s.x) === c.x && Math.floor(s.y) === c.y && Math.floor(s.z) === c.z))) return fail('structure');
   const line = def.kind === 'block' ? budget?.barricadeVoxels : budget?.[kind + 's'];

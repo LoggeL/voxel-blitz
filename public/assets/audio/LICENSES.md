@@ -200,7 +200,13 @@ origin and license of every bundled recording remain auditable.
 ## Conquest sound banks
 
 - Folders: `conquest/vehicles/` (80 files), `conquest/explosions/` (68) and
-  `conquest/atmosphere/` (35). They are loaded only for a Conquest match.
+  `conquest/atmosphere/` (35). They are loaded only for a Conquest match, except the nine
+  structural-collapse takes below.
+- Structural collapses (every mode, `STRUCTURE_SAMPLE_MANIFEST` in
+  `public/js/audio/conquest-bank.js`) reuse `conquest/atmosphere/industrial-creak-clank.ogg`
+  (Freesound 489442 "Creaking Metal.wav", Soapuel, CC0 1.0) and
+  `conquest/explosions/debris-{stone,wood,metal,glass}-{1,2}.ogg` (credited per file in
+  `docs/audio/conquest-sfx.md`). No new recordings were added for them.
 - Sources, by license:
   - CC0 1.0 and CC BY 3.0/4.0 recordings from Freesound (the HQ previews; original
     downloads need a login).

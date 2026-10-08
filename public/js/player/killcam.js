@@ -17,6 +17,11 @@ import { EYE_HEIGHT, WEAPON_IDS, isScopedWeapon } from '../../../shared/combatma
 import { stanceEye } from '../../../shared/player-stance.js';
 import { LEAN, leanEyeOffset, leanPose } from '../../../shared/player-lean.js';
 import { WEAPON_NAMES, THROWABLE_NAMES } from '../ui/hud-support.js';
+import { StructureFx } from '../fx/structure-fx.js';
+import { ParticleField } from '../fx/particle-field.js';
+
+/** Replay dust slots: one small particle field while a replay runs. */
+const REPLAY_PARTICLES = 1024;
 
 // Replay tail after the clip end, plus slack for the respawn snapshot's latency.
 const TAIL_MS = 300;
@@ -41,13 +46,15 @@ export function playKillcamShot(event, { audio = null, tracers = null, rig = nul
 
 export class Killcam {
   constructor({ scene, getBlock, worldview = null, mapBytes = null, blockDamage = [],
-    terrainTime = -Infinity, audio = null, now = () => performance.now() }) {
+    terrainTime = -Infinity, audio = null, now = () => performance.now(), onActivate = null, structureTier = 'medium' }) {
     this.scene = scene;
     this.getBlock = (x, y, z) => this.clip?.terrain
       ? this.clip.terrain.getBlock(x, y, z) : getBlock(x, y, z);
     this.worldview = worldview;
     this.audio = audio;
     this.now = now;
+    this.onActivate = onActivate;
+    this.structureTier = structureTier;
     this.history = new KillcamHistory(mapBytes ? new KillcamTerrain(mapBytes, blockDamage, terrainTime) : null);
     this.active = false;
     this.group = new THREE.Group();
@@ -106,6 +113,7 @@ export class Killcam {
   _activate() {
     const clip = this.clip;
     this.pendingAt = null;
+    this.onActivate?.();
     this.worldview?.setReplayTerrain(clip.terrain);
     this.previousTime = clip.start - 1;
     if (this.replayStart > clip.start) {
@@ -133,6 +141,14 @@ export class Killcam {
         return player ? { x: player.x, y: player.y, z: player.z } : this.roster?.positionOf(id) || null;
       } });
     this.impacts = new ImpactFX(this.group, this.camera, this.getBlock);
+    // Recorded collapses: the replay terrain and the events advance together, so no proxies.
+    const chunkStore = this.worldview?.chunkStore;
+    if (chunkStore && this.worldview.dimensions) {
+      this.particles = new ParticleField({ scene: this.group, capacity: REPLAY_PARTICLES });
+      this.structure = new StructureFx({ parent: this.group, mesher: chunkStore, getBlock: this.getBlock,
+        dimensions: this.worldview.dimensions, fx: this.particles, chips: this.impacts, audio: this.audio,
+        tier: this.structureTier, masking: false });
+    }
     this.rig = new ViewmodelRig(this.camera);
     this.weapon = null;
     this.padHeld = true;
@@ -229,6 +245,10 @@ export class Killcam {
         }
       }
     }
+    if (this.structure) {
+      this.structure.receive(sample);
+      this.structure.update(dt, sample.time);
+    }
     const mark = sample.hitmark;
     this.hitmarker.dataset.kind = mark?.kind || '';
     this.hitmarker.classList.toggle('vb-show', !!mark);
@@ -237,6 +257,7 @@ export class Killcam {
     this.tracers.update(dt);
     this.projectiles.update(dt);
     this.impacts.update(dt);
+    this.particles?.update(dt, this.camera);
     this.roster.sync(sample.players, dt, this.now());
     this.roster.hideLabels();
     this.timeLabel.textContent = `${Math.max(0, (duration - elapsed) / 1000).toFixed(1)}s`;
@@ -256,7 +277,8 @@ export class Killcam {
     this.root.classList.add('hidden');
     document.body.classList.remove('is-replaying');
     this.roster?.dispose(); this.tracers?.dispose(); this.projectiles?.dispose(); this.rig?.dispose(); this.impacts?.dispose();
-    this.roster = this.tracers = this.projectiles = this.rig = this.impacts = null;
+    this.structure?.dispose(); this.particles?.dispose();
+    this.roster = this.tracers = this.projectiles = this.rig = this.impacts = this.structure = this.particles = null;
     this.hitmarker.classList.remove('vb-show', 'vb-kill', 'vb-hs');
     this.hitmarker.dataset.kind = '';
     this.sample = this.clip = null;

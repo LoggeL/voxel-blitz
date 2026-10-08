@@ -18,7 +18,7 @@
 //   ground   fade where the quad meets the emitter's ground plane
 //   near     fade within 2.5 m of the camera (true for everything large)
 
-export const FX_KINDS = Object.freeze(['dust', 'smoke', 'smokeColumn', 'fire', 'spark', 'debris', 'muzzle', 'exhaust', 'flare', 'water', 'ember', 'tracerPuff']);
+export const FX_KINDS = Object.freeze(['dust', 'smoke', 'smokeColumn', 'fire', 'spark', 'debris', 'muzzle', 'exhaust', 'flare', 'water', 'ember', 'tracerPuff', 'grit']);
 
 const preset = fields => Object.freeze({
   blend: 'alpha', tile: 0, life: [1, 1], size: [1, 1], speed: [0, 0], spread: Math.PI, gravity: 0, drag: 0,
@@ -49,6 +49,9 @@ export const FX_PRESETS = Object.freeze({
     color0: [0.78, 0.84, 0.88], color1: [0.86, 0.9, 0.92], alpha0: 0.5, alpha1: 0, ground: true, jitter: 0.2 }),
   ember: preset({ blend: 'add', tile: 2, life: [0.8, 2], size: [0.08, 0.03], speed: [1.5, 5], spread: 0.8, gravity: 2.2, drag: 0.9,
     color0: [3.6, 1.4, 0.25], color1: [1.8, 0.3, 0.04], alpha0: 1, alpha1: 0, streak: 0.02, near: false, jitter: 0.6 }),
+  // Fine mortar and splinter dust trickling out of a creaking structure (structure-fx.js).
+  grit: preset({ tile: 0, life: [0.8, 1.5], size: [0.18, 0.6], speed: [0.05, 0.35], spread: Math.PI, gravity: -3.6, drag: 1.6,
+    color0: [0.66, 0.62, 0.56], color1: [0.7, 0.67, 0.62], alpha0: 0.75, alpha1: 0, spin: 1.2, jitter: 0.3 }),
   tracerPuff: preset({ blend: 'add', tile: 2, life: [0.12, 0.2], size: [0.5, 0.15], speed: [0, 0], spread: 0,
     color0: [4, 2.8, 1.2], color1: [2, 0.8, 0.2], alpha0: 0.8, alpha1: 0, near: false }),
 });

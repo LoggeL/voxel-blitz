@@ -134,7 +134,7 @@ export class BastionEnemies {
     const e = this.engine, w = e.world;
     for (const y of [GROUND + 1, GROUND + 2]) {
       if (w.getBlock(cell.x, y, cell.z) !== BARRICADE) continue;
-      damageBlock(cell.x, y, cell.z, BARRICADE, dmg, e.contexts.combat);
+      damageBlock(cell.x, y, cell.z, BARRICADE, dmg, e.contexts.combat, p.id);
       if (w.getBlock(cell.x, y, cell.z) === AIR) this.policy.emitBreach(cell.x, y, cell.z, p.id);
     }
     const s = this.policy.structures.structureAt(cell.x, GROUND + 1, cell.z);

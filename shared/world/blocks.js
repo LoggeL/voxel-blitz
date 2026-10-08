@@ -294,3 +294,45 @@ export const MINING_HITS = Object.freeze({
   ...frontierTable(3),
   ...mcTable(3),
 });
+
+/**
+ * Structural integrity (docs/structural-physics.md). Natural ground is an
+ * anchor: it never needs support and supports what rests on it. Every other
+ * solid block draws support from the ground: losslessly straight up, and
+ * losing one step per sideways (or hanging) block, so `span` is how many
+ * blocks a material reaches out from the last supported block. Passable
+ * blocks (air, fluids, ghosts) neither need nor give support.
+ */
+export const STRUCTURE_GROUND = Object.freeze(new Set([
+  BEDROCK, GRASS, DIRT, STONE, SAND, DUST_ROCK,
+  MC_GRASS, MC_DIRT, MC_STONE, MC_SAND, MC_GRAVEL, MC_CLAY, MC_NETHERRACK, MC_COAL_ORE, MC_DIAMOND_ORE,
+  BB_SAND, BB_ROCK,
+  MEADOW, DRY_GRASS, FIELD_WHEAT, MUD, SCORCHED_EARTH, GRAVEL, PINE_NEEDLES,
+]));
+/**
+ * Structural material classes: `span` sideways/hanging blocks (0 = rests only
+ * on the block below, like today's fragile glass), `density` for falling-chunk
+ * mass (crush damage), `rubble` whether a landed chunk leaves blocks behind.
+ */
+export const STRUCTURE_MATERIALS = Object.freeze({
+  glass: Object.freeze({ span: 0, density: 0.3, rubble: false }),
+  foliage: Object.freeze({ span: 4, density: 0.1, rubble: false }),
+  wood: Object.freeze({ span: 4, density: 0.5, rubble: true }),
+  thin: Object.freeze({ span: 3, density: 0.4, rubble: true }),
+  masonry: Object.freeze({ span: 6, density: 1, rubble: true }),
+  heavy: Object.freeze({ span: 10, density: 1.5, rubble: true }),
+});
+/** Material class per structural block; unlisted solid non-ground blocks are masonry. */
+export const STRUCTURE_CLASS = Object.freeze({
+  [GLASS]: 'glass', [MC_GLASS]: 'glass',
+  [LEAVES]: 'foliage', [PINE_LEAVES]: 'foliage', [MC_LEAVES]: 'foliage', [BB_PINE_LEAF]: 'foliage',
+  [BB_KELP]: 'foliage', [MC_CACTUS]: 'foliage', [MC_CLOUD]: 'foliage',
+  [WOOD]: 'wood', [PLANK]: 'wood', [DUST_WOOD]: 'wood', [DUST_CRATE]: 'wood', [MC_LOG]: 'wood',
+  [MC_PLANKS]: 'wood', [MC_BOOKSHELF]: 'wood', [MC_CHEST]: 'wood', [MC_CRAFTING]: 'wood', [TIMBER]: 'wood',
+  [BIRCH_LOG]: 'wood', [BB_HULL]: 'wood', [BB_PINEAPPLE]: 'wood', [SLIDE_BLUE]: 'wood', [SLIDE_YELLOW]: 'wood',
+  [MC_WOOL_WHITE]: 'wood', [MC_WOOL_RED]: 'wood',
+  [YELLOW_SIDING]: 'thin', [TEAL_SIDING]: 'thin', [ACCENT]: 'thin',
+  [CONCRETE]: 'heavy', [METAL]: 'heavy', [RUST]: 'heavy', [ASPHALT]: 'heavy', [BUS_YELLOW]: 'heavy',
+  [TRUCK_RED]: 'heavy', [POOL_FLOOR]: 'heavy', [POOL_PANEL]: 'heavy', [CORRUGATED_STEEL]: 'heavy',
+  [BB_CHUM]: 'heavy', [BB_ROAD]: 'heavy', [MC_IRON]: 'heavy', [MC_GOLD]: 'heavy', [MC_DIAMOND]: 'heavy',
+});

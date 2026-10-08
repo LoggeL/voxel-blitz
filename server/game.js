@@ -38,6 +38,7 @@ import { VehicleSystem } from './sim/vehicles.js';
 import { parseVehicleAction } from './protocol/admission.js';
 import { ProjectileSystem } from './sim/projectiles.js';
 import { createSimulationContexts } from './sim/context.js';
+import { StructureSystem } from './sim/structure.js';
 import { CHAOS_CASH_RULES, TRAINING_AMMO_RULES } from '../shared/powerups.js';
 import { findChaosCashSites } from '../shared/chaos-cash-sites.js';
 import { PowerupSystem } from './sim/powerups.js';
@@ -50,6 +51,30 @@ import {
 } from '../shared/grenade-rules.js';
 
 const MAX_PITCH = (80 * Math.PI) / 180;
+
+// Background work slices (structure template warm-up) run in the gap right
+// after a room tick completed, one slice per gap, so no tick waits for one.
+const afterTickQueue = [];
+let afterTickScheduled = false;
+let tickingEngines = 0;
+function runAfterTick() {
+  afterTickScheduled = false;
+  const fn = afterTickQueue.shift();
+  if (!fn) return;
+  try { fn(); } catch (error) { console.error('[voxel-blitz] after-tick task failed:', error); }
+}
+function flushAfterTick() {
+  if (afterTickQueue.length && !afterTickScheduled) { afterTickScheduled = true; setImmediate(runAfterTick); }
+}
+/**
+ * Run `fn` once right after the next room tick completes (setImmediate, after
+ * every tick due in that event-loop turn), or at once (setImmediate) while no
+ * room ticks.
+ */
+export function afterRoomTick(fn) {
+  afterTickQueue.push(fn);
+  if (tickingEngines === 0) flushAfterTick();
+}
 const LAVA_DAMAGE = 12;
 const LAVA_DAMAGE_INTERVAL_S = 0.25;
 // Seconds a body keeps burning after it leaves lava; water puts it out at once.
@@ -93,6 +118,9 @@ export class GameEngine {
     this.changedBlocks = new Set();
     // Monotonic count of block replacements; navigation fields key their rebuild on it.
     this.blockRevision = 0;
+    // Bounded [revision, voxel index] log of recent deltas: lets terrain watchers
+    // locate a voxel that changed twice (rubble landing in a crater) without a rebuild.
+    this.blockJournal = [];
     const genericSpawns = Array.isArray(this.mapMeta?.spawns?.fun)
       ? this.mapMeta.spawns.fun
       : [];
@@ -140,6 +168,12 @@ export class GameEngine {
     this.vehicles = new VehicleSystem(this);
     this.vehicles?.reset(this.mode.mode === 'conquest' ? this.mapMeta?.conquest?.vehicleSpawns ?? [] : []);
     this.contexts = createSimulationContexts(this);
+    // Structural integrity is on in every mode; `structural: false`, a mode's
+    // `rules.structural === false` or VOXEL_STRUCTURAL=0 turn it off.
+    this.structure = new StructureSystem(this, {
+      enabled: callbacks.structural !== false && this.mode.rules?.structural !== false
+        && process.env.VOXEL_STRUCTURAL !== '0',
+    });
     this.spawnSelector = new SpawnSelector({
       entities: this.entities,
       isEnemy: (left, right) => this.mode.isEnemy(left, right),
@@ -157,6 +191,7 @@ export class GameEngine {
     if (this.mode.mode === 'conquest') groundNavigation(this.world);
     this.intervalMs = tickRateMs;
     this.running = true;
+    tickingEngines++;
     let previous = performance.now();
     this.timer = setInterval(() => {
       const at = performance.now();
@@ -164,6 +199,7 @@ export class GameEngine {
         const finished = performance.now();
         this.tickTiming.record(finished, finished - at, at - previous);
         previous = at;
+        flushAfterTick();
       }
     }, tickRateMs);
     return this;
@@ -179,6 +215,8 @@ export class GameEngine {
     if (this.timer !== null) {
       clearInterval(this.timer);
       this.timer = null;
+      tickingEngines--;
+      if (tickingEngines === 0) flushAfterTick();
     }
     return this;
   }
@@ -238,6 +276,8 @@ export class GameEngine {
     for (const player of this.combatants.values()) {
       updateMedkit(player, dt, this.mode.phase === 'live');
     }
+    // This tick's destruction: support passes, due collapses, falling chunks.
+    this.structure.step();
     // Clear ended rounds before a policy can reset directly into live play.
     if (this.mode.phase !== 'live') {
       this.powerups.clear();
@@ -320,6 +360,7 @@ export class GameEngine {
     const pristine = !this.changedBlocks.size ? null
       : this.world.templateBlocks && this.world.mapId === this.mapMeta.id ? { getBlock: (x, y, z) => this.world.templateBlock(x, y, z) }
         : createMapState(this.mapMeta.id);
+    this.structure.beginBulk();
     for (const i of [...this.changedBlocks]) {
       const x = i % SX, z = Math.floor(i / SX) % SZ, y = Math.floor(i / (SX * SZ));
       const value = pristine.getBlock(x, y, z);
@@ -327,6 +368,10 @@ export class GameEngine {
       this.pushBlockDelta(x, y, z, value);
     }
     this.changedBlocks.clear();
+    // Watchers rebuild after a restore, as before the journal existed.
+    this.blockJournal.length = 0;
+    // Pristine voxels again: template support, nothing creaking or falling.
+    this.structure.reset();
     this.vehicles?.reset(this.mode.mode === 'conquest' ? this.mapMeta?.conquest?.vehicleSpawns ?? [] : []);
     // Damage that never removed a voxel must also reset between runs.
     for (const row of this.blockDamage.values()) {
@@ -644,6 +689,8 @@ export class GameEngine {
     this.changedBlocks.add(i);
     this.tickBlocks.push({ i, v: value });
     this.blockRevision++;
+    this.blockJournal.push(this.blockRevision, i);
+    if (this.blockJournal.length > 16384) this.blockJournal.splice(0, 8192);
   }
 
   pushBlockDamage(x, y, z, value, progress) {

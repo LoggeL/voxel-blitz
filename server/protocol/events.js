@@ -199,3 +199,40 @@ export function evVehicleRepaired(vehicleId, by, hp) {
 export function evCountermeasure(vehicleId, kind) {
   return { t: 'ev', kind: 'countermeasure', vehicleId: String(vehicleId), cm: String(kind) };
 }
+
+/**
+ * Structural integrity events (docs/structural-physics.md). Blocks travel as
+ * `o` (integer origin, the cells' minimum corner) plus `b`, a flat list of
+ * [dx, dy, dz, type] per block relative to `o`; `n` counts every block even
+ * when `b` was capped. `at` is the server clock (ms) of the tick.
+ */
+export function evCreak(id, at, fallMs, origin, cells, count) {
+  return { t: 'ev', kind: 'creak', id: String(id), at: round(at, 1), fall: Math.max(0, Math.round(fallMs)),
+    n: count | 0, o: origin.map(v => v | 0), b: cells };
+}
+
+/**
+ * A cluster lost its support and falls as one rigid chunk (closed-form motion,
+ * see shared/structure.js). Kill credit stays on the server: the event names
+ * nobody, so it cannot reveal who brought a structure down (TTT).
+ */
+export function evCollapse(id, doomId, at, origin, cells, count, pivot, velocity, spin, gravity, landMs) {
+  return {
+    t: 'ev', kind: 'collapse', id: String(id), k: String(doomId), at: round(at, 1),
+    n: count | 0, o: origin.map(v => v | 0), b: cells,
+    p: pivot.map(v => round(v, D2)), v: velocity.map(v => round(v, D3)), w: spin.map(v => round(v, D3)),
+    g: round(gravity, D2), land: Math.max(0, Math.round(landMs)),
+  };
+}
+
+/** A falling chunk hit the ground: impact point, blocks, rubble blocks left (they arrive as block deltas), speed. */
+export function evCollapseLand(id, at, point, count, rubble, speed) {
+  return { t: 'ev', kind: 'collapseLand', id: String(id), at: round(at, 1),
+    x: round(point[0], D2), y: round(point[1], D2), z: round(point[2], D2),
+    n: count | 0, r: rubble | 0, speed: round(speed, D2) };
+}
+
+/** Blocks removed without falling (over the chunk caps, or nowhere to fall): burst them in place. */
+export function evCrumble(id, at, origin, cells, count) {
+  return { t: 'ev', kind: 'crumble', id: String(id), at: round(at, 1), n: count | 0, o: origin.map(v => v | 0), b: cells };
+}

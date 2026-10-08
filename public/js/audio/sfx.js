@@ -20,6 +20,7 @@ import { MenuMusicLoop } from './music.js';
 import { FootstepVariations, FOOTSTEP_SLOTS } from './footsteps.js';
 import { bodyImpact, synthPainVoice } from './human.js';
 import { IMPACT_PARAMS, genericImpact, impactGlass, impactMetal } from './impacts.js';
+import { renderStructureGroan, renderStructureThump } from './structure.js';
 import {
   DRAW_LEN,
   WEP_TONE,
@@ -666,6 +667,22 @@ const BULLET_SURFACES = Object.freeze({ dirt: 'dirt', grass: 'dirt', gravel: 'di
 /** Bullet impacts: audible radius (m), budget per window, ricochet share of stone/metal hits. */
 export const BULLET_IMPACT_SOUND = Object.freeze({ range: 45, window: 0.25, budget: 8, ricochetRange: 30, ricochet: 0.12 });
 const DEBRIS_SOUND = Object.freeze({ window: 0.15, budget: 5 });
+/**
+ * Structural collapse takes: the Conquest bank's creak and debris groups when
+ * decoded, else the same licensed files loaded as `structure.*` slots in every
+ * other mode (audio/conquest-bank.js STRUCTURE_SAMPLE_MANIFEST).
+ */
+function structureGroup(name) {
+  const conquest = name === 'creak' ? 'cq.amb.creak' : `cq.${name}`;
+  if (cqHas(conquest)) return conquest;
+  return cqHas(`structure.${name}`) ? `structure.${name}` : null;
+}
+/** Collapse sounds: creaks heard within `creakRange` m, at most `budget` landings per `window` s. */
+export const STRUCTURE_SOUND = Object.freeze({ creakRange: 90, window: 0.2, budget: 3, creakBudget: 2 });
+const STRUCTURE_MATERIALS = Object.freeze({
+  stone: Object.freeze({ rate: 0.62, lowpass: 1500 }), wood: Object.freeze({ rate: 0.84, lowpass: 2800 }),
+  metal: Object.freeze({ rate: 1, lowpass: 0 }), glass: Object.freeze({ rate: 1.12, lowpass: 0 }),
+});
 /** Jet flyby takes: seconds from the start of each file to its loudest pass. */
 export const JET_FLYBY_PEAKS = Object.freeze([3.1, 2.1, 4.5]);
 const SOUND_SPEED = 343;
@@ -1531,6 +1548,82 @@ export const sfx = {
       if (kind === 'glass') impactGlass(output, primitives, normalized);
       else if (kind === 'metal') impactMetal(output, primitives, normalized);
       else genericImpact(output, primitives, params, normalized);
+    });
+  },
+
+  /**
+   * A structure losing its support (`creak`): the recorded creak pitched per
+   * material and size over a procedural groan that tightens toward the fall.
+   */
+  structureCreak(pos, { n = 1, material = 'stone', seconds = 0.45 } = {}) {
+    const deferred = Array.isArray(pos) ? pos.slice(0, 3) : null;
+    if (!deferred || !deferred.every(Number.isFinite) || listenerDistance(deferred) > STRUCTURE_SOUND.creakRange) return;
+    run('structureCreak', () => {
+      if (!cqBudget('structureCreak', STRUCTURE_SOUND.window, STRUCTURE_SOUND.creakBudget)) return;
+      const size = Math.min(1, Math.sqrt(Math.max(1, n)) / 20);
+      const voice = STRUCTURE_MATERIALS[material] || STRUCTURE_MATERIALS.stone;
+      const group = structureGroup('creak');
+      const lowpass = voice.lowpass ? voice.lowpass * (1 - 0.3 * size) : 0;
+      if (group) {
+        cqOneShot(group, { pos: deferred, priority: 1, ...(lowpass ? { lowpass } : {}) }, {
+          gain: 0.55 + 0.45 * size, rate: voice.rate * (1 - 0.18 * size) * (0.95 + Math.random() * 0.1),
+          hold: Math.max(0.8, seconds + 0.6),
+        });
+      }
+      const output = pool.acquire({ pos: deferred, priority: 1 }, seconds + 0.5);
+      renderStructureGroan(output, primitives, { seconds, material, size, gain: group ? 0.55 : 1 });
+    });
+  },
+
+  /**
+   * A falling chunk hitting the ground (`collapseLand`): debris takes of its
+   * material, slowed for big chunks, over a low procedural slam; heavy ones
+   * carry a far rumble past the near range.
+   */
+  structureImpact(pos, { n = 1, speed = 8, material = 'stone' } = {}) {
+    const deferred = Array.isArray(pos) ? pos.slice(0, 3) : null;
+    if (!deferred || !deferred.every(Number.isFinite)) return;
+    const distance = listenerDistance(deferred);
+    if (distance > VEHICLE_SOUND.farRange) return;
+    const size = Math.max(0.1, Math.min(1.6, Math.sqrt(Math.max(1, n)) / 12));
+    const hard = Math.max(0.2, Math.min(1.4, speed / 10));
+    if (size > 0.6) farLayer(deferred, { gain: 0.35 * size, low: 44, lifetime: 2 });
+    run('structureImpact', () => {
+      if (!cqBudget('structureImpact', STRUCTURE_SOUND.window, STRUCTURE_SOUND.budget)) return;
+      const level = Math.min(1.5, (0.45 + 0.55 * size) * (0.55 + 0.45 * hard));
+      const group = structureGroup(`debris.${material}`) || structureGroup('debris.stone');
+      const layers = n >= 24 ? 2 : 1;
+      let sampled = false;
+      for (let i = 0; group && i < layers; i++) {
+        sampled = !!cqOneShot(group, { pos: deferred, priority: 2, range: 'far' }, {
+          gain: CONQUEST_MIX.debris * level * (i ? 0.7 : 1), rate: (1 - 0.22 * Math.min(1, size)) * (0.9 + Math.random() * 0.14),
+          delay: i * 0.05,
+        }) || sampled;
+      }
+      const output = pool.acquire({ pos: deferred, priority: 2, range: 'far' }, 1.8);
+      if (!sampled) {
+        const kind = IMPACT_PARAMS[material] ? material : 'stone';
+        if (kind === 'glass') impactGlass(output, primitives, level);
+        else if (kind === 'metal') impactMetal(output, primitives, level);
+        else genericImpact(output, primitives, IMPACT_PARAMS[kind], level);
+      }
+      renderStructureThump(output, primitives, { size, hard, gain: Math.min(1.2, 0.5 + 0.5 * size) });
+    });
+  },
+
+  /** Blocks breaking where they stand (`crumble`): debris takes and a small slam. */
+  structureCrumble(pos, { n = 1, material = 'stone' } = {}) {
+    const deferred = Array.isArray(pos) ? pos.slice(0, 3) : null;
+    if (!deferred || !deferred.every(Number.isFinite) || listenerDistance(deferred) > VEHICLE_SOUND.farRange) return;
+    run('structureCrumble', () => {
+      if (!cqBudget('structureImpact', STRUCTURE_SOUND.window, STRUCTURE_SOUND.budget)) return;
+      const size = Math.max(0.1, Math.min(1.2, Math.sqrt(Math.max(1, n)) / 14));
+      const group = structureGroup(`debris.${material}`) || structureGroup('debris.stone');
+      const sampled = group && cqOneShot(group, { pos: deferred, priority: 1, range: 'far' }, {
+        gain: CONQUEST_MIX.debris * (0.5 + 0.5 * size), rate: 0.86 + Math.random() * 0.12 });
+      const output = pool.acquire({ pos: deferred, priority: 1 }, 1.2);
+      if (!sampled) genericImpact(output, primitives, IMPACT_PARAMS.stone, 0.6 + 0.4 * size);
+      renderStructureThump(output, primitives, { size: size * 0.6, hard: 0.4, gain: 0.5 });
     });
   },
 
@@ -2658,6 +2751,18 @@ export const sfx = {
     ensureAudioModules();
     conquestBankPromise ??= loadConquestSlots(manifest, fetchImpl, conquestBankGeneration, 0);
     return conquestBankPromise;
+  },
+
+  /**
+   * Decode the few licensed collapse takes (creak, debris) every mode uses;
+   * slots already decoded are skipped. Conquest's own bank carries them too.
+   */
+  loadStructureBank(manifest, fetchImpl) {
+    if (!manifest || typeof manifest !== 'object' || !engine.ensure()) return Promise.resolve(Object.freeze({ loaded: 0, failed: 0 }));
+    ensureAudioModules();
+    const missing = Object.fromEntries(Object.entries(manifest).filter(([slot]) => !samples.getBuffer(slot)));
+    if (!Object.keys(missing).length) return Promise.resolve(Object.freeze({ loaded: 0, failed: 0 }));
+    return samples.load(missing, fetchImpl).catch(() => Object.freeze({ loaded: 0, failed: Object.keys(missing).length }));
   },
 
   /** Release the Conquest bank's decoded PCM after a Conquest match. */

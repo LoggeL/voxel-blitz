@@ -37,6 +37,7 @@ export function createSimulationContexts(engine) {
       engine.killPlayer(victim, killer, weapon, headshot, markers)
     ),
     pushBlockDelta: (x, y, z, value) => engine.pushBlockDelta(x, y, z, value),
+    attributeBlocks: (cause) => engine.structure?.attribute(cause),
     pushBlockDamage: (x, y, z, value, progress) => engine.pushBlockDamage(x, y, z, value, progress),
     pushEvent: (event) => engine.tickEvents.push(event),
     computeConeDeg,
@@ -70,8 +71,8 @@ export function createSimulationContexts(engine) {
     canDamage: combat.canDamage,
     killPlayer: combat.killPlayer,
     pushEvent: combat.pushEvent,
-    destroyBlock: (x, y, z) => destroyBlockDirect(x, y, z, null, combat),
-    damageBlock: (x, y, z, type, damage) => damageBlock(x, y, z, type, damage, combat),
+    destroyBlock: (x, y, z, cause = null) => destroyBlockDirect(x, y, z, null, combat, cause),
+    damageBlock: (x, y, z, type, damage, cause = null) => damageBlock(x, y, z, type, damage, combat, cause),
   };
   const movement = {
     get vehicles() { return engine.vehicles?.vehicles?.values() ?? []; },

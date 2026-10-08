@@ -341,7 +341,7 @@ function mineBlock(p, eye, fwd, ctx, reach) {
     x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz,
     from: type, progress: Math.min(1, hits / required) });
   if (hits >= required) {
-    destroyBlock(hit.x, hit.y, hit.z, key, ctx);
+    destroyBlock(hit.x, hit.y, hit.z, key, ctx, p.id);
     p.mining = null;
   } else {
     publishBlockDamage(hit.x, hit.y, hit.z, type, previousProgress, ctx);
@@ -410,8 +410,12 @@ export function blockKey(x, y, z) {
   return x + ',' + y + ',' + z;
 }
 
-/** Remove exactly one non-air block and emit its one authoritative mutation. */
-export function destroyBlockDirect(x, y, z, key, ctx) {
+/**
+ * Remove exactly one non-air block and emit its one authoritative mutation.
+ * `cause` (a combatant id) is credited for anything the removal brings down
+ * (server/sim/structure.js).
+ */
+export function destroyBlockDirect(x, y, z, key, ctx, cause = null) {
   const damageKey = key || blockKey(x, y, z);
   const from = ctx.getBlock(x, y, z);
   if (from === BEDROCK) return false;
@@ -420,7 +424,9 @@ export function destroyBlockDirect(x, y, z, key, ctx) {
     ctx.blockMining?.delete(damageKey);
     return false;
   }
+  ctx.attributeBlocks?.(cause);
   ctx.setBlock(x, y, z, AIR);
+  ctx.attributeBlocks?.(null);
   ctx.blockHp.delete(damageKey);
   ctx.blockMining?.delete(damageKey);
   ctx.pushBlockDelta(x, y, z, AIR);
@@ -428,24 +434,25 @@ export function destroyBlockDirect(x, y, z, key, ctx) {
   return true;
 }
 
-export function destroyBlock(x, y, z, key, ctx) {
-  if (!destroyBlockDirect(x, y, z, key, ctx)) return false;
+export function destroyBlock(x, y, z, key, ctx, cause = null) {
+  if (!destroyBlockDirect(x, y, z, key, ctx, cause)) return false;
 
-  // Fragile chain-support: GLASS/LEAVES stacked above collapse too.
+  // Fragile chain-support: GLASS/LEAVES stacked above shatter at once (other
+  // unsupported blocks creak and fall through the structure system).
   const above = ctx.getBlock(x, y + 1, z);
   if (above === GLASS || above === LEAVES) {
-    destroyBlock(x, y + 1, z, null, ctx);
+    destroyBlock(x, y + 1, z, null, ctx, cause);
   }
   return true;
 }
 
-export function damageBlock(x, y, z, type, dmg, ctx) {
+export function damageBlock(x, y, z, type, dmg, ctx, cause = null) {
   if (y <= 0 || !(dmg > 0) || !Number.isFinite(dmg) || !BLOCK_HP[type] || ctx.getBlock(x, y, z) !== type) return;
   const key = blockKey(x, y, z);
   const previousProgress = blockDamageProgress(key, type, ctx);
   let hp = ctx.blockHp.get(key) ?? BLOCK_HP[type];
   hp -= dmg;
-  if (hp <= 0) destroyBlock(x, y, z, key, ctx);
+  if (hp <= 0) destroyBlock(x, y, z, key, ctx, cause);
   else {
     ctx.blockHp.set(key, hp);
     publishBlockDamage(x, y, z, type, previousProgress, ctx);
@@ -702,7 +709,7 @@ function walkRoundLeg(p, def, round, legLength, ctx) {
       hp: ctx.blockHp.get(blockKey(hit.x, hit.y, hit.z)) ?? BLOCK_HP[type],
       incidence: hit.nx || hit.ny || hit.nz ? Math.abs(dot) : 1,
       thickness: exit - hit.t, bounces: round.bounces });
-    damageBlock(hit.x, hit.y, hit.z, type, result.damage, ctx);
+    damageBlock(hit.x, hit.y, hit.z, type, result.damage, ctx, p?.id);
     segment.action = result.action;
     round.power = result.power;
     round.damageScale *= result.damageScale;
@@ -857,7 +864,7 @@ export function fireMountedRay(owner, origin, dir, weapon, ctx, { vehicleId = ow
       result.hit = { x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz };
       if (hit.y > 0 && ctx.setBlock && ctx.blockHp) {
         const type = ctx.getBlock(hit.x, hit.y, hit.z);
-        damageBlock(hit.x, hit.y, hit.z, type, weapon.damage, ctx);
+        damageBlock(hit.x, hit.y, hit.z, type, weapon.damage, ctx, owner?.id);
       }
     }
   }

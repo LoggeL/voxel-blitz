@@ -728,6 +728,18 @@ export class NetClient {
   }
 
   /**
+   * The server time (ms) the view presents at `renderNowMs`: the clock events
+   * are drained on (`renderNowMs - delayMs` on the page clock), mapped back
+   * through the newest snapshot. Structure collapses animate on it. Null
+   * before the first snapshot.
+   */
+  presentedServerTime(renderNowMs, delayMs = this._timing.interpolationDelayMs) {
+    const latest = this.latestSnapshots[this.latestSnapshots.length - 1];
+    if (!latest || !Number.isFinite(latest.serverNow) || !Number.isFinite(latest.now) || !Number.isFinite(renderNowMs)) return null;
+    return renderNowMs - delayMs - (latest.now - latest.serverNow);
+  }
+
+  /**
    * Advance the view clock. Interpolates remote players between the two
    * snapshots surrounding `renderNowMs - delayMs` on the server-time-mapped
    * local clock

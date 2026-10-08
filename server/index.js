@@ -11,7 +11,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
 import { ServerDiagnostics } from './diagnostics.js';
-import { createMapState, getMapMeta } from '../shared/worlddata.js';
+import { createMapState, getMapDimensions, getMapMeta } from '../shared/worlddata.js';
+import { MAP_IDS } from '../shared/modes.js';
+import { prepareStructureTemplate, warmStructureTemplates } from './sim/structure.js';
+import { afterRoomTick } from './game.js';
 import { surfaceNavigation } from './bot-navigation.js';
 import { roadGraph } from './bot-vehicle-driving.js';
 import { coalesceTick, resetHeldTicks, tickSent, tickSettled } from './protocol/tick-backlog.js';
@@ -461,6 +464,7 @@ async function main() {
   // Frontier's template, metadata, wire bytes, surface graph and road graph
   // are built on first use (~0.7 s of synchronous work). Build them before
   // accepting players, so the first Conquest room does not stall every match.
+  const structural = process.env.VOXEL_STRUCTURAL !== '0';
   {
     const started = performance.now();
     const mapMeta = getMapMeta('frontier');
@@ -469,13 +473,36 @@ async function main() {
     world.mapFrame();
     surfaceNavigation(world);
     roadGraph({ mapMeta });
-    console.log(`[voxel-blitz] Frontier prepared in ${Math.round(performance.now() - started)} ms`);
+    // Its structural template field too (~110 ms here, ~400 ms on the production host):
+    // built at the first Frontier room's creation it stalled every running room.
+    const fieldStarted = performance.now();
+    if (structural) prepareStructureTemplate(world);
+    console.log(`[voxel-blitz] Frontier prepared in ${Math.round(performance.now() - started)} ms`
+      + (structural ? ` (structure field ${Math.round(performance.now() - fieldStarted)} ms)` : ''));
   }
 
   server.listen(port, () => {
     const address = server.address();
     const boundPort = address && typeof address === 'object' ? address.port : port;
     console.log(`voxel-blitz listening on :${boundPort}`);
+    // The other maps' structural template fields (2-50 ms each), smallest first,
+    // in slices of at most 2 ms run right after a room tick (or at once while no
+    // room ticks), so no running room waits for one and no first room on a map
+    // builds its field inside its creation.
+    if (structural && process.env.VOXEL_STRUCTURE_WARM !== '0') {
+      const started = performance.now();
+      const volume = (id) => { const d = getMapDimensions(id); return d.sx * d.sy * d.sz; };
+      const maps = MAP_IDS.filter(id => id !== 'frontier').sort((a, b) => volume(a) - volume(b));
+      void warmStructureTemplates(maps.map(id => () => createMapState(id)), {
+        schedule: afterRoomTick, sliceMs: 2,
+      }).then((timings) => {
+        const failed = timings.filter(row => row.error);
+        console.log(`[voxel-blitz] structure templates warmed: ${timings.length - failed.length} maps by ${Math.round(performance.now() - started)} ms`
+          + ` after listening (work ${Math.round(timings.reduce((sum, row) => sum + row.ms, 0))} ms in ${timings.reduce((sum, row) => sum + row.slices, 0)}`
+          + ` slices, longest slice ${(Math.max(0, ...timings.map(row => row.longest))).toFixed(1)} ms)`);
+        for (const row of failed) console.error('[voxel-blitz] structure template warm failed:', row.error);
+      });
+    }
   });
   server.on('error', (err) => {
     console.error('[voxel-blitz] server error:', err.message);

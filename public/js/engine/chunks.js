@@ -300,8 +300,10 @@ export function createTerrainMaterial(kind, {
       .replace('#include <uv_vertex>', `#include <uv_vertex>
   vTerrainUv = vec3( uv, terrainLayer );
   vTerrainAux = terrainAux;
-  vVoxelWorld = position;
-  vVoxelNormal = normal;`);
+  // Chunk meshes sit at the origin (identity model matrix); falling structure
+  // chunks (structure-fx.js) share these materials and move by their matrix.
+  vVoxelWorld = ( modelMatrix * vec4( position, 1.0 ) ).xyz;
+  vVoxelNormal = mat3( modelMatrix ) * normal;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `${defines}\n#include <common>\n${TERRAIN_FRAGMENT_PARS}`)
       .replace('#include <map_fragment>', TERRAIN_MAP)
@@ -371,9 +373,15 @@ export class ChunkStore {
     this.group.name = 'chunks';
     scene.add(this.group);
 
-    this.chunks = new Map();     // "cx,cz" -> { cx, cz, meshes: [] }
+    this.chunks = new Map();     // "cx,cz" -> { cx, cz, meshes: [], serial }
     this.dirtyQueue = [];        // FIFO of keys awaiting rebuild
     this.queued = new Set();
+    // Cells the mesher draws as air although the store still holds a block
+    // (structure-fx.js covers them with its own proxy meshes): cell index ->
+    // reference count. `serial` counts rebuilds, so a caller can tell when
+    // every chunk under a set of cells has been rebuilt since a change.
+    this.hidden = new Map();
+    this.serial = 0;
 
     const tex = atlas.texture();
     const terrain = atlas.terrainTextures?.() || { map: null, normalMap: null };
@@ -542,6 +550,104 @@ export class ChunkStore {
     return y % FACADE_JOINT_EVERY === 0 ? TILE.FACADE_JOINT : skin;
   }
 
+  /** Flat cell index (the wire's `x + SX * (z + SZ * y)`); -1 outside the world. */
+  cellIndex(x, y, z) {
+    const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
+    if (x < 0 || z < 0 || y < 0 || x >= SX || z >= SZ || y >= SY) return -1;
+    return x + SX * (z + SZ * y);
+  }
+
+  /**
+   * Draw these cells (flat indices) as air until showCells() releases them.
+   * Reference counted; the chunks under them remesh within the usual budget.
+   */
+  hideCells(cells) {
+    const SX = this.dimensions.sx, SZ = this.dimensions.sz;
+    for (let i = 0; i < cells.length; i++) {
+      const index = cells[i];
+      if (!(index >= 0)) continue;
+      const count = this.hidden.get(index) || 0;
+      this.hidden.set(index, count + 1);
+      if (!count) this.applyBlockDelta(index % SX, Math.floor(index / (SX * SZ)), Math.floor(index / SX) % SZ);
+    }
+  }
+
+  /**
+   * Release hidden cells. A cell that is air in the store needs no remesh
+   * (the mesh already shows air there); returns how many cells did.
+   */
+  showCells(cells) {
+    const SX = this.dimensions.sx, SZ = this.dimensions.sz;
+    let remeshed = 0;
+    for (let i = 0; i < cells.length; i++) {
+      const index = cells[i];
+      const count = this.hidden.get(index);
+      if (!count) continue;
+      if (count > 1) { this.hidden.set(index, count - 1); continue; }
+      this.hidden.delete(index);
+      const x = index % SX, y = Math.floor(index / (SX * SZ)), z = Math.floor(index / SX) % SZ;
+      if (this.getBlock(x, y, z) === AIR) continue;
+      this.applyBlockDelta(x, y, z);
+      remeshed++;
+    }
+    return remeshed;
+  }
+
+  /**
+   * True once every built chunk holding one of `cells` has been rebuilt after
+   * `serial` (a value of `this.serial` read when the cells changed). Chunks
+   * that are not built draw nothing there, so they never hold a caller back.
+   */
+  cellsRebuiltSince(cells, serial) {
+    const SX = this.dimensions.sx, SZ = this.dimensions.sz;
+    let lastKey = -1;
+    for (let i = 0; i < cells.length; i++) {
+      const index = cells[i];
+      if (!(index >= 0)) continue;
+      const cx = (index % SX) >> 4, cz = (Math.floor(index / SX) % SZ) >> 4;
+      const key = cx + cz * this.width;
+      if (key === lastKey) continue;
+      lastKey = key;
+      const rec = this.chunks.get(this.chunkKey(cx, cz));
+      if (rec && !(rec.serial > serial)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Mesh an arbitrary set of cells with the terrain mesher and materials (one
+   * mesh per material bucket, world coordinates). `getBlock` decides which
+   * neighbours hide faces and darken AO: the live store for a proxy that must
+   * look exactly like the chunk it covers, only the listed cells for a piece
+   * that has broken loose. `cells` is a flat [x, y, z, type, ...] list.
+   */
+  meshCells(cells, getBlock) {
+    const buckets = newBuckets();
+    const rectOf = this.atlas.tileRect;
+    const resolveTile = this.FACE_MAP.resolveTile;
+    for (let i = 0; i + 3 < cells.length; i += 4) {
+      const wx = cells[i], wy = cells[i + 1], wz = cells[i + 2], id = cells[i + 3];
+      if (id === AIR || FLUID_BUCKETS[id]) continue;
+      const bucket = TRANSLUCENT.has(id) ? buckets.glass : CUTOUT.has(id) ? buckets.cutout : buckets.opaque;
+      for (let f = 0; f < 6; f++) {
+        const n = FACES[f].n;
+        const nb = getBlock(wx + n[0], wy + n[1], wz + n[2]);
+        if (nb === AIR || (isSeeThrough(nb) && nb !== id)) emitFace(bucket, wx, wy, wz, f, id, rectOf, resolveTile, getBlock);
+      }
+    }
+    const meshes = [];
+    for (const name of ['opaque', 'cutout', 'glass']) {
+      const b = buckets[name];
+      if (b.index.length === 0) continue;
+      const mesh = buildMesh(b, this.materials[name]);
+      mesh.name = `structure-${name}`;
+      mesh.receiveShadow = true;
+      if (name === 'glass') mesh.renderOrder = 2;
+      meshes.push(mesh);
+    }
+    return meshes;
+  }
+
   markDirty(cx, cz) {
     if (cx < 0 || cz < 0 || cx >= this.width || cz >= this.depth) return;
     const key = this.chunkKey(cx, cz);
@@ -625,6 +731,7 @@ export class ChunkStore {
     this.wanted.clear();
     this.dirtyQueue.length = 0;
     this.queued.clear();
+    this.hidden.clear();
     this.scene.remove(this.group);
     for (const m of Object.values(this.materials)) m.dispose();
   }
@@ -643,11 +750,12 @@ export class ChunkStore {
     const key = this.chunkKey(cx, cz);
     let rec = this.chunks.get(key);
     if (rec === undefined) {
-      rec = { cx, cz, meshes: [] };
+      rec = { cx, cz, meshes: [], serial: 0 };
       this.chunks.set(key, rec);
     } else {
       this.disposeRecord(rec);          // dispose-safe: old geometry freed first
     }
+    rec.serial = ++this.serial;
 
     const buckets = newBuckets();
     const x0 = cx << 4, z0 = cz << 4;
@@ -655,7 +763,10 @@ export class ChunkStore {
     // store's out-of-range wall must not darken shoreline AO or cull the
     // outer faces an outside camera (spectator, captures) can see.
     const { sx: SX, sz: SZ } = this.dimensions;
-    const inner = this.getBlock;
+    const store = this.getBlock, hidden = this.hidden, SXZ = SX * SZ;
+    const inner = hidden.size
+      ? (x, y, z) => (y >= 0 && hidden.has(x + SX * z + SXZ * y) ? AIR : store(x, y, z))
+      : store;
     const gb = (x, y, z) => (x < 0 || z < 0 || x >= SX || z >= SZ ? AIR : inner(x, y, z));
     const rectOf = this.atlas.tileRect;
     const resolveTile = this.FACE_MAP.resolveTile;

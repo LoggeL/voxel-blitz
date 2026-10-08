@@ -17,7 +17,8 @@ export const MINE_BREAK_PARTICLES = 32;
 export const CRIT_STARS = 14;
 export const BACKSTAB_STARS = 18;
 
-const BLOCK_TINTS = Object.freeze({
+/** Debris tint per block id (sRGB hex); unknown ids fall back to 0x999999. */
+export const BLOCK_TINTS = Object.freeze({
   1: 0x6da34d,
   2: 0x7a5a3a,
   3: 0x8a8f94,

@@ -70,7 +70,7 @@ export function stepVehicle(engine, policy, p, dt) {
         const targets = new Set(s.structures);
         for (const c of [...s.ram, ...s.wide]) {
           if (c.structure) { targets.add(c.structure); continue; }
-          damageBlock(c.x, c.y, c.z, c.type, profile.ramDamage / 4, engine.contexts.combat);
+          damageBlock(c.x, c.y, c.z, c.type, profile.ramDamage / 4, engine.contexts.combat, p.id);
           if (c.type === BARRICADE && engine.world.getBlock(c.x, c.y, c.z) === AIR) policy.emitBreach(c.x, c.y, c.z, p.id);
         }
         for (const t of targets) t.takeDamage(profile.ramDamage / 4, false, p, 'ram');

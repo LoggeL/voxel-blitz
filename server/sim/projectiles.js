@@ -610,7 +610,7 @@ export class ProjectileSystem {
         if (projectile.chaosLevel >= 3) this.chaosBlast(projectile.owner, [projectile.x, projectile.y, projectile.z], 'pulse', 3, 25, 12, ctx, projectile.weaponKey);
         const type = ctx.getBlock(contact.x, contact.y, contact.z);
         if (BLOCK_HP[type] != null) {
-          ctx.damageBlock?.(contact.x, contact.y, contact.z, type, BOLT_RULES.blockDamage);
+          ctx.damageBlock?.(contact.x, contact.y, contact.z, type, BOLT_RULES.blockDamage, projectile.ownerId);
         }
       },
     });
@@ -646,7 +646,7 @@ export class ProjectileSystem {
         if (typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld()) return;
         const type = ctx.getBlock(contact.x, contact.y, contact.z);
         if (BLOCK_HP[type] != null) {
-          ctx.damageBlock?.(contact.x, contact.y, contact.z, type, rules.blockDamage);
+          ctx.damageBlock?.(contact.x, contact.y, contact.z, type, rules.blockDamage, owner?.id);
         }
         chaosGlaiveContact(owner, [disc.x, disc.y, disc.z], this._chaosPort(ctx));
       },
@@ -1597,7 +1597,7 @@ export class ProjectileSystem {
       || projectile.type === 'pulse' || projectile.type === 'bubble') {
       suppressExplosion(owner, origin, rules.damageRadius, hitVictims, ctx);
     }
-    if (rules.terrainRadius > 0) this._destroyTerrain(origin, rules, ctx);
+    if (rules.terrainRadius > 0) this._destroyTerrain(origin, rules, ctx, owner?.id ?? null);
     this._chainDetonate(projectile, origin, rules, ctx);
     if (!projectile.child) {
       const count = projectile.type === 'frag' && level >= 1 ? (level >= 2 ? 12 : 6)
@@ -1677,7 +1677,7 @@ export class ProjectileSystem {
     }
   }
 
-  _destroyTerrain(origin, rules, ctx) {
+  _destroyTerrain(origin, rules, ctx, cause = null) {
     const { sx: SX, sy: SY, sz: SZ } = worldDimensions(ctx);
     const radius = rules.terrainRadius;
     const radiusSquared = radius * radius;
@@ -1720,7 +1720,7 @@ export class ProjectileSystem {
         block.distance + 0.2,
       );
       if (hit && (hit.x !== block.x || hit.y !== block.y || hit.z !== block.z)) continue;
-      if (ctx.destroyBlock(block.x, block.y, block.z)) destroyed++;
+      if (ctx.destroyBlock(block.x, block.y, block.z, cause)) destroyed++;
     }
   }
 

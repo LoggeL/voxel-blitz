@@ -18,6 +18,8 @@ export const ICON_PATHS = Object.freeze({
   fall: 'M13 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM9 7h6l2 4-1.6.8L14 9.6V13l2 4h-2.2L12 13.6 10.4 17H8.2l2-4V9.6l-1.4 2.2L7.2 11zM2 19h20v2H2zM19 4h2v7h2l-3 3-3-3h2z',
   // A burst over a ground line (hull crash).
   crash: 'M12 2l1.8 4.6 4.7-2-2 4.7L21 11l-4.5 1.8 2 4.7-4.7-2L12 20l-1.8-4.5-4.7 2 2-4.7L3 11l4.5-1.7-2-4.7 4.7 2zM2 21h20v2H2z',
+  // Blocks tumbling from a broken slab onto a ground line (structural collapse, docs/structural-physics.md).
+  collapse: 'M2 3h9v3H2zM13 3h9v3h-5l-1 2.2-2.2-.9zM11.5 9.5l3.6 1.4-1.4 3.6-3.6-1.4zM5 10h3.6v3.6H5zM16.4 13.6l3.1.8-.8 3.1-3.1-.8zM7.4 15.6h3.8v3.4H7.4zM2 20h20v2H2z',
   // Two chasing arrows round a figure (in-game menu RESPAWN / redeploy).
   redeploy: 'M12 3a9 9 0 0 1 8.3 5.5H23l-3.5 4-3.5-4h2.1A6.5 6.5 0 0 0 5.8 10.1L3.4 9.4A9 9 0 0 1 12 3zM12 21a9 9 0 0 1-8.3-5.5H1l3.5-4 3.5 4H5.9A6.5 6.5 0 0 0 18.2 13.9l2.4.7A9 9 0 0 1 12 21zM12 8.4a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6zM9.4 15.8c0-1.6 1.2-2.8 2.6-2.8s2.6 1.2 2.6 2.8z',
   // Parachute canopy over a load (HUD prompt).
@@ -59,7 +61,7 @@ export const ICON_PATHS = Object.freeze({
 export const KILL_KEY_ICONS = Object.freeze({
   tankAP: 'shell', tankHE: 'shell', coaxMG: 'mg', hmg: 'mg', doorMinigun: 'mg', planeCannon: 'autocannon',
   chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', vehicle: 'roadkill', restricted: 'restricted',
-  fall: 'fall', crash: 'crash', redeploy: 'redeploy',
+  fall: 'fall', crash: 'crash', redeploy: 'redeploy', collapse: 'collapse',
 });
 
 /** A fresh inline SVG element for one glyph (DOM only). */

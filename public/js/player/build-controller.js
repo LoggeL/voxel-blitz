@@ -11,13 +11,15 @@ import { fwdFromAngles } from '../util/look.js';
 /** HUD copy per `canPlaceStructure` reason; `kind`/`phase`/`alive` hide the ghost instead. */
 export const BUILD_REASON_TEXT = Object.freeze({
   reach: 'TOO FAR', zone: 'OUTSIDE BUILD ZONE', ingress: 'INSIDE ENEMY GATE', objective: 'TOO CLOSE TO OBJECTIVE',
-  spawn: 'BLOCKS A SPAWN', air: 'BLOCKED', floor: 'NO FLOOR', occupied: 'SOMEONE IS STANDING THERE',
+  spawn: 'BLOCKS A SPAWN', air: 'BLOCKED', floor: 'NO FLOOR', unsupported: 'NO STRUCTURAL SUPPORT', occupied: 'SOMEONE IS STANDING THERE',
   structure: 'OVERLAPS A STRUCTURE', budget: 'BUDGET SPENT', credits: 'NOT ENOUGH CREDITS',
 });
 /** N cycles wall -> sandbag -> turret -> crate -> off (the catalog lists sandbag first). */
 const CYCLE_ORDER = Object.freeze(['wall', 'sandbag', 'turret', 'crate']);
 const OK_COLOR = 0x46ddb1, BAD_COLOR = 0xff554b;
 const GHOST_REACH = 6;
+/** How long a server refusal (`bastion_build_refused`) replaces the prompt's own verdict. */
+export const BUILD_REFUSAL_MS = 2200;
 
 export class BuildController {
   /**
@@ -35,7 +37,7 @@ export class BuildController {
    * @param {() => boolean} deps.inputEnabled
    */
   constructor({ input, getBlock, getWorldview, getCamera, getPlayer, getMatch, getSelfRow, getMapMeta,
-    purchase, isBuyMenuOpen = () => false, inputEnabled = () => true }) {
+    purchase, isBuyMenuOpen = () => false, inputEnabled = () => true, now = () => performance.now() }) {
     this.input = input;
     this.getBlock = getBlock;
     this.getWorldview = getWorldview;
@@ -47,6 +49,8 @@ export class BuildController {
     this.purchase = purchase;
     this.isBuyMenuOpen = isBuyMenuOpen;
     this.inputEnabled = inputEnabled;
+    this.now = now;
+    this.refusal = null;
     this.active = false;
     this.kind = 'wall';
     this.rotateOffset = 0;
@@ -97,13 +101,25 @@ export class BuildController {
     this._hide();
   }
 
+  /**
+   * The server refused a placement the ghost allowed (it cannot see structural
+   * support): the prompt shows the reason for BUILD_REFUSAL_MS. Returns whether
+   * the prompt is up to show it (else the caller banners it).
+   */
+  refused(reason) {
+    this.refusal = { reason: BUILD_REASON_TEXT[reason] ? reason : 'air', until: this.now() + BUILD_REFUSAL_MS };
+    return this.active;
+  }
+
   /** HUD read model for the build prompt line. */
   readModel() {
     const def = this.def;
+    if (this.refusal && this.now() >= this.refusal.until) this.refusal = null;
+    const refused = this.active && this.visible && this.refusal ? BUILD_REASON_TEXT[this.refusal.reason] : null;
     return {
       active: this.active, kind: this.kind, name: def?.name || '', price: def?.price || 0,
-      reason: this.active && this.visible && !this.result.ok ? (BUILD_REASON_TEXT[this.result.reason] || null) : null,
-      ok: this.active && this.visible && this.result.ok,
+      reason: refused || (this.active && this.visible && !this.result.ok ? (BUILD_REASON_TEXT[this.result.reason] || null) : null),
+      ok: !refused && this.active && this.visible && this.result.ok,
     };
   }
 
