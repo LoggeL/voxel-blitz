@@ -58,6 +58,7 @@ export class ConquestHud {
     this.root = el('section', 'vb-conquest-hud', parent);
     this.root.hidden = true;
     this.root.setAttribute('aria-label', 'Conquest tactical information');
+    this._watchHealthPanel();
     this.markers = new WorldMarkers(this.root);
     this.reticles = new Reticles(this.root);
     this.topBar = new TopBar(this.root);
@@ -458,7 +459,29 @@ export class ConquestHud {
     this._endKey = null;
   }
 
+  /**
+   * The minimap and squad list stand on the health card, which grows upward
+   * when the pain / panic meters appear: track its top edge as --cq-floor.
+   */
+  _watchHealthPanel() {
+    const doc = this.root.ownerDocument, win = doc?.defaultView;
+    const card = doc?.getElementById?.('healthbar');
+    if (!card || !win || typeof win.ResizeObserver !== 'function') return;
+    const sync = () => {
+      const rect = card.getBoundingClientRect();
+      const floor = rect.height > 0 ? Math.max(104, Math.round(win.innerHeight - rect.top + 18)) : 104;
+      if (floor !== this._floor) { this._floor = floor; this.root.style.setProperty('--cq-floor', `${floor}px`); }
+    };
+    this._healthObserver = new win.ResizeObserver(sync);
+    this._healthObserver.observe(card);
+    this._onViewportResize = sync;
+    win.addEventListener('resize', sync);
+    sync();
+  }
+
   dispose() {
+    this._healthObserver?.disconnect();
+    if (this._onViewportResize) this.root.ownerDocument?.defaultView?.removeEventListener('resize', this._onViewportResize);
     this.hide();
     this._lastArgs = null;
     this.vehicleController = null;

@@ -165,7 +165,7 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 
 /* ---------------------------------------------------------------- minimap */
 .cq-minimap {
-  position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: 104px; width: var(--cq-minimap); height: var(--cq-minimap);
+  position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: var(--cq-floor, 104px); width: var(--cq-minimap); height: var(--cq-minimap);
   border-radius: 50%; pointer-events: auto; cursor: pointer;
   box-shadow: 0 0 0 2px #0b1319, 0 0 0 4px #8aa2b455, 0 6px 18px #000a;
 }
@@ -174,11 +174,11 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-compass { position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; display: grid; place-items: center;
   font-size: 10px; font-weight: 800; color: #d9e2e8; background: #0b1319; border-radius: 50%; box-shadow: 0 0 0 1px #8aa2b466; }
 .cq-compass-N { color: #ffd166; }
-.cq-map-hint { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: calc(104px + var(--cq-minimap) + 14px); width: var(--cq-minimap);
+.cq-map-hint { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: calc(var(--cq-floor, 104px) + var(--cq-minimap) + 14px); width: var(--cq-minimap);
   text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #c4d0d8b0; text-shadow: 0 1px 2px #000; }
 /* Squad list beside the minimap (reference Alt 2): kit or hull glyph, name, DOWN / DEAD. */
 .cq-squad {
-  position: absolute; left: calc(max(22px, env(safe-area-inset-left)) + var(--cq-minimap) + 18px); bottom: 112px;
+  position: absolute; left: calc(max(22px, env(safe-area-inset-left)) + var(--cq-minimap) + 18px); bottom: calc(var(--cq-floor, 104px) + 8px);
   display: grid; gap: 4px; min-width: 132px; max-width: 190px; padding: 6px 18px 7px 9px;
   background: linear-gradient(90deg, rgba(9, 15, 20, 0.78), rgba(9, 15, 20, 0.5) 70%, rgba(9, 15, 20, 0));
   border-left: 2px solid var(--cq-squad); border-radius: 2px; text-shadow: 0 1px 2px #000;
