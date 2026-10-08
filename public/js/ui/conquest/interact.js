@@ -74,7 +74,8 @@ export class InteractPrompt {
     if (!model) { this.root.hidden = true; this._sig = ''; return; }
     this.root.hidden = false;
     // The parachute prompt names Jump; every other prompt is Interact.
-    const key = touch ? '' : bindingLabel(model.binding || 'interact');
+    // NEEDS MEDIC is information only: no key to press.
+    const key = touch || model.type === 'needs-medic' ? '' : bindingLabel(model.binding || 'interact');
     // Touch has no F-row: "ENTER JEEP · F2 GUNNER" reads "ENTER JEEP · GUNNER".
     const label = touch ? model.label.replace(/ · F\d+ /, ' · ') : model.label;
     const text = model.hold ? `HOLD ${label}` : label;

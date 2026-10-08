@@ -1,3 +1,4 @@
+import { CONQUEST_CONTRACT_VERSION } from '../shared/conquest-contract.js';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { createMapState } from '../shared/worlddata.js';
@@ -45,7 +46,7 @@ try {
   {
     const host = new Client(port, 'frontier-conquest');
     clients.push(host);
-    await host.connect({ t: 'create', name: host.name, map: 'foundry', gameMode: 'tdm', bots: 15 });
+    await host.connect({ t: 'create', name: host.name, map: 'foundry', gameMode: 'tdm', bots: 15, contract: CONQUEST_CONTRACT_VERSION });
     await host.waitForHandshake();
     const mark = host.mark();
     host.send({ t: 'configure', gameMode: 'conquest', map: 'frontier', bots: 15 });

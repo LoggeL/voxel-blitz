@@ -1,5 +1,5 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
-export const CONQUEST_CONTRACT_VERSION = 2;
+export const CONQUEST_CONTRACT_VERSION = 3;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -37,17 +37,34 @@ export const CONQUEST_RULES = Object.freeze({
 
 export const FLAG_STATES = Object.freeze(['idle', 'capturing', 'neutralizing', 'contested', 'restoring']);
 
-export const KIT_IDS = Object.freeze(['assault', 'engineer', 'support', 'recon']);
+/**
+ * Wire order of the kits: `cq[0]` is an index into this list, so new kits are
+ * only ever appended (0-3 keep their v2 meaning). The deploy screen shows them
+ * in KIT_MENU_ORDER (shared/conquest-kits.js) instead.
+ */
+export const KIT_IDS = Object.freeze(['assault', 'engineer', 'support', 'recon', 'medic', 'pyro', 'grenadier', 'raider', 'marksman']);
 /**
  * `gadget` is the default gadget (gadgets[0]); `gadgets` lists the deploy-screen
  * choices, picked by the deploy intent's `gadget` index (0 default). The
  * Engineer carries the RX-8 AT launcher (0) or the AX-9 STINGER AA launcher (1).
+ * `unlockLevel` is the career level that opens the kit (1: a base kit); the
+ * server refuses a locked kit at deploy (`deploy_refused {reason:'locked'}`),
+ * bots ignore it. `aura` marks a passive team aura (the Medic's heal).
  */
+const KIT = (label, ability, primaries, gadgets, grenades, unlockLevel, extra = {}) => Object.freeze({
+  label, ability, primaries: Object.freeze(primaries), gadget: gadgets[0] ?? null, gadgets: Object.freeze(gadgets),
+  grenades: Object.freeze(grenades), unlockLevel, ...extra,
+});
 export const KITS = Object.freeze({
-  assault:  Object.freeze({ label: 'ASSAULT',  ability: 'revive',   primaries: Object.freeze(['rifle', 'mgl']),     gadget: null,     gadgets: Object.freeze([]), grenades: Object.freeze({ frag: 2, smoke: 1 }) }),
-  engineer: Object.freeze({ label: 'ENGINEER', ability: 'repair',   primaries: Object.freeze(['smg', 'shotgun']),   gadget: 'rocket', gadgets: Object.freeze(['rocket', 'stinger']), grenades: Object.freeze({ smoke: 1, frag: 1 }) }),
-  support:  Object.freeze({ label: 'SUPPORT',  ability: 'resupply', primaries: Object.freeze(['lmg', 'minigun']),   gadget: null,     gadgets: Object.freeze([]), grenades: Object.freeze({ frag: 2, molotov: 1 }) }),
-  recon:    Object.freeze({ label: 'RECON',    ability: 'spot',     primaries: Object.freeze(['sniper', 'longarc']), gadget: null,     gadgets: Object.freeze([]), grenades: Object.freeze({ limpet: 2, pulse: 1 }) }),
+  assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'shotgun'],       [],                    { frag: 2, pulse: 1 },    1),
+  engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger'], { smoke: 1, frag: 1 },    1),
+  support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         [],                    { frag: 2, molotov: 1 },  1),
+  recon:     KIT('RECON',     'spot',       ['sniper', 'longarc'],      [],                    { limpet: 2, pulse: 1 },  1),
+  medic:     KIT('MEDIC',     'revive',     ['smg', 'longarc'],         [],                    { smoke: 2, frag: 1 },    1, { aura: 'heal' }),
+  pyro:      KIT('PYRO',      'fireproof',  ['flamethrower', 'shotgun'], [],                   { molotov: 2, smoke: 1 }, 3),
+  grenadier: KIT('GRENADIER', 'ordnance',   ['mgl', 'bubble'],          [],                    { frag: 2, smoke: 1 },    5),
+  raider:    KIT('RAIDER',    'ghost',      ['glaive', 'smg'],          [],                    { frag: 1, limpet: 1 },   7),
+  marksman:  KIT('MARKSMAN',  'overwatch',  ['lance', 'longarc'],       [],                    { pulse: 1, smoke: 1 },   9),
 });
 export const KIT_SIDEARM = 'revolver';
 
@@ -55,13 +72,13 @@ export const SCORE_POINTS = Object.freeze({
   kill: 100, headshot: 25, assist: 50 /* scaled 10..90 by damage share */, attacker_kill: 50, defender_kill: 50,
   capture: 250, neutralize: 150, capture_assist: 100, defend: 100,
   vehicle_destroyed: 200, vehicle_crew: 50, vehicle_disabled: 100, vehicle_damage: 50 /* scaled 10..150 */,
-  driver_assist: 25, revive: 100, repair: 10, resupply: 10, spot_assist: 25, squad_spawn: 15,
+  driver_assist: 25, revive: 100, heal: 10, repair: 10, resupply: 10, spot_assist: 25, squad_spawn: 15,
 });
 export const SCORE_LABELS = Object.freeze({
   kill: 'KILL', headshot: 'HEADSHOT', assist: 'KILL ASSIST', attacker_kill: 'ATTACKER KILL', defender_kill: 'DEFENDER KILL',
   capture: 'FLAG CAPTURED', neutralize: 'FLAG NEUTRALIZED', capture_assist: 'CAPTURE ASSIST', defend: 'FLAG DEFENDED',
   vehicle_destroyed: 'VEHICLE DESTROYED', vehicle_crew: 'CREW KILL', vehicle_disabled: 'VEHICLE DISABLED', vehicle_damage: 'VEHICLE DAMAGE',
-  driver_assist: 'DRIVER ASSIST', revive: 'REVIVE', repair: 'REPAIR', resupply: 'RESUPPLY', spot_assist: 'SPOT ASSIST', squad_spawn: 'SQUAD SPAWN',
+  driver_assist: 'DRIVER ASSIST', revive: 'REVIVE', heal: 'HEAL', repair: 'REPAIR', resupply: 'RESUPPLY', spot_assist: 'SPOT ASSIST', squad_spawn: 'SQUAD SPAWN',
 });
 
 /** Server -> client event kinds added by Conquest v2 (all `{t:'ev', kind, at, ...}`). */
@@ -71,8 +88,10 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'flag_captured',     // {flag, team}
   'ticket_low',        // {team, tickets}
   'score',             // {id, pts, reason}
-  'deploy_refused',    // {id, reason}                   reason: 'invalid'|'contested'|'enemy'|'busy'|'cooldown'|'seat'
+  'deploy_refused',    // {id, reason}                   reason: 'invalid'|'contested'|'enemy'|'busy'|'cooldown'|'seat'|'locked' (+ level)
   'revive',            // {id, by}
+  'heal',              // {id, by, hp}                   Medic aura pulse: `by` restored `hp` to `id` (one per pulse per mate)
+  'kit_unlocks',       // {id, level, unlocked:[kit], newly:[kit]}  career level gate; on join and on a level-up that opens a kit
   'spot',              // {by, ids:[playerOrVehicleId]}
   'vehicle_hit',       // {vehicleId, attacker, dmg, zone, cls, eff:0|1, pos:[x,y,z]}  merged per attacker/hull/100ms
   'vehicle_disabled',  // {vehicleId, attacker}

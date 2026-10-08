@@ -1,0 +1,140 @@
+{
+  "generated": "2026-10-08T09:01:18.926Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "revive",
+        "title": "Medic reviving a downed squadmate · 60 %",
+        "file": "docs/design/conquest/classes/captures/desktop-revive.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy · valid spawns, countdown, kit picker",
+        "file": "docs/design/conquest/classes/captures/desktop-deploy.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-classes",
+        "title": "Deploy · nine classes, LV 3, three locked with XP progress",
+        "file": "docs/design/conquest/classes/captures/desktop-deploy-classes.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-locked",
+        "title": "Deploy · locked class refused, base kits only",
+        "file": "docs/design/conquest/classes/captures/desktop-deploy-locked.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-down-medic",
+        "title": "Deploy · awaiting revive, nearest Medic",
+        "file": "docs/design/conquest/classes/captures/desktop-deploy-down-medic.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "medic-heal",
+        "title": "Medic · heal aura, wounded and downed markers, heal awards",
+        "file": "docs/design/conquest/classes/captures/desktop-medic-heal.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "revive",
+        "title": "Medic reviving a downed squadmate · 60 %",
+        "file": "docs/design/conquest/classes/captures/portrait-revive.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy · valid spawns, countdown, kit picker",
+        "file": "docs/design/conquest/classes/captures/portrait-deploy.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-classes",
+        "title": "Deploy · nine classes, LV 3, three locked with XP progress",
+        "file": "docs/design/conquest/classes/captures/portrait-deploy-classes.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-locked",
+        "title": "Deploy · locked class refused, base kits only",
+        "file": "docs/design/conquest/classes/captures/portrait-deploy-locked.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-down-medic",
+        "title": "Deploy · awaiting revive, nearest Medic",
+        "file": "docs/design/conquest/classes/captures/portrait-deploy-down-medic.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "medic-heal",
+        "title": "Medic · heal aura, wounded and downed markers, heal awards",
+        "file": "docs/design/conquest/classes/captures/portrait-medic-heal.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "revive",
+        "title": "Medic reviving a downed squadmate · 60 %",
+        "file": "docs/design/conquest/classes/captures/landscape-revive.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy · valid spawns, countdown, kit picker",
+        "file": "docs/design/conquest/classes/captures/landscape-deploy.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-classes",
+        "title": "Deploy · nine classes, LV 3, three locked with XP progress",
+        "file": "docs/design/conquest/classes/captures/landscape-deploy-classes.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-locked",
+        "title": "Deploy · locked class refused, base kits only",
+        "file": "docs/design/conquest/classes/captures/landscape-deploy-locked.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-down-medic",
+        "title": "Deploy · awaiting revive, nearest Medic",
+        "file": "docs/design/conquest/classes/captures/landscape-deploy-down-medic.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "medic-heal",
+        "title": "Medic · heal aura, wounded and downed markers, heal awards",
+        "file": "docs/design/conquest/classes/captures/landscape-medic-heal.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

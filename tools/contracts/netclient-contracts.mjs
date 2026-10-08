@@ -1,4 +1,5 @@
 import { deeplyFrozen } from '../lib/assert.mjs';
+import { CONQUEST_CONTRACT_VERSION } from '../../shared/conquest-contract.js';
 
 export async function runNetClientContracts(ok, installGlobals) {
   {
@@ -100,7 +101,7 @@ export async function runNetClientContracts(ok, installGlobals) {
       };
 
       const quick = await connect('QUICK', null, {
-        t: 'join', name: 'QUICK', bots: 0,
+        t: 'join', name: 'QUICK', bots: 0, contract: CONQUEST_CONTRACT_VERSION,
       });
       quick.client.close();
 
@@ -115,6 +116,7 @@ export async function runNetClientContracts(ok, installGlobals) {
         bots: 4,
         gameMode: 'tdm',
         map: 'depot',
+        contract: CONQUEST_CONTRACT_VERSION,
       }, 'tdm', 'depot');
       compatible.client.close();
 
@@ -129,12 +131,13 @@ export async function runNetClientContracts(ok, installGlobals) {
         bots: 2,
         gameMode: 'snd',
         map: 'foundry',
+        contract: CONQUEST_CONTRACT_VERSION,
       }, 'snd', 'foundry');
       incompatible.client.close();
 
       for (const map of [undefined, 'foundry', 'killhouse']) {
         const training = await connect('RANGE', { mode: 'create', bots: 0, gameMode: 'training', map }, {
-          t: 'create', name: 'RANGE', bots: 0, gameMode: 'training', map: 'killhouse',
+          t: 'create', name: 'RANGE', bots: 0, gameMode: 'training', map: 'killhouse', contract: CONQUEST_CONTRACT_VERSION,
         }, 'training', 'killhouse');
         training.client.close();
       }
@@ -146,7 +149,7 @@ export async function runNetClientContracts(ok, installGlobals) {
         gameMode: 'tdm',
         map: 'depot',
       }, {
-        t: 'join', name: 'GUEST', lobby: 'ZX9Q2',
+        t: 'join', name: 'GUEST', lobby: 'ZX9Q2', contract: CONQUEST_CONTRACT_VERSION,
       }, 'snd', 'citadel');
 
       const sentBeforeBuy = joined.ws.sent.length;

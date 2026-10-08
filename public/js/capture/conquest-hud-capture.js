@@ -23,6 +23,8 @@ const mapMeta = fixtureMapMeta();
 const label = document.getElementById('capture-label');
 let hud = null;
 let conquest = null;
+/** The latest render's update args: rerender() replays them after a click changed the HUD's own state. */
+let lastArgs = null;
 let touch = null;
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
@@ -77,7 +79,8 @@ async function render(id, { touch: touchMode = false } = {}) {
   const h = ensureHud();
   conquest?.dispose();
   h.setScoreboard?.(false);
-  conquest = new ConquestHud(document.body, { combatHud: h.combat, onDeploy() {}, onSpot() {}, onSupport() {}, onInteract() {} });
+  conquest = new ConquestHud(document.body, { combatHud: h.combat, onDeploy() {}, onSpot() {}, onSupport() {}, onInteract() {},
+    careerProfile: () => state.career ?? null });
   if (touchMode && !touch) {
     touch = new TouchControls({ documentRef: document });
     touch.mount(document.body);
@@ -96,6 +99,7 @@ async function render(id, { touch: touchMode = false } = {}) {
   if (state.selection) conquest.deploy.selection = { ...conquest.deploy.selection, ...state.selection };
   const args = { match: state.match, mapMeta, self: state.self, players: state.players, vehicles: state.vehicles, camera,
     nearbyVehicle: state.nearbyVehicle, nowMs: FIXTURE_NOW, interactHeld: state.interactHeld, viewport: { width, height } };
+  lastArgs = args;
   conquest.update(args);
   if (state.dead) conquest.setDead(true, state.killer);
   if (state.bigMap) conquest.toggleBigMap(true);
@@ -149,7 +153,9 @@ function boxes() {
   const one = selector => rect(document.querySelector(selector));
   const buttons = [...document.querySelectorAll('.vb-touch-button')].map(b => ({ action: b.dataset.action, box: rect(b) })).filter(b => b.box);
   if (one('.cq-deploy')) {
+    // The class picker and the header status line must clear the killer card and the pause button too.
     return { 'deploy-title': union(textRect('.cq-deploy-title'), textRect('.cq-deploy-team')), 'deploy-killer': one('.cq-deploy-killer'),
+      'deploy-status': textRect('.cq-deploy-status'), 'deploy-classes': one('.cq-deploy-side'),
       buttons: buttons.filter(b => b.action === 'pause') };
   }
   if (one('.cq-bigmap')) return { bigmap: one('.cq-bigmap-panel'), buttons: [] };
@@ -235,4 +241,5 @@ async function wheelFlick(options) {
   return info.flick();
 }
 
-window.__cq = { ids: fixtures.map(f => f.id), titles: Object.fromEntries(fixtures.map(f => [f.id, f.title])), render, boxes, wheel, wheelFlick, ready: true };
+const rerender = async () => { if (conquest && lastArgs) conquest.update(lastArgs); await frame(); };
+window.__cq = { ids: fixtures.map(f => f.id), titles: Object.fromEntries(fixtures.map(f => [f.id, f.title])), render, rerender, boxes, wheel, wheelFlick, ready: true };

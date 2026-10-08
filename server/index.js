@@ -2,6 +2,7 @@
 // the authoritative game WebSocket. `node server/index.js` (PORT env, default 8070).
 import http from 'node:http';
 import { CareerService } from './career.js';
+import { careerLevel } from '../shared/career.js';
 import { allowedWeaponLoadout } from './weapon-loadouts.js';
 import { masteryView } from './persistence/career-profile.js';
 import { AccountService } from './accounts.js';
@@ -21,8 +22,8 @@ const MAX_MESSAGE_BYTES = 64 * 1024;
 const MAX_MESSAGES_PER_SECOND = 180;
 // Allow two complete large-map replacements plus snapshots during host edits.
 const MAX_QUEUED_BYTES = 4 * 1024 * 1024;
-// Server-initiated closes that a rejoin would only repeat (bad join, ban).
-const KICK_CLOSE_CODES = new Set([4002, 4003]);
+// Server-initiated closes that a rejoin would only repeat (bad join, ban, stale page).
+const KICK_CLOSE_CODES = new Set([4002, 4003, 4010]);
 // Consecutive snapshots repeat almost every byte, so a per-connection deflate
 // context (window >= one full 20 kB snapshot) shrinks them 20-40x. Less data on
 // the wire keeps home and mobile uplinks free of queueing delay, which is what
@@ -98,7 +99,8 @@ async function main() {
     try {
       ws.send(payload, (err) => {
         settled?.(c);
-        if (err) terminateClient(c, `send failed: ${err.message}`);
+        // A peer that closed mid-compression is a normal disconnect, not a drop.
+        if (err && ws.readyState === WebSocket.OPEN) terminateClient(c, `send failed: ${err.message}`);
       });
       return true;
     } catch (err) {
@@ -330,7 +332,11 @@ async function main() {
           meta.weaponLoadout = allowedWeaponLoadout(profile);
           // V3 map frames for clients with a map cache (lobby.js mapFrameFor).
           meta.mapCache = admission.mapCache ? [...admission.mapCache] : null;
+          // Conquest wire contract of the tab's code (0 = a tab from before the check).
+          meta.clientContract = admission.contract ?? 0;
           meta.mastery = masteryView(profile?.mastery);
+          // Authoritative level for the Conquest kit unlocks (guests without a career are level 1).
+          meta.careerLevel = profile ? careerLevel(profile.xp) : 1;
           if (admission.kind === 'quick') {
             admitted = manager.quickPlay(meta, name, admission.bots);
           } else if (admission.kind === 'create') {

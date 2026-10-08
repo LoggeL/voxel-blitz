@@ -61,6 +61,14 @@ export class Minimap {
     for (const item of sortItems(items)) {
       const p = minimapPlacement(item, center, yaw, s);
       const pos = { x: R + p.x, y: R + p.y };
+      if (item.kind === 'aura') {
+        // The Medic's heal aura reach (KIT_ROLE_RULES.healRadius) around the player.
+        // Never smaller than a readable ring around the self arrow.
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, Math.max(11 * scale, item.radius * s), 0, Math.PI * 2);
+        ctx.fillStyle = '#7ef29a14'; ctx.fill();
+        ctx.setLineDash([3 * scale, 3 * scale]); ctx.strokeStyle = '#7ef29acc'; ctx.lineWidth = 1.2 * scale; ctx.stroke(); ctx.setLineDash([]);
+        continue;
+      }
       if (item.kind === 'flag') {
         // Flags past the rim stay pinned to the edge so direction is always readable.
         const dist = Math.hypot(p.x, p.y), max = R - 12 * scale;

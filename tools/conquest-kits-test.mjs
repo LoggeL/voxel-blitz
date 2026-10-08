@@ -25,7 +25,7 @@ const TICK = 1000 / 60;
   assert.equal(normalizeVariant(7), 0);
   assert.equal(kitIndex('recon'), 3);
   assert.equal(kitIndex('nope'), -1);
-  assert.equal(KIT_MENU.length, 4);
+  assert.equal(KIT_MENU.length, 9);
   for (const kit of KIT_IDS) {
     for (const variant of [0, 1]) {
       const load = kitLoadout(kit, variant);
@@ -208,7 +208,7 @@ function fixture({ live = true } = {}) {
 // ------------------------------------------------------------ down/revive --
 {
   const f = fixture();
-  const medic = f.add('a1', 'alpha', 'assault', 0, 50, 50);
+  const medic = f.add('a1', 'alpha', 'medic', 0, 50, 50);
   const victim = f.add('a2', 'alpha', 'engineer', 1, 51, 50);
   const enemy = f.add('b1', 'bravo', 'recon', 0, 80, 80);
   victim.yaw = 1.25;
@@ -225,9 +225,13 @@ function fixture({ live = true } = {}) {
   // The deploy screen picks a different kit; the revive must keep the body's kit.
   f.policy.deploy.set('a2', { kit: 'recon', variant: 1 });
 
-  // Non-assault revivers and out-of-range revivers are refused.
+  // Non-medic revivers (the Assault included) and out-of-range revivers are refused.
   const engi = f.add('a3', 'alpha', 'engineer', 0, 50.5, 50);
   assert.equal(f.roles.intent(engi, { type: 'support', support: 'revive', targetId: 'a2' }), false, 'engineer cannot revive');
+  const rifleman = f.add('a4', 'alpha', 'assault', 0, 50.4, 50);
+  assert.equal(f.roles._reviveRefusal(rifleman, 'a2'), 'kit', 'the Assault no longer revives (refusal kit)');
+  assert.equal(f.roles.intent(rifleman, { type: 'support', support: 'revive', targetId: 'a2' }), false, 'assault cannot revive');
+  f.engine.entities.delete('a4');
   Object.assign(medic, { x: 53.2, z: 50 });
   assert.equal(f.roles.intent(medic, { type: 'support', support: 'revive', targetId: 'a2' }), false, 'beyond 2 m is refused');
   assert.equal(f.roles.intent(enemy, { type: 'support', support: 'revive', targetId: 'a2' }), false, 'enemies cannot revive');
@@ -274,7 +278,7 @@ function fixture({ live = true } = {}) {
     const g = fixture();
     const reviveCalls = [];
     g.policy.onRevived = (p, by) => { reviveCalls.push([p.id, by.id]); g.roles.onRespawn(p); };
-    const m = g.add('m', 'alpha', 'assault', 0, 20, 20);
+    const m = g.add('m', 'alpha', 'medic', 0, 20, 20);
     const v = g.add('v', 'alpha', 'recon', 1, 21, 20);
     g.step();
     g.kill(v, null, 'rifle');
@@ -433,7 +437,7 @@ class FakeVehicleSystem {
   const farMate = f.add('a2', 'alpha', 'assault', 0, 120, 100);
   const enemy = f.add('b1', 'bravo', 'assault', 0, 101, 100);
   const rifle = slot('rifle');
-  for (const p of [mate, farMate, enemy]) { p.reserve[rifle] = 1; p.grenades[gslot('frag')] = 0; p.grenades[gslot('smoke')] = 0; }
+  for (const p of [mate, farMate, enemy]) { p.reserve[rifle] = 1; p.grenades[gslot('frag')] = 0; p.grenades[gslot('pulse')] = 0; }
   support.reserve[slot('lmg')] = 0;
   support.grenades[gslot('molotov')] = 0;
   // Nothing before the first 4 s pulse.
@@ -452,7 +456,7 @@ class FakeVehicleSystem {
   for (let t = 0; t < 4000 * 5; t += 100) f.step(100);
   assert.equal(mate.reserve[rifle], Math.min(WEAPONS.rifle.spareMags, 2 + 5), 'reserve capped at the kit maximum');
   assert.equal(mate.grenades[gslot('frag')], 2, 'frag capped at the kit count');
-  assert.equal(mate.grenades[gslot('smoke')], 1, 'smoke capped at the kit count');
+  assert.equal(mate.grenades[gslot('pulse')], 1, 'pulse capped at the kit count (Assault: frag 2 + pulse 1)');
   const awards = f.policy.awards.filter(a => a[0] === 's1' && a[1] === 'resupply').length;
   assert.equal(awards, 2, `award at most once per 15 s per mate (${awards})`);
   // A second supporter does not double the rate for the same mate.
@@ -503,7 +507,7 @@ class FakeVehicleSystem {
     },
   });
   const refunds = [], awards = [];
-  roles.applyLoadout(medic, 'assault', 0);
+  roles.applyLoadout(medic, 'medic', 0);
   roles.applyLoadout(mate, 'support', 0);
   Object.assign(medic, { x: 40.5, y: 2, z: 40.5 });
   Object.assign(mate, { x: 41.5, y: 2, z: 40.5 });
@@ -597,7 +601,7 @@ class FakeVehicleSystem {
     const medic = [game.entities.get('m'), game.entities.get('x')].find(p => game.mode.teamFor(p) === team)
       ?? (game.mode.setLobbyTeam(game.entities.get('m'), team), game.entities.get('m'));
     roles.applyLoadout(bot, 'support', 1);
-    roles.applyLoadout(medic, 'assault', 0);
+    roles.applyLoadout(medic, 'medic', 0);
     Object.assign(bot, { x: 40.5, y: 2, z: 40.5 });
     Object.assign(medic, { x: 41.5, y: 2, z: 40.5 });
     game.step();

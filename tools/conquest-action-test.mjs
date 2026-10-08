@@ -266,7 +266,7 @@ const report = {
   seatedBy, goalKinds, environmentDeaths,
   footFightFraction: +(fightSamples / Math.max(1, footSamples)).toFixed(3),
   footMedianEnemyM: +median(footEnemyDistances).toFixed(1),
-  events: Object.fromEntries(['spot', 'revive', 'vehicle_repaired', 'vehicle_disabled', 'countermeasure', 'deploy_refused', 'score']
+  events: Object.fromEntries(['spot', 'revive', 'heal', 'vehicle_repaired', 'vehicle_disabled', 'countermeasure', 'deploy_refused', 'score']
     .map(kind => [kind, events.filter(e => e.kind === kind).length])),
 };
 console.log(JSON.stringify(report, null, 2));

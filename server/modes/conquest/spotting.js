@@ -4,7 +4,7 @@
 // fires an unsuppressed weapon, a per-player cooldown and the spot-assist
 // award when a teammate of the spotter kills a marked enemy.
 
-import { CONQUEST_RULES } from '../../../shared/conquest-contract.js';
+import { CONQUEST_RULES, KITS } from '../../../shared/conquest-contract.js';
 import { KIT_ROLE_RULES, isUnsuppressedWeapon } from '../../../shared/conquest-kits.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { vehicleHullParts } from '../../../shared/vehicle-collision.js';
@@ -222,6 +222,8 @@ export class ConquestSpotting {
   markPlayer(target, { by = null, team = null, until }) {
     const id = idOf(target);
     if (!id || !Number.isFinite(until)) return false;
+    // Raider GHOST: any mark on an on-foot Raider lasts at most ghostSpotMs.
+    if (this._ghost(target)) until = Math.min(until, this.now + KIT_ROLE_RULES.ghostSpotMs);
     const prior = this.players.get(id);
     if (prior && prior.until > this.now && prior.until >= until && (prior.by || !by)) return false;
     this.players.set(id, { until: Math.max(until, prior?.until ?? 0), by: by ?? prior?.by ?? null, team: team ?? prior?.team ?? null });
@@ -258,6 +260,8 @@ export class ConquestSpotting {
   autoSpotShooter(shooter, { weapon = null, vehicleId = null } = {}) {
     if (!shooter || shooter.state !== 'alive') return false;
     if (!vehicleId && !isUnsuppressedWeapon(weapon ?? shooter.weapon)) return false;
+    // Raider GHOST: firing on foot never reveals the shooter (a hull still gives it away).
+    if (!vehicleId && !shooter.vehicleId && this._ghost(shooter)) return false;
     const team = this.teamOf(shooter);
     const seeing = this._enemyTeamOf(team);
     const until = this.now + this.rules.autoSpotOnFireMs;
@@ -268,6 +272,13 @@ export class ConquestSpotting {
       return false;
     }
     return this.markPlayer(shooter, { team: seeing, until });
+  }
+
+  /** True for an on-foot player whose kit has the GHOST ability (the Raider). */
+  _ghost(entity) {
+    const p = entity && typeof entity === 'object' ? entity : null;
+    if (p?.vehicleId) return false;
+    return KITS[this.kitOf(entity)]?.ability === 'ghost';
   }
 
   _enemyTeamOf(team) {

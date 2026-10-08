@@ -59,7 +59,8 @@ try {
   }
   for (const module of ['js/fx/particle-field.js', 'js/fx/presets.js', 'js/vehicles/vehicle-fx.js', 'js/engine/camera-shake.js',
     'js/session/vehicle-camera.js', 'js/engine/conquest-ambience.js', 'js/engine/voxel-light-worker.js', 'js/audio/objective-cues.js',
-    'js/vehicles/voxel-model/mesher.js', 'js/capture/vehicle-capture.js', 'js/capture/conquest-hud-capture.js']) {
+    'js/vehicles/voxel-model/mesher.js', 'js/capture/vehicle-capture.js', 'js/capture/conquest-hud-capture.js',
+    'js/audio/conquest-bank.js', 'js/audio/conquest-soundscape.js']) {
     const response = await get(`/${module}`);
     assert.equal(response.status, 200, `${module} is served`);
     assert.equal(response.headers.get('content-type'), 'text/javascript; charset=utf-8', `${module} is a module`);
@@ -67,7 +68,7 @@ try {
   {
     const runtime = readFileSync(new URL('../public/js/boot/match-runtime.js', import.meta.url), 'utf8');
     for (const name of ['VehicleFx', 'ParticleField', 'particleCapacityForTier', 'CameraShake', 'ConquestAmbience',
-      'createObjectiveCues', 'VEHICLE_WARMUP_MATERIALS', 'WORLD_WARMUP_MATERIALS']) {
+      'createObjectiveCues', 'ConquestSoundscape', 'CONQUEST_SAMPLE_MANIFEST', 'VEHICLE_WARMUP_MATERIALS', 'WORLD_WARMUP_MATERIALS']) {
       assert.match(runtime, new RegExp(`\\b${name}\\b`), `match runtime exports ${name}`);
     }
   }
@@ -110,6 +111,15 @@ try {
     const audio = await get(path, { 'accept-encoding': 'gzip, br' });
     assert.equal(audio.status, 200, `${cue} is served`);
     assert.equal(audio.headers.get('content-type'), 'audio/wav');
+    assert.equal(audio.headers.get('content-encoding'), null);
+    assert.deepEqual(Buffer.from(await audio.arrayBuffer()), readFileSync(new URL(`../public${path}`, import.meta.url)));
+  }
+
+  // The lazily loaded Conquest Opus banks pass through untouched as audio/ogg.
+  for (const path of ['/assets/audio/conquest/vehicles/tank-engine-idle.ogg', '/assets/audio/conquest/atmosphere/battle-bed-low.ogg']) {
+    const audio = await get(path, { 'accept-encoding': 'gzip, br' });
+    assert.equal(audio.status, 200, `${path} is served`);
+    assert.equal(audio.headers.get('content-type'), 'audio/ogg');
     assert.equal(audio.headers.get('content-encoding'), null);
     assert.deepEqual(Buffer.from(await audio.arrayBuffer()), readFileSync(new URL(`../public${path}`, import.meta.url)));
   }

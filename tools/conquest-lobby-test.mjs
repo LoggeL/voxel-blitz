@@ -6,7 +6,7 @@ import { startServer, stopServer } from './lib/server-process.mjs';
 import { Client } from './lib/ws-client.mjs';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
 import { deserializeBlocks } from '../shared/world/serialize.js';
-import { decodeConquestPlayer, decodeConquestStats, FLAG_STATES, KIT_IDS } from '../shared/conquest-contract.js';
+import { CONQUEST_CONTRACT_VERSION, decodeConquestPlayer, decodeConquestStats, FLAG_STATES, KIT_IDS } from '../shared/conquest-contract.js';
 import { decodeConquestMatch } from '../shared/conquest.js';
 import {
   CONQUEST_CQ_LENGTH, CONQUEST_CQ_MAX_LENGTH, CONQUEST_CQS_LENGTH, CONQUEST_FLAG_TUPLE_LENGTH, CONQUEST_MATCH_BUDGET_BYTES, CONQUEST_MATCH_KEYS,
@@ -19,7 +19,7 @@ try {
   const port = await server.port;
   const host = new Client(port, 'Conquest host', { handshakeTimeout: 30000, frameTimeout: 30000 });
   clients.push(host);
-  await host.connect({ t: 'create', name: 'Conquest host', bots: 0, gameMode: 'tdm', map: 'foundry' });
+  await host.connect({ t: 'create', name: 'Conquest host', bots: 0, gameMode: 'tdm', map: 'foundry', contract: CONQUEST_CONTRACT_VERSION });
   await host.waitForHandshake();
   const mark = host.sequence;
   host.send({ t: 'configure', gameMode: 'conquest', map: 'frontier', bots: 15 });

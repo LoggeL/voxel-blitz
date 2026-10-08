@@ -115,7 +115,8 @@ export class MolotovFireSystem {
     if (damageEnabled) for (const victim of (ctx.targets || ctx.entities).values()) {
       // A fire kill can end the round while this loop is still running.
       if (ctx.canAffectWorld?.() === false) { this.clear(); return; }
-      if (occupantShielded(victim) || victim.state !== 'alive' || victim.spawnProtectedUntil > ctx.now) {
+      // A fire-immune body (Conquest Pyro) stands in the field untouched.
+      if (victim.fireImmune === true || occupantShielded(victim) || victim.state !== 'alive' || victim.spawnProtectedUntil > ctx.now) {
         this.pending.delete(victim.id);
         continue;
       }

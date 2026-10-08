@@ -6,12 +6,14 @@ import { getMapMeta } from '../../../shared/worlddata.js';
 /** Join timeline marks (see tools/conquest-join-profile.mjs). */
 const joinMark = (stage) => { try { performance.mark(`vb:join:${stage}`); } catch { /* no User Timing */ } };
 
-/** Close codes that end a rejoin for good (bad join, refused, lobby gone, lobby full). */
+/** Close codes that end a rejoin for good (bad join, refused, lobby gone, lobby full, stale page). */
 const REJOIN_REFUSED = Object.freeze({
   4002: () => 'Could not reconnect: the server refused the request.',
   4003: () => 'Could not reconnect: the lobby refused this player.',
   4004: (code) => `Lobby ${code} has closed. Start or join a new match.`,
   4005: (code) => `Could not reconnect: lobby ${code} is full.`,
+  // The lobby switched to Conquest while this tab was away and its code is too old for it.
+  4010: (code) => `Voxel Blitz was updated. Reload the page to rejoin lobby ${code}.`,
 });
 
 /**

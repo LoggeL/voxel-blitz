@@ -75,8 +75,8 @@ function roster(self, more = []) {
 
 /** A state: everything ConquestHud.update needs plus events to replay and capture hints. */
 function state(id, title, { selfTeam = 'alpha', self, players, vehicles = [], match, camera, events = [], dead = false, killer = null,
-  bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null } = {}) {
-  return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch };
+  bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null, career = null } = {}) {
+  return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch, career };
 }
 
 /** Every HUD state the acceptance list names, in capture order. */
@@ -150,12 +150,13 @@ export function conquestHudFixtures() {
     out.push(state('out-of-bounds', 'Out of bounds · 7 s', { self, players: roster(self), match: baseMatch(),
       camera: cam(30, GROUND + 1.6, 300, -Math.PI / 2) }));
   }
-  // 8. Downed teammate within 2 m and a revive in progress (cq[6] = 60).
+  // 8. A Medic revives a downed teammate within 2 m (cq[6] = 60); a wounded mate shows the heal cross.
   {
-    const self = meAt(C.x - 40, C.z + 30, { cq: { squad: 1, kitId: 'assault', action: 60 } });
+    const self = meAt(C.x - 40, C.z + 30, { cq: { squad: 1, kitId: 'medic', action: 60 } });
     const downed = player('dn1', 'Mercer', 'alpha', C.x - 41.2, C.z + 30.8, { hp: 0, state: 'dead', cq: { squad: 1, down: 1 } });
     const downedFar = player('dn2', 'Lindqvist', 'alpha', C.x - 52, C.z + 12, { hp: 0, state: 'dead', cq: { squad: 2, down: 1 } });
-    out.push(state('revive', 'Reviving a downed squadmate · 60 %', { self, players: roster(self, [downed, downedFar]), match: baseMatch(),
+    const wounded = player('wd1', 'Okafor', 'alpha', C.x - 50, C.z + 22, { hp: 38, cq: { squad: 2, kitId: 'support' } });
+    out.push(state('revive', 'Medic reviving a downed squadmate · 60 %', { self, players: roster(self, [downed, downedFar, wounded]), match: baseMatch(),
       camera: cam(C.x - 40, GROUND + 1.6, C.z + 30, yawTo({ x: C.x - 40, z: C.z + 30 }, { x: C.x - 52, z: C.z + 12 }) + 0.25, -0.18),
       interactHeld: 900 }));
   }
@@ -282,6 +283,42 @@ export function conquestHudFixtures() {
       match: deployMatch(), dead: true, killer: { name: 'Sato', weaponName: 'VK-77 RAPTOR', distance: 38, headshot: true },
       selection: { spawn: 'vehicle:alpha-tank:commander', kit: 'assault', variant: 0 },
       events: [{ kind: 'deploy_refused', id: 'me', reason: 'contested' }], camera: cam(C.x, 40, C.z, 0, -0.5) }));
+  }
+  // 18a. Classes: career LV 3 (the Pyro just unlocked), 1,240 XP toward the Grenadier, the Medic picked.
+  {
+    const self = meAt(C.x, C.z, { hp: 0, state: 'dead', respawnAt: FIXTURE_NOW + 2400, cq: { squad: 1, kitId: 'medic' } });
+    out.push(state('deploy-classes', 'Deploy · nine classes, LV 3, three locked with XP progress', { self, players: deployRoster(self), vehicles: [tankRow, heliRow],
+      match: deployMatch(), dead: true, killer: { name: 'Rourke', weaponName: 'ROCKET POD', distance: 96 },
+      selection: { spawn: 'hq', kit: 'medic', variant: 0 }, career: { xp: 1240, level: 3, levelStart: 400, nextLevel: 900 },
+      events: [{ kind: 'kit_unlocks', id: 'me', level: 3, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'], newly: ['pyro'] }],
+      camera: cam(C.x, 40, C.z, 0, -0.5) }));
+  }
+  // 18c. A level-1 player asked for a locked class: the server refused it (CLASS LOCKED · LV 5).
+  {
+    const self = meAt(C.x, C.z, { hp: 0, state: 'dead', respawnAt: FIXTURE_NOW + 1800, cq: { squad: 1, kitId: 'assault' } });
+    out.push(state('deploy-locked', 'Deploy · locked class refused, base kits only', { self, players: deployRoster(self), vehicles: [tankRow, heliRow],
+      match: deployMatch(), dead: true, killer: { name: 'Sato', weaponName: 'VK-77 RAPTOR', distance: 38 },
+      selection: { spawn: 'hq', kit: 'grenadier', variant: 0 }, career: { xp: 260, level: 2, levelStart: 100, nextLevel: 400 },
+      events: [{ kind: 'kit_unlocks', id: 'me', level: 2, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon'], newly: [] },
+        { kind: 'deploy_refused', id: 'me', reason: 'locked', kit: 'grenadier', level: 5 }],
+      camera: cam(C.x, 40, C.z, 0, -0.5) }));
+  }
+  // 18d. Downed and waiting: the nearest friendly Medic and its distance.
+  {
+    const self = meAt(C.x, C.z, { hp: 0, state: 'dead', respawnAt: FIXTURE_NOW + 4200, cq: { squad: 1, kitId: 'recon', down: 1 } });
+    const medic = player('md1', 'Haldane', 'alpha', C.x + 14, C.z - 18, { cq: { squad: 1, kitId: 'medic' } });
+    out.push(state('deploy-down-medic', 'Deploy · awaiting revive, nearest Medic', { self, players: roster(self, [medic]), vehicles: [tankRow, heliRow],
+      match: deployMatch(), dead: true, killer: { name: 'Sato', weaponName: 'VK-77 RAPTOR', distance: 38 },
+      selection: { spawn: 'hq', kit: 'recon', variant: 0 }, camera: cam(C.x, 40, C.z, 0, -0.5) }));
+  }
+  // 18e. A Medic in the field: heal aura on the minimap, '+HP' and HEAL / REVIVE awards.
+  {
+    const self = meAt(C.x - 40, C.z + 30, { hp: 72, cq: { squad: 1, kitId: 'medic' } });
+    const wounded = player('wd1', 'Okafor', 'alpha', C.x - 46, C.z + 24, { hp: 41, cq: { squad: 2, kitId: 'assault' } });
+    const downed = player('dn1', 'Mercer', 'alpha', C.x - 60, C.z + 4, { hp: 0, state: 'dead', cq: { squad: 1, down: 1 } });
+    out.push(state('medic-heal', 'Medic · heal aura, wounded and downed markers, heal awards', { self, players: roster(self, [wounded, downed]), match: baseMatch(),
+      events: [{ kind: 'heal', id: 'me', by: 'me', hp: 2.5 }, { kind: 'score', id: 'me', pts: 10, reason: 'heal' }, { kind: 'score', id: 'me', pts: 100, reason: 'revive' }],
+      camera: cam(C.x - 40, GROUND + 1.6, C.z + 30, yawTo({ x: C.x - 40, z: C.z + 30 }, { x: C.x - 60, z: C.z + 4 }) + 0.1, -0.12) }));
   }
   // 18b. Deploy screen with the Engineer's AA gadget (AX-9 STINGER) picked.
   {

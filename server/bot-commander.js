@@ -11,7 +11,7 @@
 //    surge into the capture zone.
 // Squads split roughly 60/40 between attack and defence, biased by the ticket
 // delta; a home flag being lost pulls every squad back. Kits are mixed per
-// squad (assault, engineer, support, recon or assault), vehicles get a crew
+// squad (BOT_SQUAD_SLOTS: assault, medic, engineer, flex), vehicles get a crew
 // budget of ceil(teamBots / 3) in priority order (tank > attack helicopter >
 // plane), and squads ride jeeps or the transport toward their staging point.
 // A hull a human drives or pilots takes nearby bots aboard (planHitches):
@@ -22,7 +22,8 @@
 // deployFor(player). Everything it reads is authoritative mode, entity and
 // vehicle state plus what the team's own bots have seen or heard.
 
-import { CONQUEST_TEAMS, KIT_IDS, VEHICLE_TOPOLOGY } from '../shared/conquest-contract.js';
+import { CONQUEST_TEAMS, KIT_IDS, KITS, VEHICLE_TOPOLOGY } from '../shared/conquest-contract.js';
+import { KIT_ROLE_RULES, botSquadKit } from '../shared/conquest-kits.js';
 import { VEHICLE_RULES, vehicleMaxHp } from '../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
 import { CoverIndex, bearing } from './bot-cover.js';
@@ -34,6 +35,8 @@ export const STAGE_ANGLE = 50 * Math.PI / 180;
 export const DEFEND_ALERT_RADIUS = 60;
 export const ATTACK_SHARE = 0.6;
 export const REVIVE_RANGE = 25, REPAIR_RANGE = 30, REPAIR_BELOW = 0.7;
+/** A revive walk ends this close (flat m) to the body; the intent goes out inside reviveRange less the slack (3D). */
+const REVIVE_ARRIVE = 0.8, REVIVE_REACH_SLACK = 0.15;
 /**
  * A revive or repair walk that gets no closer (by 1 m) for SUPPORT_STALL_MS
  * while still out of reach is given up, and that target is left to others
@@ -48,6 +51,7 @@ const STALEMATE_FLANK_MS = 20000; // a contested frontline flag this long sends 
 const ATTACK_STALL_MS = 40000;    // an attack with no ownership progress this long also counts as stalled
 const SQUAD_SPAWN_PENALTY = 45;   // m a squad spawn must beat the best flag spawn by
 const CREW_WALK_MAX = 200;        // m a living bot walks to man a hull (HQ spawns to runway)
+const MEDIC_CREW_PENALTY = 1000;   // crew score added for a Medic (picked last for a seat)
 const RIDE_COOLDOWN_MS = 60000;
 const TRANSIT_BOARD_MS = 25000;  // a ride whose driver has not boarded by then is called off
 const STAGE_GATHER_RADIUS = 20;
@@ -82,7 +86,17 @@ const WAIT_REACH = 8;                   // m: a human this close counts as board
 const WAIT_STALL_MS = 1500;             // a human not closing in (outside reach) this long is given up on
 const WAIT_AWAY = -1;                   // m/s: walking away this fast ends the wait at once
 const WAIT_FACING = 0.6;                // rad: look direction that counts as heading for the hull
-const KIT_MIX = Object.freeze(['assault', 'engineer', 'support', 'recon']);
+/** A Medic bot with nothing to revive keeps this close behind its squad leader (heal aura reach 6 m). */
+const MEDIC_FOLLOW_DIST = 4;
+/**
+ * A Medic bot with no body to revive walks to a teammate under this HP share within this
+ * range (m) ... (most hurt bots survive a fight with 60-90 % HP, which 0.75 skipped).
+ */
+export const HEAL_SEEK_BELOW = 0.9, HEAL_SEEK_RANGE = 45;
+/** m: the seek range of a Medic standing in a flag being taken or fought over (hurtMate). */
+export const HEAL_ZONE_RANGE = 12;
+/** ... and stops this close (flat m), well inside the heal aura (KIT_ROLE_RULES.healRadius). */
+const HEAL_ARRIVE = 3;
 /**
  * Engineer gadget mix: the share of a team's engineers that deploy with the
  * STINGER (gadget 1) by the number of enemy aircraft in play (crewed or
@@ -330,18 +344,23 @@ export class BotCommander {
     this.goalAt = -1;
   }
 
-  planTeam(ts, view, now) {
-    const team = ts.team, enemy = opposite(team);
-    ts.knowledge = this.gatherKnowledge(team, now);
-    const groups = this.squadsOf(team, view);
+  /** Squad table of a team from the mode's roster; standing orders carry over by squad id. */
+  syncSquads(ts, view) {
     const live = new Map();
-    for (const group of groups) {
+    for (const group of this.squadsOf(ts.team, view)) {
       const prior = ts.squads.get(group.id);
       live.set(group.id, { ...group, order: prior?.order ?? null });
     }
     ts.squads = live;
     ts.memberSquad = new Map();
     for (const squad of live.values()) for (const id of squad.members) ts.memberSquad.set(id, squad);
+    return live;
+  }
+
+  planTeam(ts, view, now) {
+    const team = ts.team, enemy = opposite(team);
+    ts.knowledge = this.gatherKnowledge(team, now);
+    const live = this.syncSquads(ts, view);
     const tiers = frontlineTiers(view.flags, view.bases, team);
     ts.tiers = tiers;
     const owned = f => f.owner === team;
@@ -604,6 +623,8 @@ export class BotCommander {
         let score;
         if (p.state !== 'alive') score = view.deployOptions ? 5 : 400 + flat(view.bases?.[team] ?? p, slot.v);
         else { const d = flat(p, slot.v); if (d > CREW_WALK_MAX) continue; score = d + (p.vehicleId === slot.v.id ? -50 : 0); }
+        // Medics are the squads' revivers: they man a hull only when nobody else can.
+        if (KITS[p.state === 'alive' ? this.kitOf(p) : this.kitFor(p)]?.ability === 'revive') score += MEDIC_CREW_PENALTY;
         if (score < bestScore) { bestScore = score; best = id; }
       }
       if (best) crews.set(best, { vehicleId: slot.v.id, seatId: slot.seat, prio: slot.prio, since: now, slot });
@@ -918,7 +939,8 @@ export class BotCommander {
       if (ts.threatened?.includes(flag) && (inside || (order?.stance === 'defend' && order.flagId === flag.id && d <= DEFEND_ALERT_RADIUS))) return true;
     }
     const id = String(p.id);
-    for (const claim of this.roleClaims.values()) if (claim.id === id && claim.until > now) return true;
+    // A revive or repair walk keeps the bot; standing by a hurt mate (heal claims) does not.
+    for (const [name, claim] of this.roleClaims) if (claim.id === id && claim.until > now && !name.startsWith('heal:')) return true;
     return false;
   }
 
@@ -972,10 +994,15 @@ export class BotCommander {
     return { squadId: squad.id, slot: Math.max(0, squad.members.indexOf(String(p.id))) };
   }
 
+  /** Squad slot kit (shared BOT_SQUAD_SLOTS): assault, medic, engineer, then a flex kit. */
   kitFor(p) {
-    const { squadId, slot } = this.slotOf(p);
-    let kit = KIT_MIX[slot % KIT_MIX.length];
-    if (kit === 'recon' && squadId % 2 === 0) kit = 'assault';
+    const { squadId } = this.slotOf(p);
+    // Kit slots count bots only, so a squad a human joined still fields its Medic and Engineer bots.
+    const ts = this.teams.get(this.teamOf(p));
+    const members = ts?.memberSquad?.get(String(p.id))?.members ?? [];
+    const bots = members.filter(id => id === String(p.id) || this.game.entities.get(id)?.bot);
+    const slot = Math.max(0, bots.indexOf(String(p.id)));
+    const kit = botSquadKit(slot, { team: this.teamOf(p) ?? '', squadId, seed: this.game?.mode?.policy?.kitSeed ?? 0 });
     return KIT_IDS.includes(kit) ? kit : 'assault';
   }
 
@@ -1015,14 +1042,12 @@ export class BotCommander {
   }
 
   /**
-   * Primary variant: the generalist for the ranges Frontier is fought at
-   * (rifle, SMG, LMG). Short-range or specialist alternatives (shotgun, MGL,
-   * minigun) would leave a bot unable to answer 40-80 m contacts. Recon
-   * splits between the bolt sniper and the LONGARC by a stable hash.
+   * Primary variant by a stable hash of id and kit, so every primary shows up
+   * on bots. Pyro bots always carry the flamethrower (variant 0).
    */
   variantFor(p) {
     const kit = this.kitFor(p);
-    if (kit !== 'recon') return 0;
+    if (kit === 'pyro') return 0;
     return stableHash(`${p.id}:${kit}`) % 2;
   }
 
@@ -1033,6 +1058,10 @@ export class BotCommander {
     const p = this.game.entities.get(String(player?.id ?? player)) ?? player;
     const view = this.readView();
     if (!this.teams.get(this.teamOf(p))?.memberSquad) this.plan(this.game.now);
+    // A bot added since the last plan (every bot at match start) has no squad slot yet: refresh
+    // the squad table only (no orders or crews), so its opening life carries its slot kit.
+    const own = this.teams.get(this.teamOf(p));
+    if (own?.memberSquad && !own.memberSquad.has(String(p.id))) this.syncSquads(own, view);
     const kit = this.kitFor(p), variant = this.variantFor(p), gadget = this.gadgetFor(p);
     // A downed bot a medic is already running to waits for the revive.
     const body = downBody(this.game, p);
@@ -1162,6 +1191,18 @@ export class BotCommander {
     const angle = stableHash(`${p.id}`) % 360 * Math.PI / 180;
     const r = flag.radius * (0.2 + 0.25 * ((slot % 3) / 2));
     let point = this.walkablePoint({ x: flag.x + Math.cos(angle) * r, y: flag.y, z: flag.z + Math.sin(angle) * r }) ?? target;
+    if (KITS[kit]?.aura === 'heal' && squad && !surge) {
+      // Medic: no body to revive, so it stays on the squad leader to keep the heal aura on
+      // someone, as long as that spot is still inside the zone it was sent to (pushers and
+      // a defend surge go into the circle like everyone).
+      const leader = squad.members[0] !== String(p.id) ? this.game.entities.get(squad.members[0]) : null;
+      if (leader?.state === 'alive' && !leader.vehicleId && finitePoint(leader) && flat(leader, p) < 120) {
+        const back = Number.isFinite(leader.yaw) ? leader.yaw : bearing(flag, leader);
+        const follow = this.walkablePoint({ x: leader.x + Math.sin(back) * MEDIC_FOLLOW_DIST, y: leader.y,
+          z: leader.z + Math.cos(back) * MEDIC_FOLLOW_DIST });
+        if (follow && flat(follow, flag) <= flag.radius * 0.85) point = follow;
+      }
+    }
     if (kit === 'support' && stance === 'attack') {
       // Support trails the squad by a few metres, keeping the resupply aura on it.
       const centroid = squad ? this.squadCentroid(squad) : null;
@@ -1197,11 +1238,11 @@ export class BotCommander {
     return { x: flag.x - Math.sin(yaw) * 50, z: flag.z - Math.cos(yaw) * 50 };
   }
 
-  /** Assault revives a downed teammate in reach; an engineer repairs a damaged friendly hull. */
+  /** A Medic (revive ability) revives a downed teammate in reach; an engineer repairs a damaged friendly hull. */
   roleGoal(p, kit, ts, now) {
     if (!this.game.mode.conquestIntent) return null;
     const id = key(p);
-    if (kit === 'assault') {
+    if (KITS[kit]?.ability === 'revive') {
       let best = null;
       for (const body of conquestRoles(this.game)?.downedBodies?.(ts.team) ?? []) {
         if (String(body.id) === id || !(body.until > now + 600)) continue;
@@ -1212,11 +1253,24 @@ export class BotCommander {
         if (!this.supportReachable(p, body, `revive:${body.id}`, now)) continue;
         if (!best || d < best.d) best = { body, d };
       }
-      if (best && !this.supportStalled(id, `revive:${best.body.id}`, best.d, 1.8, now)) {
+      // Reach is the server's 3D feet distance (KIT_ROLE_RULES.reviveRange): the walk ends on
+      // top of the body, and a body the bot cannot get that close to stalls out like a far one.
+      const reach3 = KIT_ROLE_RULES.reviveRange - REVIVE_REACH_SLACK;
+      const d3 = best && Math.hypot(best.d, best.body.y - p.y);
+      if (best && !this.supportStalled(id, `revive:${best.body.id}`, d3, reach3, now)) {
         this.claimRole(`revive:${best.body.id}`, id, now);
         const body = { x: best.body.x, y: best.body.y, z: best.body.z };
-        return { kind: 'revive', target: body, interact: false, role: 'support', point: body, arrive: 1.3,
-          support: { type: 'support', support: 'revive', targetId: String(best.body.id) }, reach: 1.8 };
+        return { kind: 'revive', target: body, interact: false, role: 'support', point: body, arrive: REVIVE_ARRIVE,
+          support: { type: 'support', support: 'revive', targetId: String(best.body.id) }, reach: 1.8, reach3 };
+      }
+    }
+    if (KITS[kit]?.aura === 'heal') {
+      const mate = this.hurtMate(p, ts, now);
+      if (mate) {
+        // Stand next to the hurt mate so the heal aura (healRadius) covers it between fights.
+        this.claimRole(`heal:${mate.id}`, id, now);
+        const point = { x: mate.x, y: mate.y, z: mate.z };
+        return { kind: 'heal', target: point, interact: false, role: 'support', point, arrive: HEAL_ARRIVE, healId: String(mate.id) };
       }
     }
     if (kit === 'engineer') {
@@ -1248,6 +1302,32 @@ export class BotCommander {
       }
     }
     return null;
+  }
+
+  /**
+   * Medic heal target: the most hurt living, on-foot teammate (bot or human)
+   * under HEAL_SEEK_BELOW of its maximum HP within HEAL_SEEK_RANGE that no
+   * other Medic is already walking to, or null. A Medic standing in a flag that is
+   * not its team's or is being fought over only looks HEAL_ZONE_RANGE around it,
+   * so healing never pulls it off a capture.
+   */
+  hurtMate(p, ts, now) {
+    const id = key(p);
+    const inFight = (this.view?.flags ?? []).some(f => (f.owner !== ts.team || f.state !== 'idle')
+      && flat(f, p) <= f.radius && Math.abs(f.y - p.y) <= 8);
+    const range = inFight ? HEAL_ZONE_RANGE : HEAL_SEEK_RANGE;
+    let best = null;
+    for (const mate of this.game.entities.values()) {
+      if (mate === p || String(mate.id) === id || mate.state !== 'alive' || mate.vehicleId || this.teamOf(mate) !== ts.team) continue;
+      const max = Number.isFinite(mate.maxHp) && mate.maxHp > 0 ? mate.maxHp : 100;
+      const share = Number.isFinite(mate.hp) ? mate.hp / max : 1;
+      if (!(share < HEAL_SEEK_BELOW) || !finitePoint(mate) || Math.abs(mate.y - p.y) > 6) continue;
+      const d = flat(mate, p);
+      if (d > range || this.claimedByOther(`heal:${mate.id}`, id, now)) continue;
+      const score = d + share * 30;
+      if (!best || score < best.score) best = { mate, score };
+    }
+    return best?.mate ?? null;
   }
 
   /** Whether bot `id` gave up on support target `name` recently (supportStalled). */

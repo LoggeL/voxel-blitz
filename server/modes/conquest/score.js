@@ -22,7 +22,9 @@ const idOf = value => (value && typeof value === 'object' ? (value.id == null ? 
 export class ScoreLedger {
   /**
    * `host` supplies: now(), emit(kind, fields), entity(id), teamFor(p),
-   * isEnemy(a, b), vehicleFor(id), flags() (rich capture rows) and rules.
+   * isEnemy(a, b), vehicleFor(id), flags() (rich capture rows) and rules;
+   * optionally damageTakenScale(entity, weapon) and onInfantryHit(victim,
+   * attacker, weapon, amount) (the roles package's kit passives).
    */
   constructor(host) {
     this.host = host;
@@ -40,8 +42,12 @@ export class ScoreLedger {
     if (!entity || entity.conquestDamageHook) return;
     const prior = typeof entity.beforeDamage === 'function' ? entity.beforeDamage : null;
     const hook = (dmg, attacker, weapon) => {
-      const amount = prior ? (prior(dmg, attacker, weapon) ?? dmg) : dmg;
+      let amount = prior ? (prior(dmg, attacker, weapon) ?? dmg) : dmg;
+      // Kit damage scaling (Pyro FIREPROOF) before the hit is recorded, so assists see the real damage.
+      const scale = this.host.damageTakenScale?.(entity, weapon);
+      if (Number.isFinite(scale) && scale !== 1) amount *= Math.max(0, scale);
       this.recordDamage(entity, attacker, amount);
+      if (amount > 0) this.host.onInfantryHit?.(entity, attacker, weapon, amount);
       return amount;
     };
     entity.beforeDamage = hook;

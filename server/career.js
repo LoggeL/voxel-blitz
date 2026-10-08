@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import path from 'node:path';
-import { CAREER_CATALOG, CAREER_REWARDS, careerView, equipCareerItem, reconcileCareerUnlocks, cosmeticLoadout, normalizeCosmeticLoadout } from '../shared/career.js';
+import { CAREER_CATALOG, CAREER_REWARDS, careerLevel, careerView, equipCareerItem, reconcileCareerUnlocks, cosmeticLoadout, normalizeCosmeticLoadout } from '../shared/career.js';
 import { CareerClaims, DatabaseCareerClaims, GUEST_TOKEN, careerProfilePath, guestCookie } from './career-identity.js';
 import { emptyProfile, validateProfile, normalizeCareerProgress, applyCareerProgress } from './persistence/career-profile.js';
 
@@ -116,6 +116,23 @@ export class CareerService {
     else this.loadouts.delete(id);
   }
 
+  /**
+   * Push a level gained in play to the live entity (Conquest re-checks kit
+   * unlocks and announces new ones). Levels never decrease.
+   */
+  syncLevel(client, profile) {
+    if (!client || !profile) return;
+    const level = careerLevel(profile.xp);
+    if (!(level > (client.careerLevel || 1))) return;
+    client.careerLevel = level;
+    try {
+      const engine = client.room?.engine;
+      const entity = engine?.entities?.get?.(client.id);
+      if (entity && typeof engine.mode?.policy?.setCareerLevel === 'function') engine.mode.policy.setCareerLevel(entity, level, { announce: false });
+      else if (entity) entity.careerLevel = level;
+    } catch { /* a mode error must never break reward bookkeeping */ }
+  }
+
   /** A revoked login or claimed guest token stops earning on a live socket. */
   refreshClientIdentity(client) {
     if (client.authRequest) {
@@ -208,7 +225,7 @@ export class CareerService {
     if (!self) return;
     let state = this.sessions.get(client);
     if (!state || state.engine !== client.room.engine) {
-      state = { engine: client.room.engine, now: -1, active: 0, participated: 0, post: false };
+      state = { engine: client.room.engine, now: -1, active: 0, participated: 0, post: false, objectiveAt: -Infinity, objectiveXp: 0 };
       this.sessions.set(client, state);
     }
     if (snapshot.now <= state.now) return;
@@ -239,6 +256,16 @@ export class CareerService {
       }
       if (['bomb_plant', 'bomb_defuse'].includes(event.kind) && event.id === client.id)
         addReward(CAREER_REWARDS.objective);
+      // Conquest teamplay earns career XP so Medics and Engineers level like fraggers.
+      if (match.mode === 'conquest' && event.kind === 'score' && event.id === client.id) {
+        const objective = CAREER_REWARDS.conquestObjective;
+        if (objective.major.includes(event.reason)) addReward({ xp: objective.majorXp });
+        else if (objective.minor.includes(event.reason)) {
+          if (snapshot.now - state.objectiveAt >= 60000) { state.objectiveAt = snapshot.now; state.objectiveXp = 0; }
+          const xp = Math.min(objective.minorXp, objective.minorCapPerMinute - state.objectiveXp);
+          if (xp > 0) { state.objectiveXp += xp; addReward({ xp }); }
+        }
+      }
     }
     const player = client.room.engine.entities.get(client.id);
     const input = player?.input;
@@ -267,7 +294,12 @@ export class CareerService {
     } else if (match.phase !== 'post') state.post = false;
     // The 20 Hz observation path is synchronous and makes no database calls
     // until an authoritative event actually earns a nonzero reward.
-    if (['xp', 'kills', 'matches', 'pvpKills', 'wins'].some(key => reward[key] > 0)) return this.applyProgress(client.profileId, reward);
+    if (['xp', 'kills', 'matches', 'pvpKills', 'wins'].some(key => reward[key] > 0)) {
+      const saved = this.applyProgress(client.profileId, reward);
+      if (saved && typeof saved.then === 'function') saved.then(profile => this.syncLevel(client, profile), () => {});
+      else this.syncLevel(client, saved);
+      return saved;
+    }
   }
 
   /** Equip only. Unlocks are granted by progression, never bought. */

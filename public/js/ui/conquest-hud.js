@@ -8,9 +8,11 @@
 import { bindingLabel, isTypingTarget, matchesBinding } from '../keybindings.js';
 import {
   bannerForEvent, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
-  killerCard, lockerModel, mapItems, matchEndBanner, nextFreeSeatIndex, readConquest, restrictedModel, reticleModel, scoreEntry,
-  seatedVehicle, spreadEdgeMarkers, squadListModel, ticketModel, unitMarkerModels, vehicleHitMark, vehiclePanelModel,
+  killerCard, kitUnlockBanner, kitUnlockState, lockerModel, mapItems, matchEndBanner, nextFreeSeatIndex, ownKitUnlocks, readConquest,
+  restrictedModel, reticleModel, scoreEntry, seatedVehicle, spreadEdgeMarkers, squadListModel, ticketModel, unitMarkerModels,
+  vehicleHitMark, vehiclePanelModel,
 } from './conquest-hud-state.js';
+import { KITS, decodeConquestPlayer } from '../../../shared/conquest-contract.js';
 import { CONQUEST_TOUCH_EVENT } from '../engine/touch-controls.js';
 import { el } from './hud-support.js';
 import { BigMap } from './conquest/big-map.js';
@@ -40,6 +42,8 @@ const OBSTACLE_MS = 400;
 const crosshairZone = (width, height) => ({ left: width / 2 - 70, right: width / 2 + 70, top: height / 2 - 50, bottom: height / 2 + 60 });
 /** A snapshot within this long of the last refresh() leaves drawing to the next frame. */
 const FRAME_DRIVEN_MS = 250;
+/** An Assault medkit re-arm and an own kill this close together read as ADRENALINE. */
+const ADRENALINE_KILL_WINDOW_MS = 1500;
 /** How long the M / Y hint above the minimap stays after the HUD appears (until first use). */
 export const MAP_HINT_MS = 30000;
 
@@ -47,7 +51,7 @@ export class ConquestHud {
   constructor(parent = globalThis.document?.body, {
     onInteract = () => {}, onDeploy = () => {}, onDeployOpen = () => {}, onSpot = () => {}, onSupport = () => {},
     combatHud = null, eventTarget = typeof window !== 'undefined' ? window : null, inputEnabled = () => true,
-    shellRaycast = null,
+    shellRaycast = null, careerProfile = () => null,
   } = {}) {
     // Solid-block picker for the tank shell impact marker (the camera picker stops on water; shells don't).
     this.shellRaycast = typeof shellRaycast === 'function' ? shellRaycast : null;
@@ -75,7 +79,18 @@ export class ConquestHud {
     this.spotFlash.hidden = true;
     this.bigMapHint = el('div', 'cq-map-hint', this.root);
     this.bigMap = new BigMap(this.root);
-    this.deploy = new DeployScreen(this.root, { onDeploy, onOpen: onDeployOpen });
+    this.deploy = new DeployScreen(this.root, { onDeploy, onOpen: onDeployOpen,
+      career: typeof careerProfile === 'function' ? careerProfile : () => null });
+    // Authoritative kit unlocks (the latest own `kit_unlocks` event).
+    this.kitUnlocks = kitUnlockState();
+    this.deploy.setUnlocks(this.kitUnlocks);
+    // Medic heal feedback ('+5 HP' beside the health card, from the server `heal` event).
+    // Rides the health card itself when it exists (the HUD root otherwise).
+    this.healTick = el('div', 'cq-heal-tick', globalThis.document?.getElementById?.('healthbar') ?? this.root);
+    this.healTick.hidden = true;
+    this._healUntil = 0;
+    this._healSum = 0;
+    this._medkitLeft = null;
     this.dead = false;
     this.killerInfo = null;
     this.vehicleController = null;
@@ -338,6 +353,8 @@ export class ConquestHud {
       this.minimap.root.hidden = true;
       this.squadList.update(null);
       this.deploy.update({ cq, self, players, vehicles, nowMs: now, mapItems: items, meta: cq.meta });
+      // A fresh life restocks the medkit: that is no ADRENALINE re-arm.
+      this._medkitLeft = null;
       return;
     }
     this.minimap.root.hidden = false;
@@ -362,6 +379,22 @@ export class ConquestHud {
       projector ? unitMarkerModels({ self, players, vehicles, selfTeam, projector, insets }) : [],
     );
     this.restricted.update(restrictedModel(self, cq));
+    // Assault ADRENALINE: the spent medkit came back (0 -> 1 on the authoritative row) right
+    // after an own kill. A Medic aura restock or a respawn refill is not adrenaline.
+    const medkitLeft = Number.isFinite(self?.medkit?.remaining) ? self.medkit.remaining : Array.isArray(self?.medkit) ? self.medkit[0] : null;
+    // The row and the kill event may land a frame apart in either order, so the two are paired in a window.
+    if (this._medkitLeft === 0 && medkitLeft === 1 && KITS[this._selfKit(self)]?.ability === 'adrenaline') this._rearmAt = now;
+    if (this._rearmAt != null && now - this._rearmAt > ADRENALINE_KILL_WINDOW_MS) this._rearmAt = null;
+    if (this._rearmAt != null && Math.abs(this._rearmAt - (this._ownKillAt ?? -Infinity)) <= ADRENALINE_KILL_WINDOW_MS) {
+      this._rearmAt = null;
+      this.spotFlash.textContent = 'ADRENALINE · MEDKIT RE-ARMED';
+      this.spotFlash.dataset.tone = 'heal';
+      this._spotUntil = now + 1800;
+      this.spotFlash.hidden = false;
+    }
+    this._medkitLeft = medkitLeft;
+    this.healTick.hidden = now >= this._healUntil;
+    if (this.healTick.hidden) this._healSum = 0;
     const prompt = (!seated && chutePromptModel(args.chute)) || interactModel({ self, players, vehicles, nearbyVehicle, seated });
     this.interact.update(prompt, { heldMs: this._heldMs(vehicleController ?? this.vehicleController, interactHeld, clockNow(), interactDown), nowMs: now, touch });
     this.minimap.draw({ items, center: { x: self.x, z: self.z }, yaw, size: cq.size, meta: cq.meta, nowMs: now });
@@ -394,11 +427,38 @@ export class ConquestHud {
     return rects;
   }
 
+  /** Kit id of the self row (decoded cq[0]). */
+  _selfKit(self) { return decodeConquestPlayer(self)?.kit ?? null; }
+
   handleEvent(ev, selfId) {
     if (!ev || typeof ev !== 'object') return;
     const now = this._lastNow || Date.now();
     const selfTeam = this.selfTeam;
     switch (ev.kind) {
+      case 'kit_unlocks': {
+        const own = ownKitUnlocks(ev, selfId);
+        // The same event can arrive twice (boot replay, then the snapshot drain).
+        if (!own || ev === this._kitUnlocksEv) break;
+        this._kitUnlocksEv = ev;
+        this.kitUnlocks = kitUnlockState(own);
+        this.deploy.setUnlocks(this.kitUnlocks);
+        if (own.newly.length) this.deploy.markNew(own.newly);
+        // An open deploy screen names the new class in its own UNLOCKS header (no banner over its cards).
+        const banner = kitUnlockBanner(own, now);
+        if (banner && !this.deploy.open) this.banners.push(banner, now);
+        break;
+      }
+      case 'heal':
+        // Healed: a short '+HP' tick on the health card, summed while it shows.
+        if (String(ev.id) === String(selfId) && Number(ev.hp) > 0) {
+          this._healSum = (now < this._healUntil ? this._healSum : 0) + Number(ev.hp);
+          // Self-heal pulses are 2.5 HP: show the half instead of rounding it up.
+          const sum = Math.round(this._healSum * 10) / 10;
+          this.healTick.textContent = `+${Number.isInteger(sum) ? sum : sum.toFixed(1)} HP`;
+          this._healUntil = now + 1400;
+          this.healTick.hidden = false;
+        }
+        break;
       case 'score': {
         const entry = scoreEntry(ev, selfId);
         if (entry) this.ticker.push(entry, now);
@@ -411,7 +471,7 @@ export class ConquestHud {
         break;
       }
       case 'deploy_refused':
-        if (String(ev.id) === String(selfId)) this.deploy.refuse(ev.reason);
+        if (String(ev.id) === String(selfId)) this.deploy.refuse(ev.reason === 'locked' ? { reason: 'locked', level: ev.level } : ev.reason);
         break;
       case 'revive':
         if (String(ev.id) === String(selfId)) this.banners.push({ key: `rev:${ev.by}:${now}`, tone: 'own', title: 'REVIVED', detail: 'BACK IN THE FIGHT', priority: 6 }, now);
@@ -434,6 +494,8 @@ export class ConquestHud {
         this.combatHud?.vehicleDestroyed?.(ev);
         break;
       case 'kill': {
+        // ADRENALINE only re-arms on an own kill: remember when the last one landed.
+        if (selfId != null && String(ev.killer) === String(selfId) && String(ev.victim) !== String(selfId)) this._ownKillAt = now;
         const card = killerCard(ev, selfId, this._lastArgs?.players);
         if (card) {
           this.killerInfo = card;
@@ -456,6 +518,7 @@ export class ConquestHud {
     this.markers.clear();
     this.ticker.clear();
     this.banners.clear();
+    if (this.healTick) this.healTick.hidden = true;
     this._endKey = null;
   }
 
@@ -489,6 +552,7 @@ export class ConquestHud {
     this.eventTarget?.removeEventListener?.('keydown', this._onKeyDown, true);
     this.eventTarget?.removeEventListener?.('keyup', this._onKeyUp, true);
     this.eventTarget?.removeEventListener?.('blur', this._onBlur);
+    this.healTick?.remove();
     this.root.remove();
   }
 }

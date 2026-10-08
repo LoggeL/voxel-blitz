@@ -133,5 +133,5 @@ export function paintUnit(ctx, item, c, heading = 0, size = 1) {
   ctx.restore();
 }
 
-const ORDER = Object.freeze({ hq: 0, flag: 1, vehicle: 2, team: 3, squad: 4, down: 5, spotted: 6, self: 7 });
+const ORDER = Object.freeze({ hq: 0, flag: 1, aura: 2, vehicle: 2, team: 3, squad: 4, down: 5, spotted: 6, self: 7 });
 export const sortItems = items => [...items].sort((a, b) => (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9));

@@ -154,6 +154,7 @@ class Game {
           // Conquest HUD (ticker, banners, kill feed, hitmarkers) and objective audio see every event first.
           this.conquestHud?.handleEvent(event, this.myId);
           this.objectiveCues?.handleEvent(event, this.selfRow?.team);
+          this.conquestSoundscape?.handleEvent(event);
           if (event.kind === 'vehicle_destroyed' || (event.kind === 'explosion' && event.type === 'vehicle')) {
             this.vehicleDestructionFX?.handleEvent(event);
             return;
@@ -418,7 +419,12 @@ class Game {
     // the vehicle and the infantry camera.
     this.vehicleView = new rt.VehicleView({ getBlock });
     this.cameraShake = new rt.CameraShake({ reducedMotion: displaySettings().reducedMotion });
-    this.vehicleAudio = new rt.VehicleAudio(sfx);
+    // Conquest: the river corridor drives the wading cue; the lazy Conquest sound bank decodes in the background.
+    this.vehicleAudio = new rt.VehicleAudio(sfx, { river: welcome.gameMode === 'conquest' ? rt.FRONTIER_PLAN.river : null });
+    // The low graphics tier (phones, weak laptops) decodes one take per group: about 58 instead of 85 MB of PCM.
+    if (welcome.gameMode === 'conquest') {
+      void sfx.loadConquestBank?.(graphics.tier === 'low' ? rt.CONQUEST_SAMPLE_MANIFEST_LITE : rt.CONQUEST_SAMPLE_MANIFEST);
+    }
     this.worldview.scene.add(this.vehicleView.group);
     if (welcome.gameMode === 'conquest') {
       this.worldview.dynamicShadows?.addCasterRoot(this.vehicleView.group, { coarse: true });
@@ -426,7 +432,10 @@ class Game {
       // One shared particle field (2 draws) for vehicle FX, destruction and the world ambience.
       this.particleField = new rt.ParticleField({ scene: this.liveEffectsGroup, capacity: rt.particleCapacityForTier(graphics.tier) });
       this.conquestAmbience = new rt.ConquestAmbience({ scene: this.worldview.scene, fx: this.particleField,
-        mapMeta: this.mapMeta, weather: this.worldview.weather || 'golden', getBlock });
+        mapMeta: this.mapMeta, weather: this.worldview.weather || 'golden', getBlock,
+        onArtillery: (pos) => this.conquestSoundscape?.artillery(pos) });
+      this.conquestSoundscape = new rt.ConquestSoundscape({ audio: sfx.conquestAudio(), weather: this.worldview.weather || 'golden',
+        wrecks: this.conquestAmbience.sources?.wrecks ?? [] });
     }
     this.vehicleController = new rt.VehicleController({ camera: this.camera,
       raycast: (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),
@@ -441,12 +450,16 @@ class Game {
       combatHud: this.hud.combat,
       inputEnabled: () => this.session.gameplayInputEnabled,
       shellRaycast: (origin, direction, distance) => this.worldview?.pickSolidRay(origin, direction, distance) ?? null,
+      // XP progress toward locked classes (display only; unlocks come from the server's kit_unlocks).
+      careerProfile: () => career?.profile ?? null,
     });
+    if (this._ownKitUnlocks) this.conquestHud.handleEvent(this._ownKitUnlocks, this.myId);
     // The Conquest deploy screen replaces the spectator overlay while dead.
     this.hud.spectator.setSuppressed(welcome.gameMode === 'conquest');
     if (welcome.gameMode === 'conquest') {
       const audio = sfx.objectiveAudio?.();
-      this.objectiveCues = rt.createObjectiveCues({ audioContext: audio?.engine ?? null, announcer: audio?.announcer ?? null });
+      this.objectiveCues = rt.createObjectiveCues({ audioContext: audio?.engine ?? null, announcer: audio?.announcer ?? null,
+        bank: sfx.conquestAudio?.() ?? null, flagZones: this.mapMeta?.conquest?.flags ?? null });
     }
     this.worldview.dynamicShadows?.addCasterRoot(this.liveAvatarsGroup, { coarse: true });
     this.effects = new rt.Effects(this.liveEffectsGroup, this.camera, getBlock, {
@@ -461,6 +474,8 @@ class Game {
       // RIPTIDE out-leg seeking: the living, presented bodies a disc may bend onto.
       // Authority owns the real turn and corrects any mismatch with its disc syncs.
       getGlaiveSeekBodies: (disc) => this.glaiveSeekBodies(disc.own ? this.myId : disc.ownerId),
+      // Bullet impact sounds per surface (silent unless the Conquest sound bank has decoded).
+      onWallImpact: (surface, pos) => sfx.bulletImpact?.(surface, pos),
       // Bolt wall-ricochet zap / RIPTIDE bounce tink: client-derived from the shared
       // integrators' bounced flag.
       onBounce: (x, y, z, type) => (type === 'glaive'
@@ -651,6 +666,11 @@ class Game {
   }
 
   handleTick(snapshot, phase = this.session.phase) {
+    // Conquest kit unlocks are announced once at join, often while the map still
+    // loads (no HUD yet, and the event ring is short): keep the newest own one.
+    for (const event of Array.isArray(snapshot?.events) ? snapshot.events : []) {
+      if (event?.kind === 'kit_unlocks' && String(event.id) === String(this.myId)) this._ownKitUnlocks = event;
+    }
     // Until bootLive decodes the arena its terrain deltas are buffered, since
     // the map bytes would overwrite them; bootLive replays the buffer after.
     if (this._bootBlockDeltas) {
@@ -1050,6 +1070,35 @@ class Game {
   }
 
   /** Presented feet positions of every living non-teammate an `ownerId` disc may seek. */
+  /**
+   * RX-8 launcher sight: the rangefinder distance under the aim point and the
+   * rocket's estimated impact, re-sampled at 10 Hz (ROCKET_SIGHT.sampleMs) while
+   * the scope is up. The world cast is pickSolidRay, so water never reads as range.
+   */
+  sampleLauncherSight(now, seated = false) {
+    const active = this.weapon?.def?.projectile === 'rocket' && !!this.weapon?.scopeActive
+      && this.player?.alive && !seated && !!this.worldview;
+    if (!active && !this._launcherRangefinder) return null;
+    const finder = this._launcherRangefinder ||= new this.rt.LauncherRangefinder();
+    const sample = finder.sample(now, active, () => {
+      const bodies = [];
+      for (const row of this._presentedPlayers?.values() || []) {
+        if (String(row.id) === String(this.myId) || row.state !== 'alive' || row.vehicleId != null) continue;
+        bodies.push(row);
+      }
+      return {
+        origin: this.camera.position,
+        dir: fwdFromAngles(this.player.shotYaw, this.player.shotPitch),
+        pickSolid: (origin, direction, distance) => this.worldview.pickSolidRay(origin, direction, distance),
+        hulls: this.net?.latestSnapshots?.at(-1)?.vehicles || [],
+        bodies,
+        ignoreVehicleId: this.selfRow?.vehicleId ?? null,
+      };
+    });
+    if (!sample) return null;
+    return { ...sample, screen: sample.impact ? this.rt.projectWorldFraction(this.camera, sample.impact.point) : null };
+  }
+
   glaiveSeekBodies(ownerId) {
     const bodies = this._glaiveSeekBodies ||= [];
     bodies.length = 0;
@@ -1293,6 +1342,8 @@ class Game {
       this.vehicleDestructionFX?.update(dt);
       this.vehicleAudio?.update(this.net?.latestSnapshots?.at(-1)?.vehicles, this.camera.position, { self: this.selfRow });
       this.conquestAmbience?.update(dt, this.camera);
+      this.conquestSoundscape?.update(dt, this.camera, { match: this.matchState, selfTeam: this.selfRow?.team,
+        inVehicle: !!this.vehicleController?.active });
       this.worldview.update(dt, this.camera, { targetFps: this.frameRate.targetFps });
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
@@ -1337,6 +1388,7 @@ class Game {
       ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.shotYaw, this.player.shotPitch), HITSCAN_REACH)
       : null;
     const reticle = this.rt.projectAimReticle(this.camera, this.player.shotYaw, this.player.shotPitch);
+    const launcherSight = this.sampleLauncherSight(now, seated);
     const weaponModel = this.weapon.readModel(now);
     // RIPTIDE pips: the HUD's in-flight, embedded and fabrication split lives with the
     // disc presentation (server launch/explode/glaiveStock events); `mag` stays authoritative.
@@ -1383,6 +1435,7 @@ class Game {
       breathExhausted: !!this.player.aimMotion?.breathExhausted,
       scopeZoom: this.player.scopeZoom,
       scopeFovDeg: this.camera?.fov,
+      launcherSight,
     });
     sfx.breath(this.player.aimMotion?.breathEvent);
     sfx.painMoan(this.player.pain, now, {
@@ -1469,10 +1522,11 @@ class Game {
     this.vehicleDestructionFX?.dispose(); this.vehicleDestructionFX = null;
     this.vehicleFx?.dispose(); this.vehicleFx = null;
     this.conquestAmbience?.dispose(); this.conquestAmbience = null;
+    if (this.conquestSoundscape) { this.conquestSoundscape.dispose(); this.conquestSoundscape = null; sfx.unloadConquestBank?.(); }
     this.particleField?.dispose(); this.particleField = null;
     this.cameraShake = null;
     this.vehicleAudio?.dispose(); this.vehicleAudio = null;
-    this.conquestHud?.dispose(); this.conquestHud = null;
+    this.conquestHud?.dispose(); this.conquestHud = null; this._ownKitUnlocks = null;
     this.objectiveCues?.dispose(); this.objectiveCues = null;
     this.hud.spectator?.setSuppressed(false);
     this._vehicleSendAt = 0;

@@ -1,6 +1,8 @@
 // Conquest infantry roles (server authority): kit loadouts, the down state and
-// assault revives, engineer repair through the VehicleSystem repair API, the
-// support resupply aura and team spotting. ConquestPolicy owns one instance
+// medic revives plus the medic heal aura, engineer repair through the
+// VehicleSystem repair API, the support resupply aura, team spotting and the
+// passive kit abilities (assault adrenaline, pyro fireproof, grenadier
+// ordnance, raider ghost through spotting, marksman overwatch tags). ConquestPolicy owns one instance
 // (createConquestRoles) and calls it at the matching points; every value that
 // reaches the snapshot comes from here or from the policy, never the client.
 
@@ -9,6 +11,7 @@ import {
   KIT_ROLE_RULES,
   applyResupply,
   kitId,
+  kitMaxGrenades,
   kitLoadout,
   kitWeapons,
   normalizeGadget,
@@ -16,6 +19,8 @@ import {
 } from '../../../shared/conquest-kits.js';
 import { PLAYER_HALF, WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { nearestHullPoint, vehicleHullParts } from '../../../shared/vehicle-collision.js';
+import { infantryDamageClass } from '../../../shared/vehicle-armor.js';
+import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import * as sharedVehicles from '../../../shared/vehicles.js';
 import { ConquestSpotting } from './spotting.js';
 
@@ -162,6 +167,10 @@ export class ConquestRoles {
         lastDamagedAt: -Infinity, seatedVehicleId: null,
         repairCredit: new Map(), nextResupplyAt: this.now + KIT_ROLE_RULES.resupplyIntervalMs,
         lastRefilledAt: -Infinity, lastGadgetRefillAt: -Infinity, resupplyAwards: new Map(),
+        // Medic aura: own pulse clock, HP owed toward the next `heal` award, and per-mate gates.
+        nextHealAt: this.now + KIT_ROLE_RULES.healIntervalMs, healCredit: 0,
+        lastHealedAt: -Infinity, lastMedkitRestockAt: -Infinity,
+        nextAdrenalineAt: -Infinity, nextOrdnanceAt: this.now + KIT_ROLE_RULES.ordnanceIntervalMs,
       };
       this.states.set(id, state);
     }
@@ -252,6 +261,7 @@ export class ConquestRoles {
     state.variant = load.variant;
     state.gadget = load.gadgetIndex;
     state.nextResupplyAt = this.now + KIT_ROLE_RULES.resupplyIntervalMs;
+    this._resetAbilityClocks(state);
     return { kit: load.kit, variant: load.variant, gadget: load.gadgetIndex };
   }
 
@@ -271,12 +281,21 @@ export class ConquestRoles {
 
   // --- life cycle ------------------------------------------------------------
 
-  /** Death hook: settles spot assists and leaves a revivable body when allowed. */
+  /** Fresh life or revive: the passive ability clocks start over. */
+  _resetAbilityClocks(state) {
+    state.nextAdrenalineAt = -Infinity;
+    state.nextOrdnanceAt = this.now + KIT_ROLE_RULES.ordnanceIntervalMs;
+    state.nextHealAt = this.now + KIT_ROLE_RULES.healIntervalMs;
+  }
+
+  /** Death hook: settles spot assists, assault adrenaline and leaves a revivable body when allowed. */
   onDeath(victim, killer = null, context = null) {
     const p = this._entity(victim);
     const state = this._state(p);
     if (!p || !state) return false;
-    this.spotting.onDeath(p, this._entity(killer) ?? killer);
+    const killerEntity = this._entity(killer);
+    this.spotting.onDeath(p, killerEntity ?? killer);
+    if (killerEntity && KITS[this.kitOf(killerEntity)]?.ability === 'adrenaline') this._adrenaline(killerEntity, p, context);
     state.session = null;
     state.down = null;
     if (!this._downAllowed(p, state, context)) return false;
@@ -291,6 +310,10 @@ export class ConquestRoles {
       variant: state.variant,
       gadget: state.gadget,
       inventory: copyInventory(p),
+      // No enemy made this body (a fall, own grenade): reviving it pays no `revive` award, so
+      // self-inflicted deaths cannot farm score and career XP. The ticket refund still applies.
+      enemyKill: !!killerEntity && killerEntity !== p && idOf(killerEntity) !== idOf(p)
+        && !!this.teamOf(killerEntity) && this.teamOf(killerEntity) !== this.teamOf(p),
     };
     return true;
   }
@@ -317,6 +340,62 @@ export class ConquestRoles {
   }
 
   /**
+   * Assault ADRENALINE: an enemy infantry kill by a living, on-foot Assault
+   * re-arms its spent medkit and returns grenades, at most once per cooldown.
+   */
+  _adrenaline(killer, victim, context = null) {
+    if (!this._live() || killer === victim || idOf(killer) === idOf(victim)) return false;
+    if (killer.state !== 'alive' || killer.vehicleId) return false;
+    if (victim.vehicleId || context?.seated === true) return false;
+    const team = this.teamOf(killer);
+    if (!team || team === this.teamOf(victim)) return false;
+    const state = this._state(killer);
+    const now = this.now;
+    if (!state || now < state.nextAdrenalineAt) return false;
+    state.nextAdrenalineAt = now + KIT_ROLE_RULES.adrenalineCooldownMs;
+    if (killer.medkit && typeof killer.medkit === 'object') killer.medkit.remaining = 1;
+    const slot = GRENADE_TYPE_IDS.indexOf(KIT_ROLE_RULES.adrenalineGrenade);
+    if (slot >= 0 && Array.isArray(killer.grenades)) {
+      const cap = kitMaxGrenades(state.kit)[slot] ?? 0;
+      const have = Math.max(0, Math.trunc(Number(killer.grenades[slot]) || 0));
+      killer.grenades[slot] = Math.max(have, Math.min(cap, have + KIT_ROLE_RULES.adrenalineGrenades));
+    }
+    return true;
+  }
+
+  /**
+   * Damage multiplier the Conquest damage hook applies before recording the
+   * hit (ScoreLedger.attach): Pyro FIREPROOF takes nothing from the fire class.
+   */
+  damageTakenScale(entity, weapon) {
+    if (KITS[this.kitOf(entity)]?.ability !== 'fireproof') return 1;
+    return typeof weapon === 'string' && weapon && infantryDamageClass(weapon) === 'fire' ? 0 : 1;
+  }
+
+  /**
+   * A damaging infantry hit (Conquest damage hook): Marksman OVERWATCH tags
+   * an enemy hit by its primary for the team.
+   */
+  onInfantryHit(victim, attacker, weapon, amount) {
+    if (!(amount > 0) || !this._live()) return false;
+    const a = this._entity(attacker);
+    const v = this._entity(victim);
+    if (!a || !v || a === v || a.state !== 'alive' || a.vehicleId) return false;
+    const state = this._state(a, false);
+    if (!state || KITS[state.kit]?.ability !== 'overwatch') return false;
+    const id = typeof weapon === 'string' ? weapon : Number.isInteger(weapon) ? WEAPON_IDS[weapon] : null;
+    if (!id || !KITS[state.kit].primaries.includes(id)) return false;
+    const team = this.teamOf(a);
+    if (!team || team === this.teamOf(v)) return false;
+    if (KIT_ROLE_RULES.overwatchTagFirstOnly) {
+      const seq = a.shotSeq ?? null;
+      if (seq !== null && state.lastTagSeq === seq) return false;
+      state.lastTagSeq = seq;
+    }
+    return this.spotting.markPlayer(v, { by: idOf(a), team, until: this.now + KIT_ROLE_RULES.overwatchTagMs });
+  }
+
+  /**
    * Respawn hook. Any respawn other than a revive forfeits the body; the
    * fresh life starts unspotted, without a support action and with a full
    * resupply timer.
@@ -333,6 +412,7 @@ export class ConquestRoles {
     state.lastDamagedAt = -Infinity;
     state.seatedVehicleId = p.vehicleId ?? null;
     state.nextResupplyAt = this.now + KIT_ROLE_RULES.resupplyIntervalMs;
+    this._resetAbilityClocks(state);
     this.spotting.onRespawn(p);
     return true;
   }
@@ -491,13 +571,16 @@ export class ConquestRoles {
       else this._advanceRepair(p, state, now, dt);
     }
     this._resupply(entities, now);
+    this._heal(entities, now);
+    this._passives(entities, now);
     this.spotting.tick();
   }
 
   _trackDamage(p, state, now) {
     const ref = p.lastDamage ?? null;
     const hp = Number.isFinite(p.hp) ? p.hp : null;
-    const hit = (ref && ref !== state.lastDamageRef) || (hp !== null && state.lastHp !== null && hp < state.lastHp);
+    // A hit a damage hook cancelled (Pyro FIREPROOF) is no hurt: it must not pause the heal aura.
+    const hit = (ref && ref !== state.lastDamageRef && ref.cancelled !== true) || (hp !== null && state.lastHp !== null && hp < state.lastHp);
     if (hit && p.state === 'alive') state.lastDamagedAt = now;
     state.lastDamageRef = ref;
     state.lastHp = hp;
@@ -565,10 +648,11 @@ export class ConquestRoles {
     state.session = null;
     state.lastHp = target.hp;
     state.lastDamageRef = target.lastDamage ?? null;
+    this._resetAbilityClocks(state);
     const team = down.team ?? this.teamOf(target);
     if (team) this.policy?.refundTicket?.(team);
     this._emit('revive', { id: targetId, by: idOf(reviver) });
-    this._award(reviver, 'revive');
+    if (down.enemyKill !== false) this._award(reviver, 'revive');
     return true;
   }
 
@@ -631,12 +715,101 @@ export class ConquestRoles {
     }
   }
 
+  /**
+   * Medic heal aura: every healIntervalMs a living, on-foot Medic heals each
+   * living, on-foot teammate within healRadius by healPerPulse (itself at
+   * healSelfFraction). Mates hurt in the last healDamagePauseMs are skipped,
+   * and lastHealedAt gates a mate to one pulse per interval however many
+   * Medics stand around it. A spent medkit is restocked at most every
+   * medkitRestockMs per mate. `heal` awards accrue per healAwardHp given to others.
+   */
+  _heal(entities, now) {
+    const r = KIT_ROLE_RULES;
+    for (const medic of entities) {
+      const state = this.states.get(idOf(medic));
+      if (!state || KITS[state.kit]?.aura !== 'heal') continue;
+      if (medic.state !== 'alive' || medic.vehicleId) continue;
+      if (now < state.nextHealAt) continue;
+      state.nextHealAt = now + r.healIntervalMs;
+      const team = this.teamOf(medic);
+      if (!team) continue;
+      for (const mate of entities) {
+        if (!mate || mate.state !== 'alive' || mate.vehicleId) continue;
+        const mateState = this.states.get(idOf(mate));
+        if (!mateState || this.teamOf(mate) !== team) continue;
+        if (feetDistance(medic, mate) > r.healRadius) continue;
+        if (now - mateState.lastHealedAt < r.healIntervalMs - 1e-6) continue;
+        const self = mate === medic;
+        if (!self && now - mateState.lastMedkitRestockAt >= r.medkitRestockMs
+            && mate.medkit && typeof mate.medkit === 'object' && mate.medkit.remaining === 0) {
+          mate.medkit.remaining = 1;
+          mateState.lastMedkitRestockAt = now;
+        }
+        if (now - mateState.lastDamagedAt < r.healDamagePauseMs) continue;
+        const max = maxHpOf(mate);
+        const hp = Number.isFinite(mate.hp) ? mate.hp : max;
+        if (hp >= max) continue;
+        const amount = Math.min(max - hp, r.healPerPulse * (self ? r.healSelfFraction : 1));
+        if (!(amount > 0)) continue;
+        mate.hp = hp + amount;
+        mateState.lastHealedAt = now;
+        mateState.lastHp = mate.hp;
+        this._emit('heal', { id: idOf(mate), by: idOf(medic), hp: Math.round(amount * 10) / 10 });
+        if (self) continue;
+        state.healCredit += amount;
+        while (r.healAwardHp > 0 && state.healCredit >= r.healAwardHp - 1e-6) {
+          state.healCredit -= r.healAwardHp;
+          this._award(medic, 'heal');
+        }
+      }
+    }
+  }
+
+  /**
+   * Per-tick passives: Pyro FIREPROOF clears its burn state and raises
+   * `fireImmune` (the flame stream and molotov fields pass it by: no hit, burn
+   * or panic); Grenadier ORDNANCE self-resupply.
+   */
+  _passives(entities, now) {
+    for (const p of entities) {
+      if (!p) continue;
+      const state = this.states.get(idOf(p));
+      const ability = KITS[state?.kit]?.ability;
+      const immune = p.state === 'alive' && ability === 'fireproof';
+      if (p.fireImmune !== immune && (immune || p.fireImmune !== undefined)) p.fireImmune = immune;
+      if (p.state !== 'alive') continue;
+      if (ability === 'fireproof') {
+        if (p.burn) p.burn = null;
+        if (p.burning) p.burning = 0;
+        if (p.molotovBurning) p.molotovBurning = 0;
+      } else if (ability === 'ordnance' && !p.vehicleId && now >= state.nextOrdnanceAt) {
+        state.nextOrdnanceAt = now + KIT_ROLE_RULES.ordnanceIntervalMs;
+        applyResupply(p, state.kit, state.variant, 0, { gadgetRound: false });
+      }
+    }
+  }
+
   // --- vehicle and snapshot hooks -----------------------------------------------
 
-  /** Forwarded from ModeController.onVehicleEvent: spot assists on destroyed hulls. */
+  /** Forwarded from ModeController.onVehicleEvent: spot assists on destroyed hulls, overwatch hull tags. */
   onVehicleEvent(kind, payload = {}) {
+    if (kind === 'vehicle_hit') return this._overwatchHull(payload);
     if (kind !== 'vehicle_destroyed') return false;
     return this.spotting.onVehicleDestroyed(payload.vehicleId, payload.attacker);
+  }
+
+  /** Marksman OVERWATCH on hulls: an effective hit by its primary marks the hull for its team. */
+  _overwatchHull(payload) {
+    if (!this._live() || payload?.eff === 0 || !(Number(payload?.dmg) > 0)) return false;
+    const a = this._entity(payload.attacker);
+    const state = a ? this._state(a, false) : null;
+    if (!a || a.state !== 'alive' || a.vehicleId || !state || KITS[state.kit]?.ability !== 'overwatch') return false;
+    const weapon = Number.isInteger(a.weapon) ? WEAPON_IDS[a.weapon] : null;
+    if (!weapon || !KITS[state.kit].primaries.includes(weapon)) return false;
+    const vehicle = this.engine?.vehicles?.vehicles?.get?.(String(payload.vehicleId));
+    const team = this.teamOf(a);
+    if (!vehicle || !(vehicle.hp > 0) || !team || vehicle.team === team) return false;
+    return this.spotting.markVehicle(vehicle, { by: idOf(a), team, until: this.now + KIT_ROLE_RULES.overwatchTagMs });
   }
 
   /** Session progress for `cq[6]` as a 0..1 fraction (revive hold, or hull HP while repairing). */

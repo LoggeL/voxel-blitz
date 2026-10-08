@@ -86,7 +86,7 @@ export class WorldMarkers {
         n.glyphKey = glyphKey;
         n.dataset.kind = m.kind;
         n.glyph.textContent = '';
-        const icon = m.kind === 'down' ? svgIcon(globalThis.document, 'revive', 'cq-unit-icon')
+        const icon = m.kind === 'down' || m.kind === 'wounded' ? svgIcon(globalThis.document, 'revive', 'cq-unit-icon')
           : m.kind === 'spotted-vehicle' ? svgIcon(globalThis.document, m.vehicleType || 'tank', 'cq-unit-icon') : null;
         if (icon) n.glyph.appendChild(icon);
       }

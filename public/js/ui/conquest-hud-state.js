@@ -14,7 +14,9 @@ import {
   decodeConquestMatch, deployOptions, deployViewFromSnapshot, isBotId, oppositeTeam, parseSpawnChoice, resolveDeployChoice, teamSign,
 } from '../../../shared/conquest.js';
 import * as vehicleDefs from '../../../shared/vehicle-defs.js';
-import { KIT_GADGET_LABELS } from '../../../shared/conquest-kits.js';
+import {
+  KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
+} from '../../../shared/conquest-kits.js';
 import { WEAPON_NAMES } from './hud-support.js';
 import { relativeTeam, squadName, teamDisplayName } from './conquest/scoring.js';
 import {
@@ -614,6 +616,8 @@ export function spreadEdgeMarkers(models, { width, height, insets = {}, obstacle
 }
 
 const DOWN_RANGE = 40, SQUAD_RANGE = 400, TEAM_RANGE = 160, SPOT_RANGE = 600;
+/** A Medic sees downed mates this far and a heal cross over mates under WOUNDED_FRACTION HP within WOUNDED_RANGE. */
+const MEDIC_DOWN_RANGE = 60, WOUNDED_RANGE = 40, WOUNDED_FRACTION = 0.6;
 
 /**
  * Unit markers: squadmates (green, named), teammates (blue dots), downed
@@ -623,7 +627,9 @@ const DOWN_RANGE = 40, SQUAD_RANGE = 400, TEAM_RANGE = 160, SPOT_RANGE = 600;
 export function unitMarkerModels({ self, players = [], vehicles = [], selfTeam, projector, insets = undefined } = {}) {
   if (!projector || !self) return [];
   const selfId = String(self.id);
-  const squad = decodeConquestPlayer(self)?.squad | 0;
+  const selfInfo = decodeConquestPlayer(self);
+  const squad = selfInfo?.squad | 0;
+  const medic = KITS[selfInfo?.kit]?.ability === 'revive';
   const out = [];
   const eye = { x: finite(self.x), y: finite(self.y), z: finite(self.z) };
   const place = (x, y, z, edgeAllowed) => {
@@ -637,12 +643,17 @@ export function unitMarkerModels({ self, players = [], vehicles = [], selfTeam, 
     const info = decodeConquestPlayer(p);
     const distance = Math.hypot(p.x - eye.x, p.y - eye.y, p.z - eye.z);
     if (p.team === selfTeam) {
-      if (info?.down && distance <= DOWN_RANGE) {
+      if (info?.down && distance <= (medic ? MEDIC_DOWN_RANGE : DOWN_RANGE)) {
         const s = place(p.x, p.y + 0.6, p.z, true);
         if (s) out.push({ kind: 'down', id: String(p.id), name: p.name || '', distance: Math.round(distance), ...s });
         continue;
       }
       if (!alive(p) || p.vehicleId) continue;
+      // Medic: a green cross over wounded mates nearby (row hp is authoritative).
+      if (medic && distance <= WOUNDED_RANGE && Number.isFinite(p.hp) && p.hp > 0 && p.hp < WOUNDED_FRACTION * 100) {
+        const s = place(p.x, p.y + 2.5, p.z, false);
+        if (s) out.push({ kind: 'wounded', id: String(p.id), name: '', distance: Math.round(distance), hp: Math.round(p.hp), ...s });
+      }
       const mate = squad > 0 && (info?.squad | 0) === squad;
       if (distance > (mate ? SQUAD_RANGE : TEAM_RANGE)) continue;
       const s = place(p.x, p.y + 2.1, p.z, false);
@@ -702,7 +713,11 @@ export function mapItems({ cq, self, players = [], vehicles = [], selfTeam }) {
       items.push({ kind: 'spotted', id: String(p.id), rel: 'spotted', x: p.x, z: p.z });
     }
   }
-  if (self && alive(self) && Number.isFinite(self.x)) items.push({ kind: 'self', id: selfId, rel: 'self', x: self.x, z: self.z, yaw: finite(self.yaw) });
+  if (self && alive(self) && Number.isFinite(self.x)) {
+    // The Medic's heal aura reach around itself (KIT_ROLE_RULES.healRadius).
+    if (KITS[decodeConquestPlayer(self)?.kit]?.aura === 'heal' && !self.vehicleId) items.push({ kind: 'aura', id: `${selfId}:aura`, rel: 'squad', x: self.x, z: self.z, radius: KIT_ROLE_RULES.healRadius });
+    items.push({ kind: 'self', id: selfId, rel: 'self', x: self.x, z: self.z, yaw: finite(self.yaw) });
+  }
   return items;
 }
 
@@ -780,8 +795,40 @@ export function hullZoneFlash(ev, seatedRow) {
 
 export const DEPLOY_REFUSED_TEXT = Object.freeze({
   invalid: 'THAT SPAWN IS NOT AVAILABLE', contested: 'FLAG IS CONTESTED OR BEING NEUTRALIZED', enemy: 'ENEMIES IN THE ZONE',
-  busy: 'TARGET IS BUSY', cooldown: 'SQUAD SPAWN COOLING DOWN', seat: 'NO FREE SEAT',
+  busy: 'TARGET IS BUSY', cooldown: 'SQUAD SPAWN COOLING DOWN', seat: 'NO FREE SEAT', locked: 'CLASS LOCKED',
 });
+/** Refusal text; a `locked` refusal names the level that opens the kit ('CLASS LOCKED · LV 5'). */
+export function deployRefusedText(reason, level = null) {
+  const base = DEPLOY_REFUSED_TEXT[reason] || String(reason || 'invalid').toUpperCase();
+  return reason === 'locked' && Number.isFinite(level) ? `${base} · LV ${level}` : base;
+}
+
+/**
+ * Kit unlock state of the local player from the latest own `kit_unlocks`
+ * event (authoritative). Without one only the base kits are open.
+ */
+export function kitUnlockState(ev = null) {
+  const level = Number.isFinite(ev?.level) && ev.level >= 1 ? Math.trunc(ev.level) : 1;
+  const listed = Array.isArray(ev?.unlocked) ? ev.unlocked.filter(id => KIT_IDS.includes(id)) : null;
+  const unlocked = new Set(listed ?? KIT_IDS.filter(id => kitUnlocked(id, level)));
+  return { level, unlocked, known: !!ev };
+}
+
+/** `kit_unlocks` for this player, or null. */
+export function ownKitUnlocks(ev, selfId) {
+  if (ev?.kind !== 'kit_unlocks' || selfId == null || String(ev.id) !== String(selfId)) return null;
+  return { level: ev.level, unlocked: Array.isArray(ev.unlocked) ? ev.unlocked.slice() : [], newly: Array.isArray(ev.newly) ? ev.newly.slice() : [] };
+}
+
+/** Banner for newly unlocked kits ('NEW CLASS UNLOCKED · PYRO'). */
+export function kitUnlockBanner(unlocks, now = 0) {
+  const newly = (unlocks?.newly || []).filter(id => KITS[id]);
+  if (!newly.length) return null;
+  const names = newly.map(id => KITS[id].label);
+  return { key: `kit:${newly.join(',')}:${now}`, tone: 'own', priority: 5,
+    title: newly.length === 1 ? `NEW CLASS UNLOCKED · ${names[0]}` : 'NEW CLASSES AVAILABLE',
+    detail: newly.length === 1 ? `CAREER LV ${unlocks.level} · PICK IT ON THE DEPLOY SCREEN` : names.join(' · ') };
+}
 
 /**
  * Killer card for the deploy screen from the authoritative `kill` event of the
@@ -817,19 +864,44 @@ export const kitGadgetIndex = (kit, gadget) => (gadget === 1 && (KITS[kit]?.gadg
  * the gadget of kits that offer a choice (the Engineer: AT launcher or STINGER).
  * `gadget` on a card is the selected gadget's name (null for kits without one).
  */
-export function kitCards(selectedKit, variant = 0, gadget = 0) {
-  return KIT_IDS.map(id => {
+export function kitCards(selectedKit, variant = 0, gadget = 0, { unlocked = null, career = null } = {}) {
+  const open = unlocked instanceof Set ? unlocked : kitUnlockState().unlocked;
+  return KIT_MENU_ORDER.map(id => {
     const kit = KITS[id];
     const chosen = id === selectedKit ? kitGadgetIndex(id, gadget) : 0;
     const gadgets = (kit.gadgets ?? []).length > 1 ? kit.gadgets.map((weapon, index) => ({ index, weapon,
       role: KIT_GADGET_LABELS[weapon]?.role ?? '', hint: KIT_GADGET_LABELS[weapon]?.hint ?? '',
       label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === chosen })) : [];
     const gadgetId = kit.gadgets?.[chosen] ?? kit.gadget;
-    return { id, label: kit.label, ability: kit.ability.toUpperCase(), selected: id === selectedKit,
+    const unlockLevel = kitUnlockLevel(id);
+    const isOpen = open.has(id);
+    // XP toward the unlock level (careerView: xp; level L starts at 100·(L-1)² XP).
+    const needXp = (unlockLevel - 1) ** 2 * 100;
+    const xp = Number.isFinite(career?.xp) ? Math.max(0, career.xp) : null;
+    const progress = !isOpen && xp !== null ? { xp: Math.min(xp, needXp), need: needXp, fraction: needXp > 0 ? clamp01(xp / needXp) : 1 } : null;
+    return { id, label: kit.label, ability: KIT_ABILITY_LABELS[kit.ability] ?? kit.ability.toUpperCase(),
+      abilityId: kit.ability, hint: kitAbilityHint(id, CONQUEST_RULES), selected: id === selectedKit,
+      row: unlockLevel > 1 ? 'unlock' : 'base', unlockLevel, unlocked: isOpen, lockText: isOpen ? '' : `LV ${unlockLevel}`, progress,
       primaries: kit.primaries.map((weapon, index) => ({ index, weapon, label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === (variant | 0) })),
       gadget: gadgetId ? KIT_WEAPON_LABEL(gadgetId) : null, gadgetId: gadgetId ?? null, gadgets,
-      grenades: Object.entries(kit.grenades).map(([type, count]) => `${count}× ${type.toUpperCase()}`) };
+      grenades: Object.entries(kit.grenades).map(([type, count]) => `${count}× ${GRENADE_LABEL[type] || type.toUpperCase()}`) };
   });
+}
+
+/** Grenade names as the HUD shows them (the limpet charge is the CLAYMORE). */
+const GRENADE_LABEL = Object.freeze({ frag: 'FRAG', limpet: 'CLAYMORE', pulse: 'PULSE', molotov: 'MOLOTOV', smoke: 'SMOKE' });
+
+/** Nearest living, on-foot friendly Medic (revive ability) to a point: {id, name, distance} or null. */
+export function nearestMedic(players = [], self) {
+  if (!self || !Number.isFinite(self.x)) return null;
+  let best = null;
+  for (const p of players || []) {
+    if (!p || String(p.id) === String(self.id) || p.team !== self.team || !alive(p) || p.vehicleId) continue;
+    if (KITS[decodeConquestPlayer(p)?.kit]?.ability !== 'revive') continue;
+    const distance = Math.hypot(p.x - self.x, p.y - self.y, p.z - self.z);
+    if (!best || distance < best.distance) best = { id: String(p.id), name: String(p.name || 'MEDIC').toUpperCase(), distance: Math.round(distance) };
+  }
+  return best;
 }
 
 /**
@@ -837,7 +909,8 @@ export function kitCards(selectedKit, variant = 0, gadget = 0) {
  * function the server validates with), the selected choice, countdown to
  * respawnAt and the refusal of the latest choice.
  */
-export function deployModel({ cq, self, players = [], vehicles = [], nowMs = null, selection = null, refused = null } = {}) {
+export function deployModel({ cq, self, players = [], vehicles = [], nowMs = null, selection = null, refused = null,
+  unlocks = null, career = null } = {}) {
   if (!cq || !self) return null;
   const team = playerTeam(self);
   const info = decodeConquestPlayer(self);
@@ -873,17 +946,23 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
   const resolved = resolveDeployChoice(options, spawn);
   const respawnAt = Number.isFinite(self.respawnAt) ? self.respawnAt : null;
   const waitMs = respawnAt !== null && Number.isFinite(nowMs) ? Math.max(0, respawnAt - nowMs) : null;
-  const kit = KIT_IDS.includes(selection?.kit) ? selection.kit : info?.kit && KIT_IDS.includes(info.kit) ? info.kit : 'assault';
-  const variant = selection?.variant === 1 ? 1 : 0;
-  const gadget = kitGadgetIndex(kit, selection?.gadget);
+  const unlockState = unlocks?.unlocked instanceof Set ? unlocks : kitUnlockState(unlocks);
+  // A locked pick (stored preference, older level) falls back to the default kit.
+  const wanted = KIT_IDS.includes(selection?.kit) ? selection.kit : info?.kit && KIT_IDS.includes(info.kit) ? info.kit : 'assault';
+  const kit = unlockState.unlocked.has(wanted) ? wanted : 'assault';
+  const variant = kit === wanted && selection?.variant === 1 ? 1 : 0;
+  const gadget = kit === wanted ? kitGadgetIndex(kit, selection?.gadget) : 0;
+  const down = info?.down === true;
   return {
     team, teamName: teamDisplayName(team), options: decorated, spawn, valid: resolved.ok, reason: resolved.reason,
     reasonText: resolved.ok ? '' : DEPLOY_REFUSED_TEXT[resolved.reason] || '',
-    seatId: resolved.seatId, kit, variant, gadget, kits: kitCards(kit, variant, gadget),
+    seatId: resolved.seatId, kit, variant, gadget, kits: kitCards(kit, variant, gadget, { unlocked: unlockState.unlocked, career }),
+    level: unlockState.level, medic: down ? nearestMedic(players, self) : null,
     waitMs, ready: waitMs === 0 && resolved.ok, countdown: waitMs === null ? '' : waitMs > 0 ? `${(waitMs / 1000).toFixed(1)}` : '',
     timeoutMs: respawnAt !== null && Number.isFinite(nowMs) ? Math.max(0, respawnAt + CONQUEST_RULES.deployTimeoutMs - nowMs) : null,
-    refused: refused ? { reason: refused, text: DEPLOY_REFUSED_TEXT[refused] || String(refused).toUpperCase() } : null,
-    down: info?.down === true,
+    refused: refused ? { reason: typeof refused === 'object' ? refused.reason : refused,
+      text: typeof refused === 'object' ? deployRefusedText(refused.reason, refused.level) : deployRefusedText(refused) } : null,
+    down,
     selectedKey: resolved.option?.spawn ?? 'hq',
     // `gadget` only rides kits that offer a choice, so older servers and the other kits see the old shape.
     choice: { spawn, kit, variant, ...((KITS[kit]?.gadgets?.length ?? 0) > 1 ? { gadget } : {}) },
@@ -893,8 +972,9 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
 /* ---------------------------------------------------------------- interact */
 
 /**
- * Revive / repair / enter prompts. Revive: an assault kit within 2 m of a
- * downed teammate. Repair: an engineer within 3.5 m of a damaged friendly
+ * Revive / repair / enter prompts. Revive: a kit with the revive ability (the
+ * Medic) within KIT_ROLE_RULES.reviveRange of a downed teammate; anyone else
+ * there sees NEEDS MEDIC. Repair: an engineer within 3.5 m of a damaged friendly
  * hull. Progress of an action in flight comes from cq[6].
  */
 export function interactModel({ self, players = [], vehicles = [], nearbyVehicle = null, seated = null } = {}) {
@@ -902,14 +982,18 @@ export function interactModel({ self, players = [], vehicles = [], nearbyVehicle
   const info = decodeConquestPlayer(self);
   const team = playerTeam(self);
   const progress = info?.actionProgress ?? 0;
-  if (!seated && info?.kit === 'assault') {
-    let target = null, best = 2;
+  let needsMedic = null;
+  if (!seated) {
+    let target = null, best = KIT_ROLE_RULES.reviveRange;
     for (const p of players || []) {
       if (!p || String(p.id) === String(self.id) || p.team !== team || !decodeConquestPlayer(p)?.down) continue;
       const d = Math.hypot(p.x - self.x, p.y - self.y, p.z - self.z);
       if (d <= best) { best = d; target = p; }
     }
-    if (target) return { type: 'revive', targetId: String(target.id), label: `REVIVE ${String(target.name || 'TEAMMATE').toUpperCase()}`, progress, hold: true };
+    const name = String(target?.name || 'TEAMMATE').toUpperCase();
+    if (target && KITS[info?.kit]?.ability === 'revive') return { type: 'revive', targetId: String(target.id), label: `REVIVE ${name}`, progress, hold: true };
+    // Only a Medic revives: the others are told who can (after their own repair prompt, see below).
+    if (target && !nearbyVehicle) needsMedic = { type: 'needs-medic', targetId: String(target.id), label: `${name} NEEDS A MEDIC`, progress: 0, hold: false };
   }
   if (!seated && info?.kit === 'engineer') {
     let target = null, best = 3.5;
@@ -926,6 +1010,7 @@ export function interactModel({ self, players = [], vehicles = [], nearbyVehicle
         progress, hold: true, hull: clamp01(target.hp / max) };
     }
   }
+  if (needsMedic) return needsMedic;
   if (seated) return { type: 'exit', label: `EXIT ${VEHICLE_LABELS[seated.row.type] || 'VEHICLE'}`, progress: 0, hold: false };
   const near = nearbyVehicle && nearbyVehicle.hp > 0 && (!nearbyVehicle.team || nearbyVehicle.team === team) ? nearbyVehicle : null;
   if (near) {

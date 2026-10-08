@@ -6,6 +6,7 @@ import { TICK_MS } from '../server/protocol/admission.js';
 import { CONQUEST_RULES, KITS, VEHICLE_TOPOLOGY, decodeConquestPlayer } from '../shared/conquest-contract.js';
 import { decodeConquestMatch, deployOptions, deployViewFromSnapshot, resolveDeployChoice } from '../shared/conquest.js';
 import { SquadRoster } from '../server/modes/conquest/squads.js';
+import { BOT_FLEX_POOL } from '../shared/conquest-kits.js';
 
 const SX = 200, SY = 32, SZ = 160;
 const spot = (x, z) => ({ x: x + 0.5, y: 2, z: z + 0.5 });
@@ -326,8 +327,10 @@ const inRing = (p, flag) => Math.abs(Math.hypot(p.x - flag.x, p.z - flag.z) - 6)
   for (let i = 0; i < 8; i++) game.addBot(`bot-${i}`);
   const bots = [...game.entities.values()].filter(p => p.bot);
   for (const team of ['alpha', 'bravo']) {
-    const kits = bots.filter(p => p.team === team).map(p => policy.kitFor(p).kit).sort();
-    assert.deepEqual(kits, ['assault', 'engineer', 'recon', 'support'], `${team} opening squad mixes kits`);
+    const kits = bots.filter(p => p.team === team).map(p => policy.kitFor(p).kit);
+    // Shared BOT_SQUAD_SLOTS: assault, medic, engineer, then one flex kit from the pool.
+    for (const kit of ['assault', 'medic', 'engineer']) assert(kits.includes(kit), `${team} opening squad has a ${kit}`);
+    assert(kits.every(kit => ['assault', 'medic', 'engineer', ...BOT_FLEX_POOL].includes(kit)), `${team} opening squad mixes kits: ${kits}`);
   }
   for (const p of bots) assert(p.owned.includes(KITS[policy.kitFor(p).kit].primaries[0]), 'loadout follows the seeded kit');
   // A late director registration leaves bots that have been alive a while alone.

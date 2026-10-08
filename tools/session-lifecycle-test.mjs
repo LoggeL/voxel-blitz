@@ -253,6 +253,35 @@ await withInstantTimers(async () => {
   assert.equal(h.session.net.pending, null);
 });
 
+// A lobby that switched to Conquest while this (now outdated) tab was away
+// refuses the rejoin as a stale client (4010): stop and say to reload.
+await withInstantTimers(async () => {
+  const h = makeHarness();
+  await goLive(h, { mode: 'create', name: 'Tester' });
+  h.session.net.drop();
+  await flush();
+  const nets = h.nets.length;
+  h.session.net.refuse('closed before welcome/map', 4010);
+  await flush(20);
+  assert.equal(h.session.phase, 'menu');
+  assert.equal(h.lastJoinState(), `Voxel Blitz was updated. Reload the page to rejoin lobby ${WELCOME.lobby.code}.`);
+  assert.equal(h.nets.length, nets + 1, 'a stale-client refusal is not retried');
+  assert.equal(h.session.net.pending, null);
+});
+
+// A live socket closed as a stale client is a kick, not a reconnectable drop.
+await withInstantTimers(async () => {
+  const h = makeHarness();
+  await goLive(h);
+  const stale = 'Voxel Blitz was updated. Reload the page to play Conquest.';
+  h.session.net.emit('serverError', { msg: stale });
+  h.session.net.drop({ code: 4010, reason: 'stale client' });
+  await flush(20);
+  assert.equal(h.session.phase, 'menu');
+  assert.equal(h.lastJoinState(), stale);
+  assert.equal(h.session.net.pending, null, 'no reconnect attempt follows a stale-client close');
+});
+
 // Cancel on the reconnect overlay ends the loop, also between retries.
 await withInstantTimers(async () => {
   const h = makeHarness();

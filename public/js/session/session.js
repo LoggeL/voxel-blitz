@@ -42,8 +42,8 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
 /** Training run course events emitted by the server's training policy. */
 const RUN_EVENT_KINDS = Object.freeze(['run_start', 'run_split', 'run_finish', 'run_reset']);
 
-/** Close codes the server uses to reject or kick (bad join, password, karma ban). */
-const KICK_CLOSE_CODES = new Set([4002, 4003]);
+/** Close codes the server uses to reject or kick (bad join, password, karma ban, stale page code). */
+const KICK_CLOSE_CODES = new Set([4002, 4003, 4010]);
 
 function nowMs() {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'

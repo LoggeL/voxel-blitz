@@ -12,6 +12,7 @@ import { attachBots } from '../server/bots.js';
 import { TICK_MS } from '../server/protocol/admission.js';
 import { BotCommander, COMMANDER_PLAN_MS, STAGE_MIN, STAGE_MAX, STAGE_ANGLE, frontlineTiers, readConquestView } from '../server/bot-commander.js';
 import { KIT_IDS } from '../shared/conquest-contract.js';
+import { BOT_FLEX_POOL } from '../shared/conquest-kits.js';
 import { surfaceNavigation } from '../server/bot-surface-nav.js';
 
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -238,20 +239,44 @@ function fixture(n = 16) {
 // --- kits, crews, deploy ------------------------------------------------------
 {
   const { game, bots, commander, replan, bodies, teamOf } = fixture();
+  // Opening lives already carry the squad slot kits (bots join after the director registers).
+  {
+    const opening = [...game.entities.values()].filter(p => p.bot).map(p => game.mode.policy.roles.kitOf(p));
+    const squads = new Set([...game.entities.values()].filter(p => p.bot).map(p => `${teamOf(p)}:${game.mode.policy.squads.squadOf(p.id)}`));
+    assert.equal(opening.filter(k => k === 'medic').length, squads.size, `one opening Medic per squad (${opening})`);
+    assert(opening.filter(k => k === 'assault').length <= squads.size, `opening lives are not all Assault (${opening})`);
+  }
   replan();
   for (const team of ['alpha', 'bravo']) {
     const ts = commander.teams.get(team);
     for (const squad of ts.squads.values()) {
       const kits = squad.members.map(id => commander.kitFor(game.entities.get(id)));
       assert(kits.every(k => KIT_IDS.includes(k)), 'every kit is a contract kit');
-      if (squad.members.length >= 3) assert.deepEqual(kits.slice(0, 3), ['assault', 'engineer', 'support'], 'squad mix: assault, engineer, support ...');
-      if (squad.members.length >= 4) assert(['recon', 'assault'].includes(kits[3]), '... and recon or assault');
+      // Shared BOT_SQUAD_SLOTS: assault, one Medic per squad, engineer, then a flex kit from BOT_FLEX_POOL.
+      if (squad.members.length >= 3) assert.deepEqual(kits.slice(0, 3), ['assault', 'medic', 'engineer'], 'squad mix: assault, medic, engineer ...');
+      if (squad.members.length >= 2) assert.equal(kits.filter(k => k === 'medic').length, 1, 'exactly one Medic per squad');
+      if (squad.members.length >= 4) assert(BOT_FLEX_POOL.includes(kits[3]), `... and a flex kit from the pool (${kits[3]})`);
+      for (const member of squad.members) {
+        const kit = commander.kitFor(game.entities.get(member));
+        const variant = commander.variantFor(game.entities.get(member));
+        assert(variant === 0 || variant === 1, 'variant 0 or 1');
+        if (kit === 'pyro') assert.equal(variant, 0, 'Pyro bots carry the flamethrower');
+      }
     }
     const teamBots = bots.brains.filter(br => teamOf(game.entities.get(br.id)) === team).length;
     assert(ts.crews.size <= Math.ceil(teamBots / 3), `${team} crew budget <= ceil(teamBots/3) (${ts.crews.size}/${teamBots})`);
     const types = [...ts.crews.values()].map(c => `${game.vehicles.vehicles.get(c.vehicleId)?.type}:${c.seatId}`);
     assert(types.includes('tank:driver'), `${team}: the tank driver is the first crew slot (${types.join(',')})`);
     if (ts.crews.size >= 2) assert(types.includes('helicopter:driver'), `${team}: the attack helicopter pilot comes next`);
+  }
+  // A human in the Medic's slot does not cost the squad its Medic: kit slots count bots only.
+  {
+    const squad = [...commander.teams.get('alpha').squads.values()].find(sq => sq.members.length >= 4);
+    const human = game.entities.get(squad.members[1]);
+    human.bot = false;
+    const botKits = squad.members.filter(id => id !== squad.members[1]).map(id => commander.kitFor(game.entities.get(id)));
+    assert.deepEqual(botKits.slice(0, 3), ['assault', 'medic', 'engineer'], `bots around a human still field assault, medic, engineer (${botKits})`);
+    human.bot = true;
   }
   // Deploy: a dead crew bot spawns straight into its seat; others pick a valid option.
   const alpha = commander.teams.get('alpha');

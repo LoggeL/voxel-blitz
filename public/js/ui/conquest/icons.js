@@ -33,6 +33,18 @@ export const ICON_PATHS = Object.freeze({
   engineer: 'M14.5 3a4.5 4.5 0 0 0-4.3 5.9L3 16.1 5.9 19l7.2-7.2A4.5 4.5 0 0 0 19 6.5l-2.7 2.7-2.4-.6-.6-2.4L16 3.5a4.5 4.5 0 0 0-1.5-.5z',
   support: 'M4 7h16v12H4zM8 4h8v3h-2V6h-4v1H8zM11 9.5h2V12h2.5v2H13v2.5h-2V14H8.5v-2H11z',
   recon: 'M12 5C6.5 5 3 12 3 12s3.5 7 9 7 9-7 9-7-3.5-7-9-7zm0 2.8a4.2 4.2 0 1 1 0 8.4 4.2 4.2 0 0 1 0-8.4zm0 2.2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
+  // Medic: the revive cross inside a rounded plate.
+  medic: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm5 3.5v3.5H6.5v4H10v3.5h4V14h3.5v-4H14V6.5z',
+  // Pyro: a twin-tongued flame.
+  pyro: 'M12 2c1.2 3.2 4.6 5.4 5.6 9 1 3.7-1.2 8-5.6 9-4.6-.6-7-4.4-6.1-8 .5-2.1 1.8-3.4 2.9-4.6.1 1.7.7 3 1.9 3.6C10.3 7.8 11 4.6 12 2zm.3 10.2c-.9 1.3-2.3 2.4-2.3 4.2a2.3 2.3 0 0 0 4.6 0c0-1.6-1.2-2.6-2.3-4.2z',
+  // Grenadier: a lobbed shell and the dots of its arc.
+  grenadier: 'M10 8.5a5.5 5.5 0 1 1 11 0a5.5 5.5 0 1 1-11 0zM12.5 7a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0zM1.4 20a1.6 1.6 0 1 1 3.2 0a1.6 1.6 0 1 1-3.2 0zM3.6 15.6a1.6 1.6 0 1 1 3.2 0a1.6 1.6 0 1 1-3.2 0zM6.6 11.8a1.6 1.6 0 1 1 3.2 0a1.6 1.6 0 1 1-3.2 0z',
+  // Raider: the RIPTIDE disc in flight (ring, hub, speed streaks).
+  raider: 'M4 12a9 4.5 0 1 1 18 0a9 4.5 0 1 1-18 0zM9 12a4 2 0 1 0 8 0a4 2 0 1 0-8 0zM11.5 12a1.5 .8 0 1 1 3 0a1.5 .8 0 1 1-3 0zM0 8.6h4.6v1.6H0zM.8 13.8h3.4v1.6H.8z',
+  // Marksman: a charged bolt.
+  marksman: 'M14 2L5 13.5h5.5L9 22l10-12.5h-5.7z',
+  // Padlock (locked deploy cards).
+  padlock: 'M7 10V7.5a5 5 0 0 1 10 0V10h1.5a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1zm2.5 0h5V7.5a2.5 2.5 0 0 0-5 0zM11 14v4h2v-4z',
   // Markers.
   hq: 'M4 20V9l8-5 8 5v11h-5v-6H9v6z',
   squad: 'M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6L12 16.2 6.6 19.3l1.3-6-4.6-4.1 6.1-.6z',

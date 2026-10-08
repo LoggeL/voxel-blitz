@@ -10,6 +10,7 @@ import { SquadRoster } from './conquest/squads.js';
 import { ScoreLedger } from './conquest/score.js';
 import { BoundsSystem, RESTRICTED_WEAPON } from './conquest/bounds.js';
 import { createConquestRoles } from './conquest/roles.js';
+import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
 import { evHit } from '../protocol/events.js';
 
@@ -47,10 +48,34 @@ export class ConquestPolicy extends TdmPolicy {
       vehicleFor: id => this.vehicleFor(id),
       flags: () => this.capture.flags,
       rules: this.rules,
+      damageTakenScale: (entity, weapon) => this.roles?.damageTakenScale?.(entity, weapon) ?? 1,
+      onInfantryHit: (victim, attacker, weapon, amount) => this.roles?.onInfantryHit?.(victim, attacker, weapon, amount),
     });
     this.finalStats = new Map();
     this.roles = createConquestRoles({ policy: this, engine: this.engine, rules: this.rules });
     this._resetObjectives();
+  }
+
+  /**
+   * Authoritative career level of a human (stamped by the lobby from the
+   * player's server-side career, and on every level-up). Levels never drop.
+   * Emits `kit_unlocks {id, level, unlocked, newly}` so the deploy screen
+   * shows exactly the kits the server will accept; `announce` re-sends the
+   * current state without a level change (match join and match start).
+   */
+  setCareerLevel(player, level, { announce = true } = {}) {
+    const entity = this._entity(player);
+    if (!entity || entity.bot) return null;
+    // The first stamp of an entity (join, takeover, new match engine) only states the
+    // level: a veteran is not "newly" unlocking anything. Only a later rise is news.
+    const stamped = Number.isFinite(entity.careerLevel) && entity.careerLevel >= 1;
+    const prior = stamped ? Math.trunc(entity.careerLevel) : 1;
+    const next = Math.max(prior, Number.isFinite(level) && level >= 1 ? Math.trunc(level) : 1);
+    entity.careerLevel = next;
+    const unlocked = unlockedKits(next);
+    const newly = stamped && next > prior ? unlocked.filter(kit => !kitUnlocked(kit, prior)) : [];
+    if (announce || newly.length) this._emit('kit_unlocks', { id: String(entity.id), level: next, unlocked, newly });
+    return { level: next, unlocked, newly };
   }
 
   /** Rich flag rows: id, x, y, z, radius, owner, control, state, mover, alpha, bravo, spawns. */
@@ -73,6 +98,8 @@ export class ConquestPolicy extends TdmPolicy {
     this.score.reset();
     this.finalStats = new Map();
     this.roles.reset();
+    // Stable per match: the bot flex kit of each squad (shared/conquest-kits.js botSquadKit).
+    this.kitSeed = Math.floor(Math.random() * 2 ** 31);
     for (const state of this._players.values()) state.objectiveId = null;
     this.lastTickAt = this.now;
     this._view = null;
@@ -87,15 +114,21 @@ export class ConquestPolicy extends TdmPolicy {
 
   setBotDirector(director) {
     this.director = director && typeof director === 'object' ? director : null;
-    // Bots that spawned at HQ moments ago (round start before the director
-    // registered) switch to the director's kit for their opening life.
-    if (this.director && this.phase === 'live') {
-      for (const entity of this._entities.values()) {
-        if (!entity.bot || entity.state !== 'alive' || !this._state(entity)) continue;
-        if (this.deploy.seedBotKit(entity, { freshOnly: true })) this.applyRespawnLoadout(entity);
-      }
-    }
+    this.reseedFreshBots();
     return true;
+  }
+
+  /**
+   * Bots that spawned at HQ moments ago (round start before the director
+   * registered, or while the bot roster was still filling) switch to the
+   * director's squad slot kit for their opening life.
+   */
+  reseedFreshBots() {
+    if (!this.director || this.phase !== 'live') return;
+    for (const entity of this._entities.values()) {
+      if (!entity.bot || entity.state !== 'alive' || !this._state(entity)) continue;
+      if (this.deploy.seedBotKit(entity, { freshOnly: true })) this.applyRespawnLoadout(entity);
+    }
   }
 
   // --- lifecycle -----------------------------------------------------------
@@ -198,6 +231,8 @@ export class ConquestPolicy extends TdmPolicy {
     else this._resetVehicles();
     this._resetObjectives();
     super.reset();
+    // A rematch re-sends every human's kit unlocks (the client HUD may have been rebuilt).
+    for (const entity of this._entities.values()) if (!entity.bot && this._state(entity)) this.setCareerLevel(entity, entity.careerLevel);
   }
 
   // --- players -------------------------------------------------------------
@@ -262,6 +297,9 @@ export class ConquestPolicy extends TdmPolicy {
     for (const row of this.ledger.charge(state.team, this.rules.deathTicketCost)) this._emit('ticket_low', row);
     this.score.onKill(dead, killer, context);
     this.roles.onDeath(dead, killer, context);
+    // The deploy screen opens now: restate the human's kit unlocks, so a client that
+    // missed the join announcement (still loading the map) never shows stale padlocks.
+    if (!dead.bot && Number.isFinite(dead.careerLevel)) this.setCareerLevel(dead, dead.careerLevel);
     if (this.ledger.tickets[state.team] <= 0) this._finishMatch(oppositeTeam(state.team));
     return true;
   }
@@ -375,6 +413,9 @@ export class ConquestPolicy extends TdmPolicy {
   applyRespawnLoadout(player) {
     if (!super.applyRespawnLoadout(player)) return false;
     const entity = this._entity(player);
+    // A human who took over a bot inherits its kit choice: a class above the human's
+    // career level falls back to the default here (rematch, team change, any respawn).
+    this.deploy.enforceKitGate(entity);
     const { kit, variant, gadget } = this.deploy.kitOf(entity.id);
     this.roles.applyLoadout(entity, kit, variant, gadget);
     return true;

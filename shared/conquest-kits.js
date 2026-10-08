@@ -31,7 +31,7 @@ export const KIT_GADGET_LABELS = Object.freeze({
  * tuning never needs a logic change.
  */
 export const KIT_ROLE_RULES = Object.freeze({
-  /** Assault revive reach, reviver feet to body feet (m). */
+  /** Medic revive reach, reviver feet to body feet (m). */
   reviveRange: 2,
   /** Engineer repair reach, chest to the nearest hull surface (m). */
   repairRange: 3.5,
@@ -52,7 +52,106 @@ export const KIT_ROLE_RULES = Object.freeze({
   spotAttemptMinMs: 250,
   /** Angular body radius used by the spot cone (m) for infantry targets. */
   spotPlayerRadius: 0.55,
+  /** Medic heal aura: pulse interval, reach (m, feet to feet) and HP per pulse per mate. */
+  healIntervalMs: 1000,
+  healRadius: 6,
+  healPerPulse: 5,
+  /** A mate damaged this recently is skipped: the aura tops up between fights only. */
+  healDamagePauseMs: 3000,
+  /** The Medic heals itself at this share of a pulse. */
+  healSelfFraction: 0.5,
+  /** One `heal` award per this many HP restored to others. */
+  healAwardHp: 50,
+  /** A mate in the aura gets a spent medkit back at most this often. */
+  medkitRestockMs: 30000,
+  /** Assault ADRENALINE: an enemy infantry kill re-arms the medkit and returns grenades, at most this often. */
+  adrenalineCooldownMs: 10000,
+  adrenalineGrenade: 'frag',
+  adrenalineGrenades: 1,
+  /** Grenadier ORDNANCE: a self resupply pulse (one magazine, one grenade) this often. */
+  ordnanceIntervalMs: 20000,
+  /** Raider GHOST: no auto-spot on fire, and any mark on a Raider lasts at most this long. */
+  ghostSpotMs: 2500,
+  /** Marksman OVERWATCH: a damaging primary hit marks the target for the team this long. */
+  overwatchTagMs: 4000,
+  /** Tag only the first body a piercing shot passes (VOLTLANCE); off by default. */
+  overwatchTagFirstOnly: false,
 });
+
+/**
+ * Deploy-screen order (base kits first, then the level unlocks); independent of
+ * the KIT_IDS wire order, which only ever grows at the end.
+ */
+export const KIT_MENU_ORDER = Object.freeze(['assault', 'medic', 'engineer', 'support', 'recon', 'pyro', 'grenadier', 'raider', 'marksman']);
+
+/** Career level that opens a kit (1: always available). Unknown kits are never unlocked. */
+export function kitUnlockLevel(kit) {
+  const def = Object.hasOwn(KITS, kit) ? KITS[kit] : null;
+  return def ? Math.max(1, Math.trunc(def.unlockLevel ?? 1)) : Infinity;
+}
+
+/** True when a player at career `level` may deploy with `kit`. */
+export function kitUnlocked(kit, level) {
+  const lv = Number.isFinite(level) ? Math.max(1, Math.trunc(level)) : 1;
+  return lv >= kitUnlockLevel(kit);
+}
+
+/** Kit ids open at career `level`, in KIT_MENU_ORDER. */
+export function unlockedKits(level) {
+  return KIT_MENU_ORDER.filter(kit => kitUnlocked(kit, level));
+}
+
+/** Deploy-card ability labels (the ability ids stay internal). */
+export const KIT_ABILITY_LABELS = Object.freeze({
+  adrenaline: 'ADRENALINE', revive: 'REVIVE · HEAL', repair: 'REPAIR', resupply: 'RESUPPLY', spot: 'SPOTTING',
+  fireproof: 'FIREPROOF', ordnance: 'ORDNANCE', ghost: 'GHOST', overwatch: 'OVERWATCH',
+});
+
+const secs = ms => `${+(ms / 1000).toFixed(1)} S`;
+/**
+ * One-line ability hint for the deploy card, formatted from the rule tables
+ * so every number on screen is the number the server uses.
+ */
+export function kitAbilityHint(kit, rules = {}) {
+  const r = KIT_ROLE_RULES;
+  const ability = KITS[kit]?.ability;
+  const hps = r.healPerPulse * 1000 / r.healIntervalMs;
+  switch (ability) {
+    case 'adrenaline': return `ENEMY KILL RE-ARMS YOUR MEDKIT · +${r.adrenalineGrenades} ${r.adrenalineGrenade.toUpperCase()} · ${secs(r.adrenalineCooldownMs)} COOLDOWN`;
+    case 'revive': return `REVIVE DOWNED MATES · HEAL ${+hps.toFixed(1)} HP/S WITHIN ${r.healRadius} M`;
+    case 'repair': return `REPAIR FRIENDLY HULLS WITHIN ${r.repairRange} M`;
+    case 'resupply': return `AMMO AND GRENADES TO MATES WITHIN ${r.resupplyRadius} M EVERY ${secs(r.resupplyIntervalMs)}`;
+    case 'spot': return `SPOTS REACH ${rules.spotRangeRecon ?? 400} M AND LAST ${secs(rules.spotMsRecon ?? 8000)}`;
+    case 'fireproof': return 'IMMUNE TO FIRE · FLAMES AND MOLOTOVS';
+    case 'ordnance': return `REFILLS ONE MAGAZINE AND ONE GRENADE EVERY ${secs(r.ordnanceIntervalMs)}`;
+    case 'ghost': return `NO AUTO-SPOT WHEN FIRING · MARKS LAST ${secs(r.ghostSpotMs)}`;
+    case 'overwatch': return `PRIMARY HITS TAG TARGETS FOR ${secs(r.overwatchTagMs)}`;
+    default: return '';
+  }
+}
+
+/**
+ * Bot squad composition by member slot (bots ignore level gates): slot 0
+ * Assault, 1 Medic (every squad has a reviver), 2 Engineer, 3 a flex kit from
+ * BOT_FLEX_POOL picked by a stable hash of team, squad and match seed.
+ */
+export const BOT_SQUAD_SLOTS = Object.freeze(['assault', 'medic', 'engineer', 'flex']);
+export const BOT_FLEX_POOL = Object.freeze(['support', 'support', 'recon', 'pyro', 'grenadier', 'raider', 'marksman']);
+
+/** FNV-1a 32-bit hash used for stable bot picks. */
+export function kitHash(text) {
+  let h = 2166136261;
+  const s = String(text);
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/** Bot kit of a squad member slot (0-based). */
+export function botSquadKit(slot, { team = '', squadId = 0, seed = 0 } = {}) {
+  const role = BOT_SQUAD_SLOTS[Math.max(0, Math.trunc(slot) || 0) % BOT_SQUAD_SLOTS.length];
+  if (role !== 'flex') return role;
+  return BOT_FLEX_POOL[kitHash(`${team}:${squadId}:${seed}`) % BOT_FLEX_POOL.length];
+}
 
 const WEAPON_SLOT = new Map(WEAPON_IDS.map((id, index) => [id, index]));
 const GRENADE_SLOT = new Map(GRENADE_TYPE_IDS.map((id, index) => [id, index]));
@@ -265,11 +364,13 @@ export function applyResupply(inventory, kit, variant = 0, gadget = 0, { gadgetR
   return result;
 }
 
-/** Deploy-screen rows: id, label, ability, the two variant primaries and the gadget choices. */
-export const KIT_MENU = Object.freeze(KIT_IDS.map(id => Object.freeze({
+/** Deploy-screen rows (KIT_MENU_ORDER): id, label, ability, unlock level, the two variant primaries and the gadget choices. */
+export const KIT_MENU = Object.freeze(KIT_MENU_ORDER.map(id => Object.freeze({
   id,
   label: KITS[id].label,
   ability: KITS[id].ability,
+  abilityLabel: KIT_ABILITY_LABELS[KITS[id].ability] ?? KITS[id].ability.toUpperCase(),
+  unlockLevel: kitUnlockLevel(id),
   variants: Object.freeze(KITS[id].primaries.map(primary => Object.freeze({
     primary, name: WEAPONS[primary]?.name ?? primary.toUpperCase(),
   }))),

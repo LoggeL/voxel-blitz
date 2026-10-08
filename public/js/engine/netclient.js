@@ -13,6 +13,7 @@ import {
   clampGrenadeType,
   grenadeTypeAt,
 } from '../../../shared/grenade-rules.js';
+import { CONQUEST_CONTRACT_VERSION } from '../../../shared/conquest-contract.js';
 import { NetworkTiming } from './network-timing.js';
 import {
   findSnapshotWindow,
@@ -396,6 +397,9 @@ export class NetClient {
     } else {
       initialFrame = { t: 'join', name, bots };
     }
+    // The Conquest wire contract this page was built against; the server keeps
+    // a tab running older code out of Conquest rooms (reload to update).
+    initialFrame.contract = CONQUEST_CONTRACT_VERSION;
     // Template fingerprints this client holds; the field (even empty) opts in
     // to V3 map frames (shared/world/serialize.js), which a rejoin turns into
     // a reference plus the changed cells.

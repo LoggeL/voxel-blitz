@@ -41,7 +41,7 @@ const ok = () => { checks++; };
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
   'tank-driver', 'tank-commander', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
-  'deploy-refused', 'deploy-aa', 'scoreboard', 'result'];
+  'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'scoreboard', 'result'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
   assert.equal(f.match.mode, 'conquest');
@@ -130,9 +130,13 @@ ok();
   const prompt = state.interactModel({ self: revive.self, players: revive.players, vehicles: revive.vehicles });
   assert.equal(prompt.type, 'revive'); assert.equal(prompt.targetId, 'dn1'); assert.equal(prompt.progress, 0.6); assert.equal(prompt.hold, true);
   assert.equal(prompt.label, 'REVIVE MERCER');
-  // A non-assault kit gets no revive prompt; an engineer near a damaged own hull gets repair.
+  // Only the Medic revives: anyone else over the body is told it needs a Medic (no hold, no key);
+  // an engineer near a damaged own hull gets repair.
   const engineer = { ...revive.self, cq: [1, 1, 0, 0, 0, 0, 25] };
-  assert.equal(state.interactModel({ self: engineer, players: revive.players, vehicles: [] }), null);
+  const needs = state.interactModel({ self: engineer, players: revive.players, vehicles: [] });
+  assert.equal(needs.type, 'needs-medic'); assert.equal(needs.hold, false); assert.equal(needs.label, 'MERCER NEEDS A MEDIC');
+  const assault = { ...revive.self, cq: [0, 1, 0, 0, 0, 0, 0] };
+  assert.equal(state.interactModel({ self: assault, players: revive.players, vehicles: [] }).type, 'needs-medic', 'the Assault no longer revives');
   const hull = { id: 'alpha-jeep', type: 'jeep', team: 'alpha', hp: 160, x: engineer.x + 2, y: engineer.y, z: engineer.z };
   const repair = state.interactModel({ self: engineer, players: revive.players, vehicles: [hull] });
   assert.equal(repair.type, 'repair'); assert.equal(repair.targetId, 'alpha-jeep'); assert.equal(repair.label, 'REPAIR JEEP 50%');

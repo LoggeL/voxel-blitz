@@ -364,7 +364,7 @@ assert.deepEqual(parseConquestIntent({ t: 'conquest', redeploy: 1 }), { type: 'r
 assert.deepEqual(parseConquestIntent({ t: 'conquest', support: { type: 'repair', targetId: 'alpha-tank' } }), { type: 'support', support: 'repair', targetId: 'alpha-tank' });
 for (const bad of [
   { t: 'conquest', deploy: { spawn: 'flag:F' } }, { t: 'conquest', deploy: { spawn: 'flag:a' } },
-  { t: 'conquest', deploy: { spawn: 'hq', kit: 'medic' } }, { t: 'conquest', deploy: { spawn: 'hq', variant: 2 } },
+  { t: 'conquest', deploy: { spawn: 'hq', kit: 'medicine' } }, { t: 'conquest', deploy: { spawn: 'hq', variant: 2 } },
   { t: 'conquest', deploy: { spawn: 'hq', extra: 1 } }, { t: 'conquest', deploy: { spawn: 'squad:' } },
   { t: 'conquest', deploy: { spawn: 'hq', kit: 'engineer', gadget: 2 } }, { t: 'conquest', deploy: { spawn: 'hq', kit: 'engineer', gadget: '1' } },
   { t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', gadget: 1 } }, { t: 'conquest', deploy: { spawn: 'hq', gadget: 1 } },

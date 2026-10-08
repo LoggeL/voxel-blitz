@@ -41,6 +41,7 @@ import { wrapAngle } from './sim/player.js';
 import { glaiveDef } from './sim/projectiles.js';
 import { BUBBLE_RULES, bubbleFlight, bubbleProfile } from '../shared/bubble-rules.js';
 import { MGL_RULES } from '../shared/mgl-rules.js';
+import { FLAME_RULES } from '../shared/flame-rules.js';
 import { ConquestVehicleDriving } from './bot-vehicle-driving.js';
 import { BotCommander, createBotDirector } from './bot-commander.js';
 import { ConquestAircraftDriving } from './bot-aircraft.js';
@@ -126,6 +127,17 @@ const BUBBLE_DRAW_RANGE = 12;     // m: redraw the launcher / blow a Big Bubble 
 const BUBBLE_GROUP_DIST = 3.5;    // m: a second enemy this close to the target earns a Big Bubble
 const BUBBLE_SWAP_CD_MS = 2500;   // between SUDSBLASTER range swaps
 const MGL_MAX_RANGE = 52;          // reliable lower-arc reach with room for lead and aim error
+const SUPPORT_HOLD_MARGIN = 0.4;  // m: a revive/repair hold stops the legs this far inside the 3D reach ...
+const SUPPORT_HOLD_FLAT = 1.2;    // m: ... or this close on the flat (a body on a step above)
+const MEDKIT_BOT_HP = 50;         // Conquest bots patch up with the medkit (J) below this HP ...
+const MEDKIT_QUIET_MS = 2000;     // ... once no contact has been seen this long
+const FLAME_SLOT = WEAPON_IDS.indexOf('flamethrower');
+// F-4 FIRESTORM bands (hysteresis): any packet that lands sets the target alight, so a
+// Pyro bot burns out to the stream's reach and only gives way to the revolver well past it.
+export const FLAME_FIRE_RANGE = FLAME_RULES.range - 1;   // m: open up inside this (aim distance)
+export const FLAME_DRAW_RANGE = FLAME_RULES.range - 2;   // m: redraw the flamethrower inside this
+export const FLAME_SWAP_RANGE = FLAME_RULES.range + 6;   // m: past this a contact gets the revolver
+export const PYRO_PRESS_RANGE = 55;       // m: a Pyro closes contacts nearer than this flamethrower first, sprinting
 const MELEE_CLOSE = 1.3;          // m: stop pressing forward this close to the body
 const MELEE_SPRINT_DIST = 1.7;    // m: sprint in until here so the swing shoves hard
 const MELEE_HOP_DIST = 3.2;       // m: hop inside this so the swing lands falling (crit)
@@ -405,6 +417,8 @@ class BotManager {
       this.game.addBot(pid);
       this.brains.push(new Brain(pid, i, mulberry32((BOT_SEED ^ Math.imul(i + 1, 2654435761)) >>> 0), this.difficulties.get(pid), this.personalitySeed));
     }
+    // Conquest: with the roster complete, freshly spawned bots take their final squad slot kit.
+    this.game.mode.policy?.reseedFreshBots?.();
   }
   tick(dtMs) {
     const dtS = dtMs / 1000;
@@ -1000,17 +1014,24 @@ class BotManager {
     const arriveDist = cq && Number.isFinite(goal.arrive) ? goal.arrive
       : cq && flag && !goal.point ? Math.max(DEFEND_ARRIVE_DIST, flag.radius * 0.5)
         : goalArrivalDist(goal.kind);
-    const objectiveArrived = !!objective && objectiveFlatDist <= arriveDist;
+    // Medic revives and engineer repairs: walk in, then hold the support
+    // intent (re-sent well inside its staleness window) while in reach.
+    // A revive goal carries the server's 3D reach (reach3): a body a step below or above
+    // the feet is only in reach once that distance closes, never from the ledge above it.
+    const supportInReach = !!goal.support && !!objective && (Number.isFinite(goal.reach3) ? objectiveDist <= goal.reach3
+      : objectiveFlatDist <= (goal.reach ?? 2) && Math.abs(objective.y - p.y) <= 2.5);
+    // Well inside reach counts as arrived: the legs stop there with room to spare, so the
+    // hold is never walked (or drifted) out of range circling onto the body's exact spot
+    // (the server drops a session the moment it is out of reach).
+    const objectiveArrived = !!objective && (objectiveFlatDist <= arriveDist || (cq && supportInReach
+      && (objectiveDist <= goal.reach3 - SUPPORT_HOLD_MARGIN || objectiveFlatDist <= SUPPORT_HOLD_FLAT)));
     const interactionReady = !!goal.interact && (
       (goal.kind === 'plant' && objectiveFlatDist <= PLANT_READY_DIST
         && Math.abs(objective.y - p.y) <= 1.5)
       || (goal.kind === 'defuse' && objectiveDist <= DEFUSE_READY_DIST)
     );
     inp.keys.interact = interactionReady;
-    // Assault revives and engineer repairs: walk in, then hold the support
-    // intent (re-sent well inside its staleness window) while in reach.
-    if (cq && goal.support && objective && objectiveFlatDist <= (goal.reach ?? 2) && Math.abs(objective.y - p.y) <= 2.5
-        && now >= (br.supportAt ?? 0)) {
+    if (cq && supportInReach && now >= (br.supportAt ?? 0)) {
       br.supportAt = now + SUPPORT_INTENT_MS;
       this.game.mode.conquestIntent?.(p, goal.support);
     }
@@ -1092,7 +1113,9 @@ class BotManager {
     const dryNearEnemy = cq && enemy && !hullTarget && p.mag[p.weapon] === 0 && p.reserve[p.weapon] > 0
       && enemyFlatEarly(enemy, p) < RELOAD_COVER_DIST;
     const panicFrom = enemy && (p.hp <= RETREAT_HP * pers.retreatHp || dryNearEnemy) ? enemy : evadeHull;
-    if (panicFrom && !objectiveUrgent && now >= br.retreatReadyAt && !retreating) {
+    // A Medic holding a revive in reach finishes it (1.2 s) before falling back.
+    const supportHold = cq && supportInReach && goal.kind === 'revive';
+    if (panicFrom && !objectiveUrgent && !supportHold && now >= br.retreatReadyAt && !retreating) {
       const cover = cq ? this.director?.coverFrom(p, panicFrom, goal) : null;
       if (cover) {
         br.roamTarget = cover;
@@ -1123,7 +1146,7 @@ class BotManager {
     }
     if (now < br.retreatUntil) br.state = enemy && cq ? 'fight' : 'retreat';
     else if (br.state === 'retreat') br.state = 'roam';
-    const fallingBack = now < br.retreatUntil;
+    const fallingBack = now < br.retreatUntil && !supportHold;
 
     // Swimmers head for the nearest dry footing instead of treading water
     // (Conquest also holds the swim-up stroke below).
@@ -1181,17 +1204,29 @@ class BotManager {
     //  approach close a far infantry contact along the surface route
     //  combat   the duel dance (spacing, perpendicular strafe)
     let cqMotion = null;
+    // Pyro (a kit flamethrower with fuel): its duel range is the stream's reach, whatever is drawn now.
+    const pyroBot = cq && FLAME_SLOT >= 0 && ownedSlots.includes(FLAME_SLOT) && (p.mag[FLAME_SLOT] > 0 || p.reserve[FLAME_SLOT] > 0);
+    const duelFar = pyroBot ? FLAME_FIRE_RANGE * 0.6 : pers.far;
     if (cq && combatAim && !objectiveUrgent) {
-      const holdPoint = objectiveArrived && (HOLD_STANCES.has(goalStance(goal)) || !!goal.support);
+      // Support goals (revive/repair intents, a Medic standing by a hurt mate) hold their spot.
+      const supportGoal = !!goal.support || goal.kind === 'heal';
+      const holdPoint = objectiveArrived && (HOLD_STANCES.has(goalStance(goal)) || supportGoal);
       if (fallingBack) cqMotion = 'travel';
       else if (hullTarget) cqMotion = 'combat';
       else if (inZone) cqMotion = 'zone';
-      else if (holdPoint || (goal.support && objectiveFlatDist < 8)) cqMotion = 'hold';
+      else if (holdPoint) cqMotion = 'hold';
+      // A revive or repair not yet in reach walks in shooting on the move: holding still a few
+      // metres short (or duelling first) left bodies unrevived next to their Medic.
+      else if (goal.support && objective) cqMotion = 'travel';
+      else if (supportGoal && objectiveFlatDist < 8) cqMotion = 'hold';
       else if (objective && !objectiveArrived && enemyFlat > CLOSE_IN_MAX) cqMotion = 'travel';
-      else if (enemyFlat > pers.far + CLOSE_IN_SLACK && goalStance(goal) !== 'defend') cqMotion = 'approach';
+      else if (enemyFlat > duelFar + CLOSE_IN_SLACK && goalStance(goal) !== 'defend') cqMotion = 'approach';
       else if (objective && !objectiveArrived && enemyFlat > ADVANCE_FIGHT_DIST) cqMotion = 'travel';
       else cqMotion = 'combat';
     }
+    // Pyro press: an infantry contact inside PYRO_PRESS_RANGE being closed on keeps the
+    // flamethrower out (no revolver duel on the way in) and sprints until the stream reaches.
+    const pyroPress = pyroBot && !hullTarget && cqMotion === 'approach' && enemyFlat <= PYRO_PRESS_RANGE;
     const combatMovement = cq ? cqMotion === 'combat' || cqMotion === 'zone'
       : br.state === 'fight' && enemy && !objectiveUrgent && !interactionReady;
     // IRON PICK: no magazine, reach-limited — it closes in instead of spacing.
@@ -1241,7 +1276,10 @@ class BotManager {
       inp.keys.l = side;
       inp.keys.r = !side;
       // Anti-armour fire wants a stand-off band rather than a duel range.
-      const far = cq && hullTarget ? 60 : pers.far, near = cq && hullTarget ? 25 : pers.near;
+      // A drawn flamethrower closes to the stream's reach instead of a duel range.
+      const flamer = pyroBot && !hullTarget;
+      const far = cq && hullTarget ? 60 : flamer ? duelFar : pers.far;
+      const near = cq && hullTarget ? 25 : flamer ? 4 : pers.near;
       if (d > far && !wet(p.x + fx * 1.5, p.z + fz * 1.5)) inp.keys.f = true;
       else if (d < near && !wet(p.x - fx * 1.5, p.z - fz * 1.5)) inp.keys.b = true;
       inp.keys.crouch = br.crouchFight && d > 10;
@@ -1289,6 +1327,7 @@ class BotManager {
         wx /= d; wz /= d;
         br.moveWish = { x: wx - wz * weave, z: wz + wx * weave };
         moving = true;
+        if (pyroPress && p.weapon === FLAME_SLOT && enemyFlat > FLAME_FIRE_RANGE * 0.85) sprint = true;
       }
     } else if (cqMotion === 'hold') {
       // Arrived on a held point: no legs, the peek logic below ducks between bursts.
@@ -1398,7 +1437,9 @@ class BotManager {
           ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), glaiveRules.speedOut, br.skill)
           : mgl ? projectileLead(enemy, mglFlat, MGL_RULES.speed, br.skill)
             : flight ? (flight.t > 0 ? projectileLead(enemy, bubbleFlat, bubbleFlat / flight.t, br.skill) : [0, 0])
-              : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
+              // The FIRESTORM stream flies at FLAME_RULES.speed: lead by its flight time.
+              : p.def.flame ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), FLAME_RULES.speed, br.skill)
+                : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
       const aim = [aimX + lead[0], (rocketAim ? rocketAim.point[1] : aimY) - (flight ? (flight.rise - BUBBLE_RULES.muzzleDrop) * br.skill : 0), aimZ + lead[1]];
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
@@ -1495,6 +1536,16 @@ class BotManager {
           br.bubbleSwapAt = now + BUBBLE_SWAP_CD_MS;
         }
       }
+      // F-4 FIRESTORM (Conquest Pyro): only burn inside the stream's reach, swap
+      // to the revolver for far contacts (same hysteresis clock as the RIPTIDE).
+      if (FLAME_SLOT >= 0 && p.weapon === FLAME_SLOT) {
+        if (aimDistance > FLAME_FIRE_RANGE) canShoot = false;
+        if (aimDistance > FLAME_SWAP_RANGE && !pyroPress && ownedSlots.includes(DEFAULT_WEAPON_SLOT) && p.mag[DEFAULT_WEAPON_SLOT] > 0
+            && inp.switchTo === undefined && !br.spawnSwitchPending && now >= br.glaiveSwapAt) {
+          inp.switchTo = DEFAULT_WEAPON_SLOT;
+          br.glaiveSwapAt = now + GLAIVE_SWAP_CD_MS;
+        }
+      }
       if (mgl) {
         const others = ownedSlots.some((slot) => slot !== p.weapon);
         if (mglPitch === null || aimDistance > MGL_MAX_RANGE) canShoot = false;
@@ -1507,7 +1558,8 @@ class BotManager {
         if (now >= br.pauseUntil || lineUp) {
           if (!br.inBurst) {
             const shots = pers.burst[0] + Math.floor(br.rng() * (pers.burst[1] - pers.burst[0] + 1));
-            br.burstEnd = now + shots * Math.round(60000 / p.def.rpm);
+            // The FIRESTORM sweeps a stream (0.6-1.2 s), not a 3-5 packet tap at 20 packets/s.
+            br.burstEnd = now + (p.weapon === FLAME_SLOT ? 600 + Math.round(br.rng() * 600) : shots * Math.round(60000 / p.def.rpm));
             br.inBurst = true;
           }
           // A Big Bubble hold outlasts a short burst: finish blowing it first.
@@ -1550,6 +1602,17 @@ class BotManager {
       const d = fightNow ? dist3(eye[0], eye[1], eye[2], enemy.x, enemy.eyeY - 0.35, enemy.z) : null;
       if (d === null || (d >= GLAIVE_MIN_RANGE && d <= glaiveReach(glaiveDef(p).glaive))) {
         inp.switchTo = GLAIVE_SLOT;
+        br.glaiveSwapAt = now + GLAIVE_SWAP_CD_MS;
+      }
+    }
+
+    // Pyro: the flamethrower comes back out once a contact is inside the stream's reach.
+    if (FLAME_SLOT >= 0 && p.weapon !== FLAME_SLOT && (p.mag[FLAME_SLOT] > 0 || p.reserve[FLAME_SLOT] > 0)
+        && inp.switchTo === undefined && !br.spawnSwitchPending && now >= br.glaiveSwapAt
+        && ownedSlots.includes(FLAME_SLOT) && this.preferredSlot(br, ownedSlots) === FLAME_SLOT) {
+      const d = fightNow ? dist3(eye[0], eye[1], eye[2], enemy.x, enemy.eyeY - 0.35, enemy.z) : null;
+      if (d === null || d <= FLAME_DRAW_RANGE || pyroPress) {
+        inp.switchTo = FLAME_SLOT;
         br.glaiveSwapAt = now + GLAIVE_SWAP_CD_MS;
       }
     }
@@ -1608,6 +1671,19 @@ class BotManager {
     // In water the jump key is the swim-up stroke: keep the head above the
     // surface and climb out over the bank (never tread water into drowning).
     if (swimming) inp.keys.jump = true;
+
+    // Medkit (J): below half HP and out of contact, stand still and use it until it
+    // finishes or a fight starts again. Assault ADRENALINE kills and the Medic aura's
+    // restock hand a spent one back, so every kit's bots patch up between fights.
+    if (cq && enemy) br.contactAt = now;
+    if (cq && !p.vehicleId && p.medkit && !enemy && !objectiveUrgent && !swimming
+        && (p.medkit.active || (p.medkit.remaining === 1 && p.hp < MEDKIT_BOT_HP && p.grounded
+          && now - (br.contactAt ?? -Infinity) >= MEDKIT_QUIET_MS))) {
+      for (const key of ['f', 'b', 'l', 'r', 'jump', 'sprint', 'crouch', 'prone', 'interact']) inp.keys[key] = false;
+      inp.wantFire = false; inp.wantAds = false; inp.reload = false; inp.switchTo = undefined;
+      moving = false; br.moveWish = null;
+      if (!p.medkit.active) p.medkitRequest = Math.max(p.medkitRequest || 0, (p.medkit.ack || 0) + 1);
+    }
 
     br.intendsMove = moving && (inp.keys.f || inp.keys.b || inp.keys.l || inp.keys.r);
     br.motion = cqMotion ?? (moving ? (searching ? 'search' : 'walk') : 'idle');

@@ -207,6 +207,12 @@ export class PlayerEntity {
     if (this.state !== 'alive') return false;
     if (!Number.isFinite(dmg) || dmg <= 0) return false;
     dmg = this.beforeDamage?.(dmg, attacker, weapon) ?? dmg;
+    // A hook that cancels the hit (Conquest Pyro fire immunity, armoured Bastion hulls) records a
+    // zero hit for the feedback events but neither wounds nor interrupts a medkit.
+    if (!(dmg > 0)) {
+      this.lastDamage = { healthBefore: Math.max(0, this.hp), healthDamage: 0, lethal: false, overkill: 0, cancelled: true };
+      return false;
+    }
     interruptMedkit(this);
     const amount = dmg;
     const armor = Math.max(0, Math.min(POWERUP_RULES.maxArmor,

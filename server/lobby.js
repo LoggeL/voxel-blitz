@@ -17,6 +17,7 @@ import {
   validBotCount,
 } from './protocol/admission.js';
 import { makeLobbyState, makeWelcome } from './protocol/welcome.js';
+import { CONQUEST_CONTRACT_VERSION } from '../shared/conquest-contract.js';
 import {
   DUEL_KILL_LIMITS,
   DEFAULT_DUEL_KILL_LIMIT,
@@ -40,6 +41,9 @@ const QUICK_MAPS = Object.freeze(['foundry', 'depot', 'solstice', 'caldera']);
 const CLOSE_MALFORMED = 4002;
 const CLOSE_UNKNOWN = 4004;
 const CLOSE_FULL = 4005;
+const CLOSE_STALE_CLIENT = 4010;
+const STALE_CONQUEST_MESSAGE = 'Voxel Blitz was updated. Reload the page to play Conquest.';
+const STALE_CONQUEST_GUEST_MESSAGE = 'The host wants to play Conquest, but Voxel Blitz was updated. Reload the page and rejoin.';
 
 // Lobby passwords share libuv's small thread pool with account hashing and
 // static compression, so only a few derivations run or wait at once.
@@ -107,6 +111,32 @@ function encodeCode(value) {
     value = Math.floor(value / LOBBY_CODE_ALPHABET.length);
   }
   return code;
+}
+
+/**
+ * Stamp the server-held career level on a human's entity (Conquest kit
+ * unlocks; guests without a profile are level 1). Conquest also announces
+ * the unlocked kits to that player (`kit_unlocks`).
+ */
+export function stampCareerLevel(engine, id, meta) {
+  const entity = engine?.entities?.get?.(id);
+  if (!entity) return;
+  const level = Number.isFinite(meta?.careerLevel) && meta.careerLevel >= 1 ? Math.trunc(meta.careerLevel) : 1;
+  const policy = engine.mode?.policy;
+  if (typeof policy?.setCareerLevel === 'function') policy.setCareerLevel(entity, level);
+  else entity.careerLevel = Math.max(level, Number.isFinite(entity.careerLevel) ? entity.careerLevel : 1);
+}
+
+/**
+ * A socket whose page code predates the current Conquest wire contract (kit
+ * table, role abilities). Such a tab would decode new kits as null and offer
+ * actions the server refuses, so it is kept out of Conquest rooms. Only
+ * transport-admitted sockets carry `clientContract` (server/index.js; 0 when
+ * the admission frame had none); in-process callers without it are trusted.
+ */
+export function staleConquestClient(meta) {
+  return !!meta && Object.prototype.hasOwnProperty.call(meta, 'clientContract')
+    && meta.clientContract !== CONQUEST_CONTRACT_VERSION;
 }
 
 /** Owns authoritative rooms and keeps every transport fan-out room-scoped. */
@@ -358,6 +388,14 @@ export class LobbyManager {
     }
     if (gameMode === 'duel' && room.members.size > 2) return this._error(meta, '1v1 allows only two players');
     if (gameMode === 'bastion' && room.members.size > 4) return this._error(meta, 'Bastion allows up to four players');
+    if (gameMode === 'conquest' && room.gameMode !== 'conquest') {
+      const stale = [...room.members.values()].filter(human => staleConquestClient(human.meta));
+      if (stale.length) {
+        // Tell the old tabs themselves too: only they can fix it, by reloading.
+        for (const human of stale) this._error(human.meta, STALE_CONQUEST_GUEST_MESSAGE);
+        return this._error(meta, `Conquest needs a page reload first (game updated): ${stale.map(human => human.name).join(', ')}`);
+      }
+    }
     traitorPercent ??= room.traitorPercent;
     if (!TTT_TRAITOR_PERCENTS.includes(traitorPercent)) return this._error(meta, 'Invalid traitor percentage');
     duelKillLimit ??= room.duelKillLimit;
@@ -388,6 +426,7 @@ export class LobbyManager {
         for (const human of room.members.values()) {
           spawns.set(human.id, engine.addClient(human.id, human.name));
           engine.entities.get(human.id).weaponLoadout = human.meta.weaponLoadout;
+          stampCareerLevel(engine, human.id, human.meta);
           this._bindKarma(engine, human.meta, human.id);
         }
         const preserveTeams = ['tdm', 'snd', 'conquest'].includes(room.gameMode) && ['tdm', 'snd', 'conquest'].includes(gameMode);
@@ -592,6 +631,9 @@ export class LobbyManager {
     if (karmaBanRemaining(meta.admittedProfileId || meta.id) > 0) {
       return this._reject(meta, 'Karma ban active. Try again after 60 minutes.', 4003, 'karma ban');
     }
+    if (room.gameMode === 'conquest' && staleConquestClient(meta)) {
+      return this._reject(meta, STALE_CONQUEST_MESSAGE, CLOSE_STALE_CLIENT, 'stale client');
+    }
     const id = memberId(meta);
     if (!id || room.destroyed || room.members.has(id) || room.members.size >= capacity(room)) {
       return this._reject(meta, 'Lobby is full or unavailable', CLOSE_FULL, 'lobby full');
@@ -607,6 +649,7 @@ export class LobbyManager {
         : room.engine.addClient(id, name);
       added = true;
       room.engine.entities.get(id).weaponLoadout = meta.weaponLoadout;
+      stampCareerLevel(room.engine, id, meta);
       this._bindKarma(room.engine, meta, id);
       room.members.set(id, member);
       if (!room.host) room.host = id;
@@ -678,6 +721,8 @@ export class LobbyManager {
           for (const [id, team] of room.botTeams) room.engine.mode.setLobbyTeam(id, team);
         }
       }
+      // Conquest kit unlocks ride the first gameplay tick for every member.
+      for (const member of room.members.values()) stampCareerLevel(room.engine, member.id, member.meta);
       // Only final lobby assignments may reach the first gameplay tick.
       const assignments = new Set();
       for (let i = room.engine.tickEvents.length - 1; i >= 0; i--) {

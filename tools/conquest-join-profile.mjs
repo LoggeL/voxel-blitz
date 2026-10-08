@@ -24,6 +24,7 @@
  * (needs a local Chromium); run it through .conquest-work/heavy.sh on a shared
  * machine.
  */
+import { CONQUEST_CONTRACT_VERSION } from '../shared/conquest-contract.js';
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -67,7 +68,7 @@ async function hostMatch(port) {
     if (msg.t !== 'tick') frames.text.push(msg);
   });
   await new Promise((resolve, reject) => { ws.once('open', resolve); ws.once('error', reject); });
-  ws.send(JSON.stringify({ t: 'create', name: 'Host', bots: BOTS, gameMode: 'conquest', map: 'frontier' }));
+  ws.send(JSON.stringify({ t: 'create', name: 'Host', bots: BOTS, gameMode: 'conquest', map: 'frontier', contract: CONQUEST_CONTRACT_VERSION }));
   const waitText = async (predicate, label) => {
     const deadline = Date.now() + 20_000;
     while (Date.now() < deadline) {

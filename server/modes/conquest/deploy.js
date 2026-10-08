@@ -1,5 +1,5 @@
 import { KIT_IDS } from '../../../shared/conquest-contract.js';
-import { normalizeGadget as kitGadgetIndex } from '../../../shared/conquest-kits.js';
+import { botSquadKit, kitUnlockLevel, kitUnlocked, normalizeGadget as kitGadgetIndex } from '../../../shared/conquest-kits.js';
 import { vehicleDef } from '../../../shared/vehicles.js';
 import {
   deployOptions,
@@ -13,13 +13,24 @@ export const FLAG_SPAWN_LOS_RANGE = 40;
 /** A squad spawn on a mate seated in a hull lands this far outside the hull's footprint radius at most. */
 export const SQUAD_HULL_EXTRA_RADIUS = 3;
 const DEFAULT_KIT = KIT_IDS[0];
-const BOT_KIT_ROTATION = Object.freeze(['assault', 'engineer', 'support', 'recon']);
 const round2 = n => Math.round(n * 100) / 100;
 
 export function normalizeKit(kit) { return KIT_IDS.includes(kit) ? kit : DEFAULT_KIT; }
 export function normalizeVariant(variant) { return variant === 1 ? 1 : 0; }
 /** Gadget choice of a kit (0 default: the Engineer's AT launcher; 1 the STINGER). */
 export function normalizeGadget(kit, gadget) { return kitGadgetIndex(normalizeKit(kit), gadget === 1 ? 1 : 0); }
+/**
+ * Authoritative career level of an entity for the kit gate: the level the
+ * server stamped from the player's career (guests 1). Bots skip the gate.
+ */
+export function careerLevelOf(entity) {
+  const level = Number(entity?.careerLevel);
+  return Number.isFinite(level) && level >= 1 ? Math.trunc(level) : 1;
+}
+/** True when `entity` may deploy with `kit` (bots always may). */
+export function mayUseKit(entity, kit) {
+  return !!entity?.bot || kitUnlocked(kit, careerLevelOf(entity));
+}
 
 /**
  * Deploy gate and spawn resolution. A dead player respawns once it holds a
@@ -61,6 +72,20 @@ export class DeploySystem {
   }
 
   kitOf(playerId) { const s = this.states.get(String(playerId)); return s ? { kit: s.kit, variant: s.variant, gadget: s.gadget ?? 0 } : { kit: DEFAULT_KIT, variant: 0, gadget: 0 }; }
+
+  /**
+   * Level gate on the remembered kit (a human who took over a bot keeps the
+   * bot's choice): a kit the entity may not use resets to the default.
+   * Returns true when it reset something.
+   */
+  enforceKitGate(entity) {
+    const state = entity ? this.states.get(String(entity.id)) : null;
+    if (!state || mayUseKit(entity, normalizeKit(state.kit))) return false;
+    state.kit = DEFAULT_KIT; state.variant = 0; state.gadget = 0;
+    if (state.lastValid && !mayUseKit(entity, normalizeKit(state.lastValid.kit))) state.lastValid = { ...state.lastValid, kit: DEFAULT_KIT, variant: 0, gadget: 0 };
+    if (state.choice && !mayUseKit(entity, normalizeKit(state.choice.kit))) state.choice = { ...state.choice, kit: DEFAULT_KIT, variant: 0, gadget: 0 };
+    return true;
+  }
 
   remove(playerId) { this.states.delete(String(playerId)); this.squadSpawnAt.delete(String(playerId)); }
 
@@ -115,6 +140,11 @@ export class DeploySystem {
     const kit = normalizeKit(intent?.kit);
     const variant = normalizeVariant(intent?.variant);
     const gadget = normalizeGadget(kit, intent?.gadget);
+    // Level-gated kits: the career level the server holds decides, never the client.
+    if (!mayUseKit(entity, kit)) {
+      policy._emit('deploy_refused', { id: String(entity.id), reason: 'locked', kit, level: kitUnlockLevel(kit) });
+      return false;
+    }
     const check = this.validate(entity, intent?.spawn);
     if (!check.ok) {
       policy._emit('deploy_refused', { id: String(entity.id), reason: check.reason });
@@ -269,13 +299,15 @@ export class DeploySystem {
     return this._frontlineChoice(entity);
   }
 
-  /** Director-less bots: the owned flag closest to the fight, else HQ; kits rotate by squad slot. */
+  /** Director-less bots: the owned flag closest to the fight, else HQ; kits follow the shared squad slot table. */
   _frontlineChoice(entity) {
     const policy = this.policy;
     const team = policy.teamFor(entity);
     const squadId = policy.squads.squadOf(entity.id);
-    const slot = Math.max(0, policy.squads.membersOf(team, squadId).indexOf(String(entity.id)));
-    const kit = BOT_KIT_ROTATION[slot % BOT_KIT_ROTATION.length];
+    // Kit slots count bots only (a human in the squad does not take the Medic's slot).
+    const members = policy.squads.membersOf(team, squadId).filter(id => id === String(entity.id) || policy._entity?.(id)?.bot);
+    const slot = Math.max(0, members.indexOf(String(entity.id)));
+    const kit = entity.bot ? botSquadKit(slot, { team, squadId, seed: policy.kitSeed ?? 0 }) : (this.state(entity.id).kit ?? DEFAULT_KIT);
     const state = this.state(entity.id);
     const variant = state.lastValid?.kit === kit ? state.variant : 0;
     const gadget = state.lastValid?.kit === kit ? state.gadget : 0;
@@ -295,8 +327,10 @@ export class DeploySystem {
   /** Resolve a choice to a concrete point now: `{ok, reason, kind, id, seatId, point, kit, variant, gadget, at}`. */
   _resolve(entity, choice) {
     const policy = this.policy;
-    const base = { kit: normalizeKit(choice.kit), variant: normalizeVariant(choice.variant),
-      gadget: normalizeGadget(choice.kit, choice.gadget), at: policy.now };
+    // A remembered kit the player may not use (a taken-over bot's unlock kit) falls back to the default.
+    const kit = mayUseKit(entity, normalizeKit(choice.kit)) ? normalizeKit(choice.kit) : DEFAULT_KIT;
+    const base = { kit, variant: kit === normalizeKit(choice.kit) ? normalizeVariant(choice.variant) : 0,
+      gadget: kit === normalizeKit(choice.kit) ? normalizeGadget(kit, choice.gadget) : 0, at: policy.now };
     const check = this.validate(entity, choice.spawn);
     if (!check.ok) return { ...base, ok: false, reason: check.reason };
     if (check.kind === 'hq') return { ...base, ok: true, reason: null, kind: 'hq', id: null, seatId: null, point: this._hqPoint(entity, entity.lastSpawnIndex) };

@@ -106,17 +106,30 @@ function parseMapCache(value) {
   return [...new Set(value)];
 }
 
+/**
+ * Optional admission field `contract`: the CONQUEST_CONTRACT_VERSION the
+ * client's code was built against. Clients without it predate the check; the
+ * lobby keeps both out of Conquest rooms (server/lobby.js staleConquestClient).
+ */
+function parseContract(value) {
+  return Number.isSafeInteger(value) && value >= 0 && value <= 0xffff ? value : null;
+}
+
 export function parseAdmissionFrame(raw) {
   if (!isRecord(raw) || typeof raw.name !== 'string') return null;
   const hasMapCache = Object.prototype.hasOwnProperty.call(raw, 'mapCache');
   const mapCache = hasMapCache ? parseMapCache(raw.mapCache) : null;
   if (hasMapCache && !mapCache) return null;
-  const result = parseAdmissionFields(raw, hasMapCache);
-  return result && hasMapCache ? { ...result, mapCache } : result;
+  const hasContract = Object.prototype.hasOwnProperty.call(raw, 'contract');
+  const contract = hasContract ? parseContract(raw.contract) : null;
+  if (hasContract && contract === null) return null;
+  const result = parseAdmissionFields(raw, hasMapCache, hasContract);
+  if (!result) return null;
+  return { ...result, ...(hasMapCache ? { mapCache } : {}), ...(hasContract ? { contract } : {}) };
 }
 
-function parseAdmissionFields(raw, hasMapCache) {
-  const keys = (list) => (hasMapCache ? [...list, 'mapCache'] : list);
+function parseAdmissionFields(raw, hasMapCache, hasContract) {
+  const keys = (list) => [...list, ...(hasMapCache ? ['mapCache'] : []), ...(hasContract ? ['contract'] : [])];
 
   const hasPassword = Object.prototype.hasOwnProperty.call(raw, 'password');
   if (hasPassword && !validLobbyPassword(raw.password)) return null;

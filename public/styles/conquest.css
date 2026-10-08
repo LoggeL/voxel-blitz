@@ -312,7 +312,9 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 /* -------------------------------------------------------------- deploy */
 .cq-deploy { position: absolute; inset: 0; display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top)) 12px 12px;
   background: radial-gradient(ellipse at center, #08131bd9, #020507f2); pointer-events: auto; z-index: 6; overflow: auto; }
-.cq-deploy-panel { width: min(1180px, 100%); display: grid; gap: 12px; }
+.cq-deploy-panel { width: min(1180px, 100%); display: grid; gap: 12px;
+  /* Map (and spawn list) size follows the window height, so the classes and DEPLOY fit a 720 px laptop. */
+  --cq-map: clamp(220px, calc(100vh - 440px), 440px); --cq-deploy-w: 300px; }
 .cq-deploy-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .cq-deploy-titles { display: grid; }
 .cq-deploy-title { margin: 0; font-size: 34px; line-height: 1; letter-spacing: 6px; font-weight: 800; }
@@ -322,11 +324,15 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-deploy-killer-title { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: var(--cq-sub); }
 .cq-deploy-killer-name { font-size: 18px; font-weight: 800; color: var(--cq-enemy); letter-spacing: 1px; }
 .cq-deploy-killer-detail { grid-column: 1 / -1; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #e2c8b8; }
-.cq-deploy-body { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
-.cq-deploy-mapcol { display: grid; grid-template-columns: minmax(260px, 520px) minmax(200px, 1fr); gap: 12px; align-items: start; }
+/* Desktop: map + spawns, then the classes; DEPLOY shares the classes cell, beside the unlocks row (picker-a reference). */
+.cq-deploy-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+.cq-deploy-mapcol { display: grid; grid-template-columns: var(--cq-map) minmax(200px, 1fr); gap: 12px; align-items: start; }
+.cq-deploy-side { grid-row: 2; grid-column: 1; min-width: 0; }
+.cq-deploy-foot { grid-row: 2; grid-column: 1; align-self: end; justify-self: end; }
+.cq-kit-row-unlock { margin-right: calc(var(--cq-deploy-w) + 10px); }
 .cq-deploy-map { width: 100%; }
 .cq-deploy-map .cq-northmap-canvas { cursor: crosshair; }
-.cq-deploy-spawns { display: grid; gap: 5px; max-height: 520px; overflow: auto; }
+.cq-deploy-spawns { display: grid; gap: 5px; max-height: var(--cq-map); overflow: auto; }
 .cq-spawn-row { display: grid; gap: 3px; }
 .cq-spawn { display: grid; grid-template-columns: 30px 1fr; gap: 9px; align-items: center; min-height: 44px; padding: 6px 10px; text-align: left; cursor: pointer;
   border: 1px solid var(--cq-line); border-radius: 4px; background: #0e1820e6; color: #fff; font: 700 13px/1.1 var(--font-ui); }
@@ -344,7 +350,30 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-spawn-seat.is-takeover:not(.is-selected) { border-style: dashed; color: var(--cq-own, #4cc3ff); }
 .cq-deploy-side { display: grid; gap: 8px; }
 .cq-deploy-section { margin: 0; font-size: 12px; letter-spacing: 3px; color: var(--cq-sub); }
+.cq-deploy-section-unlock { margin-top: 2px; }
+.cq-deploy-section-new { margin-left: 10px; color: #7ef29a; letter-spacing: 2px; }
+/* Class strip: a row of base classes, then a compact row of level unlocks (design: docs/design/conquest/classes). */
 .cq-deploy-kits { display: grid; gap: 6px; align-items: start; }
+/* Cards of a row share one height, so picking a class never makes its neighbours jump. */
+.cq-kit-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-items: stretch; }
+.cq-kit-row-unlock { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cq-kit-row-unlock .cq-kit { padding: 6px 10px; }
+.cq-kit.is-locked { background: #0b1218d9; border-style: dashed; }
+.cq-kit.is-locked .cq-kit-pick { cursor: not-allowed; grid-template-columns: 30px 1fr 18px; }
+.cq-kit.is-locked .cq-kit-icon, .cq-kit.is-locked .cq-kit-name { opacity: 0.45; }
+.cq-kit.is-locked .cq-kit-name small { color: #ffd166; opacity: 1; }
+.cq-kit-lock { width: 16px; height: 16px; color: var(--cq-sub); }
+.cq-kit-xp { display: block; height: 3px; border-radius: 2px; background: #ffffff1a; overflow: hidden; }
+.cq-kit-xp-fill { display: block; height: 100%; background: #ffd166; }
+.cq-kit-xp-text { font-size: 10px; letter-spacing: 1px; color: var(--cq-sub); }
+.cq-kit { min-width: 0; align-content: start; }
+/* Class info line: hint of the hovered / focused / selected class, or why a tapped class is locked. */
+.cq-kit-info { min-height: 16px; font-size: 11px; font-weight: 700; line-height: 16px; letter-spacing: 0.8px; color: #b9d7e6;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cq-kit-info[data-tone="warn"] { color: #ffd166; }
+/* A corner badge on the card's top edge: out of the grid, so a long name (GRENADIER) never pushes it out of a narrow card. */
+.cq-kit { position: relative; }
+.cq-kit-new { position: absolute; top: -7px; right: 6px; padding: 1px 5px; border-radius: 2px; background: #7ef29a; color: #062010; font-size: 9px; font-weight: 800; letter-spacing: 1px; line-height: 12px; pointer-events: none; }
 .cq-kit { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--cq-line); border-radius: 4px; background: #0e1820e6; }
 .cq-kit.is-selected { border-color: var(--cq-own); background: #0f2533f0; box-shadow: inset 3px 0 0 var(--cq-own); }
 .cq-kit-pick { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: center; min-height: 36px; padding: 0; border: 0; background: none; color: #fff; text-align: left; cursor: pointer; font: inherit; }
@@ -362,11 +391,23 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-kit-gadget-role { min-width: 24px; padding: 1px 4px; border: 1px solid currentColor; border-radius: 2px; font-size: 10px; letter-spacing: 1px; text-align: center; }
 .cq-kit-gadget-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cq-kit-gadget.is-selected { color: #04131c; background: #ffcf5c; border: 1px solid #ffcf5c; }
-.cq-kit:not(.is-selected) .cq-kit-variants, .cq-kit:not(.is-selected) .cq-kit-gadgets, .cq-kit:not(.is-selected) .cq-kit-gear { display: none; }
+/* The picked class's toggles share one fixed slot under the base row (one line on desktop),
+   so a class with more toggles (Engineer) never moves the info line, the unlocks or DEPLOY. */
+.cq-kit-loadout { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 5px 8px; border: 1px solid var(--cq-own);
+  border-radius: 4px; background: #0f2533f0; box-shadow: inset 3px 0 0 var(--cq-own); }
+.cq-kit-loadout-name { flex: 0 0 auto; padding-left: 4px; font-size: 12px; font-weight: 800; letter-spacing: 2px; color: var(--cq-own); }
+.cq-kit-loadout .cq-kit-variants, .cq-kit-loadout .cq-kit-gadgets { flex: 0 1 300px; min-width: 0; }
+.cq-kit-loadout .cq-kit-gadgets.is-placeholder { display: none; }
+.cq-kit-loadout .cq-kit-gear { flex: 1 1 0; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cq-kit-variant { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cq-deploy-foot { display: flex; align-items: center; gap: 14px; justify-content: flex-end; }
-.cq-deploy-status { margin-right: auto; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; color: var(--cq-sub); }
+/* In the header, between the titles and the killer card. */
+.cq-deploy-status { flex: 1 1 220px; min-width: 0; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; color: var(--cq-sub); }
+.cq-deploy-status:empty { display: none; }
 .cq-deploy-status[data-tone="warn"] { color: #ffb1a8; }
-.cq-deploy-button { min-width: 280px; min-height: 52px; padding: 10px 24px; border: 0; border-radius: 4px; cursor: pointer;
+/* A class unlocked while the screen is open: green, and a tap scrolls to the UNLOCKS row. */
+.cq-deploy-status[data-tone="new"] { color: #7ef29a; cursor: pointer; }
+.cq-deploy-button { width: var(--cq-deploy-w); min-height: 52px; padding: 10px 24px; border: 0; border-radius: 4px; cursor: pointer;
   background: linear-gradient(180deg, #ffd166, #f0a83a); color: #1a1205; font: 800 17px var(--font-ui); letter-spacing: 2px; box-shadow: 0 4px 18px #f0a83a55; }
 .cq-deploy-button:disabled { background: #3a3f44; color: #9aa3aa; box-shadow: none; cursor: not-allowed; }
 .cq-deploy-button.is-ready { background: linear-gradient(180deg, #7ef29a, #3fbf6b); color: #062010; }
@@ -457,9 +498,13 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .vb-touch-deploying .cq-deploy { padding-bottom: 86px;
   -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 96px), #0000 calc(100% - 72px)); mask-image: linear-gradient(180deg, #000 calc(100% - 96px), #0000 calc(100% - 72px)); }
 /* With the panel button replaced by the touch one, the status line (countdown, refusals) moves up under the header. */
-.vb-touch-deploying .cq-deploy-head { order: -2; }
-.vb-touch-deploying .cq-deploy-foot { order: -1; }
-.vb-touch-deploying .cq-deploy-status:empty { display: none; }
+.vb-touch-deploying .cq-deploy-foot { display: none; }
+.vb-touch-deploying .cq-kit-row-unlock { margin-right: 0; }
+/* Touch: 44 px targets on the class cards and their toggles. */
+.vb-touch-mode .cq-kit-pick, .vb-touch-mode .cq-kit-variant, .vb-touch-mode .cq-kit-gadget { min-height: 44px; }
+.vb-touch-mode .cq-kit-info { white-space: normal; min-height: 30px; line-height: 15px; }
+/* The deploy screen announces unlocks in its own section headers: HUD banners stay under its backdrop, hidden. */
+.vb-conquest-hud:has(.cq-deploy:not([hidden])) .cq-banner { visibility: hidden; }
 /* The ticket bar would show through the deploy backdrop behind the title on phones. */
 .vb-touch-mode .vb-conquest-hud:has(.cq-deploy:not([hidden])) .cq-top { visibility: hidden; }
 /* The touch pause button stays above the deploy screen (top-left): the title starts right of it. */
@@ -468,21 +513,49 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 
 /* Desktop narrow and all phones: deploy stacks vertically. */
 @media (max-width: 1100px) {
-  .cq-deploy-body { grid-template-columns: 1fr; }
-  .cq-deploy-mapcol { grid-template-columns: minmax(0, 1fr) minmax(180px, 260px); }
+  .cq-deploy-mapcol { grid-template-columns: var(--cq-map) minmax(180px, 1fr); }
+  .cq-kit-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cq-kit-row-unlock { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* Narrow desktop and tablets: four unlock cards need the full width, so DEPLOY drops
+   to its own row under them (the map gives the height back) and the loadout slot
+   drops its class name so the gear line keeps room beside the Engineer's toggles. */
+@media (max-width: 1023px) {
+  .cq-deploy-panel { --cq-map: clamp(180px, calc(100vh - 510px), 440px); }
+  .cq-deploy-foot { grid-row: 3; }
+  .cq-kit-row-unlock { margin-right: 0; }
+  .cq-kit-loadout-name { display: none; }
+  .cq-kit-loadout .cq-kit-variants, .cq-kit-loadout .cq-kit-gadgets { flex-basis: 260px; }
 }
 @media (max-width: 700px) {
   .cq-deploy { place-items: start center; }
   .cq-deploy-panel { gap: 8px; }
   .cq-deploy-title { font-size: 24px; letter-spacing: 4px; }
+  .cq-deploy-head { row-gap: 6px; }
+  /* The status line has its own two-line row, kept while empty: an auto-deploy timer, a
+     refusal or an unlock note appearing mid-choice never pushes the classes down. */
+  .cq-deploy-status, .cq-deploy-status:empty { display: -webkit-box; flex: 0 0 100%; order: 3; height: 30px; overflow: hidden;
+    font-size: 11px; line-height: 15px; letter-spacing: 1px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .cq-deploy-killer { margin-left: 0; width: 100%; padding: 6px 10px; justify-content: start; }
   .cq-deploy-mapcol { grid-template-columns: 1fr; }
-  .cq-deploy-map { width: min(100%, 300px, 38vh); justify-self: center; }
-  .cq-deploy-spawns { grid-template-columns: 1fr 1fr; max-height: none; }
-  .cq-deploy-kits { grid-template-columns: 1fr 1fr; }
-  .cq-kit-variants, .cq-kit-gadgets { grid-template-columns: 1fr; }
-  .cq-deploy-button { min-width: 0; width: 100%; }
+  /* Portrait: a smaller map and a short scrolling spawn list keep the classes near the top. */
+  .cq-deploy-map { width: min(100%, 220px, 28vh); justify-self: center; }
+  .cq-deploy-spawns { grid-template-columns: 1fr 1fr; max-height: 156px; }
+  .cq-deploy-side, .cq-deploy-foot { grid-row: auto; }
+  .cq-deploy-foot { justify-self: stretch; }
+  /* Two compact columns that never reflow; the loadout slot stacks its toggles below them. */
+  .cq-kit-row, .cq-kit-row-unlock { grid-template-columns: 1fr 1fr; margin-right: 0; }
+  .cq-kit-loadout { display: grid; gap: 5px; padding: 6px; }
+  .cq-kit-loadout-name { display: none; }
+  .cq-kit-loadout .cq-kit-gadgets.is-placeholder { display: block; visibility: hidden; min-height: 32px; }
+  .vb-touch-mode .cq-kit-loadout .cq-kit-gadgets.is-placeholder { min-height: 44px; }
+  .cq-kit-loadout .cq-kit-gear { text-align: left; }
+  .cq-deploy-button { width: 100%; }
   .cq-deploy-foot { flex-wrap: wrap; }
+  .cq-kit-info { white-space: normal; min-height: 30px; line-height: 15px; }
+  /* The touch pause button (top left) sits on the header: a sticky header keeps scrolled cards out from under it. */
+  .vb-touch-mode .cq-deploy-head { position: sticky; top: 0; z-index: 2; padding: 6px 0;
+    background: linear-gradient(180deg, #050b10 80%, #050b1000); }
 }
 @media (orientation: landscape) and (max-height: 500px) {
   /* Phone landscape: the SEAT / FLARES row sits ~150 px above the bottom edge, so the
@@ -507,16 +580,27 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
   .vb-touch-mode .cq-squad-icon { width: 12px; height: 12px; }
   .vb-touch-mode .cq-squad-name { font-size: 10px; letter-spacing: 0.2px; }
   .vb-touch-mode .cq-squad-state { font-size: 8px; letter-spacing: 0.4px; }
-  .cq-deploy-body { grid-template-columns: minmax(0, 1fr) 280px; }
-  .cq-deploy-mapcol { grid-template-columns: 200px minmax(0, 1fr); }
+  /* Phone landscape: map + spawns | the classes, each scrolling in its own column (as the old kit column did). */
+  .cq-deploy-panel { gap: 8px; --cq-map: 150px; }
+  .cq-deploy-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .cq-deploy-mapcol { grid-template-columns: var(--cq-map) minmax(0, 1fr); gap: 8px; }
+  .cq-deploy-side { grid-row: 1; grid-column: 2; max-height: calc(100vh - 150px); overflow: auto; overscroll-behavior: contain; gap: 5px; }
+  .cq-deploy-foot { grid-row: 2; grid-column: 1 / -1; justify-self: end; }
+  .cq-deploy-spawns { grid-template-columns: 1fr; max-height: calc(100vh - 150px); }
   .cq-deploy-head { gap: 10px; }
   .cq-deploy-title { font-size: 20px; }
   .cq-deploy-killer { padding: 4px 10px; margin-left: auto; width: auto; }
-  .cq-deploy-spawns { grid-template-columns: 1fr; }
-  .cq-deploy-kits { grid-template-columns: 1fr 1fr; }
-  .cq-kit { padding: 5px 6px; gap: 4px; }
+  .cq-kit-row, .cq-kit-row-unlock { grid-template-columns: 1fr 1fr; margin-right: 0; gap: 5px; }
+  .cq-kit { padding: 4px 6px; gap: 4px; }
+  .cq-kit-loadout { display: grid; gap: 4px; padding: 4px 6px; }
+  .cq-kit-loadout-name { display: none; }
+  .cq-kit-loadout .cq-kit-gadgets.is-placeholder { display: block; visibility: hidden; min-height: 32px; }
+  .vb-touch-mode .cq-kit-loadout .cq-kit-gadgets.is-placeholder { min-height: 44px; }
+  .cq-kit-loadout .cq-kit-gear { text-align: left; }
+  .cq-kit-pick { grid-template-columns: 24px 1fr; gap: 6px; }
+  .cq-kit.is-locked .cq-kit-pick { grid-template-columns: 24px 1fr 16px; }
+  .cq-kit-icon { width: 22px; height: 22px; }
   .cq-kit-name b { font-size: 12px; }
-  .cq-kit-variants, .cq-kit-gadgets { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cq-chip, .cq-chip::after, .cq-ring-dial, .cq-banner.is-in, .cq-lock, .cq-restricted-seconds, .cq-unit-glyph, .cq-team .cq-ticket-fill { animation: none !important; }
@@ -570,3 +654,18 @@ body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conque
 .vb-result-mvp-name { font-size: 14px; letter-spacing: 0.6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vb-result-mvp-value { font-size: 10px; font-weight: 700; color: #9fb0bd; }
 @media (max-width: 700px) { .vb-result-conquest { grid-template-columns: 1fr; } .vb-result-graph-svg { height: 80px; } }
+
+/* ------------------------------------------------- medic feedback (classes) */
+/* '+5 HP' from the server heal event, beside the health card (its top edge is --cq-floor). */
+/* Lives inside #healthbar (clip-path: it must stay inside the card): bottom right, opposite the medkit line. */
+.cq-heal-tick { position: absolute; right: 10px; bottom: 8px; white-space: nowrap; z-index: 2;
+  padding: 1px 6px; border-radius: 3px; background: #0d2a18e6; border: 1px solid #7ef29a88; color: #7ef29a;
+  font: 800 12px var(--font-ui); letter-spacing: 1px; pointer-events: none; animation: cq-heal-rise 1.4s ease-out both; }
+@keyframes cq-heal-rise { from { transform: translateY(4px); opacity: 0.7; } 15% { transform: none; opacity: 1; } to { opacity: 0.85; } }
+.cq-spot-flash[data-tone="heal"] { color: #7ef29a; }
+.cq-interact[data-type="needs-medic"] { border-color: #ff6b6b88; }
+.cq-interact[data-type="needs-medic"] .cq-interact-label { color: #ffb1a8; }
+.cq-unit-marker[data-kind="wounded"] .cq-unit-glyph { width: 16px; height: 16px; margin: -8px 0 0; color: #7ef29a; filter: drop-shadow(0 0 3px #000); }
+.vb-touch-mode .cq-heal-tick { right: 4px; bottom: 4px; padding: 0 4px; font-size: 10px; }
+.vb-conquest-hud > .cq-heal-tick { left: calc(max(16px, env(safe-area-inset-left)) + 240px); top: auto; bottom: 24px; }
+@media (prefers-reduced-motion: reduce) { .cq-heal-tick { animation: none; } }

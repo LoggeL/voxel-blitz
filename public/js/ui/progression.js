@@ -1,5 +1,7 @@
 import { CAREER_CATALOG, CAREER_REWARDS, EQUIPPABLE_SLOTS, PROFILE_SLOTS, PROGRESSION_BRANCHES, PROGRESSION_TREE, careerItemState, treeNode } from '../../../shared/career.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
+import { KITS } from '../../../shared/conquest-contract.js';
+import { KIT_ABILITY_LABELS, KIT_MENU_ORDER, kitUnlockLevel } from '../../../shared/conquest-kits.js';
 import { mountMusicControl } from './music-control.js';
 import { cosmeticArtwork as artwork, CosmeticAudition, COSMETIC_AUDIO, cosmeticVolume } from './cosmetic-preview.js';
 import { careerFetch, focusedKey, restoreFocus } from './career-ui-support.js';
@@ -106,6 +108,8 @@ export class ProgressionTree {
     this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite');
     this.mastery = node('section', store, '', 'vb-career-mastery');
+    // Conquest classes opened by career level: display-only rows, not tree nodes.
+    this.classes = node('section', store, '', 'vb-career-classes');
     this.mountAudioSettings(store);
     const rules = node('details', store, '', 'vb-career-rules');
     node('summary', rules, 'HOW TO EARN XP');
@@ -575,6 +579,23 @@ export class ProgressionTree {
     node('p', this.mastery, 'Gun Game counts. Bot kills and training do not contribute. Mastery tiers track achievement; only tree nodes award cosmetics.', 'vb-career-note');
   }
 
+  /** Conquest class unlocks as level rewards (the server gates deploys on the same levels). */
+  renderClasses(profile) {
+    if (!this.classes) return;
+    this.classes.replaceChildren();
+    node('h3', this.classes, 'CONQUEST CLASSES', 'vb-career-classes-title');
+    const list = node('ul', this.classes, '', 'vb-career-classes-list');
+    for (const id of KIT_MENU_ORDER.filter(kit => kitUnlockLevel(kit) > 1)) {
+      const level = kitUnlockLevel(id);
+      const open = (profile?.level || 1) >= level;
+      const row = node('li', list, '', `vb-career-class${open ? ' is-open' : ''}`);
+      node('strong', row, KITS[id].label);
+      node('span', row, KIT_ABILITY_LABELS[KITS[id].ability] || '');
+      node('em', row, open ? 'UNLOCKED' : `LEVEL ${level}`);
+    }
+    node('p', this.classes, 'ASSAULT, MEDIC, ENGINEER, SUPPORT and RECON are always available. Unlocked classes appear on the Conquest deploy screen.', 'vb-career-note');
+  }
+
   render() {
     const profile = this.profile;
     if (!profile) return;
@@ -597,6 +618,7 @@ export class ProgressionTree {
       const metric = node('div', this.record);
       node('strong', metric, format(value)); node('span', metric, label);
     }
+    this.renderClasses(profile);
     this.renderFeature();
     this.renderTree();
     this.renderMastery();

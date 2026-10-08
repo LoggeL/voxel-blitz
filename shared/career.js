@@ -127,6 +127,11 @@ export const CAREER_REWARDS = Object.freeze({
   kill: { xp: 25 }, botKill: { xp: 10 },
   objective: { xp: 75 }, activeMinute: { xp: 20 },
   match: { xp: 100 }, victory: { xp: 50 },
+  /** Conquest `score` reasons: major teamplay pays majorXp each; minor ones minorXp, capped per minute. */
+  conquestObjective: Object.freeze({
+    major: Object.freeze(['revive', 'capture', 'neutralize', 'defend']), majorXp: 15,
+    minor: Object.freeze(['heal', 'repair', 'resupply']), minorXp: 3, minorCapPerMinute: 30,
+  }),
 });
 export function careerLevel(xp) { return 1 + Math.floor(Math.sqrt(Math.max(0, Number.isFinite(xp) ? xp : 0) / 100)); }
 export const defaultCosmeticLoadout = () => ({ weaponSkins: {}, characterSkin: 'standard', signature: 'standard', sound: 'standard', reticle: 'standard', nameplate: 'standard' });

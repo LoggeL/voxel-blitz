@@ -53,7 +53,8 @@ export class FlameSystem {
         const radius = FLAME_RULES.radius + (packet.distance + limit) * FLAME_RULES.radiusGrowth;
         let nearest = null;
         for (const victim of (ctx.targets || ctx.entities).values()) {
-          if (occupantShielded(victim) || victim === packet.owner || victim.state !== 'alive' || !ctx.canDamage(packet.owner, victim)) continue;
+          // A fire-immune body (Conquest Pyro) lets the stream through: no hit, burn or panic.
+          if (victim.fireImmune === true || occupantShielded(victim) || victim === packet.owner || victim.state !== 'alive' || !ctx.canDamage(packet.owner, victim)) continue;
           if (Math.hypot(victim.x - origin[0], victim.y - origin[1], victim.z - origin[2]) > 3 + radius + limit) continue;
           const pose = occupantHitPose(victim);
           const hit = rayPlayerHitboxes(origin, dir, pose, limit, { radius });
@@ -114,6 +115,8 @@ export function extinguish(victim) {
 export function updateBurn(victim, dt, ctx) {
   const burn = victim.burn;
   if (!burn) return;
+  // Fire immunity (Conquest Pyro) puts out a flamethrower burn; lava still burns.
+  if (victim.fireImmune === true && !burn.source) { victim.burn = null; victim.burning = 0; return; }
   // World fire (lava) has no owner and needs no damage permission.
   const owner = burn.owner || null;
   const source = burn.source || 'flamethrower';

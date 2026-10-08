@@ -3,10 +3,12 @@
 // deploy_refused feedback, killer card, the touch DEPLOY button and the
 // spectator overlay it replaces. Fake DOM, no browser.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { installFakeDom, isShown } from './lib/conquest-ui-dom.mjs';
 import { CONQUEST_RULES, KIT_IDS, KITS } from '../shared/conquest-contract.js';
 import { deployOptions, deployViewFromSnapshot, resolveDeployChoice } from '../shared/conquest.js';
 import { decodeConquestPlayer } from '../shared/conquest-contract.js';
+import { KIT_MENU_ORDER, KIT_ROLE_RULES } from '../shared/conquest-kits.js';
 
 const dom = installFakeDom({ width: 1440, height: 900 });
 const { document } = dom;
@@ -47,13 +49,15 @@ let groups = 0;
   assert.equal(model.waitMs, 3200); assert.equal(model.countdown, '3.2'); assert.equal(model.ready, false, 'not before respawnAt');
   assert.equal(model.timeoutMs, 3200 + CONQUEST_RULES.deployTimeoutMs);
   assert.deepEqual(model.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0 }, 'the engineer choice carries its gadget (AT by default)');
-  assert.deepEqual(model.kits.map(k => k.id), KIT_IDS);
+  assert.deepEqual(model.kits.map(k => k.id), KIT_MENU_ORDER, 'class cards follow the menu order (wire order is KIT_IDS)');
+  assert.deepEqual([...model.kits.map(k => k.id)].sort(), [...KIT_IDS].sort());
+  assert.deepEqual(model.kits.filter(k => !k.unlocked).map(k => k.id), ['pyro', 'grenadier', 'raider', 'marksman'], 'without kit_unlocks only base kits are open');
   const engineer = model.kits.find(k => k.id === 'engineer');
   assert.equal(engineer.selected, true); assert.deepEqual(engineer.primaries.map(p => p.selected), [false, true]);
   assert.equal(engineer.gadget, WEAPON_NAMES.rocket, 'the engineer gadget is the AT rocket');
   assert.deepEqual(engineer.gadgets.map(g => [g.weapon, g.role, g.selected]), [['rocket', 'AT', true], ['stinger', 'AA', false]],
     'the engineer card offers the AT launcher and the STINGER');
-  assert.deepEqual(model.kits.filter(k => k.id !== 'engineer').map(k => k.gadgets.length), [0, 0, 0], 'other kits have no gadget choice');
+  assert.deepEqual(model.kits.filter(k => k.id !== 'engineer').map(k => k.gadgets.length), [0, 0, 0, 0, 0, 0, 0, 0], 'other kits have no gadget choice');
   const aa = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
     nowMs: FIXTURE_NOW, selection: { ...deploy.selection, gadget: 1 } });
   assert.deepEqual(aa.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1 });
@@ -116,7 +120,65 @@ let groups = 0;
   assert.equal(rows.find(b => b.getAttribute('aria-selected') === 'true').textContent.startsWith('AFLAG A'), true);
   assert.equal(screen.spawnList.querySelectorAll('.cq-spawn-seat').length, 2, 'tank lists its two free seats');
   assert.equal(screen.button.textContent, 'DEPLOY · FLAG A · 3.2');
-  assert.equal(screen.kits.querySelectorAll('.cq-kit').length, 4);
+  assert.equal(screen.kits.querySelectorAll('.cq-kit').length, 9);
+  assert.equal(screen.kits.querySelectorAll('.cq-kit.is-locked').length, 4, 'four level unlocks are locked at level 1');
+  assert.equal(screen.kits.querySelectorAll('.cq-kit-row').length, 2, 'base row and unlocks row');
+  // A locked card never selects: it names its unlock level instead.
+  const lockedPick = screen.kits.querySelectorAll('.cq-kit-pick').find(b => b.textContent.startsWith('GRENADIER'));
+  assert.equal(lockedPick.getAttribute('aria-disabled'), 'true');
+  lockedPick.click();
+  assert.equal(screen.selection.kit, 'engineer', 'a locked class is not selectable');
+  // The note lands in the class info line beside the cards (a phone sees it where it tapped),
+  // never in the header status, which keeps the revive / refusal / auto-deploy texts.
+  assert.equal(screen.kitInfo.textContent, 'GRENADIER UNLOCKS AT LV 5');
+  assert.equal(screen.kitInfo.dataset.tone, 'warn');
+  assert.equal(screen.status.textContent, '', 'a locked tap never takes over the status line');
+  // It fades on its own and is gone when the screen opens again.
+  screen.lockNoteUntil = 0; update();
+  assert.ok(screen.kitInfo.textContent.startsWith('ENGINEER · REPAIR — '), `info line falls back to the selected class (${screen.kitInfo.textContent})`);
+  screen.lockedPick(screen.model.kits.find(card => card.id === 'raider'));
+  screen.setOpen(false); screen.setOpen(true, deploy.killer); update();
+  assert.equal(screen.lockNote, null, 'reopening the deploy screen clears a locked-class note');
+  // Hover or keyboard / gamepad focus explains a class; numbers come from the kit tables.
+  screen.hoverKit('medic');
+  assert.ok(screen.kitInfo.textContent.startsWith('MEDIC · REVIVE · HEAL — '), screen.kitInfo.textContent);
+  assert.ok(screen.kitInfo.textContent.includes(`${KIT_ROLE_RULES.healRadius} M`), 'the Medic hint states the aura radius from KIT_ROLE_RULES');
+  screen.hoverKit('marksman');
+  assert.ok(screen.kitInfo.textContent.startsWith('MARKSMAN · UNLOCKS AT LV 9 — '), screen.kitInfo.textContent);
+  screen.hoverKit(null);
+  screen.select({});
+  // LB / RB skip locked classes.
+  const stepped = [];
+  for (let i = 0; i < 10; i++) { screen.step('kit', 1); stepped.push(screen.selection.kit); }
+  assert(stepped.every(kit => ['assault', 'medic', 'engineer', 'support', 'recon'].includes(kit)), `stepping skips locked kits (${stepped})`);
+  screen.select({ kit: 'engineer', variant: 1, gadget: 0 });
+  // kit_unlocks opens the Pyro card.
+  screen.setUnlocks(state.kitUnlockState({ level: 3, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'] }));
+  assert.equal(screen.kits.querySelectorAll('.cq-kit.is-locked').length, 3, 'level 3 opens the Pyro');
+  // A level-up's `newly` kits carry a NEW tag on the picker until picked.
+  screen.markNew(['pyro']);
+  assert.equal(screen.kits.querySelectorAll('.cq-kit-new').length, 1, 'the new Pyro card is tagged NEW');
+  // Unlocked while this screen is open (no HUD banner): the header status names it too,
+  // since phones keep the header in view but not the UNLOCKS row.
+  update();
+  assert.equal(screen.status.textContent, 'NEW CLASS · PYRO', 'an unlock while the screen is open leads the header status');
+  assert.equal(screen.status.dataset.tone, 'new');
+  screen.select({ kit: 'pyro' }); update();
+  assert.equal(screen.kits.querySelectorAll('.cq-kit-new').length, 0, 'picking the new class clears its tag');
+  assert.equal(screen.status.textContent, '', 'picking the new class clears the status note');
+  assert.notEqual(screen.status.dataset.tone, 'new');
+  // An unlock from before this screen opened (the alive banner announced it) keeps only the NEW tag.
+  screen.setOpen(false); screen.markNew(['pyro']); screen.setOpen(true, deploy.killer); update();
+  assert.equal(screen.kits.querySelectorAll('.cq-kit-new').length, 1);
+  assert.equal(screen.status.textContent, '', 'an unlock announced by the banner is not repeated in the status');
+  // A note opened while open survives the auto-deploy timer, and a refusal takes the line to itself.
+  screen.markNew(['pyro']); update({ nowMs: FIXTURE_NOW + 4000 });
+  assert.equal(screen.status.textContent, `NEW CLASS · PYRO · AUTO-DEPLOY IN ${Math.ceil((CONQUEST_RULES.deployTimeoutMs - 800) / 1000)} S`);
+  screen.refuse('enemy'); update();
+  assert.equal(screen.status.textContent, 'REFUSED · ENEMIES IN THE ZONE'); assert.equal(screen.status.dataset.tone, 'warn');
+  screen.refused = null; screen.select({ kit: 'pyro' }); update();
+  screen.select({ kit: 'engineer', variant: 1, gadget: 0 });
+  screen.setUnlocks(state.kitUnlockState(null));
   // The deploy map paints every spawn and is pickable.
   assert.equal(screen.map.spawnHits.length, 7);
 
@@ -194,6 +256,25 @@ let groups = 0;
   hud.handleEvent({ kind: 'kill', killer: 'en1', victim: 'me', w: 'sniper', hs: true }, 'me');
   hud.update(args(deploy.self));
   assert.equal(hud.dead, true); assert.equal(hud.deploy.open, true); assert.equal(isShown(hud.deploy.root), true);
+  {
+    // A class unlocked while the deploy screen is open: no HUD banner over its spawns and cards (NEW-1);
+    // the UNLOCKS header names it in the screen's own flow and the card carries the NEW tag.
+    const pushed = [];
+    const push = hud.banners.push.bind(hud.banners);
+    hud.banners.push = (...a) => { pushed.push(a[0]?.title); return push(...a); };
+    hud.handleEvent({ kind: 'kit_unlocks', id: 'me', level: 5, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro', 'grenadier'], newly: ['grenadier'] }, 'me');
+    hud.update(args(deploy.self));
+    assert.deepEqual(pushed, [], 'no unlock banner while the deploy screen is open');
+    const unlockHead = hud.deploy.kits.querySelector('.cq-deploy-section-unlock');
+    assert.equal(unlockHead.querySelector('.cq-deploy-section-new')?.textContent, 'NEW CLASS · GRENADIER', 'the UNLOCKS header names the new class');
+    assert.ok(hud.deploy.status.textContent.startsWith('NEW CLASS · GRENADIER'), `the header status names it as well (${hud.deploy.status.textContent})`);
+    assert.equal(hud.deploy.kits.querySelector('.cq-deploy-section-base .cq-deploy-section-new'), null, 'the base header has no news');
+    hud.banners.push = push;
+    hud.deploy.setUnlocks(state.kitUnlockState(null)); hud.deploy.newKits.clear();
+    const css = readFileSync(new URL('../public/styles/conquest.css', import.meta.url), 'utf8');
+    assert.match(css, /:has\(\.cq-deploy:not\(\[hidden\]\)\) \.cq-banner \{ visibility: hidden; \}/, 'banners stay hidden under an open deploy screen');
+    assert.doesNotMatch(css, /\.cq-banner \{ z-index: 7/, 'no banner is lifted above the deploy screen');
+  }
   assert.equal(hud.deploy.killerName.textContent, 'ROURKE'); assert.ok(hud.deploy.killerDetail.textContent.includes('HEADSHOT'));
   assert.equal(hud.minimap.root.hidden, true); assert.equal(hud.ring.root.hidden, true);
   assert.deepEqual(hud.touchContextFields(), { ...state.CONQUEST_TOUCH_DEFAULTS, conquest: true, deployOpen: true, deployValid: true, deployLabel: 'DEPLOY 3.2' });
@@ -220,6 +301,102 @@ let groups = 0;
   assert.equal(hud.deploy.open, false); assert.equal(hud.banners.title.textContent, 'DEFEAT');
   hud.dispose();
   assert.equal(dom.window.listenerCount(CONQUEST_TOUCH_EVENT), 0, 'dispose removes the touch listener');
+  groups++;
+}
+
+/* ------------------------------ classes HUD: adrenaline, heal tick, unlocks */
+
+{
+  const hud = new ConquestHud(document.body, { eventTarget: dom.window });
+  let t = FIXTURE_NOW;
+  // The deploy fixture's self is an Engineer: this one is an Assault (cq[0] = 0).
+  const row = (medkit, extra = {}) => ({ ...deploy.self, cq: [0, ...deploy.self.cq.slice(1)], hp: 100, state: 'alive', x: 300, z: 300, medkit: { remaining: medkit }, ...extra });
+  const frame = self => { t += 50; hud.update({ match: deploy.match, mapMeta, self, players: [self, ...deploy.players.slice(1)], vehicles: deploy.vehicles,
+    nowMs: t, camera: cameraPose({ ...deploy.camera, aspect: 1.6 }), viewport: { width: 1440, height: 900 } }); };
+  const flashed = () => isShown(hud.spotFlash) && hud.spotFlash.textContent.startsWith('ADRENALINE');
+  assert.equal(decodeConquestPlayer(row(1)).kit, 'assault');
+  // Spent medkit, death, respawn with a fresh medkit: no ADRENALINE.
+  frame(row(0)); frame({ ...deploy.self }); frame(row(1)); frame(row(1));
+  assert.equal(flashed(), false, 'a respawn refill is not adrenaline');
+  // A Medic aura restock (0 -> 1 with no own kill): no ADRENALINE.
+  frame(row(0)); frame(row(1)); frame(row(1));
+  assert.equal(flashed(), false, 'a Medic restock is not adrenaline');
+  // An own enemy kill with the re-arm: the flash shows, in either arrival order.
+  frame(row(0));
+  hud.handleEvent({ kind: 'kill', killer: 'me', victim: 'en2', w: 'rifle' }, 'me');
+  frame(row(1));
+  assert.equal(flashed(), true, 'kill + re-arm reads as ADRENALINE');
+  t += 4000; frame(row(1));
+  frame(row(0)); frame(row(1));
+  hud.handleEvent({ kind: 'kill', killer: 'me', victim: 'en3', w: 'rifle' }, 'me');
+  frame(row(1));
+  assert.equal(flashed(), true, 'the row may land before the kill event');
+  // Heal ticks keep the half HP of a self-heal pulse.
+  hud.handleEvent({ kind: 'heal', id: 'me', by: 'me', hp: 2.5 }, 'me');
+  assert.equal(hud.healTick.textContent, '+2.5 HP');
+  hud.handleEvent({ kind: 'heal', id: 'me', by: 'm', hp: 5 }, 'me');
+  assert.equal(hud.healTick.textContent, '+7.5 HP');
+  // kit_unlocks: replayed twice (boot buffer + snapshot drain) it banners once; newly tags the card NEW.
+  const unlock = { kind: 'kit_unlocks', id: 'me', level: 3, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'], newly: ['pyro'] };
+  const pushes = [];
+  const push = hud.banners.push.bind(hud.banners);
+  hud.banners.push = (...a) => { pushes.push(a[0]?.title); return push(...a); };
+  hud.handleEvent(unlock, 'me'); hud.handleEvent(unlock, 'me');
+  assert.deepEqual(pushes, ['NEW CLASS UNLOCKED · PYRO'], 'one banner per kit_unlocks event');
+  assert.ok(hud.kitUnlocks.unlocked.has('pyro'));
+  assert.ok(hud.deploy.newKits.has('pyro'), 'the new class is tagged on the picker');
+  // The join announcement of a veteran carries no `newly`: no banner at all.
+  hud.handleEvent({ kind: 'kit_unlocks', id: 'me', level: 9, unlocked: KIT_IDS.slice(), newly: [] }, 'me');
+  assert.equal(pushes.length, 1, 'a veteran joining gets no NEW CLASSES banner');
+  hud.dispose();
+  groups++;
+}
+
+/* ------------------------- class picker layout is the same for every pick (R1-8) */
+
+{
+  const parent = document.createElement('div');
+  const screen = new DeployScreen(parent, {});
+  screen.selection = { ...screen.selection, ...deploy.selection };
+  screen.setOpen(true, deploy.killer);
+  screen.setUnlocks(state.kitUnlockState({ level: 3, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'] }));
+  const update = () => screen.update({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
+    nowMs: FIXTURE_NOW, mapItems: [], meta: mapMeta.conquest });
+  // Per pick: the order of the strip's blocks, every card's children, and the loadout slot's rows.
+  const shape = () => ({
+    blocks: screen.kits.children.map(n => n.className.split(' ')[0] + (n.className.includes('section-') ? `:${n.className.split('section-')[1]}` : '')),
+    cards: screen.kits.querySelectorAll('.cq-kit').map(card => `${card.dataset.kit}:${card.children.map(c => c.className).join('+')}`),
+    loadout: screen.kits.querySelector('.cq-kit-loadout').children.map(c => c.className.replace(/\s*is-placeholder/, '')),
+  });
+  const shapes = {};
+  for (const kit of ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro']) {
+    screen.select({ kit }); update();
+    assert.equal(screen.kits.querySelector('.cq-kit-loadout').dataset.kit, kit, `the loadout slot shows the picked ${kit}`);
+    assert.equal(screen.kits.querySelectorAll('.cq-kit .cq-kit-variant').length, 0, 'no card carries toggles: they live in the one loadout slot');
+    assert.equal(screen.kits.querySelectorAll('.cq-kit-loadout .cq-kit-variant').length, 2, `${kit}: two primaries`);
+    shapes[kit] = shape();
+  }
+  for (const kit of Object.keys(shapes)) assert.deepEqual(shapes[kit], shapes.assault, `picking ${kit} leaves the strip's structure (and so its height) unchanged`);
+  assert.deepEqual(shapes.assault.blocks, ['cq-deploy-section:base', 'cq-kit-row', 'cq-kit-loadout', 'cq-kit-info', 'cq-deploy-section:unlock', 'cq-kit-row'],
+    'loadout slot under the base row, then the info line and the unlocks');
+  assert.deepEqual(shapes.assault.loadout, ['cq-kit-loadout-name', 'cq-kit-variants', 'cq-kit-gadgets', 'cq-kit-gear'],
+    'a class without a gadget choice keeps a (hidden) gadget row while the Engineer is open');
+  screen.select({ kit: 'engineer' }); update();
+  assert.equal(screen.kits.querySelectorAll('.cq-kit-loadout .cq-kit-gadget').length, 2);
+  assert.equal(screen.kits.querySelector('.cq-kit-loadout .cq-kit-gadgets').classList.contains('is-placeholder'), false);
+  const css = readFileSync(new URL('../public/styles/conquest.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /\.cq-kit\.is-selected \{ grid-column/, 'the picked card never spans the row on phones (no reflow)');
+  assert.doesNotMatch(css, /\.cq-kit-row[^{]*\{[^}]*align-items: start/, 'class cards in a row share one height');
+  assert.match(css, /\.cq-kit-loadout \.cq-kit-gadgets\.is-placeholder \{ display: block; visibility: hidden;/, 'phones reserve the gadget row');
+  // Phones: the header status keeps a fixed two-line row even while empty, so an auto-deploy
+  // timer or a refusal appearing mid-choice never pushes the classes down.
+  const phone = css.slice(css.indexOf('@media (max-width: 700px)'));
+  assert.match(phone, /\.cq-deploy-status, \.cq-deploy-status:empty \{[^}]*flex: 0 0 100%;[^}]*height: 30px;[^}]*-webkit-line-clamp: 2;/, 'phones reserve the status row');
+  // 701-1023 px: the four unlock cards get the full width and DEPLOY its own row (no text under the button).
+  const narrow = css.slice(css.indexOf('@media (max-width: 1023px)'), css.indexOf('@media (max-width: 700px)'));
+  assert.match(narrow, /\.cq-deploy-foot \{ grid-row: 3; \}/, 'narrow desktop moves DEPLOY under the unlocks');
+  assert.match(narrow, /\.cq-kit-row-unlock \{ margin-right: 0; \}/, 'narrow desktop gives the unlocks the full width');
+  assert.match(css, /\.cq-kit-new \{ position: absolute;/, 'the NEW tag is a corner badge, out of the card grid');
   groups++;
 }
 
