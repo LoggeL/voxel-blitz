@@ -76,3 +76,81 @@ export function stepRocket(rocket, dt, raycast) {
   rocket.z += dz;
   return rocket;
 }
+
+/* ------------------------------------------------------------ launcher sight */
+
+/** Muzzle offset of `rocketLaunch`: ahead along the aim and below the eye (m). */
+const LAUNCH_FORWARD = 0.55;
+const LAUNCH_DROP = 0.16;
+/** Authoritative flight step: the server flies a rocket once per 60 Hz tick. */
+export const ROCKET_FLIGHT_STEP_S = 1 / 60;
+
+/**
+ * RX-8 factory sight: the drop ladder ranges (only those the rocket reaches are
+ * drawn), the rangefinder's reach, its refresh cadence and its memory.
+ */
+export const ROCKET_SIGHT = Object.freeze({
+  ranges: Object.freeze([50, 100, 150, 200]),
+  rangefinderMaxM: 300,
+  sampleMs: 100,
+  /** A held-over aim often looks past the target: the last return stays up (marked held) this long. */
+  memoryMs: 3000,
+});
+
+/**
+ * Height (m) of the rocket relative to the eye's level line when it has flown
+ * `rangeM` metres horizontally after leaving the tube at `pitch` radians above
+ * level, and the flight time. Matches `rocketLaunch` + `stepRocket` (the
+ * semi-implicit step adds g·t·dt/2 of drop over the analytic parabola).
+ */
+export function rocketHeightAt(pitch, rangeM, { speed = ROCKET_RULES.speed, gravity = ROCKET_RULES.gravity,
+  step = ROCKET_FLIGHT_STEP_S } = {}) {
+  const c = Math.cos(pitch), s = Math.sin(pitch);
+  const t = (rangeM - LAUNCH_FORWARD * c) / (speed * c);
+  const y = -LAUNCH_DROP + LAUNCH_FORWARD * s + speed * s * t - 0.5 * gravity * t * (t + step);
+  return { y, t };
+}
+
+/**
+ * Sight elevation (radians above the line of sight) that puts the rocket on a
+ * target `rangeM` metres away on a level line, or null when the rocket burns
+ * out (lifetimeMs) first. Bisection over the monotonic low-angle branch.
+ */
+export function rocketElevation(rangeM, options = {}) {
+  if (!(rangeM > LAUNCH_FORWARD)) return 0;
+  let lo = -0.2, hi = 0.6;
+  for (let i = 0; i < 48; i++) {
+    const mid = (lo + hi) / 2;
+    if (rocketHeightAt(mid, rangeM, options).y < 0) lo = mid; else hi = mid;
+  }
+  const pitch = (lo + hi) / 2;
+  const { t } = rocketHeightAt(pitch, rangeM, options);
+  return t <= (options.lifetimeMs ?? ROCKET_RULES.lifetimeMs) / 1000 ? pitch : null;
+}
+
+/** Farthest level-line range (m) the rocket reaches before its self-destruct. */
+export function rocketReachM(options = {}) {
+  let lo = 1, hi = 1000;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (rocketElevation(mid, options) == null) hi = mid; else lo = mid;
+  }
+  return lo;
+}
+
+/**
+ * Holdover marks for the launcher sight: `mil` is the screen offset below the
+ * aim point in milliradians (1000·tan(elevation), so the marks scale with the
+ * same --scope-mil as every first-focal-plane reticle) and `dropM` the fall
+ * below the sight line a centre hold would leave at that range.
+ */
+export function rocketSightMarks(ranges = ROCKET_SIGHT.ranges, options = {}) {
+  const marks = [];
+  for (const range of ranges) {
+    const pitch = rocketElevation(range, options);
+    if (pitch == null) continue;
+    marks.push({ range, mil: 1000 * Math.tan(pitch), dropM: -rocketHeightAt(0, range, options).y,
+      flightS: rocketHeightAt(pitch, range, options).t });
+  }
+  return marks;
+}

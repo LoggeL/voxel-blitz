@@ -14,7 +14,7 @@ import {
 } from './hud-support.js';
 import { Scoreboard } from './scoreboard.js';
 import { MatchHud } from './match-hud.js';
-import { createSniperScope, updateScopeOptics } from './sniper-scope.js';
+import { createSniperScope, updateScopeOptics, scopeReticleKind, updateLauncherSight } from './sniper-scope.js';
 import { ballisticProfile } from '../../../shared/bullet-ballistics.js';
 import { displaySettings } from './display-settings.js';
 import { NetworkHud } from './network-hud.js';
@@ -507,7 +507,7 @@ export class GameplayHud {
     if (s.yawDeg != null) this.updateCompass(s.yawDeg);
 
     const adsT = Number(s.adsT01) || 0;
-    const wantScope = alive && (s.scopeActive ?? isScopeActive({ weapon: key, ads: adsT, alive }));
+    const wantScope = alive && (s.scopeActive ?? isScopeActive({ weapon: key, scoped: WEAPONS[key]?.scoped, ads: adsT, alive }));
     this.setScope(wantScope);
     if (wantScope) {
       // Scope marks follow the same shot ray as the ordinary crosshair while
@@ -516,7 +516,10 @@ export class GameplayHud {
       const scopeX = `${aimX - 50}vw`, scopeY = `${aimY - 50}vh`;
       if (style.getPropertyValue('--scope-aim-x') !== scopeX) style.setProperty('--scope-aim-x', scopeX);
       if (style.getPropertyValue('--scope-aim-y') !== scopeY) style.setProperty('--scope-aim-y', scopeY);
-      updateScopeOptics(this.dom.scope, s.scopeFovDeg, ballisticProfile(WEAPONS[key]));
+      const kind = scopeReticleKind(WEAPONS[key]);
+      updateScopeOptics(this.dom.scope, s.scopeFovDeg, ballisticProfile(WEAPONS[key]), globalThis.innerHeight, kind);
+      // RX-8 launcher sight: rangefinder readout and impact diamond (main.js samples them at 10 Hz).
+      if (kind === 'launcher') updateLauncherSight(this.dom.scope, s.launcherSight ?? null);
     }
     this.setScopeZoom(s.scopeZoom);
     const opticLabel = this.dom.scope?.querySelector?.(".scope-model-label");

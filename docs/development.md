@@ -569,7 +569,7 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
 | `X` | toggle prone: 0.65 s to lie down, 0.8 s to stand up; crawl at 1.15 m/s; no jumping or sprinting until upright |
 | mouse1 / mouse2 | fire / ADS (`F` also aims; ADS is hold or toggle per the settings panel, toggle by default on trackpads) |
-| `Z` | sniper zoom step (5× ↔ 2.5×) |
+| `Z` | scope zoom step (sniper 5× ↔ 2.5×, RX-8 launcher sight 2.5× ↔ 1.5×) |
 | `R` | reload; shotgun shells seat one at a time and firing interrupts the load. With the GV-4 RIPTIDE, `R` never reloads: it turns every disc still on its out leg home at once |
 | hold/release `G` | charge and throw the selected throwable; longer holds throw farther, and a frag cooks while held (hold past the fuse and it goes off in your hand) |
 | `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion), MOLOTOV COCKTAIL (1, ground fire) |
@@ -643,7 +643,7 @@ support portrait and landscape. Append `?touch=1` for desktop QA.
 | **BASTION LMG** | automatic | 720 rpm | 60 + 4 mags | heavy sustained fire and the slowest viewmodel settling |
 | **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 8 mags | high-damage precision sidearm with fast handling |
 | **LN-03 LONGARC** | automatic | 300 rpm | 8 + 6 mags | coilgun: every bolt ricochets off one wall — bolts never pierce bodies or terrain and fizzle once the reflection runs out |
-| **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps |
+| **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket (42 m/s, 2.4 m/s² drop) with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps; 2.5× launcher sight with rangefinder and drop ladder (see *RX-8 launcher sight*) |
 | **CL-9 VOLTLANCE** | charge (hold/release) | 100 rpm | 4 + 5 mags | siege rail-lance: a tap flings a weak dart, a charged lance spears up to six enemies on the line with 0.9-per-body falloff, and only a full charge crosses up to two walls decaying 0.72 per wall; rising cell whine and violet lance glow |
 | **IRON PICK** | melee | 120 rpm | no ammo — swings are free | iron pickaxe: material-dependent mining with cracks and block debris; hits deal 58 (46.4 after scale), Minecraft-style falling crits ×1.5 (69.6 — crit + hit kills), 2.5x backstabs (116, lethal), a ~1 m shove on every hit and a ~2.6 m sprint knockback (`shared/melee.js`); bots close in, sprint and hop for crits |
 | **GV-4 RIPTIDE** | semi-automatic throw | 150 rpm | 2 discs, reloaded by catching | disc launcher: a toothed magenta disc cuts out 34 m/s, bending gently onto a body just off its line, loops home at 30 m/s and pierces up to three bodies on each leg (out 43.2, back 57.6 after scale, head ×1.5); `R` turns discs home early; wall-stuck discs are picked up or fabricated after 4 s. No reach past about 20 m (`docs/weapon-design/glaive.md`) |
@@ -715,6 +715,39 @@ centre (marks at 150–500 m, numerals at 200/300/400/500 m, `ZERO 100 M`), all
 scaled to one milliradian of the live field of view so they stay true at 5×,
 2.5× or a 10× precision scope (`public/js/ui/sniper-scope.js`);
 the first-person weapon hides only while fully scoped.
+
+### RX-8 launcher sight
+
+The RX-8 HAVOC's factory sight is a 2.5× scoped optic (`WEAPONS.rocket.scoped`,
+`zoom: 2.5`; `Z` steps to 1.5×), so ADS past 72 % enters the same tube as the
+sniper with its own reticle (`scopeReticleKind`, class `launcher-sight`): an
+amber aim chevron on the line of sight and a drop ladder of bars at 50, 100 and
+150 m. Each bar sits at the elevation that puts the rocket back on the sight line
+at that range, from the authoritative launch and integrator (`rocketLaunch` /
+`stepRocket`, 42 m/s, 2.4 m/s², muzzle 0.16 m under the eye, one step per
+60 Hz tick): `rocketSightMarks` in `shared/rocket-rules.js` gives 37 mil at 50 m
+(a centre hold falls 1.8 m), 70 mil at 100 m (6.9 m) and 104 mil at 150 m
+(15.4 m). The rocket self-destructs after 4 s, about 167 m on a level line, so
+the 200 m bar is left out. Bars are as wide as a tank hull (3.9 m) at their
+range, a stadia check against the readout. Like the rifle marks they are mil
+counts times `--scope-mil`, so a bolt-on 2× tube or the 1.5× step stays true.
+The reflex optic keeps the open 1.15× sight without the overlay.
+
+The rangefinder readout (lower left of the chevron) shows the distance to the
+solid block, hull (shared hull boxes, live or solid wreck, never the shooter's
+own) or standing body under the aim point, `---` past 300 m or into open sky,
+and flags readings past the rocket's reach as OUT OF REACH. The world cast is
+`WorldView.pickSolidRay`, which passes water like the server's rocket cast.
+`LauncherRangefinder` (`public/js/ui/launcher-rangefinder.js`, sampled from
+`main.js` at 10 Hz only while the sight is up) also keeps the last return for 3 s
+(RANGE · HELD) because a held-over aim usually looks past the target, and flies
+the shared integrator against terrain and hulls for a green impact diamond where
+the rocket would end (dashed amber for a self-destruct in the air). The killcam
+replays the reticle without a reading. Bots are unchanged: they already aim
+rockets with the same speed, gravity and lifetime (`ballisticAim`).
+`node tools/rocket-sight-test.mjs` (in `weapons:feel:test`) checks the marks
+against the integrator, the reach, the rangefinder (water, hulls, bodies, out of
+range, throttle and memory), the impact estimate and the HUD wiring.
 
 ### Sniper ballistics
 

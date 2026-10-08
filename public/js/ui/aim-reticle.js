@@ -19,3 +19,19 @@ export function projectAimReticle(camera, yaw, pitch) {
   if (![point.x, point.y, point.z].every(Number.isFinite)) return { x: 0.5, y: 0.5 };
   return { x: (point.x + 1) / 2, y: (1 - point.y) / 2 };
 }
+
+const world = new Vector3();
+
+/**
+ * Viewport fractions ({x, y} in 0..1, `behind` when the point is behind the
+ * camera) of a world point [x, y, z]. Uses the camera's current matrices, so
+ * call it after projectAimReticle has refreshed them this frame.
+ */
+export function projectWorldFraction(camera, point) {
+  if (!camera || !point || !Number.isFinite(point[0]) || !Number.isFinite(point[1]) || !Number.isFinite(point[2])) return null;
+  world.set(point[0], point[1], point[2]);
+  if (local.copy(world).applyMatrix4(camera.matrixWorldInverse).z >= 0) return { x: 0.5, y: 0.5, behind: true };
+  world.project(camera);
+  if (!Number.isFinite(world.x) || !Number.isFinite(world.y)) return null;
+  return { x: (world.x + 1) / 2, y: (1 - world.y) / 2, behind: false };
+}

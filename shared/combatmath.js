@@ -316,7 +316,10 @@ export const WEAPONS = {
     // Shoulder launcher: one slow rocket per tube that detonates on any contact. Splash
     // and terrain carve come from shared/rocket-rules.js; the owner's own blast launches
     // them hardest, so rocket jumps are a real movement tool.
-    id: 'rocket', name: 'RX-8 HAVOC', mode: 'semi',
+    // The factory sight is a 2.5x rangefinder optic (`scoped`): aiming down sights
+    // enters the full-screen launcher sight with a rangefinder readout and the
+    // rocket's own drop ladder (ROCKET_SIGHT / rocketSightMarks in rocket-rules.js).
+    id: 'rocket', name: 'RX-8 HAVOC', mode: 'semi', scoped: true,
     weightKg: 9.6,
     rpm: 45, magSize: 1, spareMags: 5,
     damage: [100, 100, 60], headMult: 1.0, pellets: 1,
@@ -328,7 +331,7 @@ export const WEAPONS = {
       yaw: 1.1, yawPattern: [0.6, -0.5, 0.4, -0.6],
       jitter: 0.15, resetMs: 1500, adsMult: 0.8, recovery: 0.5,
     },
-    adsFov: 58, zoom: 1.3, adsTime: 0.32,
+    adsFov: 34, zoom: 2.5, adsTime: 0.32,
     reloadTime: 2.9, tacTime: 2.9, deployTime: 0.85,
     tracer: { color: '#ff9f1c', width: 2.2, len: 6 },
     sfx: 'rocket',

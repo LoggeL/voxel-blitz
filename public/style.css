@@ -3035,6 +3035,173 @@ h1.vb-title::after {
 }
 .sniper-scope.has-ballistics .scope-zero-label { display: block; }
 
+/* RX-8 launcher sight: the same tube and mil scale as the rifle scope, with an
+   illuminated amber reticle (aim chevron, centre stem, holdover bars sized to a
+   tank's width at their range) and a rangefinder readout. Marks are mil counts
+   times --scope-mil, like the rifle ladder. */
+.launcher-reticle,
+.launcher-readout,
+.launcher-impact { display: none; }
+.sniper-scope.launcher-sight .launcher-reticle,
+.sniper-scope.launcher-sight .launcher-readout { display: block; }
+.sniper-scope.launcher-sight .launcher-impact:not([hidden]) { display: block; }
+.sniper-scope.launcher-sight .scope-rings,
+.sniper-scope.launcher-sight .scope-line,
+.sniper-scope.launcher-sight .scope-duplex,
+.sniper-scope.launcher-sight .scope-model-label,
+.sniper-scope.launcher-sight .scope-zero-label { display: none; }
+/* The lower half belongs to the drop ladder: the zoom moves up beside the readout's opposite side. */
+.sniper-scope.launcher-sight .scope-zoom-label { bottom: auto; top: calc(50% - 22vmin); right: calc(50% - 20vmin); color: rgba(255, 209, 138, 0.8); }
+
+.launcher-reticle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  --launcher-ink: #ffb648;
+  --launcher-rim: rgba(16, 8, 0, 0.9);
+}
+.launcher-chevron {
+  position: absolute;
+  left: calc(50% - 13px);
+  top: calc(50% - 2px);
+  width: 26px;
+  height: 14px;
+}
+.launcher-chevron svg { display: block; overflow: visible; }
+.launcher-chevron polyline {
+  fill: none;
+  stroke: var(--launcher-ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 1px var(--launcher-rim)) drop-shadow(0 0 1px var(--launcher-rim));
+}
+.launcher-wing {
+  position: absolute;
+  top: 50%;
+  width: calc(60 * var(--scope-mil, 0.33vh));
+  height: 2px;
+  margin-top: -1px;
+  background: var(--launcher-ink);
+  box-shadow: 0 0 0 1px var(--launcher-rim);
+}
+.launcher-wing.left { right: calc(50% + 22px); }
+.launcher-wing.right { left: calc(50% + 22px); }
+.launcher-stem {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 15px);
+  width: 1px;
+  margin-left: -0.5px;
+  background: color-mix(in srgb, var(--launcher-ink) 70%, transparent);
+  box-shadow: 0 0 0 1px rgba(16, 8, 0, 0.45);
+}
+.launcher-bar {
+  position: absolute;
+  left: 50%;
+  height: 2px;
+  margin-top: -1px;
+  transform: translateX(-50%);
+  background: var(--launcher-ink);
+  box-shadow: 0 0 0 1px var(--launcher-rim);
+}
+.launcher-bar::before,
+.launcher-bar::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 8px;
+  background: var(--launcher-ink);
+  box-shadow: 0 0 0 1px var(--launcher-rim);
+}
+.launcher-bar::before { left: -1px; }
+.launcher-bar::after { right: -1px; }
+.launcher-bar-label {
+  position: absolute;
+  left: calc(100% + 7px);
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--launcher-ink);
+  text-shadow: 0 0 2px #000, 0 1px 2px rgba(0, 0, 0, 0.95);
+}
+
+.launcher-readout {
+  position: absolute;
+  right: calc(50% + 6vmin);
+  bottom: calc(50% + 6vmin);
+  padding: 4px 8px 5px;
+  text-align: right;
+  border: 1px solid rgba(255, 182, 72, 0.55);
+  border-radius: 3px;
+  background: rgba(14, 9, 3, 0.62);
+  font-family: var(--font-mono);
+  color: #ffd18a;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  line-height: 1;
+}
+.launcher-readout-tag {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: rgba(255, 209, 138, 0.7);
+}
+.launcher-readout-value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.launcher-readout-unit {
+  margin-left: 3px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.launcher-readout-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 209, 138, 0.62);
+}
+.launcher-readout[data-state='none'] .launcher-readout-value,
+.launcher-readout[data-held='true'] .launcher-readout-value { color: rgba(255, 209, 138, 0.55); }
+.launcher-readout[data-state='beyond'] { border-color: rgba(255, 92, 72, 0.7); }
+.launcher-readout[data-state='beyond'] .launcher-readout-value,
+.launcher-readout[data-state='beyond'] .launcher-readout-note { color: #ff7a64; }
+
+/* Estimated impact (shared rocket integrator vs. solid terrain and hulls). */
+.launcher-impact {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  border: 2px solid #7ef29a;
+  transform: rotate(45deg);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+.launcher-impact.airburst { border-style: dashed; border-color: rgba(255, 182, 72, 0.85); }
+
+@media (max-height: 500px) {
+  .launcher-readout { right: calc(50% + 5vmin); bottom: calc(50% + 6vmin); padding: 2px 5px 3px; }
+  .launcher-readout-tag { margin-bottom: 2px; font-size: 8px; }
+  .launcher-readout-value { font-size: 16px; }
+  .launcher-readout-note { margin-top: 2px; font-size: 8px; }
+  .launcher-bar-label { font-size: 10px; left: calc(100% + 5px); }
+}
+/* Portrait: the tube is only as wide as the screen, so the readout centres above the chevron. */
+@media (orientation: portrait) {
+  .launcher-readout { right: auto; left: 50%; bottom: calc(50% + 12vmin); transform: translateX(-50%); text-align: center; }
+  .sniper-scope.launcher-sight .scope-zoom-label { display: none; }
+}
+
 /* ---------- damage numbers ---------- */
 
 #dmglayer {

@@ -1,4 +1,4 @@
-import { createSniperScope, updateScopeOptics } from '../ui/sniper-scope.js';
+import { createSniperScope, updateScopeOptics, scopeReticleKind } from '../ui/sniper-scope.js';
 import { ballisticProfile } from '../../../shared/bullet-ballistics.js';
 import { isScopeActive } from '../guns/scope-state.js';
 import { configuredWeapon } from '../../../shared/weapon-attachments.js';
@@ -177,7 +177,8 @@ export class Killcam {
       this.camera.aspect = aspect; this.camera.fov = replayFov; this.camera.updateProjectionMatrix();
     }
     this.scope.classList.toggle('active', this.scopeActive);
-    updateScopeOptics(this.scope, replayFov, ballisticProfile(def));
+    // The killer's launcher sight replays without a rangefinder return (readout "---").
+    updateScopeOptics(this.scope, replayFov, ballisticProfile(def), globalThis.innerHeight, scopeReticleKind(def));
     this.scope.querySelector('.scope-zoom-label').textContent = `${zoom.toFixed(1)}×`;
     this.rig.setCosmetics(target.cosmetics);
     const weapon = WEAPON_IDS[target.weapon] || 'rifle';
