@@ -15,6 +15,12 @@ const state = params.get('state') || 'intact';
 const crew = params.get('crew') === '1';
 const fx = params.get('fx') !== '0';
 const rotor = Number(params.get('rotor') ?? (state === 'wreck' ? 0 : 1));
+// Seat views (?seat=driver&view=cockpit): the real VehicleCamera poses the shot.
+const seatId = params.get('seat');
+const seatView = params.get('view');
+const seatShot = !!(seatId && seatView);
+const num = (key, fallback) => { const value = Number(params.get(key)); return params.has(key) && Number.isFinite(value) ? value : fallback; };
+const aimOffset = num('aim', null), aimPitch = num('aimPitch', 0), altitude = num('alt', 6), speed = num('speed', 0);
 if (!vehicleDef(type)) throw new Error(`unknown vehicle type ${type}`);
 
 // Deterministic page: no clock-driven randomness leaks into the capture.
@@ -44,7 +50,7 @@ scene.add(sun, sun.target);
 // Voxel field: grass blocks with a few dirt patches and a gravel road strip.
 const GROUND_Y = 10;
 const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
-const fieldSize = angle === 'range' ? 260 : 64;
+const fieldSize = angle === 'range' ? 260 : seatShot ? 320 : 64;
 const field = new THREE.InstancedMesh(blockGeometry, new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0 }), fieldSize * fieldSize);
 const color = new THREE.Color(), matrix = new THREE.Matrix4();
 let index = 0;
@@ -63,7 +69,7 @@ field.receiveShadow = true;
 scene.add(field);
 const getBlock = (x, y, z) => (y < GROUND_Y && y >= GROUND_Y - 4 ? 1 : 0);
 
-const camera = new THREE.PerspectiveCamera(angle === 'range' ? 40 : 45, innerWidth / innerHeight, 0.1, 900);
+const camera = new THREE.PerspectiveCamera(angle === 'range' ? 40 : 45, innerWidth / innerHeight, seatShot ? 0.05 : 0.1, 900);
 const view = new VehicleView({ getBlock });
 scene.add(view.group);
 
@@ -83,12 +89,14 @@ function rowFor(id, rowTeam, x, z, yaw) {
   const mounts = vehicleMountOrder(type).map((key, i) => {
     const mount = def.mounts[key.split(':')[1]];
     const centre = mount.yawLimit ? mount.yawLimit[0] : 0;
+    if (aimOffset !== null) return [yaw + centre + (mount.fixed ? 0 : aimOffset), mount.fixed ? 0 : aimPitch, 2, 0, 0];
     return [yaw + centre + (mount.fixed ? 0 : 0.35 - i * 0.15), mount.fixed ? 0 : 0.12, 2, 0, 0];
   });
   return {
-    id, type, team: rowTeam, x, y: GROUND_Y + (flying ? 6 : 0), z, yaw, pitch: 0, roll: 0,
+    id, type, team: rowTeam, x, y: GROUND_Y + (flying ? altitude : 0), z, yaw, pitch: aircraft ? num('pitch', 0) : 0, roll: aircraft ? num('roll', 0) : 0,
+    vx: -Math.sin(yaw) * speed, vy: 0, vz: -Math.cos(yaw) * speed, speed,
     hp: hpByState[state] ?? maxHp, st: (stByState[state] ?? VEHICLE_STATUS.engine) | (flying ? 0 : VEHICLE_STATUS.grounded),
-    turretYaw: yaw + 0.35, turretPitch: 0.06, mounts, seatOccupants: occupants, occupantId: occupants.driver,
+    turretYaw: yaw + (aimOffset ?? 0.35), turretPitch: aimOffset !== null ? aimPitch : 0.06, mounts, seatOccupants: occupants, occupantId: occupants.driver,
     speed: 0, rotorSpeed: rotor, grounded: !flying, enginePower: state === 'wreck' ? 0 : 0.6, wreck: state === 'wreck',
   };
 }
@@ -105,6 +113,24 @@ for (const row of rows) for (const [seatId, id] of Object.entries(row.seatOccupa
 }
 view.sync(rows, players, { id: 'capture', team: 'alpha' });
 
+let seatCamera = null;
+if (seatShot) {
+  const { VehicleCamera } = await import('../session/vehicle-camera.js');
+  seatCamera = new VehicleCamera({ camera, storage: null, getBaseFov: () => num('fov', 75) });
+  seatCamera.setView(type, seatId, seatView, { remember: false });
+  view.setLocalView(seatCamera.view === 'cockpit' && params.get('head') !== '1' ? { id: rows[0].id, seatId } : null);
+}
+const poseSeat = (step, move = false) => {
+  if (!seatCamera) return;
+  if (move) for (const row of rows) { row.x += row.vx * step; row.z += row.vz * step; }
+  const row = view.presentedRow(rows[0].id);
+  const mountAim = def.seats.find(seat => seat.id === seatId)?.mounts?.length ? rows[0].mounts[vehicleMountOrder(type).indexOf(`${seatId}:${def.seats.find(seat => seat.id === seatId).mounts[0]}`)] : null;
+  const aimYaw = type === 'tank' && seatId === 'driver' ? rows[0].turretYaw : mountAim ? mountAim[0] : rows[0].yaw + (aimOffset ?? 0);
+  const look = type === 'tank' && seatId === 'driver' ? rows[0].turretPitch : mountAim ? mountAim[1] : aimPitch;
+  seatCamera.update(step, { row, seatId, aimYaw, aimPitch: look, freeLook: false });
+  if (params.has('look')) { seatCamera.addFreeLook(-num('look', 0), 0); }
+};
+
 // Camera framings per angle, scaled by the hull size.
 const radius = Math.max(def.collider.halfLength, def.collider.halfWidth) + (aircraft ? 2.5 : 1.2);
 const target = new THREE.Vector3(0, GROUND_Y + def.height * 0.45 + (flying ? 6 : 0), 0);
@@ -112,7 +138,9 @@ const framings = {
   hero: [-1.05, 0.55, -1.35], front: [0, 0.35, -1.9], side: [-1.95, 0.32, 0], rear: [0.55, 0.5, 1.8],
   top: [-0.25, 2.3, 0.35], chase: [0, 0.75, 2.1], low: [-1.35, 0.08, -1.05],
 };
-if (angle === 'range') {
+if (seatShot) {
+  poseSeat(0);
+} else if (angle === 'range') {
   camera.position.set(0, GROUND_Y + 6, 0);
   camera.lookAt(0, GROUND_Y + 1.5, -150);
 } else {
@@ -145,6 +173,7 @@ const STEP = 1 / 60;
 for (let i = 0; i < 150; i++) {
   view.sync(rows, players, { id: 'capture', team: 'alpha' });
   view.update(STEP, camera);
+  poseSeat(STEP, params.get('move') === '1');
   vehicleFx?.update(STEP, camera, rows);
   particles?.update(STEP, camera);
 }
@@ -152,6 +181,7 @@ contactShadows.begin(camera.position);
 view.addContactShadows(contactShadows);
 contactShadows.end();
 
+const root = document.documentElement;
 // Hull mask for the range check: only opaque hull voxels (no crew, glass,
 // rotor blur, particles, ground or contact shadows), drawn flat white on black.
 function renderHullMask() {
@@ -176,6 +206,36 @@ function renderHullMask() {
 }
 const hullMask = angle === 'range' ? renderHullMask() : null;
 renderer.render(scene, camera);
+if (seatShot) {
+  // Reticle check: the screen centre (white) and where the weapons hit
+  // (green: the aircraft boresight at 160 m, or the seat's mount 100 m out).
+  const { aircraftBoresight } = await import('../session/vehicle-camera.js');
+  const { mountPose } = await import('../../../shared/vehicle-defs.js');
+  const row = view.presentedRow(rows[0].id);
+  const seat = def.seats.find(entry => entry.id === seatId);
+  let point = null;
+  const bore = seat?.drives ? aircraftBoresight(row) : null;
+  if (bore) point = bore.origin.map((v, i) => v + bore.dir[i] * 160);
+  else if (seat?.mounts?.length) {
+    const pose = mountPose(row, seatId, seat.mounts[0]);
+    if (pose) point = pose.origin.map((v, i) => v + pose.dir[i] * 100);
+  }
+  const overlay = document.createElement('canvas');
+  overlay.width = innerWidth; overlay.height = innerHeight;
+  Object.assign(overlay.style, { position: 'fixed', inset: '0', pointerEvents: 'none' });
+  document.body.appendChild(overlay);
+  const g = overlay.getContext('2d');
+  g.strokeStyle = '#ffffffcc'; g.lineWidth = 1.5;
+  const cx = innerWidth / 2, cy = innerHeight / 2;
+  g.beginPath(); g.moveTo(cx - 8, cy); g.lineTo(cx + 8, cy); g.moveTo(cx, cy - 8); g.lineTo(cx, cy + 8); g.stroke();
+  if (point) {
+    const p = new THREE.Vector3(...point).project(camera);
+    const px = (p.x * 0.5 + 0.5) * innerWidth, py = (0.5 - p.y * 0.5) * innerHeight;
+    g.strokeStyle = '#46ff7a'; g.lineWidth = 2;
+    g.beginPath(); g.arc(px, py, 11, 0, Math.PI * 2); g.stroke();
+    root.dataset.reticleOffset = String(Math.round(Math.hypot(px - cx, py - cy)));
+  }
+}
 
 // Team hue check at range: saturation-weighted mean hue of the hull pixels
 // (hull mask) inside each hull's projected box.
@@ -206,7 +266,6 @@ function hueOfRegion(row) {
   const hue = ((Math.atan2(sy, sx) / (Math.PI * 2)) + 1) % 1;
   return { hue: Math.round(hue * 360), pixels: count, box: [x0, y0, x1, y1] };
 }
-const root = document.documentElement;
 if (angle === 'range') {
   const west = hueOfRegion(rows[0]), east = hueOfRegion(rows[1]);
   root.dataset.hueWest = String(west.hue);
@@ -218,7 +277,7 @@ if (angle === 'range') {
 const stats = view.item(rows[0].id).model.stats;
 root.dataset.captureDraws = String(stats.draws);
 root.dataset.captureTriangles = String(stats.triangles);
-document.getElementById('label').textContent =
+document.getElementById('label').textContent = seatShot ? `${type.toUpperCase()} · ${seatId.toUpperCase()} · ${seatView.toUpperCase()}` :
   `${type.toUpperCase()} · ${angle === 'range' ? 'WEST vs EAST @150 m' : team === 'bravo' ? 'EAST (desert)' : 'WEST (woodland)'} · ${state.toUpperCase()} · ${stats.draws} draws · ${stats.triangles} tris`;
 root.dataset.captureType = type;
 root.dataset.captureAngle = angle;

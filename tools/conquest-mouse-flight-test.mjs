@@ -7,8 +7,8 @@
 import assert from 'node:assert/strict';
 import { Input } from '../public/js/engine/input.js';
 import { NetClient } from '../public/js/engine/netclient.js';
-import { FLIGHT_SENSITIVITY, INPUT_PREF_KEYS, clampFlightSensitivity } from '../public/js/input-settings.js';
-import { MOUSE_FLIGHT, VehicleController, stepMouseFlightStick } from '../public/js/session/vehicle-controller.js';
+import { FLIGHT_MODES, FLIGHT_SENSITIVITY, INPUT_PREF_KEYS, LEGACY_FLIGHT_MODE_KEY, clampFlightSensitivity, readFlightMode } from '../public/js/input-settings.js';
+import { MOUSE_AIM, MOUSE_FLIGHT, VehicleController, stepMouseFlightStick } from '../public/js/session/vehicle-controller.js';
 import { GameEngine } from '../server/game.js';
 import { HELICOPTER_RULES, stepHelicopterFlight } from '../shared/vehicle-handling/helicopter.js';
 
@@ -149,13 +149,74 @@ const axes = ['vehiclePitchControl', 'vehicleRollControl', 'vehicleYawControl'];
   c.dispose();
 }
 
+// ---------------------------------------------------------------- mouse aim layout
+{
+  const c = new VehicleController({ eventTarget: null });
+  c.setFlightOptions({ mode: 'aim', sensitivity: 1, invertY: false });
+  seat(c, 'plane');
+  assert(c.aimFlight && !c.mouseFlight, 'aim mode is not the mouse stick');
+  let cmd = c.controls({}, mouse(0.1, -0.05), false, 1 / 60);
+  assert(near(cmd.yaw, wrap(0.3 - 0.1)) && near(cmd.pitch, 0.05 + 0.05), 'jet: the mouse moves the world aim from the hull attitude');
+  for (const axis of axes) assert(!(axis in cmd), `jet: no ${axis}, the server instructor flies to the aim`);
+  assert.deepEqual(c.flightAim, { yaw: cmd.yaw, pitch: cmd.pitch }, 'the camera reads the same aim');
+  cmd = c.controls({ forward: true, right: true, crouch: true }, mouse(0, 0), false, 1 / 60);
+  assert(cmd.vehicleThrottle === 1 && cmd.vehicleSteer === 1 && cmd.vehicleBrake === 1, 'jet: W throttle, D roll override, Ctrl airbrake');
+  const aimYaw = cmd.yaw;
+  cmd = c.controls({ leanRight: true }, mouse(0, 0), false, 0.2);
+  assert(near(cmd.yaw, wrap(aimYaw - MOUSE_AIM.nudge * 0.2)), 'E nudges the aim right');
+  c.freeLook = true;
+  const held = c.controls({}, mouse(0.4, 0.2), false, 1 / 60);
+  assert(near(held.yaw, cmd.yaw) && near(held.pitch, cmd.pitch), 'free look leaves the aim in place');
+  c.freeLook = false;
+  for (let i = 0; i < 200; i++) cmd = c.controls({}, mouse(0, 0.05), false, 1 / 60);
+  assert(near(cmd.pitch, MOUSE_AIM.pitch[0]), 'the aim pitch is bounded');
+  c.setFlightOptions({ mode: 'aim', sensitivity: 2, invertY: true });
+  const before = c.controls({}, mouse(0, 0), false, 1 / 60).pitch;
+  cmd = c.controls({}, mouse(0.01, 0.01), false, 1 / 60);
+  assert(near(cmd.pitch, before + 0.02), 'sensitivity scales and invert flips the aim pitch (pointer down raises it)');
+
+  for (const type of ['helicopter', 'transport']) {
+    c.setFlightOptions({ mode: 'aim', sensitivity: 1, invertY: false });
+    seat(c, type);
+    cmd = c.controls({ forward: true, right: true, jump: true }, mouse(0.2, 0.1), false, 1 / 60);
+    assert(near(cmd.yaw, wrap(0.3 - 0.2)), `${type}: mouse X turns the aim the nose follows`);
+    assert(near(cmd.pitch, -0.1), `${type}: mouse Y looks up and down`);
+    assert.equal(cmd.vehicleThrottle, 1, `${type}: W is the forward cyclic`);
+    assert.equal(cmd.vehicleRollControl, 1, `${type}: D is the lateral cyclic`);
+    assert.equal(cmd.vehiclePitchControl, 0);
+    assert.equal(cmd.vehicleSteer, 0);
+    assert(!('vehicleYawControl' in cmd), `${type}: no pedal axis, so the server follows the aim yaw`);
+    assert(!('vehicleAttitudeHold' in cmd), `${type}: assisted cyclic, not the stick hold`);
+    assert.equal(cmd.vehicleLift, 1, `${type}: Space climbs`);
+    assert.equal(c.controls({ sprint: true }, mouse(0, 0)).vehicleLift, -1, `${type}: Shift descends`);
+    assert.equal(c.controls({ forward: true }, mouse(0, 0)).vehicleLift, 0, `${type}: W is not the collective`);
+  }
+  // A gunner never flies with the aim.
+  seat(c, 'helicopter', 'gunner');
+  assert(!c.aimFlight && c.flightAim === null);
+  c.dispose();
+}
+{
+  // The stored mode: the new key wins; only an explicit old keyboard choice
+  // carries over (the old default mouse stick was saved with every settings save).
+  const read = prefs => key => prefs[key] ?? null;
+  assert.equal(readFlightMode(read({})), 'aim');
+  assert.equal(readFlightMode(read({ [LEGACY_FLIGHT_MODE_KEY]: 'mouse' })), 'aim');
+  assert.equal(readFlightMode(read({ [LEGACY_FLIGHT_MODE_KEY]: 'keyboard' })), 'keyboard');
+  assert.equal(readFlightMode(read({ [INPUT_PREF_KEYS.flightMode]: 'mouse', [LEGACY_FLIGHT_MODE_KEY]: 'keyboard' })), 'mouse');
+  assert.equal(readFlightMode(() => { throw new Error('blocked storage'); }), 'aim');
+  assert.deepEqual([...FLIGHT_MODES], ['aim', 'mouse', 'keyboard']);
+}
+
 // ---------------------------------------------------------------- Input bridge
 {
   const input = new Input({});
   input.fallback = true; input._locked = true;
   try {
-    assert.equal(input.getOptions().flightMode, 'mouse', 'mouse flight is the desktop default');
-    assert.equal(input.flightOptions(0).mouse, true);
+    assert.equal(input.getOptions().flightMode, 'aim', 'mouse aim is the desktop default');
+    assert.equal(input.flightOptions(0).aim, true);
+    assert.equal(input.flightOptions(0).mouse, false);
+    assert.equal(input.flightOptions(0).mode, 'aim');
     assert.equal(input.flightOptions(0), input.flightOptions(0), 'unchanged options are reused');
     input._onMouseMove({ movementX: 10, movementY: -4 });
     input._onTouchLook(5, 0);
@@ -167,15 +228,17 @@ const axes = ['vehiclePitchControl', 'vehicleRollControl', 'vehicleYawControl'];
     input.clearTransient();
     assert.equal(input.consumeDelta().mouseDx, 0, 'transient resets clear the pointer share');
     input.setOptions({ flightMode: 'keyboard', flightSensitivity: 2, flightInvertY: true });
-    assert.deepEqual({ ...input.flightOptions(0) }, { mouse: false, sensitivity: 2, invertY: true });
+    assert.deepEqual({ ...input.flightOptions(0) }, { mode: 'keyboard', aim: false, mouse: false, sensitivity: 2, invertY: true });
     input.setOptions({ flightMode: 'joystick' });
     assert.equal(input.getOptions().flightMode, 'keyboard', 'unknown modes keep the current one');
     input.setOptions({ flightMode: 'mouse' });
+    assert.equal(input.flightOptions(0).mouse, true, 'the mouse stick stays selectable');
+    input.setOptions({ flightMode: 'aim' });
     input._pad._activeUntil = 5000;
-    assert.equal(input.flightOptions(1000).mouse, false, 'an active pad keeps its own layout');
-    assert.equal(input.flightOptions(6000).mouse, true);
+    assert.equal(input.flightOptions(1000).mode, 'keyboard', 'an active pad keeps its own layout');
+    assert.equal(input.flightOptions(6000).aim, true);
     input._touchMode = true;
-    assert.equal(input.flightOptions(6000).mouse, false, 'touch keeps its own layout');
+    assert.equal(input.flightOptions(6000).aim, false, 'touch keeps its own layout');
     assert.ok(INPUT_PREF_KEYS.flightMode && INPUT_PREF_KEYS.flightSensitivity && INPUT_PREF_KEYS.flightInvert);
   } finally { input.dispose(); }
 }
@@ -229,11 +292,12 @@ const axes = ['vehiclePitchControl', 'vehicleRollControl', 'vehicleYawControl'];
   assert(handed.attitudeHeld === false, 'a keyboard (non-hold) step disarms the hold');
 }
 
-// ------------------------------------------------- boundary autopilot hand-back
+// ------------------------------------------------- map-edge hand-back
 {
-  // A mouse-flown helicopter dives at the edge of a compact 768 m map. The
-  // rotor autopilot recovers it nose-down; once it hands back, a centred stick
-  // with attitude hold must level like the keyboard layout, not keep diving.
+  // A helicopter dives at the edge of a compact 768 m map. The soft edge
+  // guidance brakes it toward a hover (the hard safety pilot only if that is
+  // not enough); afterwards a centred mouse stick with attitude hold and the
+  // assisted keyboard cyclic both end level and slow, inside the map.
   const handBack = attitudeHold => {
     const size = 768, dimensions = { sx: size, sy: 64, sz: size };
     const world = { dimensions, getBlock: (x, y) => y === 0 ? 3 : 0, findSpawns: () => [{ x: size / 2, y: 1, z: size - 60 }], setBlock: () => true };
@@ -248,25 +312,28 @@ const axes = ['vehiclePitchControl', 'vehicleRollControl', 'vehicleYawControl'];
       vehiclePitchControl: 0, vehicleRollControl: 0, vehicleYawControl: 0, vehicleThrottle: 0, vehicleSteer: 0, vehicleLift: 0, vehicleBrake: 0,
       yaw: v.yaw, pitch: v.pitch, ...(attitudeHold ? { vehicleAttitudeHold: true } : {}), ...extra });
     for (let i = 0; i < 300; i++) { send({ vehicleLift: 1 }); game.vehicles.step(1 / 60); }
-    let recovered = false, released = null;
-    for (let i = 0; i < 60 * 40 && (released == null || i - released.tick < 180); i++) {
-      const recovering = game.vehicles.boundaryAvoidance.has(v.id);
-      recovered ||= recovering;
-      send(!recovered ? { vehiclePitchControl: -0.4 } : {});
+    let guidedAt = null, minEdge = Infinity;
+    for (let i = 0; i < 60 * 40 && (guidedAt == null || i - guidedAt < 60 * 20); i++) {
+      if (guidedAt == null && (game.vehicles.boundaryAvoidance.has(v.id) || v.edgeSteer > 0)) guidedAt = i;
+      // Dive at the edge (stick: hold the nose down; keyboard: hold W), then let go.
+      send(guidedAt == null ? (attitudeHold ? { vehiclePitchControl: -0.4 } : { vehicleThrottle: 1 }) : {});
       game.vehicles.step(1 / 60);
-      if (recovered && !game.vehicles.boundaryAvoidance.has(v.id) && released == null) released = { tick: i, pitch: v.pitch, x: v.x, z: v.z };
+      minEdge = Math.min(minEdge, v.x, v.z, size - v.x, size - v.z);
     }
-    assert(released, `the autopilot engaged and handed back (hold ${attitudeHold})`);
-    return { start: released.pitch, pitch: v.pitch, drift: Math.hypot(v.x - released.x, v.z - released.z) };
+    assert(guidedAt != null, `the edge guidance engaged (hold ${attitudeHold})`);
+    assert(!game.vehicles.boundaryAvoidance.has(v.id) && !(v.edgeSteer > 0), `the edge guidance let go (hold ${attitudeHold})`);
+    return { pitch: v.pitch, speed: v.speed, minEdge };
   };
   const keyboard = handBack(false), mouse = handBack(true);
-  assert(mouse.start < -0.3, `the autopilot hands back nose-down (${mouse.start})`);
-  assert(Math.abs(mouse.pitch) < 0.05, `a centred mouse stick levels after the hand-back (${mouse.pitch})`);
-  assert(near(mouse.pitch, keyboard.pitch, 1e-6) && mouse.drift < keyboard.drift + 1, `mouse ${JSON.stringify(mouse)} keyboard ${JSON.stringify(keyboard)}`);
+  for (const [name, run] of [['keyboard', keyboard], ['mouse', mouse]]) {
+    assert(run.minEdge > 3, `${name}: the helicopter never reached the map edge (${run.minEdge.toFixed(1)} m)`);
+    assert(Math.abs(run.pitch) < 0.05 && run.speed < 1.5, `${name}: level and slow after the hand-back (${run.pitch}, ${run.speed})`);
+  }
+  assert(keyboard.speed < 0.5, `the assisted cyclic settles into a hover after the hand-back (${keyboard.speed})`);
 }
 
 // ---------------------------------------------------------------- live flight
-function liveFlight(type) {
+function liveFlight(type, mode = 'mouse') {
   const dimensions = { sx: 4096, sy: 64, sz: 4096 };
   const world = { dimensions, getBlock: (x, y) => y === 0 ? 3 : 0, findSpawns: () => [{ x: 2048, y: 1, z: 3600 }], setBlock: () => true };
   const game = new GameEngine({ mode: 'conquest', world, mapMeta: { id: 'frontier', dimensions,
@@ -280,6 +347,7 @@ function liveFlight(type) {
 
   const input = new Input({});
   input.fallback = true; input._locked = true;
+  input.setOptions({ flightMode: mode });
   const controller = new VehicleController({ eventTarget: null });
   const net = new NetClient();
   net.ws = { readyState: 1, send: frame => game.applyInput(p.id, JSON.parse(frame)) };
@@ -297,22 +365,27 @@ function liveFlight(type) {
   const sample = { duration: 0, totals: [0, 0, 0] };
   let sendAt = 0, now = 0, boundary = false, mouseOnlySticks = true;
   const track = { minY: Infinity, maxY: -Infinity, maxRoll: 0 };
-  const frame = (keys, stickX, stickY) => {
+  // Mouse aim: move the pointer toward a wanted world aim, at most `maxStep` rad a frame.
+  const aimPixels = (target, current, maxStep = 0.06) => Math.max(-maxStep, Math.min(maxStep, wrap(current - target))) / input.sens;
+  const frame = (keys, stickX, stickY, aim = null) => {
     hold(keys);
-    input._onMouseMove({ movementX: pixels(stickX), movementY: -pixels(stickY) });
+    if (aim) {
+      const current = controller.flightAim ?? { yaw: v.yaw, pitch: v.pitch };
+      input._onMouseMove({ movementX: aimPixels(aim.yaw, current.yaw), movementY: aimPixels(aim.pitch, current.pitch) });
+    } else input._onMouseMove({ movementX: pixels(stickX), movementY: -pixels(stickY) });
     input.poll(now, dt);
     controller.sync({ self: { id: 'pilot', state: 'alive', team: 'alpha', vehicleId: v.id, x: v.x, y: v.y, z: v.z },
       enabled: true, vehicles: [{ id: v.id, type, team: 'alpha', hp: v.hp, x: v.x, y: v.y, z: v.z, yaw: v.yaw,
-        pitch: v.pitch, roll: v.roll, speed: v.speed, grounded: v.grounded }] });
+        pitch: v.pitch, roll: v.roll, speed: v.speed, grounded: v.grounded, seatOccupants: { driver: 'pilot' } }] });
     controller.setFlightOptions(input.flightOptions(now));
     const controls = controller.controls(input.getKeys(), input.consumeDelta(), false, dt);
-    axes.forEach((field, i) => { sample.totals[i] += controls[field] * dt; });
+    axes.forEach((field, i) => { if (Object.hasOwn(controls, field)) sample.totals[i] += controls[field] * dt; });
     sample.duration += dt;
     if (now >= sendAt) {
-      // Same 20 Hz averaging as the composition root (main.js).
+      // Same 20 Hz averaging as the composition root (main.js): only the axes the seat sends.
       sendAt = now + 50;
       const sampled = { ...controls };
-      axes.forEach((field, i) => { sampled[field] = sample.totals[i] / sample.duration; });
+      axes.forEach((field, i) => { if (Object.hasOwn(sampled, field)) sampled[field] = sample.totals[i] / sample.duration; });
       sample.duration = 0; sample.totals.fill(0);
       net.sendInput({ ...sampled, keys: {}, weapon: 0, vehicleControlId: v.id, vehicleControlSeatId: controller.seatId });
       if (keys.some(code => ['KeyA', 'KeyD', 'KeyQ', 'KeyE', 'Space', 'ShiftLeft'].includes(code))) mouseOnlySticks = false;
@@ -334,8 +407,8 @@ function liveFlight(type) {
 }
 
 {
-  // Jet: W throttle, the mouse rotates, climbs, banks right, turns and levels out.
-  const f = liveFlight('plane'), v = f.v;
+  // Jet (mouse stick): W throttle, the mouse rotates, climbs, banks right, turns and levels out.
+  const f = liveFlight('plane', 'mouse'), v = f.v;
   const ground = v.y, heading0 = v.yaw;
   let t = 0;
   // Takeoff roll with a centred stick, then rotate with the mouse.
@@ -373,7 +446,7 @@ function liveFlight(type) {
 {
   // Helicopter: W collective lifts off, the mouse tilts forward and holds it,
   // mouse X turns on the pedals, and pulling back levels the hull.
-  const f = liveFlight('helicopter'), v = f.v;
+  const f = liveFlight('helicopter', 'mouse'), v = f.v;
   const ground = v.y;
   for (let i = 0; i < f.seconds(5); i++) f.frame(['KeyW'], 0, 0);
   assert(!v.grounded && v.y > ground + 15, `heli: W lifts off and climbs (${(v.y - ground).toFixed(1)} m)`);
@@ -402,4 +475,68 @@ function liveFlight(type) {
   f.dispose();
 }
 
-console.log('Mouse flight: stick, jet/helicopter layouts, keyboard fallback, device isolation, attitude hold and live takeoff/climb/turn/level passed');
+{
+  // Jet, mouse aim: W throttle, aim a little up to rotate and climb, then put
+  // the aim 1.2 rad to the right. The instructor banks into the turn, rolls out
+  // with the nose on the aim and holds it once the mouse stops.
+  const f = liveFlight('plane', 'aim'), v = f.v;
+  const ground = v.y, heading0 = v.yaw;
+  let t = 0;
+  // A level aim: the takeoff assist rotates at take-off speed.
+  for (; t < f.seconds(25) && v.grounded; t++) f.frame(['KeyW'], 0, 0, { yaw: heading0, pitch: 0 });
+  assert(!v.grounded, `jet aim: W alone with a level aim takes off (${(t / 60).toFixed(1)} s)`);
+  for (; t < f.seconds(40) && v.y < ground + 25; t++) f.frame(['KeyW'], 0, 0, { yaw: heading0, pitch: 0.2 });
+  assert(v.y > ground + 25, `jet aim: aiming up climbs (${(v.y - ground).toFixed(1)} m in ${(t / 60).toFixed(1)} s)`);
+  for (let i = 0; i < f.seconds(3); i++) f.frame(['KeyW'], 0, 0, { yaw: heading0, pitch: 0.05 });
+  const target = wrap(heading0 - 1.2);
+  let maxRoll = 0, settledAt = null;
+  for (let i = 0; i < f.seconds(14); i++) {
+    f.frame(['KeyW'], 0, 0, { yaw: target, pitch: 0.05 });
+    maxRoll = Math.max(maxRoll, -v.roll);
+    if (settledAt === null && Math.abs(wrap(target - v.yaw)) < 0.03 && Math.abs(v.roll) < 0.1) settledAt = i / 60;
+  }
+  assert(maxRoll > 0.6, `jet aim: banks right into the turn (${maxRoll.toFixed(2)} rad)`);
+  assert(settledAt !== null && settledAt < 9, `jet aim: nose on the aim, wings level after ${settledAt} s`);
+  assert(Math.abs(wrap(target - v.yaw)) < 0.02 && Math.abs(v.roll) < 0.05, `jet aim: holds the aim (${wrap(target - v.yaw).toFixed(3)}, roll ${v.roll.toFixed(3)})`);
+  assert(Math.abs(v.pitch - 0.05) < 0.03, `jet aim: nose pitch on the aim (${v.pitch.toFixed(3)})`);
+  for (let i = 0; i < f.seconds(3); i++) f.frame(['KeyW'], 0, 0);
+  assert(Math.abs(wrap(target - v.yaw)) < 0.03 && Math.abs(v.roll) < 0.05, 'jet aim: a still mouse keeps flying straight');
+  assert(!f.boundary && v.hp > 0, 'jet aim: no safety takeover');
+  console.log(`  jet aim: airborne ${(t / 60).toFixed(1)} s, turn 1.2 rad settled in ${settledAt.toFixed(1)} s, max bank ${maxRoll.toFixed(2)} rad`);
+  f.dispose();
+}
+
+{
+  // Helicopter, mouse aim: Space alone takes off, a released collective holds
+  // the height, W flies forward, letting go hovers within a few seconds, the
+  // nose follows mouse X and Shift sinks.
+  const f = liveFlight('helicopter', 'aim'), v = f.v;
+  const ground = v.y, heading0 = v.yaw;
+  for (let i = 0; i < f.seconds(4); i++) f.frame(['Space'], 0, 0, { yaw: heading0, pitch: 0 });
+  assert(!v.grounded && v.y > ground + 12, `heli aim: Space alone lifts off (${(v.y - ground).toFixed(1)} m)`);
+  for (let i = 0; i < f.seconds(1.5); i++) f.frame([], 0, 0, { yaw: heading0, pitch: 0 });
+  const hover = v.y;
+  for (let i = 0; i < f.seconds(2); i++) f.frame([], 0, 0, { yaw: heading0, pitch: 0 });
+  assert(Math.abs(v.y - hover) < 0.5 && Math.abs(v.vy) < 0.2, 'heli aim: releasing Space holds the altitude');
+  for (let i = 0; i < f.seconds(5); i++) f.frame(['KeyW'], 0, 0, { yaw: heading0, pitch: -0.2 });
+  const cruise = v.speed;
+  assert(cruise > 12 && v.pitch < -0.3, `heli aim: W tilts forward and flies (${cruise.toFixed(1)} m/s)`);
+  let hovered = null;
+  for (let i = 0; i < f.seconds(7); i++) {
+    f.frame([], 0, 0, { yaw: heading0, pitch: -0.2 });
+    if (hovered === null && v.speed < 1) hovered = i / 60;
+  }
+  assert(hovered !== null && hovered < 5, `heli aim: released cyclic hovers from ${cruise.toFixed(1)} m/s in ${hovered} s`);
+  assert(v.speed < 0.5 && Math.abs(v.pitch) < 0.03 && Math.abs(v.roll) < 0.03, 'heli aim: a level, still hover');
+  const turnTo = wrap(heading0 + 1);
+  for (let i = 0; i < f.seconds(3); i++) f.frame([], 0, 0, { yaw: turnTo, pitch: 0 });
+  assert(Math.abs(wrap(turnTo - v.yaw)) < 0.05 && v.speed < 1, `heli aim: the nose follows mouse X in place (${wrap(turnTo - v.yaw).toFixed(3)})`);
+  const before = v.y;
+  for (let i = 0; i < f.seconds(2); i++) f.frame(['ShiftLeft'], 0, 0, { yaw: turnTo, pitch: 0 });
+  assert(v.y < before - 5, 'heli aim: Shift descends');
+  assert(!f.boundary && v.hp > 0, 'heli aim: no safety takeover');
+  console.log(`  heli aim: Space lift-off +${(hover - ground).toFixed(0)} m, cruise ${cruise.toFixed(1)} m/s -> hover in ${hovered.toFixed(1)} s`);
+  f.dispose();
+}
+
+console.log('Mouse flight: stick, mouse aim (jet instructor, assisted heli), jet/helicopter layouts, keyboard fallback, mode migration, device isolation, attitude hold, edge hand-back and live takeoff/climb/turn/level/hover passed');

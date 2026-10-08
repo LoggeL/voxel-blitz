@@ -75,8 +75,10 @@ function roster(self, more = []) {
 
 /** A state: everything ConquestHud.update needs plus events to replay and capture hints. */
 function state(id, title, { selfTeam = 'alpha', self, players, vehicles = [], match, camera, events = [], dead = false, killer = null,
-  bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null, career = null } = {}) {
-  return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch, career };
+  bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null, career = null, viewStrip = null,
+  flight = null } = {}) {
+  return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch, career, viewStrip,
+    flight };
 }
 
 /** Every HUD state the acceptance list names, in capture order. */
@@ -233,6 +235,55 @@ export function conquestHudFixtures() {
     const target = vehicle('bravo-helicopter', 'helicopter', 'bravo', jetAt.x - Math.sin(yaw) * 260 + 25, jetAt.z - Math.cos(yaw) * 260, { y: 128, hp: 600, sp: 1, vx: 12, vy: 0, vz: -20 });
     out.push(state('jet', 'Jet · AA missile selected · lead pipper · locking 70 %', { self, players: roster(self), vehicles: [jet, target],
       match: baseMatch(), camera: cam(jetAt.x + Math.sin(yaw) * 17, 144.4, jetAt.z + Math.cos(yaw) * 17, yaw, -0.02) }));
+  }
+  // 14a. The same jet a moment after V: the camera view strip under the ticket bar (cockpit view).
+  {
+    const yaw = yawTo(jetAt, C);
+    const self = meAt(jetAt.x, jetAt.z, { y: 140, vehicleId: 'alpha-plane', vehicleSeatId: 'driver', cq: { squad: 1 } });
+    const jet = vehicle('alpha-plane', 'plane', 'alpha', jetAt.x, jetAt.z, { y: 140, hp: 450, yaw, pitch: -0.04, roll: 0.1,
+      seatOccupants: { driver: 'me' }, mounts: [[yaw, -0.04, -1, 35, 0], [yaw, -0.04, 1, 0, 30]], sel: { driver: 0 }, airspeed: 92, cmr: 100, lk: 0 });
+    const views = [['chase', 'CHASE'], ['action', 'ACTION'], ['cockpit', 'COCKPIT'], ['flyby', 'FLYBY']].map(([id, label]) => ({ id, label }));
+    out.push(state('jet-view', 'Jet · V pressed · camera view strip (cockpit)', { self, players: roster(self), vehicles: [jet],
+      match: baseMatch(), camera: cam(jetAt.x, 142.1, jetAt.z, yaw, -0.04), viewStrip: { type: 'plane', seatId: 'driver', view: 'cockpit', views } }));
+  }
+  // 14c-e. Mouse-aim pilots (docs/design/conquest/flight): the chase camera looks along the
+  // aim (aim circle at the centre), the nose marker sits where the hull points, speed / AGL
+  // tapes with climb, the jet's throttle bar and stall warning, and the first-entry hint.
+  // `flight` stands in for VehicleController (aim mode) and the AGL ground cast.
+  {
+    const aimCam = (at, y, aimYaw, aimPitch, distance) => {
+      const orbit = aimPitch - 0.14;
+      return cam(at.x + Math.sin(aimYaw) * Math.cos(orbit) * distance, y + 2.6 - Math.sin(orbit) * distance,
+        at.z + Math.cos(aimYaw) * Math.cos(orbit) * distance, aimYaw, aimPitch);
+    };
+    const yaw = yawTo(jetAt, C), aimYaw = yaw - 0.2;
+    const self = meAt(jetAt.x, jetAt.z, { y: 120, vehicleId: 'alpha-plane', vehicleSeatId: 'driver', cq: { squad: 1 } });
+    const jet = vehicle('alpha-plane', 'plane', 'alpha', jetAt.x, jetAt.z, { y: 120, hp: 450, yaw, pitch: 0.02, roll: -0.85,
+      seatOccupants: { driver: 'me' }, mounts: [[yaw, 0.02, -1, 0, 0], [yaw, 0.02, 1, 0, 30]], sel: { driver: 0 }, airspeed: 64, speed: 64,
+      vx: -Math.sin(yaw) * 64, vy: 1.2, vz: -Math.cos(yaw) * 64, throttle: 0.85, enginePower: 0.85, grounded: false, gearDown: false, cmr: 100 });
+    out.push(state('jet-aim', 'Jet · mouse aim · banking toward the aim circle · throttle 85 %', { self, players: roster(self), vehicles: [jet],
+      match: baseMatch(), camera: aimCam(jetAt, 120, aimYaw, 0.1, 17), flight: { aim: true, mode: 'aim', agl: 94 } }));
+  }
+  {
+    const yaw = yawTo(jetAt, C), aimYaw = yaw + 0.1;
+    const self = meAt(jetAt.x, jetAt.z, { y: 150, vehicleId: 'alpha-plane', vehicleSeatId: 'driver', cq: { squad: 1 } });
+    const jet = vehicle('alpha-plane', 'plane', 'alpha', jetAt.x, jetAt.z, { y: 150, hp: 450, yaw, pitch: 0.55, roll: 0.15,
+      seatOccupants: { driver: 'me' }, mounts: [[yaw, 0.55, -1, 0, 0], [yaw, 0.55, 1, 0, 30]], sel: { driver: 0 }, airspeed: 19, speed: 19,
+      vx: -Math.sin(yaw) * 17, vy: 8.4, vz: -Math.cos(yaw) * 17, throttle: 0.4, enginePower: 0.4, grounded: false, gearDown: false, stalled: true, cmr: 100 });
+    const orbit = 0.62 - 0.14;
+    out.push(state('jet-stall', 'Jet · mouse aim · zoom climb at 19 m/s · STALL warning', { self, players: roster(self), vehicles: [jet],
+      match: baseMatch(), camera: cam(jetAt.x + Math.sin(aimYaw) * Math.cos(orbit) * 17, 152.6 - Math.sin(orbit) * 17, jetAt.z + Math.cos(aimYaw) * Math.cos(orbit) * 17, aimYaw, 0.62),
+      flight: { aim: true, mode: 'aim', agl: 124 } }));
+  }
+  {
+    const at = { x: C.x - 90, z: C.z + 70 }, yaw = yawTo(at, C), aimYaw = yaw + 0.35;
+    const self = meAt(at.x, at.z, { y: GROUND + 18, vehicleId: 'alpha-helicopter', vehicleSeatId: 'driver', cq: { squad: 1 } });
+    const heli = vehicle('alpha-helicopter', 'helicopter', 'alpha', at.x, at.z, { y: GROUND + 18, hp: 650, yaw: yaw + 0.2, pitch: 0.01, roll: 0.02,
+      seatOccupants: { driver: 'me' }, rotorSpeed: 1, collective: 0.6, vx: 0.2, vy: 2.6, vz: 0.1, speed: 0.3, grounded: false, cmr: 100 });
+    const orbit = -0.05 - 0.14;
+    out.push(state('heli-aim', 'Attack heli · mouse aim · climbing on Space · pilot control hint', { self, players: roster(self), vehicles: [heli, spottedTank],
+      match: baseMatch(), camera: cam(at.x + Math.sin(aimYaw) * Math.cos(orbit) * 13, GROUND + 18 + 3.5 - Math.sin(orbit) * 13, at.z + Math.cos(aimYaw) * Math.cos(orbit) * 13, aimYaw, -0.05),
+      flight: { aim: true, mode: 'aim', agl: 18, hint: true } }));
   }
   // 14b. Engineer on foot with the AX-9 STINGER down the sights: seeker ring on an enemy helicopter, 65 %.
   {

@@ -55,7 +55,7 @@ export const INPUT_PREF_KEYS = Object.freeze({
   touchSize: 'vb-touch-size',       // 'small' | 'medium' | 'large'
   touchHand: 'vb-touch-hand',       // 'right' | 'left'
   aimAssist: 'vb-aim-assist',       // '1' | '0' (pad and touch only)
-  flightMode: 'vb-flight-mode',     // 'mouse' | 'keyboard' (desktop aircraft pilots)
+  flightMode: 'vb-flight-controls', // 'aim' | 'mouse' | 'keyboard' (desktop aircraft pilots)
   flightSensitivity: 'vb-flight-sens', // multiplier on the mouse-flight stick gain
   flightInvert: 'vb-flight-invert', // '1' | '0': flip mouse-flight pitch relative to look
 });
@@ -65,12 +65,30 @@ export const POINTER_MODES = Object.freeze(['auto', 'mouse', 'trackpad']);
 export const TOUCH_SIZES = Object.freeze(['small', 'medium', 'large']);
 export const TOUCH_HANDS = Object.freeze(['right', 'left']);
 /**
- * Desktop aircraft piloting. 'mouse' (default): Battlefield-style mouse flight, the
- * mouse is a spring-centred stick (jet: Y pitch, X roll; helicopters: Y pitch, X yaw).
+ * Desktop aircraft piloting. 'aim' (default): War Thunder-style mouse aim, the
+ * mouse points where to fly and the aircraft follows (jet: W/S throttle, A/D roll
+ * override; helicopters: W/S/A/D cyclic, Space/Shift collective, released = hover).
+ * 'mouse': Battlefield-style mouse stick, the mouse is a spring-centred stick
+ * (jet: Y pitch, X roll; helicopters: Y pitch, X yaw, W/S collective).
  * 'keyboard': the older layout (W/S tilt or throttle, A/D bank, the mouse nudges
  * pitch and bank). Pads and touch always keep their own layout.
  */
-export const FLIGHT_MODES = Object.freeze(['mouse', 'keyboard']);
+export const FLIGHT_MODES = Object.freeze(['aim', 'mouse', 'keyboard']);
+/** Pre-mouse-aim flight preference ('mouse' | 'keyboard'), read once for migration. */
+export const LEGACY_FLIGHT_MODE_KEY = 'vb-flight-mode';
+
+/**
+ * The stored aircraft control mode via `read(key)` (localStorage getItem or a
+ * wrapper). Without a current choice only an explicit keyboard choice carries
+ * over: the mouse stick was the old default and every settings save wrote it.
+ */
+export function readFlightMode(read) {
+  let stored = null, legacy = null;
+  try { stored = read(INPUT_PREF_KEYS.flightMode); } catch (_) {}
+  if (FLIGHT_MODES.includes(stored)) return stored;
+  try { legacy = read(LEGACY_FLIGHT_MODE_KEY); } catch (_) {}
+  return legacy === 'keyboard' ? 'keyboard' : 'aim';
+}
 export const FLIGHT_SENSITIVITY = Object.freeze({
   min: 0.25, max: 3, default: 1, step: 0.05,
 });

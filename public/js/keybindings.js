@@ -38,6 +38,8 @@ export const KEYBINDING_ACTIONS = Object.freeze([
   // Seated in a Conquest vehicle these replace prone / crouch / lean on the same keys.
   ['vehicleCountermeasure', 'Vehicle countermeasure (flares / smoke)', ['KeyX'], 'vehicle'],
   ['vehicleCamera', 'Vehicle free look (hold)', ['KeyC'], 'vehicle'],
+  // V is the infantry quick melee, which no seat uses.
+  ['vehicleView', 'Vehicle camera view (chase / cockpit / ...)', ['KeyV'], 'vehicle'],
   ['vehicleWeaponNext', 'Next vehicle weapon', ['KeyQ'], 'vehicle'],
 ].map(([id, label, codes, context = 'gameplay']) => Object.freeze({ id, label, codes: Object.freeze(codes), context })));
 const ACTIONS = new Map(KEYBINDING_ACTIONS.map(action => [action.id, action]));

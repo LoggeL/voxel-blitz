@@ -454,7 +454,7 @@ export async function runHudContracts(ok, installGlobals) {
         && lastChange.adsMode === ''
         && lastChange.pointerMode === 'auto'
         && lastChange.aimAssist === true
-        && lastChange.flightMode === 'mouse'
+        && lastChange.flightMode === 'aim'
         && lastChange.flightSensitivity === 1
         && lastChange.flightInvertY === false,
       'every HUD slider emits a full current settings object');
@@ -489,7 +489,7 @@ export async function runHudContracts(ok, installGlobals) {
         && localStorage.getItem('vb-ads-mode') === 'toggle',
       'settings shows device rows by capability and persists the ADS mode choice');
       hud.setDeviceInfo({ touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false });
-      // Aircraft controls: mouse flight by default, keyboard flight on request.
+      // Aircraft controls: mouse aim by default, keyboard flight on request.
       document.getElementById('settings-flight-sens').value = '1.5';
       document.getElementById('settings-flight-sens').dispatchEvent(event('input'));
       document.getElementById('settings-flight-invert').value = '1';
@@ -499,12 +499,12 @@ export async function runHudContracts(ok, installGlobals) {
       document.getElementById('settings-flight-mode').dispatchEvent(event('change'));
       ok(mouseFlightChange.flightSensitivity === 1.5 && mouseFlightChange.flightInvertY === true
         && changes.at(-1).flightMode === 'keyboard'
-        && localStorage.getItem('vb-flight-mode') === 'keyboard'
+        && localStorage.getItem('vb-flight-controls') === 'keyboard'
         && localStorage.getItem('vb-flight-sens') === '1.5'
         && localStorage.getItem('vb-flight-invert') === '1'
         && !rowShown(document.getElementById('settings-flight-sens').parentNode),
       'aircraft control settings emit, persist and hide mouse-only rows in keyboard flight');
-      document.getElementById('settings-flight-mode').value = 'mouse';
+      document.getElementById('settings-flight-mode').value = 'aim';
       document.getElementById('settings-flight-mode').dispatchEvent(event('change'));
       ok(localStorage.getItem('vb-sens-v2') === '0.0047'
         && localStorage.getItem('vb-volume') === '0.63'

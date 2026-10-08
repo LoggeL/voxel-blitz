@@ -16,7 +16,8 @@ function buildParts() {
     [1.8, 1.1, 0.5, 2.6, 8], [2.4, 0.8, 0.9, 2.5, 5]], 'paint');
   // Cockpit glazing: the outer layer of the nose, framed into panes, over a
   // painted sill.
-  hull.loft([[-3.5, 0.6, 1.0, 1.8, 2], [-2.8, 1.0, 1.0, 2.4, 3], [-1.8, 1.1, 1.0, 2.55, 6]], 'glass', { shell: 0.2 });
+  // Hollow: the crew sees out through the whole glazed nose.
+  hull.loft([[-3.5, 0.6, 1.0, 1.8, 2], [-2.8, 1.0, 1.0, 2.4, 3], [-1.8, 1.1, 1.0, 2.55, 6]], 'glass', { shell: 0.2, hollow: true });
   hull.paint([-2, 0, -4], [2, 1.2, 0], 'paint', { where: material => material === 'glass' });
   for (const z of [-3.0, -2.4]) hull.paint([-2, 1.2, z], [2, 3, z + 0.2], 'dark', { where: material => material === 'glass' });
   hull.paint([-0.2, 1.2, -4], [0.2, 3, -1.8], 'dark', { where: material => material === 'glass' });
@@ -26,6 +27,9 @@ function buildParts() {
   hull.box([-1.0, 0.5, -3.0], [1.0, 0.7, 1.8], 'interior');
   hull.box([-0.8, 0.7, -3.0], [0.8, 1.4, -2.8], 'dark');
   hull.box([-0.6, 1.2, -2.8], [0.6, 1.4, -2.6], 'interior');
+  // Instrument panel (its displays are CockpitOverlay's) and the centre console.
+  hull.box([-0.8, 1.2, -2.6], [0.8, 1.6, -2.4], 'dark');
+  hull.box([-0.2, 0.7, -2.4], [0.2, 1.2, -1.6], 'dark');
   // Wide sliding-door openings on both sides; the doors are slid back on rails.
   for (const side of [-1, 1]) {
     const tag = side < 0 ? 'door-left' : 'door-right';

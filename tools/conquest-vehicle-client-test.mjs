@@ -8,7 +8,9 @@ import { readFileSync } from 'node:fs';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { VehicleView, VEHICLE_VIEW } from '../public/js/engine/vehicle-view.js';
 import { VehicleController, SEAT_KEYS, INTERACT_TAP_MS } from '../public/js/session/vehicle-controller.js';
-import { VehicleCamera, VEHICLE_CAMERA, seatCameraProfile, aircraftBoresight } from '../public/js/session/vehicle-camera.js';
+import { VehicleCamera, VEHICLE_CAMERA, VEHICLE_VIEW_PREF_KEY, seatCameraProfile, seatViews, seatEyeWorld, vehicleViewLabel, cockpitLook,
+  aircraftBoresight } from '../public/js/session/vehicle-camera.js';
+import { KEYBINDING_ACTIONS, defaultKeybindings } from '../public/js/keybindings.js';
 import { CameraShake, CAMERA_SHAKE } from '../public/js/engine/camera-shake.js';
 import { Input } from '../public/js/engine/input.js';
 import { LocalPlayer } from '../public/js/player/local-player.js';
@@ -16,7 +18,7 @@ import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { copySmokeFields } from '../shared/smoke-rules.js';
 import { VEHICLE_STATUS, vehicleMountOrder, CONQUEST_RULES } from '../shared/conquest-contract.js';
-import { vehicleDef, VEHICLE_RULES } from '../shared/vehicle-defs.js';
+import { vehicleDef, VEHICLE_RULES, vehicleWorldToLocal, vehicleDirection, mountPose } from '../shared/vehicle-defs.js';
 import { vehicleSeats } from '../shared/vehicle-seats.js';
 import { groundAttitude } from '../shared/vehicle-attitude.js';
 
@@ -341,7 +343,8 @@ function keyTarget() {
 
 // --- VehicleCamera -------------------------------------------------------------------------
 {
-  check(() => assert.deepEqual(seatCameraProfile('tank', 'driver'), { mode: 'chase', distance: 9.5, height: 3.4, optic: 3 }));
+  check(() => assert.deepEqual(seatCameraProfile('tank', 'driver'), { mode: 'chase', distance: 9.5, height: 3.4, optic: 3,
+    views: ['chase', 'action', 'cockpit'], eye: [0, 3.35, 0.3], eyeFrame: 'turret' }));
   check(() => assert.equal(seatCameraProfile('helicopter', 'gunner').optic, 4, 'chin gunner 4x'));
   check(() => assert.equal(seatCameraProfile('transport', 'door-left').optic, 1.5, 'door gun 1.5x'));
   check(() => assert.equal(seatCameraProfile('jeep', 'rear-left').mode, 'passenger'));
@@ -402,6 +405,233 @@ function keyTarget() {
   // Leaving the vehicle restores the base FOV.
   view.end();
   check(() => assert.equal(camera.fov, 70));
+}
+
+// --- Camera views (V) --------------------------------------------------------------------------
+{
+  const memory = () => {
+    const data = new Map();
+    return { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, String(value)), data };
+  };
+  // Every seat offers its own camera plus first person; drivers get the action chase, pilots the fly-by.
+  check(() => assert.deepEqual(seatViews('plane', 'driver'), ['chase', 'action', 'cockpit', 'flyby']));
+  check(() => assert.deepEqual(seatViews('helicopter', 'driver'), ['chase', 'action', 'cockpit', 'flyby']));
+  check(() => assert.deepEqual(seatViews('transport', 'driver'), ['chase', 'action', 'cockpit', 'flyby']));
+  check(() => assert.deepEqual(seatViews('jeep', 'driver'), ['chase', 'action', 'cockpit']));
+  check(() => assert.deepEqual(seatViews('tank', 'driver'), ['chase', 'action', 'cockpit']));
+  check(() => assert.deepEqual(seatViews('helicopter', 'gunner'), ['gimbal', 'cockpit']));
+  check(() => assert.deepEqual(seatViews('tank', 'commander'), ['mount', 'cockpit']));
+  check(() => assert.deepEqual(seatViews('transport', 'door-right'), ['mount', 'cockpit']));
+  for (const [type, seat] of [['jeep', 'front-passenger'], ['jeep', 'rear-left'], ['transport', 'rear-right']]) {
+    check(() => assert.deepEqual(seatViews(type, seat), ['passenger', 'cockpit'], `${type} ${seat}: orbit and first person`));
+  }
+  check(() => assert.equal(vehicleViewLabel('plane', 'driver', 'cockpit'), 'COCKPIT'));
+  check(() => assert.equal(vehicleViewLabel('tank', 'driver', 'cockpit'), 'HATCH'));
+  check(() => assert.equal(vehicleViewLabel('transport', 'door-left', 'cockpit'), 'FIRST PERSON'));
+  check(() => assert.equal(cockpitLook('plane', 'driver'), 'hull'));
+  check(() => assert.equal(cockpitLook('jeep', 'driver'), 'hull'));
+  check(() => assert.equal(cockpitLook('tank', 'driver'), 'aim', 'the tank hatch follows the gun'));
+
+  // Cycling wraps through the seat's views and is remembered per hull type and seat.
+  const storage = memory();
+  const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.05, 400);
+  const view = new VehicleCamera({ camera, raycast: () => null, getBaseFov: () => 70, storage });
+  const jet = { id: 'j', type: 'plane', team: 'alpha', x: 0, y: 80, z: 0, yaw: 0.3, pitch: 0.05, roll: 0.6, hp: 450, vx: -20, vy: 0, vz: -80,
+    mounts: vehicleMountOrder('plane').map(() => [0, 0, 1, 0, 0]) };
+  view.begin();
+  view.update(1 / 60, { row: jet, seatId: 'driver' });
+  check(() => assert.equal(view.view, 'chase', 'the first view is the default'));
+  check(() => assert.equal(view.cycleView('plane', 'driver', { nowMs: 5 }), 'action'));
+  check(() => assert.equal(view.viewChangedAt, 5));
+  check(() => assert.equal(view.cycleView('plane', 'driver'), 'cockpit'));
+  check(() => assert.deepEqual(JSON.parse(storage.data.get(VEHICLE_VIEW_PREF_KEY)), { plane: { driver: 'cockpit' } }));
+  check(() => assert.equal(view.cycleView('plane', 'driver'), 'flyby'));
+  check(() => assert.equal(view.cycleView('plane', 'driver'), 'chase', 'the cycle wraps'));
+  view.setView('plane', 'driver', 'cockpit');
+  check(() => assert.equal(view.setView('plane', 'driver', 'gimbal'), 'cockpit', 'a view the seat lacks is ignored'));
+  const again = new VehicleCamera({ camera: new THREE.PerspectiveCamera(70, 16 / 9), getBaseFov: () => 70, storage });
+  again.update(1 / 60, { row: jet, seatId: 'driver' });
+  check(() => assert.equal(again.view, 'cockpit', 'a new seat in a jet starts in the remembered view'));
+  again.update(1 / 60, { row: tankRow(), seatId: 'driver' });
+  check(() => assert.equal(again.view, 'chase', 'other hull types keep their own choice'));
+  const broken = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
+  const guarded = new VehicleCamera({ camera: new THREE.PerspectiveCamera(), getBaseFov: () => 70, storage: broken });
+  check(() => assert.equal(guarded.cycleView('jeep', 'driver'), 'action', 'blocked storage never throws'));
+  check(() => assert.equal(guarded.viewState(), null, 'no HUD state while not seated'));
+  storage.data.set(VEHICLE_VIEW_PREF_KEY, '{"plane": {"driver": "warp"}}');
+  check(() => assert.equal(new VehicleCamera({ camera, storage }).storedView('plane', 'driver'), 'chase', 'unknown stored views fall back'));
+  storage.data.set(VEHICLE_VIEW_PREF_KEY, JSON.stringify({ plane: { driver: 'cockpit' } }));
+
+  // Cockpit: the eye sits inside the hull footprint and above the seat, the
+  // camera rolls with the jet (the chase stays level) and the screen centre
+  // stays on the boresight.
+  const right = () => new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const forward = () => camera.getWorldDirection(new THREE.Vector3());
+  const boreAim = row => {
+    const bore = aircraftBoresight(row);
+    return new THREE.Vector3(...bore.origin).addScaledVector(new THREE.Vector3(...bore.dir), VEHICLE_CAMERA.boresightRange).sub(camera.position).normalize();
+  };
+  view.setView('plane', 'driver', 'chase');
+  view.update(1 / 60, { row: jet, seatId: 'driver' });
+  check(() => assert.ok(Math.abs(right().y) < 1e-6, 'the chase horizon stays level'));
+  check(() => assert.equal(view.firstPerson, false));
+  view.setView('plane', 'driver', 'cockpit');
+  view.update(1 / 60, { row: jet, seatId: 'driver' });
+  check(() => assert.equal(view.firstPerson, true));
+  check(() => assert.ok(Math.abs(Math.asin(right().y) - 0.6) < 0.05, `the cockpit rolls with the hull (${Math.asin(right().y).toFixed(3)})`));
+  check(() => assert.ok(forward().dot(boreAim(jet)) > 0.99999, 'the cockpit centre is the nose gun boresight'));
+  const eyeLocal = vehicleWorldToLocal(jet, camera.position.toArray());
+  check(() => assert.ok(eyeLocal[1] > vehicleDef('plane').seats[0].position[1] + 0.5, 'the eye is above the seat'));
+  const heli = { id: 'h', type: 'helicopter', team: 'alpha', x: 5, y: 40, z: 5, yaw: -0.4, pitch: -0.1, roll: -0.2, hp: 650,
+    mounts: vehicleMountOrder('helicopter').map(() => [-0.4, 0, 1, 0, 0]) };
+  view.setView('helicopter', 'driver', 'cockpit');
+  view.update(1 / 60, { row: heli, seatId: 'driver' });
+  check(() => assert.ok(forward().dot(boreAim(heli)) > 0.99999, 'the helicopter cockpit centre is the pods\' convergence point'));
+  // Free look turns the head inside the cockpit, within limits.
+  view.addFreeLook(-1.2, 0);
+  view.update(1 / 60, { row: heli, seatId: 'driver', freeLook: true });
+  const hullForward = new THREE.Vector3(...vehicleDirection(heli.yaw, heli.pitch));
+  check(() => assert.ok(forward().dot(hullForward) < 0.6, 'free look turns the head away from the nose'));
+  for (let i = 0; i < 40; i++) view.addFreeLook(-1, 0);
+  view.update(1 / 60, { row: heli, seatId: 'driver', freeLook: true });
+  check(() => assert.ok(forward().dot(hullForward) > Math.cos(VEHICLE_CAMERA.cockpitYaw) - 0.15, 'the head stops at the cockpit limit'));
+  // A mouse-aim pilot's head follows the aim point a little.
+  view.begin();
+  view.setView('plane', 'driver', 'cockpit');
+  view.update(1 / 60, { row: { ...jet, roll: 0 }, seatId: 'driver', flightAim: { yaw: jet.yaw + 0.5, pitch: 0.05 } });
+  check(() => assert.ok(forward().dot(new THREE.Vector3(...vehicleDirection(jet.yaw + 0.5, 0.05))) > 0.999, 'the head looks toward the flight aim'));
+  for (const type of ['jeep', 'tank', 'helicopter', 'transport', 'plane']) for (const seat of vehicleSeats(type)) {
+    const row = { id: type, type, x: 3, y: 20, z: -4, yaw: 0.7, pitch: 0.02, roll: -0.03, turretYaw: 0.7, turretPitch: 0,
+      mounts: vehicleMountOrder(type).map(key => [0.7 + (vehicleDef(type).mounts[key.split(':')[1]].yawLimit?.[0] ?? 0), 0, 1, 0, 0]) };
+    const eye = vehicleWorldToLocal(row, seatEyeWorld(row, seat.id));
+    const def = vehicleDef(type), hip = vehicleDef(type).seats.find(entry => entry.id === seat.id).position;
+    check(() => assert.ok(Math.abs(eye[0]) <= def.collider.halfWidth && Math.abs(eye[2]) <= def.collider.halfLength,
+      `${type} ${seat.id}: the eye is over the hull (${eye.map(v => v.toFixed(2))})`));
+    // The sealed tank driver looks out of the turret hatch (the gunner's eye) instead.
+    const reach = type === 'tank' && seat.id === 'driver' ? 2.6 : 1.5;
+    check(() => assert.ok(eye[1] > hip[1] + 0.4 && eye[1] < hip[1] + reach, `${type} ${seat.id}: the eye is above the seat (${eye[1].toFixed(2)} vs hip ${hip[1]})`));
+    view.begin();
+    view.setView(type, seat.id, 'cockpit', { remember: false });
+    view.update(1 / 60, { row, seatId: seat.id, aimYaw: 0.7, aimPitch: 0 });
+    check(() => assert.ok(camera.position.distanceTo(new THREE.Vector3(...seatEyeWorld(row, seat.id))) < 1e-9, `${type} ${seat.id}: camera at the eye`));
+  }
+  // Tank hatch: the eye rides the turret and looks along the gun aim, so the shell marker stays in front.
+  const turned = tankRow({ yaw: 0, turretYaw: 1.2, turretPitch: 0.05 });
+  view.begin();
+  view.setView('tank', 'driver', 'cockpit');
+  view.update(1 / 60, { row: turned, seatId: 'driver', aimYaw: 1.2, aimPitch: 0.05 });
+  check(() => assert.ok(forward().dot(new THREE.Vector3(...vehicleDirection(1.2, 0.05))) > 0.99999, 'the hatch looks along the gun'));
+  const main = mountPose(turned, 'driver', 'main');
+  check(() => assert.ok(camera.position.distanceTo(new THREE.Vector3(...main.pivot)) < 2.2, 'the hatch eye is at the turret'));
+  check(() => assert.ok(camera.position.clone().sub(new THREE.Vector3(...main.pivot)).dot(new THREE.Vector3(...main.dir)) < -1,
+    'and turns with it: behind the gun, whatever the hull heading'));
+  check(() => assert.ok(Math.abs(right().y) < 1e-9, 'no hatch roll on level ground'));
+  // RMB still drops into the 3x gunner's sight from the hatch.
+  for (let i = 0; i < 20; i++) view.update(1 / 60, { row: turned, seatId: 'driver', aimYaw: 1.2, aimPitch: 0.05, optic: true });
+  check(() => assert.ok(Math.abs(camera.fov - 70 / 3) < 0.5));
+  // Action: a closer chase than the default one.
+  view.begin();
+  view.setView('jeep', 'driver', 'chase');
+  const jeepRow = { id: 'jp', type: 'jeep', x: 0, y: 10, z: 0, yaw: 0, hp: 320 };
+  view.update(1 / 60, { row: jeepRow, seatId: 'driver' });
+  const chaseRange = camera.position.distanceTo(view.focus);
+  view.setView('jeep', 'driver', 'action');
+  view.update(1 / 60, { row: jeepRow, seatId: 'driver' });
+  check(() => assert.ok(camera.position.distanceTo(view.focus) < chaseRange * 0.7, 'the action chase sits closer'));
+  // Fly-by: a fixed point ahead of the flight path the jet passes, then a new one.
+  view.begin();
+  view.setView('plane', 'driver', 'flyby');
+  let flyRow = { ...jet, roll: 0, vx: 0, vz: -90, yaw: 0, pitch: 0, speed: 90 };
+  view.update(1 / 60, { row: flyRow, seatId: 'driver' });
+  const spot = camera.position.clone();
+  check(() => assert.ok(spot.z < flyRow.z - 30, 'the fly-by point is ahead of the jet'));
+  check(() => assert.ok(forward().dot(new THREE.Vector3(flyRow.x, flyRow.y + 1, flyRow.z).sub(camera.position).normalize()) > 0.99, 'it watches the jet'));
+  for (let i = 0; i < 60; i++) { flyRow = { ...flyRow, z: flyRow.z - 1.5 }; view.update(1 / 60, { row: flyRow, seatId: 'driver' }); }
+  check(() => assert.ok(camera.position.distanceTo(spot) < 1e-9, 'the point holds while the jet closes'));
+  for (let i = 0; i < 120; i++) { flyRow = { ...flyRow, z: flyRow.z - 1.5 }; view.update(1 / 60, { row: flyRow, seatId: 'driver' }); }
+  check(() => assert.ok(camera.position.distanceTo(spot) > 50 && camera.position.z < flyRow.z, 'after the pass a new point waits ahead again'));
+  check(() => assert.ok(Math.sign(camera.position.x - flyRow.x) !== Math.sign(spot.x - flyRow.x), 'on the other side of the path'));
+  check(() => assert.ok(camera.fov >= VEHICLE_CAMERA.flyby.minFov && camera.fov <= 80));
+  view.end();
+}
+
+// Controller: V cycles the seat's views (never a melee while seated), the
+// jeep cockpit look rides the hull, and the HUD reads the view state.
+{
+  const target = keyTarget();
+  const camera = new THREE.PerspectiveCamera(70, 16 / 9);
+  const controller = new VehicleController({ camera, eventTarget: target, raycast: () => null });
+  controller.view.storage = null;
+  const self = { id: 'p', state: 'alive', team: 'alpha', x: 0, y: 10, z: 0, hp: 100 };
+  const jeep = { id: 'jp', type: 'jeep', team: 'alpha', x: 0, y: 10, z: 0, yaw: 0, hp: 320, seatOccupants: { driver: 'p' } };
+  const v = target.fire('keydown', { code: 'KeyV' });
+  check(() => assert.equal(v.prevented, false, 'on foot V stays the quick melee'));
+  controller.sync({ self, vehicles: [jeep], enabled: true });
+  controller.updateCamera(1 / 60);
+  check(() => assert.equal(controller.view.view, 'chase'));
+  const press = target.fire('keydown', { code: 'KeyV' });
+  check(() => assert.equal(press.prevented, true, 'seated, V is the camera view (Input never sees a melee)'));
+  check(() => assert.equal(controller.view.view, 'action'));
+  target.fire('keydown', { code: 'KeyV', repeat: true });
+  check(() => assert.equal(controller.view.view, 'action', 'auto-repeat does not cycle'));
+  check(() => assert.equal(controller.cycleView(), 'cockpit'));
+  check(() => assert.equal(controller.viewState().label, 'FIRST PERSON'));
+  check(() => assert.deepEqual(controller.viewState().views.map(entry => entry.id), ['chase', 'action', 'cockpit']));
+  check(() => assert.equal(controller.view.hullLook, true));
+  controller.controls({}, { dx: -0.4, dy: 0 }, false);
+  check(() => assert.ok(Math.abs(controller.yaw - 0.4) < 1e-9, 'the mouse turns the head'));
+  controller.sync({ self, vehicles: [{ ...jeep, yaw: 0.5 }], enabled: true });
+  controller.controls({}, { dx: 0, dy: 0 }, false);
+  check(() => assert.ok(Math.abs(controller.yaw - 0.9) < 1e-9, 'the look turns with the jeep'));
+  for (let i = 0; i < 10; i++) controller.controls({}, { dx: -0.5, dy: 0 }, false);
+  check(() => assert.ok(Math.abs(controller.yaw - (0.5 + VEHICLE_CAMERA.driverHeadYaw)) < 1e-9, 'the head turn stops at its limit'));
+  controller.sync({ self, vehicles: [], enabled: true });
+  check(() => assert.equal(controller.viewState(), null));
+  check(() => assert.equal(controller.cycleView(), null, 'no view to cycle on foot'));
+  controller.dispose();
+  const bindings = defaultKeybindings();
+  check(() => assert.deepEqual(bindings.vehicleView, ['KeyV']));
+  check(() => assert.deepEqual(bindings.quickMelee, ['KeyV'], 'the same key on foot'));
+  check(() => assert.equal(KEYBINDING_ACTIONS.find(action => action.id === 'vehicleView').context, 'vehicle', 'rebindable in the vehicle context'));
+  const main = readFileSync(new URL('../public/js/main.js', import.meta.url), 'utf8');
+  check(() => assert.ok(/'consumeQuickMelee'/.test(main), 'seated frames drain the quick melee'));
+}
+
+// VehicleView first person: the local seat's head, chest and upper arms hide
+// (hands stay on the controls), the glass fades, the cockpit dressing shows
+// and the jeep windscreen folds away; leaving restores everything.
+{
+  const view = new VehicleView();
+  const jet = { id: 'jet', type: 'plane', team: 'alpha', x: 0, y: 50, z: 0, yaw: 0, pitch: 0, roll: 0, hp: 450, seatOccupants: { driver: 'me' } };
+  const jeep = { id: 'jp', type: 'jeep', team: 'alpha', x: 20, y: 10, z: 0, yaw: 0, hp: 320, seatOccupants: { driver: 'me2', 'front-passenger': 'mate' } };
+  const me = { id: 'me', team: 'alpha', state: 'alive', hp: 100, vehicleId: 'jet', vehicleSeatId: 'driver' };
+  const players = [{ id: 'me2', team: 'alpha', state: 'alive', hp: 100, vehicleId: 'jp', vehicleSeatId: 'driver' },
+    { id: 'mate', team: 'alpha', state: 'alive', hp: 100, vehicleId: 'jp', vehicleSeatId: 'front-passenger' }];
+  view.sync([jet, jeep], players, me);
+  view.update(1 / 60);
+  const pilot = view.item('jet').crew.get('driver');
+  check(() => assert.equal(pilot.avatar.head.visible, true, 'third person shows the whole pilot'));
+  view.setLocalView({ id: 'jet', seatId: 'driver' });
+  view.update(1 / 60);
+  check(() => assert.equal(pilot.avatar.head.visible, false, 'first person hides the own head'));
+  check(() => assert.equal(pilot.avatar.torso.visible, false, 'and the chest'));
+  check(() => assert.equal(pilot.avatar.lElbow.visible && pilot.avatar.rHand.visible, true, 'hands stay on the stick and throttle'));
+  check(() => assert.equal(view.item('jet').materials.glass.opacity, VEHICLE_VIEW.insideGlassOpacity, 'the canopy fades from inside'));
+  const cockpit = view.item('jet').cockpit;
+  check(() => assert.ok(cockpit?.group.visible && cockpit.group.children.length >= 2, 'the jet cockpit dressing shows'));
+  check(() => assert.equal(view.item('jp').cockpit, undefined, 'only the local hull builds one'));
+  view.setLocalView({ id: 'jp', seatId: 'front-passenger' });
+  view.update(1 / 60);
+  check(() => assert.equal(pilot.avatar.head.visible, true, 'leaving first person restores the head'));
+  check(() => assert.equal(view.item('jet').materials.glass.opacity, 0.42));
+  check(() => assert.equal(cockpit.group.visible, false));
+  check(() => assert.equal(view.item('jp').model.windscreen.visible, false, 'the jeep windscreen folds away in first person'));
+  check(() => assert.equal(view.item('jp').crew.get('driver').avatar.head.visible, true, 'other seats keep their heads'));
+  check(() => assert.equal(view.item('jp').crew.get('front-passenger').avatar.head.visible, false));
+  view.setLocalView(null);
+  view.update(1 / 60);
+  check(() => assert.equal(view.item('jp').model.windscreen.visible, true));
+  view.dispose();
 }
 
 // --- CameraShake ---------------------------------------------------------------------------

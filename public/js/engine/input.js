@@ -17,6 +17,7 @@ import {
   POINTER_MODES,
   SENSITIVITY_PREF_KEY,
   FLIGHT_MODES,
+  readFlightMode,
   TOUCH_HANDS,
   TOUCH_SIZES,
   TRACKPAD_LOOK_SCALE,
@@ -116,7 +117,7 @@ export class Input {
       touchSize: normalizeChoice(readPref(INPUT_PREF_KEYS.touchSize), TOUCH_SIZES, 'medium'),
       touchHand: normalizeChoice(readPref(INPUT_PREF_KEYS.touchHand), TOUCH_HANDS, 'right'),
       aimAssist: readPref(INPUT_PREF_KEYS.aimAssist) !== '0',
-      flightMode: normalizeChoice(readPref(INPUT_PREF_KEYS.flightMode), FLIGHT_MODES, 'mouse'),
+      flightMode: readFlightMode(readPref),
       flightSensitivity: clampFlightSensitivity(readPref(INPUT_PREF_KEYS.flightSensitivity)),
       flightInvertY: readPref(INPUT_PREF_KEYS.flightInvert) === '1',
     };
@@ -500,16 +501,20 @@ export class Input {
   }
 
   /**
-   * Aircraft pilot options for VehicleController.setFlightOptions. `mouse` is true
-   * only for desktop mouse flight while no pad is in use, so pad and touch pilots
-   * keep their own layout; the object is reused while nothing changes.
+   * Aircraft pilot options for VehicleController.setFlightOptions: { mode, aim,
+   * mouse, sensitivity, invertY }. Mouse aim ('aim') and the mouse stick
+   * ('mouse') apply only on desktop while no pad is in use, so pad and touch
+   * pilots keep their own (keyboard) layout; the object is reused while nothing
+   * changes.
    */
   flightOptions(now = eventTime(null)) {
     const o = this._options;
-    const mouse = o.flightMode === 'mouse' && !this._touchMode && !this._pad.isActive(now);
+    const desktop = !this._touchMode && !this._pad.isActive(now);
+    const mode = desktop ? o.flightMode : 'keyboard';
     const cached = this._flightOptions;
-    if (cached && cached.mouse === mouse) return cached;
-    this._flightOptions = Object.freeze({ mouse, sensitivity: o.flightSensitivity, invertY: o.flightInvertY });
+    if (cached && cached.mode === mode) return cached;
+    this._flightOptions = Object.freeze({ mode, aim: mode === 'aim', mouse: mode === 'mouse',
+      sensitivity: o.flightSensitivity, invertY: o.flightInvertY });
     return this._flightOptions;
   }
 
@@ -797,7 +802,8 @@ export class Input {
       if (frame.pressed.grenadePouch) this._stepGrenadePouch(1);
     } else {
       if (frame.pressed.slotUp) this._switchQueue -= 1;
-      if (frame.pressed.grenadePouch && !this._buildMode) {
+      // Seated, D-pad down is the vehicle camera view (ConquestHud.padInput), not the pouch.
+      if (frame.pressed.grenadePouch && !this._buildMode && !this._vehicleSeatContext) {
         this._padPouchHeld = true;
         this._padPouchDownAt = now;
         this._padPouchSpent = false;
@@ -1671,7 +1677,9 @@ export class Input {
     if (!this._canReadGameplay()) return;
     this._keyboardHeld.add(e.code);
     switch (action || e.code) {
-      case 'prone': if (!e.repeat && !this._wheelOpen) this.keys.prone = !this.keys.prone; break;
+      // Seated, X is the countermeasure key (VehicleController): it must not
+      // toggle a prone that the pilot finds waiting on exit.
+      case 'prone': if (!e.repeat && !this._wheelOpen && !this._vehicleSeatContext) this.keys.prone = !this.keys.prone; break;
       case 'forward': case 'back': case 'left': case 'right': case 'sprint': case 'crouch':
       case 'leanLeft': case 'leanRight':
         this.keys[action] = true;

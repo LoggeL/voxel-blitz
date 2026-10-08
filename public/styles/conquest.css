@@ -12,6 +12,8 @@
 .vb-conquest-hud[hidden], .vb-conquest-hud [hidden] { display: none !important; }
 #hud[data-mode="conquest"] #match-header { display: none !important; }
 body[data-vehicle-seated="true"] :is(#ammo, #grenade-count, #weaponname, #pickaxe-meter, #charge-meter, #medkit-inventory, #medkit-progress, #grenade-readied, #grenade-aim) { display: none !important; }
+/* Mouse-aim pilots: the reticle canvas draws the aim circle at the centre instead. */
+body[data-flight-aim="true"] #crosshair { display: none !important; }
 
 /* ---------------------------------------------------------------- top bar */
 .cq-top {
@@ -69,6 +71,31 @@ body[data-vehicle-seated="true"] :is(#ammo, #grenade-count, #weaponname, #pickax
 .cq-chip[data-moving="own"]::after { border-color: var(--cq-own); }
 @keyframes cq-pulse { 50% { box-shadow: 0 0 0 1px #0009, 0 0 12px var(--cq-contested); } }
 @keyframes cq-ping { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(1.5); } }
+
+/* ------------------------------------------------- vehicle camera view strip */
+/* V / D-pad down: the seat's views under the ticket bar for 1.6 s, the active one underlined. */
+.cq-view {
+  position: absolute; top: calc(max(14px, env(safe-area-inset-top)) + 84px); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; padding: 5px 12px 5px 6px; white-space: nowrap;
+  background: var(--cq-panel); border: 1px solid var(--cq-line); border-radius: 5px; box-shadow: 0 4px 14px #0007;
+  animation: cq-view-in 160ms ease-out;
+}
+.cq-view-key {
+  display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 3px;
+  background: #1c2a34; border: 1px solid #ffffff2a; color: #fff; font: 800 10px/1 var(--font-ui);
+}
+.cq-view-list { display: flex; align-items: center; gap: 8px; }
+.cq-view-item { position: relative; padding: 2px 0 3px; font-size: 11px; font-weight: 700; letter-spacing: 1.4px; color: var(--cq-sub); }
+.cq-view-item + .cq-view-item::before { content: "\00b7"; position: absolute; left: -6px; color: #ffffff40; }
+.cq-view-item[data-active="true"] { color: #fff; }
+.cq-view-item[data-active="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 1px; background: var(--cq-own); box-shadow: 0 0 6px #4cc3ff88; }
+@keyframes cq-view-in { from { opacity: 0; transform: translateX(-50%) translateY(-4px); } }
+/* A banner owns the slot under the ticket bar: the strip steps below it. */
+.vb-conquest-hud:has(.cq-banner:not([hidden])) .cq-view { top: calc(max(14px, env(safe-area-inset-top)) + 150px); }
+.vb-touch-mode .cq-view { top: calc(max(10px, env(safe-area-inset-top)) + 58px); padding: 3px 8px 3px 4px; gap: 6px; }
+.vb-touch-mode .cq-view-item { font-size: 9px; letter-spacing: 0.8px; }
+/* Phone portrait has no free row under the ticket bar (HP card, vehicle card): the view change speaks for itself. */
+@media (orientation: portrait) { .vb-touch-mode .cq-view { display: none !important; } }
 
 /* ---------------------------------------------------------------- banners */
 .cq-banner {
@@ -287,6 +314,29 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-interact-arc { fill: none; stroke: #7ef29a; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 100ms linear; }
 .cq-interact-glyph { position: absolute; inset: 8px; color: #ffcf5c; }
 .cq-interact[data-type="revive"] .cq-interact-glyph { color: #ff6b6b; }
+
+/* ---------------------------------------------------------- pilot control hint */
+/* First pilot-seat entries: "MOUSE AIM · [W][S] THROTTLE · [A][D] ROLL · [CTRL] AIRBRAKE" at the bottom centre. */
+.cq-flight-hint {
+  position: absolute; left: 50%; bottom: max(22px, calc(env(safe-area-inset-bottom) + 12px)); transform: translateX(-50%);
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 0; padding: 7px 14px;
+  max-width: min(640px, calc(100vw - 720px)); min-width: 320px;
+  background: var(--cq-panel); border: 1px solid var(--cq-line); border-radius: 6px; box-shadow: 0 4px 14px #0007;
+  font: 700 12px/1 var(--font-ui); letter-spacing: 1.2px; color: var(--cq-text); white-space: nowrap;
+  transition: opacity 500ms ease-out; animation: cq-flight-hint-in 200ms ease-out;
+}
+@keyframes cq-flight-hint-in { from { opacity: 0; transform: translateX(-50%) translateY(4px); } }
+.cq-flight-hint[data-fading="true"] { opacity: 0; }
+.cq-flight-hint-item { display: inline-flex; align-items: center; gap: 5px; position: relative; padding: 0 10px; }
+.cq-flight-hint-item[data-sep="true"]::before { content: "\00b7"; position: absolute; left: -3px; color: #ffffff50; }
+.cq-flight-hint-key {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 3px;
+  background: #1c2a34; border: 1px solid #ffffff38; color: #fff; font: 800 10px/1 var(--font-ui);
+}
+.cq-flight-hint-text { color: var(--cq-sub); }
+.cq-flight-hint-item:first-child .cq-flight-hint-text { color: #fff; }
+.vb-touch-mode .cq-flight-hint { display: none; }
+.cq-vehicle-telemetry[data-stall="true"] { color: #ff4b4b; }
 .cq-interact.is-active { border-color: #7ef29a; box-shadow: 0 0 14px #7ef29a55; }
 
 /* --------------------------------------------------------- reticles */
@@ -603,7 +653,7 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
   .cq-kit-name b { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cq-chip, .cq-chip::after, .cq-ring-dial, .cq-banner.is-in, .cq-lock, .cq-restricted-seconds, .cq-unit-glyph, .cq-team .cq-ticket-fill { animation: none !important; }
+  .cq-chip, .cq-chip::after, .cq-ring-dial, .cq-banner.is-in, .cq-view, .cq-lock, .cq-restricted-seconds, .cq-unit-glyph, .cq-team .cq-ticket-fill { animation: none !important; }
 }
 
 /* --------------------------------------------- scoreboard + result (conquest) */
@@ -622,7 +672,7 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
   top: calc(max(10px, env(safe-area-inset-top)) + 70px);
   max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - 80px);
 }
-body:has(#scoreboard.is-open[data-mode="conquest"]) :is(.vb-conquest-hud :is(.cq-world, .cq-reticles, .cq-ring, .cq-ticker, .cq-minimap, .cq-squad, .cq-vehicle, .cq-interact, .cq-map-hint, .cq-banner, .cq-lock, .cq-lock-bearing, .cq-restricted, .cq-spot-flash), .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
+body:has(#scoreboard.is-open[data-mode="conquest"]) :is(.vb-conquest-hud :is(.cq-world, .cq-reticles, .cq-ring, .cq-ticker, .cq-minimap, .cq-squad, .cq-vehicle, .cq-view, .cq-interact, .cq-map-hint, .cq-banner, .cq-lock, .cq-lock-bearing, .cq-restricted, .cq-spot-flash), .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
 /* Phone portrait board: drop the ping column and tighten cells so names stay on one line. */
 @media (max-width: 520px) {
   #scoreboard.vb-mode-scoreboard[data-mode="conquest"] { min-width: 0; width: calc(100vw - 20px); max-width: none; padding: 12px 8px 14px; }

@@ -1,0 +1,10 @@
+Game UI design mockup, 1536x1024 third-person screenshot of a browser voxel shooter (Minecraft-like blocky world: green voxel hills, a grey runway, small blocky buildings, bright blue sky with soft clouds). The player flies a dark grey voxel JET seen from a chase camera behind and slightly above it; the jet sits a little below the screen centre and is climbing and banking left. The jet is slow and close to stalling.
+Existing HUD (keep exactly this style: dark translucent navy panels rgba(10,14,22,0.82) with 1px light borders, condensed uppercase sans-serif labels like Rajdhani, cyan #39a9e6 friendly, orange #f08a2c enemy, mint green #7ef29a flight symbology, amber #ffcf5c weapons, red #ff4b4b warnings): top centre ticket bar "WEST 284 [A][B][C][D][E] 277 EAST" with diamond flag chips; bottom left round minimap; bottom right vehicle panel with seat strip "F1 PILOT YOU", "JET" title and green HP bar.
+NEW FLIGHT HUD TO SHOW, compact cluster variant ("mouse aim" flight like War Thunder arcade):
+1) AIM CIRCLE at the exact screen centre: thin white ring about 30 px wide with a centre dot.
+2) Around the aim circle, a thin THROTTLE ARC (quarter circle on its lower left, radius about 46 px) filled 40% in mint green, with tiny text "THR 40" at its end.
+3) NOSE MARKER where the jet nose/cannon points, about 70 px up-right of the aim circle: a mint green "W"-shaped gun cross with a centre dot.
+4) Two small numeric readouts flanking the aim circle at 120 px: left "185 KM/H" and right "AGL 96 M", white bold numbers with small grey unit labels, each on a tiny dark translucent backing, no tapes.
+5) Directly under the aim circle a flashing red outlined chip "STALL · NOSE DOWN".
+6) Bottom centre, above the screen edge, a small dark pill hint with key caps: "MOUSE AIM · [W][S] THROTTLE · [A][D] ROLL · [CTRL] BRAKE".
+Crisp flat game HUD, thin 1.5 px lines with subtle dark outline, minimal, no watermark.

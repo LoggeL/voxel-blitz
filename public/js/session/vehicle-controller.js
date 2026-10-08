@@ -3,7 +3,7 @@ import { vehicleEnterDistance } from '../../../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleHasFreeSeat } from '../../../shared/vehicle-seats.js';
 import { isBotId } from '../../../shared/conquest.js';
 import { isTypingTarget, matchesBinding } from '../keybindings.js';
-import { VehicleCamera } from './vehicle-camera.js';
+import { VehicleCamera, VEHICLE_CAMERA } from './vehicle-camera.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
@@ -31,7 +31,17 @@ const flightAxis = value => {
 export const MOUSE_FLIGHT = Object.freeze({ rate: FLIGHT_LOOK_RATE, spring: 8 });
 /** Longest frame a look delta is converted over (main.js caps frame time at 0.25 s). */
 const LOOK_STEP_MAX = 0.25;
-const DEFAULT_FLIGHT_OPTIONS = Object.freeze({ mouse: false, sensitivity: 1, invertY: false });
+const DEFAULT_FLIGHT_OPTIONS = Object.freeze({ mode: 'keyboard', mouse: false, aim: false, sensitivity: 1, invertY: false });
+/**
+ * Mouse aim (War Thunder-style instructor, the desktop default). The mouse
+ * moves a free world aim direction that the chase camera looks along; the
+ * pilot's input yaw/pitch carry it and the server flies the nose toward it
+ * (jet: bank-to-turn instructor in shared/vehicle-handling/plane.js; rotors:
+ * the nose follows the aim yaw, W/S/A/D tilt the disk, released = hover).
+ * pitch: aim pitch limits (jet / rotor, the rotor's only moves the camera);
+ * nudge: rad/s Q/E turn the aim.
+ */
+export const MOUSE_AIM = Object.freeze({ pitch: Object.freeze([-1.3, 1.3]), rotorPitch: Object.freeze([-1.1, 0.8]), nudge: 0.9 });
 
 /**
  * Advance a mouse-flight stick `{x, y}` (x: right, y: nose up, each -1..1) by one
@@ -81,6 +91,9 @@ export class VehicleController {
     this.flight = DEFAULT_FLIGHT_OPTIONS;
     this._flightSource = DEFAULT_FLIGHT_OPTIONS;
     this._stick = { x: 0, y: 0 };
+    /** Mouse-aim pilot's world aim { yaw, pitch } (null until seated in aim mode). */
+    this._aim = null;
+    this._rideYaw = NaN;
     this.opticHeld = false;
     this._opticListeners = new Set();
     this._interactDownAt = null;
@@ -98,23 +111,32 @@ export class VehicleController {
   }
 
   get active() { return !!this.vehicle; }
-  /** True when this seat flies with the mouse-flight layout this frame. */
+  /** True when this seat flies with the mouse-stick layout this frame. */
   get mouseFlight() { return !!this.flight.mouse && this.isDriver && aircraft(this.type); }
+  /** True when this seat flies with mouse aim (the instructor) this frame. */
+  get aimFlight() { return !!this.flight.aim && this.isDriver && aircraft(this.type); }
+  /** The mouse-aim pilot's world aim { yaw, pitch } for the camera and HUD, else null. */
+  get flightAim() { return this.aimFlight && this._aim ? { yaw: this._aim.yaw, pitch: this._aim.pitch } : null; }
   /** Current mouse-flight stick deflection (x right, y nose up), for HUD and tests. */
   get stick() { return { x: this._stick.x, y: this._stick.y }; }
 
   /**
-   * Pilot preferences from Input.flightOptions(): { mouse, sensitivity, invertY }.
-   * `mouse` selects the mouse-flight layout; anything else keeps the older one.
+   * Pilot preferences from Input.flightOptions(): { mode, mouse, aim, sensitivity,
+   * invertY }. mode 'aim' (or aim: true) flies with mouse aim, 'mouse' (or
+   * mouse: true) with the spring-centred mouse stick; anything else keeps the
+   * keyboard layout.
    */
   setFlightOptions(options = null) {
     const next = options && typeof options === 'object' ? options : DEFAULT_FLIGHT_OPTIONS;
     // Input hands back the same frozen object until something changes.
     if (next === this._flightSource) return;
     this._flightSource = next;
-    this.flight = Object.freeze({ mouse: next.mouse === true, sensitivity: clamp(finite(next.sensitivity, 1), 0.05, 10),
-      invertY: next.invertY === true });
+    const aim = next.aim === true || next.mode === 'aim';
+    const mouse = !aim && (next.mouse === true || next.mode === 'mouse');
+    this.flight = Object.freeze({ mode: aim ? 'aim' : mouse ? 'mouse' : 'keyboard', mouse, aim,
+      sensitivity: clamp(finite(next.sensitivity, 1), 0.05, 10), invertY: next.invertY === true });
     if (!this.flight.mouse) this._stick.x = this._stick.y = 0;
+    if (!aim) this._aim = null;
   }
   get seatId() { return this.seat?.id ?? null; }
   get role() { return this.seat?.role ?? null; }
@@ -177,6 +199,8 @@ export class VehicleController {
     }
     if (!this.vehicle) return;
     if (matchesBinding(event, 'vehicleCamera')) { this.freeLook = true; event.preventDefault(); return; }
+    // V (on foot the quick melee key, which a seat never uses) cycles the seat's camera views.
+    if (matchesBinding(event, 'vehicleView')) { if (!event.repeat) this.cycleView(); event.preventDefault(); return; }
     if (event.repeat) return;
     if (matchesBinding(event, 'vehicleCountermeasure')) { if (this.queueCountermeasure()) event.preventDefault(); return; }
     if (matchesBinding(event, 'vehicleWeaponNext')) {
@@ -256,6 +280,8 @@ export class VehicleController {
       this._seeded = false;
       this.freeLook = false;
       this._stick.x = this._stick.y = 0;
+      this._aim = null;
+      this._rideYaw = NaN;
       if (this.vehicle) {
         this.view.begin();
         this._seedAim();
@@ -336,6 +362,22 @@ export class VehicleController {
 
   consumeAction() { return this._actions.shift() || null; }
 
+  /**
+   * V / pad D-pad down: the seat's next camera view (chase, action, cockpit,
+   * flyby, ...), remembered per hull type and seat. Returns the new view.
+   */
+  cycleView() {
+    if (!this.vehicle || !this.seatId || !this.enabled) return null;
+    const next = this.view.cycleView(this.type, this.seatId);
+    // The jeep driver's head starts facing the bonnet.
+    if (this.view.hullLook) { this.yaw = wrap(finite(this.vehicle.yaw)); this.pitch = 0; }
+    this._rideYaw = NaN;
+    return next;
+  }
+
+  /** The seat's current camera view state for the HUD ({ view, label, views, changedAt }) or null. */
+  viewState() { return this.active ? this.view.viewState() : null; }
+
   controls(keys = {}, look = null, fire = false, dt = 1 / 60) {
     if (!this.active) return null;
     keys = keys && typeof keys === 'object' ? keys : {};
@@ -354,9 +396,36 @@ export class VehicleController {
     const steer = Number(!!(keys.right ?? keys.r)) - Number(!!(keys.left ?? keys.l));
     const drive = Number(!!(keys.forward ?? keys.f)) - Number(!!(keys.back ?? keys.b));
     const mouseFlight = flying && this.mouseFlight;
+    const aimFlight = flying && this.aimFlight;
     const rotor = ROTORCRAFT.has(type);
     let flightControls = {};
-    if (flying) {
+    if (aimFlight) {
+      // Mouse aim: the mouse moves the world aim (the camera looks along it);
+      // the input yaw/pitch carry it and the server's instructor flies the
+      // nose toward it. Q/E nudge the aim; free look (C) leaves it in place.
+      const frameStep = clamp(Number.isFinite(dt) && dt > 0 ? dt : 1 / 60, 0, LOOK_STEP_MAX);
+      if (!this._aim) this._aim = { yaw: wrap(finite(this.vehicle.yaw)), pitch: rotor ? 0 : finite(this.vehicle.pitch) };
+      const gain = this.flight.sensitivity, invert = this.flight.invertY ? -1 : 1;
+      const [low, high] = rotor ? MOUSE_AIM.rotorPitch : MOUSE_AIM.pitch;
+      if (this.freeLook) this.view.addFreeLook(dx, dy);
+      else {
+        this._aim.yaw = wrap(this._aim.yaw - dx * gain);
+        this._aim.pitch = clamp(this._aim.pitch - dy * gain * invert, low, high);
+      }
+      const rudder = Number(!!(keys.flightYawRight ?? keys.leanRight)) - Number(!!(keys.flightYawLeft ?? keys.leanLeft));
+      if (rudder) this._aim.yaw = wrap(this._aim.yaw - rudder * MOUSE_AIM.nudge * frameStep);
+      this.yaw = this._aim.yaw; this.pitch = this._aim.pitch;
+      // Rotors: W/S and A/D are the assisted cyclic (a tilt while held, the
+      // auto-hover once released); the omitted yaw axis lets the nose follow
+      // the aim yaw. Jet: no stick axes at all, so the server's attitude
+      // instructor flies to the aim; A/D (steer) override its bank.
+      if (rotor) {
+        flightControls = {
+          vehiclePitchControl: Object.hasOwn(keys, 'vehiclePitchControl') ? flightAxis(keys.vehiclePitchControl) : 0,
+          vehicleRollControl: Object.hasOwn(keys, 'vehicleRollControl') ? flightAxis(keys.vehicleRollControl) : steer,
+        };
+      }
+    } else if (flying) {
       this.yaw = wrap(finite(this.vehicle.yaw));
       this.pitch = finite(this.vehicle.pitch);
       // dt is the real frame time (main.js caps it at 0.25 s). The mouse stick
@@ -395,21 +464,30 @@ export class VehicleController {
       // A mouse-flown helicopter keeps the attitude the pilot set instead of
       // levelling itself whenever the springing stick returns to centre.
       if (mouseFlight && rotor) flightControls.vehicleAttitudeHold = true;
-    } else if (this.freeLook) {
-      this.view.addFreeLook(dx, dy);
     } else {
-      this.yaw = wrap(finite(this.yaw) - dx);
-      this.pitch = clamp(finite(this.pitch) - dy, -0.35, 0.65);
+      // In the jeep's first-person view the look rides the hull: it turns with
+      // the jeep and the mouse turns the head relative to it.
+      const ride = this.view.hullLook;
+      const hullYaw = wrap(finite(this.vehicle.yaw));
+      if (ride && Number.isFinite(this._rideYaw)) this.yaw = wrap(finite(this.yaw) + wrap(hullYaw - this._rideYaw));
+      this._rideYaw = ride ? hullYaw : NaN;
+      if (this.freeLook) this.view.addFreeLook(dx, dy);
+      else {
+        this.yaw = wrap(finite(this.yaw) - dx);
+        this.pitch = clamp(finite(this.pitch) - dy, -0.35, 0.65);
+      }
+      if (ride) this.yaw = wrap(hullYaw + clamp(wrap(this.yaw - hullYaw), -VEHICLE_CAMERA.driverHeadYaw, VEHICLE_CAMERA.driverHeadYaw));
     }
     // Space/Shift are flight inputs only while seated in an aircraft. Mobile
     // lift holds are separate from the stick's infantry auto-sprint state.
     const up = !!(keys.flightUp || keys.jump);
     const down = !!(keys.flightDown ?? keys.sprint);
-    // Mouse-flown helicopters put the collective on W/S as well as Space/Shift.
+    // Mouse-stick helicopters put the collective on W/S as well as Space/Shift.
     const keyLift = Number(up) - Number(down) + (mouseFlight && rotor ? drive : 0);
     const lift = Number.isFinite(keys.vehicleLift) ? clamp(keys.vehicleLift, -1, 1) : clamp(keyLift, -1, 1);
     return { vehicleThrottle: mouseFlight && rotor ? 0 : drive,
-      vehicleSteer: steer,
+      // A mouse-aim rotor banks through its roll axis (steer would be ignored).
+      vehicleSteer: aimFlight && rotor ? 0 : steer,
       vehicleBrake: Number(flying ? !!(keys.flightBrake || keys.brake || keys.crouch) : !!(keys.jump ?? keys.brake)),
       vehicleLift: flying ? lift : 0,
       ...flightControls, yaw: this.yaw, pitch: this.pitch, wantFire: wantsFire };
@@ -420,7 +498,7 @@ export class VehicleController {
     if (!this.active || !this.camera) return false;
     const row = renderVehicle ? { ...this.vehicle, ...renderVehicle } : this.vehicle;
     const posed = this.view.update(dt, { row, seatId: this.seatId, aimYaw: this.yaw, aimPitch: this.pitch,
-      freeLook: this.freeLook, optic: this.opticHeld });
+      freeLook: this.freeLook, optic: this.opticHeld, flightAim: this.flightAim ?? null });
     this._seeded = true;
     return posed;
   }

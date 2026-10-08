@@ -28,6 +28,8 @@ import { ScoreTicker } from './conquest/score-ticker.js';
 import { SquadList } from './conquest/squad-list.js';
 import { TopBar } from './conquest/top-bar.js';
 import { VehiclePanel } from './conquest/vehicle-panel.js';
+import { ViewStrip, viewStripModel } from './conquest/view-strip.js';
+import { FlightHint } from './conquest/flight-hint.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 const MARKER_INSETS_DESKTOP = Object.freeze({ top: 96, bottom: 120, left: 48, right: 48 });
@@ -35,7 +37,7 @@ const MARKER_INSETS_TOUCH = Object.freeze({ top: 124, bottom: 150, left: 28, rig
 /** Phone landscape: HP card, minimap and MAP / SPOT fill the left edge, so left markers clamp right of them. */
 const MARKER_INSETS_TOUCH_LANDSCAPE = Object.freeze({ top: 124, bottom: 150, left: 196, right: 28 });
 /** Fixed HUD panels edge-clamped flag markers keep clear of (re-measured at most every OBSTACLE_MS). */
-const MARKER_OBSTACLES = ['.cq-minimap', '.cq-squad', '.cq-map-hint', '.cq-vehicle', '.cq-top', '.cq-banner', '.cq-ring', '.cq-interact', '.cq-lock',
+const MARKER_OBSTACLES = ['.cq-minimap', '.cq-squad', '.cq-map-hint', '.cq-vehicle', '.cq-top', '.cq-view', '.cq-banner', '.cq-ring', '.cq-interact', '.cq-lock',
   '.cq-restricted', '#healthbar', '#ammo', '#grenade-count', '.vb-touch-button'].join(', ');
 const OBSTACLE_MS = 400;
 /** The crosshair and its reticle labels (vehicle ammo, lock, pipper): clamped edge markers stay out of it. */
@@ -66,6 +68,8 @@ export class ConquestHud {
     this.markers = new WorldMarkers(this.root);
     this.reticles = new Reticles(this.root);
     this.topBar = new TopBar(this.root);
+    this.viewStrip = new ViewStrip(this.root);
+    this.flightHint = new FlightHint(this.root);
     this.banners = new Banners(this.root);
     this.ring = new CaptureRing(this.root);
     this.ticker = new ScoreTicker(this.root);
@@ -145,8 +149,8 @@ export class ConquestHud {
   /**
    * Gamepad Conquest actions from this frame's press edges (Input.padButtons).
    * Alive: D-pad right spots and R3 (unscoped) toggles the full map; seated,
-   * D-pad up takes the next free seat, LB fires countermeasures and Y cycles
-   * the seat weapon. Deploy screen: D-pad up/down pick the spawn, LB/RB the
+   * D-pad up takes the next free seat, LB fires countermeasures, Y cycles
+   * the seat weapon and D-pad down the camera view. Deploy screen: D-pad up/down pick the spawn, LB/RB the
    * kit, A deploys. Interact (D-pad left) goes through VehicleController.padInteract.
    */
   padInput({ pressed = null, scoped = false, blocked = false } = {}) {
@@ -167,6 +171,8 @@ export class ConquestHud {
       if (pressed.slotUp) this.conquestAction('vehicleSeat');
       if (pressed.lastWeapon) this.conquestAction('countermeasure');
       if (pressed.weapon) this.vehicleController?.queueWeaponNext?.();
+      // D-pad down (the infantry grenade pouch) cycles the camera view like V.
+      if (pressed.grenadePouch) this.vehicleController?.cycleView?.();
     }
     return true;
   }
@@ -330,7 +336,11 @@ export class ConquestHud {
 
     const alive = !!self && self.state !== 'dead' && self.hp > 0;
     const seated = this.seated;
-    if (doc?.body?.dataset) doc.body.dataset.vehicleSeated = String(!!seated);
+    if (doc?.body?.dataset) {
+      doc.body.dataset.vehicleSeated = String(!!seated);
+      // A mouse-aim pilot's aim circle replaces the infantry crosshair at the screen centre.
+      doc.body.dataset.flightAim = String(!!seated && this.vehicleController?.aimFlight === true);
+    }
     this.root.dataset.seated = seated ? seated.row.type : '';
     this.root.dataset.touch = String(touch);
 
@@ -345,6 +355,8 @@ export class ConquestHud {
     if (this.dead || !alive) {
       this.ring.update(null);
       this.vehiclePanel.update(null);
+      this.viewStrip.update(null);
+      this.flightHint.update(null);
       this.interact.update(null, { nowMs: now });
       this.lock.update(null);
       this.restricted.update(null);
@@ -363,11 +375,17 @@ export class ConquestHud {
     const airborne = !!seated && isAircraftType(seated.row.type) && seated.row.grounded === false;
     this.ring.update(airborne ? null : captureRingModel(cq, self, selfTeam));
     // The lock bearing is drawn around the crosshair, so it is relative to the view, not the hull.
-    const panel = vehiclePanelModel(seated, { selfId: self.id, players, selfTeam, yaw });
+    const panel = vehiclePanelModel(seated, { selfId: self.id, players, selfTeam, yaw, raycast: this.shellRaycast });
+    // Pilot control hint (desktop): the first few pilot-seat entries per aircraft type and flight mode.
+    const pilotSeat = !!seated && !touch && seated.seat?.drives === true && isAircraftType(seated.row.type);
+    this.flightHint.update(pilotSeat ? { type: seated.row.type, vehicleId: seated.row.id,
+      mode: this.vehicleController?.flight?.mode ?? 'keyboard' } : null, clockNow());
     this.vehiclePanel.update(panel, now);
+    // V / D-pad down: the seat's camera views, shown briefly after a change.
+    this.viewStrip.update(seated ? viewStripModel(this.vehicleController?.viewState?.(), clockNow(), bindingLabel('vehicleView')) : null);
     this.lock.update(panel?.lock ?? null);
     const reticle = seated && projector ? reticleModel(seated, { projector, players, vehicles, selfTeam,
-      raycast: this.shellRaycast }) : null;
+      raycast: this.shellRaycast, flightAim: this.vehicleController?.aimFlight === true }) : null;
     const locker = projector ? lockerModel(self, { projector, vehicles, selfTeam, seated,
       camera: angles && eye ? { ...eye, yaw: angles.yaw, pitch: angles.pitch } : null }) : null;
     this.reticles.draw(reticle, locker, width, height, { touch });
@@ -509,7 +527,7 @@ export class ConquestHud {
 
   hide() {
     const body = globalThis.document?.body;
-    if (body?.dataset) delete body.dataset.vehicleSeated;
+    if (body?.dataset) { delete body.dataset.vehicleSeated; delete body.dataset.flightAim; }
     if (this.root.hidden) return;
     this.root.hidden = true;
     this.bigMap.setOpen(false);

@@ -150,4 +150,47 @@ input.keys.leanLeft=true;assert.equal(input.getKeys().flightYawLeft,true);assert
 input.keys.leanLeft=false;input.keys.leanRight=true;assert.equal(input.getKeys().flightYawRight,true);
 input.clearTransient();assert.equal(input.getKeys().flightYawRight,false);input.dispose();
 
-console.log('Aircraft manual flight axes, ground regressions, entry distances, Input flight bridge and aircraft chase cameras passed');
+// Mouse aim: the chase camera looks along the pilot's aim with no hull lag
+// (the HUD draws the nose marker apart from the centre aim circle), orbits
+// behind the aim line a little above it, and keeps a level horizon.
+{
+  const aimCamera = new THREE.PerspectiveCamera(70, 16/9);
+  const aimController = new VehicleController({camera:aimCamera,eventTarget:null,raycast:()=>null});
+  aimController.setFlightOptions({mode:'aim',sensitivity:1,invertY:false});
+  for(const type of ['plane','helicopter','transport']) {
+    const row={...base,id:`aim-${type}`,type,yaw:.4,pitch:.05,roll:-.6};
+    aimController.sync({self:{...self,vehicleId:row.id},vehicles:[row],enabled:true});
+    aimController.controls({},{dx:-.5,dy:-.2,mouseDx:-.5,mouseDy:-.2},false,1/60);
+    const aim=aimController.flightAim;
+    assert(aim&&Math.abs(aim.yaw-.9)<1e-9,`${type}: the mouse moved the aim, not the hull`);
+    aimController.updateCamera(1/60);
+    const forward=aimCamera.getWorldDirection(new THREE.Vector3());
+    const want=new THREE.Vector3(-Math.sin(aim.yaw)*Math.cos(aim.pitch),Math.sin(aim.pitch),-Math.cos(aim.yaw)*Math.cos(aim.pitch));
+    assert(forward.dot(want)>.99999,`${type}: the screen centre is the aim, not the boresight`);
+    assert.equal(aimCamera.rotation.z,0,`${type}: level horizon while the hull banks`);
+    const offset=aimCamera.position.clone().sub(aimController._focus).normalize();
+    assert(offset.dot(want)<-.95,`${type}: the camera sits behind the aim line`);
+    assert(offset.y>-want.y+.05,`${type}: a little above it`);
+    // No lag: a new aim is looked along on the very next frame.
+    aimController.controls({},{dx:.3,dy:0,mouseDx:.3,mouseDy:0},false,1/60);aimController.updateCamera(1/60);
+    const next=aimController.flightAim;
+    assert(Math.abs(aimCamera.rotation.y-next.yaw)<1e-9,`${type}: the camera follows the aim without the hull lag`);
+  }
+  aimController.dispose();
+}
+
+// X (countermeasure) in a seat never toggles a prone that waits on exit.
+{
+  const keys=new Input({});keys.fallback=true;keys._locked=true;keys.setGameplayEnabled?.(true);
+  const press=code=>{keys._onKeyDown({code,key:code,repeat:false,defaultPrevented:false,target:null,preventDefault(){}});
+    keys._onKeyUp({code,key:code,repeat:false,defaultPrevented:false,target:null,preventDefault(){}});};
+  keys.setTouchContext({vehicleSeated:true,vehicleRole:'driver',vehicleCanDrive:true,vehicleId:'jet',vehicleSeatId:'driver',vehicleType:'plane'});
+  press('KeyX');
+  assert.equal(keys.getKeys().prone,false,'seated X does not toggle prone');
+  keys.setTouchContext({vehicleSeated:false});
+  press('KeyX');
+  assert.equal(keys.getKeys().prone,true,'on foot X still toggles prone');
+  keys.dispose();
+}
+
+console.log('Aircraft manual flight axes, ground regressions, entry distances, Input flight bridge, aircraft chase cameras, mouse-aim chase camera and seated X passed');

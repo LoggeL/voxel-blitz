@@ -10,6 +10,7 @@ import { makeTransportModel } from '../vehicles/models/transport.js';
 import { makePlaneModel } from '../vehicles/models/plane.js';
 import { JeepDriver } from '../vehicles/jeep-driver.js';
 import { AircraftPilot } from '../vehicles/aircraft-pilot.js';
+import { hasCockpitOverlay, makeCockpitOverlay } from '../vehicles/cockpit-overlay.js';
 import { createVehicleFragments, fragmentMaterial } from '../vehicles/vehicle-fragments.js';
 import { createVehicleMaterial, createVehicleGlassMaterial, createRotorBlurMaterial, setVehicleMaterialState } from '../vehicles/voxel-model/material.js';
 import { canonicalMountKey, isAircraftType, rowMaxHp, mountIndex } from '../vehicles/voxel-model/anchors.js';
@@ -39,6 +40,7 @@ export const VEHICLE_VIEW = Object.freeze({
   // destruction whose owning snapshot left that ring undrained (long boot,
   // hidden tab) can never be presented, so the hull turns into a wreck then.
   destructionHorizon: 32,
+  insideGlassOpacity: 0.07, // canopy glass seen from the local first-person seat
 });
 
 const destructionEvent = event => event?.kind === 'vehicle_destroyed' || (event?.kind === 'explosion' && event.type === 'vehicle');
@@ -96,6 +98,8 @@ export class VehicleView {
     this.items = new Map();
     this.getBlock = typeof getBlock === 'function' ? getBlock : null;
     this.selfId = null; this.selfTeam = null;
+    /** The local player's first-person seat { id, seatId } (setLocalView), or null. */
+    this.localView = null;
     this._disposed = false;
     this._position = new THREE.Vector3();
     this._quaternion = new THREE.Quaternion(); this._cameraRotation = new THREE.Quaternion();
@@ -336,7 +340,18 @@ export class VehicleView {
         rotorSpeed: this._rotorSpeed(item, row), grounded: row.grounded ?? (row.st != null ? item.status?.grounded : true),
         wreck: item.wreck, railAmmo: railIndex >= 0 && Array.isArray(row.mounts?.[railIndex]) ? row.mounts[railIndex][2] : null,
       });
-      for (const actor of item.crew.values()) actor.update(finite(row.visualSteer));
+      const local = this.localView, inside = !!local && local.id === item.id;
+      for (const actor of item.crew.values()) {
+        actor.update(finite(row.visualSteer));
+        // First person from this seat: the own head and chest would fill the near plane.
+        actor.setFirstPerson?.(inside && local.seatId === actor.seatId);
+      }
+      // From inside, the canopy glass is a faint tint instead of the exterior sheen.
+      const glass = item.materials.glass;
+      glass.userData.baseOpacity ??= glass.opacity;
+      const opacity = inside ? VEHICLE_VIEW.insideGlassOpacity : glass.userData.baseOpacity;
+      if (glass.opacity !== opacity) glass.opacity = opacity;
+      this._cockpitOverlay(item, inside && !item.wreck);
       this._hpBar(item, row, cameraPosition);
       this._billboard(item, camera);
     }
@@ -450,6 +465,26 @@ export class VehicleView {
     item.hpBar.quaternion.copy(this._quaternion.invert().multiply(this._cameraRotation));
   }
 
+  /** First-person cockpit dressing (frames, panel, displays) on the local hull only, built on first use. */
+  _cockpitOverlay(item, wanted) {
+    if (wanted && !item.cockpit && hasCockpitOverlay(item.kind)) {
+      item.cockpit = makeCockpitOverlay(item.kind);
+      if (item.cockpit) (item.model.body || item.model.group).add(item.cockpit.group);
+    }
+    if (item.cockpit) item.cockpit.group.visible = wanted;
+    // Frames that would box in a first-person seat (the jeep windscreen) fold away.
+    for (const node of item.model.firstPersonHidden || []) node.visible = !wanted;
+  }
+
+  /**
+   * The local player's seat while its camera is first person (VehicleCamera
+   * cockpit view): { id, seatId } or null. That seat's crew avatar drops its
+   * head from the next update on.
+   */
+  setLocalView(view = null) {
+    this.localView = view && view.id != null && view.seatId ? { id: String(view.id), seatId: String(view.seatId) } : null;
+  }
+
   presentedRow(id) {
     const item = this.items.get(String(id));
     return item?.row ? { ...item.row, x: item.root.position.x, y: item.root.position.y, z: item.root.position.z,
@@ -508,6 +543,7 @@ export class VehicleView {
   remove(id) {
     id = String(id); const item = this.items.get(id); if (!item) return;
     clearCrew(item);
+    item.cockpit?.dispose(); item.cockpit = null;
     item.hpBar.geometry.dispose();
     for (const mesh of item.model.kit.extraMeshes) if (mesh.userData.ownedGeometry) mesh.geometry.dispose();
     for (const material of Object.values(item.materials)) material.dispose();

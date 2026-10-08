@@ -815,23 +815,41 @@ export class VehicleSystem {
       if (input[field] !== undefined) flightInput[`${axis.toLowerCase()}Control`] = controls.allowed ? clamp(input[field], -1, 1) : 0;
     }
     flightInput.attitudeHold = input.vehicleAttitudeHold === true;
-    // Keep the recovery turn engaged until the flight path is safely inward.
-    // Releasing on a single projected sample lets persistent mouse aim turn
-    // back toward the edge before the aircraft has finished banking.
+    // Map-edge guidance has two layers. A soft steer-back blends in only
+    // inside a band near the edge while the aircraft moves outward: it pulls a
+    // mouse-aim/attitude request toward the map centre, adds a centre turn to a
+    // manual stick (the pilot keeps the rest of the authority) and rotors brake
+    // toward a hover. The hard recovery (which takes the controls) engages only
+    // when the hull would reach the edge within a second or so.
     const dimensions = this.engine.world.dimensions;
     if (dimensions && !v.grounded && controls.allowed) {
-      const horizontal=Math.hypot(v.vx,v.vz), bank=Math.min(def.maxBank,1.05);
+      const horizontal=Math.hypot(v.vx,v.vz), bank=Math.min(def.maxBank,1.05), size=Math.min(dimensions.sx,dimensions.sz);
       const rate=fixedWing?Math.min(def.turn,def.gravity*Math.tan(bank)/Math.max(def.takeoffSpeed,horizontal)):def.turn;
       const radius=horizontal/Math.max(.1,rate);
-      // Allow space for actual banking and momentum. Rotor tilt takes time to
-      // stop a helicopter; a fixed-wing jet needs a speed-dependent turn arc.
-      const stopping=horizontal*horizontal/(2*def.gravity*Math.tan(fixedWing?bank:Math.min(def.maxBank,.4)));
-      const margin=Math.min(Math.min(dimensions.sx,dimensions.sz)*.43,
-        fixedWing?Math.max(110,radius+horizontal*1.2+20):Math.max(30,stopping+horizontal*1.1+15));
-      const lookahead = fixedWing ? 2 : 1.6;
-      const futureX = v.x + v.vx * lookahead, futureZ = v.z + v.vz * lookahead;
-      const threatened = futureX < margin && v.vx < -0.1 || futureX > dimensions.sx - margin && v.vx > 0.1
-        || futureZ < margin && v.vz < -0.1 || futureZ > dimensions.sz - margin && v.vz > 0.1;
+      let pressure=0,steep=0,threatened=false;
+      for (const [position,velocity,extent] of [[v.x,v.vx,dimensions.sx],[v.z,v.vz,dimensions.sz]]) {
+        const outward=velocity<-.1?-velocity:velocity>.1?velocity:0;
+        if(!outward)continue;
+        const distance=velocity<0?position:extent-position;
+        if(fixedWing) {
+          // A jet needs radius x (1 - sin a) to turn parallel to an edge it
+          // approaches at angle a from the normal (nothing when skimming along
+          // it, the whole radius head-on), plus roll-in travel. The soft steer
+          // ramps in ahead of that need; inside 60 % of it the safety pilot
+          // takes over (a jet pinned against the edge cannot bank away).
+          const cosine=outward/Math.max(outward,horizontal),along=Math.sqrt(Math.max(0,1-cosine*cosine));
+          const need=radius*(1-along)+horizontal*.8+15,soft=need+60+horizontal*.5;
+          const p=clamp((soft-distance)/(soft-need),0,1);
+          pressure=Math.max(pressure,p);steep=Math.max(steep,p>0?cosine:0);
+          threatened||=distance<need*.6;
+        } else {
+          // Rotors: hover-brake once the outward drift needs the room left
+          // (counter tilt at the pitch limit, plus a margin), easing in 40 m early.
+          const stop=outward*outward/(2*def.gravity*Math.tan(Math.min(def.maxPitch,.4)));
+          pressure=Math.max(pressure,clamp(1-(distance-15-stop*1.3)/40,0,1));
+          threatened||=distance-outward<8;
+        }
+      }
       let recovery = this.boundaryAvoidance.get(v.id);
       if(threatened&&!recovery) {
         const pathYaw=horizontal>1?Math.atan2(-v.vx,-v.vz):v.yaw;
@@ -839,34 +857,30 @@ export class VehicleSystem {
           const cx=v.x-sign*Math.cos(pathYaw)*radius,cz=v.z+sign*Math.sin(pathYaw)*radius;
           return Math.min(cx-radius,dimensions.sx-cx-radius,cz-radius,dimensions.sz-cz-radius);
         };
-        recovery={turnSense:clearance(1)>clearance(-1)?1:-1,turning:fixedWing,radius,
+        // Keep a turn the soft steer (or the pilot) already began; else the side with more room.
+        const turnSense=Math.abs(v.yawRate||0)>.05?Math.sign(v.yawRate):clearance(1)>clearance(-1)?1:-1;
+        recovery={turnSense,turning:fixedWing,radius,throttle:fixedWing?finite(v.throttle):null,
           altitude:clamp(v.y,Math.min(dimensions.sy+15,def.ceiling-40),def.ceiling-35)};
         this.boundaryAvoidance.set(v.id,recovery);
       }
+      const dx=dimensions.sx/2-v.x,dz=dimensions.sz/2-v.z,centerYaw=Math.atan2(-dx,-dz);
       if(recovery) {
-        const dx=dimensions.sx/2-v.x,dz=dimensions.sz/2-v.z,centerYaw=Math.atan2(-dx,-dz);
-        // A jet hands back only on a course that clears the trigger margin too;
-        // on a compact map a narrower release band re-engages on the next tick.
-        const safeMargin=Math.min(Math.max(fixedWing?110:30,recovery.radius*.75+40,fixedWing?margin:0),Math.min(dimensions.sx,dimensions.sz)*.32);
+        // The safety pilot turns toward the map centre (the instructor's bank
+        // law converges without an orbit) and hands back once the jet is
+        // inward on a course the soft steer would leave alone, wings near level.
+        const safeMargin=Math.min(Math.max(fixedWing?60:20,recovery.radius*.3+20),size*.25);
         const inward=v.vx*dx+v.vz*dz>0;
-        const inside=(x,z)=>x>safeMargin&&x<dimensions.sx-safeMargin&&z>safeMargin&&z<dimensions.sz-safeMargin;
-        const interior=inside(v.x,v.z);
-        // Include spool-up travel while a slow jet regains surface authority.
-        const levelingTime=4.5,courseSpeed=Math.max(48,horizontal);
-        const safeCourse=inside(v.x-Math.sin(v.yaw)*courseSpeed*levelingTime,v.z-Math.cos(v.yaw)*courseSpeed*levelingTime)
-          &&inside(v.x+v.vx*levelingTime,v.z+v.vz*levelingTime);
-        // A moving center target can sustain an orbit: the jet remains banked
-        // while its target bearing turns at the same rate. Once the aircraft
-        // is safely inward, hold that course and unwind the real control
-        // surfaces before handing the pilot back their manual inputs.
-        if(fixedWing&&recovery.heading===undefined&&interior&&inward&&safeCourse&&Math.abs(angleDelta(centerYaw,v.yaw))<1.35) {
-          recovery.heading=v.yaw;recovery.turning=false;
-        }
-        if(recovery.heading!==undefined&&!safeCourse)delete recovery.heading;
-        const targetYaw=recovery.heading??centerYaw,error=angleDelta(targetYaw,v.yaw);
-        const leveled=recovery.heading!==undefined&&safeCourse&&Math.abs(error)<.3&&Math.abs(v.roll)<.2&&Math.abs(v.rollRate)<.3;
+        const interior=v.x>safeMargin&&v.x<dimensions.sx-safeMargin&&v.z>safeMargin&&v.z<dimensions.sz-safeMargin;
+        const targetYaw=centerYaw,error=angleDelta(targetYaw,v.yaw);
+        const leveled=fixedWing&&Math.abs(error)<.6&&Math.abs(v.roll)<.3&&Math.abs(v.rollRate||0)<.6;
         const rotorAligned=!fixedWing&&inward&&Math.abs(error)<.55&&Math.abs(v.roll)<.4;
-        if(interior&&(leveled||rotorAligned)) this.boundaryAvoidance.delete(v.id);
+        // Hand back only on a course the soft steer would leave alone.
+        if(interior&&(leveled||rotorAligned)&&pressure<.05) {
+          // Hand the jet back with the pilot's own throttle setting, not the
+          // safety pilot's speed management.
+          if(fixedWing&&Number.isFinite(recovery.throttle))v.throttle=Math.max(finite(v.throttle),recovery.throttle);
+          this.boundaryAvoidance.delete(v.id); recovery=null;
+        }
         else {
           // The safety pilot requests bounded attitudes through the same rate
           // controller and dynamics as a human. Explicit neutral manual axes
@@ -875,6 +889,9 @@ export class VehicleSystem {
           if(Math.abs(error)<.25)recovery.turning=false;
           flightInput.yaw=targetYaw;
           flightInput.steer=recovery.turning?-recovery.turnSense*Math.min(1,Math.abs(error)/.6):0;
+          // A jet scrubbed slow (an edge graze) cannot bank without falling:
+          // wings level along its heading until it has flying speed again.
+          if(fixedWing&&horizontal<def.takeoffSpeed*1.35){flightInput.yaw=v.yaw;flightInput.steer=0;}
           if(fixedWing) {
             const desiredClimb=clamp((recovery.altitude-v.y)*.4,-6,8);
             const verticalAcceleration=clamp((desiredClimb-v.vy)*1.2,-3,5);
@@ -894,7 +911,39 @@ export class VehicleSystem {
           }
         }
       }
-    } else this.boundaryAvoidance.delete(v.id);
+      v.edgeSteer=recovery?1:pressure;
+      // A fast jet heading steeply at the edge airbrakes (its throttle setting stays).
+      if(fixedWing&&horizontal>46&&(recovery||pressure>.3)&&steep>.4)flightInput.speedBrake=recovery?1:clamp((pressure-.3)/.4,0,1);
+      if(!recovery&&pressure>0) {
+        if(fixedWing) {
+          const manualStick=Object.hasOwn(flightInput,'pitchControl')||Object.hasOwn(flightInput,'rollControl')||Object.hasOwn(flightInput,'yawControl');
+          if(manualStick) {
+            // Blend a moderate centre-turn bank into the pilot's own stick and,
+            // deeper in the band, an elevator that holds the flight path level
+            // (a banked jet on a neutral stick would sink).
+            const error=angleDelta(centerYaw,v.yaw),speed=Math.max(def.takeoffSpeed,horizontal);
+            const bankTarget=clamp(Math.atan(error*speed/def.gravity),-def.maxBank,def.maxBank);
+            const auto=clamp(-((bankTarget-v.roll)*4-(v.rollRate||0)*.7)/def.bankRate,-1,1);
+            flightInput.rollControl=clamp(finite(flightInput.rollControl)*(1-pressure)+auto*pressure,-1,1);
+            if(Object.hasOwn(flightInput,'yawControl'))flightInput.yawControl=finite(flightInput.yawControl)*(1-pressure);
+            const cosBank=Math.max(.4,Math.cos(v.roll)),dynamic=(speed/def.takeoffSpeed)**2;
+            const coefficient=(def.gravity+clamp(-v.vy*1.2,-3,5))/(def.gravity*dynamic*cosBank);
+            const aoa=clamp((coefficient-def.liftIncidence)/def.liftSlope,-.12,.2);
+            const pitchTarget=clamp(Math.atan2(v.vy,Math.max(1,horizontal))+aoa/cosBank,def.minPitch,def.maxPitch);
+            const elevator=clamp(((pitchTarget-v.pitch)*5-(v.pitchRate||0)*.7)/def.pitchRate,-1,1),deep=pressure*pressure;
+            flightInput.pitchControl=clamp(finite(flightInput.pitchControl)*(1-deep)+elevator*deep,-1,1);
+          } else {
+            // Mouse aim and attitude requests: pull the aim toward the centre.
+            const aimYaw=Number.isFinite(flightInput.yaw)?flightInput.yaw:v.yaw;
+            flightInput.yaw=aimYaw+angleDelta(centerYaw,aimYaw)*pressure;
+            flightInput.steer=finite(flightInput.steer)*(1-pressure);
+          }
+        } else {
+          // Rotors brake toward a hover (counter tilt) while drifting outward.
+          flightInput.brake=Math.max(finite(flightInput.brake),Math.min(1,pressure*3));
+        }
+      }
+    } else { this.boundaryAvoidance.delete(v.id); v.edgeSteer=0; }
     FLIGHT_STEPPERS[handling](v, flightInput, dt, vehicleDef(v));
     if(v.grounded) {
       // Rotation is around the wheel contact, so raising the nose lifts the

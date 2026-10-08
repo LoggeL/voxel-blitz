@@ -129,9 +129,11 @@ export class VoxelPart {
    * Fuselage loft along Z. Stations are [z, halfWidth, yBottom, yTop, power]
    * sorted by z; cross sections interpolate linearly and use a superellipse
    * (power 2 = ellipse, 4 = rounded box, 12 = near box). `xOffset` shifts the
-   * whole loft (engine nacelles, pods).
+   * whole loft (engine nacelles, pods). `shell` keeps only the outer layer of
+   * that thickness; with `hollow` the voxels inside that layer are removed too
+   * (a glazed nose you can see out of from the cockpit).
    */
-  loft(stations, material, { tag = null, xOffset = 0, shell = 0 } = {}) {
+  loft(stations, material, { tag = null, xOffset = 0, shell = 0, hollow = false } = {}) {
     const sorted = [...stations].sort((a, b) => a[0] - b[0]);
     const z0 = this.ci(sorted[0][0], 2), z1 = this.ci(sorted.at(-1)[0], 2);
     for (let k = z0; k < z1; k++) {
@@ -150,7 +152,7 @@ export class VoxelPart {
           if (f > 1) continue;
           if (shell > 0) {
             const inner = Math.pow(dx * hw / Math.max(0.01, hw - shell), power) + Math.pow(dy * hh / Math.max(0.01, hh - shell), power);
-            if (inner <= 1) continue;
+            if (inner <= 1) { if (hollow) this.cells.delete(key(i, j, k)); continue; }
           }
           this.setCell(i, j, k, material, tag);
         }

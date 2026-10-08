@@ -39,6 +39,8 @@ const HEIGHT = Number(option('height', 720));
 const SOFTWARE = argv.includes('--software');
 const BOTS = Number(option('bots', 15));
 const NETWORK = argv.includes('--network');
+// --views: while driving, also capture the ACTION and FIRST PERSON camera views (V), then return to the chase.
+const VIEWS = argv.includes('--views');
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -125,7 +127,7 @@ function drain(page) {
 const KEYS = {
   w: ['w', 'KeyW', 87], a: ['a', 'KeyA', 65], s: ['s', 'KeyS', 83], d: ['d', 'KeyD', 68],
   t: ['t', 'KeyT', 84], g: ['g', 'KeyG', 71], m: ['m', 'KeyM', 77], shift: ['Shift', 'ShiftLeft', 16],
-  space: [' ', 'Space', 32], enter: ['Enter', 'Enter', 13], tab: ['Tab', 'Tab', 9], y: ['y', 'KeyY', 89],
+  space: [' ', 'Space', 32], enter: ['Enter', 'Enter', 13], tab: ['Tab', 'Tab', 9], y: ['y', 'KeyY', 89], v: ['v', 'KeyV', 86],
 };
 async function key(page, name, type) {
   const [k, code, vk] = KEYS[name];
@@ -308,6 +310,15 @@ async function drive(page, target, budgetMs, { stopAt = 12, shotName = null } = 
       if (shotName && !shotTaken && Date.now() - start > 7000) {
         shotTaken = true;
         await shot(page, shotName, `${s.vehicle.type} driver, ${Math.round(s.vehicle.speed ?? 0)} m/s, ${flat(s.vehicle, target).toFixed(0)} m to ${target.id}`);
+        if (VIEWS) {
+          // V cycles CHASE -> ACTION -> FIRST PERSON -> CHASE for the jeep driver.
+          for (const view of ['action', 'cockpit']) {
+            await tap(page, 'v');
+            await sleep(900);
+            await shot(page, `${shotName}-${view}`, `${s.vehicle.type} driver, ${view} view`);
+          }
+          await tap(page, 'v');
+        }
       }
       if (flat(s.feet, lastPos) > 1.5) { lastPos = s.feet; stuckSince = Date.now(); }
       else if (Date.now() - stuckSince > 3500) {

@@ -154,8 +154,10 @@ for(const type of ['helicopter','plane']) {
   f.input({...neutral,vehicleThrottle:type==='helicopter'?1:0});
   let recovering=false,returned=false;
   f.fly(60,()=>{
-    recovering ||= f.game.vehicles.boundaryAvoidance.has(f.v.id);
+    // The soft edge steer or the hard safety pilot, whichever the approach needs.
+    recovering ||= f.game.vehicles.boundaryAvoidance.has(f.v.id)||f.v.edgeSteer>0;
     returned ||= recovering&&f.v.x>220&&f.v.x<800&&f.v.z>220&&f.v.z<800;
+    assert(f.v.x>0&&f.v.x<1024&&f.v.z>0&&f.v.z<1024);
     assert.equal(f.v.hp,VEHICLE_RULES[type].hp,`${type} boundary recovery keeps full hull health`);
     assert(f.game.vehicles.clearHull(f.v,f.v.x,f.v.y,f.v.z),`${type} actual tilted compound hull remains legal`);
     assert(f.v.y>5&&!f.v.grounded,`${type} recovery keeps safe airborne altitude`);
@@ -163,7 +165,14 @@ for(const type of ['helicopter','plane']) {
     for(const field of ['x','y','z','yaw','pitch','roll','vx','vy','vz','speed','yawRate','pitchRate','rollRate','rudderRate','airspeed'])
       assert(Number.isFinite(f.v[field]),`${type} ${field} stays finite`);
   });
-  assert(recovering&&returned,`${type} safety pilot overrides neutral manual controls and returns inward`);
+  if(type==='plane') assert(recovering&&returned,`${type} edge guidance steers neutral manual controls and returns inward`);
+  else {
+    // The pilot holds W toward the edge: the edge brake holds the helicopter
+    // off it; letting go of W settles into a hover.
+    assert(recovering,`${type} edge guidance brakes at the map edge`);
+    f.input({...neutral});f.fly(8);
+    assert(f.v.speed<1&&f.v.x>3,`${type} hovers inside the map once W is released (${f.v.speed.toFixed(2)} m/s at x ${f.v.x.toFixed(1)})`);
+  }
 }
 
 {
@@ -239,18 +248,47 @@ for(const type of ['helicopter','plane']) {
     for(let i=0;i<1800;i++)f.tick();
   }
 
-  const f=frontier();f.input({vehicleThrottle:1,vehicleLift:1});
-  for(let i=0;i<300;i++)f.game.vehicles.step(1/60);
-  assert(!f.v.grounded&&f.v.y>20,'ordinary W and Space leave the authored Frontier runway');f.input({});
-  let currentEpisode=0,maxEpisode=0,releases=0,previous=false;
-  for(let i=0;i<7200;i++) {
-    f.tick();const active=f.game.vehicles.boundaryAvoidance.has(f.v.id);
-    currentEpisode=active?currentEpisode+1:0;maxEpisode=Math.max(maxEpisode,currentEpisode);
-    if(previous&&!active)releases++;previous=active;
+  // Two minutes of ordinary flight on the compact 768 m map: the pilot holds
+  // a cruise altitude with the elevator and never touches the bank. The soft
+  // edge steer turns the jet at the edges; the hard safety pilot (which takes
+  // the controls) stays brief and the jet never leaves the map or gets hurt.
+  for(const mode of ['stick','aim']) {
+    const f=frontier();f.input({vehicleThrottle:1,vehicleLift:1});
+    for(let i=0;i<300;i++)f.game.vehicles.step(1/60);
+    assert(!f.v.grounded&&f.v.y>20,'ordinary W and Space leave the authored Frontier runway');
+    let currentEpisode=0,maxEpisode=0,recoveries=0,previous=false,softTicks=0,activeTicks=0;
+    const outward=Math.atan2(-1,0); // due +x: a mouse-aim pilot keeps aiming out of the map
+    for(let i=0;i<7200;i++) {
+      if(i%3===0) {
+        if(mode==='aim') f.game.applyInput(f.p.id,{keys:{},yaw:outward,pitch:Math.max(-.2,Math.min(.3,(140-f.v.y)*.01)),vehicleThrottle:0,vehicleLift:0});
+        else f.input({vehiclePitchControl:Math.max(-1,Math.min(1,(140-f.v.y)*.01-f.v.vy*.08-(f.v.pitchRate||0)*.8))});
+      }
+      f.tick();const active=f.game.vehicles.boundaryAvoidance.has(f.v.id);
+      if(f.v.edgeSteer>0&&!active)softTicks++;if(active)activeTicks++;
+      assert(f.v.x>0&&f.v.x<768&&f.v.z>0&&f.v.z<768,'the jet stays inside the map');
+      currentEpisode=active?currentEpisode+1:0;maxEpisode=Math.max(maxEpisode,currentEpisode);
+      if(!previous&&active)recoveries++;previous=active;
+    }
+    assert(softTicks>0,`${mode}: the soft edge steer did the turning`);
+    assert(activeTicks<7200*.25,`${mode}: the safety pilot holds the controls only briefly (${(activeTicks/60).toFixed(1)} s)`);
+    assert(maxEpisode<12*60,`${mode}: no boundary recovery becomes a permanent center orbit`);
+    console.log(`Frontier edge guidance (${mode}): soft steer ${(softTicks/60).toFixed(1)} s, ${recoveries} hard recoveries `
+      +`(${(activeTicks/60).toFixed(1)} s, longest ${(maxEpisode/60).toFixed(2)} s) in 120 seconds.`);
   }
-  assert(releases>=3,'long ordinary Frontier flight repeatedly returns manual authority');
-  assert(maxEpisode<20*60,'no boundary recovery becomes a permanent center orbit');
-  console.log(`Frontier boundary handoff: ${releases} releases in 120 seconds; longest recovery ${(maxEpisode/60).toFixed(2)} seconds.`);
+
+  // From the middle of Frontier the full-speed jet keeps its controls in every
+  // direction (the old guard counted any heading as threatened there and took
+  // over). Diagonal headings are left alone; only head-on toward an edge 5 s
+  // away at 72 m/s does the soft steer (never a takeover) start to blend in.
+  for(let k=0;k<8;k++) {
+    const f=frontier(),yaw=k*Math.PI/4;
+    Object.assign(f.v,{x:384,y:140,z:384,yaw,pitch:0,roll:0,grounded:false,gearDown:false,vx:-Math.sin(yaw)*72,vy:0,vz:-Math.cos(yaw)*72,
+      speed:72,airspeed:72,throttle:1,enginePower:1,pitchRate:0,rollRate:0,rudderRate:0,yawRate:0});
+    f.input({});
+    for(let i=0;i<30;i++){f.tick();assert(!f.game.vehicles.boundaryAvoidance.has(f.v.id),'no hard takeover from the map centre');}
+    if(k%2) assert.equal(f.v.edgeSteer,0,`heading ${yaw.toFixed(2)}: no steer from the centre`);
+    else assert(f.v.edgeSteer<1,`heading ${yaw.toFixed(2)}: a soft steer at most (${f.v.edgeSteer.toFixed(2)})`);
+  }
 }
 
 console.log('Flight authority: normalized wire controls, neutral precedence, real banking, compound angular sweeps, runway pivot, physical boundary recovery and bounded manual handoff passed.');

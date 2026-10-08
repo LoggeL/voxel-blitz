@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { HELICOPTER_RULES as rules, stepHelicopterFlight } from '../shared/vehicle-handling/helicopter.js';
+import { TRANSPORT_RULES, stepTransportFlight } from '../shared/vehicle-handling/transport.js';
 
 const run = (seconds, input, state = {}, hz = 60) => {
   for (let i = 0; i < Math.round(seconds * hz); i++) stepHelicopterFlight(state, input, 1 / hz);
@@ -21,7 +22,7 @@ close(hover.rotorSpeed, 1);
 assert(hover.collective > 0 && hover.collective < 1, 'Hover requires a partial collective command');
 const recovering = run(5, manual, { rotorSpeed: 1, vy: -5, vx: 8, vz: -4 });
 assert(Math.abs(recovering.vy) < 0.001, 'Neutral collective catches downward momentum');
-assert(recovering.speed > 5 && recovering.speed < 8.9, 'Centered cyclic retains drift while air drag gradually slows it');
+assert(recovering.speed < 0.5, 'A released assisted cyclic is the auto-hover: drift brakes to a hover');
 
 const start = { grounded: true, y: 11, rotorSpeed: 0 };
 run(0.5, { lift: 1, throttle: 1, rollControl: 1 }, start);
@@ -81,9 +82,13 @@ close(forward.vx, 0);
 run(19, { ...manual, throttle: 1 }, forward);
 assert(forward.speed > 33 && forward.speed <= rules.speed, 'Sustained cyclic reaches the bounded cruise envelope');
 const beforeRelease = forward.speed;
+run(1, manual, forward);
+assert(forward.pitch > 0.1 && forward.speed < beforeRelease * 0.9 && forward.speed > 15,
+  'Released cyclic flares the disk nose-up against the drift (momentum, not an instant stop)');
+run(4, manual, forward);
+assert(forward.speed < 1 && Math.abs(forward.pitch) < 0.1, `Auto-hover settles from cruise within five seconds (${forward.speed})`);
 run(2, manual, forward);
-assert(Math.abs(forward.pitch) < 0.01 && forward.speed > beforeRelease * 0.75,
-  'Released cyclic levels the hull without cancelling existing momentum');
+assert(forward.speed < 0.3 && Math.abs(forward.pitch) < 0.02 && Math.abs(forward.roll) < 0.02, 'The hover is level and stays put');
 const reverse = run(4, { ...manual, throttle: -1 }, { rotorSpeed: 1 });
 assert(reverse.vz > 10 && reverse.pitch > 0.39, 'A raised nose sends rotor thrust backward');
 
@@ -104,14 +109,17 @@ assert(east.vx > 2.7 && Math.abs(east.vz) < 1e-8, 'Heading rotates the disk acce
 const sideAtEast = run(1, { ...manual, rollControl: 1 }, { yaw: -Math.PI / 2, rotorSpeed: 1 });
 assert(sideAtEast.vz > 2.5 && Math.abs(sideAtEast.vx) < 1e-8, 'Lateral acceleration rotates with the hull');
 
-const yawing = run(1, { ...manual, yawControl: 1 }, { rotorSpeed: 1, vz: -20 });
+// Pedal physics with the mouse-stick cyclic (rate commands, no auto-hover),
+// so a released cyclic never tilts against the drift the pedals swing round.
+const stick = { ...manual, attitudeHold: true };
+const yawing = run(1, { ...stick, yawControl: 1 }, { rotorSpeed: 1, vz: -20 });
 assert(yawing.yaw < -0.7 && yawing.yawRate < -1, 'Yaw pedals build a bounded angular rate');
 close(yawing.vx, 0);
 assert(yawing.vz < -17, 'Yaw pedals cannot rotate existing flight momentum');
 const oldYaw = yawing.yaw;
-run(0.1, manual, yawing);
+run(0.1, stick, yawing);
 assert(yawing.yaw < oldYaw && yawing.yawRate < 0, 'Yaw momentum persists briefly after release');
-run(1, manual, yawing);
+run(1, stick, yawing);
 close(yawing.yawRate, 0);
 const bankedTurn = run(2, { ...manual, throttle: 1, rollControl: 0.6, yawControl: 0.5 },
   { rotorSpeed: 1, vz: -20 });
@@ -188,4 +196,42 @@ stepHelicopterFlight({}, { throttle: 1, lift: 1, steer: -1, brake: 0,
   pitchControl: 1, rollControl: -1, yawControl: 1 }, 0.25), 'Analog controls clamp to legal ranges');
 assert.equal(stepHelicopterFlight(null, {}, 0.1), null);
 stepHelicopterFlight({}, null, 0.1);
-console.log('Conquest helicopter handling: rotor-vector cyclic, pedals, collective, momentum, hover brake, takeoff, landing, inactive gravity, frame rates and finite boundaries passed.');
+// Assisted (mouse-aim / keyboard) cyclic: W/S/A/D tilt the disk while held,
+// a released cyclic is the auto-hover, Space/Shift climb and sink, a released
+// collective holds the altitude, and without pedals the nose follows the aim.
+for (const [name, stepper, airframe] of [['helicopter', stepHelicopterFlight, rules], ['transport', stepTransportFlight, TRANSPORT_RULES]]) {
+  const fly = (seconds, input, state) => { for (let i = 0; i < Math.round(seconds * 60); i++) {
+    state.grounded = state.y <= 11 && (state.vy ?? 0) <= 0;
+    stepper(state, { pitchControl: 0, rollControl: 0, ...input }, 1 / 60);
+    state.x += state.vx / 60; state.y = Math.max(11, state.y + state.vy / 60); state.z += state.vz / 60;
+    if (state.y <= 11) state.vy = Math.max(0, state.vy);
+  } return state; };
+  // Space alone lifts a parked helicopter whose rotor is still spinning up.
+  const heli = fly(3, { lift: 1, yaw: 0 }, { x: 0, y: 11, z: 0, rotorSpeed: 0, grounded: true });
+  assert(heli.y > 16 && heli.vy > 3 && !heli.grounded, `${name}: Space alone takes off (${heli.y.toFixed(1)} m)`);
+  assert(Math.hypot(heli.x, heli.z) < 0.5, `${name}: a straight vertical takeoff`);
+  const climbed = fly(3, { lift: 1, yaw: 0 }, heli).y;
+  fly(2, { yaw: 0 }, heli);
+  const held = heli.y;
+  fly(3, { yaw: 0 }, heli);
+  assert(Math.abs(heli.vy) < 0.05 && Math.abs(heli.y - held) < 0.2, `${name}: a released collective holds the altitude`);
+  assert(held > climbed, `${name}: the climb settles smoothly (no drop) after Space is released`);
+  fly(2, { lift: -1, yaw: 0 }, heli);
+  assert(heli.vy < -airframe.descent * 0.9 && heli.y < held - 6, `${name}: Shift descends`);
+  fly(3, { yaw: 0 }, heli);
+  assert(Math.abs(heli.vy) < 0.05, `${name}: releasing Shift holds the new altitude`);
+  // W cruises forward, D strafes; releasing both settles into a hover within a few seconds.
+  fly(6, { throttle: 1, rollControl: 1, yaw: 0 }, heli);
+  const cruise = heli.speed;
+  assert(cruise > 15 && heli.vz < -8 && heli.vx > 4, `${name}: W/D fly forward and right (${heli.vx.toFixed(1)}, ${heli.vz.toFixed(1)})`);
+  let settled = null;
+  for (let t = 0; t < 8 && settled === null; t += 0.25) { fly(0.25, { yaw: 0 }, heli); if (heli.speed < 1) settled = t + 0.25; }
+  assert(settled !== null && settled <= 5.5, `${name}: auto-hover from ${cruise.toFixed(1)} m/s in ${settled} s`);
+  fly(2, { yaw: 0 }, heli);
+  assert(heli.speed < 0.3 && Math.abs(heli.pitch) < 0.02 && Math.abs(heli.roll) < 0.02, `${name}: a level, stationary hover`);
+  // Mouse aim: no pedal axis, the nose turns to the aim yaw at the pedal rate.
+  fly(3, { yaw: 1.2 }, heli);
+  assert(Math.abs(heli.yaw - 1.2) < 0.02 && heli.speed < 0.5, `${name}: the nose follows the aim yaw without drifting`);
+}
+
+console.log('Conquest helicopter handling: rotor-vector cyclic, pedals, collective, momentum, hover brake, auto-hover, Space takeoff, altitude hold, aim yaw, landing, inactive gravity, frame rates and finite boundaries passed.');

@@ -79,8 +79,12 @@ async function render(id, { touch: touchMode = false } = {}) {
   const h = ensureHud();
   conquest?.dispose();
   h.setScoreboard?.(false);
+  // Mouse-aim fixtures: a ground cast straight down reports the fixture's AGL, and the pilot hint shows as on a first entry.
+  const flight = state.flight;
+  try { localStorage.removeItem('vb-flight-hint-v1'); } catch (_) {}
   conquest = new ConquestHud(document.body, { combatHud: h.combat, onDeploy() {}, onSpot() {}, onSupport() {}, onInteract() {},
-    careerProfile: () => state.career ?? null });
+    careerProfile: () => state.career ?? null,
+    ...(flight ? { shellRaycast: (origin, dir) => (dir?.y < -0.9 ? { t: flight.agl + 0.5 } : null) } : {}) });
   if (touchMode && !touch) {
     touch = new TouchControls({ documentRef: document });
     touch.mount(document.body);
@@ -98,7 +102,10 @@ async function render(id, { touch: touchMode = false } = {}) {
   h.setState(localHudState(state));
   if (state.selection) conquest.deploy.selection = { ...conquest.deploy.selection, ...state.selection };
   const args = { match: state.match, mapMeta, self: state.self, players: state.players, vehicles: state.vehicles, camera,
-    nearbyVehicle: state.nearbyVehicle, nowMs: FIXTURE_NOW, interactHeld: state.interactHeld, viewport: { width, height } };
+    nearbyVehicle: state.nearbyVehicle, nowMs: FIXTURE_NOW, interactHeld: state.interactHeld, viewport: { width, height },
+    // A fixture's camera view strip shows as if V was just pressed.
+    ...(state.viewStrip ? { vehicleController: { viewState: () => ({ ...state.viewStrip, changedAt: performance.now() }) } } : {}),
+    ...(flight ? { vehicleController: { aimFlight: flight.aim === true, flight: { mode: flight.mode }, viewState: () => null } } : {}) };
   lastArgs = args;
   conquest.update(args);
   if (state.dead) conquest.setDead(true, state.killer);
@@ -163,7 +170,7 @@ function boxes() {
     .map(n => ({ id: n.querySelector('.cq-flag-marker-letter')?.textContent || '?', box: union(rect(n), rect(n.querySelector('.cq-flag-marker-distance'))) }))
     .filter(f => f.box);
   return {
-    top: one('.cq-top'), banner: one('.cq-banner'), ring: one('.cq-ring'), ticker: one('.cq-ticker'), minimap: one('.cq-minimap'), squad: one('.cq-squad'),
+    top: one('.cq-top'), view: one('.cq-view'), banner: one('.cq-banner'), ring: one('.cq-ring'), ticker: one('.cq-ticker'), minimap: one('.cq-minimap'), squad: one('.cq-squad'),
     'map-hint': one('.cq-map-hint'), vehicle: one('.cq-vehicle'), interact: one('.cq-interact'), lock: one('.cq-lock'), restricted: one('.cq-restricted'),
     healthbar: one('#healthbar'), ammo: one('#ammo'), grenades: one('#grenade-count'), 'reload-hint': one('#reload-hint'), killfeed: one('#killfeed'),
     // The result panel fills phone screens: its header texts are what must clear the pause button.

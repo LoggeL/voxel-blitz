@@ -16,11 +16,13 @@ function buildParts() {
   hull.loft([[-5.2, 0.1, 0.95, 1.15, 2], [-4.6, 0.3, 0.85, 1.4, 2], [-3.4, 0.5, 0.8, 1.6, 2.5],
     [-2.4, 0.6, 0.8, 1.7, 3], [-1.2, 0.7, 0.85, 1.75, 4], [2.0, 0.8, 0.85, 1.75, 6], [3.6, 0.85, 0.9, 1.65, 6], [4.6, 0.8, 0.95, 1.5, 5]], 'paint');
   hull.paint([-1, 0.6, -5.4], [1, 1.8, -4.2], 'radome');
-  // Bubble canopy over the cockpit tub, with a dark windscreen bow.
+  // Frameless bubble canopy over the cockpit tub, tall enough for the pilot's
+  // helmet (the first-person frame and panel are CockpitOverlay's), with a
+  // dark aft frame.
   hull.carve([-0.4, 1.2, -2.4], [0.4, 1.8, -0.2]);
   hull.box([-0.4, 1.0, -2.4], [0.4, 1.2, -0.2], 'interior');
-  hull.loft([[-2.8, 0.15, 1.5, 1.7, 2], [-2.2, 0.42, 1.4, 2.2, 2.5], [-1.0, 0.48, 1.4, 2.35, 3], [-0.2, 0.3, 1.45, 1.9, 2]], 'glass', { shell: 0.2 });
-  hull.paint([-1, 1.4, -2.4], [1, 2.4, -2.2], 'dark', { where: material => material === 'glass' });
+  hull.loft([[-2.8, 0.15, 1.5, 1.75, 2], [-2.0, 0.5, 1.4, 2.55, 2.5], [-1.0, 0.52, 1.4, 2.66, 3], [-0.2, 0.32, 1.45, 2.05, 2]], 'glass', { shell: 0.2 });
+  hull.paint([-1, 1.4, -0.6], [1, 2.8, -0.4], 'dark', { where: material => material === 'glass' });
   const [sx, sy, sz] = def.seats[0].position;
   hull.box([sx - 0.2, 1.2, sz - 0.2], [sx + 0.2, sy - 0.1, sz + 0.2], 'seat');
   hull.box([sx - 0.2, sy - 0.1, sz + 0.2], [sx + 0.2, sy + 0.7, sz + 0.4], 'seat');

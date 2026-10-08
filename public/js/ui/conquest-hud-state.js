@@ -334,7 +334,34 @@ export function lockWarning(row, players = [], selfTeam, yaw) {
 }
 
 /** The vehicle panel: seats, hull HP and badges, weapons, countermeasure and lock state. */
-export function vehiclePanelModel(seated, { selfId, players = [], selfTeam = null, yaw = null } = {}) {
+/**
+ * Height above ground of an aircraft row: 0 while landed, else the distance to
+ * the first solid voxel straight below (`raycast(origin, dir, max)` -> { t }),
+ * null without a world cast or ground within 400 m.
+ */
+export function aircraftAgl(row, raycast = null) {
+  if (!row || !isAircraftType(row.type) || !Number.isFinite(row.y) || typeof raycast !== 'function') return null;
+  if (row.grounded !== false) return 0;
+  const hit = raycast({ x: finite(row.x), y: row.y + 0.5, z: finite(row.z) }, { x: 0, y: -1, z: 0 }, 400);
+  return hit && Number.isFinite(hit.t) ? Math.max(0, Math.round(hit.t - 0.5)) : null;
+}
+
+/**
+ * Pilot flight instruments from the authoritative row: airspeed (km/h), height
+ * above ground, climb rate (m/s), the jet's persistent throttle (0..1, null
+ * for rotors) and its stall flag (airborne only).
+ */
+export function flightInstruments(row, { raycast = null } = {}) {
+  if (!row || !isAircraftType(row.type)) return null;
+  const jet = row.type === 'plane';
+  const speed = jet && Number.isFinite(row.airspeed) ? row.airspeed : Math.hypot(finite(row.vx), finite(row.vy), finite(row.vz));
+  const airborne = row.grounded === false;
+  return { rotor: !jet, speedKmh: Math.round(speed * 3.6), agl: aircraftAgl(row, raycast),
+    altitude: Number.isFinite(row.y) ? Math.round(row.y) : null, climb: Math.round(finite(row.vy) * 10) / 10,
+    throttle: jet ? clamp01(finite(row.throttle)) : null, stalled: jet && airborne && row.stalled === true, airborne };
+}
+
+export function vehiclePanelModel(seated, { selfId, players = [], selfTeam = null, yaw = null, raycast = null } = {}) {
   if (!seated?.row) return null;
   const { row, seat } = seated;
   const status = vehicleStatus(row);
@@ -356,7 +383,11 @@ export function vehiclePanelModel(seated, { selfId, players = [], selfTeam = nul
     cm: cmKind && drives ? { kind: cmKind, label: cmKind === 'smoke' ? 'SMOKE' : 'FLARES',
       ready: clamp01(finite(row.cmr) / 100), available: finite(row.cmr) >= 100, active: status[cmKind] === true } : null,
     lock: lockWarning(row, players, selfTeam, yaw),
+    // Height above ground (AGL); the absolute height only without a world cast.
     speedKmh: Math.round(speed * 3.6), altitude: isAircraftType(row.type) && Number.isFinite(row.y) ? Math.round(row.y) : null,
+    agl: aircraftAgl(row, raycast),
+    throttle: row.type === 'plane' && drives ? Math.round(clamp01(finite(row.throttle)) * 100) : null,
+    stalled: row.type === 'plane' && row.grounded === false && row.stalled === true,
     aircraft: isAircraftType(row.type),
   };
 }
@@ -395,16 +426,26 @@ export function mountPoseOf(row, seatId, mountId, registry = vehicleDefs) {
  * points to CSS pixels; `aimDistance` is the camera-ray distance to the aimed
  * surface (defaults to 150 m without a surface).
  */
-export function reticleModel(seated, { projector = null, players = [], vehicles = [], selfTeam = null, aimDistance = 150, registry = vehicleDefs, raycast = null } = {}) {
+export function reticleModel(seated, { projector = null, players = [], vehicles = [], selfTeam = null, aimDistance = 150, registry = vehicleDefs, raycast = null,
+  flightAim = false } = {}) {
   if (!seated?.row || !projector) return null;
   const { row, seat } = seated;
   const weapons = seatWeapons(row, seat.id);
   const selected = weapons.find(w => w.selected) || weapons[0] || null;
   const center = { x: projector.width / 2, y: projector.height / 2 };
-  const base = { type: row.type, seatId: seat.id, center, weapon: selected?.weapon ?? null };
+  const pilot = seat.drives && isAircraftType(row.type);
+  // Pilots get the flight instruments; a mouse-aim pilot also the aim circle
+  // (screen centre, where the camera looks) apart from the nose marker.
+  const base = { type: row.type, seatId: seat.id, center, weapon: selected?.weapon ?? null,
+    ...(pilot ? { flight: flightInstruments(row, { raycast }), aim: flightAim === true } : {}) };
   const project = p => { const s = projector.project(p[0], p[1], p[2]); return s.behind ? null : s; };
   if (!selected) {
-    if (seat.drives && isAircraftType(row.type)) return { ...base, kind: 'flight' };
+    if (pilot) {
+      // Unarmed pilot (transport): the nose marker 150 m along the hull.
+      const ahead = hullPoint(row, registry, null, -150);
+      const nose = ahead ? project(ahead) : null;
+      return { ...base, kind: 'flight', nose: nose ? { x: nose.x, y: nose.y } : null };
+    }
     return null;
   }
   const meta = VEHICLE_WEAPON_META[selected.weapon] || {};
@@ -482,7 +523,7 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
     }
     const speed = Number.isFinite(row.airspeed) ? row.airspeed : Math.hypot(finite(row.vx), finite(row.vy), finite(row.vz));
     return { ...base, kind: 'jet', boresight: bore ? { x: bore.x, y: bore.y } : null, pipper, target: lockBox,
-      speedKmh: Math.round(speed * 3.6), altitude: Math.round(finite(row.y)), heat: selected.heat, label: selected.label };
+      speedKmh: Math.round(speed * 3.6), altitude: base.flight?.agl ?? Math.round(finite(row.y)), heat: selected.heat, label: selected.label };
   }
   // Pintle, RWS and other hitscan mounts: barrel crosshair 100 m along the mount.
   const aim = pose ? project([pose.origin[0] + pose.dir[0] * 100, pose.origin[1] + pose.dir[1] * 100, pose.origin[2] + pose.dir[2] * 100]) : null;

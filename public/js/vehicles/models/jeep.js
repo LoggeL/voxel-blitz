@@ -46,14 +46,18 @@ function buildParts() {
   hull.cyl([0.4, 1.1, 2.1], 0.36, 0.2, 'z', 'rubber', { tag: 'spare' });
   hull.cyl([0.4, 1.1, 2.1], 0.18, 0.4, 'z', 'drab', { tag: 'spare' });
   hull.box([-0.6, 0.8, 2.0], [-0.2, 1.4, 2.2], 'canvas', { tag: 'jerrycan' });
-  // Windscreen: cowl, outer posts, top rail and a centre post between two panes.
+  // Windscreen: cowl, outer posts, top rail and a centre post between two
+  // panes. The frame is its own part: from the local driver's first-person
+  // seat it folds away (VehicleView hides model.firstPersonHidden).
   hull.box([-1.0, 1.2, -0.6], [1.0, 1.4, -0.4], 'dark');
-  hull.box([-1.0, 1.4, -0.6], [-0.8, 2.0, -0.4], 'paint', { tag: 'windscreen' });
-  hull.box([0.8, 1.4, -0.6], [1.0, 2.0, -0.4], 'paint', { tag: 'windscreen' });
-  hull.box([-1.0, 2.0, -0.6], [1.0, 2.2, -0.4], 'paint', { tag: 'windscreen' });
-  hull.box([-0.2, 1.4, -0.6], [0.2, 2.0, -0.4], 'dark', { tag: 'windscreen' });
-  hull.box([-0.8, 1.4, -0.6], [-0.2, 2.0, -0.4], 'glass', { tag: 'windscreen' });
-  hull.box([0.2, 1.4, -0.6], [0.8, 2.0, -0.4], 'glass', { tag: 'windscreen' });
+  const windscreen = new VoxelPart('jeep-windscreen');
+  windscreen.box([-1.0, 1.4, -0.6], [-0.8, 2.0, -0.4], 'paint', { tag: 'windscreen' });
+  windscreen.box([0.8, 1.4, -0.6], [1.0, 2.0, -0.4], 'paint', { tag: 'windscreen' });
+  windscreen.box([-1.0, 2.0, -0.6], [1.0, 2.2, -0.4], 'paint', { tag: 'windscreen' });
+  windscreen.box([-0.2, 1.4, -0.6], [0.2, 2.0, -0.4], 'dark', { tag: 'windscreen' });
+  windscreen.box([-0.8, 1.4, -0.6], [-0.2, 2.0, -0.4], 'glass', { tag: 'windscreen' });
+  windscreen.box([0.2, 1.4, -0.6], [0.8, 2.0, -0.4], 'glass', { tag: 'windscreen' });
+  windscreen.userData.priority = { windscreen: 75 };
   // Seats from the def hips (cushion below, back behind).
   const cushion = (position, width = 0.4) => {
     const [x, y, z] = position;
@@ -82,7 +86,7 @@ function buildParts() {
     for (let y = 1.4; y < 2.4; y += 0.2) hull.box([side < 0 ? -1.0 : 0.8, y, 1.8], [side < 0 ? -0.8 : 1.0, y + 0.2, 2.0], 'dark', { tag: 'antenna' });
   }
   hull.roundel([0, 1.4, -1.2], 0.42, [0, 1, 0]);
-  hull.userData.priority = { hood: 80, windscreen: 75, rollbar: 60, tailgate: 50, spare: 70, jerrycan: 40, antenna: 20,
+  hull.userData.priority = { hood: 80, rollbar: 60, tailgate: 50, spare: 70, jerrycan: 40, antenna: 20,
     'fender-front-left': 45, 'fender-front-right': 45, 'fender-rear-left': 45, 'fender-rear-right': 45 };
 
   // Steering wheel (spins with the steer input).
@@ -120,7 +124,7 @@ function buildParts() {
   wheel.cyl([0, 0, 0], 0.24, 0.8, 'x', 'dark');
   // Charred tyres stay on the wreck: the hull settles onto them.
   wheel.userData.breaks = false;
-  return { hull, steering, swivel, hmg, wheel };
+  return { hull, windscreen, steering, swivel, hmg, wheel };
 }
 
 /**
@@ -133,6 +137,8 @@ export function makeJeepModel(options = {}) {
   const { group } = kit;
   const body = kit.node(group, 'jeep-body', [0, 0, 0]);
   kit.part(body, parts.hull);
+  const windscreen = kit.node(body, 'jeep-windscreen', [0, 0, 0]);
+  kit.part(windscreen, parts.windscreen);
   const steering = kit.node(body, 'steering-wheel', parts.steering.pivot);
   kit.part(steering, parts.steering);
   steering.rotation.x = -0.6;
@@ -189,5 +195,7 @@ export function makeJeepModel(options = {}) {
     body, mounts, seatAnchors, emitters, contacts, wheels: [wheels], animate,
     turret: swivel, gun: cradle, steeringWheel: steering, wheelControls,
     floorTop: 0.8,
+    // Folded away from the local first-person seats (see VehicleView).
+    windscreen, firstPersonHidden: [windscreen],
   });
 }

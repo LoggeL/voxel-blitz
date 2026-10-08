@@ -234,12 +234,17 @@ for(const start of [{x:450,z:850},{x:176.5,z:438.5},{x:848.5,z:438.5}]) {
 {
   const f=fixture(),v=f.vehicle;
   Object.assign(v,{x:65,y:40,z:500,yaw:Math.PI/2,vx:-34,vy:0,vz:0,speed:34,rotorSpeed:1,grounded:false});
-  f.input({yaw:Math.PI/2,vehicleThrottle:1});let recovered=false;
+  // 34 m/s, 65 m from the west edge, the pilot holding W toward it: the edge
+  // brake (and the safety pilot) stop the drift without damage; afterwards the
+  // pilot keeps control and turning round flies back inward.
+  f.input({yaw:Math.PI/2,vehicleThrottle:1});let recovered=false,braked=false;
   for(let i=0;i<1800;i++) {
-    f.ticks(1);recovered ||= v.x>120&&v.vx>0;
+    if(i===900)f.input({yaw:-Math.PI/2,vehicleThrottle:1});
+    f.ticks(1);recovered ||= i>900&&v.x>120&&v.vx>0;braked ||= v.edgeSteer>0;
     assert(v.hp===VEHICLE_RULES.helicopter.hp&&!v.grounded&&f.game.vehicles.clearHull(v,v.x,v.y,v.z),'helicopter boundary braking and turn remain a clear full-health flight');
   }
-  assert(recovered,'the helicopter releases safety braking after turning and returns toward the interior');
+  assert(braked,'the helicopter brakes at the map edge');
+  assert(recovered,'the pilot keeps control: turning round flies back toward the interior');
 }
 
 // Collide and slide: a near-parallel graze removes only the closing speed into

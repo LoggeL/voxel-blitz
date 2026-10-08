@@ -3,8 +3,9 @@
  * range readout and a 100 m range ladder) plus the desired-aim circle and
  * reload arc, helicopter rocket pip at convergence,
  * chin-gun gimbal box, door-gun arc limits, hitscan mount crosshair, jet gun
- * funnel with lead pipper and speed / altitude tapes, and the locker box for
- * our own lock attempt. Models come from reticleModel / lockerModel.
+ * funnel with lead pipper, the pilot instruments (speed / AGL tapes, climb,
+ * throttle, stall) with the mouse-aim circle, and the locker box for our own
+ * lock attempt. Models come from reticleModel / lockerModel.
  */
 import { el } from '../hud-support.js';
 
@@ -68,16 +69,19 @@ export class Reticles {
     ctx.textAlign = 'center';
     this._blank = false;
     if (model) {
+      // Pilot instruments first, so projected symbology stays on top.
+      if (model.flight) this._instruments(ctx, model.flight, width, height);
       switch (model.kind) {
         case 'tank': this._tank(ctx, model); break;
         case 'pods': this._pods(ctx, model); break;
         case 'gimbal': this._gimbal(ctx, model, width, height, touch); break;
         case 'door': this._door(ctx, model, width, height); break;
         case 'jet': this._jet(ctx, model, width, height); break;
-        case 'flight': break;
+        case 'flight': this._nose(ctx, model.nose); break;
         case 'mg': this._mg(ctx, model); break;
         default: break;
       }
+      if (model.aim) this._aimCircle(ctx, model.center, model.kind === 'jet' ? model.boresight : model.kind === 'pods' ? model.pip : model.nose);
     }
     if (locker) this._locker(ctx, locker, width, height);
   }
@@ -221,34 +225,8 @@ export class Reticles {
 
   _jet(ctx, m, width, height) {
     const b = m.boresight ?? m.center;
-    // Speed (left) and altitude (right) tapes, drawn first so projected symbology (pipper, target box) stays on top.
-    const tapeH = Math.min(220, height * 0.36), top = height / 2 - tapeH / 2;
-    const tape = (x, value, step, unit, align) => {
-      this.reserved.push({ left: x - 34, top: top - 18, right: x + 34, bottom: top + tapeH });
-      ctx.save();
-      ctx.beginPath(); ctx.rect(x - 34, top, 68, tapeH); ctx.clip();
-      ctx.fillStyle = '#05090cb0'; ctx.fillRect(x - 34, top, 68, tapeH);
-      ctx.strokeStyle = '#7ef29a90'; ctx.lineWidth = 1; ctx.fillStyle = '#c9f7d6';
-      ctx.font = '600 10px "Rajdhani", system-ui, sans-serif'; ctx.textAlign = align === 'left' ? 'right' : 'left';
-      const pxPer = tapeH / (step * 6);
-      const base = Math.floor(value / step) * step;
-      for (let k = -4; k <= 4; k++) {
-        const v = base + k * step, y = height / 2 - (v - value) * pxPer;
-        const tick = align === 'left' ? x + 34 : x - 34, dir = align === 'left' ? -1 : 1;
-        ctx.beginPath(); ctx.moveTo(tick, y); ctx.lineTo(tick + dir * 8, y); ctx.stroke();
-        if (v >= 0) ctx.fillText(String(v), tick + dir * 11, y + 3);
-      }
-      ctx.restore();
-      ctx.fillStyle = '#0b1218'; ctx.strokeStyle = GREEN; ctx.lineWidth = 1.5;
-      ctx.fillRect(x - 30, height / 2 - 11, 60, 22); ctx.strokeRect(x - 30, height / 2 - 11, 60, 22);
-      ctx.fillStyle = GREEN; ctx.font = '700 14px "Rajdhani", system-ui, sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(String(Math.round(value)), x, height / 2 + 5);
-      ctx.font = '700 10px "Rajdhani", system-ui, sans-serif';
-      this._text(ctx, unit, x, top - 6, '#c9f7d6');
-    };
-    const gap = Math.min(260, width * 0.26);
-    tape(width / 2 - gap, m.speedKmh, 50, 'KM/H', 'left');
-    tape(width / 2 + gap, m.altitude, 20, 'ALT M', 'right');
+    // Older models without instruments keep their speed / altitude tapes.
+    if (!m.flight) this._instruments(ctx, { speedKmh: m.speedKmh, agl: null, altitude: m.altitude, throttle: null, rotor: false }, width, height);
     // Boresight cross.
     ctx.lineWidth = 1.5; ctx.strokeStyle = GREEN;
     shadowed(ctx, () => {
@@ -279,6 +257,110 @@ export class Reticles {
       ctx.fillStyle = '#0008'; ctx.fillRect(width / 2 - 40, height / 2 + 60, 80, 3);
       ctx.fillStyle = m.heat >= 0.999 ? RED : m.heat > 0.75 ? AMBER : GREEN; ctx.fillRect(width / 2 - 40, height / 2 + 60, 80 * m.heat, 3);
     }
+  }
+
+  /**
+   * Pilot tapes: airspeed (left, with the jet's throttle bar on its inner
+   * side) and height above ground (right, with the climb rate under it), and
+   * the stall warning above the aim. `f` is flightInstruments().
+   */
+  _instruments(ctx, f, width, height) {
+    // Phones: narrower tapes (portrait) and shorter ones set a little lower,
+    // clear of the vehicle card (landscape).
+    const narrow = width < 600, low = height < 500;
+    const half = narrow ? 26 : 34, box = narrow ? 24 : 30;
+    const tapeH = low ? Math.min(130, height * 0.32) : Math.min(220, height * 0.36);
+    const mid = low ? height / 2 + 26 : height / 2, top = mid - tapeH / 2;
+    const tape = (x, value, step, unit, align) => {
+      this.reserved.push({ left: x - half, top: top - 18, right: x + half, bottom: top + tapeH + 18 });
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x - half, top, half * 2, tapeH); ctx.clip();
+      ctx.fillStyle = '#05090cb0'; ctx.fillRect(x - half, top, half * 2, tapeH);
+      ctx.strokeStyle = '#7ef29a90'; ctx.lineWidth = 1; ctx.fillStyle = '#c9f7d6';
+      ctx.font = '600 10px "Rajdhani", system-ui, sans-serif'; ctx.textAlign = align === 'left' ? 'right' : 'left';
+      const known = Number.isFinite(value), shown = known ? value : 0;
+      const pxPer = tapeH / (step * 6);
+      const base = Math.floor(shown / step) * step;
+      for (let k = -4; k <= 4 && known; k++) {
+        const v = base + k * step, y = mid - (v - shown) * pxPer;
+        if (Math.abs(y - mid) < 13) continue;
+        const tick = align === 'left' ? x + half : x - half, dir = align === 'left' ? -1 : 1;
+        ctx.beginPath(); ctx.moveTo(tick, y); ctx.lineTo(tick + dir * 7, y); ctx.stroke();
+        if (v >= 0) ctx.fillText(String(v), tick + dir * 10, y + 3);
+      }
+      ctx.restore();
+      ctx.fillStyle = '#0b1218'; ctx.strokeStyle = GREEN; ctx.lineWidth = 1.5;
+      ctx.fillRect(x - box, mid - 11, box * 2, 22); ctx.strokeRect(x - box, mid - 11, box * 2, 22);
+      ctx.fillStyle = GREEN; ctx.font = `700 ${narrow ? 13 : 14}px "Rajdhani", system-ui, sans-serif`; ctx.textAlign = 'center';
+      ctx.fillText(known ? String(Math.round(value)) : '--', x, mid + 5);
+      ctx.font = '700 10px "Rajdhani", system-ui, sans-serif';
+      this._text(ctx, unit, x, top - 6, '#c9f7d6');
+    };
+    const gap = Math.min(260, width * (narrow ? 0.3 : 0.26));
+    const left = width / 2 - gap, right = width / 2 + gap;
+    tape(left, f.speedKmh, 50, 'KM/H', 'left');
+    // Height above ground; the absolute height only when no ground cast is available.
+    const agl = Number.isFinite(f.agl);
+    tape(right, agl ? f.agl : f.altitude, f.rotor ? 10 : 20, agl ? 'AGL M' : 'ALT M', 'right');
+    ctx.save();
+    ctx.font = '700 10px "Rajdhani", system-ui, sans-serif'; ctx.textAlign = 'center';
+    if (Number.isFinite(f.climb) && f.airborne !== false) {
+      // Climb rate under the altitude tape: the collective's effect at a glance.
+      const climb = Math.abs(f.climb) < 0.3 ? 'LEVEL' : `${f.climb > 0 ? '\u25B2' : '\u25BC'} ${Math.abs(f.climb).toFixed(1)} M/S`;
+      this._text(ctx, climb, right, top + tapeH + 13, Math.abs(f.climb) < 0.3 ? '#c9f7d6' : WHITE);
+    }
+    if (Number.isFinite(f.throttle)) {
+      // Throttle bar on the inner side of the speed tape.
+      const bx = left + half + 6, bw = narrow ? 6 : 8, fill = Math.max(0, Math.min(1, f.throttle));
+      this.reserved.push({ left: bx - 2, top: top - 18, right: bx + bw + 16, bottom: top + tapeH + 18 });
+      ctx.fillStyle = '#05090cb0'; ctx.fillRect(bx, top, bw, tapeH);
+      ctx.fillStyle = fill > 0.95 ? AMBER : GREEN; ctx.fillRect(bx, top + tapeH * (1 - fill), bw, tapeH * fill);
+      ctx.strokeStyle = '#7ef29a90'; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, top + 0.5, bw - 1, tapeH - 1);
+      this._text(ctx, `THR ${Math.round(fill * 100)}%`, bx + bw / 2, top + tapeH + 13, '#c9f7d6');
+    }
+    ctx.restore();
+    if (f.stalled) {
+      // Stall warning: a red chip above the aim, sized to its text.
+      const label = 'STALL \u00B7 NOSE DOWN';
+      ctx.save();
+      ctx.font = '700 12px "Rajdhani", "Barlow Condensed", system-ui, sans-serif'; ctx.textAlign = 'center';
+      const w = Math.max(110, Math.ceil(ctx.measureText?.(label)?.width ?? 110) + 24), h = 22, x = width / 2 - w / 2, y = height / 2 - 80;
+      this.reserved.push({ left: x, top: y, right: x + w, bottom: y + h });
+      ctx.fillStyle = '#2a0b0dd0'; ctx.strokeStyle = RED; ctx.lineWidth = 1.5;
+      ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = RED; ctx.fillText(label, width / 2, y + 15);
+      ctx.restore();
+    }
+  }
+
+  /** Mouse aim: the white aim circle at the screen centre, a dotted line to the nose marker. */
+  _aimCircle(ctx, center, nose) {
+    const { x, y } = center, r = 17;
+    if (nose && Number.isFinite(nose.x) && Number.isFinite(nose.y)) {
+      const dx = nose.x - x, dy = nose.y - y, d = Math.hypot(dx, dy);
+      if (d > r + 12) {
+        ctx.save();
+        ctx.lineWidth = 1.5; ctx.strokeStyle = '#7ef29a90'; ctx.setLineDash([2, 5]);
+        ctx.beginPath(); ctx.moveTo(x + dx / d * r, y + dy / d * r); ctx.lineTo(nose.x - dx / d * 11, nose.y - dy / d * 11); ctx.stroke();
+        ctx.restore();
+      }
+    }
+    ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffffe0';
+    shadowed(ctx, () => { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke(); });
+    ctx.fillStyle = '#ffffffe0';
+    ctx.beginPath(); ctx.arc(x, y, 1.6, 0, TAU); ctx.fill();
+  }
+
+  /** Nose marker of an unarmed pilot seat: a small gun cross where the nose points. */
+  _nose(ctx, nose) {
+    if (!nose) return;
+    ctx.lineWidth = 1.5; ctx.strokeStyle = GREEN;
+    shadowed(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(nose.x - 11, nose.y); ctx.lineTo(nose.x - 4, nose.y); ctx.moveTo(nose.x + 4, nose.y); ctx.lineTo(nose.x + 11, nose.y);
+      ctx.moveTo(nose.x, nose.y - 4); ctx.lineTo(nose.x, nose.y - 9);
+      ctx.stroke();
+    });
   }
 
   _locker(ctx, locker, width, height) {

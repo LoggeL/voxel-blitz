@@ -9,6 +9,7 @@ import { MAP_LABELS, MODE_LABELS, el, loadPref, loadPrefNum, savePref } from './
 import {
   ADS_MODES,
   FLIGHT_MODES,
+  readFlightMode,
   FLIGHT_SENSITIVITY,
   INPUT_PREF_KEYS,
   PAD_SENSITIVITY,
@@ -39,7 +40,7 @@ const POINTER_MODE_LABELS = Object.freeze({
 });
 const TOUCH_SIZE_LABELS = Object.freeze({ small: 'SMALL', medium: 'MEDIUM', large: 'LARGE' });
 const TOUCH_HAND_LABELS = Object.freeze({ right: 'RIGHT HANDED', left: 'LEFT HANDED' });
-const FLIGHT_MODE_LABELS = Object.freeze({ mouse: 'MOUSE FLIGHT', keyboard: 'KEYBOARD FLIGHT' });
+const FLIGHT_MODE_LABELS = Object.freeze({ aim: 'MOUSE AIM', mouse: 'MOUSE STICK', keyboard: 'KEYBOARD FLIGHT' });
 
 function readChoicePref(key, choices, fallback) {
   try { return normalizeChoice(localStorage.getItem(key), choices, fallback); } catch (_) { return fallback; }
@@ -75,7 +76,7 @@ export class SettingsController {
       touchSize: readChoicePref(INPUT_PREF_KEYS.touchSize, TOUCH_SIZES, 'medium'),
       touchHand: readChoicePref(INPUT_PREF_KEYS.touchHand, TOUCH_HANDS, 'right'),
       aimAssist: loadPref(INPUT_PREF_KEYS.aimAssist, '1') !== '0',
-      flightMode: readChoicePref(INPUT_PREF_KEYS.flightMode, FLIGHT_MODES, 'mouse'),
+      flightMode: readFlightMode(key => localStorage.getItem(key)),
       flightSensitivity: clampFlightSensitivity(
         loadPrefNum(INPUT_PREF_KEYS.flightSensitivity, FLIGHT_SENSITIVITY.default),
       ),
@@ -381,7 +382,7 @@ export class SettingsController {
     const touchSens = sliderRow('settings-touch-sens', 'TOUCH LOOK SENSITIVITY', TOUCH_SENSITIVITY);
     const touchSize = choiceRow('settings-touch-size', 'TOUCH CONTROL SIZE', TOUCH_SIZES, TOUCH_SIZE_LABELS);
     const touchHand = choiceRow('settings-touch-hand', 'TOUCH LAYOUT', TOUCH_HANDS, TOUCH_HAND_LABELS);
-    // Desktop aircraft pilots: mouse flight (default) or the keyboard layout.
+    // Desktop aircraft pilots: mouse aim (default), the mouse stick or the keyboard layout.
     const flightMode = choiceRow('settings-flight-mode', 'AIRCRAFT CONTROLS', FLIGHT_MODES, FLIGHT_MODE_LABELS);
     const flightSens = sliderRow('settings-flight-sens', 'MOUSE FLIGHT SENSITIVITY', FLIGHT_SENSITIVITY);
     const flightInvert = choiceRow('settings-flight-invert', 'INVERT MOUSE FLIGHT PITCH', ['0', '1'], { 0: 'OFF', 1: 'ON' });
@@ -672,9 +673,9 @@ export class SettingsController {
     dom.flightSensVal.textContent = `${config.flightSensitivity.toFixed(2)}×`;
     dom.flightSensSlider.setAttribute('aria-valuenow', String(config.flightSensitivity));
     dom.flightInvertSelect.value = config.flightInvertY ? '1' : '0';
-    dom.flightModeHint.textContent = config.flightMode === 'mouse'
-      ? 'MOUSE IS THE STICK'
-      : 'KEYS ARE THE STICK';
+    dom.flightModeHint.textContent = config.flightMode === 'aim' ? 'MOUSE POINTS · AIRCRAFT FOLLOWS'
+      : config.flightMode === 'mouse' ? 'MOUSE IS THE STICK'
+        : 'KEYS ARE THE STICK';
 
     const effectivePointer = config.pointerMode === 'auto'
       ? (device.trackpadDetected ? 'trackpad' : 'mouse')
@@ -695,8 +696,8 @@ export class SettingsController {
     show(dom.touchHandRow, device.touch);
     // Pads and touch keep their own flight layout.
     show(dom.flightModeRow, !device.touch);
-    show(dom.flightSensRow, !device.touch && config.flightMode === 'mouse');
-    show(dom.flightInvertRow, !device.touch && config.flightMode === 'mouse');
+    show(dom.flightSensRow, !device.touch && config.flightMode !== 'keyboard');
+    show(dom.flightInvertRow, !device.touch && config.flightMode !== 'keyboard');
   }
 
   _syncKeyHints() {

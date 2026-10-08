@@ -12,6 +12,17 @@ export const PLANE_RULES = Object.freeze({
   maxStep: 0.25, maxSlope: 0.08, respawnSeconds: 30, fireSeconds: 0.2,
 });
 
+/**
+ * Attitude autopilot gains (mouse-aim instructor, boundary safety pilot).
+ * turnGain: wanted turn rate per radian of heading error; turnDamping:
+ * subtracts the turn already under way; rudder trims errors below
+ * rudderWindow; below guardHigh x stall speed the stall guard limits the nose
+ * to the flight path plus a shrinking angle of attack, guardDive (nose below
+ * the path) at guardLow x stall speed.
+ */
+export const AIM_INSTRUCTOR = Object.freeze({ turnGain: 1, turnDamping: 0.5, rudderWindow: 0.12, rudderGain: 8,
+  guardLow: 1.05, guardHigh: 1.6, guardDive: -0.08, guardLead: 1.5 });
+
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, finite(n)));
 const wrap = n => Math.atan2(Math.sin(n), Math.cos(n));
@@ -28,6 +39,7 @@ function stepFlightDynamics(state, input, dt) {
   const aileron = active ? clamp(input?.rollControl, -1, 1) : 0;
   const rudder = active ? clamp(input?.yawControl, -1, 1) : 0;
   const brake = active ? clamp(input?.brake, 0, 1) : (grounded ? 1 : 0);
+  const speedBrake = active ? clamp(input?.speedBrake, 0, 1) : 0;
   state.yaw = wrap(finite(state.yaw));
   state.pitch = clamp(state.pitch, r.minPitch, grounded ? 0.16 : r.maxPitch);
   state.roll = grounded ? 0 : clamp(state.roll, -r.maxBank, r.maxBank);
@@ -59,13 +71,39 @@ function stepFlightDynamics(state, input, dt) {
     const pitchAuthority = Math.max(authority, clamp(Math.hypot(state.vx, state.vy, state.vz) / r.takeoffSpeed, 0, 1) ** 2 * 0.35);
     let pitchControl = elevator, rollControl = aileron, yawControl = rudder;
     if (active && !manual) {
-      // Existing bots and safety guidance request an attitude. This autopilot
-      // moves the same control surfaces and obeys the same inertia/aerodynamics.
+      // The mouse-aim instructor (and the boundary safety pilot) request an
+      // attitude: the nose to a world yaw/pitch. It moves the same control
+      // surfaces and obeys the same inertia/aerodynamics as a human stick.
+      // Bank-to-turn: the bank whose coordinated turn rate closes the heading
+      // error, wings level once the nose is on the aim; a short rudder trims
+      // the last degrees. A/D (steer) override the bank.
       const yawError = wrap(targetYaw - state.yaw), steer = clamp(input?.steer, -1, 1);
-      const bankTarget = clamp(Math.abs(steer) > 0.01 ? -steer * r.maxBank : yawError * 1.7 - state.yawRate * 1.4, -r.maxBank, r.maxBank);
-      pitchControl = clamp(((targetPitch - state.pitch) * 5 - state.pitchRate * 0.7) / r.pitchRate, -1, 1);
+      const pathSpeed = Math.max(r.takeoffSpeed, forwardSpeed);
+      const turnRate = yawError * AIM_INSTRUCTOR.turnGain - state.yawRate * AIM_INSTRUCTOR.turnDamping;
+      const bankTarget = Math.abs(steer) > 0.01 ? -steer * r.maxBank
+        : clamp(Math.atan(turnRate * pathSpeed / r.gravity), -r.maxBank, r.maxBank);
+      // Stall guard: close to the stall speed the nose may rise less and less
+      // above the flight path, so a held climb trades height for speed
+      // instead of stalling (full freedom from guardHigh x stall speed).
+      // The speed it is heading for (thrust, climb and drag over guardLead s)
+      // decides, so a zoom climb is caught before the airspeed is gone. A jet
+      // already without flying speed is left to the pilot.
+      let pitchTarget = targetPitch;
+      // Takeoff assist: at rotation speed a level (or higher) aim lifts the
+      // nose for the takeoff instead of rolling off the end of the runway.
+      if (grounded && forwardSpeed >= r.takeoffSpeed && targetPitch > -0.05) pitchTarget = Math.max(pitchTarget, 0.12);
+      const path = Math.atan2(state.vy, Math.max(1, Math.hypot(state.vx, state.vz)));
+      const trend = r.acceleration * state.enginePower - r.gravity * Math.sin(path) - (0.6 + forwardSpeed * forwardSpeed * 0.0025);
+      const heading = forwardSpeed + Math.min(0, trend) * AIM_INSTRUCTOR.guardLead;
+      if (!grounded && forwardSpeed > r.stallSpeed * 0.5 && heading < r.stallSpeed * AIM_INSTRUCTOR.guardHigh) {
+        const margin = clamp((heading - r.stallSpeed * AIM_INSTRUCTOR.guardLow)
+          / (r.stallSpeed * (AIM_INSTRUCTOR.guardHigh - AIM_INSTRUCTOR.guardLow)), 0, 1);
+        pitchTarget = Math.min(pitchTarget, path + AIM_INSTRUCTOR.guardDive + (r.stallAngle * 0.8 - AIM_INSTRUCTOR.guardDive) * margin);
+      }
+      pitchControl = clamp(((pitchTarget - state.pitch) * 5 - state.pitchRate * 0.7) / r.pitchRate, -1, 1);
       rollControl = grounded ? steer : clamp(-((bankTarget - state.roll) * 4 - state.rollRate * 0.7) / r.bankRate, -1, 1);
-      yawControl = grounded && Math.abs(steer) <= 0.01 ? clamp(-yawError * 1.3 / r.taxiTurn, -1, 1) : 0;
+      yawControl = grounded ? (Math.abs(steer) <= 0.01 ? clamp(-yawError * 1.3 / r.taxiTurn, -1, 1) : 0)
+        : Math.abs(yawError) < AIM_INSTRUCTOR.rudderWindow && Math.abs(steer) <= 0.01 ? clamp(-yawError * AIM_INSTRUCTOR.rudderGain, -1, 1) : 0;
     }
     const response = 1 - Math.exp(-r.rateResponse * h);
     const oldPitchRate = state.pitchRate, oldRollRate = state.rollRate;
@@ -101,7 +139,10 @@ function stepFlightDynamics(state, input, dt) {
     const coefficient = clamp(r.liftIncidence + r.liftSlope * angleOfAttack, -1.5, 2.3) * stallLoss;
     const lift = clamp(r.gravity * dynamicPressure * coefficient, -r.gravity * r.maxLiftLoad, r.gravity * r.maxLiftLoad);
     const drag = 0.6 + speed * speed * 0.0025 + Math.abs(lift / r.gravity) * 0.22 + dynamicPressure * angleOfAttack * angleOfAttack * 5;
-    const slowing = Math.max(-throttle, 0) * (grounded ? 12 : 10) + brake * (grounded ? r.brake : 10);
+    // speedBrake (0..1, the server's map-edge guidance) adds airbrake drag
+    // without touching the pilot's persistent throttle setting.
+    const slowing = Math.max(-throttle, 0) * (grounded ? 12 : 10) + brake * (grounded ? r.brake : 10)
+      + (grounded ? 0 : speedBrake * 10);
     if (grounded) {
       const nextSpeed = clamp(horizontalSpeed + (r.acceleration * state.enginePower * cosPitch - drag - slowing) * h, 0, r.maxSpeed);
       state.vx = -sinYaw * nextSpeed; state.vz = -cosYaw * nextSpeed;

@@ -1201,7 +1201,8 @@ class Game {
         const sampled = { ...controls };
         if (this._vehicleControlSample?.duration > 0) {
           const sample = this._vehicleControlSample;
-          axes.forEach((field, i) => { sampled[field] = sample.totals[i] / sample.duration; });
+          // Only the axes this seat sends: a mouse-aim pilot omits some on purpose.
+          axes.forEach((field, i) => { if (Object.hasOwn(sampled, field)) sampled[field] = sample.totals[i] / sample.duration; });
           sample.duration = 0; sample.totals.fill(0);
         }
         const vehicleAction = this.session.gameplayInputEnabled ? this.vehicleController.consumeAction() : null;
@@ -1279,8 +1280,16 @@ class Game {
     this.deathFade?.set(deathMs === null ? 0 : this.rt.deathFadeOpacity(deathMs), dying);
     this.cameraShake?.setReducedMotion(displaySettings().reducedMotion);
     // The vehicle camera applies the shake bus itself; the infantry camera applies it below.
-    if (seated) this.vehicleController.updateCamera(dt, this.vehicleView?.presentedRow(this.vehicleController.vehicle?.id));
-    else if (this.spectator?.active && !dying) {
+    // Seated, the hulls are presented first so the camera rides this frame's
+    // pose (a cockpit eye a frame behind a 100 m/s jet would sit metres back).
+    if (!seated) this.vehicleView?.setLocalView(null);
+    if (seated) {
+      const fp = this.vehicleController.view?.firstPerson === true;
+      this.vehicleView?.setLocalView(fp ? { id: this.vehicleController.vehicle?.id, seatId: this.vehicleController.seatId } : null);
+      // Same failure phase as the unseated update in the fx/rig block below.
+      try { this.vehicleView?.update(dt, this.camera); } catch (error) { this.phaseError('fx/rig', error); }
+      this.vehicleController.updateCamera(dt, this.vehicleView?.presentedRow(this.vehicleController.vehicle?.id));
+    } else if (this.spectator?.active && !dying) {
       if (this.camera.fov !== this.session.baseFov) {
         this.camera.fov = this.session.baseFov;
         this.camera.updateProjectionMatrix();
@@ -1336,7 +1345,7 @@ class Game {
         [flameDirection.x, flameDirection.y, flameDirection.z],
         [this.camera.position.x, this.camera.position.y, this.camera.position.z]);
       this.effects.update(dt, frameDt);
-      this.vehicleView?.update(dt, this.camera);
+      if (!seated) this.vehicleView?.update(dt, this.camera);
       this.vehicleFx?.update(dt, this.camera);
       this.particleField?.update(dt, this.camera);
       this.vehicleDestructionFX?.update(dt);

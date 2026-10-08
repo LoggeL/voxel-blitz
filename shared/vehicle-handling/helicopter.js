@@ -10,6 +10,10 @@ export const HELICOPTER_RULES = Object.freeze({
   // Attitude-hold (mouse flight) levelling per radian of pitch: a slow drift
   // back toward level instead of attitudeResponse's snap.
   holdLeveling: 0.06,
+  // Auto-hover (assisted manual cyclic): a released cyclic axis tilts the disk
+  // against the hull-frame drift (hoverGain m/s -> m/s^2) and damps it at
+  // hoverDamping per second, so a released helicopter settles into a hover.
+  hoverGain: 1.2, hoverDamping: 0.35, assistResponse: 3.4,
   rotorAcceleration: 0.9, rotorDeceleration: 0.55,
   ceiling: 180, respawnSeconds: 30, fireSeconds: 0.65,
 });
@@ -34,14 +38,19 @@ function limitHorizontal(state, maximum) {
  * throttle is fore/aft cyclic, steer is lateral cyclic, lift is assisted
  * collective, all -1..1. Positive throttle lowers the nose, positive steer
  * banks right, positive lift climbs. Neutral lift stabilizes vertical speed.
- * Optional pitchControl/rollControl/yawControl are angular rate commands.
+ * Optional pitchControl/rollControl/yawControl are the human controls.
  * Positive pitchControl raises the nose; positive roll/yaw controls go right.
  * Pitch control combines with keyboard throttle. Explicit roll control
  * replaces steer; explicit pitch/yaw controls suppress legacy aim angles.
+ * yawControl is a pedal rate. The manual cyclic (pitch/roll) is assisted: a
+ * deflection commands a disk tilt (full deflection = the pitch/bank limit),
+ * and a released axis is the auto-hover, which tilts the disk against the
+ * drift along that hull axis until the helicopter hovers. With pitch/roll
+ * controls but no yawControl the nose follows the legacy yaw (mouse aim).
  * Legacy yaw/pitch are desired attitudes for assisted bot flight. Brake 0..1
  * counters drift through cyclic tilt, rather than cancelling velocity.
- * Centered cyclic gently levels the hull while horizontal momentum persists.
- * attitudeHold (mouse flight) keeps the pitch a centred manual stick leaves,
+ * attitudeHold (mouse-stick flight) keeps rate commands and the pitch a
+ * centred manual stick leaves,
  * drifting back toward level only at rules.holdLeveling. It holds only a
  * pitch that pilot set: state.attitudeHeld arms when an attitudeHold input
  * deflects the cyclic and disarms on any assisted (bot/autopilot) step, a
@@ -80,9 +89,15 @@ export function stepHelicopterFlight(state, input = {}, dt = 0, rules = HELICOPT
   const rollControl = active ? clamp(finite(input?.rollControl), -1, 1) : 0;
   const yawControl = active ? clamp(finite(input?.yawControl), -1, 1) : 0;
   // Only hold flights write the flag, so other callers' state stays numeric.
-  if (!holdInput || grounded) { if (state.attitudeHeld) state.attitudeHeld = false; }
+  // The hover brake sets the disk itself, so it disarms the hold as well.
+  if (!holdInput || grounded || brake > 0) { if (state.attitudeHeld) state.attitudeHeld = false; }
   else if (pitchControl - throttle !== 0) state.attitudeHeld = true;
   const attitudeHold = holdInput && state.attitudeHeld === true;
+  // Auto-hover axes: assisted (non-hold) manual cyclic released, no brake.
+  const assisted = active && !holdInput && !(brake > 0);
+  const hoverPitchAxis = assisted && manualPitch && clamp(pitchControl - throttle, -1, 1) === 0;
+  const hoverRollAxis = assisted && manualRoll && rollControl === 0;
+  const hovering = hoverPitchAxis || hoverRollAxis;
   const aimYaw = !manualYaw && Number.isFinite(input?.yaw) ? wrap(input.yaw) : null;
   const aimPitch = !manualPitch && Number.isFinite(input?.pitch) ? clamp(input.pitch, rules.minPitch, rules.maxPitch) : 0;
   const duration = clamp(finite(dt), 0, 0.25);
@@ -112,14 +127,31 @@ export function stepHelicopterFlight(state, input = {}, dt = 0, rules = HELICOPT
       desiredRollRate = (counterRoll - state.roll) * rules.attitudeResponse;
     } else {
       const cyclicPitch = clamp(pitchControl - throttle, -1, 1);
-      // Neutral rate controls provide a mild attitude stabilizer. They do not
-      // target a horizontal speed or align velocity to the hull's heading.
-      desiredPitchRate = manualPitch ? cyclicPitch !== 0 ? cyclicPitch * rules.pitchRate
-        : -state.pitch * (attitudeHold ? finite(rules.holdLeveling) : rules.attitudeResponse) :
-        ((active ? aimPitch - throttle * (throttle > 0 ? -rules.minPitch : rules.maxPitch) : 0) - state.pitch) * rules.attitudeResponse;
       const cyclicRoll = manualRoll ? rollControl : steer;
-      desiredRollRate = manualRoll && cyclicRoll !== 0 ? -cyclicRoll * rules.rollRate :
-        ((active ? -cyclicRoll * rules.maxBank : 0) - state.roll) * rules.attitudeResponse;
+      // Hull-frame drift for the auto-hover of a released assisted axis.
+      const forwardSpeed = -Math.sin(state.yaw) * state.vx - Math.cos(state.yaw) * state.vz;
+      const sideSpeed = Math.cos(state.yaw) * state.vx - Math.sin(state.yaw) * state.vz;
+      const hoverGain = finite(rules.hoverGain, 1.2);
+      if (!manualPitch) {
+        desiredPitchRate = ((active ? aimPitch - throttle * (throttle > 0 ? -rules.minPitch : rules.maxPitch) : 0) - state.pitch) * rules.attitudeResponse;
+      } else if (holdInput) {
+        // Mouse-stick flight: rate commands; a centred stick holds (or levels).
+        desiredPitchRate = cyclicPitch !== 0 ? cyclicPitch * rules.pitchRate
+          : -state.pitch * (attitudeHold ? finite(rules.holdLeveling) : rules.attitudeResponse);
+      } else {
+        const target = cyclicPitch > 0 ? cyclicPitch * rules.maxPitch : cyclicPitch < 0 ? -cyclicPitch * rules.minPitch
+          : active ? clamp(Math.atan2(forwardSpeed * hoverGain, rules.gravity), rules.minPitch, rules.maxPitch) : 0;
+        desiredPitchRate = (target - state.pitch) * finite(rules.assistResponse, rules.attitudeResponse);
+      }
+      if (!manualRoll) {
+        desiredRollRate = ((active ? -cyclicRoll * rules.maxBank : 0) - state.roll) * rules.attitudeResponse;
+      } else if (holdInput) {
+        desiredRollRate = cyclicRoll !== 0 ? -cyclicRoll * rules.rollRate : -state.roll * rules.attitudeResponse;
+      } else {
+        const target = cyclicRoll !== 0 ? -cyclicRoll * rules.maxBank
+          : active ? clamp(Math.atan2(sideSpeed * hoverGain * Math.cos(state.pitch), rules.gravity), -rules.maxBank, rules.maxBank) : 0;
+        desiredRollRate = (target - state.roll) * finite(rules.assistResponse, rules.attitudeResponse);
+      }
     }
     if (grounded) {
       // The caller's real skid contact must remain level during rotor startup.
@@ -161,6 +193,14 @@ export function stepHelicopterFlight(state, input = {}, dt = 0, rules = HELICOPT
     const damping = Math.exp(-(grounded ? 3 : rules.drag + horizontalSpeed * rules.airDrag) * h);
     state.vx = state.vx * damping + upX * thrust * h;
     state.vz = state.vz * damping + upZ * thrust * h;
+    if (hovering && !grounded) {
+      // Released assisted cyclic: extra drag along each released hull axis.
+      const sy0 = Math.sin(state.yaw), cy0 = Math.cos(state.yaw), decay = 1 - Math.exp(-finite(rules.hoverDamping) * authority * h);
+      const fwd = -sy0 * state.vx - cy0 * state.vz, side = cy0 * state.vx - sy0 * state.vz;
+      const dropFwd = hoverPitchAxis ? fwd * decay : 0, dropSide = hoverRollAxis ? side * decay : 0;
+      state.vx -= -sy0 * dropFwd + cy0 * dropSide;
+      state.vz -= -cy0 * dropFwd - sy0 * dropSide;
+    }
     limitHorizontal(state, rules.speed);
     state.vy = clamp(state.vy + (upY * thrust - rules.gravity) * h,
       -rules.fallSpeed, rules.climb);

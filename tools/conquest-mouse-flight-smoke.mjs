@@ -99,8 +99,13 @@ async function main() {
     const page = browser.page;
     await page.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false });
     await page.waitFor(`!!window.__vb && document.getElementById('create-lobby-btn')?.disabled === false`, { timeoutMs: 180_000, label: 'menu ready' });
-    report.checks.flightModeDefault = await page.evaluate(`localStorage.getItem('vb-flight-mode') || 'mouse (default)'`);
-    step('menu ready', { flightMode: report.checks.flightModeDefault });
+    report.checks.flightModeDefault = await page.evaluate(`localStorage.getItem('vb-flight-controls') || 'aim (default)'`);
+    // This smoke flies the mouse stick (the hand below deflects a spring stick);
+    // mouse aim is the default, so select the stick and reload the client.
+    await page.evaluate(`localStorage.setItem('vb-flight-controls', 'mouse'); location.reload(); true`);
+    await sleep(1500);
+    await page.waitFor(`!!window.__vb && document.getElementById('create-lobby-btn')?.disabled === false`, { timeoutMs: 180_000, label: 'menu ready (mouse stick)' });
+    step('menu ready', { flightMode: report.checks.flightModeDefault, flown: 'mouse' });
     await clickId(page, 'create-lobby-btn');
     await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`, { label: 'lobby open' });
     await select(page, 'game-mode-select', 'conquest');

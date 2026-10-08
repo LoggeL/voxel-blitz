@@ -156,16 +156,30 @@ const turretSeats = { tank: ['commander'] };
 const seatLabels = { driver: 'DRIVER', pilot: 'PILOT', gunner: 'GUNNER', passenger: 'PASSENGER' };
 const seatNames = { commander: 'COMMANDER', 'door-left': 'LEFT DOOR', 'door-right': 'RIGHT DOOR', 'front-passenger': 'PASSENGER',
   'rear-left': 'REAR LEFT', 'rear-right': 'REAR RIGHT' };
-/** Per-seat camera profile (WP6 reads it). optic = RMB zoom factor. */
+/**
+ * Per-seat camera profile (WP6 reads it). optic = RMB zoom factor. `views` is
+ * the V-key cycle (the first entry is the default): chase, action (a close,
+ * low chase), cockpit (first person from the seat's eye), flyby (aircraft
+ * cinematic), or the seat's own mount / gimbal / passenger camera. `eye` is
+ * the first-person eye in the hull frame, the turret frame (eyeFrame:'turret')
+ * or the seat's first mount (eyeFrame:'mount': right, up, back of the pivot
+ * along the gun's yaw); without it the eye sits above the seat hip.
+ */
+const DRIVE_VIEWS = ['chase', 'action', 'cockpit'], FLY_VIEWS = ['chase', 'action', 'cockpit', 'flyby'];
 const seatCameras = {
-  jeep: { driver: { mode: 'chase', distance: 7, height: 2.6 }, gunner: { mode: 'mount', distance: 4.5, height: 1.6, optic: 1.5 } },
-  tank: { driver: { mode: 'chase', distance: 9.5, height: 3.4, optic: 3 }, commander: { mode: 'mount', distance: 5, height: 1.4, optic: 1.5 } },
-  helicopter: { driver: { mode: 'chase', distance: 13, height: 3.6 }, gunner: { mode: 'gimbal', distance: 0, height: 0, optic: 4 } },
-  transport: { driver: { mode: 'chase', distance: 15, height: 4.2 }, 'door-left': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5 },
-    'door-right': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5 } },
-  plane: { driver: { mode: 'chase', distance: 17, height: 4.4 } },
+  jeep: { driver: { mode: 'chase', distance: 7, height: 2.6, views: DRIVE_VIEWS, eye: [-0.4, 1.8, 0.12] },
+    gunner: { mode: 'mount', distance: 4.5, height: 1.6, optic: 1.5, views: ['mount', 'cockpit'], eye: [-0.45, 0.32, 0.45], eyeFrame: 'mount' },
+    'front-passenger': { mode: 'passenger', distance: 6, height: 2.2, views: ['passenger', 'cockpit'], eye: [0.4, 1.8, 0.12] } },
+  tank: { driver: { mode: 'chase', distance: 9.5, height: 3.4, optic: 3, views: DRIVE_VIEWS, eye: [0, 3.35, 0.3], eyeFrame: 'turret' },
+    commander: { mode: 'mount', distance: 5, height: 1.4, optic: 1.5, views: ['mount', 'cockpit'], eye: [-0.35, 0.35, 0.5], eyeFrame: 'mount' } },
+  helicopter: { driver: { mode: 'chase', distance: 13, height: 3.6, views: FLY_VIEWS },
+    gunner: { mode: 'gimbal', distance: 0, height: 0, optic: 4, views: ['gimbal', 'cockpit'] } },
+  transport: { driver: { mode: 'chase', distance: 15, height: 4.2, views: FLY_VIEWS },
+    'door-left': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['mount', 'cockpit'], eye: [-0.25, 0.35, 0.65], eyeFrame: 'mount' },
+    'door-right': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['mount', 'cockpit'], eye: [0.25, 0.35, 0.65], eyeFrame: 'mount' } },
+  plane: { driver: { mode: 'chase', distance: 17, height: 4.4, views: FLY_VIEWS } },
 };
-const defaultCamera = { mode: 'passenger', distance: 6, height: 2.2 };
+const defaultCamera = { mode: 'passenger', distance: 6, height: 2.2, views: ['passenger', 'cockpit'] };
 
 /**
  * Mount anchors in the hull frame (or the turret frame for frame:'turret').
@@ -349,7 +363,7 @@ export function mountAim(vehicle, mountId) {
 }
 
 /** Hull-local point of a turret-frame anchor at the current turret rotation. */
-function turretLocal(vehicle, [x, y, z]) {
+export function turretLocal(vehicle, [x, y, z]) {
   const relative = finite(vehicle.turretYaw, finite(vehicle.yaw)) - finite(vehicle.yaw), c = Math.cos(relative), s = Math.sin(relative);
   const pivotZ = -TANK_RULES.turretForward, localZ = z - pivotZ;
   return [x * c + localZ * s, y, -x * s + localZ * c + pivotZ];

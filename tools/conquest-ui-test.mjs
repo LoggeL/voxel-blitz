@@ -19,6 +19,8 @@ const { supportPump, SUPPORT_INTERVAL_MS } = await import('../public/js/ui/conqu
 const { stackTicker, TICKER_HOLD_MS } = await import('../public/js/ui/conquest/score-ticker.js');
 const { scheduleBanner, tickBanners, BANNER_MS } = await import('../public/js/ui/conquest/banners.js');
 const { zonePaths } = await import('../public/js/ui/conquest/vehicle-panel.js');
+const { viewStripModel, VIEW_STRIP_MS } = await import('../public/js/ui/conquest/view-strip.js');
+const { FlightHint, FLIGHT_HINT, flightHintItems } = await import('../public/js/ui/conquest/flight-hint.js');
 const { declutter } = await import('../public/js/ui/conquest/big-map.js');
 const { KILL_KEY_ICONS, ICON_PATHS } = await import('../public/js/ui/conquest/icons.js');
 const { conquestHudFixtures, fixtureMapMeta, FIXTURE_NOW } = await import('../public/js/capture/conquest-hud-fixtures.js');
@@ -40,7 +42,7 @@ const ok = () => { checks++; };
 /* ------------------------------------------------------------ fixtures */
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
-  'tank-driver', 'tank-commander', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
+  'tank-driver', 'tank-commander', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-stall', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
   'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'scoreboard', 'result'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
@@ -545,7 +547,7 @@ function quietCombat(domParts) {
   const actions = Object.fromEntries(KEYBINDING_ACTIONS.map(a => [a.id, a]));
   const defaults = defaultKeybindings();
   assert.deepEqual(defaults.spot, ['KeyY']); assert.deepEqual(defaults.bigMap, ['KeyM']);
-  for (const [id, code] of [['vehicleCountermeasure', 'KeyX'], ['vehicleCamera', 'KeyC'], ['vehicleWeaponNext', 'KeyQ']]) {
+  for (const [id, code] of [['vehicleCountermeasure', 'KeyX'], ['vehicleCamera', 'KeyC'], ['vehicleWeaponNext', 'KeyQ'], ['vehicleView', 'KeyV']]) {
     assert.deepEqual(defaults[id], [code]); assert.equal(actions[id].context, 'vehicle', `${id} lives in the vehicle context`);
   }
   // Same-context defaults never collide; vehicle keys may share prone/crouch/lean.
@@ -675,8 +677,59 @@ ok();
   }
   const jet = rendered.get('jet').hud;
   const jetText = textsDrawn(jet.reticles.context);
+  // No ground cast in this fixture: the altitude tape falls back to the absolute height.
   assert.ok(jetText.includes('KM/H') && jetText.includes('ALT M') && jetText.includes('LOCKING 70%'), 'speed/alt tapes and locker label');
   assert.equal(rendered.get('tank-commander').hud.vehiclePanel.cm.hidden, true);
+
+  // Mouse-aim pilots: the aim circle at the centre and the nose marker apart from
+  // it, speed / AGL tapes with the climb rate, the jet's throttle bar and stall
+  // warning, and the first-entry control hint (docs/design/conquest/flight).
+  const flightRender = id => {
+    const f = byId(id);
+    globalThis.localStorage?.removeItem?.(FLIGHT_HINT.prefKey);
+    const hud = new ConquestHud(document.body, { eventTarget: dom.window,
+      shellRaycast: (origin, dir) => (dir?.y < -0.9 ? { t: f.flight.agl + 0.5 } : null) });
+    const args = { ...renderArgs(f), vehicleController: { aimFlight: true, flight: { mode: 'aim' }, viewState: () => null } };
+    hud.update(args);
+    const reticle = state.reticleModel(state.seatedVehicle(f.self, f.vehicles), { projector: projectorFor(f),
+      raycast: (origin, dir) => (dir?.y < -0.9 ? { t: f.flight.agl + 0.5 } : null), flightAim: true });
+    return { hud, reticle, text: textsDrawn(hud.reticles.context) };
+  };
+  {
+    const { hud, reticle, text } = flightRender('jet-aim');
+    assert.equal(reticle.aim, true); assert.equal(reticle.flight.agl, 94); assert.equal(reticle.flight.throttle, 0.85);
+    assert.ok(Math.hypot(reticle.boresight.x - reticle.center.x, reticle.boresight.y - reticle.center.y) > 30, 'the nose marker sits apart from the aim circle');
+    assert.ok(text.includes('AGL M') && text.includes('THR 85%') && text.includes('94') && !text.some(t => t.startsWith('STALL')), `jet aim instruments (${text.join('|')})`);
+    assert.equal(hud.vehiclePanel.telemetry.textContent, '230 KM/H · AGL 94 M · THR 85%');
+    assert.equal(isShown(hud.flightHint.root), true, 'a first pilot-seat entry shows the control hint');
+    assert.ok(/MOUSE AIM/.test(hud.flightHint.root.textContent) && /THROTTLE/.test(hud.flightHint.root.textContent) && /AIRBRAKE/.test(hud.flightHint.root.textContent));
+    hud.dispose();
+    const stall = flightRender('jet-stall');
+    assert.ok(stall.text.includes('STALL \u00B7 NOSE DOWN'), 'the stall warning');
+    assert.equal(stall.hud.vehiclePanel.telemetry.dataset.stall, 'true');
+    stall.hud.dispose();
+    const heli = flightRender('heli-aim');
+    assert.equal(heli.reticle.kind, 'pods'); assert.equal(heli.reticle.aim, true); assert.equal(heli.reticle.flight.throttle, null);
+    assert.ok(heli.text.includes('\u25B2 2.6 M/S') && heli.text.includes('AGL M') && !heli.text.some(t => t.startsWith('THR')), `heli climb readout (${heli.text.join('|')})`);
+    const hint = heli.hud.flightHint.root.textContent;
+    assert.ok(/MOUSE AIM/.test(hint) && /SPACE/.test(hint) && /SHIFT/.test(hint) && /RELEASE = HOVER/.test(hint), `heli hint (${hint})`);
+    heli.hud.dispose();
+  }
+  {
+    // The hint is for the first few pilot-seat entries per aircraft and mode, then stays away.
+    const store = new Map(), storage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) };
+    const hint = new FlightHint(document.body, { storage, times: 2, showMs: 1000 });
+    const pilot = (vehicleId, mode = 'aim') => ({ type: 'plane', vehicleId, mode });
+    hint.update(pilot('a'), 0); assert.equal(hint.root.hidden, false);
+    hint.update(pilot('a'), 1200); assert.equal(hint.root.hidden, true, 'it fades after showMs');
+    hint.update(null, 1300); hint.update(pilot('b'), 1400); assert.equal(hint.root.hidden, false, 'second entry');
+    hint.update(null, 1500); hint.update(pilot('c'), 1600); assert.equal(hint.root.hidden, true, 'not after the first entries');
+    hint.update(null, 1700); hint.update(pilot('d', 'keyboard'), 1800); assert.equal(hint.root.hidden, false, 'a new flight mode gets its own hint');
+    assert.deepEqual(flightHintItems('plane', 'aim', defaultKeybindings()).map(i => [...(i.keys ?? []), i.text].join(' ')),
+      ['MOUSE AIM', 'W S THROTTLE', 'A D ROLL', 'CTRL AIRBRAKE']);
+    assert.deepEqual(flightHintItems('helicopter', 'aim', defaultKeybindings()).map(i => [...(i.keys ?? []), i.text].join(' ')),
+      ['MOUSE AIM', 'SPACE SHIFT UP / DOWN', 'W A S D MOVE', 'RELEASE = HOVER']);
+  }
 
   const enter = rendered.get('enter-jeep').hud;
   assert.equal(enter.interact.label.textContent, 'ENTER JEEP · F2 GUNNER'); assert.equal(enter.interact.ringBox.hidden, true);
@@ -812,10 +865,25 @@ ok();
   const driver = { ...tankFixture, vehicles: tankFixture.vehicles.map(row => (row.seatOccupants?.driver === 'me'
     ? { ...row, seatOccupants: { driver: 'me' } } : row)) };
   const fakeController = { requestSeat: i => padCalls.push(['seat', i]), queueCountermeasure: () => padCalls.push(['cm']),
-    queueWeaponNext: () => padCalls.push(['weapon']) };
+    queueWeaponNext: () => padCalls.push(['weapon']), cycleView: () => padCalls.push(['view']) };
   padHud.update({ ...renderArgs(driver), vehicleController: fakeController });
   padHud.padInput({ pressed: { slotUp: true, lastWeapon: true, weapon: true } });
   assert.deepEqual(padCalls, [['seat', 1], ['cm'], ['weapon']], 'D-pad up asks for the free commander seat (F2)');
+  padHud.padInput({ pressed: { grenadePouch: true } });
+  assert.deepEqual(padCalls.at(-1), ['view'], 'seated, D-pad down cycles the camera view');
+  // The view strip: shown for VIEW_STRIP_MS after V with the seat's views, the active one marked.
+  const viewState = { type: 'tank', seatId: 'driver', view: 'cockpit', changedAt: performance.now(),
+    views: [{ id: 'chase', label: 'CHASE' }, { id: 'action', label: 'ACTION' }, { id: 'cockpit', label: 'HATCH' }] };
+  padHud.update({ ...renderArgs(driver), vehicleController: { ...fakeController, viewState: () => viewState } });
+  const strip = padHud.root.querySelector('.cq-view');
+  assert.equal(strip.hidden, false, 'the strip shows right after a view change');
+  assert.deepEqual([...strip.querySelectorAll('.cq-view-item')].map(item => item.textContent), ['CHASE', 'ACTION', 'HATCH']);
+  assert.equal(strip.querySelector('[data-active="true"]').dataset.view, 'cockpit');
+  assert.equal(strip.querySelector('.cq-view-key').textContent, 'V');
+  viewState.changedAt = performance.now() - VIEW_STRIP_MS - 1;
+  padHud.update({ ...renderArgs(driver), vehicleController: { ...fakeController, viewState: () => viewState } });
+  assert.equal(strip.hidden, true, 'and leaves after VIEW_STRIP_MS');
+  assert.equal(viewStripModel({ ...viewState, changedAt: 0, views: viewState.views.slice(0, 1) }, 10), null, 'single-view seats show no strip');
   padHud.dispose();
   const gatedPad = new ConquestHud(document.body, { onSpot: () => padSpots.push(1), eventTarget: dom.window, inputEnabled: () => false });
   gatedPad.update(renderArgs(byId('capturing')));

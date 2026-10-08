@@ -31,6 +31,7 @@ export class AircraftPilot {
     this._pole = new THREE.Vector3(); this._joint = new THREE.Vector3();
     this._upperRotation = new THREE.Quaternion(); this._foreRotation = new THREE.Quaternion();
     this._disposed = false;
+    this.firstPerson = false;
     this.avatar = makeAvatar(this.playerId, player.name || '', player.team);
     const avatar = this.avatar;
     avatar.weaponModel.dispose(); avatar.weaponModel = null;
@@ -111,6 +112,21 @@ export class AircraftPilot {
     lower.quaternion.copy(this._upperRotation).invert().multiply(this._foreRotation);
     tip.position.set(0, -lowerLength, 0);
     tip.quaternion.copy(this._foreRotation).invert();
+  }
+
+  /**
+   * First person from this seat (the local player's cockpit view): head, chest
+   * and upper arms are hidden; forearms, hands on the controls and legs stay.
+   */
+  setFirstPerson(on) {
+    const hidden = !!on;
+    if (this._disposed || hidden === this.firstPerson) return;
+    this.firstPerson = hidden;
+    const avatar = this.avatar;
+    avatar.head.visible = avatar.torso.visible = !hidden;
+    for (const arm of [avatar.lArm, avatar.rArm]) {
+      for (const child of arm.children) if (child !== avatar.lElbow && child !== avatar.rElbow) child.visible = !hidden;
+    }
   }
 
   dispose() {

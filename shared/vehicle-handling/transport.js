@@ -11,7 +11,7 @@ export const TRANSPORT_RULES = Object.freeze({
   liftAcceleration: 7.5, verticalResponse: 2.1, collectiveRate: 1,
   turn: 0.85, turnAcceleration: 1.7, aimResponse: 2.1,
   pitchRate: 0.6, rollRate: 0.75, maxPitch: 0.36, minPitch: -0.4,
-  maxBank: 0.45, cyclicAcceleration: 2, attitudeResponse: 1.9,
+  maxBank: 0.45, cyclicAcceleration: 2, attitudeResponse: 1.9, assistResponse: 3,
   rotorAcceleration: 0.75, rotorDeceleration: 0.5,
   respawnSeconds: 35, fireSeconds: 0,
 });
