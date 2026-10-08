@@ -44,6 +44,32 @@ export const VEHICLE_LIFECYCLE = freeze({
   plainCollisionSafeSpeed: 15,
 });
 
+/** Hull mass in tonnes: momentum transfer when a hull shoves a wreck. */
+export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9 });
+
+/**
+ * Ground wrecks shoved by a driving hull (see VehicleSystem.pushWrecks). A
+ * wreck drags on the ground at `friction`·g; a pusher keeps shoving it only
+ * while its loaded `pushForce` (VEHICLE_RAM, t·m/s²) beats that drag. A hull
+ * moves no wreck heavier than its `maxPushMass`; an impact shares momentum by
+ * mass (perfectly inelastic) and never makes either hull faster.
+ */
+export const WRECK_PUSH_RULES = freeze({ friction: 1.2, gravity: 9.81, maxSpeed: 14, minSpeed: 0.05, minAlignment: 0.2 });
+
+/**
+ * Ground hulls driving into voxels. `classes` maps a RAM_CLASS (shared/world/
+ * blocks.js) to the speed (m/s) needed to break it; a class missing here never
+ * breaks for that hull. Each broken block costs `speedLoss`·hardness/mass m/s
+ * and (hardness − `armor`)·`damage` hull points. At most `perTick` blocks per
+ * server tick, drawn from a `burst` budget refilled at `refill` per second.
+ */
+export const VEHICLE_RAM = freeze({
+  jeep: { pushForce: 0, maxPushMass: 3, classes: { brush: 2, wood: 8 }, armor: 12, perTick: 4, burst: 12, refill: 6 },
+  tank: { pushForce: 600, maxPushMass: 60, classes: { brush: 1, wood: 2, thin: 3, masonry: 7 }, armor: 55, perTick: 8, burst: 40, refill: 16 },
+});
+/** A hit whose share into the wall is under `glancingNormal` (30°) scrapes along it and breaks only brush. */
+export const RAM_RULES = freeze({ speedLoss: 0.15, damage: 0.5, glancingNormal: 0.5, flagGuardRadius: 5, baseGuardMargin: 0 });
+
 /**
  * Lock-on sources (spec F4 locks). Cones are full half-angles in radians. The
  * Engineer's AX-9 STINGER is the only infantry locker; the RX-8 AT rocket is

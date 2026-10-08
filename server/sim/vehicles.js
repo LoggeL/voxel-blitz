@@ -1,8 +1,10 @@
-import { hullFootprint, footprintCells, footprintsOverlap, vehicleHullParts, vehicleSupportOffset, hullBoxesOverlap, voxelHullBox, rayHullPartSpan, nearestHullPoint, solidHull, solidWreck } from '../../shared/vehicle-collision.js';
+import { hullFootprint, footprintCells, footprintsOverlap, footprintContact, vehicleHullParts, vehicleSupportOffset, hullBoxesOverlap, voxelHullBox, rayHullPartSpan, nearestHullPoint, solidHull, solidWreck } from '../../shared/vehicle-collision.js';
 import { isSolidBlock } from '../../shared/worlddata.js';
+import { RAM_CLASS, BLOCK_HARDNESS } from '../../shared/world/blocks.js';
 import { VEHICLE_RULES, isAircraft, vehicleEnterDistance, vehicleDirection, vehicleSeatPose, vehicleLocalPoint } from '../../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleWeaponSeatId, vehicleDriverSeat } from '../../shared/vehicle-seats.js';
-import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, vehicleDef, vehicleMaxHp, mountPose as sharedMountPose } from '../../shared/vehicle-defs.js';
+import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, VEHICLE_MASS, WRECK_PUSH_RULES, VEHICLE_RAM, RAM_RULES, vehicleDef, vehicleMaxHp,
+  mountPose as sharedMountPose } from '../../shared/vehicle-defs.js';
 import { VEHICLE_STATUS } from '../../shared/conquest-contract.js';
 import { groundAttitude } from '../../shared/vehicle-attitude.js';
 import { playerHullContact, vehiclePlayerPush, infantryHeight } from '../../shared/player-vehicle-collision.js';
@@ -169,6 +171,7 @@ export class VehicleSystem {
     this.destructionQueue = [];
     this.detonating = false;
     this.combatProfile = this.engine.mode?.mode === 'conquest' || spawns.length ? 'conquest' : null;
+    this.ramGuards = this.ramGuardZones();
     for (const p of this.engine.entities.values()) if (p.vehicleId || p.vehicleSeatId) this.release(p);
     this.lastDrivers.clear();
     this.vehicles.clear();
@@ -1059,7 +1062,7 @@ export class VehicleSystem {
   }
   advanceGround(v, p, controls, dt) {
     const def = VEHICLE_RULES[v.type], handling = vehicleDef(v).handling, driver = this.momentumDriver(v);
-    const previous = { x: v.x, y: v.y, z: v.z, yaw: v.yaw };
+    const previous = { x: v.x, y: v.y, z: v.z, yaw: v.yaw }, startSpeed = v.speed;
     const drive = v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1;
     GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: controls.steer, brake: controls.brake }, dt);
     // A driverless hull at rest with no body in reach: its collision pass is a
@@ -1068,20 +1071,36 @@ export class VehicleSystem {
     const restable = !p && controls.throttle === 0 && v.speed === 0 && !this.fallSpeeds.has(v.id) && !this.infantryNear(v);
     if (restable && this.replayRest(v, 'ground', previous, dt)) return;
     const memo = restable ? this.beginRest(v, 'ground', previous, dt) : null;
-    this.moveGround(v, previous, controls, def, driver, dt);
+    this.moveGround(v, previous, controls, def, driver, dt, startSpeed);
     if (memo) this.endRest(v, memo);
     else this.restMemos.delete(v);
   }
-  moveGround(v, previous, controls, def, driver, dt) {
+  moveGround(v, previous, controls, def, driver, dt, startSpeed = v.speed) {
     if (!this.clearHull(v,v.x,v.y,v.z)) { v.yaw=previous.yaw; v.yawRate=0; v.leftTrackSpeed=v.speed; v.rightTrackSpeed=v.speed; }
     const dir=vehicleDirection(v.yaw), x=v.x+dir[0]*v.speed*dt,z=v.z+dir[2]*v.speed*dt;
-    const floor=this.placement(v,x,z);
-    if(floor!=null || this.clearHull(v,x,v.y,z)) {
+    let floor=this.placement(v,x,z), open=floor!=null || this.clearHull(v,x,v.y,z), held=false;
+    // Only a moving hull that is blocked rams: it breaks light voxels or shoves wrecks.
+    // A glancing hit (normal share under RAM_RULES.glancingNormal) scrapes along walls and only breaks brush.
+    let slide;
+    if (!open && v.speed !== 0) {
+      const travel = Math.abs(v.speed) * dt;
+      slide = travel > 1e-6 ? this.wallSlide(v, x, z) : null;
+      const glancing = !!slide && 1 - (slide.length / travel) ** 2 < RAM_RULES.glancingNormal ** 2;
+      const outcome = this.ramAhead(v, x, z, controls, startSpeed, dt, glancing);
+      if (outcome === 'clear') { floor = this.placement(v,x,z); open = floor!=null || this.clearHull(v,x,v.y,z); slide = undefined; }
+      else held = outcome === 'hold';
+    }
+    if(open) {
       Object.assign(v,{x,z});
       v.y=this.settle(v,floor,dt);
       v.scraping=false;
+    } else if (held) {
+      // Breaking through: this tick's block cap is spent, so the hull waits in place with its speed.
+      v.y=this.settle(v,this.placement(v,v.x,v.z),dt);
     } else {
-      const travel = Math.abs(v.speed) * dt, slide = travel > 1e-6 ? this.wallSlide(v, x, z) : null;
+      // A ram that broke nothing left the speed and the slide probe untouched.
+      const travel = Math.abs(v.speed) * dt;
+      if (slide === undefined) slide = travel > 1e-6 ? this.wallSlide(v, x, z) : null;
       const impact=Math.abs(v.speed), threshold=Math.max(8,def.speed*0.55);
       if (slide) {
         const normal = Math.sqrt(Math.max(0, 1 - (slide.length / travel) ** 2)), normalImpact = impact * normal;
@@ -1112,6 +1131,156 @@ export class VehicleSystem {
   }
   infantryNear(v) {
     for (const body of this.engine.entities.values()) if (this.infantryInReach(v, body)) return true;
+    return false;
+  }
+
+  // ---- ramming ------------------------------------------------------------------
+
+  /** Map areas a ram never breaks: the HQ bases and the flag pads (mapMeta.conquest). */
+  ramGuardZones() {
+    const conquest = this.engine.mapMeta?.conquest, zones = [];
+    for (const base of Object.values(conquest?.bases ?? {})) if (Number.isFinite(base?.x) && Number.isFinite(base?.z) && base.radius > 0)
+      zones.push({ x: base.x, z: base.z, r2: (base.radius + RAM_RULES.baseGuardMargin) ** 2 });
+    for (const flag of conquest?.flags ?? []) if (Number.isFinite(flag?.x) && Number.isFinite(flag?.z))
+      zones.push({ x: flag.x, z: flag.z, r2: RAM_RULES.flagGuardRadius ** 2 });
+    return zones;
+  }
+  ramGuarded(bx, bz) {
+    for (const zone of this.ramGuards ?? []) if ((bx + 0.5 - zone.x) ** 2 + (bz + 0.5 - zone.z) ** 2 < zone.r2) return true;
+    return false;
+  }
+  /** A blocked, moving ground hull at its target pose: 'clear' when the way is
+   * now open, 'hold' when it broke blocks but must wait for the next tick, or
+   * null when it is stopped as before (wall, slope, live hull, heavy wreck). */
+  ramAhead(v, x, z, controls, startSpeed, dt, glancing = false) {
+    const ram = VEHICLE_RAM[v.type];
+    if (!ram) return null;
+    const voxels = this.ramVoxels(v, x, z, ram, glancing);
+    if (voxels !== 'free') return voxels;
+    return this.pushWrecks(v, x, z, ram, controls, startSpeed, dt) ? 'clear' : null;
+  }
+  /** Break the voxels in the target hull volume when every one of them breaks
+   * for this hull at this speed (RAM_CLASS × VEHICLE_RAM.classes); unbreakable
+   * voxels in the bottom layer are steps and are left alone. 'free' means no
+   * voxel is in the way. Broken blocks go through the projectile context's
+   * destroyBlock: tickBlocks, blockRevision, the client block event and bots. */
+  ramVoxels(v, x, z, ram, glancing = false) {
+    const rules = VEHICLE_RULES[v.type], world = this.engine.world, d = world.dimensions, hull = hullFootprint(v.type, x, z, v.yaw);
+    if (d && (hull.minX < 0 || hull.minZ < 0 || hull.maxX > d.sx || hull.maxZ > d.sz || v.y < 0 || v.y + rules.height > d.sy)) return null;
+    const speed = Math.abs(v.speed), cells = footprintCells(hull), bottom = Math.floor(v.y + 0.03), top = Math.floor(v.y + rules.height - 0.01);
+    let found = null;
+    for (let i = 0; i < cells.length; i += 2) for (let by = bottom; by <= top; by++) {
+      const bx = cells[i], bz = cells[i + 1], type = world.getBlock(bx, by, bz);
+      if (!isSolidBlock(type)) continue;
+      const kind = RAM_CLASS[type], need = glancing && kind !== 'brush' ? undefined : ram.classes[kind];
+      if (!(speed >= need) || by <= 0 || this.ramGuarded(bx, bz)) { if (by === bottom) continue; return null; }
+      (found ??= []).push({ x: bx, y: by, z: bz, type, d: (bx + 0.5 - v.x) ** 2 + (bz + 0.5 - v.z) ** 2 });
+    }
+    if (!found) return 'free';
+    const port = this.engine.contexts?.projectiles;
+    if (typeof port?.destroyBlock !== 'function' || port.canAffectWorld?.() === false) return null;
+    if (v.ramTickId !== this.ramTickId) { v.ramTickId = this.ramTickId; v.ramTickLeft = ram.perTick; }
+    const clock = this.contactClock;
+    v.ramBudget = Math.min(ram.burst, (v.ramBudget ?? ram.burst) + Math.max(0, clock - (v.ramBudgetAt ?? clock)) * ram.refill);
+    v.ramBudgetAt = clock;
+    const allowed = Math.min(v.ramTickLeft, Math.floor(v.ramBudget));
+    // Out of blocks for this tick: wait for the next. Out of budget: the wall stops it.
+    if (allowed <= 0) return v.ramBudget >= 1 ? 'hold' : null;
+    found.sort((a, b) => a.d - b.d || a.y - b.y);
+    let broken = 0, hardness = 0, harm = 0;
+    for (const block of found) {
+      if (broken >= allowed) break;
+      if (!port.destroyBlock(block.x, block.y, block.z)) continue;
+      const h = BLOCK_HARDNESS[block.type] ?? 0;
+      broken++; hardness += h; harm += Math.max(0, h - ram.armor);
+    }
+    if (!broken) return null;
+    v.ramTickLeft -= broken; v.ramBudget -= broken;
+    v.speed = Math.sign(v.speed) * Math.max(0, speed - hardness * RAM_RULES.speedLoss / VEHICLE_MASS[v.type]);
+    if (harm > 0) {
+      const dir = vehicleDirection(v.yaw), sign = Math.sign(v.speed) || 1;
+      this.damage(v.id, harm * RAM_RULES.damage, null, { cls: 'collision', impactVelocity: { vx: dir[0] * speed * sign, vy: 0, vz: dir[2] * speed * sign } });
+    }
+    return broken === found.length ? 'clear' : 'hold';
+  }
+  /** Shove the ground wrecks in the target hull volume out of the way. The
+   * impact is perfectly inelastic along the contact normal (mass ratio); while
+   * the driver keeps throttling, VEHICLE_RAM.pushForce keeps shoving, and the
+   * wreck's own ground friction (slideWreck) brakes the pair. Neither hull ever
+   * ends faster than the pusher alone. False leaves the hull blocked: a live
+   * hull, an aircraft, a too-heavy wreck, a glancing contact, or a wreck that
+   * cannot move (wall, another hull, a pinned body). */
+  pushWrecks(v, x, z, ram, controls, startSpeed, dt) {
+    const speed = v.speed, sign = Math.sign(speed);
+    if (!sign) return false;
+    const rules = VEHICLE_RULES[v.type], hull = hullFootprint(v.type, x, z, v.yaw), dir = vehicleDirection(v.yaw);
+    const W = WRECK_PUSH_RULES, mp = VEHICLE_MASS[v.type], mx = dir[0] * sign, mz = dir[2] * sign;
+    const plans = [];
+    for (const w of this.vehicles.values()) {
+      if (w === v || w.id === v.id || !solidHull(w)) continue;
+      const wr = VEHICLE_RULES[w.type];
+      if (Math.hypot(x - w.x, z - w.z) > rules.radius + wr.radius + wr.height) continue;
+      if (isAircraft(w.type)) {
+        const box = vehicleHullParts(v, x, v.y, z, v.yaw)[0];
+        if (vehicleHullParts(w).some(part => hullBoxesOverlap(box, part))) return false;
+        continue;
+      }
+      const footprint = hullFootprint(w.type, w.x, w.z, w.yaw);
+      if (!(v.y < w.y + wr.height && w.y < v.y + rules.height) || !footprintsOverlap(hull, footprint)) continue;
+      const mw = VEHICLE_MASS[w.type];
+      if (!solidWreck(w) || !(mw <= ram.maxPushMass)) return false;
+      const contact = footprintContact(hull, footprint);
+      if (!contact) continue;
+      const along = mx * contact.nx + mz * contact.nz;
+      if (!(along >= W.minAlignment)) return false;
+      const vn0 = Math.max(0, startSpeed * sign) * along, vn1 = Math.abs(speed) * along;
+      const wn = Math.max(0, (w.vx || 0) * contact.nx + (w.vz || 0) * contact.nz);
+      const force = controls.throttle * sign > 0 ? ram.pushForce : mp * Math.min(0, vn1 - vn0) / dt;
+      const u = Math.min(vn1, W.maxSpeed, (mp * vn0 + mw * wn + force * dt) / (mp + mw));
+      if (!(u >= W.minSpeed)) return false;
+      const reach = contact.depth + 1e-3, nx = w.x + contact.nx * reach, nz = w.z + contact.nz * reach;
+      const floor = this.placement(w, nx, nz);
+      if (floor == null && !this.clearHull(w, nx, w.y, nz)) return false;
+      plans.push({ w, nx, nz, floor, u, wn, contact, along, vn1 });
+    }
+    if (!plans.length) return false;
+    for (const plan of plans) {
+      const w = plan.w;
+      plan.before = { x: w.x, y: w.y, z: w.z, yaw: w.yaw };
+      Object.assign(w, { x: plan.nx, z: plan.nz });
+      if (plan.floor != null && plan.floor > w.y) w.y = plan.floor;
+      // A body the wreck cannot push aside (pinned against a wall) stops the shove.
+      if (this.infantryNear(w) && !this.resolveInfantry(w, plan.before, null, dt)) {
+        for (const moved of plans) { if (moved.before) Object.assign(moved.w, moved.before); if (moved === plan) break; }
+        return false;
+      }
+    }
+    let loss = 0;
+    for (const { w, contact, u, wn, along, vn1 } of plans) {
+      w.vx = (w.vx || 0) + (u - wn) * contact.nx; w.vz = (w.vz || 0) + (u - wn) * contact.nz;
+      w.wreckRestRevision = null; this.restMemos.delete(w);
+      loss = Math.max(loss, (vn1 - u) / along);
+    }
+    v.speed = sign * Math.max(0, Math.abs(speed) - loss);
+    return true;
+  }
+  /** A shoved ground wreck slides with WRECK_PUSH_RULES friction, along a wall
+   * when it meets one, and stops dead when it cannot move. True while sliding. */
+  slideWreck(w, dt) {
+    const W = WRECK_PUSH_RULES, vx = w.vx || 0, vz = w.vz || 0, speed = Math.hypot(vx, vz);
+    const next = Math.max(0, Math.min(W.maxSpeed, speed) - W.friction * W.gravity * dt);
+    if (!(next > 0)) { w.vx = w.vz = 0; return false; }
+    const fx = vx * next / speed, fz = vz * next / speed, x = w.x + fx * dt, z = w.z + fz * dt;
+    const before = { x: w.x, y: w.y, z: w.z, yaw: w.yaw };
+    for (const [cx, cz, kx, kz] of [[x, z, 1, 1], [x, w.z, 1, 0], [w.x, z, 0, 1]]) {
+      if (cx === w.x && cz === w.z) continue;
+      if (this.placement(w, cx, cz) == null && !this.clearHull(w, cx, w.y, cz)) continue;
+      Object.assign(w, { x: cx, z: cz });
+      if (this.infantryNear(w) && !this.resolveInfantry(w, before, null, dt)) { Object.assign(w, before); break; }
+      w.vx = fx * kx; w.vz = fz * kz;
+      return true;
+    }
+    w.vx = w.vz = 0;
     return false;
   }
   /** Solid hulls a resting hull's collision pass can touch, with their poses. */
@@ -1178,6 +1347,8 @@ export class VehicleSystem {
     this.nowMs();
     // Fixed maximum substep prevents thin voxel walls being crossed at low rates.
     const duration=Math.min(dt,0.25), steps=Math.ceil(duration*120), h=duration/steps;
+    // Each hull's VEHICLE_RAM.perTick block cap restarts with every server tick.
+    this.ramTickId = (this.ramTickId || 0) + 1;
     for(let i=0;i<steps;i++) this.advance(h);
     for (const v of this.vehicles.values()) {
       if (!(v.hp > 0)) continue;
@@ -1229,9 +1400,10 @@ export class VehicleSystem {
       // own crater falls until it rests, then sleeps until terrain changes.
       const revision = this.engine.blockRevision ?? 0;
       if (v.wreckRestRevision === revision) return;
-      const y = v.y;
+      // A shoved wreck (pushWrecks) slides on with ground friction first.
+      const y = v.y, sliding = (v.vx || v.vz) ? this.slideWreck(v, dt) : false;
       v.y = this.settle(v, this.placement(v, v.x, v.z), dt);
-      v.wreckRestRevision = v.y === y && !this.fallSpeeds.has(v.id) ? revision : null;
+      v.wreckRestRevision = !sliding && v.y === y && !this.fallSpeeds.has(v.id) ? revision : null;
       return;
     }
     // A wreck at rest replays its last sweep while its inputs are unchanged.

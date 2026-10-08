@@ -249,6 +249,25 @@ export const GRENADE_RESISTANCE = Object.freeze({
   [MC_WATER]: Infinity, [MC_LAVA]: Infinity, [MC_PORTAL]: Infinity,
 });
 
+/**
+ * What a ground hull can drive through (VEHICLE_RAM in shared/vehicle-defs.js
+ * gives each hull's speed per class). Anything missing here never breaks by
+ * ramming: terrain, stone, concrete, metal, sandbags, bedrock and bridges.
+ */
+export const RAM_CLASS = Object.freeze({
+  // Hedges, foliage and glass.
+  [LEAVES]: 'brush', [PINE_LEAVES]: 'brush', [MC_LEAVES]: 'brush', [BB_PINE_LEAF]: 'brush', [BB_KELP]: 'brush',
+  [GLASS]: 'brush', [MC_GLASS]: 'brush',
+  // Fences, planks, crates and wooden props.
+  [PLANK]: 'wood', [MC_PLANKS]: 'wood', [TIMBER]: 'wood', [DUST_CRATE]: 'wood', [DUST_WOOD]: 'wood',
+  [MC_BOOKSHELF]: 'wood', [MC_CHEST]: 'wood', [MC_CRAFTING]: 'wood', [BB_HULL]: 'wood',
+  // Thin painted siding walls.
+  [YELLOW_SIDING]: 'thin', [TEAL_SIDING]: 'thin', [ACCENT]: 'thin',
+  // Plaster, brick and roof tiles (a tank at speed).
+  [WHITE_PLASTER]: 'masonry', [DUST_PLASTER]: 'masonry', [BRICK]: 'masonry', [SOOT_BRICK]: 'masonry',
+  [MC_BRICK]: 'masonry', [TERRACOTTA_ROOF]: 'masonry', [ROOF]: 'masonry',
+});
+
 export const SX = 128;
 export const SZ = 96;
 export const SY = 40;
