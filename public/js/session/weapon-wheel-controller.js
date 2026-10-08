@@ -1,6 +1,35 @@
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { WEAPON_NAMES, WEAPON_CLASSES, weaponImagePath } from '../ui/hud-support.js';
 import { usesOwnedLoadout } from '../../../shared/modes.js';
+import { KITS, KIT_SIDEARM } from '../../../shared/conquest-contract.js';
+import { KIT_GADGET_LABELS, KIT_MELEE } from '../../../shared/conquest-kits.js';
+import { bindingLabel } from '../keybindings.js';
+
+/** Conquest kit wheel segment order: one role per segment, clockwise from the top. */
+export const KIT_WHEEL_ROLES = Object.freeze(['primary', 'gadget', 'sidearm', 'melee']);
+const KIT_GADGET_IDS = new Set(Object.values(KITS).flatMap(kit => [kit.gadget, ...(kit.gadgets || [])]).filter(Boolean));
+
+/** Kit role of one owned weapon id. */
+function kitRole(id) {
+  if (id === KIT_MELEE || WEAPONS[id]?.mode === 'melee') return 'melee';
+  if (id === KIT_SIDEARM) return 'sidearm';
+  if (KIT_GADGET_IDS.has(id) || WEAPONS[id]?.gadgetOnly) return 'gadget';
+  return 'primary';
+}
+
+/** Digit binding that equips `id` outside the wheel: its slot digit, the launcher digit for a gadget, or null. */
+function kitSlotAction(id) {
+  const slot = WEAPON_IDS.indexOf(id);
+  if (WEAPONS[id]?.gadgetOnly) return `slot${WEAPON_IDS.indexOf('rocket') + 1}`;
+  return slot >= 0 && slot < 10 ? `slot${slot + 1}` : null;
+}
+
+/** Wheel ammo text for one weapon id in the given mode. */
+function ammoLabel(context, id, mode) {
+  if (WEAPONS[id].mode === 'melee') return '∞';
+  const ammo = context.weapon?.ammoOf(id);
+  return `${ammo?.mag || 0} / ${mode === 'gungame' ? '∞' : ammo?.reserve || 0}`;
+}
 
 /** Coordinates wheel input, ownership, and HUD presentation for one live session. */
 export class WeaponWheelController {
@@ -22,6 +51,7 @@ export class WeaponWheelController {
     const context = this.getContext();
     const mode = context.match?.mode;
     const authoritative = Array.isArray(context.self?.owned) && usesOwnedLoadout(mode);
+    if (authoritative && mode === 'conquest') return this.kitEntries(context);
     // Kit-only gadgets (the STINGER) sit at the end of WEAPON_IDS and only appear
     // when the authoritative kit owns them, so every listed index stays its slot.
     const shown = WEAPON_IDS.filter(id => !WEAPONS[id].gadgetOnly || (authoritative && context.self.owned.includes(id)));
@@ -36,11 +66,55 @@ export class WeaponWheelController {
         icon: weaponImagePath(id),
         // A kit gadget answers the launcher digit (WeaponState._gadgetSlotAlias).
         key: WEAPONS[id].gadgetOnly ? `[${WEAPON_IDS.indexOf('rocket') + 1}]` : slot < 10 ? `[${(slot + 1) % 10}]` : '[WHEEL]',
-        ammo: locked ? '—' : (WEAPONS[id].mode === 'melee' ? '∞' : `${ammo?.mag || 0} / ${context.match?.mode === 'gungame' ? '∞' : ammo?.reserve || 0}`),
+        ammo: locked ? '—' : ammoLabel(context, id, mode),
         owned: !locked,
         current: context.weapon?.slot === slot,
+        slot,
       };
     });
+  }
+
+  /**
+   * Conquest wheel: only what the kit carries, straight from the snapshot's
+   * authoritative `owned` list, one segment per role in KIT_WHEEL_ROLES order
+   * (primary, gadget, sidearm, melee; a kit without a gadget gets three).
+   * `key` is the digit that equips the weapon outside the wheel (the launcher
+   * digit for either Engineer gadget); weapons without a digit carry ''.
+   */
+  kitEntries(context = this.getContext()) {
+    const owned = context.self.owned.filter(id => Object.hasOwn(WEAPONS, id) && WEAPON_IDS.includes(id));
+    const ordered = KIT_WHEEL_ROLES.flatMap(role => owned.filter(id => kitRole(id) === role));
+    return ordered.map((id) => {
+      const slot = WEAPON_IDS.indexOf(id);
+      const role = kitRole(id);
+      const action = kitSlotAction(id);
+      const gadgetRole = role === 'gadget' ? KIT_GADGET_LABELS[id]?.role : null;
+      return {
+        id,
+        name: WEAPON_NAMES[id] || id.toUpperCase(),
+        cls: WEAPON_CLASSES[id] || '',
+        icon: weaponImagePath(id),
+        key: action ? bindingLabel(action) : '',
+        ammo: ammoLabel(context, id, 'conquest'),
+        owned: true,
+        current: context.weapon?.slot === slot,
+        slot,
+        role: gadgetRole ? `${role.toUpperCase()} · ${gadgetRole}` : role.toUpperCase(),
+      };
+    });
+  }
+
+  /**
+   * Wheel index a digit pressed while the wheel is open selects. The full wheel
+   * lists weapons in slot order, so the digit is the index; the kit wheel finds
+   * the entry that digit equips outside the wheel (the launcher digit reaches
+   * either Engineer gadget). -1 when the kit carries nothing on that digit.
+   */
+  directIndex(digitSlot, entries = this.entries()) {
+    if (!entries.some(entry => entry.role)) return digitSlot;
+    const rocket = WEAPON_IDS.indexOf('rocket');
+    return entries.findIndex(entry => entry.slot === digitSlot ||
+      (digitSlot === rocket && WEAPONS[entry.id]?.gadgetOnly));
   }
 
   /**
@@ -79,13 +153,15 @@ export class WeaponWheelController {
   }
 
   /**
-   * Confirm a wheel pick (digit, gamepad confirm, touch/pointer release). A locked
-   * or already-current weapon just closes without switching.
+   * Confirm a wheel pick by wheel index (digit, gamepad confirm, touch/pointer
+   * release); the entry's `slot` is what gets equipped. A locked or
+   * already-current weapon, or an index without an entry, just closes.
    */
-  commit(slot) {
+  commit(index) {
     const context = this.getContext();
     if (!this.open) return;
-    const entry = this.entries()[slot];
+    const entry = this.entries()[index];
+    const slot = entry?.slot ?? index;
     if (!entry?.owned || entry.current || slot === context.weapon?.slot) {
       this.close();
     } else {
@@ -118,7 +194,7 @@ export class WeaponWheelController {
     }
     const direct = this.input.takeWheelDirectSlot();
     if (direct !== null) {
-      this.commit(direct);
+      this.commit(this.directIndex(direct));
       return;
     }
     const steps = this.input.takeWheelSteps();
@@ -136,7 +212,7 @@ export class WeaponWheelController {
     }
     const entries = this.entries();
     const sig = entries.map((entry) =>
-      `${entry.id}|${entry.name}|${entry.ammo}|${entry.owned ? 1 : 0}|${entry.current ? 1 : 0}`).join(';');
+      `${entry.id}|${entry.name}|${entry.ammo}|${entry.key}|${entry.owned ? 1 : 0}|${entry.current ? 1 : 0}`).join(';');
     if (sig !== this._entriesSig) {
       this._entriesSig = sig;
       this.hud.setWeaponWheelState({ entries });

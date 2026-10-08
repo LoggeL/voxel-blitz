@@ -52,7 +52,7 @@ export function wheelSlotFromVector(x, y, count, deadZone = WHEEL_DEAD_ZONE) {
 function _entriesSignature(entries) {
   if (!Array.isArray(entries)) return '';
   return `${entries.length}:` + entries.map((entry) => (
-    entry ? `${entry.id}|${entry.name}|${entry.ammo}|${entry.owned ? 1 : 0}|${entry.current ? 1 : 0}` : 'null'
+    entry ? `${entry.id}|${entry.name}|${entry.ammo}|${entry.key}|${entry.role || ''}|${entry.owned ? 1 : 0}|${entry.current ? 1 : 0}` : 'null'
   )).join(',');
 }
 
@@ -62,6 +62,20 @@ function wheelAmmoLabel(entry) {
   if (entry?.id !== 'glaive') return ammo;
   const discs = /^(\d+) \//.exec(ammo);
   return discs ? `${discs[1]} DISC${discs[1] === '1' ? '' : 'S'}` : ammo;
+}
+
+/**
+ * Kit layout (Conquest): every entry carries a `role`. The wheel then draws one
+ * big segment per entry with its role caption and real slot key instead of the
+ * full roster ring.
+ */
+function isKitLayout(entries) {
+  return Array.isArray(entries) && entries.length > 0 && entries.every(entry => !!entry?.role);
+}
+
+/** Touch sessions read drag/lift copy instead of key hints. */
+function touchMode() {
+  return typeof document !== 'undefined' && !!document.documentElement?.classList?.contains('vb-touch-mode');
 }
 
 /** textContent setter that skips identical writes (cheap diff). */
@@ -122,6 +136,8 @@ export class WeaponWheelController {
     const ring = el('div', 'vb-wheel-ring', root);
     ring.style.setProperty('--vb-wheel-commit-diameter', `${WHEEL_COMMIT_RADIUS * 100}%`);
     const cursor = el('span', 'vb-wheel-cursor', ring);
+    // Kit layout only: the hovered segment's fill and outer edge (CSS conic wedge).
+    const wedge = el('span', 'vb-wheel-wedge', ring);
     const hub = el('div', 'vb-wheel-hub', ring);
     const hubName = el('div', 'vb-wheel-hub-name', hub);
     const hubCls = el('div', 'vb-wheel-hub-cls', hub);
@@ -129,7 +145,7 @@ export class WeaponWheelController {
     hubName.textContent = 'MOVE TO SELECT';
     hubCls.textContent = 'ESC CANCEL';
 
-    this.dom = { root, ring, cursor, hub, hubName, hubCls, hubHint, slots: [], ticks: [] };
+    this.dom = { root, ring, cursor, wedge, hub, hubName, hubCls, hubHint, slots: [], ticks: [] };
     this._attachPointerHandlers();
     return root;
   }
@@ -147,7 +163,9 @@ export class WeaponWheelController {
   /**
  * Opens the wheel with 2..16 slot entries. Any other count is ignored and
  * the wheel stays closed. Entries carry display strings only:
- * {id, name, cls, icon, key, ammo, owned, current}.
+ * {id, name, cls, icon, key, ammo, owned, current, role?}. When every entry
+ * has a `role` (the Conquest kit wheel) the big-segment layout is used and
+ * `key` is shown as given.
    *
    * @param {Array<{id: string, name: string, cls: string, icon: string,
    *   key: string, ammo: string, owned: boolean, current: boolean}>} entries
@@ -214,6 +232,9 @@ export class WeaponWheelController {
     const list = Array.isArray(entries) ? entries : [];
     if (list.length < 2 || list.length > 16) return;
     this._entries = list;
+    const kit = isKitLayout(list);
+    this.dom.root?.classList.toggle('is-kit', kit);
+    this.dom.ring?.style.setProperty('--vb-wheel-sector', `${360 / list.length}deg`);
     if (!Array.isArray(this.dom.slots) || this.dom.slots.length !== list.length) {
       this._buildSlots(list);
     } else {
@@ -407,6 +428,7 @@ export class WeaponWheelController {
       this.dom.ticks.push(tick);
       const node = el('div', 'vb-wheel-slot', null);
       node.style.setProperty('--vb-wheel-angle', `${angle}deg`);
+      const role = el('div', 'vb-wheel-role', node);
       const iconFrame = el('span', 'vb-wheel-icon-frame', node);
       const icon = el('img', 'vb-wheel-icon vb-weapon-art', iconFrame);
       icon.alt = '';
@@ -418,7 +440,7 @@ export class WeaponWheelController {
       const lock = el('span', 'vb-wheel-lock', node);
       lock.textContent = 'LOCKED';
       ring.insertBefore(node, this.dom.hub);
-      this.dom.slots.push({ node, icon, name, key, ammo, lock });
+      this.dom.slots.push({ node, role, icon, name, key, ammo, lock });
     });
 
     this._patchSlots(list);
@@ -432,6 +454,7 @@ export class WeaponWheelController {
    */
   _patchSlots(list) {
     const slots = this.dom.slots || [];
+    const kit = isKitLayout(list);
     list.forEach((entry, index) => {
       const item = slots[index];
       if (!item) return;
@@ -445,8 +468,10 @@ export class WeaponWheelController {
       if (entry?.id) item.icon.dataset.weaponId = entry.id;
       else item.icon.removeAttribute('data-weapon-id');
       _setText(item.name, (entry && entry.name) || '');
-      item.node.setAttribute('aria-label', `${entry?.name || ''}, ${entry?.owned ? entry.ammo : 'locked'}${entry?.current ? ', equipped' : ''}`);
-      _setText(item.key, entry && index < 10 ? `[${bindingLabel(`slot${index + 1}`)}]` : (entry && entry.key) || '');
+      item.node.setAttribute('aria-label', `${kit ? `${entry.role}, ` : ''}${entry?.name || ''}, ${entry?.owned ? entry.ammo : 'locked'}${entry?.current ? ', equipped' : ''}`);
+      _setText(item.role, kit ? entry.role : '');
+      if (kit) _setText(item.key, entry.key || '');
+      else _setText(item.key, entry && index < 10 ? `[${bindingLabel(`slot${index + 1}`)}]` : (entry && entry.key) || '');
       _setText(item.ammo, wheelAmmoLabel(entry));
       item.node.classList.toggle('is-current', !!(entry && entry.current));
       item.node.classList.toggle('is-locked', !(entry && entry.owned));
@@ -468,6 +493,14 @@ export class WeaponWheelController {
     for (let index = 0; index < slots.length; index += 1) {
       slots[index].node.classList.toggle('is-hl', index === this._highlight);
     }
+    const wedge = this.dom.wedge;
+    if (wedge) {
+      wedge.classList.toggle('is-on', this._highlight >= 0);
+      if (this._highlight >= 0) {
+        // CSS conic angles start at the top and grow clockwise, like the slots.
+        wedge.style.setProperty('--vb-wheel-hl', `${(360 * this._highlight) / count}deg`);
+      }
+    }
     this._syncHub();
   }
 
@@ -482,6 +515,16 @@ export class WeaponWheelController {
     const dom = this.dom;
     if (!dom.hub) return;
     const entry = this._highlight >= 0 ? this._entries[this._highlight] : null;
+    if (isKitLayout(this._entries)) {
+      const touch = touchMode();
+      const wheelKey = bindingLabel('weaponWheel');
+      _setText(dom.hubName, entry ? entry.name || '' : 'MOVE TO SELECT');
+      _setText(dom.hubCls, entry ? (entry.current ? 'EQUIPPED' : entry.ammo || '') : '');
+      _setText(dom.hubHint, touch
+        ? (entry ? 'LIFT TO EQUIP' : 'DRAG TO A WEAPON')
+        : (entry ? `RELEASE ${wheelKey} TO EQUIP\nESC CANCEL` : `FLICK OR RELEASE ${wheelKey}\nESC CANCEL`));
+      return;
+    }
     if (!entry) {
       _setText(dom.hubName, 'MOVE TO SELECT');
       _setText(dom.hubCls, 'ESC CANCEL');

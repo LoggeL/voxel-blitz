@@ -4148,6 +4148,166 @@ body.is-dying .vb-spectator { visibility: hidden; }
 
 .vb-wheel-cursor { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border: 1px solid white; border-radius: 50%; background: var(--amber); pointer-events: none; z-index: 5; }
 
+/* ---------- Conquest kit wheel (#weapon-wheel.is-kit) ----------
+   Only what the kit carries: one big ring segment per weapon (primary,
+   gadget, sidearm, melee clockwise from the top). The segments are exactly
+   the selection sectors of wheelSlotFromVector, so a flick in a segment's
+   direction picks it. Reference: docs/design/conquest/weapon-wheel/option-a.jpg */
+.vb-wheel-role:empty,
+.vb-wheel-wedge { display: none; }
+
+#weapon-wheel.is-kit .vb-wheel-ring {
+  --vb-wheel-r: calc(min(64vmin, 540px) / 2);
+  --vb-wheel-hub: 36%;
+  background: rgba(11, 14, 18, 0.8);
+  border: 1px solid rgba(159, 176, 191, 0.32);
+}
+
+#weapon-wheel.is-kit .vb-wheel-ring::after {
+  border-color: rgba(255, 190, 80, 0.18);
+}
+
+/* Segment separators across the donut, on the sector boundaries. */
+#weapon-wheel.is-kit .vb-wheel-tick {
+  height: calc(var(--vb-wheel-r) * 0.64);
+  transform: rotate(calc(var(--vb-wheel-angle) + 90deg + var(--vb-wheel-sector) / 2));
+  background: rgba(159, 176, 191, 0.3);
+}
+
+/* Hovered segment: translucent amber fill plus a glowing outer edge. */
+#weapon-wheel.is-kit .vb-wheel-wedge.is-on {
+  display: block;
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+#weapon-wheel.is-kit .vb-wheel-wedge.is-on::before,
+#weapon-wheel.is-kit .vb-wheel-wedge.is-on::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from calc(var(--vb-wheel-hl) - var(--vb-wheel-sector) / 2),
+    var(--vb-wedge-color) 0 var(--vb-wheel-sector),
+    transparent var(--vb-wheel-sector)
+  );
+}
+
+#weapon-wheel.is-kit .vb-wheel-wedge.is-on::before {
+  --vb-wedge-color: rgba(255, 184, 77, 0.17);
+  -webkit-mask: radial-gradient(circle closest-side, transparent var(--vb-wheel-hub), #000 calc(var(--vb-wheel-hub) + 0.5%));
+  mask: radial-gradient(circle closest-side, transparent var(--vb-wheel-hub), #000 calc(var(--vb-wheel-hub) + 0.5%));
+}
+
+#weapon-wheel.is-kit .vb-wheel-wedge.is-on::after {
+  --vb-wedge-color: var(--amber-hi);
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  filter: drop-shadow(0 0 6px rgba(255, 184, 77, 0.7));
+}
+
+#weapon-wheel.is-kit .vb-wheel-slot {
+  width: 176px;
+  height: 170px;
+  margin: -85px 0 0 -88px;
+  gap: 4px;
+  color: var(--txt);
+  transform:
+    rotate(calc(var(--vb-wheel-angle) + 90deg))
+    translateY(calc(-0.68 * var(--vb-wheel-r)))
+    rotate(calc(-1 * var(--vb-wheel-angle) - 90deg));
+}
+
+#weapon-wheel.is-kit .vb-wheel-slot.is-hl {
+  transform:
+    rotate(calc(var(--vb-wheel-angle) + 90deg))
+    translateY(calc(-0.68 * var(--vb-wheel-r)))
+    rotate(calc(-1 * var(--vb-wheel-angle) - 90deg))
+    scale(1.06);
+  color: var(--amber-hi);
+}
+
+#weapon-wheel.is-kit .vb-wheel-role { order: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.22em; color: var(--sub); }
+#weapon-wheel.is-kit .vb-wheel-slot.is-hl .vb-wheel-role { color: var(--amber-hi); }
+#weapon-wheel.is-kit .vb-wheel-icon-frame,
+#weapon-wheel.is-kit .vb-wheel-slot.is-hl .vb-wheel-icon-frame,
+#weapon-wheel.is-kit .vb-wheel-slot.is-current .vb-wheel-icon-frame {
+  order: 1;
+  width: 136px;
+  height: 68px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+#weapon-wheel.is-kit .vb-wheel-icon { width: 132px; height: 66px; opacity: 0.95; }
+#weapon-wheel.is-kit .vb-wheel-name { order: 2; font-size: 14px; letter-spacing: 0.14em; }
+#weapon-wheel.is-kit .vb-wheel-ammo { order: 3; font-size: 13px; color: inherit; }
+#weapon-wheel.is-kit .vb-wheel-key {
+  order: 4;
+  min-width: 12px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  color: var(--txt);
+  border: 1px solid rgba(232, 236, 241, 0.55);
+  border-radius: 2px;
+}
+#weapon-wheel.is-kit .vb-wheel-slot.is-hl .vb-wheel-key { color: var(--amber-hi); border-color: var(--amber-hi); }
+#weapon-wheel.is-kit .vb-wheel-key:empty,
+#weapon-wheel.is-kit .vb-wheel-lock { display: none; }
+#weapon-wheel.is-kit .vb-wheel-slot.is-current::after { order: 5; margin-top: 0; }
+
+#weapon-wheel.is-kit .vb-wheel-hub {
+  width: var(--vb-wheel-hub);
+  height: var(--vb-wheel-hub);
+  gap: 5px;
+}
+#weapon-wheel.is-kit .vb-wheel-hub-name { font-size: 16px; }
+#weapon-wheel.is-kit .vb-wheel-hub-cls { font-family: var(--font-mono); font-size: 11px; color: var(--txt); }
+#weapon-wheel.is-kit .vb-wheel-hub-cls:empty { display: none; }
+#weapon-wheel.is-kit .vb-wheel-hub-hint {
+  max-width: 82%;
+  padding-top: 6px;
+  white-space: pre-line;
+  border-top: 1px solid var(--line);
+  line-height: 1.5;
+}
+
+@media (max-width: 600px), (max-height: 600px) {
+  #weapon-wheel.is-kit .vb-wheel-ring { --vb-wheel-r: calc(min(86vmin, 360px) / 2); }
+  #weapon-wheel.is-kit .vb-wheel-slot {
+    width: 104px;
+    height: 100px;
+    margin: -50px 0 0 -52px;
+    gap: 2px;
+  }
+  #weapon-wheel.is-kit .vb-wheel-role { font-size: 8px; letter-spacing: 0.16em; }
+  #weapon-wheel.is-kit .vb-wheel-icon-frame,
+  #weapon-wheel.is-kit .vb-wheel-slot.is-hl .vb-wheel-icon-frame,
+  #weapon-wheel.is-kit .vb-wheel-slot.is-current .vb-wheel-icon-frame { width: 80px; height: 40px; }
+  #weapon-wheel.is-kit .vb-wheel-icon { width: 78px; height: 39px; }
+  #weapon-wheel.is-kit .vb-wheel-name { display: block; font-size: 9px; letter-spacing: 0.08em; }
+  #weapon-wheel.is-kit .vb-wheel-ammo { font-size: 10px; }
+  #weapon-wheel.is-kit .vb-wheel-key { font-size: 9px; line-height: 13px; padding: 0 4px; }
+  #weapon-wheel.is-kit .vb-wheel-slot.is-current::after {
+    content: 'EQUIPPED';
+    width: auto;
+    height: auto;
+    padding: 0 4px;
+    font-size: 7px;
+  }
+  #weapon-wheel.is-kit .vb-wheel-hub-name { font-size: 11px; }
+  #weapon-wheel.is-kit .vb-wheel-hub-cls { font-size: 9px; }
+  #weapon-wheel.is-kit .vb-wheel-hub-hint { font-size: 7px; padding-top: 4px; }
+}
+
+/* Touch has no slot keys: drag toward a segment and lift. */
+.vb-touch-mode #weapon-wheel.is-kit .vb-wheel-key { display: none; }
+
 /* Minigun: a fixed 65% threshold makes controlled bursts readable at a glance. */
 #charge-meter.is-thermal { width: 210px; }
 #charge-meter.is-thermal .vb-charge-track {

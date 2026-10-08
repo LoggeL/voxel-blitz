@@ -83,6 +83,78 @@ export async function runWeaponWheelContracts(ok) {
   }
   context.match.mode = 'snd'; context.self.owned = ['revolver', 'knife'];
 
+  // Conquest: the wheel lists only what the kit carries, from the snapshot's
+  // authoritative owned list, in primary / gadget / sidearm / melee order.
+  {
+    const { kitLoadout } = await import('../../shared/conquest-kits.js');
+    const { KIT_WHEEL_ROLES } = await import('../../public/js/session/weapon-wheel-controller.js');
+    const kitPicks = [];
+    const kitContext = { match: { mode: 'conquest' }, self: { owned: [], state: 'alive' }, enabled: true, alive: true, spectating: false,
+      weapon: { slot: 0, ammoOf: (id) => ammoBy[id], forceWeapon: (slot) => kitPicks.push(slot) } };
+    let ammoBy = {};
+    const equip = (kit, variant = 0, gadget = 0, current = 'primary') => {
+      const loadout = kitLoadout(kit, variant, gadget);
+      // The snapshot's owned list may arrive in any order; the wheel orders by role.
+      kitContext.self.owned = [...loadout.owned].reverse();
+      ammoBy = Object.fromEntries(WEAPON_IDS.map((id, slot) => [id, { mag: loadout.mag[slot], reserve: loadout.reserve[slot] }]));
+      kitContext.weapon.slot = WEAPON_IDS.indexOf(loadout[current]);
+      return loadout;
+    };
+    const kitWheel = new WeaponWheelController({
+      input: { setWeaponWheelOpen() {}, isWeaponWheelClosing: () => false },
+      hud: { setWeaponWheelState() {} },
+      getContext: () => kitContext,
+    });
+    const view = () => kitWheel.entries().map(e => `${e.id}:${e.role}:${e.key}:${e.ammo}:${e.current ? 'eq' : ''}`).join(' ');
+
+    ok(KIT_WHEEL_ROLES.join() === 'primary,gadget,sidearm,melee', 'the kit wheel orders segments primary, gadget, sidearm, melee');
+    equip('engineer', 0, 0);
+    ok(view() === 'smg:PRIMARY:2:36 / 6:eq rocket:GADGET · AT:8:1 / 4: revolver:SIDEARM:6:6 / 8: knife:MELEE:0:∞:',
+      `conquest Engineer AT: four segments, slot keys, issued ammo, equipped primary (${view()})`);
+    equip('engineer', 1, 1, 'gadget');
+    ok(view() === 'shotgun:PRIMARY:3:7 / 42: stinger:GADGET · AA:8:1 / 2:eq revolver:SIDEARM:6:6 / 8: knife:MELEE:0:∞:',
+      `conquest Engineer AA: the STINGER takes the gadget segment on the launcher digit (${view()})`);
+    ok(kitWheel.entries().every(e => e.owned) && !kitWheel.entries().some(e => ['rocket', 'rifle', 'mgl'].includes(e.id)),
+      'conquest: no locked or unowned weapons are listed');
+    equip('assault');
+    ok(view() === 'rifle:PRIMARY:1:30 / 6:eq revolver:SIDEARM:6:6 / 8: knife:MELEE:0:∞:',
+      `conquest Assault: no gadget, three segments (${view()})`);
+    equip('support', 1);
+    ok(kitWheel.entries()[0].id === 'minigun' && kitWheel.entries()[0].key === '' && kitWheel.entries().length === 3,
+      'conquest Support FURNACE: a primary without a digit shows no key badge');
+
+    // Selection maps the wheel index to the weapon slot; digits map through the kit.
+    equip('engineer', 0, 1);
+    kitPicks.length = 0;
+    kitWheel.openWheel();
+    kitWheel.commit(1);
+    kitWheel.openWheel();
+    kitWheel.commit(2);
+    ok(kitPicks.join() === `${WEAPON_IDS.indexOf('stinger')},${WEAPON_IDS.indexOf('revolver')}`,
+      `conquest: picking segments equips the STINGER and the sidearm by weapon slot (${kitPicks.join()})`);
+    ok(kitWheel.directIndex(WEAPON_IDS.indexOf('rocket')) === 1 && kitWheel.directIndex(9) === 3
+        && kitWheel.directIndex(5) === 2 && kitWheel.directIndex(1) === 0 && kitWheel.directIndex(0) === -1,
+      'conquest: digits pressed in the wheel pick the entry they equip outside it (launcher digit -> gadget)');
+    kitPicks.length = 0;
+    kitWheel.openWheel();
+    kitWheel.commit(kitWheel.directIndex(0));
+    kitWheel.openWheel();
+    kitWheel.commit(0);
+    ok(!kitWheel.open && kitPicks.length === 0,
+      'conquest: a digit the kit lacks and the already equipped primary close without switching');
+
+    kitContext.self.owned = undefined;
+    ok(kitWheel.entries().length === 15 && kitWheel.entries().every(e => !e.role),
+      'conquest before the first owned list falls back to the full wheel');
+    for (const mode of ['snd', 'tdm', 'ttt']) {
+      kitContext.match.mode = mode;
+      kitContext.self.owned = ['rifle', 'revolver', 'knife'];
+      ok(kitWheel.entries().length === 15 && kitWheel.entries().every((e, i) => !e.role && e.slot === i)
+          && kitWheel.directIndex(4) === 4,
+        `${mode}: the full roster wheel is unchanged (no kit roles, index == slot)`);
+    }
+  }
+
   const { WHEEL_COMMIT_RADIUS } = await import('../../public/js/ui/weapon-wheel.js');
   // The facade uses the real sector math; queued input represents one frame's
   // complete gesture, including motion and release arriving before it opens.

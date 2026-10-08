@@ -13,6 +13,10 @@ import { KIT_IDS, KITS, seatWeaponList } from '../../../shared/conquest-contract
 import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { conquestHudFixtures, fixtureMapMeta, FIXTURE_NOW } from './conquest-hud-fixtures.js';
+import { WeaponWheelController as WheelSession } from '../session/weapon-wheel-controller.js';
+import { wheelAngleForSlot } from '../ui/weapon-wheel.js';
+import { kitLoadout } from '../../../shared/conquest-kits.js';
+import { WEAPON_IDS } from '../../../shared/combatmath.js';
 
 const fixtures = conquestHudFixtures();
 const mapMeta = fixtureMapMeta();
@@ -163,4 +167,72 @@ function boxes() {
   };
 }
 
-window.__cq = { ids: fixtures.map(f => f.id), titles: Object.fromEntries(fixtures.map(f => [f.id, f.title])), render, boxes, ready: true };
+/**
+ * Opens the real weapon wheel over a rendered HUD fixture. Entries come from the
+ * session WeaponWheelController against a snapshot-shaped context: the kit's
+ * authoritative `owned` list (kitWeapons) and its issued ammo, so the capture shows
+ * exactly what a live Conquest player of that kit gets. `mode` other than
+ * 'conquest' renders the unchanged full wheel for comparison.
+ */
+async function wheel({ fixture = 'defending', kit = 'engineer', variant = 0, gadget = 0, mode = 'conquest',
+  current = 'primary', hover = 1, touch: touchMode = false } = {}) {
+  await render(fixture, { touch: touchMode });
+  const h = ensureHud();
+  const loadout = kitLoadout(kit, variant, gadget);
+  const ammo = Object.fromEntries(WEAPON_IDS.map((id, slot) => [id, { mag: loadout.mag[slot], reserve: loadout.reserve[slot] }]));
+  const equipped = loadout[current] || loadout.primary;
+  const context = {
+    match: { mode }, self: { owned: mode === 'conquest' ? loadout.owned : undefined, state: 'alive' },
+    enabled: true, alive: true, spectating: false,
+    weapon: { slot: WEAPON_IDS.indexOf(equipped), ammoOf: id => (mode === 'conquest' ? ammo[id] : { mag: WEAPONS[id].magSize, reserve: 3 }), forceWeapon() {} },
+  };
+  h.setWeaponWheelState({ open: false });
+  const picks = [];
+  context.weapon.forceWeapon = slot => picks.push(WEAPON_IDS[slot]);
+  const session = new WheelSession({
+    input: { setWeaponWheelOpen() {}, isWeaponWheelClosing: () => false }, hud: h, getContext: () => context,
+  });
+  // The live wiring (main.js): a pick from the overlay commits through the session controller.
+  h.setupWeaponWheel({ onPick: index => session.commit(index), onCancel: () => session.close() });
+  session.openWheel();
+  await frame();
+  const count = document.querySelectorAll('#weapon-wheel .vb-wheel-slot').length;
+  if (hover >= 0 && hover < count) {
+    const rad = wheelAngleForSlot(hover, count) * Math.PI / 180;
+    h.setWeaponWheelState({ x: Math.cos(rad) * 0.62, y: Math.sin(rad) * 0.62 });
+  }
+  await frame();
+  label.textContent = `weapon wheel · ${mode} · ${kit} · ${innerWidth}×${innerHeight}`;
+  const root = document.getElementById('weapon-wheel');
+  const dom = [...root.querySelectorAll('.vb-wheel-slot')].map(node => ({
+    role: node.querySelector('.vb-wheel-role')?.textContent || '', name: node.querySelector('.vb-wheel-name')?.textContent || '',
+    key: node.querySelector('.vb-wheel-key')?.textContent || '', ammo: node.querySelector('.vb-wheel-ammo')?.textContent || '',
+    locked: node.classList.contains('is-locked'), current: node.classList.contains('is-current'), hl: node.classList.contains('is-hl'),
+  }));
+  /** Flicks past the commit ring toward segment `index`; returns what got equipped. */
+  const flick = async (index) => {
+    if (!session.open) session.openWheel();
+    const n = session.entries().length;
+    const rad = wheelAngleForSlot(index, n) * Math.PI / 180;
+    h.setWeaponWheelState({ x: 0, y: 0 });
+    h.setWeaponWheelState({ x: Math.cos(rad) * 1.5, y: Math.sin(rad) * 1.5 });
+    await frame();
+    return picks.at(-1) ?? null;
+  };
+  return { count, ids: session.entries().map(entry => entry.id), kit: root.classList.contains('is-kit'), dom,
+    hub: [...root.querySelectorAll('.vb-wheel-hub > *')].map(n => n.textContent),
+    flick: async () => {
+      const out = [];
+      for (let i = 0; i < count; i++) { picks.length = 0; out.push(await flick(i)); }
+      session.close();
+      return out;
+    } };
+}
+
+/** Flick-selects every segment of a kit wheel through the real overlay geometry; returns the equipped ids. */
+async function wheelFlick(options) {
+  const info = await wheel({ ...options, hover: -1 });
+  return info.flick();
+}
+
+window.__cq = { ids: fixtures.map(f => f.id), titles: Object.fromEntries(fixtures.map(f => [f.id, f.title])), render, boxes, wheel, wheelFlick, ready: true };
