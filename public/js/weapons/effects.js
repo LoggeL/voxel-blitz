@@ -42,6 +42,8 @@ const BLAST_PARTICLES = Object.freeze({
   pulse: Object.freeze({ count: 26, tint: 0x9ff4ff, speed: 11, size: 1.2, life: 0.45, shake: 0.7, reach: 24 }),
   rocket: Object.freeze({ count: 52, tint: 0xffb347, speed: 10.5, size: 1.8, life: 0.85, shake: 1.15, reach: 32 }),
   mgl: Object.freeze({ count: 34, tint: 0xffa443, speed: 9.2, size: 1.3, life: 0.62, shake: 0.72, reach: 24 }),
+  // Tank shells: VehicleFx adds the ground shock ring and its own camera shake.
+  shell: Object.freeze({ count: 46, tint: 0xffc070, speed: 12, size: 1.7, life: 0.7, shake: 0.9, reach: 30 }),
   bolt: Object.freeze({ count: 10, tint: 0x7dfcff, speed: 5.5, size: 1.0, life: 0.4, shake: 0.18, reach: 14 }),
   molotov: Object.freeze({ count: 24, tint: 0xff9238, speed: 4.5, size: 1.1, life: 0.65, shake: 0.22, reach: 14 }),
   // RIPTIDE: remote catch sparkle and fizzle. No shake: nothing detonates.
@@ -274,6 +276,11 @@ export class Effects {
     );
   }
 
+  /** A flying round settled on the server (`bullet`): end its streak there, draw continuations. */
+  settleRound(event, options) {
+    if (!this._disposed) this.tracers.settleRound(event, options);
+  }
+
   confirmShot(event) {
     if (this._disposed || !Array.isArray(event.paths)) return;
     this.tracers.resolvedShot(event, { continuationsOnly: true });
@@ -336,7 +343,7 @@ export class Effects {
         { speed: 0.8, gravity: -1.2, size: mini ? 0.8 : 1.6, life: 0.9, softness: true });
       // The flash, film ring and cartoon pop strokes come from ProjectileFX.explode.
     }
-    if (event?.type === 'frag' || event?.type === 'limpet' || event?.type === 'rocket') {
+    if (event?.type === 'frag' || event?.type === 'limpet' || event?.type === 'rocket' || event?.type === 'shell') {
       // Dirt burst: the blast throws soil up around the sparks — slower,
       // longer-lived and soft. Energy blasts (pulse/bolt) throw none.
       this.impacts.spawnParticles(

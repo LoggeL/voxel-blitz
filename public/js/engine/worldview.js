@@ -30,9 +30,10 @@ import { buildMapLights } from './map-lights.js';
 import { SiteMarkers } from './site-markers.js';
 import { PowerupView } from './powerup-view.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
+import { isSolidBlock } from '../../../shared/world/blocks.js';
 import { GRAPHICS_PROFILES } from './graphics-quality.js';
 import {
-  OutdoorLightVolume, VoxelLightVolume, createVoxelLightUniforms, bindVoxelLightVolume, updateViewExposure, largeWorldLightCell,
+  OutdoorLightVolume, VoxelLightVolume, createVoxelLightUniforms, bindVoxelLightVolume, updateViewExposure, largeWorldLightCell, prewarmLightWorker,
 } from './voxel-light.js';
 import { configureScorchPool } from '../weapons/scorch-decals.js';
 import { bakeEnvironment } from './environment-map.js';
@@ -48,6 +49,18 @@ installFarFog();
 const SUN_DISTANCE = 110;
 /** Large worlds stream grass tufts per detail chunk at this share of the tier density. */
 export const LARGE_WORLD_TUFT_DENSITY = 0.6;
+/**
+ * Streaming worlds (Frontier) mesh this square ring of 16m chunks around the
+ * spawn before play starts (9 x 9 chunks, 64m each way); the far terrain keeps
+ * a coarse surface under every chunk still queued.
+ */
+export const SPAWN_MESH_RADIUS = 4;
+
+/** Large worlds bake light in a worker: start it before the map is decoded. */
+export function prewarmWorldView(mapMeta) {
+  const { sx, sz } = getMapDimensions(mapMeta?.id);
+  return sx * sz > 131072 ? prewarmLightWorker() : false;
+}
 const MAX_3D_TEXTURE_SIZE = 0x8073;
 
 /** The GPU's 3D texture edge limit (WebGL2 guarantees 256), 2048 without a context. */
@@ -215,7 +228,9 @@ export class WorldView {
     const lightOptions = { sunDir: this.sunDir, emitters: () => this.mapLights?.emitters?.() || [], renderer };
     try {
       this.lightVolume = new VoxelLightVolume(visualBlock, dimensions, this.largeWorld ? {
-        ...lightOptions, cell: largeWorldLightCell(dimensions, { tier: graphics.tier, max3DTextureSize: max3DTextureSize(renderer) }),
+        ...lightOptions,
+        // The raw voxels behind visualBlock (none while a replay shows other terrain).
+        voxels: () => (this.replayTerrain ? null : this.store.voxels?.() ?? null), cell: largeWorldLightCell(dimensions, { tier: graphics.tier, max3DTextureSize: max3DTextureSize(renderer) }),
       } : lightOptions);
     } catch (error) {
       console.warn('[vb] voxel light volume unavailable; open-sky lighting', error);
@@ -230,13 +245,6 @@ export class WorldView {
       mapId: meta?.id,
       streamRange: this.renderDistanceProfile.detail,
     });
-    this.farTerrain = meta?.id === 'frontier' ? new FarTerrain(this.scene, visualBlock, dimensions, {
-      step: captureTerrainStep || this.renderDistanceProfile.terrainStep,
-      silhouetteStep: this.renderDistanceProfile.silhouetteStep,
-      groundHeight: Number.isFinite(meta?.groundLevel) ? meta.groundLevel : null,
-      lightUniforms: this.lightUniforms,
-      remap: mapSurface(meta?.id).remap,
-    }) : null;
     this.grassTufts = new GrassTufts(this.scene, visualBlock, visualDamage, dimensions, {
       density: this.largeWorld ? graphics.grassDensity * LARGE_WORLD_TUFT_DENSITY : graphics.grassDensity,
       streaming: this.largeWorld, lightUniforms: this.lightUniforms, receiveShadow: !!this.dynamicShadows,
@@ -261,6 +269,33 @@ export class WorldView {
     this.scene.add(this.mapSigns.group);
     this.mapLights = buildMapLights(meta?.id, visualBlock);
     this.scene.add(this.mapLights.group);
+    // A large world with raw voxels starts its light bake here (its lamps are
+    // known now): the worker classifies and bakes while this thread builds the
+    // far terrain, the distant shell and the spawn chunks. ready() awaits it.
+    // ready() hands the boot's yieldControl/isActive to it through _bakeHooks,
+    // so a main-thread fallback (the worker failed) still slices and cancels.
+    const hooks = this._bakeHooks = { yieldControl: null, isActive: null };
+    this._lightBake = this.largeWorld && this.lightVolume.rawVoxels?.() ? this.bakeLight({
+      yieldControl: () => (hooks.yieldControl ? hooks.yieldControl() : new Promise(resolve => setTimeout(resolve, 0))),
+      isActive: () => !this._disposed && hooks.isActive?.() !== false,
+    }) : null;
+    // One degenerate triangle per terrain material, so shader warm-up links
+    // the cutout/glass/fluid programs even when the spawn chunks have none.
+    this.terrainWarmup = this.chunkStore.warmupGroup?.() || null;
+    if (this.terrainWarmup) this.scene.add(this.terrainWarmup);
+    // Frontier's far terrain and distant shell (~0.3 s of synchronous work)
+    // are built by ready(), after the spawn chunks: a module worker posted to
+    // only starts running once this thread yields.
+    this.farTerrain = null;
+    this._farTerrainOptions = meta?.id === 'frontier' ? {
+      step: captureTerrainStep || this.renderDistanceProfile.terrainStep,
+      silhouetteStep: this.renderDistanceProfile.silhouetteStep,
+      groundHeight: Number.isFinite(meta?.groundLevel) ? meta.groundLevel : null,
+      lightUniforms: this.lightUniforms,
+      remap: mapSurface(meta?.id).remap,
+      voxels: () => this.store.voxels?.() ?? null,
+    } : null;
+    this._visualBlock = visualBlock;
     // Distant skyline or horizon mountain ring (one merged draw) and the air (one points draw).
     this.backdrop = buildMapBackdrop(palette, dimensions);
     if (this.backdrop) this.scene.add(this.backdrop.group);
@@ -319,16 +354,46 @@ export class WorldView {
 
   /** Builds every initial chunk column; resolves when the world is renderable. */
   async ready(options) {
-    await this.bakeLight(options);
-    bindVoxelLightVolume(this.lightUniforms, this.lightVolume, { ...this.palette.light, adaptation: !!this.graphics?.hdr });
-    if (options) await buildInitialMesh(this.chunkStore, options);
+    // A large world bakes its light in a worker while the main thread meshes;
+    // the meshes only read the light volume through shared uniforms.
+    if (options) {
+      this._bakeHooks.yieldControl = options.yieldControl || null;
+      this._bakeHooks.isActive = options.isActive || null;
+    }
+    const light = this._lightBake || this.bakeLight(options);
+    // Live boots mesh the spawn area only; the rest streams in during play.
+    if (options) await buildInitialMesh(this.chunkStore, { radius: SPAWN_MESH_RADIUS, sliceMs: 16, ...options });
     else this.chunkStore.buildAll();
+    try { performance.mark('vb:join:mesh'); } catch { /* no User Timing */ }
+    if (options && options.isActive?.() === false) return this;
+    this.buildFarTerrain();
+    try { performance.mark('vb:join:far'); } catch { /* no User Timing */ }
+    await light;
+    try { performance.mark('vb:join:light'); } catch { /* no User Timing */ }
+    bindVoxelLightVolume(this.lightUniforms, this.lightVolume, { ...this.palette.light, adaptation: !!this.graphics?.hdr });
     this.farTerrain?.syncChunks(this.chunkStore);
     this.grassTufts.build();
     // Streamed tufts for every initial chunk near the view, then two chunks a frame.
     this.grassTufts.syncChunks(this.chunkStore, { budget: Infinity });
     this._ready = true;
     return this;
+  }
+
+  /** Drop the terrain warm-up meshes once the shaders are linked (idempotent). */
+  releaseShaderWarmup() {
+    const group = this.terrainWarmup;
+    if (!group) return;
+    this.terrainWarmup = null;
+    group.removeFromParent();
+    for (const mesh of group.children) mesh.geometry?.dispose();
+  }
+
+  /** Frontier's far terrain and distant shell over the current voxels (once). */
+  buildFarTerrain() {
+    if (this.farTerrain || !this._farTerrainOptions || this._disposed) return this.farTerrain;
+    this.farTerrain = new FarTerrain(this.scene, this._visualBlock, this.dimensions, this._farTerrainOptions);
+    this._farTerrainOptions = null;
+    return this.farTerrain;
   }
 
   /** Bake the light volume: large worlds off the main thread, else in place. */
@@ -417,6 +482,20 @@ export class WorldView {
     );
   }
 
+  /**
+   * Same cast but only SOLID blocks stop it (water, lava, ghost blocks are
+   * passed), matching the server's projectile cast (ctx.solidAt = isSolidBlock).
+   */
+  pickSolidRay(origin, dir, maxDist) {
+    const getBlock = this.store.getBlock;
+    return raycastVoxels(
+      (x, y, z) => isSolidBlock(getBlock(x, y, z)),
+      origin.x, origin.y, origin.z,
+      dir.x, dir.y, dir.z,
+      maxDist,
+    );
+  }
+
   setMatch(match, serverNow) { this.bastion?.sync(match, undefined, serverNow); this.conquest?.sync(match); this.tttWeapons.sync(match?.weaponPickups || []); this.tttCorpses.sync(match?.corpses || []); this.tttSupplies.sync([...(match?.weaponPickups||[]).filter(p=>p.grenade),...(match?.c4||[])]); }
 
   setGameMode(mode) {
@@ -491,6 +570,7 @@ export class WorldView {
     if (this._disposed) return;
     this._disposed = true;
     this.releaseFarFog?.();
+    this.releaseShaderWarmup();
     this.chunkStore.dispose();
     this.farTerrain?.dispose();
     this.grassTufts.dispose();

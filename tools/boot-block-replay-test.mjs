@@ -4,8 +4,10 @@ import { NetClient } from '../public/js/engine/netclient.js';
 import { applySnapshotBlocks } from '../public/js/combat/feedback.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
 import {
-  AIR, STONE, createMapState, deserializeWorld, getBlock, getMapDimensions, getMapMeta, setBlock,
+  AIR, STONE, createMapState, deserializeWorld, getBlock, getMapDimensions, getMapMeta, setBlock, worldBlocks,
 } from '../shared/worlddata.js';
+import { isMapFrame, parseMapFrame } from '../shared/world/serialize.js';
+import { MapCache } from '../public/js/engine/map-cache.js';
 
 // Use the exact Game tick/boot methods without starting its browser constructor.
 const mainSource = readFileSync(new URL('../public/js/main.js', import.meta.url), 'utf8');
@@ -14,12 +16,20 @@ const classEnd = mainSource.indexOf('\nconst debugParams =', classStart);
 assert(classStart >= 0 && classEnd > classStart, 'composition root class can be isolated from browser startup');
 
 let decoded = false;
+// Free identifiers of the boot path: the join timeline marks and the map cache
+// (a V3 frame resolves its template through it).
 const Game = new Function('applySnapshotBlocks', 'deserializeWorld', 'getBlock', 'getMapMeta',
+  'joinMark', 'mapCache', 'isMapFrame', 'parseMapFrame', 'worldBlocks',
   `return (${mainSource.slice(classStart, classEnd)});`)(
   applySnapshotBlocks,
-  (bytes) => { decoded = true; deserializeWorld(bytes); },
+  (bytes, options) => { decoded = true; deserializeWorld(bytes, options); },
   getBlock,
   getMapMeta,
+  () => {},
+  new MapCache({ storage: null }),
+  isMapFrame,
+  parseMapFrame,
+  worldBlocks,
 );
 globalThis.requestAnimationFrame ??= (callback) => setTimeout(callback, 0);
 

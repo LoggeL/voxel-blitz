@@ -9,11 +9,14 @@ import { raycastVoxels } from '../../../shared/raycast.js';
 import { isSolidBlock } from '../../../shared/world/blocks.js';
 import { GRENADE_TYPES } from '../../../shared/grenade-rules.js';
 import { ROCKET_RULES } from '../../../shared/rocket-rules.js';
+import { VEHICLE_WEAPON_META } from '../../../shared/conquest-contract.js';
+import { VEHICLE_WEAPONS } from '../../../shared/vehicle-defs.js';
 
 function blastRadius(type, override) {
   const forced = Number(override);
   if (Number.isFinite(forced) && forced > 0) return forced;
   if (type === 'rocket') return ROCKET_RULES.damageRadius;
+  if (type === 'shell') return VEHICLE_WEAPONS.tankHE.splashRadius;
   return GRENADE_TYPES[type]?.damageRadius ?? 5;
 }
 
@@ -41,9 +44,21 @@ export function stageCaptureExplosion({ type = 'frag', age = 0.12, at = null, ra
   const point = groundPoint(getBlock, camera, at);
   const override = radius ?? (typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('explosionRadius'));
   const size = blastRadius(type, override);
-  fx.explode({ pid: 'capture', type, x: point.x, y: point.y, z: point.z, radius: size });
   const dt = 1 / 60;
   const steps = Math.max(1, Math.round(Math.max(0, Number(age) || 0) / dt));
+  if (type === 'shell') {
+    // An AP round crossing the view: its tracer streak sits near the blast when the frame is taken.
+    const right = camera.getWorldDirection(camera.position.clone()).cross({ x: 0, y: 1, z: 0 }).normalize();
+    const meta = VEHICLE_WEAPON_META.tankAP;
+    const from = [point.x - right.x * 70, point.y + 7, point.z - right.z * 70];
+    const to = [point.x + right.x * 40, point.y + 2, point.z + right.z * 40];
+    const span = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
+    const dir = to.map((n, i) => (n - from[i]) / span);
+    fx.launch({ pid: 'capture-shell', type: 'shell', o: from, v: dir.map(n => n * meta.speed), fuse: 4000, vehicleWeapon: 'tankAP', g: meta.gravity });
+    const lead = Math.max(0, Math.round(64 / meta.speed / dt) - steps);
+    for (let i = 0; i < lead; i++) fx.update(dt);
+  }
+  fx.explode({ pid: 'capture', type, x: point.x, y: point.y, z: point.z, radius: size, vehicleWeapon: type === 'shell' ? 'tankHE' : undefined });
   for (let i = 0; i < steps; i++) fx.update(dt);
   return {
     type, age: steps * dt, point, radius: size,

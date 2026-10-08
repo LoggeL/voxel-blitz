@@ -1,5 +1,10 @@
 import { MAP_LABELS, MAP_PREVIEWS, MODE_LABELS } from '../ui/hud-support.js';
 import { MAX_BOTS } from '../../../shared/lobby-limits.js';
+import { mapCache } from '../engine/map-cache.js';
+import { getMapMeta } from '../../../shared/worlddata.js';
+
+/** Join timeline marks (see tools/conquest-join-profile.mjs). */
+const joinMark = (stage) => { try { performance.mark(`vb:join:${stage}`); } catch { /* no User Timing */ } };
 
 /** Close codes that end a rejoin for good (bad join, refused, lobby gone, lobby full). */
 const REJOIN_REFUSED = Object.freeze({
@@ -93,6 +98,9 @@ export class PregameFlow {
     }
     this._net = net;
     this._unsubs = [
+      // The arena's metadata (Frontier: ~0.2 s of terrain work) is derived
+      // while its map frame is still on the wire.
+      net.on('welcome', (welcome) => this._prewarmMapMeta(welcome?.map)),
       net.on('lobby', (state) => this._handleLobbyState(net, state)),
       net.on('serverError', (error) => this._handleServerError(net, error)),
       net.on('close', () => this._handleClose(net)),
@@ -113,11 +121,14 @@ export class PregameFlow {
 
   async begin(action, recoveryToken = null) {
     if (this._isTornDown() || this._getPhase() !== 'menu' || !action) return;
+    joinMark('start');
     if (recoveryToken === null) {
       this._recoveryGeneration++;
       this._rejoin = null;
     }
     const audioReady = this._unlockAudio();
+    // Usually loaded at menu idle already; a cold read takes a few ms.
+    const cacheReady = mapCache.load();
 
     const mode = action.mode === 'create' || action.mode === 'join' ? action.mode : 'quick';
     const name = String(action.name || '').trim().slice(0, 16) || 'Rookie';
@@ -170,16 +181,20 @@ export class PregameFlow {
 
     net.onMap = (bytes) => {
       if (!this.isActive(attempt)) return;
+      joinMark('map');
+      // A V3 frame that carries its template fills the map cache for rejoins.
+      mapCache.remember(bytes);
       attempt.mapBytes = bytes;
       if (attempt.welcome && net.welcome) attempt.welcome = net.welcome;
       this.maybeEnterLive(attempt);
     };
 
     await audioReady;
+    if (!mapCache.ready) await cacheReady;
     if (!this.isActive(attempt)) return;
 
     const password = typeof action.password === 'string' ? action.password : '';
-    const opts = { mode };
+    const opts = { mode, mapCache: mapCache.fingerprints() };
     if (mode !== 'quick') opts.password = password;
     if (mode === 'quick' || mode === 'create') opts.bots = bots;
     if (mode === 'create') {
@@ -271,6 +286,7 @@ export class PregameFlow {
   async startLobby(attempt) {
     await this._unlockAudio();
     if (!this.isActive(attempt) || this._getPhase() !== 'lobby') return;
+    joinMark('start');
     attempt.net.requestStart();
   }
 
@@ -285,6 +301,13 @@ export class PregameFlow {
     this.clearInviteQuery();
     this._enterMenu();
     return true;
+  }
+
+  /** Build a map's metadata (memoised by getMapMeta) on the next task, once per map. */
+  _prewarmMapMeta(map) {
+    if (typeof map !== 'string' || this._prewarmedMap === map) return;
+    this._prewarmedMap = map;
+    setTimeout(() => { try { getMapMeta(map); } catch { /* unknown map: the boot reports it */ } }, 0);
   }
 
   clearInviteQuery() {
@@ -341,6 +364,7 @@ export class PregameFlow {
     const attempt = this._attempt;
     if (!attempt || attempt.net !== net || !this.isActive(attempt) || !state) return;
     attempt.lobbyState = state;
+    if (state.phase === 'waiting') this._prewarmMapMeta(state.map);
     if (state.phase === 'live') {
       this.maybeEnterLive(attempt);
       return;

@@ -6,7 +6,7 @@ import { attachBots } from '../server/bots.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { GRENADE_TYPE_IDS, freshGrenadeLoadout } from '../shared/grenade-rules.js';
 import { SMOKE, smokeBlocksSight, smokeOpticalDepth } from '../shared/smoke-rules.js';
-import { fireOneShot } from '../server/sim/combat.js';
+import { fireOneShot, stepFlyingRounds } from '../server/sim/combat.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { CombatPostProcess } from '../public/js/engine/combat-post-process.js';
 import * as THREE from '../public/js/vendor/three.module.js';
@@ -67,7 +67,11 @@ assert.equal(bots.pickTarget(bot, bots.brains[0]), null, 'smoke clears cached en
 assert.equal(bots.brains[0].enemyId, null);
 // It is concealment: shots still hit when fired through the obscured line.
 bot.weapon = WEAPON_IDS.indexOf('sniper');
-fireOneShot(bot, { ...engine.contexts.combat, computeConeDeg: () => 0 });
+// The LONGSHOT round flies: step the room's in-flight rounds until it lands.
+const combat = { ...engine.contexts.combat, computeConeDeg: () => 0 };
+fireOneShot(bot, combat);
+for (let tick = 0; tick < 6 && engine.flyingRounds.length; tick++) stepFlyingRounds(engine.flyingRounds, 1 / 60, combat);
+assert.equal(engine.flyingRounds.length, 0, 'the sniper round settles within a few ticks');
 assert(human.hp < 100, 'smoke never stops bullets');
 bots.dispose(); engine.stop();
 

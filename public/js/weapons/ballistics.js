@@ -2,6 +2,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { WEAPONS, HITSCAN_REACH, chargeShotProfile } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
+import { ballisticLaunch, ballisticPoint, ballisticProfile, traceBallistic } from '../../../shared/bullet-ballistics.js';
 import { isSolidBlock } from '../../../shared/world/blocks.js';
 import { freeOldestIndex, hideInstance } from './instancing.js';
 import { FLASH_FRAMES, FLASH_GAIN, flashAtlasTexture } from '../guns/kit.js';
@@ -16,6 +17,13 @@ const NO_BLOCK = () => 0;
 const TRACER_HDR = 2.6;
 // Narrowest on-screen ribbon in buffer pixels; wider-than-true ribbons dim to match.
 const TRACER_MIN_PIXELS = 2.5;
+// Flying rounds (def.ballistic): streak length behind the head, the distance over
+// which the streak eases from the visible barrel onto the true arc, and the life
+// phase that shows the whole ribbon (head lit, tail on, see TRACER_VERTEX).
+const ROUND_STREAK_M = 26;
+const ROUND_CONVERGE_M = 30;
+const ROUND_PHASE = 0.32;
+const MAX_ROUNDS = 24;
 
 // Camera-facing tracer ribbon. The instance matrix keeps the box-era semantics
 // (translation = muzzle start, rotation maps -Z onto the flight direction, scale =
@@ -227,6 +235,7 @@ export class TracerFX {
         w: 0.03,
         anchored: false,
         pinned: false,
+        round: null,
         color: new THREE.Color(0xffffff),
       };
       this.tracers[i] = tracer;
@@ -268,6 +277,8 @@ export class TracerFX {
     scene.add(this.flashMesh);
 
     this.stats = { shots: 0 };
+    /** Flying rounds in presentation, oldest first (see launchRound). */
+    this.rounds = [];
     this._disposed = false;
   }
 
@@ -302,6 +313,8 @@ export class TracerFX {
     // The SUDSBLASTER releases a soap film, never a powder flash.
     if (!local && definition?.projectile !== 'bubble') this.spawnFlash([ox, oy, oz], event.d);
     if (definition && !definition.tracer) return;
+    const ballistic = ballisticProfile(definition);
+    if (ballistic) { this.launchRound(event, definition, ballistic, local, ox, oy, oz); return; }
     if (Array.isArray(event.paths)) { this.resolvedShot(event, { pinned: !local }); return; }
 
     for (let i = 0; i < limit; i++) {
@@ -355,6 +368,145 @@ export class TracerFX {
     }
   }
 
+  /**
+   * A flying round (`def.ballistic`): the streak rides the shared arc from the
+   * trigger until its first predicted voxel contact, where it leaves wall
+   * feedback. `event.o` is the eye for local shots and the server muzzle
+   * (eye − 0.15 m, 0.25 m forward) for remote ones; the visible start
+   * (`vx, vy, vz`: rig or avatar barrel) eases onto the true arc.
+   */
+  launchRound(event, definition, profile, local, vx, vy, vz) {
+    const raw = event.spread || event.d;
+    const direction = directionInto(this._direction, raw).normalize();
+    const d = { x: direction.x, y: direction.y, z: direction.z };
+    const eye = local ? event.o
+      : [event.o[0] - d.x * 0.25, event.o[1] + 0.15 - d.y * 0.25, event.o[2] - d.z * 0.25];
+    const launch = ballisticLaunch(profile, eye, d);
+    const flight = traceBallistic(profile, launch, this.solidAt);
+    let sx = vx, sy = vy, sz = vz;
+    if (local) {
+      const m = this.muzzleProvider?.(this._muzzle);
+      if (m) { sx = m.x; sy = m.y; sz = m.z; } else { sx = eye[0] + d.x * 0.35; sy = eye[1] + d.y * 0.35; sz = eye[2] + d.z * 0.35; }
+    }
+    if (this.rounds.length >= MAX_ROUNDS) this._endRound(0, false);
+    const index = this._claimTracer();
+    const tracer = this.tracers[index];
+    tracer.active = true;
+    tracer.t = 0;
+    tracer.life = Infinity;
+    tracer.pinned = false;
+    tracer.w = 0.028 * definition.tracer.width;
+    tracer.color.set(definition.tracer.color);
+    const round = {
+      index, launch, profile, local, ownerId: String(event.id ?? ''), w: event.w,
+      t: 0, end: flight.t, hit: flight.hit,
+      ox: sx - eye[0], oy: sy - eye[1], oz: sz - eye[2],
+    };
+    tracer.round = round;
+    this.tracerMesh.setColorAt(index, tracer.color);
+    if (this.tracerMesh.instanceColor) this.tracerMesh.instanceColor.needsUpdate = true;
+    this.rounds.push(round);
+    this._placeRound(round);
+  }
+
+  /**
+   * The server settled a flying round (`bullet` event). A round that stopped
+   * before the predicted wall (a body, a hull, a mine) ends there; legs past
+   * its first contact (penetration, ricochet) draw as resolved streaks.
+   * `local` marks the viewer's own round: its predicted launch carries no
+   * shooter id, so it matches the oldest local round of that weapon.
+   */
+  settleRound(event, { local = false } = {}) {
+    const path = Array.isArray(event?.paths) ? event.paths[0] : null;
+    if (!Array.isArray(path) || !path.length) return;
+    let distance = 0, stop = path.length - 1;
+    for (let i = 0; i < path.length; i++) {
+      const segment = path[i];
+      distance += Math.hypot(segment.end[0] - segment.o[0], segment.end[1] - segment.o[1], segment.end[2] - segment.o[2]);
+      if (segment.hit) { stop = i; break; }
+    }
+    const id = String(event.id);
+    const round = this.rounds.find(item => item.w === event.w && (local ? item.local || item.ownerId === id : item.ownerId === id));
+    if (round) {
+      const stopT = distance / round.profile.speed;
+      if (round.end > stopT + 0.02) {
+        round.end = Math.max(round.t, stopT);
+        round.hit = path[stop].hit || null;
+      }
+    }
+    const definition = WEAPONS[event.w];
+    if (!definition?.tracer) return;
+    for (let i = stop + 1; i < path.length; i++) {
+      const segment = path[i];
+      const direction = this._direction.set(
+        segment.end[0] - segment.o[0], segment.end[1] - segment.o[1], segment.end[2] - segment.o[2]);
+      const length = direction.length();
+      if (length > 0.001) {
+        direction.multiplyScalar(1 / length);
+        this.spawnTracer(segment.o, direction, Math.min(length, definition.tracer.len), definition, null, 1, 0, false);
+      }
+      if (segment.hit && this.onWallImpact) this.onWallImpact(segment.hit, false);
+    }
+  }
+
+  /** A free tracer slot, else the most expired streak (flying rounds never expire by age). */
+  _claimTracer() {
+    for (let i = 0; i < this.tracers.length; i++) if (!this.tracers[i].active) return i;
+    const index = freeOldestIndex(this.tracers);
+    const stolen = this.tracers[index].round;
+    const at = stolen ? this.rounds.indexOf(stolen) : -1;
+    if (at >= 0) this.rounds.splice(at, 1);
+    this.tracers[index].round = null;
+    return index;
+  }
+
+  _endRound(i, impact) {
+    const round = this.rounds[i];
+    this.rounds.splice(i, 1);
+    const tracer = this.tracers[round.index];
+    if (tracer.round === round) {
+      tracer.round = null;
+      tracer.active = false;
+      tracer.t = 0;
+      hideInstance(this.tracerMesh, round.index);
+      this.tracerMesh.instanceMatrix.needsUpdate = true;
+    }
+    if (impact && round.hit && this.onWallImpact) this.onWallImpact(round.hit, round.local);
+  }
+
+  /** Streak from the tail point to the head point of the arc at the round's age. */
+  _placeRound(round) {
+    const speed = round.profile.speed;
+    const head = ballisticPoint(round.profile, round.launch, round.t, this._roundHead || (this._roundHead = { x: 0, y: 0, z: 0 }));
+    const tailT = Math.max(0, round.t - ROUND_STREAK_M / speed);
+    const tail = ballisticPoint(round.profile, round.launch, tailT, this._roundTail || (this._roundTail = { x: 0, y: 0, z: 0 }));
+    const headEase = Math.max(0, 1 - round.t * speed / ROUND_CONVERGE_M);
+    const tailEase = Math.max(0, 1 - tailT * speed / ROUND_CONVERGE_M);
+    const hx = head.x + round.ox * headEase, hy = head.y + round.oy * headEase, hz = head.z + round.oz * headEase;
+    const tx = tail.x + round.ox * tailEase, ty = tail.y + round.oy * tailEase, tz = tail.z + round.oz * tailEase;
+    const length = Math.hypot(hx - tx, hy - ty, hz - tz);
+    const tracer = this.tracers[round.index];
+    if (length < 1e-4) { hideInstance(this.tracerMesh, round.index); return; }
+    this._position.set((hx - tx) / length, (hy - ty) / length, (hz - tz) / length);
+    this._rotation.setFromUnitVectors(NEG_Z, this._position);
+    this._scale.set(tracer.w, tracer.w, length);
+    this._matrix.compose(this._position.set(tx, ty, tz), this._rotation, this._scale);
+    this._matrix.elements[3] = ROUND_PHASE;
+    this._matrix.elements[7] = 0;
+    this.tracerMesh.setMatrixAt(round.index, this._matrix);
+    this.tracerMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  updateRounds(dt) {
+    for (let i = this.rounds.length - 1; i >= 0; i--) {
+      const round = this.rounds[i];
+      if (this.tracers[round.index].round !== round) { this.rounds.splice(i, 1); continue; }
+      round.t += dt;
+      if (round.t >= round.end) { this._endRound(i, true); continue; }
+      this._placeRound(round);
+    }
+  }
+
   /** `pinned` (remote fire) keeps the streak's shooter end on the muzzle for its whole life. */
   spawnTracer(origin, direction, length, definition, endpoint = null, charge = 1, muzzleOffset = 0.35, pinned = false) {
     if (definition && !definition.tracer) return;
@@ -365,11 +517,12 @@ export class TracerFX {
         break;
       }
     }
-    if (index < 0) index = freeOldestIndex(this.tracers);
+    if (index < 0) index = this._claimTracer();
 
     const tracer = this.tracers[index];
     tracer.active = true;
     tracer.t = 0;
+    tracer.round = null;
     tracer.anchored = false;
     tracer.pinned = !!pinned;
     // Local shots snapshot the rig muzzle and aim toward the
@@ -461,7 +614,7 @@ export class TracerFX {
     let dirty = false;
     for (let i = 0; i < this.tracers.length; i++) {
       const tracer = this.tracers[i];
-      if (!tracer.active) continue;
+      if (!tracer.active || tracer.round) continue;
       dirty = true;
       tracer.t += dt;
       if (tracer.t >= tracer.life) {
@@ -504,12 +657,15 @@ export class TracerFX {
   }
 
   update(dt) {
+    this.updateRounds(dt);
     this.updateTracers(dt);
     this.updateFlashes(dt);
   }
 
   reset() {
+    this.rounds.length = 0;
     for (let i = 0; i < this.tracers.length; i++) {
+      this.tracers[i].round = null;
       this.tracers[i].active = false;
       this.tracers[i].t = 0;
       hideInstance(this.tracerMesh, i);

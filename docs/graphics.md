@@ -58,6 +58,12 @@ Any post shader failure falls back to direct rendering for good
   for glowstone and portals, perimeter facade skins and per-map tile remaps.
 - **Grass tufts** (`grass-tufts.js`): ≤0.22 m crossed blades on exposed grass,
   merged per 64×64 region, lit by the voxel volume.
+- **Streaming** (Frontier): a live boot meshes the 9 × 9 chunks around the
+  spawn (`SPAWN_MESH_RADIUS` in `worldview.js`); the rest of the adaptive detail
+  range streams in nearest first, three chunks a frame. The far terrain and the
+  distant voxel shell are built in `ready()` after those chunks; their load-time
+  scans read the raw voxel array, and the shell only sweeps the layers that hold
+  drawn cells in each 16 m record.
 
 ## Voxel light volume
 
@@ -74,6 +80,14 @@ Any post shader failure falls back to direct rendering for good
 - **G sun visibility**: one sweep along sheared sun columns gives
   block-exact shadows from roofs, walls and trees (75 % strength by default).
 - **B/A block light and hue**: glowstone, lava, portals and map lamps.
+
+Large worlds bake in a module worker (`voxel-light-worker.js`). When the store
+exposes its raw voxels (`voxels` option) the worker also classifies the cells
+from a copy of them, so the whole bake runs beside the spawn meshing; the
+WorldView starts it in its constructor and `prewarmWorldView` starts the worker
+before the map is decoded (a worker posted to from a long synchronous build only
+starts once the main thread yields). Deltas that land during the bake replay
+when it finishes.
 
 Block deltas rebuild a ±16-voxel region and the affected sun columns, at most
 every 120 ms. Terrain, tufts, props and characters sample the same volume

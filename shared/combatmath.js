@@ -76,6 +76,8 @@ export const CONDITION_RULES = Object.freeze({
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
  * @property {'rocket'|'bolt'|'glaive'|'bubble'|'mgl'|'stinger'} [projectile]  when set, the shot launches an authoritative projectile instead of firing hitscan rays
  * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number}} [charge]  charge-fire profile
+ * @property {{speed:number,gravity:number,zeroM:number,maxFlightS:number}} [ballistic] the round flies with
+ *                              finite muzzle speed and drop instead of arriving instantly (shared/bullet-ballistics.js)
  * @property {number} [hitRadius] outer radius around a body reached by the rail corona
  * @property {number} [coreRadius] full-damage radius around a body inside the rail core
  * @property {{players:number,playerFalloff:number}} [pierce]  body penetration count and damage retained per victim
@@ -158,6 +160,9 @@ export const WEAPONS = {
     adsFov: 18, zoom: 5, adsTime: 0.26,
     reloadTime: 3.0, tacTime: 2.2, deployTime: 0.55,
     tracer: { color: '#bfe8ff', width: 1.6, len: 40 },
+    // The round flies (shared/bullet-ballistics.js): 460 m/s, 13 m/s² drop,
+    // zeroed at 100 m. Beyond ~150 m it needs holdover, on movers lead.
+    ballistic: { speed: 460, gravity: 13, zeroM: 100, maxFlightS: 3 },
     sfx: 'sniper',
   },
   lmg: {

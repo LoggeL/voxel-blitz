@@ -127,6 +127,19 @@ for (const mode of ['fun', 'duel', 'chaos', 'tdm', 'gungame']) {
   assert.equal(enemy.respawnAt - engine.now, MODE_RULES[mode].respawnMs, `${mode} bots keep their normal delay`);
   engine.stop();
 }
+// A replayed tank main gun shot plays the cannon report, not the infantry launcher, and draws no tracer.
+{
+  const { playKillcamShot } = await import('../public/js/player/killcam.js');
+  const calls = [];
+  const deps = { killer: 'killer', audio: { vehicleCannon: (...a) => calls.push(['cannon', ...a]), fire: (...a) => calls.push(['fire', ...a]) },
+    tracers: { shoot: () => calls.push(['tracer']) }, rig: { fire: () => calls.push(['rig']) } };
+  assert.equal(playKillcamShot({ kind: 'shoot', id: 'killer', w: 'shell', vehicleWeapon: 'tankAP', o: [1, 2, 3] }, deps), 'cannon');
+  assert.deepEqual(calls, [['cannon', [1, 2, 3], { weapon: 'tankAP' }]], 'tank shell: cannon report only');
+  calls.length = 0;
+  assert.equal(playKillcamShot({ kind: 'shoot', id: 'killer', w: 'rocket', o: [1, 2, 3] }, deps), 'fire');
+  assert.deepEqual(calls.map(c => c[0]), ['tracer', 'rig', 'fire'], 'infantry shots keep tracer, viewmodel kick and fire sound');
+}
+
 console.log('Killcam: bounded history, pose interpolation, frozen terrain, damage/destruction/repair timing, killer hitmarkers, exclusions and authoritative human respawn passed.');
 
 // Scope magnification survives the real client serializer and authoritative snapshot.

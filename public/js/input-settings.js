@@ -55,12 +55,25 @@ export const INPUT_PREF_KEYS = Object.freeze({
   touchSize: 'vb-touch-size',       // 'small' | 'medium' | 'large'
   touchHand: 'vb-touch-hand',       // 'right' | 'left'
   aimAssist: 'vb-aim-assist',       // '1' | '0' (pad and touch only)
+  flightMode: 'vb-flight-mode',     // 'mouse' | 'keyboard' (desktop aircraft pilots)
+  flightSensitivity: 'vb-flight-sens', // multiplier on the mouse-flight stick gain
+  flightInvert: 'vb-flight-invert', // '1' | '0': flip mouse-flight pitch relative to look
 });
 
 export const ADS_MODES = Object.freeze(['hold', 'toggle']);
 export const POINTER_MODES = Object.freeze(['auto', 'mouse', 'trackpad']);
 export const TOUCH_SIZES = Object.freeze(['small', 'medium', 'large']);
 export const TOUCH_HANDS = Object.freeze(['right', 'left']);
+/**
+ * Desktop aircraft piloting. 'mouse' (default): Battlefield-style mouse flight, the
+ * mouse is a spring-centred stick (jet: Y pitch, X roll; helicopters: Y pitch, X yaw).
+ * 'keyboard': the older layout (W/S tilt or throttle, A/D bank, the mouse nudges
+ * pitch and bank). Pads and touch always keep their own layout.
+ */
+export const FLIGHT_MODES = Object.freeze(['mouse', 'keyboard']);
+export const FLIGHT_SENSITIVITY = Object.freeze({
+  min: 0.25, max: 3, default: 1, step: 0.05,
+});
 
 /**
  * Trackpads travel a few centimetres per swipe and the OS hands pointer lock small,
@@ -101,6 +114,12 @@ export function clampPadSensitivity(value, fallback = PAD_SENSITIVITY.default) {
   const parsed = Number(value);
   const resolved = Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
   return Math.min(PAD_SENSITIVITY.max, Math.max(PAD_SENSITIVITY.min, resolved));
+}
+
+export function clampFlightSensitivity(value, fallback = FLIGHT_SENSITIVITY.default) {
+  const parsed = Number(value);
+  const resolved = Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return Math.min(FLIGHT_SENSITIVITY.max, Math.max(FLIGHT_SENSITIVITY.min, resolved));
 }
 
 export function clampTouchSensitivity(value, fallback = TOUCH_SENSITIVITY.default) {

@@ -30,7 +30,7 @@ const FLIGHT_STEPPERS = Object.freeze({
   fixedwing: (v, input, dt) => stepPlaneFlight(v, input, dt),
 });
 const flightRest = () => ({ pitch: 0, roll: 0, pitchRate: 0, rollRate: 0, rudderRate: 0, vx: 0, vy: 0, vz: 0, grounded: false, throttle: 0,
-  rotorSpeed: 0, collective: 0, enginePower: 0, throttlePower: 0, airspeed: 0, stalled: false, gearDown: true });
+  rotorSpeed: 0, collective: 0, enginePower: 0, throttlePower: 0, airspeed: 0, stalled: false, gearDown: true, attitudeHeld: false });
 const rest = v => Object.assign(v,{speed:0,yawRate:0,visualSteer:0,leftTrackSpeed:0,rightTrackSpeed:0,vx:0,vy:0,vz:0},isAircraft(v.type)?flightRest():{});
 const angleDelta = (a,b) => Math.atan2(Math.sin(a-b),Math.cos(a-b));
 const spawnRoutes = spawn => Object.fromEntries(['walkingRoute','exitRoute'].flatMap(key => {
@@ -811,6 +811,7 @@ export class VehicleSystem {
       const field = `vehicle${axis}Control`;
       if (input[field] !== undefined) flightInput[`${axis.toLowerCase()}Control`] = controls.allowed ? clamp(input[field], -1, 1) : 0;
     }
+    flightInput.attitudeHold = input.vehicleAttitudeHold === true;
     // Keep the recovery turn engaged until the flight path is safely inward.
     // Releasing on a single projected sample lets persistent mouse aim turn
     // back toward the edge before the aircraft has finished banking.

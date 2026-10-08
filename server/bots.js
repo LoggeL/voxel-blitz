@@ -1,6 +1,7 @@
 import { weaponTurnProfile } from '../shared/weapon-handling.js';
 import { groundRoute, groundSegmentClear, navigationWaypoint, surfaceNavigation } from './bot-navigation.js';
 import { canHopObstacle } from './bot-locomotion.js';
+import { boxCollides, findVault, solidBelow } from '../shared/player-movement.js';
 import { AimSteering } from './bot-aim.js';
 import { hearNoise } from './bot-hearing.js';
 // Direct-injection bots. They register with a GameEngine as pseudo-clients
@@ -49,6 +50,7 @@ import { KIT_ROLE_RULES } from '../shared/conquest-kits.js';
 import { TerrainWatch } from './bot-surface-nav.js';
 import { isAircraft } from '../shared/vehicles.js';
 import { ROCKET_RULES } from '../shared/rocket-rules.js';
+import { ballisticIntercept, ballisticProfile } from '../shared/bullet-ballistics.js';
 
 const TAU = Math.PI * 2;
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
@@ -90,6 +92,14 @@ const HULL_EVADE_DIST = 38;       // m: an untouchable hull this close sends the
 const SPOT_MIN_INTERVAL_MS = 1600;
 const SUPPORT_INTENT_MS = 150;    // revive/repair intents re-sent faster than the 350 ms staleness
 const UNSTICK_MS = 450;           // jump/vault window after the stuck watchdog fires
+const TRAP_RADIUS = 8;            // m: a body that leaves this circle is making progress
+const TRAP_MS = 12000;            // ms boxed inside it (swimming, or wedged again and again) before a redeploy
+const TRAP_SWIM_MS = 10000;       // ... of which this long treading water marks a swimmer as trapped
+const TRAP_WEDGES = 6;            // stuck-watchdog firings inside the circle that mark a dry body as trapped
+const LEDGE_PROBE = 0.9;          // m: a walker's next step is checked this far ahead for a fall
+const LEDGE_MAX_DROP = 3;         // voxels: deeper unsupported drops (the surface graph's limit) are ledges
+// Key sets as [forward, side]: the ledge guard picks the closest safe one.
+const KEY_DIRS = Object.freeze([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]]);
 const TERRAIN_POLL_MS = 250;      // surface graph and cover refresh from the changed-block log
 const FLANK_RANGE = 40;           // m: engineers work armour from the side at this stand-off
 const RELOAD_COVER_DIST = 45;     // m: a dry magazine this close to an enemy sends the bot to cover
@@ -463,6 +473,115 @@ class BotManager {
     return point;
   }
 
+  /**
+   * Last resort for a body no route gets out of (a shell pit under a bridge
+   * deck, the river between quays): after TRAP_MS inside a TRAP_RADIUS circle
+   * while swimming, or while the stuck watchdog keeps firing, the bot uses the
+   * in-game RESPAWN like a stranded human would (an ordinary death: 1 ticket).
+   * Holding a capture zone, or a seat, is never a trap.
+   */
+  watchTrapped(br, p, now, wet, holding) {
+    const trap = br.trap;
+    if (!trap || holding || Math.hypot(p.x - trap.x, p.z - trap.z) > TRAP_RADIUS) {
+      br.trap = { x: p.x, z: p.z, since: now, wedges: 0, wet: 0 };
+      return;
+    }
+    if (wet) trap.wet = trap.wet || now;
+    else trap.wet = 0;
+    if (now - trap.since < TRAP_MS) return;
+    const swimming = trap.wet && now - trap.wet >= TRAP_SWIM_MS;
+    if (!swimming && trap.wedges < TRAP_WEDGES) return;
+    br.trap = null;
+    this.game.mode.conquestIntent?.(p, { type: 'redeploy' });
+  }
+
+  /**
+   * A swimmer pulls itself out where a bank is within arm's reach: of the
+   * eight key directions, the one closest to the route's next point whose
+   * swim exit (the physics' own ledge grab, jump held) lands on dry footing.
+   * Normally only exits roughly toward the route count (a planned river
+   * crossing keeps swimming); a swimmer that has stopped making progress
+   * takes any exit that is not straight back. Checked every third tick.
+   */
+  swimExit(br, p, inp, toward) {
+    if ((this.tickIndex + br.index) % 3 === 0) {
+      const sin = Math.sin(inp.yaw), cos = Math.cos(inp.yaw);
+      let wx = (toward?.x ?? p.x) - p.x, wz = (toward?.z ?? p.z) - p.z;
+      const length = Math.hypot(wx, wz);
+      if (length > 0.2) { wx /= length; wz /= length; } else { wx = -sin; wz = -cos; }
+      const stalled = !!br.stuckSince || (br.trap?.wedges ?? 0) > 0;
+      let best = null, bestDot = stalled ? -0.5 : 0.3;
+      for (const [fw, sd] of KEY_DIRS) {
+        const l = Math.hypot(fw, sd), dx = (-sin * fw + cos * sd) / l, dz = (-cos * fw - sin * sd) / l;
+        const dot = dx * wx + dz * wz;
+        if (dot <= bestDot) continue;
+        const vault = findVault(this.solidAt, p, { x: dx, z: dz }, p.y, null, 0);
+        if (!vault || this.game.fluidAt(Math.floor(vault.to.x), Math.floor(vault.to.y + 0.05), Math.floor(vault.to.z))) continue;
+        best = [fw, sd]; bestDot = dot;
+      }
+      br.swimKeys = best;
+    }
+    const best = br.swimKeys;
+    if (!best) return;
+    inp.keys.f = best[0] > 0; inp.keys.b = best[0] < 0;
+    inp.keys.r = best[1] > 0; inp.keys.l = best[1] < 0;
+    inp.keys.jump = true; inp.keys.crouch = false;
+  }
+
+  /**
+   * Whether a walker's feet at (x, z), at the body's current height, would go
+   * over a ledge: no support under the footprint, no wall or step there, and
+   * open water or more than LEDGE_MAX_DROP voxels of air below the centre.
+   */
+  ledgeAt(p, x, z) {
+    const solid = this.solidAt;
+    if (solidBelow(solid, x, p.y, z) || boxCollides(solid, x, p.y + 0.05, z)) return false;
+    const cx = Math.floor(x), cz = Math.floor(z), feet = Math.floor(p.y + 0.05);
+    for (let y = feet - 1; y >= feet - 1 - LEDGE_MAX_DROP; y--) {
+      if (this.game.fluidAt(cx, y, cz)) return true;
+      if (solid(cx, y, cz)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Surface maps: a grounded walker never steps off a quay, a bridge end or a
+   * crater lip by accident (the river banks are too steep to climb back).
+   * Movement keys whose world step leads over a ledge are swapped for the
+   * closest safe key set (none when every useful direction falls). When the
+   * straight step is blocked (a rail, a post), the wall slide follows one axis
+   * of the wish, so each axis component is checked as well. A route that
+   * swims on purpose (its next node is open water) is left alone.
+   */
+  guardLedges(br, p, inp) {
+    const keys = inp.keys;
+    const f = (keys.f ? 1 : 0) - (keys.b ? 1 : 0), s = (keys.r ? 1 : 0) - (keys.l ? 1 : 0);
+    if (!f && !s) return;
+    const next = br.surfaceRoute?.points?.[0];
+    if (next && this.game.fluidAt(Math.floor(next.x), Math.floor(next.y + 0.55), Math.floor(next.z))) return;
+    const sin = Math.sin(inp.yaw), cos = Math.cos(inp.yaw);
+    const world = (fw, sd) => {
+      const l = Math.hypot(fw, sd);
+      return [(-sin * fw + cos * sd) / l, (-cos * fw - sin * sd) / l];
+    };
+    const unsafe = ([dx, dz]) => {
+      const x = p.x + dx * LEDGE_PROBE, z = p.z + dz * LEDGE_PROBE;
+      if (this.ledgeAt(p, x, z)) return true;
+      if (!boxCollides(this.solidAt, x, p.y + 0.05, z)) return false;
+      return (Math.abs(dx) > 0.2 && this.ledgeAt(p, x, p.z)) || (Math.abs(dz) > 0.2 && this.ledgeAt(p, p.x, z));
+    };
+    const want = world(f, s);
+    if (!unsafe(want)) return;
+    let best = null, bestDot = 0.1;
+    for (const [fw, sd] of KEY_DIRS) {
+      const d = world(fw, sd), dot = d[0] * want[0] + d[1] * want[1];
+      if (dot > bestDot && !unsafe(d)) { best = [fw, sd]; bestDot = dot; }
+    }
+    keys.f = best?.[0] > 0; keys.b = best?.[0] < 0;
+    keys.r = best?.[1] > 0; keys.l = best?.[1] < 0;
+    if (!best) keys.sprint = false;
+  }
+
   /** Drop dance keys whose world direction has no walkable footing within 1.3 m. */
   guardDanceKeys(p, inp) {
     const sin = Math.sin(inp.yaw), cos = Math.cos(inp.yaw);
@@ -535,6 +654,7 @@ class BotManager {
       br.surfaceRoute = null; br.approachNav = null;
       br.unstickUntil = now + UNSTICK_MS;
       br.stuckSince = now;
+      if (br.trap) br.trap.wedges++;
     }
   }
 
@@ -1265,7 +1385,14 @@ class BotManager {
       const flight = bubble ? bubbleFlight(bubbleProfile(p.charging && br.bubbleBig ? 1 : 0), bubbleFlat) : null;
       const rocketAim = rocket ? ballisticAim(eye, br.sighting.aimPoint, enemy, { speed: ROCKET_RULES.speed,
         gravity: ROCKET_RULES.gravity, maxSeconds: ROCKET_RULES.lifetimeMs / 1000, leadSkill: 0.8 + 0.2 * br.skill }) : null;
+      // A flying sniper round: hold over for the drop and lead by its flight time
+      // (skill trims the lead a little), on top of the usual steering lead.
+      const ballistic = !p.def.projectile ? ballisticProfile(p.def) : null;
+      const roundAim = ballistic ? ballisticIntercept(ballistic, eye,
+        [aimX + (enemy.vx || 0) * LEAD_S * br.skill, aimY, aimZ + (enemy.vz || 0) * LEAD_S * br.skill],
+        [enemy.vx || 0, 0, enemy.vz || 0], 0.8 + 0.2 * br.skill) : null;
       const lead = rocketAim ? [rocketAim.point[0] - aimX, rocketAim.point[2] - aimZ]
+        : roundAim ? [roundAim.point[0] - aimX, roundAim.point[2] - aimZ]
         : stingerAim ? [0, 0]
         : glaive
           ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), glaiveRules.speedOut, br.skill)
@@ -1277,7 +1404,7 @@ class BotManager {
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
       const mglPitch = mgl ? mglAimPitch(Math.max(0.35, flat - MGL_RULES.muzzleForward),
         aim[1] - (eye[1] - MGL_RULES.muzzleDrop)) : null;
-      const pitchT = rocketAim ? rocketAim.pitch : mgl && mglPitch !== null
+      const pitchT = rocketAim ? rocketAim.pitch : roundAim?.pitch != null ? roundAim.pitch : mgl && mglPitch !== null
         ? mglPitch : Math.atan2(aim[1] - eye[1], flat);
       const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError * pers.aimError;
       const sigmaRad = sigmaDeg * Math.PI / 180;
@@ -1472,6 +1599,11 @@ class BotManager {
       inp.keys.crouch = true; // hold low at the cover spot
     }
     br.moveWish = null;
+    if (cq && moving && p.grounded && !inFluid && surfaceNavigation(this.game.world)) this.guardLedges(br, p, inp);
+    if (swimming) this.swimExit(br, p, inp, waypoint); else br.swimKeys = null;
+    // Bobbing at the surface lifts the body centre out of the water now and then.
+    const wetBody = !!inFluid || this.game.fluidAt(Math.floor(p.x), Math.floor(p.y + 0.05), Math.floor(p.z));
+    if (cq) this.watchTrapped(br, p, now, wetBody, inZone || cqMotion === 'hold');
     if (cq && now < (br.unstickUntil ?? 0) && moving && p.grounded) { inp.keys.jump = true; inp.keys.crouch = false; }
     // In water the jump key is the swim-up stroke: keep the head above the
     // surface and climb out over the bank (never tread water into drowning).

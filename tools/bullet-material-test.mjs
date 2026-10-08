@@ -110,24 +110,36 @@ for(let type=1;type<=28;type++) for(const power of [1,20,55,180,1400]) {
 console.log('Boundary protection and energy monotonicity across all materials passed.');
 
 // Equal incidence/reflection angles on all six voxel faces, including vertical
-// travel and both signs. Tangential components must survive unchanged.
-for (let axis = 0; axis < 3; axis++) for (const sign of [-1, 1]) {
-  const d = [0, 0, 0];
-  d[axis] = sign * 0.2;
-  d[(axis + 1) % 3] = Math.sqrt(0.96);
-  const run = fixture('sniper', [], d, [1000, 1000, 1000]);
-  run.shooter.x = run.shooter.y = run.shooter.z = 20.5;
-  const start = [run.shooter.x, run.shooter.eyeY, run.shooter.z];
-  const cell = Math.floor(start[axis]) + sign * 2;
-  run.ctx.getBlock = run.ctx.solidAt = (...xyz) => xyz[axis] === cell ? METAL : AIR;
-  run.fire();
-  const legs = run.events.find(event => event.kind === 'shoot').paths[0];
-  assert.equal(legs[0].action, 'ricochet');
-  const reflected = legs[1].end.map((v, i) => v - legs[1].o[i]);
-  const length = Math.hypot(...reflected);
-  for (let i = 0; i < 3; i++) {
-    assert.ok(Math.abs(reflected[i] / length - (i === axis ? -d[i] : d[i])) < 1e-10,
-      `Face ${axis}/${sign} mirrors only the normal component`);
+// travel and both signs. Tangential components must survive unchanged. The
+// hitscan rifle checks the exact mirror; the flying LONGSHOT round (`bullet`
+// event, arc chords under gravity and the zeroed bore elevation) checks the
+// same mirror on its first two legs within the arc's curvature.
+const legDirection = (leg) => {
+  const v = leg.end.map((value, i) => value - leg.o[i]);
+  const length = Math.hypot(...v);
+  return v.map((value) => value / length);
+};
+for (const [weapon, kind, tolerance] of [['rifle', 'shoot', 1e-10], ['sniper', 'bullet', 0.01]]) {
+  for (let axis = 0; axis < 3; axis++) for (const sign of [-1, 1]) {
+    const d = [0, 0, 0];
+    d[axis] = sign * 0.2;
+    d[(axis + 1) % 3] = Math.sqrt(0.96);
+    const run = fixture(weapon, [], d, [1000, 1000, 1000]);
+    run.shooter.x = run.shooter.y = run.shooter.z = 20.5;
+    const start = [run.shooter.x, run.shooter.eyeY, run.shooter.z];
+    const cell = Math.floor(start[axis]) + sign * 2;
+    run.ctx.getBlock = run.ctx.solidAt = (...xyz) => xyz[axis] === cell ? METAL : AIR;
+    run.fire();
+    const shot = run.events.find(event => event.kind === kind);
+    assert.ok(shot?.paths?.length === 1, `${weapon} publishes its resolved path on the ${kind} event`);
+    const legs = shot.paths[0];
+    assert.equal(legs[0].action, 'ricochet', `${weapon} face ${axis}/${sign} glances off metal`);
+    const incoming = kind === 'shoot' ? d : legDirection(legs[0]);
+    const reflected = legDirection(legs[1]);
+    for (let i = 0; i < 3; i++) {
+      assert.ok(Math.abs(reflected[i] - (i === axis ? -incoming[i] : incoming[i])) < tolerance,
+        `${weapon} face ${axis}/${sign} mirrors only the normal component`);
+    }
   }
 }
 console.log('Ricochet angles: all six faces preserve equal angles and tangential direction.');

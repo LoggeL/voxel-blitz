@@ -100,4 +100,25 @@ assert.equal(mglFx.projectiles.get('bounced').vz, reflectedVz,
   'authority launch does not overwrite the reflected velocity with launch velocity');
 mglFx.dispose();
 assert.equal(mglScene.children.length, 0, 'shell wake resources are released');
-console.log('ok - 192-rocket budgets, shell wake cap/correction, Chaos bounce adoption and cleanup');
+
+// Conquest tank shell: a tracer streak on the ballistic integrator, no rocket body, exhaust or smoke trail.
+{
+  const shellScene = new THREE.Scene();
+  let shellTrails = 0;
+  const shellFx = new ProjectileFX(shellScene, () => 0, { camera, onTrail: () => { shellTrails++; } });
+  assert.ok(shellFx.launch({ pid: 's1', type: 'shell', o: [0, 20, 0], v: [0, 0, -250], fuse: 4000, vehicleWeapon: 'tankAP', g: 9.8 }));
+  const round = shellFx.projectiles.get('s1');
+  assert.equal(round.type, 'shell'); assert.equal(round.gravity, 9.8);
+  assert.ok(!round.group.userData.exhaust && round.group.userData.streak, 'tracer streak, no rocket exhaust');
+  for (let frame = 0; frame < 60; frame++) shellFx.update(1 / 60);
+  assert.equal(shellTrails, 0, 'a shell leaves no smoke trail');
+  assert.equal(shellFx._rocketBatches[0].count, 0, 'and draws no rocket body');
+  assert.ok(Math.abs(round.z - -250) < 0.5, 'flies 250 m in a second');
+  assert.ok(Math.abs(round.y - (20 - 0.5 * 9.8)) < 0.2, `drops g t^2 / 2 (y ${round.y})`);
+  assert.ok(Math.abs(round.group.userData.streak.core.scale.z - 9) < 1e-9, 'the streak reaches full length');
+  assert.ok(shellFx._lights.some(light => light.intensity > 0), 'the tracer lights its surroundings');
+  shellFx.explode({ pid: 's1', type: 'shell', x: round.x, y: round.y, z: round.z, radius: 5.5, vehicleWeapon: 'tankHE' });
+  assert.equal(shellFx.projectiles.size, 0); assert.ok(shellFx.blasts.length > 0, 'a shell blast spawns');
+  shellFx.dispose();
+}
+console.log('ok - 192-rocket budgets, shell wake cap/correction, Chaos bounce adoption, tank shell tracer and cleanup');

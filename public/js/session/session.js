@@ -14,6 +14,8 @@ const DEFAULT_PERSIST = Object.freeze({
 
 const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'shoot',
+  // A flying (ballistic) round settled: streak cut, continuation legs, flyby crack.
+  'bullet',
   'hit',
   'kill',
   'block',
@@ -175,6 +177,8 @@ export class Session {
     this.onMenuBuilt = typeof hooks.onMenuBuilt === 'function' ? hooks.onMenuBuilt : null;
     this.onResize = typeof hooks.onResize === 'function' ? hooks.onResize : null;
     this.onTeardown = typeof hooks.onTeardown === 'function' ? hooks.onTeardown : null;
+    // In-game menu RESPAWN: {available(): bool, run(): bool} from the game (Conquest redeploy).
+    this._respawnAction = hooks.respawn && typeof hooks.respawn.run === 'function' ? hooks.respawn : null;
 
     this._phase = 'idle';
     this._gameplayUnsubs = [];
@@ -711,6 +715,7 @@ export class Session {
       onChange: (settings) => this.applySettings(settings),
       onResume: () => this.resumeFromSettings(),
       onLeave: () => this.leaveMatch(),
+      respawn: this._respawnAction,
       connection: {
         getNet: () => this.net,
         getContext: () => ({

@@ -60,6 +60,15 @@ export const BLAST_STYLE = Object.freeze({
     light: Object.freeze({ color: 0xffa040, range: 10, intensity: 20, life: 0.55 }),
     scorch: 3.8,
   }),
+  // Conquest 120 mm tank shell (AP and HE; the event radius scales it): a hard
+  // white-hot flash, a dirtier, darker smoke column and a wide scorch.
+  shell: Object.freeze({
+    color: 0xffd9a0, grow: 0.55, life: 0.5, ring: true, ringColor: 0xff8a2c, ringPeak: 0.8, flash: 3.2, flashLife: 0.12,
+    fire: Object.freeze({ count: 10, size: 2.1, speed: 7, life: 0.55, tint: FIRE_HOT }),
+    smoke: Object.freeze({ count: 18, size: 2, speed: 3.4, life: 3.2, shade: 0.14 }),
+    light: Object.freeze({ color: 0xffa648, range: 11, intensity: 22, life: 0.5 }),
+    scorch: 4,
+  }),
   mgl: Object.freeze({
     color: 0xffe2a2, grow: 0.5, life: 0.38, ring: true, ringColor: 0xff8a2c,
     ringPeak: 0.65, flash: 3.1, flashLife: 0.095,

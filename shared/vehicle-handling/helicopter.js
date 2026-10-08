@@ -7,6 +7,9 @@ export const HELICOPTER_RULES = Object.freeze({
   turn: 1.1, turnAcceleration: 2.2, aimResponse: 2.5,
   pitchRate: 0.75, rollRate: 0.9, minPitch: -0.45, maxPitch: 0.4,
   maxBank: 0.55, cyclicAcceleration: 2.4, attitudeResponse: 2.2,
+  // Attitude-hold (mouse flight) levelling per radian of pitch: a slow drift
+  // back toward level instead of attitudeResponse's snap.
+  holdLeveling: 0.06,
   rotorAcceleration: 0.9, rotorDeceleration: 0.55,
   ceiling: 180, respawnSeconds: 30, fireSeconds: 0.65,
 });
@@ -38,6 +41,12 @@ function limitHorizontal(state, maximum) {
  * Legacy yaw/pitch are desired attitudes for assisted bot flight. Brake 0..1
  * counters drift through cyclic tilt, rather than cancelling velocity.
  * Centered cyclic gently levels the hull while horizontal momentum persists.
+ * attitudeHold (mouse flight) keeps the pitch a centred manual stick leaves,
+ * drifting back toward level only at rules.holdLeveling. It holds only a
+ * pitch that pilot set: state.attitudeHeld arms when an attitudeHold input
+ * deflects the cyclic and disarms on any assisted (bot/autopilot) step, a
+ * non-hold input or ground contact, so a recovery or takeover hand-back levels
+ * at the normal rate until the pilot moves the pitch stick again.
  * active:false removes rotor lift even while the rotor visibly winds down.
  * `rules` selects the airframe constants; the transport reuses this stepper.
  */
@@ -66,9 +75,14 @@ export function stepHelicopterFlight(state, input = {}, dt = 0, rules = HELICOPT
   const manualPitch = Number.isFinite(input?.pitchControl);
   const manualRoll = Number.isFinite(input?.rollControl);
   const manualYaw = Number.isFinite(input?.yawControl);
+  const holdInput = active && manualPitch && input?.attitudeHold === true;
   const pitchControl = active ? clamp(finite(input?.pitchControl), -1, 1) : 0;
   const rollControl = active ? clamp(finite(input?.rollControl), -1, 1) : 0;
   const yawControl = active ? clamp(finite(input?.yawControl), -1, 1) : 0;
+  // Only hold flights write the flag, so other callers' state stays numeric.
+  if (!holdInput || grounded) { if (state.attitudeHeld) state.attitudeHeld = false; }
+  else if (pitchControl - throttle !== 0) state.attitudeHeld = true;
+  const attitudeHold = holdInput && state.attitudeHeld === true;
   const aimYaw = !manualYaw && Number.isFinite(input?.yaw) ? wrap(input.yaw) : null;
   const aimPitch = !manualPitch && Number.isFinite(input?.pitch) ? clamp(input.pitch, rules.minPitch, rules.maxPitch) : 0;
   const duration = clamp(finite(dt), 0, 0.25);
@@ -100,7 +114,8 @@ export function stepHelicopterFlight(state, input = {}, dt = 0, rules = HELICOPT
       const cyclicPitch = clamp(pitchControl - throttle, -1, 1);
       // Neutral rate controls provide a mild attitude stabilizer. They do not
       // target a horizontal speed or align velocity to the hull's heading.
-      desiredPitchRate = manualPitch ? cyclicPitch !== 0 ? cyclicPitch * rules.pitchRate : -state.pitch * rules.attitudeResponse :
+      desiredPitchRate = manualPitch ? cyclicPitch !== 0 ? cyclicPitch * rules.pitchRate
+        : -state.pitch * (attitudeHold ? finite(rules.holdLeveling) : rules.attitudeResponse) :
         ((active ? aimPitch - throttle * (throttle > 0 ? -rules.minPitch : rules.maxPitch) : 0) - state.pitch) * rules.attitudeResponse;
       const cyclicRoll = manualRoll ? rollControl : steer;
       desiredRollRate = manualRoll && cyclicRoll !== 0 ? -cyclicRoll * rules.rollRate :

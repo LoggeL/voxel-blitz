@@ -13,6 +13,7 @@ import { generateSolsticeInto } from './flatmap-solstice.js';
 import { generateCalderaInto } from './flatmap-caldera.js';
 import { createMapMetadata } from './metadata.js';
 import {
+  decodeMapFrame,
   deserializeBlocks,
   rebuildHeights,
   validateSerializedWorld,
@@ -108,12 +109,27 @@ export function serializeWorld() {
   return defaultWorld.serializeWorld();
 }
 
-export function deserializeWorld(buf) {
-  const dimensions = validateSerializedWorld(buf);
-  data = deserializeBlocks(buf).blocks;
+/**
+ * The legacy singleton's live voxels and dimensions (read-only by contract):
+ * lets the client copy the decoded arena without re-encoding it.
+ */
+export function worldBlocks() {
+  return { blocks: data, dimensions: defaultWorld.dimensions };
+}
+
+/**
+ * Install a map frame as the singleton world: V1/V2 bytes, or a V3 frame whose
+ * template comes from the frame or from `resolveTemplate(fingerprint)` (the
+ * client's map cache). Returns the V3 fingerprint, or null.
+ */
+export function deserializeWorld(buf, { resolveTemplate = null } = {}) {
+  const decoded = decodeMapFrame(buf, { resolveTemplate });
+  const { dimensions } = decoded;
+  data = decoded.blocks;
   heightMap = new Int16Array(dimensions.sx * dimensions.sz);
   defaultWorld = createStateApi(data, heightMap, null, 'foundry', null, dimensions);
   defaultWorld.rebuildHeightMap();
+  return decoded.fingerprint;
 }
 
 export function rebuildHeightMap() {

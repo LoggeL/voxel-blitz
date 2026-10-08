@@ -1,0 +1,423 @@
+{
+  "steps": [
+    {
+      "at": 3.7,
+      "text": "alive at HQ"
+    },
+    {
+      "at": 9.3,
+      "visible": true,
+      "rect": [
+        87,
+        446,
+        286,
+        67
+      ],
+      "overflow": false,
+      "label": "RESPAWNCounts as a death · opens deploy"
+    },
+    {
+      "at": 9.5,
+      "text": "shot menu-respawn-desktop",
+      "note": "Esc menu, live Conquest, 1440x900"
+    },
+    {
+      "at": 10.3,
+      "text": "menu mobile",
+      "visible": true,
+      "rect": [
+        35,
+        287,
+        320,
+        61
+      ],
+      "overflow": false
+    },
+    {
+      "at": 10.8,
+      "text": "shot menu-respawn-mobile",
+      "note": "Esc menu, 390x844 mobile emulation"
+    },
+    {
+      "at": 11.6,
+      "text": "RESPAWN clicked"
+    },
+    {
+      "at": 12.6,
+      "text": "after RESPAWN",
+      "settingsOpen": false,
+      "locked": false,
+      "feed": 1,
+      "killer": "YOU DIED\nREDEPLOYED\nREDEPLOY\nWEST HQ\nWest HQ\nA\nF"
+    },
+    {
+      "at": 12.7,
+      "text": "shot respawn-deploy-screen",
+      "note": "deploy screen right after RESPAWN (kill feed: redeploy icon)"
+    },
+    {
+      "at": 12.7,
+      "text": "jeep choice",
+      "pick": "JEEP TAKE SEAT · BOT-9 TAKE DRIVER TAKE GUNNER TAKE PASS TAKE REAR L / TAKE DRIVER"
+    },
+    {
+      "at": 17.8,
+      "text": "jeep deployed",
+      "seat": "driver",
+      "vehicle": "alpha-jeep",
+      "takeover": true
+    },
+    {
+      "at": 17.8,
+      "text": "jeep: nearest friendly bots",
+      "mates": [
+        [
+          "bot-5",
+          0
+        ],
+        [
+          "bot-7",
+          1
+        ],
+        [
+          "bot-13",
+          1
+        ],
+        [
+          "bot-9",
+          2
+        ]
+      ]
+    },
+    {
+      "at": 21.9,
+      "text": "jeep boarding",
+      "vehicle": "jeep:alpha-jeep",
+      "takeover": true,
+      "aboardAtDeploy": [
+        [
+          "gunner",
+          "bot-7"
+        ],
+        [
+          "front-passenger",
+          "bot-5"
+        ],
+        [
+          "rear-left",
+          "bot-13"
+        ]
+      ],
+      "firstWalkUpS": null,
+      "riders": [
+        [
+          "gunner",
+          "bot-7"
+        ],
+        [
+          "front-passenger",
+          "bot-5"
+        ],
+        [
+          "rear-left",
+          "bot-13"
+        ]
+      ]
+    },
+    {
+      "at": 22.2,
+      "text": "shot joinride-jeep",
+      "note": "jeep driver, aboard: gunner=bot-7, front-passenger=bot-5, rear-left=bot-13"
+    },
+    {
+      "at": 32.5,
+      "text": "shot joinride-jeep-driving",
+      "note": "driving toward C, aboard: 3"
+    },
+    {
+      "at": 32.5,
+      "text": "jeep drive",
+      "samples": 30,
+      "minAboard": 3,
+      "maxAboard": 3
+    },
+    {
+      "at": 44.4,
+      "text": "tank choice",
+      "pick": "TANK 1 FREE SEAT TAKE DRIVER CMDR / TAKE DRIVER"
+    },
+    {
+      "at": 45.4,
+      "text": "tank deployed",
+      "seat": "driver",
+      "vehicle": "alpha-tank",
+      "takeover": true
+    },
+    {
+      "at": 45.5,
+      "text": "tank: nearest friendly bots",
+      "mates": [
+        [
+          "bot-11",
+          1
+        ],
+        [
+          "bot-9",
+          29
+        ],
+        [
+          "bot-7",
+          30
+        ],
+        [
+          "bot-1",
+          34
+        ]
+      ]
+    },
+    {
+      "at": 50.6,
+      "text": "tank: nearest friendly bots",
+      "mates": [
+        [
+          "bot-11",
+          1
+        ],
+        [
+          "bot-7",
+          46
+        ],
+        [
+          "bot-9",
+          48
+        ],
+        [
+          "bot-13",
+          136
+        ]
+      ]
+    },
+    {
+      "at": 55.8,
+      "text": "tank: nearest friendly bots",
+      "mates": [
+        [
+          "bot-11",
+          1
+        ],
+        [
+          "bot-7",
+          54
+        ],
+        [
+          "bot-13",
+          107
+        ],
+        [
+          "bot-5",
+          198
+        ]
+      ]
+    },
+    {
+      "at": 60.9,
+      "text": "tank: nearest friendly bots",
+      "mates": [
+        [
+          "bot-11",
+          1
+        ],
+        [
+          "bot-1",
+          9
+        ],
+        [
+          "bot-13",
+          76
+        ],
+        [
+          "bot-9",
+          146
+        ]
+      ]
+    },
+    {
+      "at": 66.1,
+      "text": "tank: nearest friendly bots",
+      "mates": [
+        [
+          "bot-11",
+          1
+        ],
+        [
+          "bot-3",
+          18
+        ],
+        [
+          "bot-1",
+          30
+        ],
+        [
+          "bot-13",
+          46
+        ]
+      ]
+    },
+    {
+      "at": 71.2,
+      "text": "tank: nearest friendly bots",
+      "mates": [
+        [
+          "bot-11",
+          1
+        ],
+        [
+          "bot-13",
+          17
+        ],
+        [
+          "bot-3",
+          22
+        ],
+        [
+          "bot-1",
+          47
+        ]
+      ]
+    },
+    {
+      "at": 75.9,
+      "text": "tank boarding",
+      "vehicle": "tank:alpha-tank",
+      "takeover": true,
+      "aboardAtDeploy": [
+        [
+          "commander",
+          "bot-11"
+        ]
+      ],
+      "firstWalkUpS": null,
+      "riders": [
+        [
+          "commander",
+          "bot-11"
+        ]
+      ]
+    },
+    {
+      "at": 76.2,
+      "text": "shot joinride-tank",
+      "note": "tank driver, aboard: commander=bot-11"
+    },
+    {
+      "at": 86.8,
+      "text": "shot joinride-tank-driving",
+      "note": "driving toward C, aboard: 1"
+    },
+    {
+      "at": 86.8,
+      "text": "tank drive",
+      "samples": 26,
+      "minAboard": 1,
+      "maxAboard": 1
+    }
+  ],
+  "shots": [
+    {
+      "name": "menu-respawn-desktop",
+      "file": "docs/design/conquest/redesign/captures/redeploy-joinride/menu-respawn-desktop.png",
+      "note": "Esc menu, live Conquest, 1440x900"
+    },
+    {
+      "name": "menu-respawn-mobile",
+      "file": "docs/design/conquest/redesign/captures/redeploy-joinride/menu-respawn-mobile.png",
+      "note": "Esc menu, 390x844 mobile emulation"
+    },
+    {
+      "name": "respawn-deploy-screen",
+      "file": "docs/design/conquest/redesign/captures/redeploy-joinride/respawn-deploy-screen.png",
+      "note": "deploy screen right after RESPAWN (kill feed: redeploy icon)"
+    },
+    {
+      "name": "joinride-jeep",
+      "file": "docs/design/conquest/redesign/captures/redeploy-joinride/joinride-jeep.png",
+      "note": "jeep driver, aboard: gunner=bot-7, front-passenger=bot-5, rear-left=bot-13"
+    },
+    {
+      "name": "joinride-jeep-driving",
+      "file": "docs/design/conquest/redesign/captures/redeploy-joinride/joinride-jeep-driving.png",
+      "note": "driving toward C, aboard: 3"
+    },
+    {
+      "name": "joinride-tank",
+      "file": "docs/design/conquest/redesign/captures/redeploy-joinride/joinride-tank.png",
+      "note": "tank driver, aboard: commander=bot-11"
+    },
+    {
+      "name": "joinride-tank-driving",
+      "file": "docs/design/conquest/redesign/captures/redeploy-joinride/joinride-tank-driving.png",
+      "note": "driving toward C, aboard: 1"
+    }
+  ],
+  "errors": [],
+  "jeep": {
+    "vehicle": "jeep:alpha-jeep",
+    "takeover": true,
+    "aboardAtDeploy": [
+      [
+        "gunner",
+        "bot-7"
+      ],
+      [
+        "front-passenger",
+        "bot-5"
+      ],
+      [
+        "rear-left",
+        "bot-13"
+      ]
+    ],
+    "firstWalkUpS": null,
+    "riders": [
+      [
+        "gunner",
+        "bot-7"
+      ],
+      [
+        "front-passenger",
+        "bot-5"
+      ],
+      [
+        "rear-left",
+        "bot-13"
+      ]
+    ],
+    "drive": {
+      "samples": 30,
+      "minAboard": 3,
+      "maxAboard": 3
+    }
+  },
+  "tank": {
+    "vehicle": "tank:alpha-tank",
+    "takeover": true,
+    "aboardAtDeploy": [
+      [
+        "commander",
+        "bot-11"
+      ]
+    ],
+    "firstWalkUpS": null,
+    "riders": [
+      [
+        "commander",
+        "bot-11"
+      ]
+    ],
+    "drive": {
+      "samples": 26,
+      "minAboard": 1,
+      "maxAboard": 1
+    }
+  }
+}

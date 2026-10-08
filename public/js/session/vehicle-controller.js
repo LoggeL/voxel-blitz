@@ -10,6 +10,7 @@ const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallbac
 const wrap = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const AIRCRAFT = new Set(['helicopter', 'transport', 'plane']);
 const aircraft = type => AIRCRAFT.has(type);
+const ROTORCRAFT = new Set(['helicopter', 'transport']);
 // Look deltas arrive in radians per frame. Treat pointer motion as a spring-
 // centred flight stick, preserving device sensitivity without accumulating aim.
 const FLIGHT_LOOK_RATE = 2;
@@ -18,6 +19,39 @@ const flightAxis = value => {
   const axis = clamp(finite(value), -1, 1), magnitude = Math.abs(axis);
   return magnitude <= FLIGHT_DEADZONE ? 0 : Math.sign(axis) * (magnitude - FLIGHT_DEADZONE) / (1 - FLIGHT_DEADZONE);
 };
+
+/**
+ * Battlefield-style mouse flight (the desktop default). Mouse motion deflects a
+ * virtual stick that springs back to centre: steady motion of `rate` rad/s of
+ * look (at flight sensitivity 1) holds full deflection, and the stick relaxes
+ * with a 1/`spring` s time constant once the mouse stops. The stick is a rate
+ * command, so the total attitude change follows mouse travel. Jet: Y pitch,
+ * X roll. Helicopters: Y pitch, X yaw.
+ */
+export const MOUSE_FLIGHT = Object.freeze({ rate: FLIGHT_LOOK_RATE, spring: 8 });
+/** Longest frame a look delta is converted over (main.js caps frame time at 0.25 s). */
+const LOOK_STEP_MAX = 0.25;
+const DEFAULT_FLIGHT_OPTIONS = Object.freeze({ mouse: false, sensitivity: 1, invertY: false });
+
+/**
+ * Advance a mouse-flight stick `{x, y}` (x: right, y: nose up, each -1..1) by one
+ * frame of pointer motion in look radians (Input.consumeDelta's mouseDx/mouseDy).
+ * Exact first-order spring over the frame, so a steady mouse speed gives the same
+ * deflection at any frame rate. Mutates and returns `stick`.
+ */
+export function stepMouseFlightStick(stick, { dx = 0, dy = 0 } = {}, dt = 1 / 60, options = DEFAULT_FLIGHT_OPTIONS) {
+  // dt must be the real frame time the pointer delta covers (main.js passes
+  // its 0.25 s-capped frame time); a shorter step would scale the gain up.
+  const step = clamp(Number.isFinite(dt) && dt > 0 ? dt : 1 / 60, 1 / 240, LOOK_STEP_MAX);
+  const gain = clamp(finite(options?.sensitivity, 1), 0.05, 10) / (MOUSE_FLIGHT.rate * step);
+  const decay = Math.exp(-MOUSE_FLIGHT.spring * step);
+  const invert = options?.invertY ? -1 : 1;
+  // Pointer down (dy > 0) is look down, so it lowers the nose unless inverted.
+  const targetX = clamp(finite(dx) * gain, -1e3, 1e3), targetY = clamp(-finite(dy) * gain * invert, -1e3, 1e3);
+  stick.x = clamp(targetX + (finite(stick.x) - targetX) * decay, -1, 1);
+  stick.y = clamp(targetY + (finite(stick.y) - targetY) * decay, -1, 1);
+  return stick;
+}
 /** F1..F5 pick seats in topology order (not rebindable: F keys are not bindable codes). */
 export const SEAT_KEYS = Object.freeze(['F1', 'F2', 'F3', 'F4', 'F5']);
 /** Enter/exit is a tap: releasing T before this starts a support hold instead (repair). */
@@ -44,6 +78,9 @@ export class VehicleController {
     this.view = new VehicleCamera({ camera, raycast: (origin, direction, distance) => this.raycast(origin, direction, distance),
       shake: cameraShake, getBaseFov });
     this.freeLook = false;
+    this.flight = DEFAULT_FLIGHT_OPTIONS;
+    this._flightSource = DEFAULT_FLIGHT_OPTIONS;
+    this._stick = { x: 0, y: 0 };
     this.opticHeld = false;
     this._opticListeners = new Set();
     this._interactDownAt = null;
@@ -61,6 +98,24 @@ export class VehicleController {
   }
 
   get active() { return !!this.vehicle; }
+  /** True when this seat flies with the mouse-flight layout this frame. */
+  get mouseFlight() { return !!this.flight.mouse && this.isDriver && aircraft(this.type); }
+  /** Current mouse-flight stick deflection (x right, y nose up), for HUD and tests. */
+  get stick() { return { x: this._stick.x, y: this._stick.y }; }
+
+  /**
+   * Pilot preferences from Input.flightOptions(): { mouse, sensitivity, invertY }.
+   * `mouse` selects the mouse-flight layout; anything else keeps the older one.
+   */
+  setFlightOptions(options = null) {
+    const next = options && typeof options === 'object' ? options : DEFAULT_FLIGHT_OPTIONS;
+    // Input hands back the same frozen object until something changes.
+    if (next === this._flightSource) return;
+    this._flightSource = next;
+    this.flight = Object.freeze({ mouse: next.mouse === true, sensitivity: clamp(finite(next.sensitivity, 1), 0.05, 10),
+      invertY: next.invertY === true });
+    if (!this.flight.mouse) this._stick.x = this._stick.y = 0;
+  }
   get seatId() { return this.seat?.id ?? null; }
   get role() { return this.seat?.role ?? null; }
   get isDriver() { return !!this.seat?.drives; }
@@ -200,6 +255,7 @@ export class VehicleController {
     if (seatChanged) {
       this._seeded = false;
       this.freeLook = false;
+      this._stick.x = this._stick.y = 0;
       if (this.vehicle) {
         this.view.begin();
         this._seedAim();
@@ -296,23 +352,49 @@ export class VehicleController {
       return { yaw: this.yaw, pitch: this.pitch, wantFire: wantsFire };
     }
     const steer = Number(!!(keys.right ?? keys.r)) - Number(!!(keys.left ?? keys.l));
+    const drive = Number(!!(keys.forward ?? keys.f)) - Number(!!(keys.back ?? keys.b));
+    const mouseFlight = flying && this.mouseFlight;
+    const rotor = ROTORCRAFT.has(type);
     let flightControls = {};
     if (flying) {
       this.yaw = wrap(finite(this.vehicle.yaw));
       this.pitch = finite(this.vehicle.pitch);
-      const step = clamp(Number.isFinite(dt) && dt > 0 ? dt : 1 / 60, 1 / 240, 0.05);
+      // dt is the real frame time (main.js caps it at 0.25 s). The mouse stick
+      // converts the pointer motion of that whole frame, so its gain and spring
+      // stay frame-rate independent down to 4 fps. Pad look is generated per
+      // 0.05 s-capped simulation step, so the legacy pointer share keeps that cap.
+      const frameStep = Number.isFinite(dt) && dt > 0 ? dt : 1 / 60;
+      const step = clamp(frameStep, 1 / 240, 0.05);
+      // Mouse flight reads only the pointer share; pad and touch look (the rest)
+      // keep their direct stick mapping below.
+      const mouseDx = mouseFlight ? finite(look?.mouseDx) : 0, mouseDy = mouseFlight ? finite(look?.mouseDy) : 0;
       // Free look turns the camera and leaves the stick centred.
-      if (this.freeLook) this.view.addFreeLook(dx, dy);
-      const pointerPitch = this.freeLook ? 0 : flightAxis(-dy / (step * FLIGHT_LOOK_RATE));
-      const pointerRoll = this.freeLook ? 0 : flightAxis(dx / (step * FLIGHT_LOOK_RATE));
+      if (this.freeLook) {
+        this.view.addFreeLook(dx, dy);
+        this._stick.x = this._stick.y = 0;
+      } else if (mouseFlight) stepMouseFlightStick(this._stick, { dx: mouseDx, dy: mouseDy }, frameStep, this.flight);
+      const pointerPitch = this.freeLook ? 0 : flightAxis(-(dy - mouseDy) / (step * FLIGHT_LOOK_RATE));
+      const pointerRoll = this.freeLook ? 0 : flightAxis((dx - mouseDx) / (step * FLIGHT_LOOK_RATE));
       const rudder = Number(!!(keys.flightYawRight ?? keys.leanRight)) - Number(!!(keys.flightYawLeft ?? keys.leanLeft));
+      let pitchAxis = pointerPitch, rollAxis = clamp(steer + pointerRoll, -1, 1), yawAxis = rudder;
+      if (mouseFlight) {
+        const stickX = flightAxis(this._stick.x), stickY = flightAxis(this._stick.y);
+        pitchAxis = clamp(stickY + pointerPitch, -1, 1);
+        // Jet: mouse X is the aileron and A/D join Q/E on the rudder.
+        // Helicopters: mouse X is the pedals and A/D bank (strafe).
+        if (rotor) yawAxis = clamp(stickX + rudder, -1, 1);
+        else { rollAxis = clamp(stickX + pointerRoll, -1, 1); yawAxis = clamp(steer + rudder, -1, 1); }
+      }
       // All axes, including explicit neutral, distinguish human stick control
       // from the absolute world-attitude requests used by aircraft bots.
       flightControls = {
-        vehiclePitchControl: Object.hasOwn(keys, 'vehiclePitchControl') ? flightAxis(keys.vehiclePitchControl) : pointerPitch,
-        vehicleRollControl: Object.hasOwn(keys, 'vehicleRollControl') ? flightAxis(keys.vehicleRollControl) : clamp(steer + pointerRoll, -1, 1),
-        vehicleYawControl: Object.hasOwn(keys, 'vehicleYawControl') ? flightAxis(keys.vehicleYawControl) : rudder,
+        vehiclePitchControl: Object.hasOwn(keys, 'vehiclePitchControl') ? flightAxis(keys.vehiclePitchControl) : pitchAxis,
+        vehicleRollControl: Object.hasOwn(keys, 'vehicleRollControl') ? flightAxis(keys.vehicleRollControl) : rollAxis,
+        vehicleYawControl: Object.hasOwn(keys, 'vehicleYawControl') ? flightAxis(keys.vehicleYawControl) : yawAxis,
       };
+      // A mouse-flown helicopter keeps the attitude the pilot set instead of
+      // levelling itself whenever the springing stick returns to centre.
+      if (mouseFlight && rotor) flightControls.vehicleAttitudeHold = true;
     } else if (this.freeLook) {
       this.view.addFreeLook(dx, dy);
     } else {
@@ -323,8 +405,10 @@ export class VehicleController {
     // lift holds are separate from the stick's infantry auto-sprint state.
     const up = !!(keys.flightUp || keys.jump);
     const down = !!(keys.flightDown ?? keys.sprint);
-    const lift = Number.isFinite(keys.vehicleLift) ? clamp(keys.vehicleLift, -1, 1) : Number(up) - Number(down);
-    return { vehicleThrottle: Number(!!(keys.forward ?? keys.f)) - Number(!!(keys.back ?? keys.b)),
+    // Mouse-flown helicopters put the collective on W/S as well as Space/Shift.
+    const keyLift = Number(up) - Number(down) + (mouseFlight && rotor ? drive : 0);
+    const lift = Number.isFinite(keys.vehicleLift) ? clamp(keys.vehicleLift, -1, 1) : clamp(keyLift, -1, 1);
+    return { vehicleThrottle: mouseFlight && rotor ? 0 : drive,
       vehicleSteer: steer,
       vehicleBrake: Number(flying ? !!(keys.flightBrake || keys.brake || keys.crouch) : !!(keys.jump ?? keys.brake)),
       vehicleLift: flying ? lift : 0,

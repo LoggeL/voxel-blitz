@@ -34,7 +34,8 @@ import {
 import { clearReload, reloadIdentified, reloadRequestEdge } from './movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { NETWORK_PRESENTATION } from '../../shared/networking.js';
-import { evShoot, evHit, evBlock } from '../protocol/events.js';
+import { evShoot, evHit, evBlock, evBullet } from '../protocol/events.js';
+import { BALLISTIC_STEP_S, ballisticLaunch, ballisticProfile } from '../../shared/bullet-ballistics.js';
 import { occupantShielded, occupantHitPose, occupantDamageScale } from './vehicle-damage.js';
 import { infantryDamageClass } from '../../shared/vehicle-armor.js';
 import {
@@ -369,14 +370,28 @@ function rewindVictim(v, now, viewAgeMs = NETWORK_PRESENTATION.defaultViewAgeMs)
   return v;
 }
 
-export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0, hitVictims = null) {
+/** True when every hitbox of `pos` is out of reach of the segment o + d·[0, limit]. */
+function segmentFar(o, d, limit, pos, radius) {
+  const box = pos.combatBox;
+  const reach = (box ? Math.hypot(box[0], box[1] * 2, box[2]) : 2.5 * (pos.bodyScale || 1)) + radius;
+  const cx = pos.x - o[0], cy = pos.y + (box ? box[1] : 0.95) - o[1], cz = pos.z - o[2];
+  const t = Math.max(0, Math.min(limit, cx * d.x + cy * d.y + cz * d.z));
+  const dx = cx - d.x * t, dy = cy - d.y * t, dz = cz - d.z * t;
+  return dx * dx + dy * dy + dz * dz > reach * reach;
+}
+
+export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0, hitVictims = null,
+  viewAgeMs = shooter.input?.viewAge) {
   let best = null, bestT = limit;
   const rewoundByShooter = !shooter.bot;
   for (const v of (ctx.targets || ctx.entities).values()) {
     if (occupantShielded(v) || v === shooter || v.state !== 'alive' || hitVictims?.has(v)) continue;
     if (!ctx.canDamage(shooter, v)) continue;
     // Seated crew ride their hull: no rewind, a crouched box under the seat hip.
-    const pos = v.vehicleId ? occupantHitPose(v) : rewoundByShooter ? rewindVictim(v, ctx.now, shooter.input?.viewAge) : v;
+    const pos = v.vehicleId ? occupantHitPose(v) : rewoundByShooter ? rewindVictim(v, ctx.now, viewAgeMs) : v;
+    // Broad phase: a body (any stance, lean or scale) lies within a few metres
+    // of its feet anchor, so a ray or a flying-round chord skips most of the room.
+    if (segmentFar(o, d, limit, pos, radius)) continue;
     const hit = rayPlayerHitboxes(o, d, pos, limit, { minT, radius, preferCore: true });
     // A corona contact whose closest approach is clipped by the segment end
     // (the wall this segment stops at) is not a real graze: it would spend the
@@ -462,7 +477,6 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
   const def = p.def;
   // RIPTIDE fire gate: a seated disc and fewer than `magSize` discs in the air.
   if (def.projectile === 'glaive' && !(ctx.canThrowGlaive?.(p) ?? true)) return;
-  const shotReach = HITSCAN_REACH;
   p.spawnProtectedUntil = 0;
   p.spawnProtected = false;
   p.mag[p.weapon]--;
@@ -531,125 +545,277 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
     return;
   }
   if (def.flame) { ctx.flames.launch(p, oEye, fwd, ctx); return; }
-  const shotProfile = chargeShotProfile(def, charge01);
-  const playerLimit = Math.max(1, Math.trunc(def.pierce?.players || 1));
-  const playerFalloff = def.pierce?.playerFalloff ?? 1;
+  const shot = {
+    profile: chargeShotProfile(def, charge01),
+    playerLimit: Math.max(1, Math.trunc(def.pierce?.players || 1)),
+    playerFalloff: def.pierce?.playerFalloff ?? 1,
+    noScope: isScopedWeapon(def) && p.adsT < SNIPER_SCOPE_ADS_THRESHOLD,
+    nearMisses: new Map(),
+    hitVictims: new Set(),
+  };
+  const ballistic = ballisticProfile(def);
+  if (ballistic) {
+    launchFlyingRound(p, def, ballistic, shot, oEye, firstDir, charge01, chargeMult, ctx);
+    return;
+  }
   // Publish the resolved polyline with the shot so clients never guess a bounce.
   shootEvent.paths = [];
-  const nearMisses = new Map();
-  const shotHitVictims = new Set();
   for (let pellet = 0; pellet < def.pellets; pellet++) {
-    let d = pellet === 0 ? { ...firstDir } : samplePelletDirection(def, fwd, rng, coneDeg, pellet);
-    let origin = [...oEye];
-    let traveled = 0, damageScale = chargeMult, power = bulletPower(def, charge01), bounces = 0;
-    let playersLeft = playerLimit;
-    const hitVictims = new Set();
-    const path = [];
-    shootEvent.paths.push(path);
-    for (let contact = 0; contact < BULLET_RULES.maxContacts; contact++) {
-      const reach = shotReach - traveled;
-      if (!(reach > 0) || damageScale < 0.001) break;
-      const hit = raycastVoxels(ctx.solidAt, ...origin, d.x, d.y, d.z, reach);
-      // A passenger's own hull never stops their personal weapon.
-      const hull = ctx.vehicles?.rayHit(origin, [d.x, d.y, d.z], hit ? hit.t : reach, p.vehicleId ?? null);
-      const wallT = hull ? hull.distance : (hit ? hit.t : reach);
-      // Exposed crew sit inside their own hull's box: the round may reach them
-      // before it leaves that box. Nobody else is ever struck behind the hull.
-      const crewT = hull ? Math.max(hull.distance, Math.min(hull.exit ?? hull.distance, hit ? hit.t : reach)) : wallT;
-      let minT = 0, stopped = false;
-      for (;;) {
-        let tgt = nearestVictim(p, origin, d, crewT, ctx, minT, shotProfile.hitRadius, hitVictims);
-        if (tgt && hull && tgt.t > hull.distance && tgt.victim.vehicleId !== hull.id) tgt = null;
-        const mine = ctx.nearestClaymore?.(origin, d, tgt?.t ?? wallT, minT, shotProfile.hitRadius);
-        // Bullets pop the bubbles they cross without stopping (no soap shield).
-        ctx.popBubblesOnRay?.(p, origin, d, minT, mine ? mine.t : (tgt?.t ?? wallT), shotProfile.hitRadius);
-        if (mine) {
-          path.push({o:origin,end:origin.map((v,i)=>v+d[['x','y','z'][i]]*mine.t)});
-          ctx.shootClaymore(mine.mine);
-          stopped = true;
-          break;
-        }
-        if (!tgt) break;
-        const point = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * tgt.t);
-        if (playersLeft <= 0) { path.push({ o: origin, end: point }); stopped = true; break; }
-        const dist = traveled + tgt.t;
-        const hs = !!tgt.coreHit && tgt.zone === 'head';
-        const radialScale = shotProfile.hitRadius > 0 ? railDamageMult(shotProfile, tgt.radialDistance) : 1;
-        const dmg = combatDamage(Math.round(radialScale * damageAtDistance(def, dist) * (hs ? def.headMult : 1) * damageScale
-          * occupantDamageScale(tgt.victim) * 10) / 10);
-        const lethal = tgt.victim.takeDamage(dmg, hs, p, def.id);
-        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, point, tgt.victim.lastDamage));
-        if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
-          longRange: dist >= LONG_RANGE_KILL_DISTANCE,
-          noScope: isScopedWeapon(def) && p.adsT < SNIPER_SCOPE_ADS_THRESHOLD,
-          dist,
-        });
-        chaosHit(p, tgt.victim, point, ctx);
-        hitVictims.add(tgt.victim);
-        shotHitVictims.add(tgt.victim);
-        playersLeft--;
-        if (!def.pierce?.players) { path.push({ o: origin, end: point }); stopped = true; break; }
-        damageScale *= playerFalloff;
-        power *= playerFalloff;
-        minT = tgt.t + 0.001;
-      }
-      if (stopped) {
-        collectNearMisses(p, origin, path[path.length - 1].end, ctx, nearMisses);
-        break;
-      }
-      if (hull) {
-        const point = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * hull.distance);
-        ctx.vehicles.damage(hull.id, damageAtDistance(def, traveled + hull.distance) * damageScale, p,
-          { cls: infantryDamageClass(def), point });
-        path.push({ o: origin, end: point });
-        collectNearMisses(p, origin, point, ctx, nearMisses);
-        break;
-      }
-      // Keep empty-sky presentation finite without limiting the damage ray.
-      const endT = hit ? hit.t : Math.min(reach, 180);
-      const point = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * endT);
-      const segment = { o: origin, end: point };
-      path.push(segment);
-      // Damage reach may be infinite. Bound the suppression segment by the
-      // furthest current player, rather than the shorter tracer presentation.
-      let suppressionReach = hit ? hit.t : 0;
-      if (!hit) for (const v of ctx.entities.values()) {
-        suppressionReach = Math.max(suppressionReach,
-          Math.hypot(v.x - origin[0], v.y + 1.05 - origin[1], v.z - origin[2]) + 2);
-      }
-      collectNearMisses(p, origin, origin.map((v, i) =>
-        v + d[['x', 'y', 'z'][i]] * Math.min(reach, suppressionReach)), ctx, nearMisses);
-      if (!hit) break;
-      segment.hit = { x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz };
-      if (hit.y <= 0) break;
-      const type = ctx.getBlock(hit.x, hit.y, hit.z);
-      const exit = voxelExitDistance(origin, d, hit);
-      const dot = d.x * hit.nx + d.y * hit.ny + d.z * hit.nz;
-      const result = bulletMaterialImpact({ type, power,
-        damage: damageAtDistance(def, traveled + hit.t) * damageScale,
-        hp: ctx.blockHp.get(blockKey(hit.x, hit.y, hit.z)) ?? BLOCK_HP[type],
-        incidence: hit.nx || hit.ny || hit.nz ? Math.abs(dot) : 1,
-        thickness: exit - hit.t, bounces });
-      damageBlock(hit.x, hit.y, hit.z, type, result.damage, ctx);
-      segment.action = result.action;
-      power = result.power;
-      damageScale *= result.damageScale;
-      if (result.action === 'stop') break;
-      if (result.action === 'ricochet') {
-        bounces++;
-        d = { x: d.x - 2 * dot * hit.nx, y: d.y - 2 * dot * hit.ny, z: d.z - 2 * dot * hit.nz };
-        origin = point.map((value, i) => value + d[['x', 'y', 'z'][i]] * BULLET_RULES.epsilon);
-        traveled += hit.t + BULLET_RULES.epsilon;
-      } else {
-        const step = exit + BULLET_RULES.epsilon;
-        origin = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * step);
-        traveled += step;
-      }
-    }
+    const d = pellet === 0 ? { ...firstDir } : samplePelletDirection(def, fwd, rng, coneDeg, pellet);
+    const round = createRound(def, shot, oEye, d, charge01, chargeMult);
+    shootEvent.paths.push(round.path);
+    walkRoundLeg(p, def, round, Infinity, ctx);
   }
   // Presentation suppresses a flyby when this shot already supplies hit audio.
-  if (shotHitVictims.size) shootEvent.hitVictims = [...shotHitVictims].map((victim) => victim.id);
-  applyNearMisses(nearMisses, shotHitVictims, ctx);
+  if (shot.hitVictims.size) shootEvent.hitVictims = [...shot.hitVictims].map((victim) => victim.id);
+  applyNearMisses(shot.nearMisses, shot.hitVictims, ctx);
+}
+
+/** Per-round state (one pellet, or one flying bullet) carried across its legs. */
+function createRound(def, shot, origin, d, charge01, chargeMult) {
+  const round = {
+    shot,
+    origin: [...origin],
+    segStart: null,
+    d,
+    traveled: 0,
+    damageScale: chargeMult,
+    power: bulletPower(def, charge01),
+    bounces: 0,
+    contacts: 0,
+    playersLeft: shot.playerLimit,
+    hitVictims: new Set(),
+    path: [],
+    flying: false,
+    viewAge: undefined,
+  };
+  round.segStart = round.origin;
+  return round;
+}
+
+const AXES = ['x', 'y', 'z'];
+const along = (origin, d, t) => origin.map((value, i) => value + d[AXES[i]] * t);
+
+/**
+ * Walk one straight leg of a round in authoritative order: voxels, hulls,
+ * claymores, bubbles and bodies, spending bullet power at every material
+ * contact. A hitscan pellet is one unbounded leg; a flying round walks one
+ * chord of its arc per tick (`legLength`). Returns true once the round has
+ * stopped; otherwise `round.origin`/`round.d` continue where the leg ended.
+ */
+function walkRoundLeg(p, def, round, legLength, ctx) {
+  const { shot } = round;
+  const { profile: shotProfile, nearMisses } = shot;
+  const path = round.path;
+  let legLeft = legLength;
+  while (round.contacts < BULLET_RULES.maxContacts) {
+    const reach = Math.min(HITSCAN_REACH - round.traveled, legLeft);
+    if (!(reach > 0) || round.damageScale < 0.001) return true;
+    const origin = round.origin;
+    const d = round.d;
+    const hit = raycastVoxels(ctx.solidAt, ...origin, d.x, d.y, d.z, reach);
+    // A passenger's own hull never stops their personal weapon.
+    const hull = ctx.vehicles?.rayHit(origin, [d.x, d.y, d.z], hit ? hit.t : reach, p.vehicleId ?? null);
+    const wallT = hull ? hull.distance : (hit ? hit.t : reach);
+    // Exposed crew sit inside their own hull's box: the round may reach them
+    // before it leaves that box. Nobody else is ever struck behind the hull.
+    const crewT = hull ? Math.max(hull.distance, Math.min(hull.exit ?? hull.distance, hit ? hit.t : reach)) : wallT;
+    let minT = 0, stopped = false;
+    for (;;) {
+      let tgt = nearestVictim(p, origin, d, crewT, ctx, minT, shotProfile.hitRadius, round.hitVictims,
+        round.flying ? round.viewAge : p.input?.viewAge);
+      if (tgt && hull && tgt.t > hull.distance && tgt.victim.vehicleId !== hull.id) tgt = null;
+      const mine = ctx.nearestClaymore?.(origin, d, tgt?.t ?? wallT, minT, shotProfile.hitRadius);
+      // Bullets pop the bubbles they cross without stopping (no soap shield).
+      ctx.popBubblesOnRay?.(p, origin, d, minT, mine ? mine.t : (tgt?.t ?? wallT), shotProfile.hitRadius);
+      if (mine) {
+        path.push({ o: round.segStart, end: along(origin, d, mine.t) });
+        ctx.shootClaymore(mine.mine);
+        stopped = true;
+        break;
+      }
+      if (!tgt) break;
+      const point = along(origin, d, tgt.t);
+      if (round.playersLeft <= 0) { path.push({ o: round.segStart, end: point }); stopped = true; break; }
+      const dist = round.traveled + tgt.t;
+      const hs = !!tgt.coreHit && tgt.zone === 'head';
+      const radialScale = shotProfile.hitRadius > 0 ? railDamageMult(shotProfile, tgt.radialDistance) : 1;
+      const dmg = combatDamage(Math.round(radialScale * damageAtDistance(def, dist) * (hs ? def.headMult : 1)
+        * round.damageScale * occupantDamageScale(tgt.victim) * 10) / 10);
+      const lethal = tgt.victim.takeDamage(dmg, hs, p, def.id);
+      ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, point, tgt.victim.lastDamage));
+      if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
+        longRange: dist >= LONG_RANGE_KILL_DISTANCE,
+        noScope: shot.noScope,
+        dist,
+      });
+      chaosHit(p, tgt.victim, point, ctx);
+      round.hitVictims.add(tgt.victim);
+      shot.hitVictims.add(tgt.victim);
+      round.playersLeft--;
+      if (!def.pierce?.players) { path.push({ o: round.segStart, end: point }); stopped = true; break; }
+      round.damageScale *= shot.playerFalloff;
+      round.power *= shot.playerFalloff;
+      minT = tgt.t + 0.001;
+    }
+    if (stopped) {
+      collectNearMisses(p, origin, path[path.length - 1].end, ctx, nearMisses);
+      return true;
+    }
+    if (hull) {
+      const point = along(origin, d, hull.distance);
+      ctx.vehicles.damage(hull.id, damageAtDistance(def, round.traveled + hull.distance) * round.damageScale, p,
+        { cls: infantryDamageClass(def), point });
+      path.push({ o: round.segStart, end: point });
+      collectNearMisses(p, origin, point, ctx, nearMisses);
+      return true;
+    }
+    if (!hit && round.flying) {
+      // The chord ends in open air: the arc continues next tick.
+      const end = along(origin, d, reach);
+      collectNearMisses(p, origin, end, ctx, nearMisses);
+      round.origin = end;
+      round.traveled += reach;
+      return !(HITSCAN_REACH - round.traveled > 0);
+    }
+    // Keep empty-sky presentation finite without limiting the damage ray.
+    const endT = hit ? hit.t : Math.min(reach, 180);
+    const point = along(origin, d, endT);
+    const segment = { o: round.segStart, end: point };
+    path.push(segment);
+    // Damage reach may be infinite. Bound the suppression segment by the
+    // furthest current player, rather than the shorter tracer presentation.
+    let suppressionReach = hit ? hit.t : 0;
+    if (!hit) for (const v of ctx.entities.values()) {
+      suppressionReach = Math.max(suppressionReach,
+        Math.hypot(v.x - origin[0], v.y + 1.05 - origin[1], v.z - origin[2]) + 2);
+    }
+    collectNearMisses(p, origin, along(origin, d, Math.min(reach, suppressionReach)), ctx, nearMisses);
+    if (!hit) return true;
+    segment.hit = { x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz };
+    if (hit.y <= 0) return true;
+    const type = ctx.getBlock(hit.x, hit.y, hit.z);
+    const exit = voxelExitDistance(origin, d, hit);
+    const dot = d.x * hit.nx + d.y * hit.ny + d.z * hit.nz;
+    const result = bulletMaterialImpact({ type, power: round.power,
+      damage: damageAtDistance(def, round.traveled + hit.t) * round.damageScale,
+      hp: ctx.blockHp.get(blockKey(hit.x, hit.y, hit.z)) ?? BLOCK_HP[type],
+      incidence: hit.nx || hit.ny || hit.nz ? Math.abs(dot) : 1,
+      thickness: exit - hit.t, bounces: round.bounces });
+    damageBlock(hit.x, hit.y, hit.z, type, result.damage, ctx);
+    segment.action = result.action;
+    round.power = result.power;
+    round.damageScale *= result.damageScale;
+    if (result.action === 'stop') return true;
+    let consumed;
+    if (result.action === 'ricochet') {
+      round.bounces++;
+      round.d = { x: d.x - 2 * dot * hit.nx, y: d.y - 2 * dot * hit.ny, z: d.z - 2 * dot * hit.nz };
+      round.origin = point.map((value, i) => value + round.d[AXES[i]] * BULLET_RULES.epsilon);
+      consumed = hit.t + BULLET_RULES.epsilon;
+    } else {
+      consumed = exit + BULLET_RULES.epsilon;
+      round.origin = along(origin, d, consumed);
+    }
+    round.traveled += consumed;
+    round.segStart = round.origin;
+    round.contacts++;
+    legLeft -= consumed;
+  }
+  return true;
+}
+
+/**
+ * Launch a flying round (`def.ballistic`): it leaves the eye with the zeroed
+ * bore elevation and walks one chord of its arc per tick. The first chord
+ * resolves in the firing tick; the room's `flyingRounds` list carries the rest
+ * (`stepFlyingRounds`). A context without that list (unit harnesses) flies the
+ * whole arc at once against the current poses.
+ *
+ * Lag compensation: every chord tests bodies rewound by the shooter's view age
+ * at the trigger, so at flight time τ the round meets each body where the
+ * shooter's screen showed it τ after the shot, exactly as the local streak
+ * flies. Bots shoot the live world, as with hitscan.
+ */
+function launchFlyingRound(p, def, ballistic, shot, oEye, dir, charge01, chargeMult, ctx) {
+  const launch = ballisticLaunch(ballistic, oEye, dir);
+  const round = createRound(def, shot, oEye, dir, charge01, chargeMult);
+  Object.assign(round, {
+    owner: p, def, ballistic, flying: true,
+    viewAge: p.bot ? undefined : p.input?.viewAge,
+    vx: launch.vx, vy: launch.vy, vz: launch.vz,
+    age: 0, segAge: 0,
+  });
+  if (stepFlyingRound(round, BALLISTIC_STEP_S, ctx)) { finishFlyingRound(round, ctx); return; }
+  if (Array.isArray(ctx.flyingRounds)) { ctx.flyingRounds.push(round); return; }
+  while (!stepFlyingRound(round, BALLISTIC_STEP_S, ctx));
+  finishFlyingRound(round, ctx);
+}
+
+/** Presentation polyline cut: one straight segment per eighth of a second of arc. */
+const FLYING_SEGMENT_S = 0.125;
+
+/** Advance one flying round by `dt` seconds; true once it has stopped or expired. */
+function stepFlyingRound(round, dt, ctx) {
+  const owner = round.owner;
+  // A departed shooter's rounds vanish with them (no kill credit to a ghost).
+  if (!owner.structure && ctx.entities?.get && ctx.entities.get(owner.id) !== owner) {
+    round.cancelled = true;
+    return true;
+  }
+  const g = round.ballistic.gravity;
+  const cx = round.vx * dt, cy = round.vy * dt - 0.5 * g * dt * dt, cz = round.vz * dt;
+  const length = Math.hypot(cx, cy, cz);
+  if (!(length > 0)) return true;
+  round.d = { x: cx / length, y: cy / length, z: cz / length };
+  const bounces = round.bounces;
+  const stopped = walkRoundLeg(owner, round.def, round, length, ctx);
+  round.age += dt;
+  if (stopped) return true;
+  if (round.bounces !== bounces) {
+    // A ricochet keeps the speed and leaves along the reflected chord.
+    const speed = Math.hypot(round.vx, round.vy, round.vz);
+    round.vx = round.d.x * speed; round.vy = round.d.y * speed; round.vz = round.d.z * speed;
+  } else {
+    round.vy -= g * dt;
+  }
+  if (round.age >= round.ballistic.maxFlightS - 1e-9 || round.origin[1] < -4) {
+    round.path.push({ o: round.segStart, end: round.origin });
+    return true;
+  }
+  if (round.age - round.segAge >= FLYING_SEGMENT_S - 1e-9) {
+    round.path.push({ o: round.segStart, end: round.origin });
+    round.segStart = round.origin;
+    round.segAge = round.age;
+  }
+  return false;
+}
+
+const roundPoint = (point) => point.map((value) => Math.round(value * 100) / 100);
+
+/** Settle a finished round: suppression for its near misses and the resolved path for clients. */
+function finishFlyingRound(round, ctx) {
+  if (round.cancelled) return;
+  const { shot } = round;
+  applyNearMisses(shot.nearMisses, shot.hitVictims, ctx);
+  ctx.pushEvent(evBullet(round.owner.id, round.def.id,
+    round.path.map((segment) => ({ ...segment, o: roundPoint(segment.o), end: roundPoint(segment.end) })),
+    [...shot.hitVictims].map((victim) => victim.id)));
+}
+
+/**
+ * Advance every in-flight round of a room by one tick, before this tick's new
+ * shots launch. Finished rounds leave the list in place (no allocation).
+ */
+export function stepFlyingRounds(rounds, dt, ctx) {
+  if (!rounds?.length) return;
+  let keep = 0;
+  for (let i = 0; i < rounds.length; i++) {
+    const round = rounds[i];
+    if (stepFlyingRound(round, dt, ctx)) finishFlyingRound(round, ctx);
+    else rounds[keep++] = round;
+  }
+  rounds.length = keep;
 }
 
 /**

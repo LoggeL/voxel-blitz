@@ -292,7 +292,9 @@ export class ConquestAircraftDriving {
     const seat = aircraft(v) ? botVehicleSeat(p, v) : null;
     const assignment = this.commander?.crewFor(p.id) ?? null;
     if (seat) {
-      const mine = assignment?.vehicleId === v.id ? assignment : null;
+      // A hitch (a ride with a human pilot) never flies: a bot swapped into the
+      // pilot seat is unassigned there (gets out once landed).
+      const mine = assignment?.vehicleId === v.id && !(seat.drives && assignment.role === 'hitch') ? assignment : null;
       if (this.shouldBail(v, seat, now)) {
         botPassengerInput(inp);
         inp.vehicleAction = { type: 'exit' };

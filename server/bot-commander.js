@@ -14,6 +14,8 @@
 // squad (assault, engineer, support, recon or assault), vehicles get a crew
 // budget of ceil(teamBots / 3) in priority order (tank > attack helicopter >
 // plane), and squads ride jeeps or the transport toward their staging point.
+// A hull a human drives or pilots takes nearby bots aboard (planHitches):
+// the driver's squad mates first, gunner seats first.
 //
 // The commander is the bot director of spec 3.5: goalFor(player) and
 // deployFor(player). Everything it reads is authoritative mode, entity and
@@ -31,6 +33,12 @@ export const STAGE_ANGLE = 50 * Math.PI / 180;
 export const DEFEND_ALERT_RADIUS = 60;
 export const ATTACK_SHARE = 0.6;
 export const REVIVE_RANGE = 25, REPAIR_RANGE = 30, REPAIR_BELOW = 0.7;
+/**
+ * A revive or repair walk that gets no closer (by 1 m) for SUPPORT_STALL_MS
+ * while still out of reach is given up, and that target is left to others
+ * for SUPPORT_BLOCK_MS (a hull knocked under a deck, a body behind a crater).
+ */
+const SUPPORT_STALL_MS = 8000, SUPPORT_BLOCK_MS = 30000;
 export const TRANSIT_MAX_MS = 40000;
 /** One persistent crew seat per this many team bots (capped by ceil(teamBots / 3)). */
 export const CREW_SHARE = 4;
@@ -46,6 +54,22 @@ const STAGE_HOLD_MS = 3000;
 const STAGE_TIMEOUT_MS = 35000;
 const DEFEND_HOLD_MS = 20000;
 const KNOWLEDGE_MS = 8000;
+/**
+ * Rides with humans (planHitches): bots fill the free seats of a hull a human
+ * drives or pilots, gunner seats first. Squad mates of the driver come from
+ * HITCH_SQUAD_RADIUS and are limited only by seats; other teammates come from
+ * HITCH_RADIUS and at most ceil(teamBots / HITCH_TEAM_SHARE) of them ride with
+ * humans at a time.
+ */
+export const HITCH_RADIUS = 45;
+export const HITCH_SQUAD_RADIUS = 60;
+export const HITCH_TEAM_SHARE = 4;
+export const HITCH_BOARD_SPEED = 3;     // m/s: bots only head for a hull that is stopped or crawling
+export const HITCH_BOARD_MS = 20000;    // a booked rider that has not boarded by then gives up
+export const HITCH_DROP_PAD = 12;       // m beyond a wanted flag's radius where a stop drops the riders
+export const HITCH_IDLE_MS = 30000;     // riders leave a hull that has stood still this long away from any flag
+export const HITCH_COOLDOWN_MS = 30000; // a dropped rider walks a while before it hitches again
+const HITCH_STOPPED = 0.8;              // m/s: same as the riders' own "stopped" (bot-vehicle-driving)
 const KIT_MIX = Object.freeze(['assault', 'engineer', 'support', 'recon']);
 /**
  * Engineer gadget mix: the share of a team's engineers that deploy with the
@@ -60,6 +84,10 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const finitePoint = p => p && Number.isFinite(p.x) && Number.isFinite(p.z);
 const isAircraftType = type => type === 'helicopter' || type === 'plane' || type === 'transport';
 const disabledHull = v => ((v?.st | 0) & 2) !== 0 || v?.disabled === true;
+/** Ground hulls by their drive speed; aircraft only on the ground, by their horizontal speed. */
+const hullStopped = (v, limit) => (isAircraftType(v.type)
+  ? v.grounded !== false && Math.hypot(v.vx || 0, v.vz || 0) < limit
+  : Math.abs(v.speed || 0) < limit);
 
 /** Maximum hull HP from the shared registry. */
 export function hullMaxHp(v) {
@@ -178,13 +206,17 @@ export class BotCommander {
     this.game = game;
     this.manager = manager;
     this.cover = new CoverIndex(game);
-    this.teams = new Map(CONQUEST_TEAMS.map(team => [team, { team, squads: new Map(), crews: new Map(), transits: new Map(), knowledge: [] }]));
+    this.teams = new Map(CONQUEST_TEAMS.map(team => [team, { team, squads: new Map(), crews: new Map(), transits: new Map(),
+      hitches: new Map(), hitchCooldown: new Map(), knowledge: [] }]));
     this.view = null;
     this.viewAt = -1;
     this.nextPlanAt = 0;
     this.goalCache = new Map();
     this.goalAt = -1;
     this.roleClaims = new Map();
+    this.supportTries = new Map();   // bot id -> { name, best, at }: progress of its revive/repair walk
+    this.supportBlocked = new Map(); // `${bot id}|${name}` -> until: targets that bot gave up on
+    this.supportReach = new Map();   // `${bot id}|${name}` -> { at, ok }: reachability, re-checked each second
     this.presence = new Map();
   }
 
@@ -391,6 +423,7 @@ export class BotCommander {
     }
     this.planCrews(ts, view, now);
     this.planTransit(ts, view, now);
+    this.planHitches(ts, view, now);
   }
 
   isBot(id) { return this.game.entities.get(id)?.bot === true; }
@@ -466,7 +499,7 @@ export class BotCommander {
     const order = squad.order;
     if (!order || order.phase === 'push' || !order.staging) return;
     const members = squad.members.map(id => this.game.entities.get(id))
-      .filter(p => p?.state === 'alive' && p.bot && !p.vehicleId && !ts.crews.has(String(p.id)));
+      .filter(p => p?.state === 'alive' && p.bot && !p.vehicleId && !ts.crews.has(String(p.id)) && !ts.hitches.has(String(p.id)));
     if (members.length <= 1 && now - order.issuedAt > 4000) { order.phase = 'push'; order.pushAt = now; return; }
     const near = members.filter(p => flat(p, order.staging) <= STAGE_GATHER_RADIUS).length;
     if (order.phase === 'move' && members.length && near / members.length >= 0.6) { order.phase = 'stage'; order.arrivedAt = now; }
@@ -551,7 +584,7 @@ export class BotCommander {
       let best = null, bestScore = Infinity;
       for (const br of brains) {
         const id = br.id, p = this.game.entities.get(id);
-        if (!p || crews.has(id) || transitIds.has(id)) continue;
+        if (!p || crews.has(id) || transitIds.has(id) || ts.hitches.has(id)) continue;
         if (p.vehicleId && p.vehicleId !== slot.v.id) continue;
         // Dead bots deploy straight into the seat; living ones walk if close.
         let score;
@@ -572,7 +605,10 @@ export class BotCommander {
     for (const [id, transit] of ts.transits) {
       const v = this.game.vehicles?.vehicles.get(transit.vehicleId);
       const squad = ts.squads.get(transit.squadId);
-      if (!v || v.hp <= 0 || !squad || now > transit.until || transit.done || this.transitDriverLost(v, transit, ts, now)) ts.transits.delete(id);
+      // A human at the wheel (a seat takeover) ends the ride; its riders become
+      // hitches of the human's ride (planHitches).
+      if (!v || v.hp <= 0 || !squad || now > transit.until || transit.done || this.transitDriverLost(v, transit, ts, now)
+          || this.humanAtWheel(v, ts.team)) ts.transits.delete(id);
     }
     const busy = new Set([...ts.transits.values()].map(t => t.vehicleId));
     for (const crew of ts.crews.values()) busy.add(crew.vehicleId);
@@ -590,7 +626,7 @@ export class BotCommander {
       const flag = view.flags.find(f => f.id === order.flagId);
       const destination = order.phase === 'move' && order.staging ? order.staging : flag;
       const riders = squad.members.map(m => this.game.entities.get(m))
-        .filter(p => p?.state === 'alive' && p.bot && !p.vehicleId && !ts.crews.has(String(p.id)));
+        .filter(p => p?.state === 'alive' && p.bot && !p.vehicleId && !ts.crews.has(String(p.id)) && !ts.hitches.has(String(p.id)));
       if (riders.length < 2 || !destination) continue;
       const center = this.squadCentroid(squad);
       if (!center || flat(center, destination) < 140) continue;
@@ -630,7 +666,139 @@ export class BotCommander {
     return now - transit.createdAt > TRANSIT_BOARD_MS;
   }
 
-  /** Vehicle assignment of a bot: {vehicleId, seatId, role:'crew'|'transit', ...} or null. */
+  /**
+   * Rides with humans (Battlefield "get in"): every friendly hull a living
+   * human drives or pilots offers its free seats to nearby bots, gunner seats
+   * first (tank commander, jeep HMG, chin gun, door guns), then passengers.
+   * The driver's squad mates come first (HITCH_SQUAD_RADIUS, any number), then
+   * the nearest other teammates (HITCH_RADIUS, at most ceil(teamBots /
+   * HITCH_TEAM_SHARE) per team). Bots only set out for a hull that is stopped
+   * or crawling (ground) or on the ground (aircraft); a bot capturing a flag,
+   * holding a threatened one, crewing, riding a squad ride or busy with a
+   * revive or repair stays where it is. Riders man their guns while the human
+   * drives and are dropped (booking removed, so they get out once stopped)
+   * when the hull stops at a flag they want, when it has stood still for
+   * HITCH_IDLE_MS, or when the human leaves the driver seat. Bots never take
+   * a seat a human holds: VehicleSystem.enter only gives a bot a free seat.
+   * Runs inside the 2 Hz plan; the hull scan is O(hulls) and the bot scan only
+   * runs for teams with a human at a wheel.
+   */
+  planHitches(ts, view, now) {
+    const team = ts.team, vehicles = this.game.vehicles?.vehicles;
+    for (const [id, until] of ts.hitchCooldown) if (until <= now) ts.hitchCooldown.delete(id);
+    const humanDriver = v => this.humanAtWheel(v, team);
+    const squadOf = id => ts.memberSquad?.get(String(id)) ?? null;
+    const wants = (p, flag) => flag.owner !== team || ts.threatened?.includes(flag) || squadOf(p.id)?.order?.flagId === flag.id;
+    const dropFlag = (v, p) => view.flags.find(f => flat(v, f) <= f.radius + HITCH_DROP_PAD && Math.abs(v.y - f.y) <= 12 && wants(p, f));
+    const drop = (id, cooldown = HITCH_COOLDOWN_MS) => { ts.hitches.delete(id); ts.hitchCooldown.set(id, now + cooldown); };
+    // Keep, update or drop the current bookings.
+    for (const [id, hitch] of ts.hitches) {
+      const p = this.game.entities.get(id), v = vehicles?.get(hitch.vehicleId);
+      if (!p || p.state !== 'alive' || this.teamOf(p) !== team || ts.crews.has(id) || !humanDriver(v)) { ts.hitches.delete(id); continue; }
+      if (p.vehicleId) {
+        // Seated elsewhere, or swapped into the driver seat by the human: not a ride any more.
+        if (p.vehicleId !== v.id || p.vehicleSeatId === hullSeatIds(v).driver) { drop(id); continue; }
+        hitch.seatId = p.vehicleSeatId ?? hitch.seatId;
+        hitch.boarded = true;
+        if (!hullStopped(v, HITCH_STOPPED)) { hitch.stoppedSince = 0; continue; }
+        hitch.stoppedSince ||= now;
+        if (dropFlag(v, p)) drop(id);
+        else if (now - hitch.stoppedSince >= HITCH_IDLE_MS) drop(id, HITCH_COOLDOWN_MS * 2);
+        continue;
+      }
+      // Got out (or was put out) after boarding, gave up boarding, lost the
+      // seat or the hull drove off: the booking ends.
+      const occupant = vehicleSeatOccupantId(v, hitch.seatId);
+      if (hitch.boarded || now - hitch.since > HITCH_BOARD_MS || (occupant != null && occupant !== id)
+          || flat(p, v) > HITCH_SQUAD_RADIUS + 20 || this.hitchBusy(p, ts, view, now)) drop(id, hitch.boarded ? HITCH_COOLDOWN_MS : 10000);
+    }
+    const hulls = [];
+    for (const v of vehicles?.values() ?? []) {
+      const driver = humanDriver(v);
+      if (driver && !(isAircraftType(v.type) && v.grounded === false)) hulls.push({ v, driver });
+    }
+    if (!hulls.length) return;
+    const reserved = new Set();
+    for (const crew of ts.crews.values()) reserved.add(`${crew.vehicleId}:${crew.seatId}`);
+    for (const transit of ts.transits.values()) for (const seat of transit.seats.values()) reserved.add(`${transit.vehicleId}:${seat}`);
+    for (const hitch of ts.hitches.values()) reserved.add(`${hitch.vehicleId}:${hitch.seatId}`);
+    const brains = this.teamBrains(team);
+    let strangers = [...ts.hitches.keys()].filter(id => !ts.hitches.get(id).squad).length;
+    const strangerCap = Math.ceil(brains.length / HITCH_TEAM_SHARE);
+    // Squad rides that have not left yet: the human driver's squad mates may
+    // be taken off them (a human's squad rides with the human).
+    const transitOf = new Map();
+    for (const transit of ts.transits.values()) for (const id of transit.seats.keys()) transitOf.set(id, transit);
+    for (const { v, driver } of hulls) {
+      // Bots already aboard (a squad ride the human took over, a deploy into
+      // the hull) ride with the human under the same rules.
+      for (const seat of vehicleSeats(v)) {
+        const id = vehicleSeatOccupantId(v, seat.id), p = id != null ? this.game.entities.get(id) : null;
+        if (seat.drives || !p?.bot || p.state !== 'alive' || this.teamOf(p) !== team || ts.crews.has(id) || ts.hitches.has(id) || ts.hitchCooldown.has(id)) continue;
+        transitOf.get(id)?.seats.delete(id);
+        ts.hitches.set(id, { vehicleId: v.id, seatId: seat.id, driverId: String(driver.id), squad: true, since: now, boarded: true, stoppedSince: 0 });
+      }
+      if (!hullStopped(v, HITCH_BOARD_SPEED)) continue;
+      const topology = VEHICLE_TOPOLOGY[v.type] ?? [];
+      const role = seat => topology.find(t => t.id === seat.id)?.role;
+      const seats = vehicleSeats(v).filter(seat => !seat.drives && vehicleSeatOccupantId(v, seat.id) == null && !reserved.has(`${v.id}:${seat.id}`))
+        .sort((a, b) => (role(a) === 'gunner' ? 0 : 1) - (role(b) === 'gunner' ? 0 : 1));
+      if (!seats.length) continue;
+      const squad = squadOf(driver.id);
+      const candidates = [];
+      for (const br of brains) {
+        const id = br.id, p = this.game.entities.get(id);
+        if (!p || p.state !== 'alive' || p.vehicleId || ts.crews.has(id) || ts.hitches.has(id) || ts.hitchCooldown.has(id)) continue;
+        const mate = !!squad && squad.members.includes(id);
+        const transit = transitOf.get(id);
+        if (transit && (!mate || transit.departAt)) continue;
+        const d = flat(p, v);
+        if (d > (mate ? HITCH_SQUAD_RADIUS : HITCH_RADIUS) || Math.abs(p.y - v.y) > 12) continue;
+        if (dropFlag(v, p) || this.hitchBusy(p, ts, view, now)) continue;
+        candidates.push({ id, mate, d });
+      }
+      candidates.sort((a, b) => (b.mate - a.mate) || a.d - b.d);
+      for (const candidate of candidates) {
+        if (!seats.length) break;
+        if (!candidate.mate && strangers >= strangerCap) continue;
+        const seat = seats.shift();
+        transitOf.get(candidate.id)?.seats.delete(candidate.id);
+        ts.hitches.set(candidate.id, { vehicleId: v.id, seatId: seat.id, driverId: String(driver.id), squad: candidate.mate,
+          since: now, boarded: false, stoppedSince: 0 });
+        reserved.add(`${v.id}:${seat.id}`);
+        if (!candidate.mate) strangers++;
+      }
+    }
+  }
+
+  /** The living human of `team` in the driver or pilot seat of a usable friendly hull, or null. */
+  humanAtWheel(v, team) {
+    if (!v || !(v.hp > 0) || v.team !== team || v.padInactive || disabledHull(v)) return null;
+    const occupant = vehicleSeatOccupantId(v, hullSeatIds(v).driver);
+    const p = occupant != null ? this.game.entities.get(occupant) : null;
+    return p && !p.bot && p.state === 'alive' && this.teamOf(p) === team ? p : null;
+  }
+
+  /**
+   * A bot that must not leave for a ride: it stands in a flag it is taking or
+   * that is being fought over, holds a threatened flag (its squad defends it,
+   * or it stands inside it), or is running a revive or repair.
+   */
+  hitchBusy(p, ts, view, now) {
+    const order = ts.memberSquad?.get(String(p.id))?.order;
+    if (order?.allIn) return true;
+    for (const flag of view.flags) {
+      const d = flat(p, flag);
+      const inside = d <= flag.radius && Math.abs(p.y - flag.y) <= 8;
+      if (inside && (flag.owner !== ts.team || flag.state !== 'idle')) return true;
+      if (ts.threatened?.includes(flag) && (inside || (order?.stance === 'defend' && order.flagId === flag.id && d <= DEFEND_ALERT_RADIUS))) return true;
+    }
+    const id = String(p.id);
+    for (const claim of this.roleClaims.values()) if (claim.id === id && claim.until > now) return true;
+    return false;
+  }
+
+  /** Vehicle assignment of a bot: {vehicleId, seatId, role:'crew'|'transit'|'hitch', ...} or null. */
   crewFor(id) {
     const p = this.game.entities.get(id);
     const ts = this.teams.get(this.teamOf(p));
@@ -645,6 +813,8 @@ export class BotCommander {
       const seatId = transit.seats.get(String(id));
       if (seatId) return { role: 'transit', vehicleId: transit.vehicleId, seatId, transit, destination: transit.destination };
     }
+    const hitch = ts.hitches.get(String(id));
+    if (hitch) return { role: 'hitch', vehicleId: hitch.vehicleId, seatId: hitch.seatId, driverId: hitch.driverId };
     return null;
   }
 
@@ -914,10 +1084,11 @@ export class BotCommander {
         // A body in the river or on a ledge no walker reaches is left alone.
         if (this.game.fluidAt(Math.floor(body.x), Math.floor(body.y + 0.3), Math.floor(body.z))) continue;
         const d = flat(body, p);
-        if (d > REVIVE_RANGE || this.claimedByOther(`revive:${body.id}`, id, now)) continue;
+        if (d > REVIVE_RANGE || this.claimedByOther(`revive:${body.id}`, id, now) || this.supportGivenUp(id, `revive:${body.id}`, now)) continue;
+        if (!this.supportReachable(p, body, `revive:${body.id}`, now)) continue;
         if (!best || d < best.d) best = { body, d };
       }
-      if (best) {
+      if (best && !this.supportStalled(id, `revive:${best.body.id}`, best.d, 1.8, now)) {
         this.claimRole(`revive:${best.body.id}`, id, now);
         const body = { x: best.body.x, y: best.body.y, z: best.body.z };
         return { kind: 'revive', target: body, interact: false, role: 'support', point: body, arrive: 1.3,
@@ -930,20 +1101,68 @@ export class BotCommander {
         if (v.team !== ts.team || !(v.hp > 0) || v.hp / hullMaxHp(v) >= REPAIR_BELOW) continue;
         if (Math.hypot(v.vx || 0, v.vz || 0) > 2 || (isAircraftType(v.type) && v.grounded === false)) continue;
         const d = flat(v, p);
-        if (d > REPAIR_RANGE || this.claimedByOther(`repair:${v.id}`, id, now)) continue;
+        if (d > REPAIR_RANGE || this.claimedByOther(`repair:${v.id}`, id, now) || this.supportGivenUp(id, `repair:${v.id}`, now)) continue;
+        // A hull in the river (or knocked under a deck) is out of a walker's reach.
+        if (this.game.fluidAt(Math.floor(v.x), Math.floor(v.y + 0.5), Math.floor(v.z))) continue;
         if (!best || d < best.d) best = { v, d };
       }
-      if (best) {
-        this.claimRole(`repair:${best.v.id}`, id, now);
+      const repairPoint = best && (() => {
         const v = best.v, r = (VEHICLE_RULES[v.type]?.radius ?? 2.5) + 1;
         const side = bearing(v, p);
-        const point = this.walkablePoint({ x: v.x - Math.sin(side) * r, y: v.y, z: v.z - Math.cos(side) * r })
+        return this.walkablePoint({ x: v.x - Math.sin(side) * r, y: v.y, z: v.z - Math.cos(side) * r })
           ?? { x: v.x - Math.sin(side) * r, y: p.y, z: v.z - Math.cos(side) * r };
+      })();
+      if (best && (!this.supportReachable(p, repairPoint, `repair:${best.v.id}`, now) || Math.abs(repairPoint.y - best.v.y) > 4)) {
+        this.supportBlocked.set(`${id}|repair:${best.v.id}`, now + SUPPORT_BLOCK_MS);
+        best = null;
+      }
+      if (best && !this.supportStalled(id, `repair:${best.v.id}`, flat(repairPoint, p), 2.5, now)) {
+        this.claimRole(`repair:${best.v.id}`, id, now);
+        const v = best.v, point = repairPoint;
         return { kind: 'repair', target: { x: v.x, y: v.y, z: v.z, id: v.id }, interact: false, role: 'support', point, arrive: 1.2,
           support: { type: 'support', support: 'repair', targetId: String(v.id) }, reach: 3.2 };
       }
     }
     return null;
+  }
+
+  /** Whether bot `id` gave up on support target `name` recently (supportStalled). */
+  supportGivenUp(id, name, now) {
+    const until = this.supportBlocked.get(`${id}|${name}`);
+    if (until === undefined) return false;
+    if (until > now) return true;
+    this.supportBlocked.delete(`${id}|${name}`);
+    return false;
+  }
+
+  /**
+   * Track a revive/repair walk: true (and the target is blocked for this bot)
+   * when it has not come 1 m closer for SUPPORT_STALL_MS while out of `reach`.
+   */
+  supportStalled(id, name, d, reach, now) {
+    const tries = this.supportTries.get(id);
+    if (!tries || tries.name !== name) { this.supportTries.set(id, { name, best: d, at: now }); return false; }
+    if (d <= reach || d < tries.best - 1) { tries.best = Math.min(tries.best, d); tries.at = now; return false; }
+    if (now - tries.at < SUPPORT_STALL_MS) return false;
+    this.supportTries.delete(id);
+    this.supportBlocked.set(`${id}|${name}`, now + SUPPORT_BLOCK_MS);
+    return true;
+  }
+
+  /**
+   * Surface maps: a support point a walker at `p` can reach, i.e. footing in
+   * the same navigation region as the bot (a pit or a sealed ledge is not).
+   */
+  supportReachable(p, point, name, now) {
+    const nav = surfaceNavigation(this.game.world);
+    if (!nav || !point) return true;
+    const key = `${p.id}|${name}`, cached = this.supportReach.get(key);
+    if (cached && now - cached.at < 1000) return cached.ok;
+    const from = nav.startNode(p), to = nav.nodeAt(point, 2);
+    const ok = from >= 0 && to >= 0 && nav.component[from] === nav.component[to] && Math.abs(nav.height[to] - point.y) <= 3;
+    if (this.supportReach.size > 256) this.supportReach.clear();
+    this.supportReach.set(key, { at: now, ok });
+    return ok;
   }
 
   claimedByOther(name, id, now) {

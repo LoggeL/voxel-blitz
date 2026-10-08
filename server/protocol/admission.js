@@ -4,6 +4,7 @@ import { parseChaosPurchase } from '../../shared/chaos.js';
 import { MAX_BOTS } from '../../shared/lobby-limits.js';
 import { KIT_IDS, KITS } from '../../shared/conquest-contract.js';
 import { SPAWN_CHOICE_PATTERN } from '../../shared/conquest.js';
+import { MAP_FINGERPRINT_PATTERN } from '../../shared/world/serialize.js';
 // Wire protocol constants and strict client-frame parsers. Pure data
 // functions only — no engine state or world access.
 
@@ -91,15 +92,38 @@ export function resolveModeMap(gameMode, map) {
  * "invalid join" path. Quick play and lobby joins deliberately reject mode/map
  * keys: only the room manager owns those choices.
  */
+/** Map templates a client may announce as cached (admission `mapCache`). */
+export const MAX_ADMISSION_MAP_CACHE = 8;
+
+/**
+ * Optional admission field `mapCache`: the template fingerprints (16 hex
+ * chars, see shared/world/serialize.js mapFingerprint) the client holds. Its
+ * presence, even empty, opts the connection into V3 map frames.
+ */
+function parseMapCache(value) {
+  if (!Array.isArray(value) || value.length > MAX_ADMISSION_MAP_CACHE) return null;
+  if (!value.every(entry => typeof entry === 'string' && MAP_FINGERPRINT_PATTERN.test(entry))) return null;
+  return [...new Set(value)];
+}
+
 export function parseAdmissionFrame(raw) {
   if (!isRecord(raw) || typeof raw.name !== 'string') return null;
+  const hasMapCache = Object.prototype.hasOwnProperty.call(raw, 'mapCache');
+  const mapCache = hasMapCache ? parseMapCache(raw.mapCache) : null;
+  if (hasMapCache && !mapCache) return null;
+  const result = parseAdmissionFields(raw, hasMapCache);
+  return result && hasMapCache ? { ...result, mapCache } : result;
+}
+
+function parseAdmissionFields(raw, hasMapCache) {
+  const keys = (list) => (hasMapCache ? [...list, 'mapCache'] : list);
 
   const hasPassword = Object.prototype.hasOwnProperty.call(raw, 'password');
   if (hasPassword && !validLobbyPassword(raw.password)) return null;
   const hasBots = Object.prototype.hasOwnProperty.call(raw, 'bots');
   if (raw.t === 'join' &&
       !Object.prototype.hasOwnProperty.call(raw, 'lobby')) {
-    const expected = hasBots ? ['t', 'name', 'bots'] : ['t', 'name'];
+    const expected = keys(hasBots ? ['t', 'name', 'bots'] : ['t', 'name']);
     if (!hasExactKeys(raw, expected) || (hasBots && !validBotCount(raw.bots))) return null;
     return {
       kind: 'quick',
@@ -120,7 +144,7 @@ export function parseAdmissionFrame(raw) {
     if (hasMode) expected.push('gameMode');
     if (hasMap) expected.push('map');
     if (hasDirectStart) expected.push('directStart');
-    if (!hasExactKeys(raw, expected) || !validBotCount(raw.bots)) return null;
+    if (!hasExactKeys(raw, keys(expected)) || !validBotCount(raw.bots)) return null;
     if (hasMode && !isModeId(raw.gameMode)) return null;
     if (hasMap && !isMapId(raw.map)) return null;
 
@@ -144,7 +168,7 @@ export function parseAdmissionFrame(raw) {
   }
 
   if (raw.t === 'join' &&
-      hasExactKeys(raw, hasPassword ? ['t', 'name', 'lobby', 'password'] : ['t', 'name', 'lobby']) &&
+      hasExactKeys(raw, keys(hasPassword ? ['t', 'name', 'lobby', 'password'] : ['t', 'name', 'lobby'])) &&
       typeof raw.lobby === 'string') {
     const lobby = normalizeLobbyCode(raw.lobby);
     if (!lobby) return null;
@@ -203,20 +227,21 @@ export function parseVehicleAction(raw) {
   }
 }
 
-const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support']);
+const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy']);
 const SUPPORT_TYPES = Object.freeze(['revive', 'repair']);
 
 /**
- * Conquest intent frame `{t:'conquest', deploy | spot | support}` with exactly
+ * Conquest intent frame `{t:'conquest', deploy | spot | support | redeploy}` with exactly
  * one intent field:
  * - deploy {spawn, kit?, variant?, gadget?}: spawn matches the strict spawn
  *   grammar, kit is a KIT_IDS id (default assault), variant is 0 or 1
  *   (default 0), gadget is 0 or an index into that kit's `gadgets` (default 0:
  *   the Engineer's AT launcher; 1 is the STINGER);
  * - spot: 1 (or true);
- * - support {type: 'revive'|'repair', targetId: string <= 64}.
+ * - support {type: 'revive'|'repair', targetId: string <= 64};
+ * - redeploy: 1 (or true), the in-game menu RESPAWN.
  * Returns `{type:'deploy', spawn, kit, variant, gadget}`, `{type:'spot'}`,
- * `{type:'support', support, targetId}` or null.
+ * `{type:'support', support, targetId}`, `{type:'redeploy'}` or null.
  */
 export function parseConquestIntent(raw) {
   if (!isRecord(raw)) return null;
@@ -226,6 +251,7 @@ export function parseConquestIntent(raw) {
   if (intents.length !== 1 || !CONQUEST_INTENT_KEYS.includes(intents[0])) return null;
   const key = intents[0], value = raw[key];
   if (key === 'spot') return value === 1 || value === true ? { type: 'spot' } : null;
+  if (key === 'redeploy') return value === 1 || value === true ? { type: 'redeploy' } : null;
   if (key === 'support') {
     if (!isRecord(value) || !hasExactKeys(value, ['type', 'targetId'])) return null;
     if (!SUPPORT_TYPES.includes(value.type) || !isIdString(value.targetId, 64)) return null;

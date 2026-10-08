@@ -266,7 +266,10 @@ direct-render fallback.
 
 Every admitted client receives a JSON `welcome` carrying the authoritative
 `gameMode` and `map`, immediately followed by exactly one binary frame for that
-room's current map. Room members also receive immutable full `lobbyState`
+room's current map (`welcome.mapBytes` is its length). A client that sends
+`mapCache` in its admission frame (the browser always does, even empty) gets a
+V3 frame instead of the legacy serialization; see *Map frames and the map
+cache* below. Room members also receive immutable full `lobbyState`
 replacements after membership, settings, readiness, phase, or host changes.
 Changing the waiting-room arena sends a `lobbyConfig` header with new spawn and
 map metadata, then the replacement binary map, then `lobbyState`. Quick rooms remain live and bypass
@@ -299,6 +302,50 @@ the waiting UI.
 Malformed admission closes with code `4002`, an unknown invite with `4004`,
 and a full room or 16-room exhaustion with `4005`; the server sends a JSON
 `{t:'error',msg}` first.
+
+### Map frames and the map cache
+
+`shared/world/serialize.js` defines three map encodings: V1 (raw, small arenas),
+V2 (run-length records, Frontier: 2.0 MB, about 0.5 MB after
+`permessage-deflate`) and V3, the template frame:
+
+```
+'VB', 3, kind, fingerprint (8 bytes), uint32 template length, uint32 patch count,
+[template: the map's pristine V1/V2 bytes], patch: (uint32 voxel index, uint8 block) ×n
+```
+
+Kind 0 carries the template, kind 1 only its fingerprint (`mapFingerprint`, two
+32-bit hashes of the pristine bytes as 16 hex characters). The patch lists every
+cell that differs from the template, so blocks destroyed or built before the join
+are part of the world the client decodes; partial `blockDamage` still rides the
+welcome. Template-backed world states keep the set of divergent cells
+(`createStateApi`), so `world.mapFrame({ cached })` costs O(changed cells): a
+join into a damaged Frontier no longer re-encodes 47 M voxels on the server
+(about 60 ms of tick time per join on an M-series core, more on the production
+vCPUs). The patch is written straight from that set (`encodeMapFrame({ cells,
+blocks })`); with 200 k changed cells the template frame (3.0 MB) takes about
+1.5 ms and the reference (1.0 MB) about 1 ms on an M-series core, under 0.5 ms
+with a few thousand. A live match changes the world nearly every tick, so the
+per-mutation frame cache rarely hits for a join; expect 2 to 3 times these
+figures on the production vCPUs.
+
+The admission frame's optional `mapCache` is a list of at most 8 fingerprints
+the client holds. `lobby.js` `mapFrameFor` sends a reference when the room's
+template is in that list and the template otherwise; a template sent on a
+connection counts as held for later lobby map changes on it. Clients without
+`mapCache` (older pages, the headless protocol tools) keep receiving V1/V2.
+
+In the browser, `public/js/engine/map-cache.js` keeps every received template in
+memory for the page and in Cache Storage (`vb-map-templates-v1`, newest 6,
+both within `MAP_CACHE_BYTE_BUDGET` = 3 MB, oldest evicted first, so a changed
+Frontier generator's new template pushes the stale 2 MB one out; a page load
+deletes entries past the budget without hashing them),
+verifies each against its fingerprint when it arrives and when it is read back
+(a damaged entry is dropped, never announced), and announces what it holds.
+`deserializeWorld(frame, { resolveTemplate })` applies the patch to the cached
+template. A reference the page cannot serve fails the boot and drops that
+fingerprint, so the retry downloads the template.
+
 
 ## Bastion
 
@@ -592,7 +639,7 @@ support portrait and landscape. Append `?touch=1` for desktop QA.
 | **VK-77 RAPTOR** rifle | automatic | 660 rpm | 30 + 6 mags | climbing-descent burst cadence, amber rail accents |
 | **HORNET SMG** | automatic | 900 rpm | 36 + 6 mags | fast springy low-kick spray, tan polymer |
 | **M-DOCK 12** shotgun | pump | 90 rpm | 7 + 6 mags | tight ADS buckshot, firm pump shove, staged clack-clack |
-| **LONGSHOT MK-II** bolt sniper | bolt | 42 rpm | 5 + 6 mags | 5× full-screen optic, rotary long-throw bolt, canyon echo crack |
+| **LONGSHOT MK-II** bolt sniper | bolt | 42 rpm | 5 + 6 mags | 5× full-screen optic, rotary long-throw bolt, canyon echo crack; the round flies at 460 m/s with drop (zeroed 100 m, see *Sniper ballistics*) |
 | **BASTION LMG** | automatic | 720 rpm | 60 + 4 mags | heavy sustained fire and the slowest viewmodel settling |
 | **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 8 mags | high-damage precision sidearm with fast handling |
 | **LN-03 LONGARC** | automatic | 300 rpm | 8 + 6 mags | coilgun: every bolt ricochets off one wall — bolts never pierce bodies or terrain and fizzle once the reflection runs out |
@@ -662,8 +709,55 @@ blocks suppression, and direct hits do not also receive near-miss panic.
 Scoped weapons (the stock sniper, or any 2× or stronger attachment optic) enter
 their circular full-screen optic at 72% ADS, where the spread cone has already
 settled and below which kills count as no-scopes. The outside
-mask is opaque and the reticle includes crosshairs, mildots, and range ticks;
-the first-person weapon hides only while fully scoped. Authoritative death
+mask is opaque and the reticle is first-focal-plane: lead dots every 2 mil
+along the horizontal wire and, for the sniper, a bullet-drop ladder under the
+centre (marks at 150–500 m, numerals at 200/300/400/500 m, `ZERO 100 M`), all
+scaled to one milliradian of the live field of view so they stay true at 5×,
+2.5× or a 10× precision scope (`public/js/ui/sniper-scope.js`);
+the first-person weapon hides only while fully scoped.
+
+### Sniper ballistics
+
+The LONGSHOT MK-II no longer hits instantly: `WEAPONS.sniper.ballistic`
+(`{ speed: 460, gravity: 13, zeroM: 100, maxFlightS: 3 }`) and
+`shared/bullet-ballistics.js` define one drag-free arc used by the server,
+the streak, the scope ladder and the bots. The bore is tilted up by the zero
+angle, so the round crosses the sight line at 100 m and the drop below it grows
+linearly in mil: holdover 1.5 mil at 150 m (23 cm), 3.1 at 200 m, 4.6 at 250 m
+(1.15 m), 6.1 at 300 m, 9.2 at 400 m; it rides 8 cm high at 50 m. Flight
+time is 0.11 s at 50 m and 0.54 s at 250 m, so movers need lead (a 4.4 m/s
+strafer at 250 m: about 2.4 m). Damage falloff, headshots, wall penetration,
+ricochets, hulls, claymores and bubbles are unchanged: the round walks the same
+contact code as hitscan (`walkRoundLeg` in `server/sim/combat.js`), one chord
+of its arc per tick.
+
+Authority and lag compensation: the firing tick flies the first 1/60 s
+(7.7 m, so close shots land in the same tick as before), the room's
+`flyingRounds` list carries the rest and `stepFlyingRounds` advances it once per
+tick before new shots. Every chord tests bodies rewound by the shooter's view
+age captured at the trigger, so at flight time τ the round meets each body where
+the shooter's screen showed it τ after the shot, which is where the local
+streak flies. Bots shoot the live world as with hitscan. A round ends on a stop,
+after 3 s, below the world or when its shooter leaves; it then publishes one
+`bullet` event (`{id, w, paths, hitVictims?}`, segments cut at contacts and
+every 0.125 s) that ends the clients' streak where authority stopped it, draws
+penetration or ricochet legs, plays the flyby crack and applies suppression.
+The `shoot` event of a flying round carries no `paths`. A sphere broad phase in
+`nearestVictim` keeps a chord at about 8 µs with 64 bodies.
+
+The streak (`TracerFX.launchRound`) rides the same arc from the visible barrel,
+easing onto the true path over 30 m, and dusts the wall when it arrives.
+`Session` subscribes `bullet` with the other gameplay kinds and `CombatFeedback`
+settles it (`TracerFX.settleRound`); the viewer's own predicted round has no
+shooter id, so the viewer's `bullet` settles their oldest local round of that
+weapon. The killcam records and replays `bullet` the same way.
+Bots hold over and lead with `ballisticIntercept` (lead scaled 0.8–1.0 by skill).
+`node tools/sniper-ballistics-test.mjs` (in `sniper:test`) covers the table,
+same-tick close hits, 230 m holdover headshots, 330 m holds, client/server arc
+parity, a lag-compensated lead on a crosser, the streak, the bots' hit rate and
+the live `bullet` pipeline (Session subscription, own-round settle, remote crack).
+`bullet-material-test` checks the ricochet mirror exactly for hitscan and within
+the arc's curvature for the flying round. Authoritative death
 state drives a 1.2–1.5 second remote collapse and a deterministic local camera
 fall/roll, with every transform restored on respawn.
 
@@ -739,8 +833,10 @@ properties only when their displayed values change, while timed effects keep
 animating. `refactor:test` and `browser:ui` protect these behavior and cost limits.
 
 Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Bikini Bottom, Killhouse, Reactor 9 and Causeway are deterministic templates. Every room receives a
-fresh mutable clone of its selected map. The current room map is serialized in
-the single binary admission frame; subsequent block destruction is room-scoped
+fresh mutable clone of its selected map. The current room map travels in the
+single binary admission frame (a V3 template or reference plus the changed
+cells for browsers, see *Map frames and the map cache*); subsequent block
+destruction is room-scoped
 and streams as index deltas inside immutable client snapshots. Each tick also
 carries authoritative `match` state and player `team`, `credits`, `owned`,
 `bomb`, and interaction fields. Mode and combat events remain attached to their
@@ -811,6 +907,59 @@ ahead of the menu); the background tasks then bring the page to about 400
 requests and 9.7 MB. A warm start reaches the menu after about 130 ms with
 0.1 MB. Menu music starts after the first paint because `new AudioContext()`
 can block on the previous page's context teardown right after a reload.
+
+### Joining a large map
+
+`Game.bootLive` (`main.js`) turns the map frame into a playable first frame.
+For Frontier (768 × 80 × 768) the stages and their order are:
+
+1. The Frontier metadata (terrain-derived spawns, flags and pads) is derived
+   by `engine/frontier-meta-worker.js` 1.5 s after the menu is up and primes
+   `shared/world/metadata.js`; a join before that derives it on the main thread
+   when the `welcome` or a Frontier lobby state arrives, while the map frame is
+   still on the wire.
+2. `rt.prewarmWorldView` starts the light bake worker, then the frame is
+   decoded (template from the frame or the map cache, plus the patch). The
+   prewarmed worker has its own error handler: if its script fails to load
+   before the bake takes it, the bake starts a fresh worker (and falls back to
+   the main thread if that fails too) instead of waiting on a dead one.
+3. The `WorldView` constructor starts the light bake: the worker gets a copy of
+   the raw voxels (`worldBlocks()`) and classifies and bakes the whole volume
+   while the main thread works on. `ready()` hands the boot's `yieldControl`
+   and `isActive` to that bake, so a main-thread fallback still runs in time
+   slices and stops on Cancel.
+4. `ready()` meshes the 9 × 9 chunks around the spawn (`SPAWN_MESH_RADIUS`),
+   then builds the far terrain and the distant voxel shell (their load-time
+   scans read the raw voxels), then waits for the light.
+5. Loadout, effects and shader warm-up; the killcam copies the decoded voxels
+   instead of re-encoding and decoding the map. The spawn ring may hold no
+   leaves or fluids (both Frontier HQs have none), so the WorldView keeps one
+   zero-area triangle per terrain material (`ChunkStore.warmupGroup`) in the
+   scene until warm-up is done (`releaseShaderWarmup`): every terrain program
+   is linked before play rather than when the first such chunk streams in.
+
+The rest of the detail working set streams in nearest first during play (three
+chunks per frame, `ChunkStore.update`); the far terrain keeps a coarse surface
+under every chunk still queued.
+
+`npm run join:profile` (`tools/conquest-join-profile.mjs`, one muted headless
+CDP browser; run it through `.conquest-work/heavy.sh` on a shared machine)
+hosts a live 16-slot Conquest match from a protocol client and joins it from
+the browser `--runs` times: the first join on an empty profile (cold), later
+ones after a reload (warm: HTTP and map cache filled). It prints the
+`vb:join:*` User Timing stages, long tasks, the light bake split, the map cache
+stats, the first seconds of play and an over-internet transfer estimate;
+`--cpu` adds the busiest functions per stage and `--shots <dir>` saves frames.
+
+Measured locally (Apple silicon, Metal, ultra tier), click to the first live
+frame: 4.95 s cold before (5.2–5.7 s warm), now 0.68–0.75 s cold and 0.66–0.67 s
+warm. The largest single costs were the mesher's per-voxel string-keyed damage
+lookups (0.8 s), meshing the whole 11-chunk working set before play (3.2–4 s),
+the main-thread light classification (0.45 s), the distant shell (0.35 s) and
+the Frontier metadata (0.25 s). Over the internet a cold join adds the
+0.5 MB deflated map frame (about 0.16 s at 50 Mbit/s and 25 ms RTT, 0.34 s at
+16 Mbit/s and 40 ms); a rejoin with the template cached receives 20 bytes plus
+5 bytes per changed cell.
 
 ## Connection diagnostics
 

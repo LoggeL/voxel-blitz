@@ -20,6 +20,18 @@ export function evShoot(id, o, d, w, spread) {
   };
 }
 
+/**
+ * A flying round (`def.ballistic`) has settled. `paths` is its resolved arc as
+ * straight segments (cut at every contact and every eighth of a second), with
+ * the hitscan segment shape (`hit`, `action`); `hitVictims` lists the bodies it
+ * struck. Clients take continuation streaks, wall feedback and flybys from it.
+ */
+export function evBullet(id, w, path, hitVictims = []) {
+  const event = { t: 'ev', kind: 'bullet', id: String(id), w: String(w), paths: [path] };
+  if (hitVictims.length) event.hitVictims = hitVictims.map(String);
+  return event;
+}
+
 function damageMetadata(damage) {
   if (!damage || !Number.isFinite(damage.healthDamage) || !Number.isFinite(damage.overkill)) return {};
   return { healthDamage: round(Math.max(0, damage.healthDamage), D2),

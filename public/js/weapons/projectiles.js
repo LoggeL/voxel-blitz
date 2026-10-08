@@ -33,6 +33,13 @@ const MGL_TRAIL_POINTS = 14;
 const MGL_TRAIL_LIMIT = 32;
 const MGL_TRAIL_HALF_WIDTH = 0.095;
 const PROJECTILE_LIGHT_LIMIT = 4;
+// Conquest tank shell: a bright tracer streak (no body, no exhaust, no smoke
+// trail) stretched behind the head along the flight path, growing from the
+// muzzle to its full length.
+const SHELL_STREAK_LENGTH = 9;
+const SHELL_GLOW_LENGTH = 5.5;
+const SHELL_CORE_WIDTH = 0.085;
+const SHELL_GLOW_WIDTH = 0.3;
 // GRENADES study -> in-world prop. The authored bodies are held-frame sized
 // (0.06-0.12 m); the thrown props have always read a little larger than life so
 // they stay visible mid-flight, so each type keeps its procedural footprint.
@@ -250,6 +257,19 @@ export class ProjectileFX {
     // Energy additives carry HDR colour (> 1.0) so HDR tiers bloom them; LDR clips.
     this.boltGlowMaterial.color.multiplyScalar(2);
     this.exhaustMaterial.color.multiplyScalar(2.2);
+    // Tank shell tracer: unit boxes from the head (z 0) back along +z, scaled per frame.
+    this.shellStreakGeometry = new THREE.BoxGeometry(1, 1, 1);
+    this.shellStreakGeometry.translate(0, 0, 0.5);
+    this.shellCoreMaterial = new THREE.MeshBasicMaterial({
+      color: 0xfff0c4, transparent: true, opacity: 0.95, toneMapped: false,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    this.shellCoreMaterial.color.multiplyScalar(2.6);
+    this.shellGlowMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff8a2c, transparent: true, opacity: 0.42, toneMapped: false,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    this.shellGlowMaterial.color.multiplyScalar(1.6);
     // SUDSBLASTER bubble: a unit sphere scaled to the physics radius, skinned with the
     // viewmodel's soap film (four phase-shifted copies shared round-robin), a faint inner
     // body and a camera-facing cartoon window glint. The last 250 ms of the fuse swap the
@@ -466,7 +486,14 @@ export class ProjectileFX {
   _buildVisual(type) {
     const group = new THREE.Group();
     let capMaterial = null;
-    if (type === 'rocket') {
+    if (type === 'shell') {
+      const core = new THREE.Mesh(this.shellStreakGeometry, this.shellCoreMaterial);
+      const glow = new THREE.Mesh(this.shellStreakGeometry, this.shellGlowMaterial);
+      core.frustumCulled = glow.frustumCulled = false;
+      group.add(glow, core);
+      group.userData.streak = { core, glow };
+      this._poseShellStreak(group, 0);
+    } else if (type === 'rocket') {
       const body = new THREE.Mesh(this.rocketBodyGeometry, this.rocketMaterial);
       const nose = new THREE.Mesh(this.rocketNoseGeometry, this.rocketNoseMaterial);
       nose.position.z = -0.35;
@@ -667,14 +694,14 @@ export class ProjectileFX {
     if (!event || !Array.isArray(event.o) || !Array.isArray(event.v)) return false;
     const values = [...event.o, ...event.v].map(Number);
     if (!values.every(Number.isFinite)) return false;
-    const type = event.type === 'rocket' || event.type === 'bolt' || event.type === 'glaive' || event.type === 'mgl'
+    const type = event.type === 'rocket' || event.type === 'shell' || event.type === 'bolt' || event.type === 'glaive' || event.type === 'mgl'
       || event.type === 'bubble' || GRENADE_TYPES[event.type]
       ? event.type
       : 'frag';
     if (type === 'limpet' && (!Array.isArray(event.n) || event.n.length !== 3
       || event.n[1] !== 0 || Math.abs(event.n[0]) + Math.abs(event.n[2]) !== 1)) return false;
     if (type === 'limpet' && !local && this._mineIds && !this._mineIds.has(String(event.pid))) return false;
-    const fallbackFuse = type === 'rocket'
+    const fallbackFuse = type === 'rocket' || type === 'shell'
       ? ROCKET_RULES.lifetimeMs
       : type === 'mgl' ? MGL_RULES.fuseMs
       : type === 'bolt' ? BOLT_RULES.lifetimeMs
@@ -736,6 +763,7 @@ export class ProjectileFX {
       chaos: event.chaos || 0,
       // Vehicle shells fly the shared rocket integrator with their own gravity (server stepRocket).
       ...(typeof event.vehicleWeapon === 'string' && Number.isFinite(Number(event.g)) ? { gravity: Number(event.g), vehicleShell: true } : {}),
+      ...(type === 'shell' ? { gravity: Number.isFinite(Number(event.g)) ? Number(event.g) : 9.8, vehicleShell: true, travelled: 0 } : {}),
       child: !!event.child,
       armAge: type === 'mgl' ? Math.max(0, Number(event.arm) || MGL_RULES.armMs) / 1000 : 0,
       local,
@@ -748,7 +776,7 @@ export class ProjectileFX {
     if (type === 'limpet') this._configureMine(this.projectiles.get(id), event);
     if (type === 'glaive') this._configureGlaive(this.projectiles.get(id), event, local || fromSelf);
     if (type === 'bubble') this._configureBubble(this.projectiles.get(id), event);
-    if (type === 'rocket' || type === 'bolt' || type === 'glaive' || type === 'mgl') this._orientRocket(this.projectiles.get(id));
+    if (type === 'rocket' || type === 'shell' || type === 'bolt' || type === 'glaive' || type === 'mgl') this._orientRocket(this.projectiles.get(id));
     return true;
   }
 
@@ -1330,6 +1358,16 @@ export class ProjectileFX {
     return this.explosions.spawn(x, y, z, style, radius, this.camera?.position);
   }
 
+  /** Stretch a shell's tracer streak over the distance flown so far (never behind the muzzle). */
+  _poseShellStreak(group, travelled) {
+    const streak = group.userData.streak;
+    if (!streak) return;
+    const core = Math.max(0.6, Math.min(SHELL_STREAK_LENGTH, travelled));
+    const glow = Math.max(0.6, Math.min(SHELL_GLOW_LENGTH, travelled));
+    streak.core.scale.set(SHELL_CORE_WIDTH, SHELL_CORE_WIDTH, core);
+    streak.glow.scale.set(SHELL_GLOW_WIDTH, SHELL_GLOW_WIDTH, glow);
+  }
+
   _orientRocket(projectile) {
     const speed = Math.hypot(projectile.vx, projectile.vy, projectile.vz);
     if (speed < 1e-6) return;
@@ -1351,6 +1389,15 @@ export class ProjectileFX {
       projectile.age += step;
       if (projectile.type === 'limpet') {
         this._poseMine(projectile.group, projectile, projectile.age >= projectile.armedAge);
+      } else if (projectile.type === 'shell') {
+        // Tank shell: ballistic flight on the shared integrator, a tracer streak, no smoke.
+        const px = projectile.x, py = projectile.y, pz = projectile.z;
+        stepRocket(projectile, step, this.raycast);
+        projectile.travelled += Math.hypot(projectile.x - px, projectile.y - py, projectile.z - pz);
+        projectile.group.position.set(projectile.x, projectile.y, projectile.z);
+        this._orientRocket(projectile);
+        this._poseShellStreak(projectile.group, projectile.travelled);
+        if (projectile.hit && !projectile.local) projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
       } else if (projectile.type === 'rocket' || projectile.vehicleShell) {
         stepRocket(projectile, step, this.raycast);
         projectile.group.position.set(projectile.x, projectile.y, projectile.z);
@@ -1720,9 +1767,10 @@ export class ProjectileFX {
       this._insertLightCandidate(blast);
     }
     for (const p of this.projectiles.values()) {
-      if (p.type !== 'rocket' && p.type !== 'pulse' && p.type !== 'bolt' && p.type !== 'glaive' && p.type !== 'mgl') continue;
+      if (p.type !== 'rocket' && p.type !== 'shell' && p.type !== 'pulse' && p.type !== 'bolt' && p.type !== 'glaive' && p.type !== 'mgl') continue;
       if (p.parked) continue;
       p.lightRank = p.type === 'rocket' ? -lightWeight(1.84, 7, p, eye)
+        : p.type === 'shell' ? -lightWeight(2.2, 8, p, eye)
         : p.type === 'mgl' ? -lightWeight(1.25, 4, p, eye)
         : p.type === 'pulse' ? -lightWeight(0.9, 5, p, eye) : -lightWeight(p.type === 'glaive' ? 0.8 : 1, 4, p, eye);
       this._insertLightCandidate(p);
@@ -1741,10 +1789,11 @@ export class ProjectileFX {
         continue;
       }
       light.position.set(p.x, p.y, p.z);
-      light.color.setHex(p.type === 'rocket' ? 0xffa040 : p.type === 'mgl' ? 0xff8a2c : p.type === 'pulse' ? 0x59e8ff
+      light.color.setHex(p.type === 'rocket' ? 0xffa040 : p.type === 'shell' ? 0xffb35a : p.type === 'mgl' ? 0xff8a2c : p.type === 'pulse' ? 0x59e8ff
         : p.type === 'glaive' ? GLAIVE_COLOR : 0x7dfcff);
-      light.distance = p.type === 'rocket' ? 7 : p.type === 'pulse' ? 5 : 4;
+      light.distance = p.type === 'rocket' ? 7 : p.type === 'shell' ? 8 : p.type === 'pulse' ? 5 : 4;
       light.intensity = p.type === 'rocket' ? 1.84 + Math.sin(p.age * 90) * 0.16
+        : p.type === 'shell' ? 2.2
         : p.type === 'mgl' ? 1.25 + Math.sin(p.age * 52) * 0.12
         : p.type === 'pulse' ? 0.9 : p.type === 'glaive' ? 0.8 : 1;
     }
@@ -1828,7 +1877,7 @@ export class ProjectileFX {
       this.fragGeometry, this.capGeometry, this.limpetGeometry, this.pulseGeometry,
       this.grenadeRibGeometry, this.grenadeBandGeometry,
       this.bottleGeometry, this.bottleNeckGeometry, this.bottleFlameGeometry,
-      this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry,
+      this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry, this.shellStreakGeometry,
       this.mglBodyGeometry, this.mglNoseGeometry, this.mglBandGeometry, this.mglCoreGeometry, this.bubbleGeometry,
       this.bubbleShineGeometry,
       this.glaiveDiscGeometry, this.glaiveHubGeometry, this.glaiveRimGeometry, this.glaiveCrescentGeometry,
@@ -1836,7 +1885,8 @@ export class ProjectileFX {
     for (const material of [
       this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial,
       this.bottleMaterial, this.bottleLabelMaterial,
-      this.rocketNoseMaterial, this.exhaustMaterial, this.boltCoreMaterial, this.boltGlowMaterial,
+      this.rocketNoseMaterial, this.exhaustMaterial, this.shellCoreMaterial, this.shellGlowMaterial,
+      this.boltCoreMaterial, this.boltGlowMaterial,
       this.mglBodyMaterial, this.mglNoseMaterial, this.mglBandMaterial, this.mglCoreMaterial, this.mglTrailMaterial,
       ...this.bubbleFilms, ...this.bubbleTellFilms, this.bubbleInnerMaterial, this.bubbleShineMaterial,
       this.glaiveBladeMaterial, this.glaiveHubMaterial, this.glaiveGlowMaterial, this.glaiveTrailMaterial,

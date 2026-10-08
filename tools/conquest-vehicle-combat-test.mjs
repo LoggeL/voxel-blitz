@@ -11,7 +11,7 @@ import { ARMOR_MATRIX, HEAVY_ZONE_MULTIPLIERS, armorMultiplier, armorEffective }
 import { VEHICLE_DEFS, VEHICLE_WEAPONS, VEHICLE_DAMAGE_RULES, CONQUEST_ROCKET_PROFILE, vehicleLocalPoint, mountPose, seatWeaponList, vehicleMaxHp } from '../shared/vehicle-defs.js';
 import { vehicleWeaponBlast } from '../shared/weapon-aircraft-projectiles.js';
 import { vehicleSeats } from '../shared/vehicle-seats.js';
-import { VEHICLE_STATUS, VEHICLE_TYPE_IDS, vehicleMountOrder } from '../shared/conquest-contract.js';
+import { VEHICLE_STATUS, VEHICLE_TYPE_IDS, VEHICLE_WEAPON_META, vehicleMountOrder } from '../shared/conquest-contract.js';
 import { playerHullContact } from '../shared/player-vehicle-collision.js';
 
 const TICK = 1000 / 60;
@@ -131,7 +131,11 @@ function apDuel(targetYaw, shots) {
   const shells = rear.f.events('shoot').filter(event => event.vehicleId === 'gun');
   assert(shells.length >= 2 && shells.every(event => event.mount === 'main' && event.vehicleWeapon === 'tankAP' && event.tracer === false));
   const launches = rear.f.events('projectileLaunch').filter(event => event.vehicleWeapon === 'tankAP');
-  assert(launches.length >= 2 && launches.every(event => event.chaos === 0 && event.type === 'rocket' && event.g === 6));
+  // Real tank shells: the `shell` presentation (tracer, no rocket motor) with ballistic drop.
+  assert(launches.length >= 2 && launches.every(event => event.chaos === 0 && event.type === 'shell' && event.g === 9.8
+    && Math.abs(Math.hypot(...event.v) - VEHICLE_WEAPON_META.tankAP.speed) < 0.1));
+  assert(shells.every(event => event.w === 'shell'), 'the cannon report is the shell family, never the RX-8 rocket');
+  assert(rear.f.events('projectileExplode').filter(event => event.vehicleWeapon === 'tankAP').every(event => event.type === 'shell'));
 }
 
 // ------------------------------------------------------------- the HMG kills a jeep in < 4 s
@@ -272,6 +276,13 @@ function apDuel(targetYaw, shots) {
   assert.equal(shell.chaosLevel, 0); assert.equal(shell.chaosHoming, false); assert.equal(shell.guidance, undefined);
   assert.deepEqual(shell.blastRules, vehicleWeaponBlast(VEHICLE_WEAPONS.tankAP), 'blast rules come from the weapon table');
   assert.equal(shell.blastRules.damageRadius, 2.5, 'no giant radius');
+  // A real cannon shell: muzzle velocity from the weapon meta and true ballistic drop.
+  assert.equal(shell.eventType, 'shell'); assert.equal(shell.gravity, VEHICLE_WEAPON_META.tankAP.gravity);
+  const vy0 = shell.vy, speed0 = Math.hypot(shell.vx, shell.vy, shell.vz);
+  assert(Math.abs(speed0 - VEHICLE_WEAPON_META.tankAP.speed) < 2, `muzzle velocity ${speed0}`);
+  f.tick(6);
+  assert(f.game.projectiles.active.has(shell.id), 'the shell is still in flight 6 ticks later');
+  near(vy0 - shell.vy, VEHICLE_WEAPON_META.tankAP.gravity * 6 / 60, 1e-6, 'vy falls by g per second');
 }
 
 // ----------------------------------- every mount emits shoot {vehicleId, mount, vehicleWeapon}

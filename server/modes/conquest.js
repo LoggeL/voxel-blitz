@@ -15,6 +15,8 @@ import { evHit } from '../protocol/events.js';
 
 /** Kill key of a fall death (kill feed "FELL"); see shared/conquest-contract.js DEATH_KEYS. */
 export const FALL_KILL_KEY = 'fall';
+/** Kill key of an in-game menu RESPAWN (kill feed "REDEPLOYED"). */
+export const REDEPLOY_KILL_KEY = 'redeploy';
 
 /**
  * Battlefield-style Conquest: five flags with a majority-scaled control
@@ -290,6 +292,30 @@ export class ConquestPolicy extends TdmPolicy {
     return damage;
   }
 
+  /**
+   * In-game menu RESPAWN (Battlefield redeploy): the living player dies where
+   * they are, seated or not (the seat is released like any crew death and the
+   * hull carries on; no exit or ejection first), with the kill key `redeploy`.
+   * It is an ordinary death: 1 ticket, a death on the scoreboard, the deploy
+   * screen and the normal respawn delay. The body cannot be revived. Damage
+   * from an enemy within FALL_DAMAGE.creditMs credits that enemy, so a
+   * redeploy never denies a kill; otherwise there is no killer. Refused while
+   * dead or down, outside the live phase and within rules.redeployCooldownMs
+   * of the last redeploy.
+   */
+  redeploy(player) {
+    const entity = this._entity(player);
+    const state = this._state(entity);
+    if (!entity || !state || this.phase !== 'live' || entity.state !== 'alive' || this.roles.isDown?.(entity) === true) return false;
+    if (this.now - (state.redeployAt ?? -Infinity) < this.rules.redeployCooldownMs) return false;
+    state.redeployAt = this.now;
+    const credited = this.score.lastAttacker(entity.id, FALL_DAMAGE.creditMs);
+    const killer = credited && this.isEnemy(credited, entity) ? credited : null;
+    if (typeof this.engine?.killPlayer === 'function') this.engine.killPlayer(entity, killer, REDEPLOY_KILL_KEY, false);
+    else this._kill(entity, REDEPLOY_KILL_KEY);
+    return entity.state !== 'alive';
+  }
+
   /** No weapon fires under an open canopy or on the ejection seat. */
   canFire(player) {
     return !(this._entity(player)?.chute > 0) && super.canFire(player);
@@ -364,11 +390,12 @@ export class ConquestPolicy extends TdmPolicy {
 
   // --- intents and hooks ---------------------------------------------------
 
-  /** `{type:'deploy', spawn, kit, variant, gadget}` | `{type:'spot'}` | `{type:'support', support, targetId}`. */
+  /** `{type:'deploy', spawn, kit, variant, gadget}` | `{type:'spot'}` | `{type:'support', support, targetId}` | `{type:'redeploy'}`. */
   conquestIntent(player, intent) {
     const entity = this._entity(player);
     if (!entity || !this._state(entity) || !intent || typeof intent !== 'object') return false;
     if (intent.type === 'deploy') return this.deploy.intent(entity, intent);
+    if (intent.type === 'redeploy') return this.redeploy(entity);
     if ((intent.type === 'spot' || intent.type === 'support') && this.phase === 'live') {
       return this.roles.intent(entity, intent) === true;
     }

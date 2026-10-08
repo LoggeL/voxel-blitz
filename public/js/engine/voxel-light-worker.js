@@ -11,13 +11,203 @@
 // a thin wall reads dark on its inside and bright on its outside, and a ground
 // surface cell carries the light of the air above it.
 //
-// Message protocol (worker): post { type: 'bake', state } where state holds
-// W, H, D, cell, shearX, shearZ, cls (Uint8Array, transferred), emitters
-// ([[cellIndex, level, hue255], ...]); the reply is { type: 'baked', ms, sky,
-// sun, block, hue, data } with every array transferred back.
+// Message protocol (worker): post { type: 'bake', state, voxels? } where state
+// holds W, H, D, cell, shearX, shearZ, cls (Uint8Array, transferred), emitters
+// ([[cellIndex, level | hue255 << 8], ...]); the reply is { type: 'baked', ms,
+// classifyMs, sky, sun, block, hue, data } with every array transferred back.
+// With voxels ({ blocks, sx, sy, sz }, a transferred copy of the raw y/z/x
+// array) the worker classifies the grid itself and also returns `emitters`.
+
+import {
+  AIR, GLASS, LEAVES, MC_GLASS, MC_LEAVES, MC_WATER, MC_LAVA, MC_PORTAL,
+  MC_GLOWSTONE, MC_GHOST_GLOWSTONE, PINE_LEAVES,
+} from '../../../shared/world/blocks.js';
 
 export const LIGHT_MAX = 15;
 export const OPAQUE = 0, CLEAR = 1, FOLIAGE = 2, WATER = 3;
+
+// ------------------------------------------------------------- classify
+/** Palette coordinates for block-light hues (see voxelBlockColor in GLSL). */
+export const LIGHT_HUE = Object.freeze({ cyan: 0, warm: 0.33, amber: 0.45, lava: 0.66, portal: 1 });
+
+export const LIGHT_EMITTERS = new Map([
+  [MC_GLOWSTONE, { level: 15, hue: LIGHT_HUE.warm }],
+  [MC_GHOST_GLOWSTONE, { level: 15, hue: LIGHT_HUE.warm }],
+  [MC_LAVA, { level: 14, hue: LIGHT_HUE.lava }],
+  [MC_PORTAL, { level: 11, hue: LIGHT_HUE.portal }],
+]);
+
+// Frontier foliage (WP4 blocks) shades like leaves once those ids exist.
+const FOLIAGE_IDS = new Set([LEAVES, MC_LEAVES, PINE_LEAVES].filter(Number.isInteger));
+
+export function lightClass(id) {
+  if (id === AIR || id === GLASS || id === MC_GLASS || id === MC_PORTAL) return CLEAR;
+  if (FOLIAGE_IDS.has(id)) return FOLIAGE;
+  if (id === MC_WATER) return WATER;
+  return OPAQUE;
+}
+
+const CLASS_TABLE = new Uint8Array(256).map((_, id) => lightClass(id));
+export const classOfBlock = (id) => (id >= 0 && id < 256 ? CLASS_TABLE[id] : lightClass(id));
+// Emitter level and hue per block id: the classifier reads these per voxel.
+const EMIT_LEVEL = new Uint8Array(256), EMIT_HUE = new Float64Array(256);
+for (const [id, { level, hue }] of LIGHT_EMITTERS) { EMIT_LEVEL[id] = level; EMIT_HUE[id] = hue; }
+
+/** Cells of this edge and up classify by face coverage as well as by solid share. */
+const COVERAGE_CELL = 4;
+/** Share of a cell face that solid columns must cover for the cell to act as a barrier. */
+const COVERAGE_SHARE = 0.75;
+
+/**
+ * Class byte of one light cell from its voxels: light class in bits 0-1 and,
+ * for a cell that is at least half solid but still holds air, the side of its
+ * air in bits 2-4. Records voxel emitters (cell index -> level | hue255 << 8).
+ * `ctx` holds { cell, getBlock, dims: {sx, sy, sz}, W, H } and keeps its
+ * coverage scratch arrays.
+ */
+export function classifyLightCell(ctx, cx, cy, cz, emitters) {
+  const { cell, getBlock } = ctx;
+  const { sx, sy, sz } = ctx.dims;
+  const i = cx + ctx.W * (cy + ctx.H * cz);
+  if (cell === 1) {
+    const id = getBlock(cx, cy, cz);
+    if (emitters) {
+      const emitter = LIGHT_EMITTERS.get(id);
+      if (emitter && classOfBlock(id) !== WATER) emitters.set(i, emitter.level | (Math.round(emitter.hue * 255) << 8));
+      else emitters.delete(i);
+    }
+    return classOfBlock(id);
+  }
+  const x0 = cx * cell, y0 = cy * cell, z0 = cz * cell;
+  const x1 = Math.min(sx, x0 + cell), y1 = Math.min(sy, y0 + cell), z1 = Math.min(sz, z0 + cell);
+  const half = (cell - 1) / 2;
+  let solid = 0, foliage = 0, water = 0, total = 0, ax = 0, ay = 0, az = 0;
+  let emitLevel = 0, emitHue = 0;
+  // Coarse cells (4+ voxels) also track which face columns hold any solid:
+  // a one-voxel roof or wall fills only a quarter of a 4-voxel cell but
+  // still covers its whole face, and must stop the sun like a solid cell.
+  const coverage = cell >= COVERAGE_CELL;
+  if (coverage) {
+    const size = cell * cell;
+    if (!ctx.coverY || ctx.coverY.length !== size) {
+      ctx.coverX = new Uint8Array(size); ctx.coverY = new Uint8Array(size); ctx.coverZ = new Uint8Array(size);
+    } else {
+      ctx.coverX.fill(0); ctx.coverY.fill(0); ctx.coverZ.fill(0);
+    }
+  }
+  const { coverX, coverY, coverZ } = ctx;
+  for (let z = z0; z < z1; z++) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    const id = getBlock(x, y, z);
+    total++;
+    const c = classOfBlock(id);
+    if (c === OPAQUE) {
+      solid++;
+      if (coverage) {
+        const lx = x - x0, ly = y - y0, lz = z - z0;
+        coverY[lx + lz * cell] = 1; coverX[ly + lz * cell] = 1; coverZ[lx + ly * cell] = 1;
+      }
+    } else {
+      if (c === FOLIAGE) foliage++;
+      else if (c === WATER) water++;
+      ax += x - x0 - half; ay += y - y0 - half; az += z - z0 - half;
+    }
+    if (emitters && EMIT_LEVEL[id] > emitLevel) { emitLevel = EMIT_LEVEL[id]; emitHue = EMIT_HUE[id]; }
+  }
+  if (emitters) {
+    if (emitLevel) emitters.set(i, emitLevel | (Math.round(emitHue * 255) << 8));
+    else emitters.delete(i);
+  }
+  let barrier = solid * 2 >= total;
+  if (!barrier && coverage && solid > 0) {
+    const w = x1 - x0, h = y1 - y0, d = z1 - z0;
+    const covered = (cover, a, b) => { let n = 0; for (let j = 0; j < b; j++) for (let k = 0; k < a; k++) n += cover[k + j * cell]; return n; };
+    barrier = covered(coverY, w, d) >= COVERAGE_SHARE * w * d
+      || covered(coverX, h, d) >= COVERAGE_SHARE * h * d
+      || covered(coverZ, w, h) >= COVERAGE_SHARE * w * h;
+  }
+  return cellClass(barrier, solid, foliage, water, total, ax, ay, az);
+}
+
+/** Class byte from a cell's voxel counts and its air's lean (see classifyLightCell). */
+function cellClass(barrier, solid, foliage, water, total, ax, ay, az) {
+  if (barrier) {
+    if (solid === total) return OPAQUE;
+    // The axis the air leans towards most is the cell's open side.
+    const bx = Math.abs(ax), by = Math.abs(ay), bz = Math.abs(az);
+    let side = 0;
+    if (by >= bx && by >= bz && by > 0) side = ay > 0 ? 3 : 4;
+    else if (bx >= bz && bx > 0) side = ax > 0 ? 1 : 2;
+    else if (bz > 0) side = az > 0 ? 5 : 6;
+    return OPAQUE | (side << 2);
+  }
+  if ((foliage + solid) * 2 >= total && foliage > 0) return FOLIAGE;
+  if (water * 2 >= total) return WATER;
+  return CLEAR;
+}
+
+/**
+ * classifyLightRows over a raw y/z/x voxel array for 2- and 3-voxel cells
+ * (large worlds): the same counts and class bytes as classifyLightCell,
+ * without a getter call or a map lookup per voxel.
+ */
+function classifyArrayRows(blocks, dims, { W, H, cell }, cls, emitters, cz0, cz1) {
+  const { sx, sy, sz } = dims, plane = sx * sz, half = (cell - 1) / 2;
+  for (let cz = cz0; cz < cz1; cz++) {
+    const z0 = cz * cell, z1 = Math.min(sz, z0 + cell);
+    for (let cy = 0; cy < H; cy++) {
+      const y0 = cy * cell, y1 = Math.min(sy, y0 + cell);
+      let i = W * (cy + H * cz);
+      for (let cx = 0; cx < W; cx++, i++) {
+        const x0 = cx * cell, x1 = Math.min(sx, x0 + cell);
+        let solid = 0, foliage = 0, water = 0, total = 0, ax = 0, ay = 0, az = 0, emitLevel = 0, emitHue = 0;
+        for (let z = z0; z < z1; z++) for (let y = y0; y < y1; y++) {
+          const row = y * plane + z * sx;
+          for (let x = x0; x < x1; x++) {
+            const id = blocks[row + x];
+            total++;
+            const c = CLASS_TABLE[id];
+            if (c === OPAQUE) solid++;
+            else {
+              if (c === FOLIAGE) foliage++;
+              else if (c === WATER) water++;
+              ax += x - x0 - half; ay += y - y0 - half; az += z - z0 - half;
+            }
+            if (EMIT_LEVEL[id] > emitLevel) { emitLevel = EMIT_LEVEL[id]; emitHue = EMIT_HUE[id]; }
+          }
+        }
+        if (emitLevel) emitters.set(i, emitLevel | (Math.round(emitHue * 255) << 8));
+        else if (emitters.size) emitters.delete(i);
+        cls[i] = cellClass(solid * 2 >= total, solid, foliage, water, total, ax, ay, az);
+      }
+    }
+  }
+}
+
+/** Classify light-cell slabs [cz0, cz1) into `cls`; returns the number of cells written. */
+export function classifyLightRows(ctx, cls, emitters, cz0, cz1) {
+  const { W, H } = ctx;
+  for (let cz = cz0; cz < cz1; cz++) {
+    for (let cy = 0; cy < H; cy++) {
+      let i = W * (cy + H * cz);
+      for (let cx = 0; cx < W; cx++, i++) cls[i] = classifyLightCell(ctx, cx, cy, cz, emitters);
+    }
+  }
+  return (cz1 - cz0) * W * H;
+}
+
+/** Classifier context over a raw y/z/x voxel array (in-range reads only). */
+export function voxelArrayContext(blocks, dims, { W, H, cell }) {
+  const { sx, sz } = dims;
+  const plane = sx * sz;
+  return { cell, W, H, blocks, dims: { sx: dims.sx, sy: dims.sy, sz: dims.sz },
+    getBlock: (x, y, z) => blocks[y * plane + z * sx + x] };
+}
+
+/** Classify a whole grid from raw voxels (the worker's load-time path). */
+export function classifyVoxelArray(ctx, cls, emitters, cz0, cz1) {
+  if (ctx.blocks && ctx.cell >= 2 && ctx.cell < COVERAGE_CELL) classifyArrayRows(ctx.blocks, ctx.dims, ctx, cls, emitters, cz0, cz1);
+  else classifyLightRows(ctx, cls, emitters, cz0, cz1);
+}
 /** Neighbour offsets per side code 1..6 are resolved per grid at runtime. */
 export const SIDE_NONE = 0;
 
@@ -324,12 +514,24 @@ if (inWorker) {
     if (message.type !== 'bake') return;
     try {
       const started = performance.now();
+      // Wall-clock stamps (epoch ms) show the worker start-up and reply latency.
+      const startedAt = performance.timeOrigin + started;
       const s = createLightState(message.state);
       s.extra = message.state.extra || [];
+      // With the voxels attached the worker classifies the grid itself, so
+      // the main thread keeps meshing while the whole light volume bakes.
+      const voxels = message.voxels;
+      if (voxels) {
+        s.emitters.clear();
+        classifyVoxelArray(voxelArrayContext(voxels.blocks, voxels, s), s.cls, s.emitters, 0, s.D);
+      }
+      const classifyMs = performance.now() - started;
       bakeLightState(s);
       self.postMessage({
-        type: 'baked', id: message.id, ms: performance.now() - started,
+        type: 'baked', id: message.id, ms: performance.now() - started, classifyMs,
+        startedAt, finishedAt: performance.timeOrigin + performance.now(),
         cls: s.cls, sky: s.sky, sun: s.sun, block: s.block, hue: s.hue, data: s.data,
+        ...(voxels ? { emitters: [...s.emitters] } : {}),
       }, [s.cls.buffer, s.sky.buffer, s.sun.buffer, s.block.buffer, s.hue.buffer, s.data.buffer]);
     } catch (error) {
       self.postMessage({ type: 'error', id: message.id, message: String(error?.message || error) });

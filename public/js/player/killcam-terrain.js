@@ -3,8 +3,13 @@ import { deserializeBlocks } from '../../../shared/world/serialize.js';
 
 /** One terrain copy plus sparse, reversible changes per recorded snapshot. */
 export class KillcamTerrain {
-  constructor(mapBytes, damage = [], time = -Infinity) {
-    const decoded = deserializeBlocks(mapBytes);
+  /**
+   * `source` is a serialized map (V1/V2 bytes) or `{ blocks, dimensions }`,
+   * the client's decoded arena, which is copied as is (no re-encoding).
+   */
+  constructor(source, damage = [], time = -Infinity) {
+    const decoded = source instanceof Uint8Array ? deserializeBlocks(source)
+      : { dimensions: { ...source.dimensions }, blocks: source.blocks.slice() };
     this.dimensions = decoded.dimensions;
     this.blocks = decoded.blocks;
     this.damage = new Map();

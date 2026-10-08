@@ -151,6 +151,43 @@ export function ballisticPoint(origin, dir, speed, gravity, distance) {
   return [ox + dx * speed * t, oy + dy * speed * t - 0.5 * gravity * t * t, oz + dz * speed * t];
 }
 
+/** Constant-gravity ballistic point `seconds` after launch (where a timed-out shell airbursts). */
+export function ballisticAtTime(origin, dir, speed, gravity, seconds) {
+  return [origin[0] + dir[0] * speed * seconds, origin[1] + dir[1] * speed * seconds - 0.5 * gravity * seconds * seconds,
+    origin[2] + dir[2] * speed * seconds];
+}
+
+/**
+ * Where a ballistic round first meets the world: the arc is marched in
+ * `step`-second chords, each tested with `raycast(origin, dir, length)` (a
+ * SOLID-block picker like the server's shell cast, so water, lava and ghost
+ * blocks are flown through: `{x,y,z}` vectors, returns `{t}` or null). Returns
+ * `{ point, range, time }` (range = horizontal metres) or null when nothing is
+ * hit within `maxSeconds`.
+ */
+export function ballisticImpact(origin, dir, speed, gravity, raycast, { maxSeconds = 4, step = 0.05 } = {}) {
+  if (typeof raycast !== 'function' || !(speed > 0) || !origin || !dir) return null;
+  const [ox, oy, oz] = origin;
+  const vx = dir[0] * speed, vy = dir[1] * speed, vz = dir[2] * speed;
+  const from = { x: ox, y: oy, z: oz }, way = { x: 0, y: 0, z: 0 };
+  // Chords between exact parabola points (the server's 60 Hz steps stay within a few cm of it).
+  for (let t = 0; t < maxSeconds; t += step) {
+    const n = Math.min(maxSeconds, t + step);
+    const x = ox + vx * n, y = oy + vy * n - 0.5 * gravity * n * n, z = oz + vz * n;
+    const dx = x - from.x, dy = y - from.y, dz = z - from.z, length = Math.hypot(dx, dy, dz);
+    if (!(length > 1e-6)) return null;
+    way.x = dx / length; way.y = dy / length; way.z = dz / length;
+    const hit = raycast(from, way, length);
+    if (hit && Number.isFinite(hit.t)) {
+      const k = Math.max(0, Math.min(length, hit.t)) / length;
+      const point = [from.x + dx * k, from.y + dy * k, from.z + dz * k];
+      return { point, range: Math.hypot(point[0] - ox, point[2] - oz), time: t + (n - t) * k };
+    }
+    from.x = x; from.y = y; from.z = z;
+  }
+  return null;
+}
+
 /**
  * Lead pipper: where to aim so a projectile of `speed` meets a target moving
  * at constant velocity (first-order intercept). Hitscan (speed 0) returns the

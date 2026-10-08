@@ -274,7 +274,7 @@ export class ModeController {
   playerSnapshot(player) { return this.policy.playerSnapshot(player); }
   /** Bots ask the registered director first; policies keep their own fallback. */
   botGoal(player) { return this.policy.botGoal(player); }
-  /** Conquest `{t:'conquest'}` intent (deploy, spot, support) parsed by parseConquestIntent. */
+  /** Conquest `{t:'conquest'}` intent (deploy, spot, support, redeploy) parsed by parseConquestIntent. */
   conquestIntent(player, intent) {
     return typeof this.policy.conquestIntent === 'function' && this.policy.conquestIntent(player, intent) === true;
   }

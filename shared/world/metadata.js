@@ -342,6 +342,19 @@ function resolveSpawnPool(world, anchors, floorY = null) {
 
 // Shared identity contract, while Frontier's voxel template remains lazy.
 let frontierMetadata;
+
+/**
+ * Adopt Frontier metadata computed elsewhere (the browser derives it in a
+ * worker, see public/js/engine/frontier-meta-worker.js): `raw` is a clone of
+ * createFrontierMetadata(). No-op once the metadata exists. Returns it.
+ */
+export function primeFrontierMetadata(raw) {
+  if (!frontierMetadata && raw && typeof raw === 'object' && raw.id === 'frontier') {
+    frontierMetadata = deepFreeze({ ...raw, modes: MAP_MODE_COMPATIBILITY.frontier });
+  }
+  return frontierMetadata ?? null;
+}
+
 export function createMapMetadata(id, world) {
   if (id === 'frontier') {
     if (!frontierMetadata) frontierMetadata = deepFreeze({

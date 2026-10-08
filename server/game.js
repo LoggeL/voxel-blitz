@@ -31,7 +31,7 @@ import {
   wrapAngle,
 } from './sim/player.js';
 import { stepMovement, updateCondition, updateTimers } from './sim/movement.js';
-import { resolveWeaponIntent, cancelCharge } from './sim/combat.js';
+import { resolveWeaponIntent, cancelCharge, stepFlyingRounds } from './sim/combat.js';
 import { SpawnSelector } from './sim/spawn.js';
 import { groundNavigation } from './bot-navigation.js';
 import { VehicleSystem } from './sim/vehicles.js';
@@ -112,6 +112,8 @@ export class GameEngine {
     this.tickEvents = [];
     this.tickHooks = [];
     this.projectiles = new ProjectileSystem();
+    // Sniper rounds in flight (shared/bullet-ballistics.js), stepped once per tick.
+    this.flyingRounds = [];
     this.flames = new FlameSystem();
     this.killAnnouncer = new KillAnnouncer();
 
@@ -170,6 +172,7 @@ export class GameEngine {
   stop() {
     this.running = false;
     this.projectiles.clear();
+    this.flyingRounds.length = 0;
     this.flames.clear();
     this.powerups.clear();
     this.cash.clear();
@@ -226,6 +229,7 @@ export class GameEngine {
     for (const player of this.combatants.values()) updateBurn(player, dt, combat);
     this.flames.step(dt, combat);
     this.projectiles.step(dt, this.contexts.projectiles);
+    stepFlyingRounds(this.flyingRounds, dt, combat);
     for (const player of this.combatants.values()) {
       if (player.state === 'alive' && (!player.vehicleId || this.vehicles?.seatAllowsPersonalWeapons?.(player))) {
         resolveWeaponIntent(player, dt, combat);
@@ -439,6 +443,8 @@ export class GameEngine {
       vehiclePitchControl: rateControl(msg, 'vehiclePitchControl'),
       vehicleRollControl: rateControl(msg, 'vehicleRollControl'),
       vehicleYawControl: rateControl(msg, 'vehicleYawControl'),
+      // Mouse flight: a centred helicopter stick holds the pitch the pilot set.
+      vehicleAttitudeHold: msg.vehicleAttitudeHold === true,
       wantFire: !!msg.wantFire,
       quickMelee: !!msg.quickMelee,
       wantAds: !!msg.wantAds,
@@ -551,7 +557,7 @@ export class GameEngine {
     player.adsT = Math.max(0, Math.min(1, player.adsT + (player.ads ? adsStep : -adsStep)));
   }
 
-  /** Conquest intent passthrough: {type:'deploy'|'spot'|'support', ...} from parseConquestIntent. */
+  /** Conquest intent passthrough: {type:'deploy'|'spot'|'support'|'redeploy', ...} from parseConquestIntent. */
   conquestIntent(id, intent) {
     const player = this.entities.get(String(id));
     if (!player || !intent || typeof intent !== 'object') return false;

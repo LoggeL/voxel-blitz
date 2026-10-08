@@ -390,11 +390,17 @@ export class ChunkStore {
 
   chunkKey(cx, cz) { return cx + ',' + cz; }
 
-  /** Nearest-first bounded working set. Legacy arena maps retain all chunks. */
-  initialChunks() {
+  /**
+   * Nearest-first bounded working set. Legacy arena maps retain all chunks.
+   * `radius` (chunks, square ring around the view chunk) limits a streaming
+   * store to the spawn area; the rest of the working set stays in loadQueue.
+   */
+  initialChunks({ radius = Infinity } = {}) {
     if (this.streaming) {
       if (!this.viewChunk) this.setViewPosition({ x: this.dimensions.sx / 2, z: this.dimensions.sz / 2 });
-      return [...this.wanted].map(key => key.split(',').map(Number));
+      const { cx, cz } = this.viewChunk;
+      return [...this.wanted].map(key => key.split(',').map(Number))
+        .filter(([x, z]) => Math.max(Math.abs(x - cx), Math.abs(z - cz)) <= radius);
     }
     const rows = [];
     for (let z = 0; z < this.depth; z++) for (let x = 0; x < this.width; x++) rows.push([x, z]);
@@ -585,6 +591,31 @@ export class ChunkStore {
       wantedChunks: this.wanted.size,
       meshes: this.group.children.length,
     };
+  }
+
+  /**
+   * A detached group with one zero-area triangle per terrain material (same
+   * attributes and flags as a chunk mesh). Kept in the scene through shader
+   * warm-up, it links every terrain program before play, including buckets
+   * the spawn chunks lack (leaves near an HQ stream in later). Draws nothing.
+   */
+  warmupGroup() {
+    const group = new THREE.Group();
+    group.name = 'terrain-warmup';
+    group.matrixAutoUpdate = false;
+    const buckets = newBuckets();
+    for (const name of Object.keys(buckets)) {
+      const b = buckets[name];
+      for (let i = 0; i < 3; i++) {
+        b.pos.push(0, -64, 0); b.nrm.push(0, 1, 0); b.col.push(1, 1, 1); b.uv.push(0, 0);
+        b.layer.push(0); b.aux.push(0, 0, 0, 0); b.index.push(i);
+      }
+      const mesh = buildMesh(b, this.materials[name]);
+      mesh.name = `terrain-warmup-${name}`;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+    return group;
   }
 
   dispose() {

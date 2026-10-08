@@ -1,4 +1,5 @@
-import { createSniperScope } from '../ui/sniper-scope.js';
+import { createSniperScope, updateScopeOptics } from '../ui/sniper-scope.js';
+import { ballisticProfile } from '../../../shared/bullet-ballistics.js';
 import { isScopeActive } from '../guns/scope-state.js';
 import { configuredWeapon } from '../../../shared/weapon-attachments.js';
 import { fovForZoom } from './local-player.js';
@@ -22,6 +23,22 @@ const TAIL_MS = 300;
 const RESPAWN_SLACK_MS = 200;
 
 /** Recorded attacker view. Live simulation keeps running and owns respawn. */
+/**
+ * One replayed `shoot` event. A tank main gun shot (w 'shell') is the cannon
+ * report only (the shell itself arrives as a projectileLaunch); anything else
+ * draws its tracer, kicks the killer's viewmodel and plays the weapon's fire.
+ */
+export function playKillcamShot(event, { audio = null, tracers = null, rig = null, killer = null } = {}) {
+  if (event.w === 'shell') {
+    audio?.vehicleCannon?.(event.o, { weapon: event.vehicleWeapon });
+    return 'cannon';
+  }
+  tracers?.shoot(event);
+  if (event.id === killer) rig?.fire();
+  audio?.fire(event.w, { pos: event.o });
+  return 'fire';
+}
+
 export class Killcam {
   constructor({ scene, getBlock, worldview = null, mapBytes = null, blockDamage = [],
     terrainTime = -Infinity, audio = null, now = () => performance.now() }) {
@@ -160,6 +177,7 @@ export class Killcam {
       this.camera.aspect = aspect; this.camera.fov = replayFov; this.camera.updateProjectionMatrix();
     }
     this.scope.classList.toggle('active', this.scopeActive);
+    updateScopeOptics(this.scope, replayFov, ballisticProfile(def));
     this.scope.querySelector('.scope-zoom-label').textContent = `${zoom.toFixed(1)}×`;
     this.rig.setCosmetics(target.cosmetics);
     const weapon = WEAPON_IDS[target.weapon] || 'rifle';
@@ -172,11 +190,9 @@ export class Killcam {
     this.audio?.setListener({ pos: [target.x, this.camera.position.y, target.z],
       fwd: [-Math.sin(target.yaw) * Math.cos(target.pitch), Math.sin(target.pitch), -Math.cos(target.yaw) * Math.cos(target.pitch)] });
     for (const event of sample.events) {
-      if (event.kind === 'shoot') {
-        this.tracers.shoot(event);
-        if (event.id === this.clip.killer) this.rig.fire();
-        this.audio?.fire(event.w, { pos: event.o });
-      } else if (event.kind === 'projectileLaunch') this.projectiles.launch(event);
+      if (event.kind === 'shoot') playKillcamShot(event, { audio: this.audio, tracers: this.tracers, rig: this.rig, killer: this.clip.killer });
+      else if (event.kind === 'bullet') this.tracers.settleRound?.(event);
+      else if (event.kind === 'projectileLaunch') this.projectiles.launch(event);
       else if (event.kind === 'projectileUpdate') this.projectiles.updateAuthority(event);
       else if (event.kind === 'projectileStick') this.projectiles.stick(event);
       else if (event.kind === 'projectileExplode') {

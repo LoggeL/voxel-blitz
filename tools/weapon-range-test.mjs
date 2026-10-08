@@ -9,12 +9,16 @@ import { RailBeamFX } from '../public/js/weapons/rail-beam.js';
 import { TracerFX } from '../public/js/weapons/ballistics.js';
 import { FlameFX } from '../public/js/weapons/flame.js';
 import { FLAME_RULES } from '../shared/flame-rules.js';
+import { ballisticAimPitch, ballisticProfile } from '../shared/bullet-ballistics.js';
 
 function shotAt(weapon, distance, wallX = null) {
   const shooter = new PlayerEntity('shooter', 'Shooter', { x: 0.5, y: 2, z: 0.5 });
   const victim = new PlayerEntity('victim', 'Victim', { x: 0.5 + distance, y: 2.5, z: 0.5 });
   shooter.weapon = WEAPON_IDS.indexOf(weapon);
   shooter.yaw = -Math.PI / 2;
+  // A flying round (the sniper) holds over for its drop onto the victim's chest.
+  const ballistic = ballisticProfile(WEAPONS[weapon]);
+  if (ballistic) shooter.pitch = ballisticAimPitch(ballistic, distance, victim.y + 1.2 - shooter.eyeY);
   victim.hp = 10000;
   const events = [];
   const removed = new Set();
@@ -79,14 +83,16 @@ try {
       'a visible tracer streak keeps finite geometry without limiting the hit');
     const muzzle = new THREE.Vector3(0.8, 2.2, 0.7);
     tracers.setMuzzleProvider(out => out.copy(muzzle));
-    tracers.shoot({ w: 'sniper', o: [0.5, 2.5, 0.5], d: [1, 0, 0] }, { local: true });
+    // The sniper's flying round has its own streak (sniper-ballistics-test); the
+    // revolver keeps the instant-tracer convergence contract.
+    tracers.shoot({ w: 'revolver', o: [0.5, 2.5, 0.5], d: [1, 0, 0] }, { local: true });
     const tracer = tracers.tracers[1];
     const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
       new THREE.Quaternion(tracer.qx, tracer.qy, tracer.qz, tracer.qw));
     const expected = new THREE.Vector3(350, 2.5, 0.5).sub(muzzle).normalize();
     assert.ok(direction.distanceTo(expected) < 1e-10,
-      'Incoming sniper tracer converges on the real impact, not its shortened streak endpoint');
-    assert.ok(tracer.len <= WEAPONS.sniper.tracer.len, 'Far convergence keeps streak geometry bounded');
+      'Incoming revolver tracer converges on the real impact, not its shortened streak endpoint');
+    assert.ok(tracer.len <= WEAPONS.revolver.tracer.len, 'Far convergence keeps streak geometry bounded');
     const firedAt = muzzle.clone();
     muzzle.set(2, 4, 1);
     tracers.updateTracers(0.01);
@@ -94,7 +100,7 @@ try {
     tracers.tracerMesh.getMatrixAt(1, matrix);
     assert.ok(new THREE.Vector3().setFromMatrixPosition(matrix).distanceTo(firedAt) < 1e-6,
       'Recoil cannot drag the fired incoming tracer away from its ricochet path');
-    assert.doesNotThrow(() => tracers.shoot({ w: 'sniper', o: [0.5, 2.5, 0.5], d: [1, 0, 0],
+    assert.doesNotThrow(() => tracers.shoot({ w: 'revolver', o: [0.5, 2.5, 0.5], d: [1, 0, 0],
       paths: [[{ o: [0.5, 2.5, 0.5], end: [350, 2.5, 0.5] }]] }),
     'Remote muzzle flash must not prevent authoritative ricochet paths from rendering');
 

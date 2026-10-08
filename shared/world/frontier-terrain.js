@@ -404,27 +404,46 @@ const SENTINEL = 30000;
 const KIND = Object.freeze({ GROUND: 0, RIVER: 1, FORD: 2, BRIDGE: 3, ROAD: 4, PAD: 5, PLATEAU: 6, CLIFF: 7 });
 export const FRONTIER_CELL_KIND = KIND;
 
-/** Chamfer passes with Chebyshev unit cost over active cells until stable. */
+/**
+ * Chamfer passes with Chebyshev unit cost over active cells until stable.
+ * In-place forward then backward raster sweeps over the four already-visited
+ * neighbours (unrolled: this runs three times on every Frontier load).
+ */
 function relax(values, active, mode) {
-  const dirsF = [-1, -SX - 1, -SX, -SX + 1], dirsB = [1, SX + 1, SX, SX - 1];
+  const N = SX * SZ, last = SX - 1;
+  // mode < 0 lowers a cell to (neighbour + 1); mode > 0 raises it to
+  // (neighbour - 1): a candidate c improves v when (c - v) * step < 0.
+  const step = mode < 0 ? 1 : -1;
   for (let iter = 0; iter < 12; iter++) {
     let changed = false;
-    for (let pass = 0; pass < 2; pass++) {
-      const dirs = pass ? dirsB : dirsF;
-      const start = pass ? SX * SZ - 1 : 0, end = pass ? -1 : SX * SZ, step = pass ? -1 : 1;
-      for (let i = start; i !== end; i += step) {
+    for (let z = 0, i = 0; z < SZ; z++) {
+      for (let x = 0; x < SX; x++, i++) {
         if (!active[i]) continue;
-        const x = i % SX;
-        let v = values[i];
-        for (const d of dirs) {
-          const j = i + d;
-          if (j < 0 || j >= SX * SZ || !active[j]) continue;
-          const xj = j % SX;
-          if (xj - x > 1 || x - xj > 1) continue;
-          if (mode < 0) { if (values[j] + 1 < v) v = values[j] + 1; }
-          else if (values[j] - 1 > v) v = values[j] - 1;
+        const v0 = values[i];
+        let v = v0, c;
+        if (x > 0 && active[i - 1] && ((c = values[i - 1] + step) - v) * step < 0) v = c;
+        if (z > 0) {
+          const k = i - SX;
+          if (x > 0 && active[k - 1] && ((c = values[k - 1] + step) - v) * step < 0) v = c;
+          if (active[k] && ((c = values[k] + step) - v) * step < 0) v = c;
+          if (x < last && active[k + 1] && ((c = values[k + 1] + step) - v) * step < 0) v = c;
         }
-        if (v !== values[i]) { values[i] = v; changed = true; }
+        if (v !== v0) { values[i] = v; changed = true; }
+      }
+    }
+    for (let z = SZ - 1, i = N - 1; z >= 0; z--) {
+      for (let x = last; x >= 0; x--, i--) {
+        if (!active[i]) continue;
+        const v0 = values[i];
+        let v = v0, c;
+        if (x < last && active[i + 1] && ((c = values[i + 1] + step) - v) * step < 0) v = c;
+        if (z < SZ - 1) {
+          const k = i + SX;
+          if (x < last && active[k + 1] && ((c = values[k + 1] + step) - v) * step < 0) v = c;
+          if (active[k] && ((c = values[k] + step) - v) * step < 0) v = c;
+          if (x > 0 && active[k - 1] && ((c = values[k - 1] + step) - v) * step < 0) v = c;
+        }
+        if (v !== v0) { values[i] = v; changed = true; }
       }
     }
     if (!changed) break;

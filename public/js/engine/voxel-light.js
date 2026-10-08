@@ -15,12 +15,8 @@
 
 import * as THREE from '../vendor/three.module.js';
 import {
-  AIR, GLASS, LEAVES, MC_GLASS, MC_LEAVES, MC_WATER, MC_LAVA, MC_PORTAL,
-  MC_GLOWSTONE, MC_GHOST_GLOWSTONE,
-} from '../../../shared/worlddata.js';
-import * as WORLD_BLOCKS from '../../../shared/world/blocks.js';
-import {
-  LIGHT_MAX, OPAQUE, CLEAR, FOLIAGE, WATER,
+  LIGHT_MAX, LIGHT_HUE, LIGHT_EMITTERS as EMITTERS, lightClass,
+  classifyLightCell, classifyLightRows,
   createLightState, rebuildSky, rebuildBlock, rebuildAllSun, sweepSunColumn, fillTexture, bakeLightState,
 } from './voxel-light-worker.js';
 
@@ -28,28 +24,7 @@ export { LIGHT_MAX };
 /** Horizontal reach (in light cells) of any light change; region rebuilds cover this radius. */
 const REACH = LIGHT_MAX + 1;
 
-/** Palette coordinates for block-light hues (see voxelBlockColor in GLSL). */
-export const LIGHT_HUE = Object.freeze({ cyan: 0, warm: 0.33, amber: 0.45, lava: 0.66, portal: 1 });
-
-const EMITTERS = new Map([
-  [MC_GLOWSTONE, { level: 15, hue: LIGHT_HUE.warm }],
-  [MC_GHOST_GLOWSTONE, { level: 15, hue: LIGHT_HUE.warm }],
-  [MC_LAVA, { level: 14, hue: LIGHT_HUE.lava }],
-  [MC_PORTAL, { level: 11, hue: LIGHT_HUE.portal }],
-]);
-
-// Frontier foliage (WP4 blocks) shades like leaves once those ids exist.
-const FOLIAGE_IDS = new Set([LEAVES, MC_LEAVES, WORLD_BLOCKS.PINE_LEAVES].filter(Number.isInteger));
-
-export function lightClass(id) {
-  if (id === AIR || id === GLASS || id === MC_GLASS || id === MC_PORTAL) return CLEAR;
-  if (FOLIAGE_IDS.has(id)) return FOLIAGE;
-  if (id === MC_WATER) return WATER;
-  return OPAQUE;
-}
-
-const CLASS_TABLE = new Uint8Array(256).map((_, id) => lightClass(id));
-const classOf = (id) => (id >= 0 && id < 256 ? CLASS_TABLE[id] : lightClass(id));
+export { LIGHT_HUE, lightClass };
 
 /** Brightness of a sky level with the per-map floor, matching the shader. */
 export function skyBrightness(level, minSky = 0.5, base = 0.93) {
@@ -65,21 +40,51 @@ export function largeWorldLightCell(dimensions, { tier = 'medium', max3DTextureS
 }
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
-/** Cells of this edge and up classify by face coverage as well as by solid share. */
-const COVERAGE_CELL = 4;
-/** Share of a cell face that solid columns must cover for the cell to act as a barrier. */
-const COVERAGE_SHARE = 0.75;
 
+// A module worker only starts once the main thread can serve its script
+// load: posted from inside a long synchronous build it idled ~0.35 s. A
+// worker started ahead of the WorldView is already running when the bake posts.
+let spareWorker = null;
+const newLightWorker = () => new Worker(new URL('./voxel-light-worker.js', import.meta.url), { type: 'module', name: 'voxel-light' });
+
+/** Start the bake worker ahead of a large-world load (the next bake takes it). */
+// A load error (script or import failed to fetch) can fire before a bake
+// takes the worker and attaches its own handlers: the prewarm handler marks
+// the spare as dead, so the bake starts a fresh worker instead of posting to
+// one that never answers.
+export function prewarmLightWorker() {
+  if (spareWorker || typeof Worker !== 'function') return false;
+  try {
+    const worker = newLightWorker();
+    worker.onerror = (event) => {
+      event.preventDefault?.();
+      worker.terminate();
+      if (spareWorker === worker) spareWorker = null;
+    };
+    spareWorker = worker;
+  } catch { spareWorker = null; }
+  return !!spareWorker;
+}
+
+/** Take the prewarmed worker (if it is still alive) or start a new one. */
+function takeLightWorker() {
+  const worker = spareWorker || newLightWorker();
+  spareWorker = null;
+  return worker;
+}
 export class VoxelLightVolume {
   /**
    * @param getBlock live voxel getter (x,y,z)->id
    * @param {{sx:number,sy:number,sz:number}} dims map extents
    * @param {{sunDir?:THREE.Vector3, emitters?:()=>Array<{x,y,z,level,hue}>, cell?:number,
-   *   renderer?:THREE.WebGLRenderer, worker?:boolean}} options cell is the light cell edge in
-   *   voxels (1 on arena maps); renderer enables sub-box texture uploads for patches.
+   *   renderer?:THREE.WebGLRenderer, worker?:boolean, voxels?:()=>({blocks:Uint8Array,dimensions:object}|null)}} options
+   *   cell is the light cell edge in voxels (1 on arena maps); renderer enables sub-box
+   *   texture uploads for patches; voxels returns the raw y/z/x array behind getBlock
+   *   (or null), which lets the async bake classify in its worker as well.
    */
   constructor(getBlock, dims, {
     sunDir = new THREE.Vector3(60, 90, 20).normalize(), emitters = () => [], cell = 1, renderer = null, worker = true,
+    voxels = null,
   } = {}) {
     if (!Number.isInteger(cell) || cell < 1) throw new RangeError('VoxelLightVolume cell must be a positive integer');
     this.getBlock = getBlock;
@@ -90,6 +95,7 @@ export class VoxelLightVolume {
     this.extraEmitters = emitters;
     this.renderer = renderer;
     this.useWorker = worker;
+    this.voxelSource = typeof voxels === 'function' ? voxels : null;
     const dir = sunDir.clone().normalize();
     // Guard against a sun at the horizon: the sweep walks one layer per step.
     // The shear is a ratio, so it is the same in voxels and in light cells.
@@ -122,101 +128,17 @@ export class VoxelLightVolume {
 
   // ------------------------------------------------------------ classify
   /**
-   * Class byte of one light cell from its voxels: light class in bits 0-1
-   * and, for a cell that is at least half solid but still holds air, the side
-   * of its air in bits 2-4 (see voxel-light-worker.js). Records voxel emitters.
+   * Class byte of one light cell from its voxels (classifyLightCell in
+   * voxel-light-worker.js). Records voxel emitters.
    */
   classifyCell(cx, cy, cz, emitters) {
-    const { cell, getBlock } = this;
-    const { sx, sy, sz } = this.dims;
-    const i = cx + this.W * (cy + this.H * cz);
-    if (cell === 1) {
-      const id = getBlock(cx, cy, cz);
-      if (emitters) {
-        const emitter = EMITTERS.get(id);
-        if (emitter && classOf(id) !== WATER) emitters.set(i, emitter.level | (Math.round(emitter.hue * 255) << 8));
-        else emitters.delete(i);
-      }
-      return classOf(id);
-    }
-    const x0 = cx * cell, y0 = cy * cell, z0 = cz * cell;
-    const x1 = Math.min(sx, x0 + cell), y1 = Math.min(sy, y0 + cell), z1 = Math.min(sz, z0 + cell);
-    const half = (cell - 1) / 2;
-    let solid = 0, foliage = 0, water = 0, total = 0, ax = 0, ay = 0, az = 0;
-    let emitLevel = 0, emitHue = 0;
-    // Coarse cells (4+ voxels) also track which face columns hold any solid:
-    // a one-voxel roof or wall fills only a quarter of a 4-voxel cell but
-    // still covers its whole face, and must stop the sun like a solid cell.
-    const coverage = cell >= COVERAGE_CELL;
-    if (coverage) this.clearCoverage();
-    const { coverX, coverY, coverZ } = this;
-    for (let z = z0; z < z1; z++) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-      const id = getBlock(x, y, z);
-      total++;
-      const c = classOf(id);
-      if (c === OPAQUE) {
-        solid++;
-        if (coverage) {
-          const lx = x - x0, ly = y - y0, lz = z - z0;
-          coverY[lx + lz * cell] = 1; coverX[ly + lz * cell] = 1; coverZ[lx + ly * cell] = 1;
-        }
-      } else {
-        if (c === FOLIAGE) foliage++;
-        else if (c === WATER) water++;
-        ax += x - x0 - half; ay += y - y0 - half; az += z - z0 - half;
-      }
-      if (emitters && id !== AIR) {
-        const emitter = EMITTERS.get(id);
-        if (emitter && emitter.level > emitLevel) { emitLevel = emitter.level; emitHue = emitter.hue; }
-      }
-    }
-    if (emitters) {
-      if (emitLevel) emitters.set(i, emitLevel | (Math.round(emitHue * 255) << 8));
-      else emitters.delete(i);
-    }
-    let barrier = solid * 2 >= total;
-    if (!barrier && coverage && solid > 0) {
-      const w = x1 - x0, h = y1 - y0, d = z1 - z0;
-      const covered = (cover, a, b) => { let n = 0; for (let j = 0; j < b; j++) for (let i = 0; i < a; i++) n += cover[i + j * cell]; return n; };
-      barrier = covered(coverY, w, d) >= COVERAGE_SHARE * w * d
-        || covered(coverX, h, d) >= COVERAGE_SHARE * h * d
-        || covered(coverZ, w, h) >= COVERAGE_SHARE * w * h;
-    }
-    if (barrier) {
-      if (solid === total) return OPAQUE;
-      // The axis the air leans towards most is the cell's open side.
-      const bx = Math.abs(ax), by = Math.abs(ay), bz = Math.abs(az);
-      let side = 0;
-      if (by >= bx && by >= bz && by > 0) side = ay > 0 ? 3 : 4;
-      else if (bx >= bz && bx > 0) side = ax > 0 ? 1 : 2;
-      else if (bz > 0) side = az > 0 ? 5 : 6;
-      return OPAQUE | (side << 2);
-    }
-    if ((foliage + solid) * 2 >= total && foliage > 0) return FOLIAGE;
-    if (water * 2 >= total) return WATER;
-    return CLEAR;
-  }
-
-  clearCoverage() {
-    const size = this.cell * this.cell;
-    if (!this.coverY || this.coverY.length !== size) {
-      this.coverX = new Uint8Array(size); this.coverY = new Uint8Array(size); this.coverZ = new Uint8Array(size);
-    } else {
-      this.coverX.fill(0); this.coverY.fill(0); this.coverZ.fill(0);
-    }
+    return classifyLightCell(this, cx, cy, cz, emitters);
   }
 
   /** Classify light-cell slabs [cz0, cz1); returns the number of cells written. */
   classifyRows(cz0, cz1) {
     const s = this.state;
-    const { W, H } = this;
-    for (let cz = cz0; cz < cz1; cz++) {
-      for (let cy = 0; cy < H; cy++) {
-        let i = W * (cy + H * cz);
-        for (let cx = 0; cx < W; cx++, i++) s.cls[i] = this.classifyCell(cx, cy, cz, s.emitters);
-      }
-    }
-    return (cz1 - cz0) * W * H;
+    return classifyLightRows(this, s.cls, s.emitters, cz0, cz1);
   }
 
   ensureState() {
@@ -254,18 +176,30 @@ export class VoxelLightVolume {
    * calls, then flood and sweep in a module worker. Falls back to the main
    * thread where workers are unavailable (Node, old browsers) or fail.
    */
-  async buildAsync({ yieldControl = null, isActive = () => true, sliceMs = 24 } = {}) {
+  async buildAsync({ yieldControl = null, isActive = () => true, sliceMs = 24, classifyInWorker = true } = {}) {
     const started = now();
     const s = this.ensureState();
-    let slice = now();
-    for (let cz = 0; cz < this.D; cz++) {
-      this.classifyRows(cz, cz + 1);
-      if (yieldControl && now() - slice > sliceMs) {
-        await yieldControl();
-        if (!isActive() || this.disposed) return this.buildMs;
-        slice = now();
+    // Classify in the worker from a copy of the raw voxels when the store
+    // exposes them: the main thread only pays the copy. Changes after the
+    // copy replay as late cells (applyDeltas) like during any async bake.
+    const voxels = classifyInWorker && this.useWorker && typeof Worker === 'function' ? this.rawVoxels() : null;
+    if (voxels) {
+      try {
+        s.extra = this.extraCells();
+        await this.bakeInWorker(s, voxels.slice());
+        if (this.disposed) return this.buildMs;
+        this.finishBuild(started, started, 'worker-classify');
+        return this.buildMs;
+      } catch (error) {
+        console.warn('[vb] light classify worker failed; classifying on the main thread', error);
+        if (this.disposed) return this.buildMs;
+        this.state = null;
+        this.data = new Uint8Array(this.N * 4);
+        this.texture.image.data = this.data;
+        return this.buildAsync({ yieldControl, isActive, sliceMs, classifyInWorker: false });
       }
     }
+    if (!await this.classifySliced({ yieldControl, isActive, sliceMs })) return this.buildMs;
     const classified = now();
     s.extra = this.extraCells();
     let mode = 'main';
@@ -281,7 +215,7 @@ export class VoxelLightVolume {
         this.data = new Uint8Array(this.N * 4);
         this.texture.image.data = this.data;
         const retry = this.ensureState();
-        this.classifyRows(0, this.D);
+        if (!await this.classifySliced({ yieldControl, isActive, sliceMs })) return this.buildMs;
         retry.extra = this.extraCells();
         bakeLightState(retry);
       }
@@ -293,11 +227,37 @@ export class VoxelLightVolume {
     return this.buildMs;
   }
 
-  bakeInWorker(s) {
+  /** Classify every slab, yielding between slices; false when the bake was abandoned. */
+  async classifySliced({ yieldControl = null, isActive = () => true, sliceMs = 24 } = {}) {
+    let slice = now();
+    for (let cz = 0; cz < this.D; cz++) {
+      this.classifyRows(cz, cz + 1);
+      if (yieldControl && now() - slice > sliceMs) {
+        await yieldControl();
+        if (!isActive() || this.disposed) return false;
+        slice = now();
+      }
+    }
+    return true;
+  }
+
+  /** The raw voxel array behind getBlock when the store exposes one of this volume's extent. */
+  rawVoxels() {
+    let source = null;
+    try { source = this.voxelSource?.() || null; } catch { source = null; }
+    const { sx, sy, sz } = this.dims;
+    const d = source?.dimensions;
+    return source?.blocks instanceof Uint8Array && source.blocks.length === sx * sy * sz
+      && d?.sx === sx && d?.sy === sy && d?.sz === sz ? source.blocks : null;
+  }
+
+  /** Bake `s` in a module worker; with `blocks` (a disposable copy) the worker classifies too. */
+  bakeInWorker(s, blocks = null) {
+    let postedAt = performance.timeOrigin + performance.now();
     return new Promise((resolve, reject) => {
       let worker;
       try {
-        worker = new Worker(new URL('./voxel-light-worker.js', import.meta.url), { type: 'module', name: 'voxel-light' });
+        worker = takeLightWorker();
       } catch (error) { reject(error); return; }
       const finish = (error, message) => {
         worker.terminate();
@@ -305,9 +265,17 @@ export class VoxelLightVolume {
         // The arrays come back transferred; rebind them to the live state.
         s.cls = message.cls; s.sky = message.sky; s.sun = message.sun; s.block = message.block; s.hue = message.hue;
         s.data = message.data;
+        if (Array.isArray(message.emitters)) s.emitters = new Map(message.emitters);
         this.data = message.data;
         this.texture.image.data = message.data;
         this.workerMs = message.ms;
+        this.workerClassifyMs = message.classifyMs ?? 0;
+        // Start-up (post to first worker work) and reply (worker done to here) latency.
+        if (Number.isFinite(message.startedAt)) {
+          const at = performance.timeOrigin + performance.now();
+          this.workerStartMs = message.startedAt - postedAt;
+          this.workerReplyMs = at - message.finishedAt;
+        }
         resolve();
       };
       worker.onmessage = (event) => {
@@ -318,7 +286,10 @@ export class VoxelLightVolume {
       const state = { W: s.W, H: s.H, D: s.D, cell: s.cell, shearX: s.shearX, shearZ: s.shearZ,
         cls: s.cls, data: s.data, emitters: [...s.emitters], extra: s.extra };
       // Transfer the class grid and texture bytes: nothing is copied twice.
-      worker.postMessage({ type: 'bake', id: 1, state }, [s.cls.buffer, s.data.buffer]);
+      const voxels = blocks ? { blocks, sx: this.dims.sx, sy: this.dims.sy, sz: this.dims.sz } : null;
+      postedAt = performance.timeOrigin + performance.now();
+      worker.postMessage({ type: 'bake', id: 1, state, ...(voxels ? { voxels } : {}) },
+        blocks ? [s.cls.buffer, s.data.buffer, blocks.buffer] : [s.cls.buffer, s.data.buffer]);
       s.cls = null; s.data = null;
     });
   }

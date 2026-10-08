@@ -16,11 +16,13 @@ import {
   MOUSE_SENSITIVITY,
   POINTER_MODES,
   SENSITIVITY_PREF_KEY,
+  FLIGHT_MODES,
   TOUCH_HANDS,
   TOUCH_SIZES,
   TRACKPAD_LOOK_SCALE,
   TRACKPAD_SMOOTHING,
   WHEEL_SWITCH,
+  clampFlightSensitivity,
   clampMouseSensitivity,
   clampPadSensitivity,
   clampTouchSensitivity,
@@ -114,7 +116,11 @@ export class Input {
       touchSize: normalizeChoice(readPref(INPUT_PREF_KEYS.touchSize), TOUCH_SIZES, 'medium'),
       touchHand: normalizeChoice(readPref(INPUT_PREF_KEYS.touchHand), TOUCH_HANDS, 'right'),
       aimAssist: readPref(INPUT_PREF_KEYS.aimAssist) !== '0',
+      flightMode: normalizeChoice(readPref(INPUT_PREF_KEYS.flightMode), FLIGHT_MODES, 'mouse'),
+      flightSensitivity: clampFlightSensitivity(readPref(INPUT_PREF_KEYS.flightSensitivity)),
+      flightInvertY: readPref(INPUT_PREF_KEYS.flightInvert) === '1',
     };
+    this._flightOptions = null;
 
     // Internal edge/accumulator state.
     this._bindings = readKeybindings();
@@ -140,6 +146,10 @@ export class Input {
     this._pauseHandler = null;
     this._accDX = 0;          // pending scaled look delta (radians)
     this._accDY = 0;
+    // The pointer (mouse/trackpad) share of _accDX/_accDY. Mouse flight turns only
+    // this share into a stick; pad and touch look keep their own flight mapping.
+    this._mouseDX = 0;
+    this._mouseDY = 0;
     this._mouseFire = false;
     this._mouseAds = false;
     this._touchFire = false;
@@ -444,6 +454,12 @@ export class Input {
     if ('touchSize' in next) o.touchSize = normalizeChoice(next.touchSize, TOUCH_SIZES, o.touchSize);
     if ('touchHand' in next) o.touchHand = normalizeChoice(next.touchHand, TOUCH_HANDS, o.touchHand);
     if ('aimAssist' in next) o.aimAssist = next.aimAssist !== false && next.aimAssist !== '0';
+    if ('flightMode' in next) o.flightMode = normalizeChoice(next.flightMode, FLIGHT_MODES, o.flightMode);
+    if ('flightSensitivity' in next) {
+      o.flightSensitivity = clampFlightSensitivity(next.flightSensitivity, o.flightSensitivity);
+    }
+    if ('flightInvertY' in next) o.flightInvertY = next.flightInvertY === true || next.flightInvertY === '1';
+    this._flightOptions = null;
     writePref(INPUT_PREF_KEYS.adsMode, o.adsMode);
     writePref(INPUT_PREF_KEYS.pointerMode, o.pointerMode);
     writePref(INPUT_PREF_KEYS.padSensitivity, o.padSensitivity);
@@ -451,6 +467,9 @@ export class Input {
     writePref(INPUT_PREF_KEYS.touchSize, o.touchSize);
     writePref(INPUT_PREF_KEYS.touchHand, o.touchHand);
     writePref(INPUT_PREF_KEYS.aimAssist, o.aimAssist ? '1' : '0');
+    writePref(INPUT_PREF_KEYS.flightMode, o.flightMode);
+    writePref(INPUT_PREF_KEYS.flightSensitivity, o.flightSensitivity);
+    writePref(INPUT_PREF_KEYS.flightInvert, o.flightInvertY ? '1' : '0');
     if (this.adsMode() === 'hold') this._adsLatched = false;
     this._touchControls?.setOptions({ size: o.touchSize, hand: o.touchHand });
     return this.getOptions();
@@ -478,6 +497,20 @@ export class Input {
       padActive: this._pad.isActive(now),
       adsMode: this.adsMode(),
     };
+  }
+
+  /**
+   * Aircraft pilot options for VehicleController.setFlightOptions. `mouse` is true
+   * only for desktop mouse flight while no pad is in use, so pad and touch pilots
+   * keep their own layout; the object is reused while nothing changes.
+   */
+  flightOptions(now = eventTime(null)) {
+    const o = this._options;
+    const mouse = o.flightMode === 'mouse' && !this._touchMode && !this._pad.isActive(now);
+    const cached = this._flightOptions;
+    if (cached && cached.mouse === mouse) return cached;
+    this._flightOptions = Object.freeze({ mouse, sensitivity: o.flightSensitivity, invertY: o.flightInvertY });
+    return this._flightOptions;
   }
 
   /** Aim assist only ever applies to pad and touch look, never to a mouse. */
@@ -588,6 +621,8 @@ export class Input {
       this._pendingWheelSlot = null;
       this._accDX = 0;
       this._accDY = 0;
+      this._mouseDX = 0;
+      this._mouseDY = 0;
       this._mouseFire = false;
       this._touchFire = false;
       this._touchAds = false;
@@ -879,24 +914,36 @@ export class Input {
    * Units: radians of intended look (already sensitivity-scaled and
    * invertY-adjusted). The local player applies the returned angles directly
    * to immediate camera/authority aim: yaw -= dx, pitch -= dy.
-   * @returns {{dx:number,dy:number}} zeroes both accumulators
+   * `mouseDx`/`mouseDy` are the pointer (mouse/trackpad) share of dx/dy, which
+   * mouse flight reads; the remainder came from pad or touch look.
+   * @returns {{dx:number,dy:number,mouseDx:number,mouseDy:number}} zeroes the accumulators
    */
   consumeDelta() {
     let dx = this._accDX;
     let dy = this._accDY;
+    let mouseDx = this._mouseDX;
+    let mouseDy = this._mouseDY;
     if (this.pointerKind() === 'trackpad' && !this._touchMode) {
       // Trackpads jitter: release most of the pending motion and carry the rest.
       dx *= TRACKPAD_SMOOTHING;
       dy *= TRACKPAD_SMOOTHING;
+      mouseDx *= TRACKPAD_SMOOTHING;
+      mouseDy *= TRACKPAD_SMOOTHING;
       this._accDX -= dx;
       this._accDY -= dy;
+      this._mouseDX -= mouseDx;
+      this._mouseDY -= mouseDy;
       if (Math.abs(this._accDX) < 1e-6) this._accDX = 0;
       if (Math.abs(this._accDY) < 1e-6) this._accDY = 0;
-      return { dx, dy };
+      if (Math.abs(this._mouseDX) < 1e-6) this._mouseDX = 0;
+      if (Math.abs(this._mouseDY) < 1e-6) this._mouseDY = 0;
+      return { dx, dy, mouseDx, mouseDy };
     }
     this._accDX = 0;
     this._accDY = 0;
-    return { dx, dy };
+    this._mouseDX = 0;
+    this._mouseDY = 0;
+    return { dx, dy, mouseDx, mouseDy };
   }
 
   /** One quick chop per physical V press. */
@@ -1323,6 +1370,8 @@ export class Input {
     this._wheelOpenQueued = false;
     this._accDX = 0;
     this._accDY = 0;
+    this._mouseDX = 0;
+    this._mouseDY = 0;
     return true;
   }
 
@@ -1419,6 +1468,8 @@ export class Input {
     this._zoomStepQueue = 0;
     this._accDX = 0;
     this._accDY = 0;
+    this._mouseDX = 0;
+    this._mouseDY = 0;
     this._wheelOpen = false;
     this._wheelVecX = 0;
     this._wheelVecY = 0;
@@ -1790,6 +1841,8 @@ export class Input {
     const dy = (e.movementY || 0) * scale * (this.invertY ? -1 : 1);
     this._accDX += dx;
     this._accDY += dy;
+    this._mouseDX += dx;
+    this._mouseDY += dy;
   }
 
   _onMouseDown(e) {

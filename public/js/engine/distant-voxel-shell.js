@@ -41,6 +41,23 @@ export function materialColor(id, face, remap = null) {
 }
 
 /**
+ * Direct reader over a raw y/z/x voxel array for in-range coordinates, or null.
+ * `voxels` returns { blocks, dimensions } (the client's decoded arena); the
+ * load-time scans read it instead of the layered getBlock closures.
+ */
+export function rawVoxelReader(voxels, dimensions) {
+  let source = null;
+  try { source = typeof voxels === 'function' ? voxels() : null; } catch { source = null; }
+  const { sx, sy, sz } = dimensions, d = source?.dimensions;
+  if (!(source?.blocks instanceof Uint8Array) || source.blocks.length !== sx * sy * sz
+    || d?.sx !== sx || d?.sy !== sy || d?.sz !== sz) return null;
+  const blocks = source.blocks, plane = sx * sz;
+  const read = (x, y, z) => blocks[y * plane + z * sx + x];
+  read.blocks = blocks;
+  return read;
+}
+
+/**
  * A single distant draw of the authoritative above-ground world. Each 2x1x2m
  * cell contains the first occupied source voxel in its horizontal footprint;
  * empty vertical layers stay empty, including the space below gantries. Greedy
@@ -62,7 +79,9 @@ export function materialColor(id, face, remap = null) {
  * are not drawn, so their rebuild waits until the chunk streams out again.
  */
 export class DistantVoxelShell {
-  constructor(scene, getBlock, dimensions, { step = 2, groundHeight = 11, floor = null, lightUniforms = null, remap = null } = {}) {
+  constructor(scene, getBlock, dimensions, {
+    step = 2, groundHeight = 11, floor = null, lightUniforms = null, remap = null, voxels = null,
+  } = {}) {
     if (!Number.isInteger(step) || step < 1 || CHUNK_SIZE % step !== 0) {
       throw new RangeError('Distant voxel step must be a positive divisor of 16');
     }
@@ -103,7 +122,10 @@ export class DistantVoxelShell {
         vertexOffset: 0, vertexCapacity: 0, indexOffset: 0, indexCapacity: 0, indexCount: 0,
       });
     }
-    this.sampleWorld();
+    // The initial full-map scan reads the raw voxels when the store has them;
+    // later record rebuilds (deltas) go through getBlock.
+    const raw = rawVoxelReader(voxels, dimensions);
+    this.sampleWorld(raw?.blocks || null);
     const sampled = performance.now();
     for (const record of this.records.values()) this.buildChunk(record);
     this.material = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -135,14 +157,34 @@ export class DistantVoxelShell {
     return AIR;
   }
 
-  sampleWorld() {
+  /**
+   * `blocks` (optional) is the raw y/z/x voxel array behind getBlock: the
+   * same cells as sampleCell, read straight from the array.
+   */
+  sampleWorld(blocks = null) {
     // Match the authoritative store's y/z/x order to keep the full-map scan
     // sequential. Air cells need four reads; occupied cells stop at one.
     const rows = Array.from(this.records.values());
+    const { sx, sz } = this.dimensions, step = this.step;
     for (let y = 0; y < this.height; y++) for (let z = 0; z < this.depth; z++) {
       const row = Math.floor(z / this.cellsPerChunk) * this.chunkWidth;
+      const layer = (y + this.groundHeight) * sx * sz;
+      const wz = z * step, z1 = Math.min(sz, wz + step);
       for (let x = 0; x < this.width; x++) {
-        const id = this.sampleCell(x, y, z);
+        let id;
+        if (!blocks) id = this.sampleCell(x, y, z);
+        else if (this.floor && y + this.groundHeight < this.floor[x + z * this.width]) id = BURIED;
+        else {
+          id = AIR;
+          const wx = x * step, x1 = Math.min(sx, wx + step);
+          scan: for (let zz = wz; zz < z1; zz++) {
+            const base = layer + zz * sx;
+            for (let xx = wx; xx < x1; xx++) {
+              this.sampleReads++;
+              if (blocks[base + xx] !== AIR) { id = blocks[base + xx]; break scan; }
+            }
+          }
+        }
         this.cells[x + z * this.width + y * this.plane] = id;
         if (id !== AIR && id !== BURIED) rows[row + Math.floor(x / this.cellsPerChunk)].occupied++;
       }
@@ -164,6 +206,15 @@ export class DistantVoxelShell {
     const base = [record.cx * this.cellsPerChunk, 0, record.cz * this.cellsPerChunk];
     const size = [Math.min(this.cellsPerChunk, this.width - base[0]), this.height,
       Math.min(this.cellsPerChunk, this.depth - base[2])];
+    // Sweep only the layers that hold drawn cells (structures rise a few
+    // metres above the floor): layers outside are air or buried, which emit
+    // no face, so the quads are exactly those of the full-height sweep.
+    const [yMin, yMax] = this.occupiedLayers(base[0], base[2], size[0], size[2]);
+    if (yMax < yMin) {
+      record.positions = EMPTY; record.normals = new Int8Array(0); record.colors = new Uint8Array(0);
+      return;
+    }
+    base[1] = yMin; size[1] = yMax - yMin + 1;
     const positions = [], normals = [], colors = [];
     const point = [0, 0, 0];
     for (let axis = 0; axis < 3; axis++) {
@@ -174,9 +225,9 @@ export class DistantVoxelShell {
         point[axis] = base[axis] + slice;
         for (let j = 0; j < size[v]; j++) for (let i = 0; i < size[u]; i++) {
           point[u] = base[u] + i; point[v] = base[v] + j;
-          const a = this.cell(...point);
+          const a = this.cell(point[0], point[1], point[2]);
           point[axis]++;
-          const b = this.cell(...point);
+          const b = this.cell(point[0], point[1], point[2]);
           point[axis]--;
           // Preserve faces on 16m record boundaries. Coarse occupancy in an
           // adjacent record cannot prove that a detailed voxel touches this
@@ -206,6 +257,24 @@ export class DistantVoxelShell {
     record.positions = new this.PositionArray(positions);
     record.normals = new Int8Array(normals);
     record.colors = new Uint8Array(colors);
+  }
+
+  /** Lowest and highest shell layer with a drawn (not air, not buried) cell in a record footprint. */
+  occupiedLayers(x0, z0, width, depth) {
+    let yMin = this.height, yMax = -1;
+    for (let y = 0; y < this.height; y++) {
+      const layer = y * this.plane;
+      let found = false;
+      for (let z = z0; z < z0 + depth && !found; z++) {
+        const row = layer + z * this.width;
+        for (let x = x0; x < x0 + width; x++) {
+          const id = this.cells[row + x];
+          if (id !== AIR && id !== BURIED) { found = true; break; }
+        }
+      }
+      if (found) { if (yMin > y) yMin = y; yMax = y; }
+    }
+    return [yMin, yMax];
   }
 
   emitQuad(positions, normals, colors, base, axis, u, v, slice, i, j, width, height, value) {

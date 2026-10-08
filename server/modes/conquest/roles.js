@@ -27,7 +27,8 @@ const MAX_TICK_MS = 250;
  * of the world (`world` is the void/invalid-state key), and the two lethal
  * volumes (a body in lava or under water would only die again).
  */
-const NO_DOWN_WEAPONS = new Set(['restricted', 'world', 'void', 'lava', 'water']);
+// A redeploy (in-game menu RESPAWN) is a deliberate exit: no body to revive.
+const NO_DOWN_WEAPONS = new Set(['restricted', 'world', 'void', 'lava', 'water', 'redeploy']);
 /** A `vehicle` kill within this reach of a hull that died this tick is wreck blast, not a roadkill. */
 const WRECK_BLAST_REACH = 14;
 /** A body this close to the hull the victim sat in last tick died seated. */

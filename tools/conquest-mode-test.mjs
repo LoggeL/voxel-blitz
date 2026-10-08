@@ -360,6 +360,7 @@ assert.equal(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'hq', kit: 'a
 assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'vehicle:alpha-tank:commander', kit: 'recon', variant: 0 } }).spawn, 'vehicle:alpha-tank:commander');
 assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'squad:p3_abc123' } }), { type: 'deploy', spawn: 'squad:p3_abc123', kit: 'assault', variant: 0, gadget: 0 });
 assert.deepEqual(parseConquestIntent({ t: 'conquest', spot: 1 }), { type: 'spot' });
+assert.deepEqual(parseConquestIntent({ t: 'conquest', redeploy: 1 }), { type: 'redeploy' }, 'the in-game menu RESPAWN intent');
 assert.deepEqual(parseConquestIntent({ t: 'conquest', support: { type: 'repair', targetId: 'alpha-tank' } }), { type: 'support', support: 'repair', targetId: 'alpha-tank' });
 for (const bad of [
   { t: 'conquest', deploy: { spawn: 'flag:F' } }, { t: 'conquest', deploy: { spawn: 'flag:a' } },
@@ -371,6 +372,7 @@ for (const bad of [
   { t: 'conquest', deploy: { spawn: 'hq ' } }, { t: 'conquest', spot: 2 }, { t: 'conquest', spot: 1, deploy: { spawn: 'hq' } },
   { t: 'conquest', support: { type: 'heal', targetId: 'x' } }, { t: 'conquest', support: { type: 'revive', targetId: 'x'.repeat(65) } },
   { t: 'conquest', support: { type: 'revive' } }, { t: 'input', spot: 1 }, { t: 'conquest' }, null, [],
+  { t: 'conquest', redeploy: 0 }, { t: 'conquest', redeploy: { now: 1 } }, { t: 'conquest', redeploy: 1, spot: 1 },
 ]) assert.equal(parseConquestIntent(bad), null, `rejects ${JSON.stringify(bad)}`);
 assert.deepEqual(parseVehicleAction({ type: 'enter', vehicleId: 'alpha-tank' }), { type: 'enter', vehicleId: 'alpha-tank' });
 assert.deepEqual(parseVehicleAction({ type: 'enter', vehicleId: 'alpha-tank', seatId: 'commander' }), { type: 'enter', vehicleId: 'alpha-tank', seatId: 'commander' });

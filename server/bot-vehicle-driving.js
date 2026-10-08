@@ -249,7 +249,9 @@ export class ConquestVehicleDriving {
     const seat = v && GROUND.has(v.type) ? botVehicleSeat(p, v) : null;
     const assignment = this.commander?.crewFor(p.id) ?? null;
     if (seat) {
-      const mine = assignment?.vehicleId === v.id ? assignment : null;
+      // A hitch (a ride with a human driver) never drives: a bot the human
+      // swapped into the driver seat parks and gets out.
+      const mine = assignment?.vehicleId === v.id && !(seat.drives && assignment.role === 'hitch') ? assignment : null;
       const weapons = seatWeapons(this.game, v, seat.id).length > 0;
       if (this.shouldBail(p, v) && Math.abs(v.speed) < 3) {
         inp.vehicleAction = { type: 'exit' }; this.release(br.id); br.intendsMove = false;
@@ -281,9 +283,11 @@ export class ConquestVehicleDriving {
         // driver, or when they have no order for this hull at all. A crew
         // gunner (tank commander) keeps its seat and guns while the driver
         // walks in or respawns: the commander only books it alongside a
-        // driver, and dropping that booking unloads it via `!mine`.
+        // driver, and dropping that booking unloads it via `!mine`. A hitch
+        // (riding with a human driver) works the same way: the commander drops
+        // it at a wanted flag, after a long idle stop or once the human left.
         const waiting = transit && !transit.departAt && !transit.done;
-        const crewGunner = mine?.role === 'crew';
+        const crewGunner = mine?.role === 'crew' || mine?.role === 'hitch';
         const unload = transit?.done || (!mine && stopped) || (!crewGunner && !waiting && !driverId && stopped);
         if (unload) { inp.vehicleAction = { type: 'exit' }; this.release(br.id); this.commander?.leaveTransit(v.id, p.id); }
       }

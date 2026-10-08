@@ -1515,6 +1515,8 @@ export const sfx = {
    */
   explosion(pos, type = 'frag', detail = null) {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
+    // A Conquest tank shell bursts with the rocket's heavy blast bank.
+    if (type === 'shell') type = 'rocket';
     // Bolt expiry shares the projectile event channel, but has no blast radius.
     if (type === 'bolt') return this.arcZap(deferredPos);
     if (type === 'glaive') {

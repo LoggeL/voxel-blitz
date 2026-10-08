@@ -8,7 +8,7 @@ export { MuzzleLights } from '../engine/muzzle-lights.js';
 export { CombatPostProcess, recommendedPostProcessPixelRatio, POST_PROCESS_PROFILE } from '../engine/combat-post-process.js';
 export { graphicsQuality, resolveGraphicsProfile, rendererCapabilities, isTouchDevice } from '../engine/graphics-quality.js';
 export { ShaderErrorMonitor, warmShaders, VEHICLE_WARMUP_MATERIALS, WORLD_WARMUP_MATERIALS } from '../engine/shader-warmup.js';
-export { WorldView } from '../engine/worldview.js';
+export { WorldView, prewarmWorldView } from '../engine/worldview.js';
 export { ConquestAmbience } from '../engine/conquest-ambience.js';
 export { ViewmodelRig } from '../guns/viewmodel.js';
 export { WeaponState, shouldShowViewmodel } from '../guns/weapon-state.js';

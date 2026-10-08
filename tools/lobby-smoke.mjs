@@ -887,12 +887,26 @@ async function runContracts(server, signal) {
     blockTick.players.some((row) => row.id === roomBHost.welcome.id && row.firing) &&
     spreadAngle <= 0.0015,
   'the deployed ADS input produces the authoritative sniper shot and bounded wire spread');
-  // Penetrating sniper rounds can also break material behind the first target.
+  // The sniper round flies (bullet drop), so penetration and ricochet legs can
+  // break material behind the target in later ticks. Let it settle, then fold
+  // every Room B delta since the shot (last write wins) on each socket.
+  await Promise.all([roomBHost, roomBGuest].map((client) => nextTick(client, client.mark(),
+    (tick) => tick.now >= blockTick.now + 1500, 'Room B round settled', signal)));
+  const foldDeltas = (client, mark) => {
+    const latest = new Map();
+    for (const frame of client.framesAfter(mark)) {
+      if (frame.kind !== 'json' || frame.value?.t !== 'tick') continue;
+      for (const block of frame.value.blocks || []) latest.set(block.i, block.v);
+    }
+    return { blocks: [...latest].map(([i, v]) => ({ i, v })) };
+  };
+  const hostDeltas = foldDeltas(roomBHost, bBlockMark);
+  const peerDeltas = foldDeltas(roomBGuest, bGuestBlockMark);
   // Every resulting delta must reach both peers, and the selected target appears once.
   const orderedDeltas = (tick) => [...tick.blocks].sort((a, b) => a.i - b.i);
   pass(blockTick.blocks.filter((block) => block.i === target.index && block.v === 0).length === 1 &&
     peerBlockTick.blocks.filter((block) => block.i === target.index && block.v === 0).length === 1 &&
-    JSON.stringify(orderedDeltas(blockTick)) === JSON.stringify(orderedDeltas(peerBlockTick)),
+    JSON.stringify(orderedDeltas(hostDeltas)) === JSON.stringify(orderedDeltas(peerDeltas)),
   'target and penetration voxel mutations broadcast identically to both Room B sockets');
 
   const cHostFenceMark = roomCHost.mark();
@@ -948,8 +962,8 @@ async function runContracts(server, signal) {
   }
   pass(lateC.welcome.phase === 'live' &&
     lateC.map[MAP_HEADER_BYTES + target.index] === target.value &&
-    JSON.stringify(divergentVoxels) === JSON.stringify(orderedDeltas(blockTick).map((block) => block.i)) &&
-    blockTick.blocks.every((block) => lateB.map[MAP_HEADER_BYTES + block.i] === block.v),
+    JSON.stringify(divergentVoxels) === JSON.stringify(orderedDeltas(hostDeltas).map((block) => block.i)) &&
+    hostDeltas.blocks.every((block) => lateB.map[MAP_HEADER_BYTES + block.i] === block.v),
   'late-join binary maps diverge exactly at the broadcast Room B mutations');
   pass(lateB.frames.filter((frame) => frame.kind === 'binary').length === 1 &&
     lateC.frames.filter((frame) => frame.kind === 'binary').length === 1,

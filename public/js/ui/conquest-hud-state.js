@@ -18,7 +18,7 @@ import { KIT_GADGET_LABELS } from '../../../shared/conquest-kits.js';
 import { WEAPON_NAMES } from './hud-support.js';
 import { relativeTeam, squadName, teamDisplayName } from './conquest/scoring.js';
 import {
-  angleTo, ballisticPoint, clampToEdge, forwardFromAngles, leadPoint, localPlanar,
+  angleTo, ballisticAtTime, ballisticImpact, ballisticPoint, clampToEdge, forwardFromAngles, leadPoint, localPlanar,
 } from './conquest/projection.js';
 
 /* ------------------------------------------------------------------ teams */
@@ -374,6 +374,8 @@ export function nextFreeSeatIndex(row, seatId) {
 
 /* ---------------------------------------------------------------- reticles */
 
+/** Tank gunner range ladder: horizontal ranges (m) marked along the shell's arc. */
+export const TANK_RANGE_TICKS = Object.freeze([100, 200, 300, 400, 500]);
 const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1 });
 
 /** Muzzle pose from the shared vehicle registry (mountPose), else from the row mount angles at the hull. */
@@ -391,7 +393,7 @@ export function mountPoseOf(row, seatId, mountId, registry = vehicleDefs) {
  * points to CSS pixels; `aimDistance` is the camera-ray distance to the aimed
  * surface (defaults to 150 m without a surface).
  */
-export function reticleModel(seated, { projector = null, players = [], vehicles = [], selfTeam = null, aimDistance = 150, registry = vehicleDefs } = {}) {
+export function reticleModel(seated, { projector = null, players = [], vehicles = [], selfTeam = null, aimDistance = 150, registry = vehicleDefs, raycast = null } = {}) {
   if (!seated?.row || !projector) return null;
   const { row, seat } = seated;
   const weapons = seatWeapons(row, seat.id);
@@ -406,10 +408,32 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
   const meta = VEHICLE_WEAPON_META[selected.weapon] || {};
   const pose = mountPoseOf(row, seat.id, selected.mount, registry);
   if (row.type === 'tank' && seat.id === 'driver') {
+    // Shells drop (VEHICLE_WEAPON_META gravity): the impact marker sits where the
+    // arc from the barrel meets solid terrain (`raycast`, which must skip water like
+    // the server's shell cast). A shell that lands nowhere within its lifetime
+    // airbursts there (server explodeAt), so the marker shows that burst point.
+    // Without a world picker it falls back to `aimDistance` along the arc. The
+    // range ladder marks the arc at TANK_RANGE_TICKS metres up to the impact.
+    const lifetime = finite(registry?.vehicleWeapon?.(selected.weapon)?.lifetimeMs, 4000) / 1000;
+    const landed = pose && raycast ? ballisticImpact(pose.origin, pose.dir, meta.speed, meta.gravity, raycast, { maxSeconds: lifetime }) : null;
+    let reach = landed, airburst = false;
+    if (pose && raycast && !landed && meta.speed > 0) {
+      const point = ballisticAtTime(pose.origin, pose.dir, meta.speed, meta.gravity, lifetime);
+      reach = { point, range: Math.hypot(point[0] - pose.origin[0], point[2] - pose.origin[2]), time: lifetime };
+      airburst = true;
+    }
     const distance = Math.max(20, Math.min(600, finite(aimDistance, 150)));
-    const impact = pose ? ballisticPoint(pose.origin, pose.dir, meta.speed, meta.gravity, distance * Math.hypot(pose.dir[0], pose.dir[2])) : null;
+    const impact = reach?.point ?? (pose ? ballisticPoint(pose.origin, pose.dir, meta.speed, meta.gravity, distance * Math.hypot(pose.dir[0], pose.dir[2])) : null);
     const point = impact ? project(impact) : null;
+    const ladder = [];
+    for (const range of pose ? TANK_RANGE_TICKS : []) {
+      if (reach && range > reach.range + 1) break;
+      const at = ballisticPoint(pose.origin, pose.dir, meta.speed, meta.gravity, range);
+      const tick = at ? project(at) : null;
+      if (tick && Number.isFinite(tick.x) && Number.isFinite(tick.y)) ladder.push({ x: tick.x, y: tick.y, range });
+    }
     return { ...base, kind: 'tank', impact: point ? { x: point.x, y: point.y } : null, reload: selected.reload,
+      range: reach ? Math.round(reach.range) : null, airburst, ladder,
       ready: selected.ready, label: selected.label, aligned: point ? Math.hypot(point.x - center.x, point.y - center.y) < 6 : false };
   }
   if (row.type === 'helicopter' && seat.drives) {

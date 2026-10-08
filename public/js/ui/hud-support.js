@@ -51,10 +51,12 @@ export const WEAPON_NAMES = Object.freeze({
   fall: 'FELL',
   // Crew of a hull wrecked by its own crash (no enemy behind it).
   crash: 'CRASHED',
+  // In-game menu RESPAWN: a self death, or credited to the enemy who just hit you.
+  redeploy: 'REDEPLOYED',
 });
 
 /** Kill keys that have no weapon-slot art; the kill feed draws a vector icon for them. */
-export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted', 'fall', 'crash']);
+export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted', 'fall', 'crash', 'redeploy']);
 export const isVehicleKillKey = key => typeof key === 'string' && VEHICLE_KILL_KEYS.includes(key);
 
 export function weaponImagePath(weaponId) {

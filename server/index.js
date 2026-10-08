@@ -328,6 +328,8 @@ async function main() {
             if (career.identity(req) !== profileId) profile = null;
           } catch { profile = null; }
           meta.weaponLoadout = allowedWeaponLoadout(profile);
+          // V3 map frames for clients with a map cache (lobby.js mapFrameFor).
+          meta.mapCache = admission.mapCache ? [...admission.mapCache] : null;
           meta.mastery = masteryView(profile?.mastery);
           if (admission.kind === 'quick') {
             admitted = manager.quickPlay(meta, name, admission.bots);
@@ -458,6 +460,7 @@ async function main() {
     const mapMeta = getMapMeta('frontier');
     const world = createMapState('frontier');
     world.serializeWorld();
+    world.mapFrame();
     surfaceNavigation(world);
     roadGraph({ mapMeta });
     console.log(`[voxel-blitz] Frontier prepared in ${Math.round(performance.now() - started)} ms`);

@@ -1,5 +1,23 @@
 import { WEAPONS } from '../../../shared/combatmath.js';
+import { ballisticProfile, holdoverMils } from '../../../shared/bullet-ballistics.js';
 import { el } from './hud-support.js';
+
+/** Ranges (m) that get a holdover mark on the drop ladder; hundreds carry a numeral. */
+export const SCOPE_BDC_RANGES = Object.freeze([150, 200, 250, 300, 350, 400, 500]);
+/** Lead dots along the horizontal wire, in milliradians either side of centre. */
+export const SCOPE_LEAD_MILS = Object.freeze([5, 10, 15, 20]);
+
+/** The drop ladder for a ballistic profile: one mark per range, `mil` below the centre. */
+export function scopeHoldoverMarks(profile) {
+  if (!profile) return [];
+  return SCOPE_BDC_RANGES.map(range => ({ range, mil: holdoverMils(profile, range), label: range % 100 === 0 ? String(range / 100) : '' }));
+}
+
+/** Viewport-height percent covered by one milliradian at a vertical field of view. */
+export function scopeMilVh(fovDeg) {
+  const half = (Number.isFinite(fovDeg) && fovDeg > 0 ? fovDeg : 75) * Math.PI / 360;
+  return 50 * Math.tan(0.001) / Math.tan(half);
+}
 
 /** Build the canonical sniper overlay inside a HUD root. */
 export function createSniperScope(hud, prefix = '') {
@@ -33,32 +51,46 @@ export function createSniperScope(hud, prefix = '') {
     ring.style.border = '1px solid rgba(160, 185, 210, 0.18)';
   }
 
-  for (const pct of [-0.10, -0.075, -0.05, -0.025, 0.025, 0.05, 0.075, 0.10]) {
-    const dot = el('div', '', rings);
-    dot.style.position = 'absolute';
-    dot.style.left = `${50 + pct * 100}%`;
-    dot.style.top = '50%';
-    dot.style.width = '2px';
-    dot.style.height = Math.abs(pct) % 0.05 === 0 ? '6px' : '3px';
-    dot.style.marginTop = Math.abs(pct) % 0.05 === 0 ? '-3px' : '-1.5px';
-    dot.style.marginLeft = '-1px';
-    dot.style.background = 'rgba(160, 185, 210, 0.65)';
+  // First-focal-plane marks: every offset is a mil count times --scope-mil, which
+  // `updateScopeOptics` keeps equal to one milliradian of the live view, so the
+  // marks hold their true angle at 5×, 2.5× or any attachment optic.
+  for (const mil of SCOPE_LEAD_MILS) {
+    for (const side of [-1, 1]) {
+      const dot = el('div', `scope-lead-dot${mil % 10 === 0 ? ' major' : ''}`, rings);
+      dot.style.left = `calc(50% + ${side * mil} * var(--scope-mil, 0.33vh))`;
+    }
   }
-
-  for (const pct of [0.025, 0.05, 0.075, 0.10, 0.13, 0.16]) {
-    const tick = el('div', '', rings);
-    tick.style.position = 'absolute';
-    tick.style.left = '50%';
-    tick.style.top = `${50 + pct * 100}%`;
-    const widthPx = pct >= 0.10 ? 8 : (pct === 0.05 ? 6 : 4);
-    tick.style.width = `${widthPx}px`;
-    tick.style.height = '1px';
-    tick.style.marginLeft = `-${widthPx / 2}px`;
-    tick.style.background = 'rgba(160, 185, 210, 0.65)';
+  const ladder = el('div', 'scope-bdc', rings);
+  let labels = 0;
+  for (const mark of scopeHoldoverMarks(ballisticProfile(WEAPONS.sniper))) {
+    const tick = el('div', `scope-bdc-tick${mark.label ? ' major' : ''}`, ladder);
+    tick.dataset.range = String(mark.range);
+    tick.style.top = `calc(50% + ${mark.mil.toFixed(3)} * var(--scope-mil, 0.33vh))`;
+    // Numerals alternate sides so neighbouring hundreds never crowd at 2.5×.
+    if (mark.label) el('span', `scope-bdc-label ${labels++ % 2 ? 'left' : 'right'}`, tick).textContent = mark.label;
   }
 
   const zoomVal = Number(WEAPONS.sniper && WEAPONS.sniper.zoom) || 5;
   el('div', 'scope-zoom-label', scope, prefix + 'scope-zoom-label').textContent = `${zoomVal.toFixed(1)}×`;
   el('div', 'scope-model-label', scope).textContent = 'FACTORY OPTIC';
+  const zero = el('div', 'scope-zero-label', scope);
+  zero.textContent = `ZERO ${ballisticProfile(WEAPONS.sniper)?.zeroM ?? 100} M`;
   return scope;
+}
+
+/**
+ * Scale the mil marks to the live vertical field of view and show the drop
+ * ladder only for a weapon whose round actually drops (`ballistic`).
+ */
+export function updateScopeOptics(scope, fovDeg, ballistic, viewportHeight = globalThis.innerHeight) {
+  if (!scope) return;
+  const milVh = scopeMilVh(fovDeg);
+  const mil = `${milVh.toFixed(4)}vh`;
+  if (scope.style.getPropertyValue('--scope-mil') !== mil) scope.style.setProperty('--scope-mil', mil);
+  const on = !!ballistic;
+  if (scope.classList.contains('has-ballistics') !== on) scope.classList.toggle('has-ballistics', on);
+  // Under ~2.2 px per mil (short phone screens, 2.5×) numerals and minor marks
+  // would merge: keep only the hundreds.
+  const compact = Number.isFinite(viewportHeight) && milVh * viewportHeight / 100 < 2.2;
+  if (scope.classList.contains('scope-compact') !== compact) scope.classList.toggle('scope-compact', compact);
 }

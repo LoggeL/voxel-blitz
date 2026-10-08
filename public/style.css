@@ -2976,6 +2976,65 @@ h1.vb-title::after {
   pointer-events: none;
 }
 
+/* First-focal-plane mil marks: offsets are mil counts times --scope-mil
+   (one milliradian of the live view, set by updateScopeOptics). Dark ink with a
+   faint light rim stays legible against sky and ground alike. */
+.scope-lead-dot {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%;
+  background: rgba(10, 14, 18, 0.95);
+  box-shadow: 0 0 0 1px rgba(190, 210, 228, 0.28);
+}
+.scope-lead-dot.major { width: 4px; height: 4px; margin: -2px 0 0 -2px; }
+
+.scope-bdc { display: none; }
+.sniper-scope.has-ballistics .scope-bdc { display: block; }
+
+.scope-bdc-tick {
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 1px;
+  margin: -0.5px 0 0 -3.5px;
+  background: rgba(10, 14, 18, 0.95);
+  box-shadow: 0 0 0 1px rgba(190, 210, 228, 0.24);
+}
+.scope-bdc-tick.major { width: 13px; margin-left: -6.5px; height: 2px; margin-top: -1px; }
+
+.scope-bdc-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(190, 210, 228, 0.9);
+  text-shadow: 0 0 2px #000, 0 1px 2px rgba(0, 0, 0, 0.95);
+}
+.sniper-scope.scope-compact .scope-bdc-label,
+.sniper-scope.scope-compact .scope-bdc-tick:not(.major) { display: none; }
+.scope-bdc-label.right { left: 17px; }
+.scope-bdc-label.left { right: 17px; }
+
+.scope-zero-label {
+  display: none;
+  position: absolute;
+  right: calc(50% - 21vmin);
+  top: calc(50% - 21vmin);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: rgba(147, 160, 173, 0.65);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+}
+.sniper-scope.has-ballistics .scope-zero-label { display: block; }
+
 /* ---------- damage numbers ---------- */
 
 #dmglayer {

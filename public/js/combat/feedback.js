@@ -159,6 +159,26 @@ export class CombatFeedback {
     return kind;
   }
 
+  /** Crack and flinch for a remote round's resolved `paths` passing the listener. */
+  bulletFlyby(ev, myId) {
+    if (!this.player?.alive || ev.hitVictims?.includes(myId)) return;
+    const now = performance.now();
+    const pass = closestBulletFlyby(ev.paths, this.camera?.position);
+    if (!pass || now - this._lastBulletFlybyAt < BULLET_FLYBY_COOLDOWN_MS ||
+        !isWorldPointVisible(this.world, this.camera, pass.pos)) return;
+    this._lastBulletFlybyAt = now;
+    this.sfx.bulletWhiz(pass.volume, { pos: pass.pos });
+    // Grazing fire startles the hold and flickers the danger edge toward
+    // the pass. Burns no panic itself; the server owns suppression gain.
+    const proximity = Math.max(0, Math.min(1, 1 - pass.distance / BULLET_FLYBY_RADIUS));
+    const angleDeg = bearingDeg(this.camera?.position, this.player?.view?.yaw,
+      { x: pass.pos[0], z: pass.pos[2] });
+    this.hud?.setPainImpulse?.(angleDeg == null
+      ? 0.14 + 0.2 * proximity
+      : { intensity: 0.14 + 0.2 * proximity, angleDeg });
+    this.onLocalFlinch?.(0.35 + 0.65 * proximity);
+  }
+
   handleEvent(ev) {
     if (this._disposed || !this.isRunning()) return;
 
@@ -196,27 +216,18 @@ export class CombatFeedback {
               ? { pos: ev.o, shooterId: ev.id } : { pos: ev.o });
           }
           const definition = WEAPONS[ev.w];
-          if (this.player?.alive && definition && !definition.flame &&
-              !definition.projectile && definition.mode !== 'melee' &&
-              !ev.hitVictims?.includes(myId)) {
-            const now = performance.now();
-            const pass = closestBulletFlyby(ev.paths, this.camera?.position);
-            if (pass && now - this._lastBulletFlybyAt >= BULLET_FLYBY_COOLDOWN_MS &&
-                isWorldPointVisible(this.world, this.camera, pass.pos)) {
-              this._lastBulletFlybyAt = now;
-              this.sfx.bulletWhiz(pass.volume, { pos: pass.pos });
-              // Grazing fire startles the hold and flickers the danger edge toward
-              // the pass. Burns no panic itself; the server owns suppression gain.
-              const proximity = Math.max(0, Math.min(1, 1 - pass.distance / BULLET_FLYBY_RADIUS));
-              const angleDeg = bearingDeg(this.camera?.position, this.player?.view?.yaw,
-                { x: pass.pos[0], z: pass.pos[2] });
-              this.hud?.setPainImpulse?.(angleDeg == null
-                ? 0.14 + 0.2 * proximity
-                : { intensity: 0.14 + 0.2 * proximity, angleDeg });
-              this.onLocalFlinch?.(0.35 + 0.65 * proximity);
-            }
+          // Flying rounds have no path yet: their flyby comes with the `bullet` event.
+          if (definition && !definition.flame && !definition.projectile && definition.mode !== 'melee') {
+            this.bulletFlyby(ev, myId);
           }
         }
+        break;
+      }
+      case 'bullet': {
+        // A flying sniper round settled: its streak ends where authority stopped
+        // it, and the arc it flew decides the flyby crack for everyone it passed.
+        this.effects.settleRound?.(ev, { local: ev.id === myId });
+        if (ev.id !== myId) this.bulletFlyby(ev, myId);
         break;
       }
       case 'hit': {

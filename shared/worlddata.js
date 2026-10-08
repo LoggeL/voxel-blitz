@@ -53,6 +53,7 @@ export {
   findSpawns,
   serializeWorld,
   deserializeWorld,
+  worldBlocks,
   rebuildHeightMap,
   generateWorld,
   getMapMeta,

@@ -103,7 +103,7 @@ const frames = (h, rows, count, dt = 1 / 60, players = []) => {
   const base = h.fx.emitted;
 
   // Tank main gun: muzzle, smoke, dust cone, recoil and rock, muzzle light, shake, cannon report.
-  check(() => assert.equal(h.vfx.handleEvent({ kind: 'shoot', id: 'me', w: 'rocket', o: [0, 12, -6], d: [0, 0, -1],
+  check(() => assert.equal(h.vfx.handleEvent({ kind: 'shoot', id: 'me', w: 'shell', o: [0, 12, -6], d: [0, 0, -1],
     vehicleId: 'tank-1', mount: 'main', vehicleWeapon: 'tankAP', tracer: false }, 'me'), true));
   check(() => assert.ok(h.fx.emitsByKind.muzzle >= 3 && h.fx.emitsByKind.smoke > 10 && h.fx.emitsByKind.dust > 10));
   const recoilNode = h.view.item('tank-1').model.mounts['driver:main'].recoilNode;
@@ -118,7 +118,7 @@ const frames = (h, rows, count, dt = 1 / 60, players = []) => {
   frames(h, rows, 12);
   check(() => assert.equal(h.muzzleLights.lights[1].intensity, 0, 'flash ends'));
   // A remote listener's cannon is positional.
-  h.vfx.handleEvent({ kind: 'shoot', id: 'other', w: 'rocket', o: [0, 12, -6], d: [0, 0, -1], vehicleId: 'tank-1', mount: 'main', vehicleWeapon: 'tankHE' }, 'someone-else');
+  h.vfx.handleEvent({ kind: 'shoot', id: 'other', w: 'shell', o: [0, 12, -6], d: [0, 0, -1], vehicleId: 'tank-1', mount: 'main', vehicleWeapon: 'tankHE' }, 'someone-else');
   check(() => assert.equal(calledWith(h.sfx, 'vehicleCannon')[1][2].self, false));
   h.vfx.selfId = 'me';
 
@@ -168,12 +168,15 @@ const frames = (h, rows, count, dt = 1 / 60, players = []) => {
   check(() => assert.equal(calledWith(h.sfx, 'stopMissileFlight').length, 2, 'and stops the flight loop'));
   check(() => assert.equal(h.fx.emitsByKind.dust || 0, dustBefore)); check(() => assert.equal(h.shake.trauma, 0));
   check(() => assert.equal(h.vfx.endMissile('m2'), false, 'an ended trail is no change'));
-  // A shell launch only flashes (no trail).
-  h.vfx.handleEvent({ kind: 'projectileLaunch', id: 'me', pid: 's1', type: 'rocket', o: [0, 12, -6], v: [0, 0, -170], vehicleWeapon: 'tankAP', g: 6 }, 'me');
+  // A shell launch only flashes (no smoke trail, no flight loop; ProjectileFX draws the tracer).
+  const loopsBefore = calledWith(h.sfx, 'missileFlight').length;
+  h.vfx.handleEvent({ kind: 'projectileLaunch', id: 'me', pid: 's1', type: 'shell', o: [0, 12, -6], v: [0, 0, -250], vehicleWeapon: 'tankAP', g: 9.8 }, 'me');
+  frames(h, rows, 3);
+  check(() => assert.equal(calledWith(h.sfx, 'missileFlight').length, loopsBefore, 'no rocket motor loop for a shell'));
   check(() => assert.equal(h.vfx.missiles.size, 0));
   // Heavy shell impact: dust ring and distance shake.
   h.shake.reset();
-  h.vfx.handleEvent({ kind: 'projectileExplode', pid: 's1', type: 'rocket', x: 0, y: GROUND + 0.5, z: 25, vehicleWeapon: 'tankHE' }, 'me');
+  h.vfx.handleEvent({ kind: 'projectileExplode', pid: 's1', type: 'shell', x: 0, y: GROUND + 0.5, z: 25, vehicleWeapon: 'tankHE' }, 'me');
   check(() => assert.ok(h.shake.trauma > 0, 'a nearby HE impact shakes the camera'));
 
   // Hull hits: eff 0 is a white spark and a ping only.

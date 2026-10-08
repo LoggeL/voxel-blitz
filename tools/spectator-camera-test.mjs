@@ -155,9 +155,9 @@ try {
   assert.ok(input.consumeDelta().dx > 0, 'locked mouse controls spectator look');
   assert.equal(flow.pauseFromKeyboard(), true);
   input._onMouseMove({ movementX: 10, movementY: 10 });
-  assert.deepEqual(input.consumeDelta(), { dx: 0, dy: 0 }, 'settings block spectator look');
-  assert.deepEqual(padLook(), { dx: 0, dy: 0 }, 'settings block spectator pad look');
-  assert.deepEqual(touchLook(), { dx: 0, dy: 0 }, 'settings block spectator touch look');
+  assert.deepEqual(input.consumeDelta(), { dx: 0, dy: 0, mouseDx: 0, mouseDy: 0 }, 'settings block spectator look (mouse flight share too)');
+  assert.deepEqual(padLook(), { dx: 0, dy: 0, mouseDx: 0, mouseDy: 0 }, 'settings block spectator pad look');
+  assert.deepEqual(touchLook(), { dx: 0, dy: 0, mouseDx: 0, mouseDy: 0 }, 'settings block spectator touch look');
   flow.resumeFromSettings();
   assert.equal(locks, 2, 'resume reacquires pointer lock while dead');
   flow.onPointerLockChange(false);
@@ -171,16 +171,16 @@ try {
     lifecycle.tornDown = block === 'teardown';
     flow.syncInput();
     input._onMouseMove({ movementX: 20, movementY: 20 });
-    assert.deepEqual(input.consumeDelta(), { dx: 0, dy: 0 }, `${block} blocks spectator look`);
-    assert.deepEqual(padLook(), { dx: 0, dy: 0 }, `${block} blocks spectator pad look`);
-    assert.deepEqual(touchLook(), { dx: 0, dy: 0 }, `${block} blocks spectator touch look`);
+    assert.deepEqual(input.consumeDelta(), { dx: 0, dy: 0, mouseDx: 0, mouseDy: 0 }, `${block} blocks spectator look`);
+    assert.deepEqual(padLook(), { dx: 0, dy: 0, mouseDx: 0, mouseDy: 0 }, `${block} blocks spectator pad look`);
+    assert.deepEqual(touchLook(), { dx: 0, dy: 0, mouseDx: 0, mouseDy: 0 }, `${block} blocks spectator touch look`);
   }
   lifecycle.disconnected = lifecycle.tornDown = false;
   gameplay.alive = true;
   gameplay.spectating = false;
   flow.syncInput();
   assert.equal(flow.inputEnabled, true, 'respawn restores normal player input');
-  assert.deepEqual(input.consumeDelta(), { dx: 0, dy: 0 }, 'respawn clears spectator look');
+  assert.deepEqual(input.consumeDelta(), { dx: 0, dy: 0, mouseDx: 0, mouseDy: 0 }, 'respawn clears spectator look');
   sync([ally], { ...self, state: 'alive' });
   assert.equal(spectator.update(null, 1 / 60), false, 'respawn releases camera ownership');
   console.log('Spectator contracts passed: mouse/pad/touch orbit, pad scoreboard, target changes, walls, no-target fallback, input isolation, pause/resume and respawn.');

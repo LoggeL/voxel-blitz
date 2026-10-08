@@ -1,4 +1,4 @@
-import { fireOneShot } from '../server/sim/combat.js';
+import { fireOneShot, stepFlyingRounds } from '../server/sim/combat.js';
 import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
@@ -331,6 +331,8 @@ for (const item of ['sniper', 'lance']) for (const mode of ['chaos', 'fun']) {
   game.contexts.combat.computeConeDeg = () => 0;
   game.tickEvents.length = 0;
   fireOneShot(shooter, game.contexts.combat);
+  // The sniper round flies: let it cover the 10 m over its next ticks.
+  for (let tick = 0; tick < 4; tick++) stepFlyingRounds(game.flyingRounds, 1 / 60, game.contexts.combat);
   assert(direct.hp < 1000, `${mode} ${item} primary shot hits`);
   if (mode === 'chaos') {
     assert(side.hp < 1000, `${item} secondary effect actually damages off-ray target through fireOneShot`);

@@ -13,7 +13,9 @@ import { MaterialCache } from '../guns/kit.js';
 import { presentSkipjackReserve } from '../guns/actions.js';
 import { MGL_RULES } from '../../../shared/mgl-rules.js';
 import { PICKAXE_LIFT_AT, PICKAXE_STRIKE_AT, PICKAXE_SWING_SECONDS } from '../guns/pickaxe-swing.js';
-import { createSniperScope } from '../ui/sniper-scope.js';
+import { createSniperScope, updateScopeOptics } from '../ui/sniper-scope.js';
+import { TracerFX } from '../weapons/ballistics.js';
+import { ballisticProfile } from '../../../shared/bullet-ballistics.js';
 
 const params = new URLSearchParams(location.search);
 const weapon = params.get('weapon') || 'rifle';
@@ -164,6 +166,9 @@ if (state.startsWith('swap-')) {
 if (state === 'scoped' && weapon === 'sniper') {
   rig.root.visible = false;
   const scope = createSniperScope(document.getElementById('hud'));
+  // The mil marks at the stock 5× optic over the game's default 75° view.
+  const scopedFov = 2 * Math.atan(Math.tan(37.5 * Math.PI / 180) / WEAPONS.sniper.zoom) * 180 / Math.PI;
+  updateScopeOptics(scope, scopedFov, ballisticProfile(WEAPONS.sniper));
   scope.classList.add('active');
   scope.style.opacity = '1';
   scope.style.transform = 'scale(1)';
@@ -209,6 +214,14 @@ if (state === 'firing') {
       flame.setLocalStream(true, [0, 0, -1], [0, 1.62, 0]);
       flame.update(1 / 120);
     }
+  }
+  if (weapon === 'sniper') {
+    // The flying round 18 ms out: the streak leaves the barrel and eases onto the arc.
+    const tracers = new TracerFX(scene, (_x, _y, z) => z <= -16 ? 3 : 0, () => {});
+    scene.updateMatrixWorld(true);
+    tracers.setMuzzleProvider(out => rig.getMuzzleWorldPos(out));
+    tracers.shoot({ w: 'sniper', o: [0, 1.62, 0], d: [0, 0, -1], spread: [0, 0, -1] }, { local: true });
+    tracers.update(0.018);
   }
   if (weapon === 'lance') {
     const beam = new RailBeamFX(scene, (_x, _y, z) => z <= -16 ? 3 : 0);

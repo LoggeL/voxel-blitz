@@ -214,6 +214,14 @@ try {
   check(() => assert.ok(nodes.some(node => node.kind === 'filter' && node.frequency.value === 320), 'far blast rumble'));
   nodes = fresh(() => sfx.explosion([0, 2, -500], 'rocket'));
   check(() => assert.equal(nodes.length, 0, 'blasts past 400 m are culled'));
+  // A tank shell burst ('shell' projectileExplode type) plays the rocket's heavy blast bank.
+  const kinds = list => list.map(node => JSON.stringify([node.kind, node.type, node.maxDistance, node.frequency, node.gain]));
+  const rocketBlast = kinds(fresh(() => sfx.explosion([0, 2, -250], 'rocket')));
+  const shellBlast = kinds(fresh(() => sfx.explosion([0, 2, -250], 'shell')));
+  const fragBlast = kinds(fresh(() => sfx.explosion([0, 2, -250], 'frag')));
+  check(() => assert.ok(shellBlast.length > 0));
+  check(() => assert.deepEqual(shellBlast, rocketBlast, 'shell blast = rocket blast graph'));
+  check(() => assert.notDeepEqual(fragBlast, rocketBlast, 'the comparison can tell blast banks apart'));
 
   // Gun loop: one graph refreshed per round, held briefly, heat adds the sizzle.
   ctx.currentTime = 1;

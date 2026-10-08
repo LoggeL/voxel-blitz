@@ -52,9 +52,24 @@ const now = () =>
     ? performance.now()
     : Date.now();
 
+/** Damage rows keyed by "x,y,z", with a lazily rebuilt set of damaged x/z columns. */
+class BlockDamageMap extends Map {
+  set(key, value) { this._columns = null; return super.set(key, value); }
+  delete(key) { const had = super.delete(key); if (had) this._columns = null; return had; }
+  clear() { this._columns = null; super.clear(); }
+  /** Damaged columns as `x * 65536 + z`. */
+  columns() {
+    if (!this._columns) {
+      this._columns = new Set();
+      for (const row of this.values()) this._columns.add(row.x * 65536 + row.z);
+    }
+    return this._columns;
+  }
+}
+
 /** Conquest intent fields, one per `{t:'conquest'}` frame, and their minimum send gaps. */
-const CONQUEST_INTENT_FIELDS = Object.freeze(['deploy', 'spot', 'support']);
-const CONQUEST_INTENT_GAP_MS = Object.freeze({ deploy: 250, spot: 500, support: 100 });
+const CONQUEST_INTENT_FIELDS = Object.freeze(['deploy', 'spot', 'support', 'redeploy']);
+const CONQUEST_INTENT_GAP_MS = Object.freeze({ deploy: 250, spot: 500, support: 100, redeploy: 1000 });
 /** Same limits as the server's parseVehicleAction (shared/conquest-contract.js VEHICLE_ACTION_TYPES). */
 const VEHICLE_ID_MAX = 64;
 const VEHICLE_SEAT_ID_MAX = 32;
@@ -228,7 +243,7 @@ export class NetClient {
     /** Newest immutable authoritative match snapshot. */
     this.latestMatch = null;
     /** Authoritative persistent damage, keyed by "x,y,z". */
-    this.blockDamage = new Map();
+    this.blockDamage = new BlockDamageMap();
 
     /** Called with map bytes right before connect()'s promise resolves. */
     this.onMap = null;
@@ -248,7 +263,12 @@ export class NetClient {
   setDiagnosticsEnabled(enabled) { this._diagnosticsEnabled = enabled === true; }
 
   getBlockDamage(x, y, z) {
-    return this.blockDamage.get(`${x},${y},${z}`)?.progress || 0;
+    // The mesher asks once per voxel it touches (millions while a large map
+    // loads): answer undamaged columns without building the string key.
+    const damage = this.blockDamage;
+    if (damage.size === 0) return 0;
+    if (!damage.columns().has(x * 65536 + z)) return 0;
+    return damage.get(`${x},${y},${z}`)?.progress || 0;
   }
 
   _applyBlockDamage(rows, replace = false) {
@@ -355,7 +375,7 @@ export class NetClient {
    * reconnects start clean. Omitting opts.mode preserves quick play.
    * @param {string} url ws(s)://… endpoint @param {string} name display name
    * @param {{mode?:'quick'|'create'|'join',bots?:number,lobby?:string,password?:string,
-   *          gameMode?:string,map?:string,directStart?:boolean}} [opts]
+   *          gameMode?:string,map?:string,directStart?:boolean,mapCache?:string[]}} [opts]
    * @returns {Promise<object>} welcome payload
    */
   connect(url, name, opts = null) {
@@ -376,6 +396,10 @@ export class NetClient {
     } else {
       initialFrame = { t: 'join', name, bots };
     }
+    // Template fingerprints this client holds; the field (even empty) opts in
+    // to V3 map frames (shared/world/serialize.js), which a rejoin turns into
+    // a reference plus the changed cells.
+    if (Array.isArray(options.mapCache)) initialFrame.mapCache = options.mapCache.slice(0, 8);
     if (this.ws !== null || this._connectAbort !== null) {
       return Promise.reject(new Error('already connected'));
     }
@@ -584,6 +608,8 @@ export class NetClient {
         ? Math.max(-1, Math.min(1, input[field])) : 0;
     }
     if (Number.isFinite(input.vehicleBrake)) msg.vehicleBrake = Math.max(0, Math.min(1, input.vehicleBrake));
+    // Mouse-flown helicopters ask the server to hold attitude on a centred stick.
+    if (input.vehicleAttitudeHold === true) msg.vehicleAttitudeHold = true;
     for (const [field, limit] of [['vehicleControlId', 64], ['vehicleControlSeatId', 32]]) {
       if (Object.hasOwn(input, field)) msg[field] = typeof input[field] === 'string'
         && input[field].length > 0 && input[field].length <= limit ? input[field] : null;
@@ -612,10 +638,10 @@ export class NetClient {
   }
 
   /**
-   * Conquest intent frame `{t:'conquest', deploy | spot | support}` (spec 3.4).
-   * Exactly one intent per frame; the server's parseConquestIntent rejects the
-   * rest. Rate limits per intent: deploy 4/s, spot 2/s, support 10/s (the
-   * lobby enforces the same gaps).
+   * Conquest intent frame `{t:'conquest', deploy | spot | support | redeploy}`
+   * (spec 3.4). Exactly one intent per frame; the server's parseConquestIntent
+   * rejects the rest. Rate limits per intent: deploy 4/s, spot 2/s, support
+   * 10/s, redeploy 1/s (the lobby enforces the same gaps).
    */
   sendConquest(fields) {
     if (!fields || typeof fields !== 'object') return false;

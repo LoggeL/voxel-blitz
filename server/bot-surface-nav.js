@@ -513,9 +513,42 @@ export class SurfaceNav {
     return true;
   }
 
+  /**
+   * The node a route starts from: nodeAt's pick when the body can walk (or
+   * swim) to it in a straight line, else the best-scored nearby node it can.
+   * A swimmer beside a quay or under a deck would otherwise start from the
+   * bank or crater floor behind the wall and press into that wall forever.
+   */
+  startNode(from) {
+    const picked = this.nodeAt(from);
+    if (picked === NODE_NONE || !Number.isFinite(from.y) || this.segmentWalkable(from, this.nodePoint(picked))) return picked;
+    const getBlock = this.world.getBlock;
+    const wet = FLUID_BLOCKS.has(getBlock(Math.floor(from.x), Math.floor(from.y + 0.55), Math.floor(from.z)));
+    const cx = Math.floor(from.x / this.cell), cz = Math.floor(from.z / this.cell);
+    const candidates = [];
+    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+      const x = cx + dx, z = cz + dz;
+      if (x < 0 || z < 0 || x >= this.gw || z >= this.gd) continue;
+      for (let l = 0; l < 2; l++) {
+        const node = (z * this.gw + x) * 2 + l;
+        if (!this.flags[node] || node === picked) continue;
+        const dh = Math.abs(this.height[node] - from.y);
+        if (dh > 4) continue;
+        const [px, pz] = this.cellCenter(node >> 1);
+        const water = !!(this.flags[node] & F_WATER);
+        candidates.push({ node, score: Math.hypot(px - from.x, pz - from.z) + dh * 1.5 + (water !== wet ? 6 : 0) });
+      }
+    }
+    candidates.sort((a, b) => a.score - b.score);
+    for (let i = 0; i < Math.min(8, candidates.length); i++) {
+      if (this.segmentWalkable(from, this.nodePoint(candidates[i].node))) return candidates[i].node;
+    }
+    return picked;
+  }
+
   /** World-space route from `from` to `to` (feet points), possibly partial. */
   route(from, to) {
-    const start = this.nodeAt(from), goal = this.nodeAt(to);
+    const start = this.startNode(from), goal = this.nodeAt(to);
     if (start === NODE_NONE || goal === NODE_NONE) return { points: [], reached: false, length: Infinity };
     // A goal outside the start's component is usually a pocket: prove it
     // cheaply and walk a budgeted partial route toward it instead of

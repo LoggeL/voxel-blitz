@@ -73,6 +73,26 @@ async function derivePassword(password, salt) {
   }
 }
 
+/** Distinct template fingerprints a connection may claim to hold (admission plus sent this session). */
+const MAX_CACHED_MAPS = 16;
+
+/**
+ * The binary map frame for one client. A client that announced a map cache
+ * (admission `mapCache`, even empty) gets a V3 frame: only a reference when it
+ * already holds this map's template, else the template; both carry every
+ * changed cell. Other clients get the legacy serialization. A template sent on
+ * this connection counts as held from then on (the client keeps it in memory).
+ */
+function mapFrameFor(meta, world) {
+  const cache = meta?.mapCache;
+  const fingerprint = Array.isArray(cache) ? world.templateFingerprint : null;
+  if (!fingerprint || typeof world.mapFrame !== 'function') return world.serializeWorld();
+  const cached = cache.includes(fingerprint);
+  const frame = world.mapFrame({ cached });
+  if (!cached && cache.length < MAX_CACHED_MAPS) cache.push(fingerprint);
+  return frame;
+}
+
 function memberId(meta) {
   if (!meta || (typeof meta.id !== 'string' && !Number.isFinite(meta.id))) return null;
   const id = String(meta.id);
@@ -381,9 +401,9 @@ export class LobbyManager {
       room.engine = engine;
       room.gameMode = gameMode;
       room.map = map;
-      const bytes = engine.world.serializeWorld();
       for (const human of room.members.values()) {
         const spawn = spawns.get(human.id);
+        const bytes = mapFrameFor(human.meta, engine.world);
         this.sendJson(human.meta, {
           ...makeWelcome({ id: human.id, mapBytes: bytes.byteLength,
             tickRate: Math.round(1000 / this.tickMs), spawn: spawn.spawn || spawn,
@@ -419,9 +439,10 @@ export class LobbyManager {
   }
 
   /**
-   * Conquest intent frame (deploy, spot, support; spec 3.4), already parsed by
-   * parseConquestIntent. Rate limits per intent type mirror the client's
-   * sendConquest (deploy 4/s, spot 2/s, support 10/s) with 25% slack: gaps are
+   * Conquest intent frame (deploy, spot, support, redeploy; spec 3.4), already
+   * parsed by parseConquestIntent. Rate limits per intent type mirror the
+   * client's sendConquest (deploy 4/s, spot 2/s, support 10/s, redeploy 1/s;
+   * the policy adds its own redeploy cooldown) with 25% slack: gaps are
    * measured on arrival, so network jitter must not drop frames the client
    * paced correctly (a dropped deploy would leave the server on a stale kit).
    */
@@ -430,7 +451,7 @@ export class LobbyManager {
     if (!found || found.room.phase !== 'live' || !intent || typeof intent.type !== 'string') return false;
     const member = found.member;
     const now = performance.now();
-    const minGap = (intent.type === 'deploy' ? 250 : intent.type === 'spot' ? 500 : 100) * 0.75;
+    const minGap = (intent.type === 'deploy' ? 250 : intent.type === 'spot' ? 500 : intent.type === 'redeploy' ? 1000 : 100) * 0.75;
     member.conquestIntentAt ??= {};
     if (now - (member.conquestIntentAt[intent.type] ?? -Infinity) < minGap) return false;
     member.conquestIntentAt[intent.type] = now;
@@ -601,7 +622,7 @@ export class LobbyManager {
       if (startRoom) this._startRoom(room);
       else this._syncBots(room);
 
-      const worldBytes = room.engine.world.serializeWorld();
+      const worldBytes = mapFrameFor(meta, room.engine.world);
       const spawn = spawnInfo && spawnInfo.spawn ? spawnInfo.spawn : (spawnInfo || {});
       const welcome = makeWelcome({
         id,

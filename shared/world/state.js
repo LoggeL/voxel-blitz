@@ -1,9 +1,17 @@
 import { AIR, BEDROCK, GROUND, METAL } from './blocks.js';
 import { getMapDimensions, worldDimensions } from './dimensions.js';
 import { MAP_SPAWN_ANCHORS } from './metadata.js';
-import { rebuildHeights, serializeBlocks } from './serialize.js';
+import { encodeMapFrame, mapFingerprint, rebuildHeights, serializeBlocks } from './serialize.js';
 
 const PRISTINE_BYTES = new WeakMap();
+const PRISTINE_FINGERPRINTS = new WeakMap();
+
+/** The template's serialization, shared by every state built from it. */
+function pristineBytes(pristine, dimensions) {
+  let bytes = PRISTINE_BYTES.get(pristine);
+  if (!bytes) PRISTINE_BYTES.set(pristine, bytes = serializeBlocks(pristine, dimensions));
+  return bytes;
+}
 const RING = [...MAP_SPAWN_ANCHORS.foundry.fun.slice(0, 8), [64, 48]];
 
 export function createStateApi(
@@ -25,6 +33,10 @@ export function createStateApi(
   // or per mutation instead of being rebuilt from 47 M voxels.
   if (pristine && pristine.length !== blocks.length) pristine = null;
   let divergent = 0, mutations = 0, serialized = null;
+  // Cells that differ from the template (the V3 map frame's patch) and the
+  // per-mutation frame cache: [template frame, reference frame].
+  const divergentCells = pristine ? new Set() : null;
+  let frames = null;
   const world = {
     dimensions,
     mapId,
@@ -73,6 +85,8 @@ export function createStateApi(
       if (pristine) {
         const original = pristine[index];
         divergent += (value !== original) - (before !== original);
+        if (value !== original) divergentCells.add(index);
+        else divergentCells.delete(index);
       }
       mutations++;
       blocks[index] = value;
@@ -106,13 +120,34 @@ export function createStateApi(
       // restored) map shares one encoding per template. Callers must treat the
       // returned bytes as read-only.
       if (!pristine) return serializeBlocks(blocks, dimensions);
-      if (divergent === 0) {
-        let bytes = PRISTINE_BYTES.get(pristine);
-        if (!bytes) PRISTINE_BYTES.set(pristine, bytes = serializeBlocks(pristine, dimensions));
-        return bytes;
-      }
+      if (divergent === 0) return pristineBytes(pristine, dimensions);
       if (serialized?.mutations !== mutations) serialized = { mutations, bytes: serializeBlocks(blocks, dimensions) };
       return serialized.bytes;
+    },
+
+    /** Fingerprint of the template's serialization (null without a template). */
+    get templateFingerprint() {
+      if (!pristine) return null;
+      let fingerprint = PRISTINE_FINGERPRINTS.get(pristine);
+      if (!fingerprint) PRISTINE_FINGERPRINTS.set(pristine, fingerprint = mapFingerprint(pristineBytes(pristine, dimensions)));
+      return fingerprint;
+    },
+
+    /**
+     * V3 map frame (serialize.js): the template (or, with `cached`, only its
+     * fingerprint) plus every cell that differs from it. Costs O(changed
+     * cells) instead of re-encoding the world; cached per mutation. Returns
+     * null without a template (callers then send serializeWorld()).
+     */
+    mapFrame({ cached = false } = {}) {
+      if (!pristine) return null;
+      if (frames?.mutations !== mutations) frames = { mutations, bytes: [null, null] };
+      const slot = cached ? 1 : 0;
+      frames.bytes[slot] ??= encodeMapFrame({
+        template: pristineBytes(pristine, dimensions), fingerprint: world.templateFingerprint,
+        cells: divergentCells, blocks, includeTemplate: !cached,
+      });
+      return frames.bytes[slot];
     },
 
     rebuildHeightMap() {

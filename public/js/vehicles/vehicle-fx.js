@@ -401,6 +401,8 @@ export class VehicleFx {
       if (below && !below.fluid) {
         this.fx?.emit('dust', [origin[0] + dir[0] * 3, below.y + 0.1, origin[2] + dir[2] * 3],
           { count: 22, dir: [dir[0], 0.35, dir[2]], speed: 2.4, scale: 1.4, spread: 1.2, color0: blockDustTint(below.block), color1: blockDustTint(below.block), ground: below.y });
+        // Muzzle overpressure: a flat dust ring racing out under the barrel.
+        if (origin[1] - below.y < 3.5) this._ring([origin[0] + dir[0] * 2, 0, origin[2] + dir[2] * 2], below.y, 14, 6.5, blockDustTint(below.block));
       } else if (below?.fluid) {
         this.fx?.emit('water', [origin[0] + dir[0] * 3, below.y, origin[2] + dir[2] * 3], { count: 16, dir: [0, 1, 0], speed: 1.2, ground: below.y - 0.1 });
       }
@@ -471,7 +473,7 @@ export class VehicleFx {
     const weapon = ev.vehicleWeapon, meta = VEHICLE_WEAPON_META[weapon];
     if (!meta) return false;
     this._count('launch');
-    // Shells only flash at the muzzle; rockets and missiles carry a smoke trail.
+    // Shells only flash at the muzzle (ProjectileFX draws their tracer); rockets and missiles carry a smoke trail.
     if (meta.kind !== 'rocket' && meta.kind !== 'missile') return true;
     if (this.missiles.size >= VEHICLE_FX.maxMissileTrails) {
       const [oldest] = this.missiles.keys();

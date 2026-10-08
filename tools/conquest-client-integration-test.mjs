@@ -56,7 +56,7 @@ for (const type of VEHICLE_ACTION_TYPES) {
   assert(probe && vehicleActionFrame(probe), `client whitelists contract action ${type}`);
 }
 
-// --- Conquest intents: one field per frame, per-type rate limits (deploy 4/s, spot 2/s, support 10/s).
+// --- Conquest intents: one field per frame, per-type rate limits (deploy 4/s, spot 2/s, support 10/s, redeploy 1/s).
 const intents = new NetClient();
 const intentFrames = [];
 intents.ws = { readyState: 1, send: frame => intentFrames.push(JSON.parse(frame)) };
@@ -70,9 +70,12 @@ assert.deepEqual(parseConquestIntent(intentFrames[1]), { type: 'spot' });
 assert.equal(intents.sendConquest({ spot: 1 }), false, 'spot is limited to 2/s');
 assert.equal(intents.sendConquest({ support: { type: 'revive', targetId: 'p7' } }), true);
 assert.deepEqual(parseConquestIntent(intentFrames[2]), { type: 'support', support: 'revive', targetId: 'p7' });
+assert.equal(intents.sendConquest({ redeploy: 1 }), true, 'the in-game menu RESPAWN sends a redeploy');
+assert.deepEqual(parseConquestIntent(intentFrames[3]), { type: 'redeploy' });
+assert.equal(intents.sendConquest({ redeploy: 1 }), false, 'redeploy is limited to 1/s');
 assert.equal(intents.sendConquest({}), false); assert.equal(intents.sendConquest(null), false);
 assert.equal(intents.sendConquest({ teleport: 1 }), false);
-assert.equal(intentFrames.length, 3, 'refused intents never reach the socket');
+assert.equal(intentFrames.length, 4, 'refused intents never reach the socket');
 assert(intentFrames.every(frame => Object.keys(frame).length === 2), 'every frame carries exactly one intent');
 const closed = new NetClient();
 assert.equal(closed.sendConquest({ spot: 1 }), false, 'a closed socket sends nothing');
@@ -89,6 +92,8 @@ const route = intent => LobbyManager.prototype.conquest.call(lobby, {}, intent);
 assert.equal(route({ type: 'spot' }), true);
 assert.equal(route({ type: 'spot' }), false, 'the lobby rate-limits spot to 2/s');
 assert.equal(route({ type: 'deploy', spawn: 'hq', kit: 'assault', variant: 0 }), true);
+assert.equal(route({ type: 'redeploy' }), true);
+assert.equal(route({ type: 'redeploy' }), false, 'the lobby rate-limits redeploy to 1/s');
 assert.equal(route(null), false, 'unparsable frames stop at the lobby');
 // Gaps are measured on arrival: jitter that bunches two correctly paced deploys
 // (client gap 250 ms) to 200 ms apart must still pass; a real burst does not.
@@ -100,7 +105,7 @@ assert.equal(route({ type: 'support', support: 'repair', targetId: 'alpha-tank' 
 room.phase = 'live';
 room.engine.conquestIntent = () => { throw new Error('policy failure'); };
 assert.equal(route({ type: 'support', support: 'repair', targetId: 'alpha-tank' }), false, 'a throwing policy never kills the socket handler');
-assert.deepEqual(calls.map(([id, intent]) => [id, intent.type]), [['p1', 'spot'], ['p1', 'deploy'], ['p1', 'deploy']]);
+assert.deepEqual(calls.map(([id, intent]) => [id, intent.type]), [['p1', 'spot'], ['p1', 'deploy'], ['p1', 'redeploy'], ['p1', 'deploy']]);
 const index = await source('server/index.js');
 assert(/msg\.t === 'conquest'\)\s*{\s*manager\.conquest\(meta, parseConquestIntent\(msg\)\)/.test(index), 'server/index.js routes conquest frames');
 assert(/conquestIntent\(id, intent\)/.test(await source('server/game.js')), 'GameEngine.conquestIntent passthrough exists');

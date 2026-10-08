@@ -1,7 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
-import { DistantVoxelShell, materialColor } from './distant-voxel-shell.js';
+import { DistantVoxelShell, materialColor, rawVoxelReader } from './distant-voxel-shell.js';
 import { patchVoxelLitMaterial } from './voxel-light.js';
-import { AIR } from '../../../shared/worlddata.js';
+import { AIR } from '../../../shared/world/blocks.js';
 import * as BLOCKS from '../../../shared/world/blocks.js';
 
 const STRIDE = 9, INDICES = 36;
@@ -22,6 +22,12 @@ export const FAR_GROUND_IDS = new Set([
 // layer; stacked, it is a structure (a foundation, a chimney base).
 export const FAR_PAVING_IDS = new Set(['CONCRETE', 'ASPHALT', 'MC_COBBLE'].map(name => BLOCKS[name]).filter(Number.isInteger));
 const GROUND = FAR_GROUND_IDS, PAVING = FAR_PAVING_IDS;
+// Per-id lookups for the probe (it runs for every voxel column at load).
+const GROUND_ID = new Uint8Array(256), PAVING_ID = new Uint8Array(256);
+for (const id of GROUND) if (id < 256) GROUND_ID[id] = 1;
+for (const id of PAVING) if (id < 256) PAVING_ID[id] = 1;
+const isGroundId = (id) => (id >= 0 && id < 256 ? GROUND_ID[id] === 1 : GROUND.has(id));
+const isPavingId = (id) => (id >= 0 && id < 256 ? PAVING_ID[id] === 1 : PAVING.has(id));
 
 /**
  * One merged distant terrain draw. Every tile samples the authoritative voxel
@@ -43,6 +49,7 @@ export class FarTerrain {
    */
   constructor(scene, getBlock, dimensions, {
     step = 16, silhouetteStep = null, groundHeight = null, surfaceHint = null, lightUniforms = null, remap = null,
+    voxels = null,
   } = {}) {
     if (!Number.isInteger(step) || step <= 0 || 16 % step !== 0) throw new RangeError('FarTerrain step must divide a 16m detail chunk');
     this.scene = scene; this.getBlock = getBlock; this.dimensions = dimensions;
@@ -61,6 +68,10 @@ export class FarTerrain {
     this.hidden = new Set(); this.hiddenTiles = new Set(); this.samples = new Map(); this.dirty = new Set();
     this.signature = '';
     this.reads = 0;
+    // Load-time probes read the raw voxels when the store has them (see
+    // rawVoxelReader); deltas and replays go through getBlock afterwards.
+    const raw = rawVoxelReader(voxels, dimensions);
+    if (raw) this.getBlock = raw;
     for (let z = 0; z < this.depth; z++) for (let x = 0; x < this.width; x++) this.buildTile(x, z);
     for (let tile = 0; tile < this.tiles; tile++) this.writeIndices(tile);
     this.geometry = new THREE.BufferGeometry();
@@ -79,10 +90,12 @@ export class FarTerrain {
     this.mesh.matrixAutoUpdate = false; scene.add(this.mesh);
     // The shell keeps actual overhead gaps and silhouettes instead of turning
     // roofs into ramps; bulk terrain below the local ground stays out of it.
-    this.silhouette = silhouetteStep != null ? new DistantVoxelShell(scene, getBlock, dimensions, {
-      step: silhouetteStep, groundHeight: groundHeight ?? 0,
-      floor: this.shellFloor(silhouetteStep), lightUniforms, remap,
-    }) : null;
+    try {
+      this.silhouette = silhouetteStep != null ? new DistantVoxelShell(scene, getBlock, dimensions, {
+        step: silhouetteStep, groundHeight: groundHeight ?? 0,
+        floor: this.shellFloor(silhouetteStep), lightUniforms, remap, voxels,
+      }) : null;
+    } finally { this.getBlock = getBlock; }
   }
 
   /** Probe start for a column: the authored hint, else just below the nominal ground. */
@@ -100,24 +113,36 @@ export class FarTerrain {
   surface(x, z) {
     const top = this.dimensions.sy - 1;
     let y = Math.max(0, Math.min(top, this.probeStart(x, z)));
-    const block = (yy) => { this.reads++; return this.getBlock(x, yy, z); };
-    const solid = (yy) => block(yy) !== AIR;
-    // Ground continues upward through natural materials, and through paving
-    // only where it is the top layer.
-    const ground = (yy) => {
-      const id = block(yy);
-      if (id === AIR || (!GROUND.has(id) && !PAVING.has(id))) return false;
-      return !PAVING.has(id) || yy >= top || !solid(yy + 1);
-    };
-    const climb = () => { while (y < top && ground(y + 1)) y++; return y + 1; };
-    if (solid(y)) return climb();
-    while (y > 0 && !solid(y - 1)) y--;
+    if (this.solidAt(x, y, z)) return this.climb(x, y, z, top);
+    while (y > 0 && !this.solidAt(x, y - 1, z)) y--;
     if (y > 0) return y;
     // Nothing below the start: the ground sits above it (a floating start).
     y = Math.max(0, Math.min(top, this.probeStart(x, z)));
-    while (y < top && !solid(y)) y++;
-    if (y >= top && !solid(top)) return 0;
-    return climb();
+    while (y < top && !this.solidAt(x, y, z)) y++;
+    if (y >= top && !this.solidAt(x, top, z)) return 0;
+    return this.climb(x, y, z, top);
+  }
+
+  /** One counted probe read: is the voxel occupied? */
+  solidAt(x, y, z) {
+    this.reads++;
+    return this.getBlock(x, y, z) !== AIR;
+  }
+
+  /**
+   * Climb from a solid y through the ground column to its first open cell.
+   * Ground continues upward through natural materials, and through paving
+   * only where it is the top layer.
+   */
+  climb(x, y, z, top) {
+    while (y < top) {
+      this.reads++;
+      const id = this.getBlock(x, y + 1, z);
+      if (id === AIR || (!isGroundId(id) && !isPavingId(id))) break;
+      if (isPavingId(id) && y + 1 < top && this.solidAt(x, y + 2, z)) break;
+      y++;
+    }
+    return y + 1;
   }
 
   sample(x, z) {

@@ -8,12 +8,15 @@ import { GraphicsSettings } from './graphics-settings.js';
 import { MAP_LABELS, MODE_LABELS, el, loadPref, loadPrefNum, savePref } from './hud-support.js';
 import {
   ADS_MODES,
+  FLIGHT_MODES,
+  FLIGHT_SENSITIVITY,
   INPUT_PREF_KEYS,
   PAD_SENSITIVITY,
   POINTER_MODES,
   TOUCH_HANDS,
   TOUCH_SENSITIVITY,
   TOUCH_SIZES,
+  clampFlightSensitivity,
   clampMouseSensitivity,
   clampPadSensitivity,
   clampTouchSensitivity,
@@ -36,6 +39,7 @@ const POINTER_MODE_LABELS = Object.freeze({
 });
 const TOUCH_SIZE_LABELS = Object.freeze({ small: 'SMALL', medium: 'MEDIUM', large: 'LARGE' });
 const TOUCH_HAND_LABELS = Object.freeze({ right: 'RIGHT HANDED', left: 'LEFT HANDED' });
+const FLIGHT_MODE_LABELS = Object.freeze({ mouse: 'MOUSE FLIGHT', keyboard: 'KEYBOARD FLIGHT' });
 
 function readChoicePref(key, choices, fallback) {
   try { return normalizeChoice(localStorage.getItem(key), choices, fallback); } catch (_) { return fallback; }
@@ -71,11 +75,18 @@ export class SettingsController {
       touchSize: readChoicePref(INPUT_PREF_KEYS.touchSize, TOUCH_SIZES, 'medium'),
       touchHand: readChoicePref(INPUT_PREF_KEYS.touchHand, TOUCH_HANDS, 'right'),
       aimAssist: loadPref(INPUT_PREF_KEYS.aimAssist, '1') !== '0',
+      flightMode: readChoicePref(INPUT_PREF_KEYS.flightMode, FLIGHT_MODES, 'mouse'),
+      flightSensitivity: clampFlightSensitivity(
+        loadPrefNum(INPUT_PREF_KEYS.flightSensitivity, FLIGHT_SENSITIVITY.default),
+      ),
+      flightInvertY: loadPref(INPUT_PREF_KEYS.flightInvert, '0') === '1',
     };
     this._device = { touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false };
     this._settingsOnChange = null;
     this._settingsOnResume = null;
     this._settingsOnLeave = null;
+    // In-match RESPAWN (Conquest redeploy): {available(): bool, run(): bool}.
+    this._respawnAction = null;
     this._settingsPreviousFocus = null;
     this._isClosingSettings = false;
     this._deferredTimers = new Set();
@@ -92,7 +103,7 @@ export class SettingsController {
   }
 
   setupSettings({
-    sensitivity, volume, fov, options, device, onChange, onResume, onLeave, connection,
+    sensitivity, volume, fov, options, device, onChange, onResume, onLeave, connection, respawn,
   } = {}) {
     if (connection) this.connection.configure(connection);
     if (options && typeof options === 'object') this._adoptOptions(options);
@@ -117,6 +128,9 @@ export class SettingsController {
     }
     if (typeof onLeave === 'function') {
       this._settingsOnLeave = onLeave;
+    }
+    if (respawn && typeof respawn.run === 'function') {
+      this._respawnAction = respawn;
     }
 
     this.ensureSettings();
@@ -145,6 +159,11 @@ export class SettingsController {
     if ('touchSize' in options) c.touchSize = normalizeChoice(options.touchSize, TOUCH_SIZES, c.touchSize);
     if ('touchHand' in options) c.touchHand = normalizeChoice(options.touchHand, TOUCH_HANDS, c.touchHand);
     if ('aimAssist' in options) c.aimAssist = options.aimAssist !== false && options.aimAssist !== '0';
+    if ('flightMode' in options) c.flightMode = normalizeChoice(options.flightMode, FLIGHT_MODES, c.flightMode);
+    if ('flightSensitivity' in options) {
+      c.flightSensitivity = clampFlightSensitivity(options.flightSensitivity, c.flightSensitivity);
+    }
+    if ('flightInvertY' in options) c.flightInvertY = options.flightInvertY === true || options.flightInvertY === '1';
   }
 
   _optionsSnapshot() {
@@ -157,6 +176,9 @@ export class SettingsController {
       touchSize: c.touchSize,
       touchHand: c.touchHand,
       aimAssist: c.aimAssist,
+      flightMode: c.flightMode,
+      flightSensitivity: c.flightSensitivity,
+      flightInvertY: c.flightInvertY,
     };
   }
 
@@ -240,6 +262,15 @@ export class SettingsController {
     const resumeBtn = el('button', 'vb-btn vb-resume-btn', nav, 'settings-resume-btn');
     resumeBtn.type = 'button';
     resumeBtn.textContent = 'RESUME';
+
+    // RESPAWN (Battlefield redeploy): only offered where the mode supports it
+    // (Conquest, alive, live phase); see _syncRespawn.
+    const respawnBtn = el('button', 'vb-btn vb-respawn-btn', nav, 'settings-respawn-btn');
+    respawnBtn.type = 'button';
+    respawnBtn.hidden = true;
+    respawnBtn.style.display = 'none';
+    el('span', 'vb-respawn-label', respawnBtn).textContent = 'RESPAWN';
+    el('span', 'vb-respawn-note', respawnBtn).textContent = 'Counts as a death · opens deploy';
 
     const current = el('div', 'vb-pause-nav-current', nav);
     current.textContent = 'SETTINGS';
@@ -350,6 +381,10 @@ export class SettingsController {
     const touchSens = sliderRow('settings-touch-sens', 'TOUCH LOOK SENSITIVITY', TOUCH_SENSITIVITY);
     const touchSize = choiceRow('settings-touch-size', 'TOUCH CONTROL SIZE', TOUCH_SIZES, TOUCH_SIZE_LABELS);
     const touchHand = choiceRow('settings-touch-hand', 'TOUCH LAYOUT', TOUCH_HANDS, TOUCH_HAND_LABELS);
+    // Desktop aircraft pilots: mouse flight (default) or the keyboard layout.
+    const flightMode = choiceRow('settings-flight-mode', 'AIRCRAFT CONTROLS', FLIGHT_MODES, FLIGHT_MODE_LABELS);
+    const flightSens = sliderRow('settings-flight-sens', 'MOUSE FLIGHT SENSITIVITY', FLIGHT_SENSITIVITY);
+    const flightInvert = choiceRow('settings-flight-invert', 'INVERT MOUSE FLIGHT PITCH', ['0', '1'], { 0: 'OFF', 1: 'ON' });
 
     const meleeHint = el('p', 'vb-settings-hint', controls);
     const medkitHint = el('p', 'vb-settings-hint', controls);
@@ -427,6 +462,7 @@ export class SettingsController {
       fovSlider,
       fovVal,
       resumeBtn,
+      respawnBtn,
       leaveBtn,
       adsModeRow: adsMode.row,
       adsModeSelect: adsMode.select,
@@ -446,6 +482,14 @@ export class SettingsController {
       touchSizeSelect: touchSize.select,
       touchHandRow: touchHand.row,
       touchHandSelect: touchHand.select,
+      flightModeRow: flightMode.row,
+      flightModeSelect: flightMode.select,
+      flightModeHint: flightMode.hint,
+      flightSensRow: flightSens.row,
+      flightSensSlider: flightSens.slider,
+      flightSensVal: flightSens.value,
+      flightInvertRow: flightInvert.row,
+      flightInvertSelect: flightInvert.select,
     };
 
     const onSliderChange = () => {
@@ -460,6 +504,9 @@ export class SettingsController {
         touchSensitivity: touchSens.slider.value,
         touchSize: touchSize.select.value,
         touchHand: touchHand.select.value,
+        flightMode: flightMode.select.value,
+        flightSensitivity: flightSens.slider.value,
+        flightInvertY: flightInvert.select.value,
       });
       const options = this._optionsSnapshot();
       savePref(INPUT_PREF_KEYS.adsMode, options.adsMode);
@@ -469,6 +516,9 @@ export class SettingsController {
       savePref(INPUT_PREF_KEYS.touchSensitivity, options.touchSensitivity);
       savePref(INPUT_PREF_KEYS.touchSize, options.touchSize);
       savePref(INPUT_PREF_KEYS.touchHand, options.touchHand);
+      savePref(INPUT_PREF_KEYS.flightMode, options.flightMode);
+      savePref(INPUT_PREF_KEYS.flightSensitivity, options.flightSensitivity);
+      savePref(INPUT_PREF_KEYS.flightInvert, options.flightInvertY ? '1' : '0');
 
       sensVal.textContent = formatMouseSensitivity(sensitivity);
       sensSlider.setAttribute('aria-valuenow', String(sensitivity));
@@ -498,14 +548,30 @@ export class SettingsController {
     fovSlider.addEventListener('input', onSliderChange);
     padSens.slider.addEventListener('input', onSliderChange);
     touchSens.slider.addEventListener('input', onSliderChange);
+    flightSens.slider.addEventListener('input', onSliderChange);
     for (const select of [adsMode.select, pointerMode.select, aimAssist.select,
-      touchSize.select, touchHand.select]) {
+      touchSize.select, touchHand.select, flightMode.select, flightInvert.select]) {
       select.addEventListener('change', onSliderChange);
     }
 
     const doResume = () => this.resume();
 
     resumeBtn.addEventListener('click', doResume);
+    respawnBtn.addEventListener('click', () => {
+      const action = this._respawnAction;
+      if (this._isClosingSettings || !action || !this._respawnAvailable()) return;
+      // Close without resuming: the deploy screen that opens on death owns the
+      // mouse, so pointer lock is never re-requested here.
+      this._isClosingSettings = true;
+      let sent = false;
+      try {
+        this.closeSettings();
+        sent = action.run() !== false;
+      } finally {
+        this._isClosingSettings = false;
+      }
+      if (!sent) this.openSettings();
+    });
     leaveBtn.addEventListener('click', () => {
       if (this._isClosingSettings || typeof this._settingsOnLeave !== 'function') return;
       this._isClosingSettings = true;
@@ -552,6 +618,7 @@ export class SettingsController {
     }
     this._syncDeviceRows();
     this._syncKeyHints();
+    this._syncRespawn();
 
     const summary = this.host.getMatchSummary?.() || {};
     const mode = MODE_LABELS[summary.mode] || String(summary.mode || 'LIVE MATCH').toUpperCase();
@@ -561,6 +628,21 @@ export class SettingsController {
       const players = Math.max(0, Number(summary.players) || 0);
       dom.matchPlayers.textContent = `${players} PLAYER${players === 1 ? '' : 'S'}`;
     }
+  }
+
+  _respawnAvailable() {
+    try { return !!this._respawnAction?.available?.(); } catch (_) { return false; }
+  }
+
+  /** RESPAWN shows only while the action is available (Conquest, alive, live phase). */
+  _syncRespawn() {
+    const button = this.settingsDom.respawnBtn;
+    if (!button) return;
+    const show = this._respawnAvailable();
+    button.hidden = !show;
+    button.disabled = !show;
+    // .vb-btn sets a display, which outranks the [hidden] attribute.
+    button.style.display = show ? '' : 'none';
   }
 
   /** Device rows: pointer/ADS on desktop, touch layout on touch, pad rows when a pad is live. */
@@ -585,6 +667,14 @@ export class SettingsController {
     dom.touchSensSlider.setAttribute('aria-valuenow', String(config.touchSensitivity));
     dom.touchSizeSelect.value = config.touchSize;
     dom.touchHandSelect.value = config.touchHand;
+    dom.flightModeSelect.value = config.flightMode;
+    dom.flightSensSlider.value = String(config.flightSensitivity);
+    dom.flightSensVal.textContent = `${config.flightSensitivity.toFixed(2)}×`;
+    dom.flightSensSlider.setAttribute('aria-valuenow', String(config.flightSensitivity));
+    dom.flightInvertSelect.value = config.flightInvertY ? '1' : '0';
+    dom.flightModeHint.textContent = config.flightMode === 'mouse'
+      ? 'MOUSE IS THE STICK'
+      : 'KEYS ARE THE STICK';
 
     const effectivePointer = config.pointerMode === 'auto'
       ? (device.trackpadDetected ? 'trackpad' : 'mouse')
@@ -603,6 +693,10 @@ export class SettingsController {
     show(dom.touchSensRow, device.touch);
     show(dom.touchSizeRow, device.touch);
     show(dom.touchHandRow, device.touch);
+    // Pads and touch keep their own flight layout.
+    show(dom.flightModeRow, !device.touch);
+    show(dom.flightSensRow, !device.touch && config.flightMode === 'mouse');
+    show(dom.flightInvertRow, !device.touch && config.flightMode === 'mouse');
   }
 
   _syncKeyHints() {
@@ -625,6 +719,7 @@ export class SettingsController {
     this._settingsOnChange = null;
     this._settingsOnResume = null;
     this._settingsOnLeave = null;
+    this._respawnAction = null;
     this.settingsDom = {};
     this._isClosingSettings = false;
     this._settingsOpen = false;

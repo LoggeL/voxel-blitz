@@ -453,7 +453,10 @@ export async function runHudContracts(ok, installGlobals) {
         && lastChange.fov === 98
         && lastChange.adsMode === ''
         && lastChange.pointerMode === 'auto'
-        && lastChange.aimAssist === true,
+        && lastChange.aimAssist === true
+        && lastChange.flightMode === 'mouse'
+        && lastChange.flightSensitivity === 1
+        && lastChange.flightInvertY === false,
       'every HUD slider emits a full current settings object');
 
       // Device rows: desktop shows pointer/ADS rows, touch shows the layout rows, and a
@@ -464,6 +467,9 @@ export async function runHudContracts(ok, installGlobals) {
         && rowShown(document.getElementById('settings-ads-mode').parentNode)
         && !rowShown(document.getElementById('settings-pad-sens').parentNode)
         && !rowShown(document.getElementById('settings-touch-size').parentNode)
+        && rowShown(document.getElementById('settings-flight-mode').parentNode)
+        && rowShown(document.getElementById('settings-flight-sens').parentNode)
+        && rowShown(document.getElementById('settings-flight-invert').parentNode)
         && document.getElementById('settings-ads-mode-hint').textContent.startsWith('HOLD');
       hud.setDeviceInfo({ touch: false, pointerKind: 'trackpad', trackpadDetected: true, padActive: true });
       const trackpadRows = document.getElementById('settings-pointer-mode-hint').textContent === 'TRACKPAD DETECTED'
@@ -474,7 +480,8 @@ export async function runHudContracts(ok, installGlobals) {
       const touchRows = !rowShown(document.getElementById('settings-pointer-mode').parentNode)
         && rowShown(document.getElementById('settings-touch-size').parentNode)
         && rowShown(document.getElementById('settings-touch-hand').parentNode)
-        && rowShown(document.getElementById('settings-touch-sens').parentNode);
+        && rowShown(document.getElementById('settings-touch-sens').parentNode)
+        && !rowShown(document.getElementById('settings-flight-mode').parentNode);
       document.getElementById('settings-ads-mode').value = 'toggle';
       document.getElementById('settings-ads-mode').dispatchEvent(event('change'));
       ok(desktopRows && trackpadRows && touchRows
@@ -482,6 +489,23 @@ export async function runHudContracts(ok, installGlobals) {
         && localStorage.getItem('vb-ads-mode') === 'toggle',
       'settings shows device rows by capability and persists the ADS mode choice');
       hud.setDeviceInfo({ touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false });
+      // Aircraft controls: mouse flight by default, keyboard flight on request.
+      document.getElementById('settings-flight-sens').value = '1.5';
+      document.getElementById('settings-flight-sens').dispatchEvent(event('input'));
+      document.getElementById('settings-flight-invert').value = '1';
+      document.getElementById('settings-flight-invert').dispatchEvent(event('change'));
+      const mouseFlightChange = changes.at(-1);
+      document.getElementById('settings-flight-mode').value = 'keyboard';
+      document.getElementById('settings-flight-mode').dispatchEvent(event('change'));
+      ok(mouseFlightChange.flightSensitivity === 1.5 && mouseFlightChange.flightInvertY === true
+        && changes.at(-1).flightMode === 'keyboard'
+        && localStorage.getItem('vb-flight-mode') === 'keyboard'
+        && localStorage.getItem('vb-flight-sens') === '1.5'
+        && localStorage.getItem('vb-flight-invert') === '1'
+        && !rowShown(document.getElementById('settings-flight-sens').parentNode),
+      'aircraft control settings emit, persist and hide mouse-only rows in keyboard flight');
+      document.getElementById('settings-flight-mode').value = 'mouse';
+      document.getElementById('settings-flight-mode').dispatchEvent(event('change'));
       ok(localStorage.getItem('vb-sens-v2') === '0.0047'
         && localStorage.getItem('vb-volume') === '0.63'
         && localStorage.getItem('vb-fov') === '98',

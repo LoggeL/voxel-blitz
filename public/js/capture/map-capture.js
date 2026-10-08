@@ -149,7 +149,7 @@ if (shot.mode === 'conquest' && params.get('ambience') === '1' && world.meta?.co
     weather: worldview.weather || 'golden', getBlock: world.getBlock });
   for (let i = 0; i < 16 * 30; i++) { ambience.update(1 / 30, camera); particles.update(1 / 30, camera); }
 }
-// Opt-in blast review: ?explosion=frag|limpet|rocket|pulse|molotov, ?explosionAge=s, ?explosionAt=x,y,z.
+// Opt-in blast review: ?explosion=frag|limpet|rocket|pulse|molotov|shell (tank HE blast plus an AP tracer in flight), ?explosionAge=s, ?explosionAt=x,y,z.
 const explosion = params.get('explosion') ? (await import('./explosion-capture.js')).stageCaptureExplosion({
   type: params.get('explosion'), age: params.get('explosionAge') ?? 0.12, at: params.get('explosionAt'),
   scene: worldview.scene, camera, getBlock: world.getBlock,

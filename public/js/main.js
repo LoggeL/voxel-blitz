@@ -16,7 +16,10 @@ import { FrameRateController } from './engine/frame-rate.js';
 import { WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { decodeConquestPlayer } from '../../shared/conquest-contract.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
-import { deserializeWorld, serializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
+import { deserializeWorld, worldBlocks, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
+import { isMapFrame, parseMapFrame } from '../../shared/world/serialize.js';
+import { mapCache } from './engine/map-cache.js';
+import { prewarmFrontierMetadata, frontierMetadataPrewarm } from './engine/map-meta-prewarm.js';
 import { Input } from './engine/input.js';
 import { HUD } from './ui/hud.js';
 import { displaySettings } from './ui/display-settings.js';
@@ -47,6 +50,8 @@ let hudRef = null;
 /** Asset tasks a live match waits for, in loading order. */
 const MATCH_ASSETS = Object.freeze(['models', 'runtime', 'audio']);
 const assets = new AssetScheduler({ onChange: () => renderAssetStatus() });
+/** Join timeline for tools/conquest-join-profile.mjs: User Timing marks `vb:join:<stage>`. */
+const joinMark = (stage) => { try { performance.mark(`vb:join:${stage}`); } catch { /* no User Timing */ } };
 
 class Game {
   constructor() {
@@ -168,7 +173,7 @@ class Game {
             if (event.kind === 'bastion_lane') this.worldview?.bastion?.event?.(event.kind);
             return;
           }
-          if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
+          if (this.killcam?.active && ['shoot', 'bullet', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
             'projectileExplode', 'blockDamage', 'block', 'mine'].includes(event.kind)) {
             // Live missile trails keep flying in the shared scene: they still take
             // homing corrections and end (trail and flight loop) at impact.
@@ -203,12 +208,40 @@ class Game {
         },
         onResize: () => this.resize(),
         onTeardown: () => this.disposeTerminalResources(),
+        // In-game menu RESPAWN: Conquest redeploy while alive in a live match.
+        respawn: {
+          available: () => this.redeployAvailable(),
+          run: () => this.requestRedeploy(),
+        },
       },
     });
   }
 
   get net() { return this.session.net; }
   get myId() { return this.session.myId; }
+
+  /** RESPAWN in the in-game menu: Conquest only, alive, live phase (the server decides). */
+  redeployAvailable() {
+    return this.matchState?.mode === 'conquest' && this.matchState.phase === 'live'
+      && !!this.player?.alive && this.selfRow?.state === 'alive';
+  }
+
+  /**
+   * Send the redeploy intent. The server kills the player and the deploy
+   * screen opens on that death (it frees the mouse). A refusal (cooldown)
+   * leaves the player alive with the menu closed and the pointer free, so the
+   * menu comes back instead of leaving them stranded.
+   */
+  requestRedeploy() {
+    if (!this.redeployAvailable() || !this.net?.sendConquest({ redeploy: 1 })) return false;
+    clearTimeout(this._redeployCheck);
+    this._redeployCheck = setTimeout(() => {
+      this._redeployCheck = 0;
+      if (this._disposed || !this.redeployAvailable() || this.hud.settingsOpen || this.session.gameplayInputEnabled) return;
+      this.hud.openSettings();
+    }, 1500);
+    return true;
+  }
 
   /** Banner copy for the bastion events that deserve a 4 s HUD read; null for the rest. */
   bastionBannerFor(event) {
@@ -319,10 +352,14 @@ class Game {
   async bootLive(payload) {
     const { net, welcome, mapBytes, mapMeta, isActive, showStatus, showProgress, complete } = payload;
     this._bootBlockDeltas = [];
+    joinMark('boot');
     await this.ensureRuntime();
+    joinMark('runtime');
     if (!isActive()) return;
     if (!net.isOpen()) return this.session.handleDisconnect();
     const rt = this.rt;
+    // Start the light worker before the decode keeps this thread busy.
+    rt?.prewarmWorldView?.(mapMeta || getMapMeta(welcome.map));
     // Let the deployment screen paint before decoding the arena.
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
     if (!isActive()) return;
@@ -332,7 +369,14 @@ class Game {
     this.player.setBaseFov(this.session.baseFov);
     this.player.respawn({ ...welcome.spawn, state: 'alive', hp: 100 }, { spawnProtected: false });
 
-    deserializeWorld(mapBytes);
+    // A V3 frame names its template; the map cache supplies it on a rejoin.
+    try {
+      deserializeWorld(mapBytes, { resolveTemplate: (fingerprint) => mapCache.get(fingerprint) });
+    } catch (error) {
+      // A reference this browser cannot serve must not be announced again.
+      try { if (isMapFrame(mapBytes)) mapCache.forget(parseMapFrame(mapBytes).fingerprint); } catch { /* malformed frame */ }
+      throw error;
+    }
     for (const snapshot of net.latestSnapshots) {
       applySnapshotBlocks(snapshot, this._world);
       this.queueAuthoritativeSnapshot(snapshot);
@@ -342,6 +386,7 @@ class Game {
     const bootBlocks = this._bootBlockDeltas || [];
     this._bootBlockDeltas = null;
     for (const blocks of bootBlocks) applySnapshotBlocks({ blocks }, this._world);
+    joinMark('decoded');
     if (!net.isOpen()) return this.session.handleDisconnect();
 
     showStatus('building voxel mesh…', 'ok');
@@ -349,18 +394,21 @@ class Game {
     this.worldview = new rt.WorldView({
       getBlock,
       getBlockDamage: (x, y, z) => net.getBlockDamage(x, y, z),
+      voxels: worldBlocks,
     }, this.mapMeta, { graphics, renderer: this.renderer });
     this.camera.far = this.worldview.renderDistanceProfile?.cameraFar ?? 400;
     this.camera.updateProjectionMatrix();
     this._conquestGroundFogDensity = this.worldview.scene.fog.density;
     this.worldview.setViewPosition(welcome.spawn);
     this.post.setGrade(this.worldview.palette.grade);
+    joinMark('worldview');
     await this.worldview.ready({ isActive, onProgress: showProgress,
       yieldControl: () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))),
     });
     if (!isActive()) return;
     if (!net.isOpen()) return this.session.handleDisconnect();
     this.worldview.setGameMode(welcome.gameMode);
+    joinMark('world');
 
     showStatus('preparing your loadout…', 'ok');
     this.liveEffectsGroup = new rt.THREE.Group();
@@ -392,6 +440,7 @@ class Game {
       onSupport: (intent) => this.net?.sendConquest({ support: intent }),
       combatHud: this.hud.combat,
       inputEnabled: () => this.session.gameplayInputEnabled,
+      shellRaycast: (origin, direction, distance) => this.worldview?.pickSolidRay(origin, direction, distance) ?? null,
     });
     // The Conquest deploy screen replaces the spectator overlay while dead.
     this.hud.spectator.setSuppressed(welcome.gameMode === 'conquest');
@@ -511,7 +560,7 @@ class Game {
     rt.attachRemoteMuzzleBridge(this.effects, () => this.roster);
     this.roster.setBurnFX(this.effects.flames);
     this.killcam = new rt.Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
-      mapBytes: serializeWorld(), blockDamage: [...net.blockDamage.values()],
+      mapBytes: worldBlocks(), blockDamage: [...net.blockDamage.values()],
       terrainTime: net.latestSnapshots.at(-1)?.serverNow ?? -Infinity, audio: sfx, now: nowMs });
     this.deathFade = new rt.DeathFade();
     this._deathAt = null;
@@ -558,6 +607,7 @@ class Game {
     // renderer.compile never runs scene.onBeforeRender: apply the Frontier far-fade
     // defines to roots added after the WorldView before they are warmed.
     this.worldview.syncFarFog();
+    joinMark('loadout');
     showStatus('warming up shaders…', 'ok');
     this.shaderWarmup = await rt.warmShaders({
       renderer: this.renderer, scene: this.worldview.scene, camera: this.camera,
@@ -566,11 +616,13 @@ class Game {
       expectMaterials: welcome.gameMode === 'conquest'
         ? [...rt.VEHICLE_WARMUP_MATERIALS, ...(this.mapMeta?.id === 'frontier' ? rt.WORLD_WARMUP_MATERIALS : [])] : null,
     });
+    joinMark('shaders');
+    this.worldview.releaseShaderWarmup?.();
     if (!isActive()) return;
     if (!net.isOpen()) return this.session.handleDisconnect();
 
     complete({
-      activateLive: () => { this.running = true; this.clock.start(); this.frameRate.reset(); renderAssetStatus(); },
+      activateLive: () => { this.running = true; joinMark('running'); this.clock.start(); this.frameRate.reset(); renderAssetStatus(); },
       flushQueuedSnapshots: () => this.flushPendingAuthoritativeSnapshots(),
       consumeLatestAuthoritativeState: () => this.consumeLatestAuthoritativeState(),
       startLoop: () => {
@@ -1081,8 +1133,9 @@ class Game {
       // Passengers with personal weapons reload their infantry gun: latch the one-shot R
       // press until the next 20 Hz send, where the server sees it as a reload edge.
       if (seatKeys.reload && this.vehicleController.seat?.personalWeapons) this._seatReloadQueued = true;
+      this.vehicleController.setFlightOptions?.(this.input.flightOptions?.(now));
       const controls = this.vehicleController.controls(seatKeys,
-        this.input.consumeDelta(), this.session.gameplayInputEnabled && this.input.wantFireHeld && this.matchState?.phase === 'live', dt);
+        this.input.consumeDelta(), this.session.gameplayInputEnabled && this.input.wantFireHeld && this.matchState?.phase === 'live', frameDt);
       const row = this.vehicleController.vehicle;
       Object.assign(this.player.pos, { x: row.x, y: row.y, z: row.z });
       Object.assign(this.player.physics.vel, { x: 0, y: 0, z: 0 });
@@ -1329,6 +1382,7 @@ class Game {
       canHoldBreath: !!this.player.aimMotion?.canHoldBreath,
       breathExhausted: !!this.player.aimMotion?.breathExhausted,
       scopeZoom: this.player.scopeZoom,
+      scopeFovDeg: this.camera?.fov,
     });
     sfx.breath(this.player.aimMotion?.breathEvent);
     sfx.painMoan(this.player.pain, now, {
@@ -1394,6 +1448,8 @@ class Game {
   }
 
   disposeLiveResources() {
+    clearTimeout(this._redeployCheck);
+    this._redeployCheck = 0;
     sfx.stopAnnouncer();
     sfx.stopCosmetics();
     this.muzzleLights?.dispose();
@@ -1585,6 +1641,8 @@ window.__vb = {
       ping: Math.round(game.net?.ping || 0),
       avatars: game.roster?.size || 0,
       chunks: game.worldview?.chunkStore.stats || null,
+      lightBake: game.worldview?.lightVolume ? (({ bakeMode, buildMs, classifyMs, bakeMs, workerMs, workerClassifyMs, workerStartMs, workerReplyMs }) => ({
+        bakeMode, buildMs, classifyMs, bakeMs, workerMs, workerClassifyMs, workerStartMs, workerReplyMs }))(game.worldview.lightVolume) : null,
       renderDistance: game.worldview?.renderDistanceProfile ? {
         cameraFar: game.camera?.far,
         fogDensity: game.worldview.scene.fog?.density,
@@ -1752,6 +1810,9 @@ function mountArmoryButton() {
   else nav.append(open);
 }
 
+window.__vbMapCache = Object.freeze({
+  get stats() { return { ...mapCache.stats, entries: mapCache.templates.size, frontierMetadata: frontierMetadataPrewarm }; },
+});
 window.__vbAssets = Object.freeze({
   get status() { return assets.status; },
   get idle() { return assets.status.idle; },
@@ -1772,6 +1833,8 @@ game.session.start();
 window.__vbBoot?.phases && (window.__vbBoot.phases.menu = Math.round(performance.now() - window.__vbBoot.startedAt));
 
 // The menu is interactive now. Let it paint, then load the rest in the background.
-const startBackgroundLoads = () => { void assets.startAll(); };
+const startBackgroundLoads = () => { void assets.startAll(); void mapCache.load(); };
+// Conquest's Frontier metadata is derived off the main thread while the menu idles.
+setTimeout(() => { void prewarmFrontierMetadata(); }, 1500);
 requestAnimationFrame(() => setTimeout(startBackgroundLoads, 0));
 setTimeout(startBackgroundLoads, 1000);

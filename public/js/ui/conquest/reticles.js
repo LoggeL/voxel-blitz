@@ -1,6 +1,7 @@
 /**
- * Seat reticles on one viewport canvas: tank barrel impact marker with the
- * desired-aim circle and reload arc, helicopter rocket pip at convergence,
+ * Seat reticles on one viewport canvas: tank shell impact marker (with drop,
+ * range readout and a 100 m range ladder) plus the desired-aim circle and
+ * reload arc, helicopter rocket pip at convergence,
  * chin-gun gimbal box, door-gun arc limits, hitscan mount crosshair, jet gun
  * funnel with lead pipper and speed / altitude tapes, and the locker box for
  * our own lock attempt. Models come from reticleModel / lockerModel.
@@ -99,7 +100,22 @@ export class Reticles {
     const progress = 1 - Math.max(0, Math.min(1, m.reload));
     ctx.lineWidth = 3; ctx.strokeStyle = m.ready ? GREEN : AMBER;
     shadowed(ctx, () => { ctx.beginPath(); ctx.arc(x, y, 26, -Math.PI / 2, -Math.PI / 2 + TAU * progress); ctx.stroke(); });
-    // Barrel impact marker where the gun actually points.
+    // Range ladder: the shell's arc at 100 m steps below the bore (labels in hundreds of metres).
+    let lastY = -Infinity;
+    for (const tick of m.ladder ?? []) {
+      if (Math.abs(tick.y - lastY) < 9) continue;
+      lastY = tick.y;
+      // Stadia marks start just left of the arc point, clear of the impact marker's right arm.
+      const length = tick.range % 200 === 0 ? 10 : 6, x0 = tick.x - 14 - length;
+      ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffffc0';
+      shadowed(ctx, () => { ctx.beginPath(); ctx.moveTo(x0, tick.y); ctx.lineTo(x0 + length, tick.y); ctx.stroke(); });
+      ctx.save();
+      ctx.font = '700 10px "Rajdhani", "Barlow Condensed", system-ui, sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3; ctx.strokeStyle = '#000000b0'; ctx.strokeText(String(tick.range / 100), x0 - 3, tick.y);
+      ctx.fillStyle = '#ffffffd0'; ctx.fillText(String(tick.range / 100), x0 - 3, tick.y);
+      ctx.restore();
+    }
+    // Barrel impact marker where the shell lands (terrain, with drop).
     if (m.impact) {
       const { x: ix, y: iy } = m.impact;
       ctx.lineWidth = 2; ctx.strokeStyle = m.aligned ? GREEN : WHITE;
@@ -110,6 +126,11 @@ export class Reticles {
         ctx.stroke();
         ctx.beginPath(); ctx.arc(ix, iy, 1.6, 0, TAU); ctx.stroke();
       });
+      if (Number.isFinite(m.range)) {
+        ctx.save(); ctx.textAlign = 'left';
+        this._text(ctx, m.airburst ? `AIRBURST ${m.range} M` : `${m.range} M`, ix + 16, iy - 6, m.aligned ? GREEN : WHITE);
+        ctx.restore();
+      }
     }
     this._text(ctx, m.ready ? `${m.label} · READY` : `${m.label} · LOADING`, x, y + 46, m.ready ? GREEN : AMBER);
   }

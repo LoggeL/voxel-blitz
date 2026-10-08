@@ -7,14 +7,14 @@ import { installFakeDom, isShown, textsDrawn } from './lib/conquest-ui-dom.mjs';
 import {
   CONQUEST_RULES, SCORE_LABELS, TEAM_DISPLAY, VEHICLE_TOPOLOGY, VEHICLE_WEAPON_META,
 } from '../shared/conquest-contract.js';
-import { LOCK_RULES } from '../shared/vehicle-defs.js';
+import { LOCK_RULES, vehicleWeapon } from '../shared/vehicle-defs.js';
 
 const dom = installFakeDom({ width: 1440, height: 900 });
 const { document } = dom;
 
 const state = await import('../public/js/ui/conquest-hud-state.js');
 const { ConquestHud } = await import('../public/js/ui/conquest-hud.js');
-const { cameraPose, createProjector, clampToEdge, leadPoint, ballisticPoint } = await import('../public/js/ui/conquest/projection.js');
+const { cameraPose, createProjector, clampToEdge, leadPoint, ballisticPoint, ballisticImpact } = await import('../public/js/ui/conquest/projection.js');
 const { supportPump, SUPPORT_INTERVAL_MS } = await import('../public/js/ui/conquest/interact.js');
 const { stackTicker, TICKER_HOLD_MS } = await import('../public/js/ui/conquest/score-ticker.js');
 const { scheduleBanner, tickBanners, BANNER_MS } = await import('../public/js/ui/conquest/banners.js');
@@ -236,6 +236,60 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
   assert.deepEqual(leadPoint([0, 0, 0], [5, 0, 0], [9, 0, 0], 0).point, [5, 0, 0], 'hitscan aims at the target');
   const drop = ballisticPoint([0, 10, 0], [0, 0, -1], 170, 6, 170);
   assert.ok(Math.abs(drop[1] - (10 - 3)) < 1e-9, 'tank shell drops g·t²/2 after 1 s');
+  // Shell impact on terrain: the arc is marched against the world (flat floor at y 0 here).
+  const floor = (o, d, length) => { if (d.y >= 0 || o.y + d.y * length > 0) return null; return { t: -o.y / d.y }; };
+  const ap = VEHICLE_WEAPON_META.tankAP;
+  const landed = ballisticImpact([0, 10, 0], [0, 0, -1], ap.speed, ap.gravity, floor);
+  const fall = Math.sqrt(2 * 10 / ap.gravity);
+  assert.ok(Math.abs(landed.range - ap.speed * fall) < 3 && Math.abs(landed.point[1]) < 1e-6, `level AP shot from 10 m lands at ${landed.range.toFixed(1)} m`);
+  assert.equal(ballisticImpact([0, 10, 0], [0, 0.2, -1], 250, 9.8, () => null), null, 'no impact within the lifetime is null');
+  const tankFix = byId('tank-driver');
+  const level = state.reticleModel(seatedOf(tankFix), { projector: projectorFor(tankFix), vehicles: tankFix.vehicles, selfTeam: tankFix.selfTeam });
+  const levelPose = state.mountPoseOf(seatedOf(tankFix).row, 'driver', 'main');
+  const boreProjector = projectorFor(tankFix), flatDir = Math.hypot(levelPose.dir[0], levelPose.dir[2]);
+  assert.ok(level.ladder.length >= 3 && level.ladder.every(tick => {
+    const bore = boreProjector.project(...levelPose.origin.map((n, i) => n + levelPose.dir[i] * tick.range / flatDir));
+    return tick.y > bore.y + 0.5;
+  }), 'every range tick sits below the straight bore line at that range (shell drop)');
+  assert.deepEqual(level.ladder.map(tick => tick.range), state.TANK_RANGE_TICKS.slice(0, level.ladder.length));
+  const ground = (o, d, length) => { const y = (tankFix.vehicles.find(v => v.id === seatedOf(tankFix).row.id)?.y ?? 0) - 0.5;
+    if (o.y + d.y * length > y) return null; return { t: Math.max(0, (o.y - y) / Math.max(1e-6, -d.y)) }; };
+  const aimed = state.reticleModel(seatedOf(tankFix), { projector: projectorFor(tankFix), vehicles: tankFix.vehicles, selfTeam: tankFix.selfTeam, raycast: ground });
+  assert.ok(Number.isFinite(aimed.range) && aimed.range > 0, `terrain impact range ${aimed.range} m`);
+  assert.ok(aimed.ladder.every(tick => tick.range <= aimed.range + 1), 'ladder ticks stop at the impact');
+  // Water is no target: server shells (ctx.solidAt = isSolidBlock) fly through it to the bed, so the HUD's
+  // shell picker (WorldView.pickSolidRay) must too; the camera picker (pickCameraRay) stops on the surface.
+  {
+    const { WorldView } = await import('../public/js/engine/worldview.js');
+    const { MC_WATER, STONE } = await import('../shared/world/blocks.js');
+    const bedY = Math.floor(levelPose.origin[1]) - 6, surfaceY = bedY + 3;
+    const store = { getBlock: (x, y, z) => (y < bedY ? STONE : y < surfaceY ? MC_WATER : 0) };
+    const solid = (o, d, m) => WorldView.prototype.pickSolidRay.call({ store }, o, d, m);
+    const camera = (o, d, m) => WorldView.prototype.pickCameraRay.call({ store }, o, d, m);
+    const args = { projector: projectorFor(tankFix), vehicles: tankFix.vehicles, selfTeam: tankFix.selfTeam };
+    const wet = state.reticleModel(seatedOf(tankFix), { ...args, raycast: camera });
+    const bed = state.reticleModel(seatedOf(tankFix), { ...args, raycast: solid });
+    const flat = Math.hypot(levelPose.dir[0], levelPose.dir[2]), vy = levelPose.dir[1] * ap.speed;
+    const fallTo = y => (vy + Math.sqrt(vy * vy + 2 * ap.gravity * (levelPose.origin[1] - y))) / ap.gravity;
+    assert.ok(Math.abs(bed.range - ap.speed * flat * fallTo(bedY)) < 4, `the impact sits on the river bed (${bed.range} m)`);
+    assert.ok(Math.abs(wet.range - ap.speed * flat * fallTo(surfaceY)) < 4, `the camera picker would stop on the water (${wet.range} m)`);
+    assert.ok(bed.range > wet.range + 20, '3 m of water moves a shallow shell impact well past the surface');
+    assert.equal(bed.airburst, false);
+  }
+  // Nothing hit within the shell lifetime: the server airbursts it at explodeAt, so the marker shows that point.
+  {
+    const lifetime = vehicleWeapon('tankAP').lifetimeMs / 1000;
+    const burst = state.reticleModel(seatedOf(tankFix), { projector: projectorFor(tankFix), vehicles: tankFix.vehicles, selfTeam: tankFix.selfTeam, raycast: () => null });
+    const flat = Math.hypot(levelPose.dir[0], levelPose.dir[2]);
+    assert.equal(burst.airburst, true, 'no terrain within the lifetime is an airburst');
+    assert.ok(Math.abs(burst.range - ap.speed * flat * lifetime) < 1, `airburst readout at ${burst.range} m (speed × lifetime)`);
+    assert.equal(level.airburst, false, 'without a world picker the marker keeps the aim-distance fallback');
+    assert.equal(level.range, null);
+    const { Reticles } = await import('../public/js/ui/conquest/reticles.js');
+    const reticles = new Reticles(document.body);
+    reticles.draw(burst, null, VIEW.width, VIEW.height, {});
+    assert.ok(textsDrawn(reticles.context).includes(`AIRBURST ${burst.range} M`), 'the readout names the airburst');
+  }
 
   const jetFix = byId('jet');
   const jetSeat = state.seatedVehicle(jetFix.self, jetFix.vehicles);
@@ -599,6 +653,14 @@ ok();
   assert.ok(!tank.kf.textContent.includes('ENVIRONMENT'));
   assert.ok(tank.combat.dom.hitmarker.classList.contains('vb-armor-hit'), 'effective own hull hit: yellow armour marker');
   assert.ok(tank.hud.reticles.context.calls.length > 0, 'tank reticle painted');
+  {
+    // The impact marker casts with the HUD's solid-block shell picker, never the controller's camera picker.
+    const casts = { shell: 0, camera: 0 };
+    const shellHud = new ConquestHud(document.body, { eventTarget: dom.window, shellRaycast: () => { casts.shell++; return null; } });
+    shellHud.update({ ...tank.args, vehicleController: { raycast: () => { casts.camera++; return null; } } });
+    assert.ok(casts.shell > 0 && casts.camera === 0, `shell picker used (${casts.shell} casts, ${casts.camera} camera casts)`);
+    shellHud.dispose();
+  }
   tank.hud.update(tank.args);
   assert.equal(document.body.dataset.vehicleSeated, 'true', 'seated flag hides the infantry ammo card');
 

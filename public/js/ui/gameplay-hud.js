@@ -14,7 +14,8 @@ import {
 } from './hud-support.js';
 import { Scoreboard } from './scoreboard.js';
 import { MatchHud } from './match-hud.js';
-import { createSniperScope } from './sniper-scope.js';
+import { createSniperScope, updateScopeOptics } from './sniper-scope.js';
+import { ballisticProfile } from '../../../shared/bullet-ballistics.js';
 import { displaySettings } from './display-settings.js';
 import { NetworkHud } from './network-hud.js';
 import { PowerupHud } from './powerup-hud.js';
@@ -515,6 +516,7 @@ export class GameplayHud {
       const scopeX = `${aimX - 50}vw`, scopeY = `${aimY - 50}vh`;
       if (style.getPropertyValue('--scope-aim-x') !== scopeX) style.setProperty('--scope-aim-x', scopeX);
       if (style.getPropertyValue('--scope-aim-y') !== scopeY) style.setProperty('--scope-aim-y', scopeY);
+      updateScopeOptics(this.dom.scope, s.scopeFovDeg, ballisticProfile(WEAPONS[key]));
     }
     this.setScopeZoom(s.scopeZoom);
     const opticLabel = this.dom.scope?.querySelector?.(".scope-model-label");

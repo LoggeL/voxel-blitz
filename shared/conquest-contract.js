@@ -31,6 +31,8 @@ export const CONQUEST_RULES = Object.freeze({
   spotRange: 300, spotRangeRecon: 400,
   spotConeRad: 0.06, spotCooldownMs: 1500,
   autoSpotOnFireMs: 2000,
+  // In-game menu RESPAWN (redeploy intent): at most one per this many ms per player.
+  redeployCooldownMs: 10000,
 });
 
 export const FLAG_STATES = Object.freeze(['idle', 'capturing', 'neutralizing', 'contested', 'restoring']);
@@ -85,15 +87,19 @@ export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);
  * timer, a hull (run over, or crew of a hull an enemy destroyed), a fall
  * (`fall`: killer is the enemy whose damage preceded the fall within
  * FALL_DAMAGE.creditMs, else '' for a self death) and a crash (`crash`: crew
- * of a hull wrecked by its own collision or fall, no killer).
+ * of a hull wrecked by its own collision or fall, no killer) and a redeploy
+ * (`redeploy`: the player chose RESPAWN in the in-game menu; killer is the
+ * enemy whose damage preceded it within FALL_DAMAGE.creditMs, else '').
  */
-export const CONQUEST_DEATH_KEYS = Object.freeze(['restricted', 'vehicle', 'fall', 'crash']);
+export const CONQUEST_DEATH_KEYS = Object.freeze(['restricted', 'vehicle', 'fall', 'crash', 'redeploy']);
 
 /** Client -> server Conquest intent frame `{t:'conquest', ...}` (one field per frame is enough). */
 export const CONQUEST_INTENT_SHAPE = Object.freeze({
   deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>", kit:KIT_ID, variant:0|1, gadget?:0|1}',
   spot: '1',
   support: '{type:"revive"|"repair", targetId:string}',
+  // In-game menu RESPAWN: die now (1 ticket, kill key `redeploy`) and open the deploy screen.
+  redeploy: '1',
 });
 /** input.vehicleAction types (parsed by parseVehicleAction). */
 export const VEHICLE_ACTION_TYPES = Object.freeze(['enter', 'exit', 'seat', 'cm', 'weapon']);
@@ -105,8 +111,12 @@ export const HIT_ZONES = Object.freeze(['front', 'side', 'rear', 'top', 'bottom'
 
 export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane']);
 export const VEHICLE_WEAPON_META = Object.freeze({
-  tankAP:           Object.freeze({ label: '120MM AP',   kind: 'shell',   cls: 'at',         speed: 170, gravity: 6, rate: 1 / 3.5, presentation: 'rocket' }),
-  tankHE:           Object.freeze({ label: '120MM HE',   kind: 'shell',   cls: 'he',         speed: 140, gravity: 6, rate: 1 / 3.5, presentation: 'rocket' }),
+  // Tank main gun: real cannon shells (`shell` presentation: tracer streak, no rocket
+  // motor or smoke trail) with true ballistic drop (gravity 9.8 m/s^2). The AP sabot
+  // is flat and fast; HE is slower with a visible arc (a faster HE made bot tanks
+  // hold flags against infantry: see docs/conquest.md "Tank shells").
+  tankAP:           Object.freeze({ label: '120MM AP',   kind: 'shell',   cls: 'at',         speed: 250, gravity: 9.8, rate: 1 / 3.5, presentation: 'shell' }),
+  tankHE:           Object.freeze({ label: '120MM HE',   kind: 'shell',   cls: 'he',         speed: 160, gravity: 9.8, rate: 1 / 3.5, presentation: 'shell' }),
   coaxMG:           Object.freeze({ label: 'COAX 7.62',  kind: 'hitscan', cls: 'mg',         speed: 0,   gravity: 0, rate: 10,      presentation: 'lmg' }),
   hmg:              Object.freeze({ label: '.50 HMG',    kind: 'hitscan', cls: 'hmg',        speed: 0,   gravity: 0, rate: 8,       presentation: 'lmg' }),
   helicopterRocket: Object.freeze({ label: 'ROCKET POD', kind: 'rocket',  cls: 'he',         speed: 90,  gravity: 0, rate: 5,       presentation: 'rocket' }),

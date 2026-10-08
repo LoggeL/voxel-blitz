@@ -47,7 +47,10 @@ export class ConquestHud {
   constructor(parent = globalThis.document?.body, {
     onInteract = () => {}, onDeploy = () => {}, onDeployOpen = () => {}, onSpot = () => {}, onSupport = () => {},
     combatHud = null, eventTarget = typeof window !== 'undefined' ? window : null, inputEnabled = () => true,
+    shellRaycast = null,
   } = {}) {
+    // Solid-block picker for the tank shell impact marker (the camera picker stops on water; shells don't).
+    this.shellRaycast = typeof shellRaycast === 'function' ? shellRaycast : null;
     // Keys for spot and the full map only act while gameplay input is live (not in menus).
     this.inputEnabled = typeof inputEnabled === 'function' ? inputEnabled : () => true;
     this.onSpot = onSpot;
@@ -345,7 +348,8 @@ export class ConquestHud {
     const panel = vehiclePanelModel(seated, { selfId: self.id, players, selfTeam, yaw });
     this.vehiclePanel.update(panel, now);
     this.lock.update(panel?.lock ?? null);
-    const reticle = seated && projector ? reticleModel(seated, { projector, players, vehicles, selfTeam }) : null;
+    const reticle = seated && projector ? reticleModel(seated, { projector, players, vehicles, selfTeam,
+      raycast: this.shellRaycast }) : null;
     const locker = projector ? lockerModel(self, { projector, vehicles, selfTeam, seated,
       camera: angles && eye ? { ...eye, yaw: angles.yaw, pitch: angles.pitch } : null }) : null;
     this.reticles.draw(reticle, locker, width, height, { touch });
