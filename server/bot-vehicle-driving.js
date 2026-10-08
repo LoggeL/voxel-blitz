@@ -54,6 +54,18 @@ export function botPassengerInput(inp) {
 }
 
 /**
+ * Booked squad-ride riders still to board: alive and their seat still free.
+ * A seat someone else took (a human who ran for the hull) is not waited for.
+ */
+export function transitRidersMissing(game, v, transit) {
+  for (const [id, seatId] of transit.seats) {
+    if (game.entities.get(id)?.state !== 'alive') continue;
+    if (vehicleSeatOccupantId(v, seatId) == null) return true;
+  }
+  return false;
+}
+
+/**
  * Goal for an infantry bot walking to its assigned hull: the bot navigates
  * like to any objective (still fighting on the way) and asks for its seat once
  * inside enter reach. `enter` is the action to send, or null while out of
@@ -270,6 +282,7 @@ export class ConquestVehicleDriving {
           return { vehicle: v, seatId: seat.id, weapon: false };
         }
         if (!mine) this.park(br, p, v, now, inp);
+        else if (this.commander?.holdFor?.(v, now)) this.hold(br, v, now, inp);
         else if (mine.role === 'transit') this.transitDrive(br, p, v, mine, now, inp);
         else if (v.type === 'tank') this.overwatch(br, p, v, mine, now, inp);
         else this.transitDrive(br, p, v, { ...mine, destination: mine.flag ?? goal.target }, now, inp);
@@ -308,6 +321,17 @@ export class ConquestVehicleDriving {
   park(br, p, v, now, inp) {
     inp.vehicleThrottle = 0; inp.vehicleSteer = 0; inp.vehicleBrake = 1;
     if (Math.abs(v.speed) < 0.6) { inp.vehicleAction = { type: 'exit' }; this.release(br.id); }
+  }
+
+  /**
+   * A human teammate runs for the hull (BotCommander.planWaits): brake and
+   * stand, guns still working. The stuck watchdog restarts from here so the
+   * held stop never reads as a boxed-in hull once the drive resumes.
+   */
+  hold(br, v, now, inp) {
+    inp.vehicleThrottle = 0; inp.vehicleSteer = 0; inp.vehicleBrake = 1;
+    const state = this.drivers.get(br.id);
+    if (state?.vehicle === v) { state.watchAt = now; state.watchX = v.x; state.watchZ = v.z; state.watchYaw = v.yaw; }
   }
 
   driverState(br, v, destination, now) {
@@ -424,10 +448,7 @@ export class ConquestVehicleDriving {
     inp.yaw = v.turretYaw ?? v.yaw; inp.pitch = v.turretPitch ?? 0;
     if (!destination) return;
     if (transit && !transit.departAt) {
-      const waiting = [...transit.seats].some(([id, seatId]) => {
-        const rider = this.game.entities.get(id);
-        return rider?.state === 'alive' && vehicleSeatOccupantId(v, seatId) !== id;
-      });
+      const waiting = transitRidersMissing(this.game, v, transit);
       transit.boardingSince ??= now;
       if (waiting && now - transit.boardingSince < 12000) return;
       this.commander?.markTransit(v.id, { departAt: now });

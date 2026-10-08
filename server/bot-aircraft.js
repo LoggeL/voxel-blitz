@@ -20,7 +20,7 @@
 import { VEHICLE_RULES, vehicleDirection, vehicleMuzzlePose } from '../shared/vehicles.js';
 import { vehicleSeatOccupantId, vehicleSeats } from '../shared/vehicle-seats.js';
 import { VEHICLE_WEAPON_META, seatWeaponList } from '../shared/conquest-contract.js';
-import { botVehicleSeat, botVehicleDriver, botPassengerInput, boardingGoal, countermeasureReady, maxHullHp } from './bot-vehicle-driving.js';
+import { botVehicleSeat, botVehicleDriver, botPassengerInput, boardingGoal, countermeasureReady, maxHullHp, transitRidersMissing } from './bot-vehicle-driving.js';
 import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
 import { observeBotVehicle, hullTarget, hullCrew, seatedExposed, mountSystem, seatWeapons } from './bot-vehicle-combat.js';
 import { AimSteering } from './bot-aim.js';
@@ -344,6 +344,9 @@ export class ConquestAircraftDriving {
     }
     inp.vehicleThrottle = 0; inp.vehicleSteer = 0; inp.vehicleBrake = 0; inp.vehicleLift = 0;
     inp.yaw = v.yaw; inp.pitch = 0; inp.wantFire = false;
+    // A human teammate runs for the grounded hull (BotCommander.planWaits):
+    // hold the takeoff. The commander never makes an airborne hull wait.
+    if (v.grounded !== false && this.commander?.holdFor?.(v, now)) { inp.vehicleBrake = 1; return; }
     if (v.type === 'plane') return this.jet(br, p, v, state, assignment, now, dt, inp);
     if (v.type === 'transport' || assignment?.role === 'transit') return this.transport(br, p, v, state, assignment, now, dt, inp);
     return this.attackHelicopter(br, p, v, state, assignment, goal, now, dt, inp);
@@ -431,10 +434,7 @@ export class ConquestAircraftDriving {
     const home = v.spawn ?? v;
     const ground = this.groundHeight(v);
     if (state.phase === 'takeoff' && transit && !transit.departAt) {
-      const waiting = [...transit.seats].some(([id, seatId]) => {
-        const rider = this.game.entities.get(id);
-        return rider?.state === 'alive' && vehicleSeatOccupantId(v, seatId) !== id;
-      });
+      const waiting = transitRidersMissing(this.game, v, transit);
       transit.boardingSince ??= now;
       if (waiting && now - transit.boardingSince < 12000) { inp.vehicleLift = 0; return; }
       this.commander?.markTransit(v.id, { departAt: now });

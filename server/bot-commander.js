@@ -15,7 +15,8 @@
 // budget of ceil(teamBots / 3) in priority order (tank > attack helicopter >
 // plane), and squads ride jeeps or the transport toward their staging point.
 // A hull a human drives or pilots takes nearby bots aboard (planHitches):
-// the driver's squad mates first, gunner seats first.
+// the driver's squad mates first, gunner seats first. A bot driver or pilot
+// holds for a human teammate running to its hull (planWaits / holdFor).
 //
 // The commander is the bot director of spec 3.5: goalFor(player) and
 // deployFor(player). Everything it reads is authoritative mode, entity and
@@ -70,6 +71,17 @@ export const HITCH_DROP_PAD = 12;       // m beyond a wanted flag's radius where
 export const HITCH_IDLE_MS = 30000;     // riders leave a hull that has stood still this long away from any flag
 export const HITCH_COOLDOWN_MS = 30000; // a dropped rider walks a while before it hitches again
 const HITCH_STOPPED = 0.8;              // m/s: same as the riders' own "stopped" (bot-vehicle-driving)
+// Bot drivers wait for a human teammate running to their hull (planWaits).
+export const WAIT_RADIUS = 50;          // m: humans closer than this who close in are waited for
+export const WAIT_MS = 8000;            // longest wait for a teammate
+export const WAIT_SQUAD_MS = 12000;     // longest wait for a squad mate of the driver
+export const WAIT_COOLDOWN_MS = 30000;  // a human the hull gave up on is not waited for again this long
+export const WAIT_DEPART_MAX = 10;      // m: a ground hull that has gone farther since it set off does not stop
+export const WAIT_CLOSING = 1.2;        // m/s toward the hull that counts as approaching
+const WAIT_REACH = 8;                   // m: a human this close counts as boarding even while standing
+const WAIT_STALL_MS = 1500;             // a human not closing in (outside reach) this long is given up on
+const WAIT_AWAY = -1;                   // m/s: walking away this fast ends the wait at once
+const WAIT_FACING = 0.6;                // rad: look direction that counts as heading for the hull
 const KIT_MIX = Object.freeze(['assault', 'engineer', 'support', 'recon']);
 /**
  * Engineer gadget mix: the share of a team's engineers that deploy with the
@@ -207,7 +219,8 @@ export class BotCommander {
     this.manager = manager;
     this.cover = new CoverIndex(game);
     this.teams = new Map(CONQUEST_TEAMS.map(team => [team, { team, squads: new Map(), crews: new Map(), transits: new Map(),
-      hitches: new Map(), hitchCooldown: new Map(), knowledge: [] }]));
+      hitches: new Map(), hitchCooldown: new Map(), waitCooldown: new Map(), departFrom: new Map(), knowledge: [] }]));
+    this.waits = new Map();          // vehicle id -> wait record (planWaits); read per tick by holdFor
     this.view = null;
     this.viewAt = -1;
     this.nextPlanAt = 0;
@@ -424,6 +437,7 @@ export class BotCommander {
     this.planCrews(ts, view, now);
     this.planTransit(ts, view, now);
     this.planHitches(ts, view, now);
+    this.planWaits(ts, now);
   }
 
   isBot(id) { return this.game.entities.get(id)?.bot === true; }
@@ -769,6 +783,116 @@ export class BotCommander {
         if (!candidate.mate) strangers++;
       }
     }
+  }
+
+  /**
+   * Battlefield "wait for me": a bot driving or piloting a hull on an order
+   * (a crew or a squad ride) holds for a living human teammate on foot who
+   * runs toward it. Approaching: within WAIT_RADIUS, closing in at
+   * WAIT_CLOSING or faster, and moving (or looking) toward the hull. Only a
+   * hull with a seat the human may take (free or bot-held, besides the
+   * driver's) waits; a ground hull only while stopped or within
+   * WAIT_DEPART_MAX of where it set off, an aircraft only on the ground. One
+   * wait per hull and per human, the driver's squad mates first. The wait
+   * ends when the human boards (the hull leaves at once), dies, takes another
+   * hull, stops closing in for WAIT_STALL_MS outside boarding reach, walks
+   * away, or after WAIT_MS (WAIT_SQUAD_MS for a squad mate); a human given up
+   * on is not waited for again for WAIT_COOLDOWN_MS. The drivers read the
+   * result per tick through holdFor. Inside the 2 Hz plan, O(humans x hulls),
+   * and nothing beyond one entity pass for a team without humans.
+   */
+  planWaits(ts, now) {
+    const team = ts.team, vehicles = this.game.vehicles?.vehicles;
+    if (!vehicles) return;
+    for (const [id, until] of ts.waitCooldown) if (until <= now) ts.waitCooldown.delete(id);
+    const roles = conquestRoles(this.game);
+    const humans = [];
+    for (const p of this.game.entities.values()) {
+      if (!p.bot && !p.npcRole && p.state === 'alive' && !p.vehicleId && this.teamOf(p) === team && !roles?.isDown?.(p)) humans.push(p);
+    }
+    let waiting = 0;
+    for (const wait of this.waits.values()) if (wait.team === team) waiting++;
+    if (!humans.length && !waiting) { ts.departFrom.clear(); return; }
+    // Hulls a bot drives on an order, and where each ground hull last stood still.
+    const hulls = new Map();
+    const departFrom = new Map();
+    for (const v of vehicles.values()) {
+      if (v.team !== team) continue;
+      const air = isAircraftType(v.type);
+      let from = null;
+      if (!air) {
+        // A hull first seen moving counts as long gone.
+        from = Math.abs(v.speed || 0) < HITCH_STOPPED ? { x: v.x, z: v.z } : ts.departFrom.get(v.id) ?? { x: Infinity, z: Infinity };
+        departFrom.set(v.id, from);
+      }
+      if (!(v.hp > 0) || disabledHull(v) || v.padInactive || (air && v.grounded === false)) continue;
+      const seat = hullSeatIds(v).driver, driverId = vehicleSeatOccupantId(v, seat);
+      if (driverId == null || !this.isBot(driverId)) continue;
+      const crew = ts.crews.get(driverId);
+      if (!((crew?.vehicleId === v.id && crew.seatId === seat) || ts.transits.get(v.id)?.seats.get(driverId) === seat)) continue;
+      // Only a hull with a seat for the human: free, or a bot's (seat takeover).
+      if (!vehicleSeats(v).some(s => { if (s.drives) return false; const id = vehicleSeatOccupantId(v, s.id); return id == null || this.isBot(id); })) continue;
+      const startable = air ? Math.hypot(v.vx || 0, v.vz || 0) < HITCH_BOARD_SPEED : flat(v, from) < WAIT_DEPART_MAX;
+      hulls.set(v.id, { v, driverId, startable });
+    }
+    ts.departFrom = departFrom;
+    const approach = (p, v) => {
+      const dx = v.x - p.x, dz = v.z - p.z, d = Math.hypot(dx, dz);
+      const closing = d > 1e-6 ? ((p.vx || 0) * dx + (p.vz || 0) * dz) / d : 0;
+      return { d, closing, speed: Math.hypot(p.vx || 0, p.vz || 0), facing: Math.abs(wrap(Math.atan2(-dx, -dz) - (p.yaw ?? 0))) };
+    };
+    // Keep or end the running waits.
+    const waited = new Set();
+    for (const [vehicleId, wait] of this.waits) {
+      if (wait.team !== team) continue;
+      const entry = hulls.get(vehicleId), p = this.game.entities.get(wait.humanId);
+      let over = null; // 'done': ended without blame; 'cool': given up on, cooldown
+      if (!entry || entry.driverId !== wait.driverId) over = 'done';
+      else if (!p || p.state !== 'alive' || this.teamOf(p) !== team || roles?.isDown?.(p)) over = 'done';
+      else if (p.vehicleId) over = p.vehicleId === vehicleId ? 'done' : 'cool';
+      else if (now > wait.until) over = 'cool';
+      else {
+        const { d, closing } = approach(p, entry.v);
+        if (d <= WAIT_REACH || closing >= WAIT_CLOSING * 0.5) wait.closingAt = now;
+        if (d > WAIT_RADIUS + 10 || Math.abs(p.y - entry.v.y) > 16 || (d > WAIT_REACH && closing <= WAIT_AWAY)
+            || now - wait.closingAt > WAIT_STALL_MS) over = 'cool';
+      }
+      if (!over) { waited.add(wait.humanId); continue; }
+      this.waits.delete(vehicleId);
+      if (over === 'cool') ts.waitCooldown.set(wait.humanId, now + WAIT_COOLDOWN_MS);
+    }
+    // New waits: every human heading for a hull that may still wait.
+    const pairs = [];
+    for (const p of humans) {
+      const id = String(p.id);
+      if (waited.has(id) || ts.waitCooldown.has(id)) continue;
+      for (const [vehicleId, { v, driverId, startable }] of hulls) {
+        if (!startable || this.waits.has(vehicleId) || Math.abs(p.y - v.y) > 12) continue;
+        const { d, closing, speed, facing } = approach(p, v);
+        if (d > WAIT_RADIUS || closing < WAIT_CLOSING || (closing < 0.6 * speed && facing > WAIT_FACING)) continue;
+        const mate = !!ts.memberSquad?.get(String(driverId))?.members.includes(id);
+        pairs.push({ id, vehicleId, driverId, d, mate });
+      }
+    }
+    pairs.sort((a, b) => (b.mate - a.mate) || a.d - b.d);
+    for (const pair of pairs) {
+      if (waited.has(pair.id) || this.waits.has(pair.vehicleId)) continue;
+      this.waits.set(pair.vehicleId, { vehicleId: pair.vehicleId, humanId: pair.id, driverId: String(pair.driverId), team,
+        squad: pair.mate, since: now, until: now + (pair.mate ? WAIT_SQUAD_MS : WAIT_MS), closingAt: now });
+      waited.add(pair.id);
+    }
+  }
+
+  /**
+   * The wait a bot driver of `v` holds for (planWaits), or null. Per tick and
+   * O(1): a human who boarded, died or ran out of time releases it at once,
+   * without waiting for the next plan.
+   */
+  holdFor(v, now = this.game.now) {
+    const wait = v ? this.waits.get(v.id) : null;
+    if (!wait || now > wait.until) return null;
+    const p = this.game.entities.get(wait.humanId);
+    return p && p.state === 'alive' && !p.vehicleId ? wait : null;
   }
 
   /** The living human of `team` in the driver or pilot seat of a usable friendly hull, or null. */

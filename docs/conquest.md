@@ -114,6 +114,16 @@ A hull that a living human drives or pilots takes nearby bots aboard (`BotComman
 - **Riding**: riders man their mounts while the human drives (passengers sit). In the air they stay aboard until landing; if the human bails out, the pilotless rule applies (they bail out after 1.5 s).
 - **Getting out**: once the hull stops (below 0.8 m/s; aircraft landed) within the radius + 12 m of a flag they want (not owned by the team, threatened, or their squad's order flag), the riders get out. They also get out when the human leaves the driver seat, or when the hull has stood still for 30 s away from such a flag. A dropped rider walks for 30 s (60 s after the idle drop) before it hitches again.
 
+### Bots waiting for humans
+
+A bot that drives or pilots a hull on an order (a crew, or a squad ride's driver) waits for a human teammate who runs to it, like a Battlefield squad mate (`BotCommander.planWaits` in the 2 Hz plan; the drivers read `holdFor` every tick; the rules live in the `WAIT_*` constants in `server/bot-commander.js`).
+
+- **Who is waited for**: a living human of the team on foot within 50 m (and 12 m in height) who closes in at 1.2 m/s or more, moving toward the hull (at least 60 % of the speed points at it) or looking at it (within 0.6 rad). The hull needs a seat the human may take besides the driver's: free, or held by a bot (seat takeover). The jet has no such seat and never waits. One wait per hull and per human; the driver's squad mates come first, then the nearest human.
+- **Which hulls wait**: a ground hull standing still, or one that has gone less than 10 m since it last stood still (it brakes to a stop); a hull farther along never stops or turns back. An aircraft only on the ground: a held transport or helicopter keeps its rotors idle on the ground (no lift) until the wait ends. An airborne aircraft never waits.
+- **While waiting**: the driver brakes and stands; every gun keeps working. A squad ride's departure, a tank's overwatch move and a takeoff are put off.
+- **End**: the human boards (the hull leaves at once: `holdFor` lets go on the next tick, without waiting for the plan), dies or goes down, gets into another hull, walks away (1 m/s or faster away from the hull, outside 8 m), drifts beyond 60 m, or stops closing in for 1.5 s while outside 8 m (standing within 8 m counts as boarding). Otherwise the wait ends after 8 s, or 12 s for the driver's squad mate. A human given up on (timed out, turned away, took another hull) is not waited for again for 30 s, so nobody can park a bot by standing next to it.
+- A squad ride no longer waits for a booked rider whose seat someone else (the human) took, so the ride leaves as soon as the human is aboard. If the human takes the driver seat instead, seat takeover applies and the bots aboard ride with the human (above).
+
 ### Falling, parachutes and the ejection seat
 
 All values live in `shared/parachute.js`; the server (`server/sim/movement.js`) and the client prediction (`public/js/player-physics.js`) run the same state machine.
@@ -251,6 +261,7 @@ Node suites (no browser):
   - Pass `--seed N` or `--difficulty easy|normal|hard` to vary the run.
 - `node tools/conquest-airborne-test.mjs` (server) and `node tools/conquest-airborne-ui-test.mjs` (fake DOM) cover fall damage, parachutes, the ejection seat, bot auto-chutes and bail-outs, bot seat takeover (deploy, enter, swap, airborne pilot handover) and the presentation.
 - `node tools/conquest-bot-hitch-test.mjs` covers bots riding with humans: a human-driven jeep, tank and transport get their gunner seats filled, riders stay aboard while the human drives, get out when the human leaves or at a wanted flag, no bot ever holds a human's seat, and a bot holding a threatened flag stays.
+- `node tools/conquest-bot-wait-test.mjs` covers bot drivers waiting for humans: a bot-driven jeep squad ride, tank crew, transport squad ride and attack helicopter hold while a human runs to them and leave after the human boards; no wait for a human walking away or standing 28 m off; the 8 s timeout (12 s for a squad mate) and the 30 s cooldown; a ride already well on its way drives on; an airborne helicopter never waits.
 - `node tools/conquest-redeploy-test.mjs` (protocol and policy) and `node tools/conquest-redeploy-ui-test.mjs` (fake DOM) cover the in-game menu RESPAWN.
 - `node tools/conquest-scale-test.mjs` checks the snapshot budgets: at most 260 B per vehicle row, 27 KB per tick and 400 B for `match.conquest`.
 - `node tools/atlastest.mjs` pins the Frontier world fingerprint. Re-pin it after any map geometry change.
