@@ -29,7 +29,7 @@ The design changes that the implementation follows:
 
 - `public/js/session/weapon-wheel-controller.js`, `kitEntries()`: in Conquest with an authoritative `owned` list, the wheel lists exactly those weapons in the order primary, gadget, sidearm, melee.
   - Ammo comes from the live weapon state.
-  - `key` is the digit that equips the weapon outside the wheel. The launcher digit also equips the STINGER. The FURNACE has no digit, so it shows no badge.
+  - `key` is the kit-relative slot key that equips the weapon outside the wheel (`KIT_DIGIT_ROLES`: 1 primary, 2 sidearm, 3 gadget, 4 melee), so the badges read 1 top, 3 right, 2 bottom, 4 left. The reference images predate this and show the old global digits.
   - Digits pressed while the wheel is open map through `directIndex()`.
 - `public/js/ui/weapon-wheel.js`: entries that carry a `role` turn on the `is-kit` layout: segments, conic hover wedge, role captions and the hub copy.
 - `public/style.css`, section *Conquest kit wheel*.

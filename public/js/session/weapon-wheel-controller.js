@@ -1,27 +1,16 @@
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { WEAPON_NAMES, WEAPON_CLASSES, weaponImagePath } from '../ui/hud-support.js';
 import { usesOwnedLoadout } from '../../../shared/modes.js';
-import { KITS, KIT_SIDEARM } from '../../../shared/conquest-contract.js';
-import { KIT_GADGET_LABELS, KIT_MELEE } from '../../../shared/conquest-kits.js';
+import { KIT_GADGET_LABELS, kitWeaponRole as kitRole, kitWeaponDigit } from '../../../shared/conquest-kits.js';
 import { bindingLabel } from '../keybindings.js';
 
 /** Conquest kit wheel segment order: one role per segment, clockwise from the top. */
 export const KIT_WHEEL_ROLES = Object.freeze(['primary', 'gadget', 'sidearm', 'melee']);
-const KIT_GADGET_IDS = new Set(Object.values(KITS).flatMap(kit => [kit.gadget, ...(kit.gadgets || [])]).filter(Boolean));
 
-/** Kit role of one owned weapon id. */
-function kitRole(id) {
-  if (id === KIT_MELEE || WEAPONS[id]?.mode === 'melee') return 'melee';
-  if (id === KIT_SIDEARM) return 'sidearm';
-  if (KIT_GADGET_IDS.has(id) || WEAPONS[id]?.gadgetOnly) return 'gadget';
-  return 'primary';
-}
-
-/** Digit binding that equips `id` outside the wheel: its slot digit, the launcher digit for a gadget, or null. */
+/** Kit-relative slot binding that equips `id` in Conquest (`slot1` primary … `slot4` melee). */
 function kitSlotAction(id) {
-  const slot = WEAPON_IDS.indexOf(id);
-  if (WEAPONS[id]?.gadgetOnly) return `slot${WEAPON_IDS.indexOf('rocket') + 1}`;
-  return slot >= 0 && slot < 10 ? `slot${slot + 1}` : null;
+  const index = kitWeaponDigit(id);
+  return index >= 0 ? `slot${index + 1}` : null;
 }
 
 /** Wheel ammo text for one weapon id in the given mode. */
@@ -64,8 +53,7 @@ export class WeaponWheelController {
         name: WEAPON_NAMES[id] || id.toUpperCase(),
         cls: WEAPON_CLASSES[id] || '',
         icon: weaponImagePath(id),
-        // A kit gadget answers the launcher digit (WeaponState._gadgetSlotAlias).
-        key: WEAPONS[id].gadgetOnly ? `[${WEAPON_IDS.indexOf('rocket') + 1}]` : slot < 10 ? `[${(slot + 1) % 10}]` : '[WHEEL]',
+        key: slot < 10 ? `[${(slot + 1) % 10}]` : '[WHEEL]',
         ammo: locked ? '—' : ammoLabel(context, id, mode),
         owned: !locked,
         current: context.weapon?.slot === slot,
@@ -78,8 +66,8 @@ export class WeaponWheelController {
    * Conquest wheel: only what the kit carries, straight from the snapshot's
    * authoritative `owned` list, one segment per role in KIT_WHEEL_ROLES order
    * (primary, gadget, sidearm, melee; a kit without a gadget gets three).
-   * `key` is the digit that equips the weapon outside the wheel (the launcher
-   * digit for either Engineer gadget); weapons without a digit carry ''.
+   * `key` is the kit-relative slot key that equips the weapon outside the wheel
+   * (KIT_DIGIT_ROLES: 1 primary, 2 sidearm, 3 gadget, 4 melee).
    */
   kitEntries(context = this.getContext()) {
     const owned = context.self.owned.filter(id => Object.hasOwn(WEAPONS, id) && WEAPON_IDS.includes(id));
@@ -105,16 +93,14 @@ export class WeaponWheelController {
   }
 
   /**
-   * Wheel index a digit pressed while the wheel is open selects. The full wheel
-   * lists weapons in slot order, so the digit is the index; the kit wheel finds
-   * the entry that digit equips outside the wheel (the launcher digit reaches
-   * either Engineer gadget). -1 when the kit carries nothing on that digit.
+   * Wheel index a slot key pressed while the wheel is open selects. The full
+   * wheel lists weapons in slot order, so the key is the index; the kit wheel
+   * finds the entry that kit-relative key equips outside it (1 primary,
+   * 2 sidearm, 3 gadget, 4 melee). -1 when the kit carries nothing on that key.
    */
   directIndex(digitSlot, entries = this.entries()) {
     if (!entries.some(entry => entry.role)) return digitSlot;
-    const rocket = WEAPON_IDS.indexOf('rocket');
-    return entries.findIndex(entry => entry.slot === digitSlot ||
-      (digitSlot === rocket && WEAPONS[entry.id]?.gadgetOnly));
+    return entries.findIndex(entry => kitWeaponDigit(entry.id) === digitSlot);
   }
 
   /**

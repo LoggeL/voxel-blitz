@@ -110,6 +110,39 @@ export function kitWeapons(kit, variant = 0, gadgetIndex = 0) {
   return { primary, gadget, sidearm: KIT_SIDEARM, melee: KIT_MELEE, owned };
 }
 
+const KIT_GADGET_IDS = new Set(Object.values(KITS).flatMap(kit => [kit.gadget, ...(kit.gadgets || [])]).filter(Boolean));
+
+/** Kit role of one weapon id: 'primary', 'gadget', 'sidearm' or 'melee'. */
+export function kitWeaponRole(id) {
+  if (id === KIT_MELEE || WEAPONS[id]?.mode === 'melee') return 'melee';
+  if (id === KIT_SIDEARM) return 'sidearm';
+  if (KIT_GADGET_IDS.has(id) || WEAPONS[id]?.gadgetOnly) return 'gadget';
+  return 'primary';
+}
+
+/**
+ * Conquest number keys are kit-relative (Battlefield style): weapon slot key
+ * N (`slotN`, digit N by default) raises the role at index N-1. Keys past the
+ * list do nothing in Conquest.
+ */
+export const KIT_DIGIT_ROLES = Object.freeze(['primary', 'sidearm', 'gadget', 'melee']);
+
+/**
+ * Weapon id that kit slot key `index` (0-based: 0 = key 1) raises from the
+ * authoritative owned list, or null when the kit carries nothing in that role
+ * (no gadget) or the key is not a kit key.
+ */
+export function kitDigitWeapon(owned, index) {
+  const role = Number.isInteger(index) ? KIT_DIGIT_ROLES[index] : undefined;
+  if (!role || !Array.isArray(owned)) return null;
+  return owned.find(id => Object.hasOwn(WEAPONS, id) && WEAPON_SLOT.has(id) && kitWeaponRole(id) === role) ?? null;
+}
+
+/** 0-based kit slot key index that raises `id` in Conquest (0 = key 1), or -1. */
+export function kitWeaponDigit(id) {
+  return Object.hasOwn(WEAPONS, id) ? KIT_DIGIT_ROLES.indexOf(kitWeaponRole(id)) : -1;
+}
+
 /** Roster default reserve for one weapon (spare mags, or loose rounds for tube weapons). */
 function defaultReserve(id) {
   const def = WEAPONS[id];

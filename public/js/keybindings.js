@@ -1,5 +1,7 @@
 // Shared keyboard preferences for gameplay, settings, and their on-screen hints.
 export const KEYBINDINGS_PREF_KEY = 'vb-keybindings-v1';
+/** What weapon slot keys 1-4 raise in Conquest, in KIT_DIGIT_ROLES order. */
+const KIT_SLOT_CAPTIONS = ['primary', 'sidearm', 'gadget', 'melee'];
 export const KEYBINDING_ACTIONS = Object.freeze([
   ['forward', 'Move forward', ['KeyW']], ['back', 'Move backward', ['KeyS']],
   ['left', 'Strafe left', ['KeyA']], ['right', 'Strafe right', ['KeyD']],
@@ -26,7 +28,10 @@ export const KEYBINDING_ACTIONS = Object.freeze([
   // Conquest. KeyY is the physical key printed Z on QWERTZ keyboards.
   ['spot', 'Spot enemy (Conquest)', ['KeyY']], ['bigMap', 'Full map (Conquest)', ['KeyM']],
   ['previousWeapon', 'Previous weapon', []], ['nextWeapon', 'Next weapon', []],
-  ...Array.from({ length: 10 }, (_, i) => [`slot${i + 1}`, `Weapon slot ${i + 1}`, [`Digit${(i + 1) % 10}`]]),
+  // Conquest reads slot keys 1-4 kit-relative (KIT_DIGIT_ROLES in shared/conquest-kits.js);
+  // slots 5-10 do nothing there. Seated, slot keys pick the seat's weapons.
+  ...Array.from({ length: 10 }, (_, i) => [`slot${i + 1}`,
+    `Weapon slot ${i + 1}${KIT_SLOT_CAPTIONS[i] ? ` (Conquest: ${KIT_SLOT_CAPTIONS[i]})` : ''}`, [`Digit${(i + 1) % 10}`]]),
   ['spectatePrevious', 'Spectate previous player', ['ArrowLeft', 'KeyQ'], 'spectator'],
   ['spectateNext', 'Spectate next player', ['ArrowRight', 'KeyE'], 'spectator'],
   ['skipReplay', 'Skip killcam replay', ['Space'], 'replay'],

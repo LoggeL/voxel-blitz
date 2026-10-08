@@ -51,7 +51,7 @@ Squads of up to 4 are filled automatically in join order. The longest-standing m
 
 Every kit also carries the revolver and the melee weapon.
 
-**Engineer gadgets.** The Engineer card has a second toggle under the primaries: **AT** (RX-8 HAVOC) or **AA** (AX-9 STINGER). The choice rides the deploy intent as `gadget` (0 or 1, default 0, so older clients keep the AT launcher) and the server issues exactly that launcher: an AA Engineer owns no AT rockets and the other way round (`KITS.engineer.gadgets`, `kitLoadout(kit, variant, gadget)` in `shared/conquest-kits.js`). Kits without a choice refuse `gadget: 1`. The Support aura also hands back one gadget round per mate at most every 12 s (`KIT_ROLE_RULES.gadgetResupplyMs`), up to the issued total. The launcher key (8, the RX-8's slot) raises whichever gadget the kit carries; the STINGER has no slot key of its own.
+**Engineer gadgets.** The Engineer card has a second toggle under the primaries: **AT** (RX-8 HAVOC) or **AA** (AX-9 STINGER). The choice rides the deploy intent as `gadget` (0 or 1, default 0, so older clients keep the AT launcher) and the server issues exactly that launcher: an AA Engineer owns no AT rockets and the other way round (`KITS.engineer.gadgets`, `kitLoadout(kit, variant, gadget)` in `shared/conquest-kits.js`). Kits without a choice refuse `gadget: 1`. The Support aura also hands back one gadget round per mate at most every 12 s (`KIT_ROLE_RULES.gadgetResupplyMs`), up to the issued total. Key 3 raises whichever gadget the kit carries (see *Controls*).
 
 - **RX-8 HAVOC (AT)**: dumb-fire, 42 m/s with a little drop. A direct hit deals 320 + 60 splash at the `at` class (`CONQUEST_ROCKET_PROFILE`), so a full tank takes **4 hits from the front, 3 on the side and 2 in the rear** (the first rear hit also disables it). A jeep dies to one hit, a helicopter to three (air ×0.8). Infantry splash is ×0.7.
 - **AX-9 STINGER (AA)**: kit-only (`WEAPONS.stinger.gadgetOnly`, never in a free roster or weapon wheel). Aim down the sights at an airborne enemy aircraft to build the lock (320 m, 7° cone, 1.4 s). The trigger only releases on a complete lock; client and server both refuse an unlocked launch. The missile (120 m/s, no gravity, proportional navigation, 3 m proximity fuse, `STINGER_RULES` in `shared/vehicle-defs.js`) deals per-airframe damage at the `aa` class: helicopter 360, transport 330, jet 170, so **2 hits kill a helicopter or a transport and 3 a jet**. Flares decoy it. It never damages ground hulls. A killed player stays **down** for 8 s and can be revived until they deploy. Nobody can be revived after dying in an exploding vehicle, from `restricted`, or by falling into the void.
@@ -146,11 +146,14 @@ All values live in `shared/parachute.js`; the server (`server/sim/movement.js`) 
 | Mouse / LMB | aim / fire | aim the seat's mount / fire it; jeep and transport passengers fire their own infantry weapon. Pilots fly with the mouse (see below) |
 | RMB | aim down sights | optics: tank driver 3×, chin gun 4×, jeep HMG, commander RWS and door guns 1.5× |
 | Q | lean | next weapon (tank AP → HE → coax, jet cannon ↔ missiles). For pilots Q/E is the rudder, so the jet picks its weapon with 1 and 2 |
-| 1…3 | weapon slot | pick that seat weapon directly (tank: 1 AP, 2 HE, 3 coax) |
+| 1 / 2 / 3 / 4 | kit weapons: 1 primary, 2 IRONCLAD .44, 3 gadget (Engineer AT launcher or STINGER; nothing for other kits), 4 IRON PICK. 5…0 do nothing | pick that seat weapon directly (tank: 1 AP, 2 HE, 3 coax) |
+| V / G / H / J, mouse wheel, K (hold) | quick pickaxe hit, grenade, grenade pouch, medkit, cycle weapons, kit weapon wheel | – |
 | X | prone | flares or smoke (driver or pilot) |
 | C (hold) | crouch | free look |
 | Y | spot | spot |
 | M | full map | full map |
+
+**Kit-relative number keys.** In Conquest the weapon slot keys (Settings → Controls, `slot1`…`slot4`, digits 1–4 by default) pick kit roles instead of the global weapon slots used in other modes: `KIT_DIGIT_ROLES` and `kitDigitWeapon(owned, index)` in `shared/conquest-kits.js` map them over the snapshot's authoritative `owned` list (`WeaponState._directSlot`), so every kit, variant, gadget choice and redeploy is right without a client table. Rebinding a slot key moves that kit role with it. Until the first `owned` list arrives the keys do nothing. The kit weapon wheel shows the same 1–4 badges and a key pressed while it is open picks the matching segment. Seated, the slot keys still pick the seat's weapons and F1…F5 still switch seats (`VehicleController`); infantry key presses are drained while seated.
 
 WASD drives ground vehicles and Space brakes.
 

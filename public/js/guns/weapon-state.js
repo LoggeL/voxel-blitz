@@ -7,6 +7,7 @@ import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from 
 import { chaosLevel, chaosWeaponDef } from '../../../shared/chaos.js';
 import { usesOwnedLoadout as usesAuthoritativeOwnedWeapons } from '../../../shared/modes.js';
 import { glaiveCanThrow } from '../../../shared/glaive-rules.js';
+import { kitDigitWeapon } from '../../../shared/conquest-kits.js';
 // Client weapon state machine. The composition root owns frame order; this module owns
 // every weapon transition and receives only narrow adapters for its side effects.
 import {
@@ -362,16 +363,16 @@ export class WeaponState {
   }
 
   /**
-   * The launcher digit (the RX-8's slot key) raises whichever Engineer gadget the
-   * authoritative kit carries, so an AA Engineer reaches the STINGER (which has
-   * no digit of its own) with the same key as the AT launcher.
+   * Weapon slot a direct slot key (`slotN`, index N-1) raises, or null for none.
+   * Conquest keys are kit-relative and follow the authoritative owned list
+   * (`kitDigitWeapon`: 1 primary, 2 sidearm, 3 gadget, 4 melee, the rest
+   * nothing); before the first owned list arrives they do nothing. Other modes
+   * keep the global WEAPON_IDS slot of the key.
    */
-  _gadgetSlotAlias(slot) {
-    const rocket = WEAPON_IDS.indexOf('rocket');
-    if (slot !== rocket || !usesAuthoritativeOwnedWeapons(this._mode) || !Array.isArray(this._owned)
-        || this._owned.includes('rocket')) return slot;
-    const gadget = this._owned.find(id => WEAPONS[id]?.gadgetOnly);
-    return gadget ? WEAPON_IDS.indexOf(gadget) : slot;
+  _directSlot(slot) {
+    if (this._mode !== 'conquest') return slot;
+    const id = kitDigitWeapon(this._owned, slot);
+    return id ? WEAPON_IDS.indexOf(id) : null;
   }
 
   /** Kit-only gadgets (the STINGER) are selectable only when an authoritative kit owns them. */
@@ -452,7 +453,8 @@ export class WeaponState {
     }
 
     if (switchDelta) this.cycleWeapon(switchDelta, { now });
-    if (slot !== null) this.forceWeapon(this._gadgetSlotAlias(slot), { now });
+    const direct = slot === null ? null : this._directSlot(slot);
+    if (direct !== null) this.forceWeapon(direct, { now });
     if (lastWeapon) this.forceWeapon(this._lastSlot, { now });
     // Melee never reloads: a manual request with a no-magazine weapon drawn is a no-op.
     if (reload && !quickMelee && !this.quickMeleeActive && this._alive && this.def.glaive) {

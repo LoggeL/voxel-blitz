@@ -36,12 +36,12 @@ const CASES = Object.freeze([
   { id: 'tdm-full', kit: 'assault', mode: 'tdm', current: 'primary', hover: 1 },
 ]);
 
-/** Expected kit segments (role caption, key badge) per Conquest case, clockwise from the top. */
+/** Expected kit segments (role caption, kit-relative key badge) per Conquest case, clockwise from the top. */
 const EXPECTED = Object.freeze({
-  'engineer-at': [['PRIMARY', '2'], ['GADGET · AT', '8'], ['SIDEARM', '6'], ['MELEE', '0']],
-  'engineer-aa': [['PRIMARY', '3'], ['GADGET · AA', '8'], ['SIDEARM', '6'], ['MELEE', '0']],
-  assault: [['PRIMARY', '1'], ['SIDEARM', '6'], ['MELEE', '0']],
-  'support-minigun': [['PRIMARY', ''], ['SIDEARM', '6'], ['MELEE', '0']],
+  'engineer-at': [['PRIMARY', '1'], ['GADGET · AT', '3'], ['SIDEARM', '2'], ['MELEE', '4']],
+  'engineer-aa': [['PRIMARY', '1'], ['GADGET · AA', '3'], ['SIDEARM', '2'], ['MELEE', '4']],
+  assault: [['PRIMARY', '1'], ['SIDEARM', '2'], ['MELEE', '4']],
+  'support-minigun': [['PRIMARY', '1'], ['SIDEARM', '2'], ['MELEE', '4']],
 });
 /** What a flick to each segment equips with the melee drawn (melee itself is already current). */
 const FLICK = Object.freeze({

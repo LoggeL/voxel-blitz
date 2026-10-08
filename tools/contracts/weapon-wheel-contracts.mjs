@@ -109,19 +109,24 @@ export async function runWeaponWheelContracts(ok) {
 
     ok(KIT_WHEEL_ROLES.join() === 'primary,gadget,sidearm,melee', 'the kit wheel orders segments primary, gadget, sidearm, melee');
     equip('engineer', 0, 0);
-    ok(view() === 'smg:PRIMARY:2:36 / 6:eq rocket:GADGET · AT:8:1 / 4: revolver:SIDEARM:6:6 / 8: knife:MELEE:0:∞:',
-      `conquest Engineer AT: four segments, slot keys, issued ammo, equipped primary (${view()})`);
+    ok(view() === 'smg:PRIMARY:1:36 / 6:eq rocket:GADGET · AT:3:1 / 4: revolver:SIDEARM:2:6 / 8: knife:MELEE:4:∞:',
+      `conquest Engineer AT: four segments, kit keys 1-4, issued ammo, equipped primary (${view()})`);
     equip('engineer', 1, 1, 'gadget');
-    ok(view() === 'shotgun:PRIMARY:3:7 / 42: stinger:GADGET · AA:8:1 / 2:eq revolver:SIDEARM:6:6 / 8: knife:MELEE:0:∞:',
-      `conquest Engineer AA: the STINGER takes the gadget segment on the launcher digit (${view()})`);
+    ok(view() === 'shotgun:PRIMARY:1:7 / 42: stinger:GADGET · AA:3:1 / 2:eq revolver:SIDEARM:2:6 / 8: knife:MELEE:4:∞:',
+      `conquest Engineer AA: the STINGER takes the gadget segment on kit key 3 (${view()})`);
     ok(kitWheel.entries().every(e => e.owned) && !kitWheel.entries().some(e => ['rocket', 'rifle', 'mgl'].includes(e.id)),
       'conquest: no locked or unowned weapons are listed');
     equip('assault');
-    ok(view() === 'rifle:PRIMARY:1:30 / 6:eq revolver:SIDEARM:6:6 / 8: knife:MELEE:0:∞:',
+    ok(view() === 'rifle:PRIMARY:1:30 / 6:eq revolver:SIDEARM:2:6 / 8: knife:MELEE:4:∞:',
       `conquest Assault: no gadget, three segments (${view()})`);
     equip('support', 1);
-    ok(kitWheel.entries()[0].id === 'minigun' && kitWheel.entries()[0].key === '' && kitWheel.entries().length === 3,
-      'conquest Support FURNACE: a primary without a digit shows no key badge');
+    ok(kitWheel.entries()[0].id === 'minigun' && kitWheel.entries()[0].key === '1' && kitWheel.entries().length === 3,
+      'conquest Support FURNACE: every primary answers kit key 1, even one without a global digit');
+    for (const kit of ['assault', 'support', 'recon']) for (const variant of [0, 1]) {
+      equip(kit, variant);
+      ok(kitWheel.entries().map(e => e.key).join() === '1,2,4',
+        `conquest ${kit} variant ${variant}: badges 1 primary, 2 sidearm, 4 melee and no gadget (${view()})`);
+    }
 
     // Selection maps the wheel index to the weapon slot; digits map through the kit.
     equip('engineer', 0, 1);
@@ -132,12 +137,16 @@ export async function runWeaponWheelContracts(ok) {
     kitWheel.commit(2);
     ok(kitPicks.join() === `${WEAPON_IDS.indexOf('stinger')},${WEAPON_IDS.indexOf('revolver')}`,
       `conquest: picking segments equips the STINGER and the sidearm by weapon slot (${kitPicks.join()})`);
-    ok(kitWheel.directIndex(WEAPON_IDS.indexOf('rocket')) === 1 && kitWheel.directIndex(9) === 3
-        && kitWheel.directIndex(5) === 2 && kitWheel.directIndex(1) === 0 && kitWheel.directIndex(0) === -1,
-      'conquest: digits pressed in the wheel pick the entry they equip outside it (launcher digit -> gadget)');
+    ok(kitWheel.directIndex(0) === 0 && kitWheel.directIndex(1) === 2 && kitWheel.directIndex(2) === 1
+        && kitWheel.directIndex(3) === 3 && [4, 5, 6, 7, 8, 9].every(slot => kitWheel.directIndex(slot) === -1),
+      'conquest: keys 1-4 pressed in the wheel pick primary, sidearm, gadget, melee; 5-0 pick nothing');
+    equip('recon');
+    ok(kitWheel.directIndex(2) === -1 && kitWheel.directIndex(1) === 1 && kitWheel.directIndex(3) === 2,
+      'conquest: a kit without a gadget answers key 3 with nothing');
+    equip('engineer', 0, 1);
     kitPicks.length = 0;
     kitWheel.openWheel();
-    kitWheel.commit(kitWheel.directIndex(0));
+    kitWheel.commit(kitWheel.directIndex(7));
     kitWheel.openWheel();
     kitWheel.commit(0);
     ok(!kitWheel.open && kitPicks.length === 0,
