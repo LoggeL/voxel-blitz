@@ -10,11 +10,16 @@ clients that present it. Shared rules and the motion model live in
 
 ## Support rules
 
-* **Anchors.** Natural ground (`STRUCTURE_GROUND`: bedrock, grass, dirt,
-  stone, sand, rock, the Minecraft island and Nether materials, Bikini
+* **Anchors.** Natural ground never needs support and fully supports what
+  rests on it. Ground is a material (`STRUCTURE_GROUND`: bedrock, grass,
+  dirt, stone, sand, rock, the Minecraft island and Nether materials, Bikini
   Bottom sand and reef rock, and the Frontier meadow, field, mud, gravel and
-  needle ground) never needs support and fully supports what rests on it.
-  Load-time pins (below) are anchors too.
+  needle ground) *and* a place: only ground material that forms the map's
+  natural ground mass is an anchor (see *Natural ground* below). The same
+  materials used to build (a stone wall, a sandbag line, a dirt bunker, the
+  Minecraft B5 lighthouse lantern, the Citadel bell tower's stone cornices)
+  are **demoted** to structural masonry. Load-time pins (below) are anchors
+  too.
 * **Structural blocks** are every other solid block. Their support `s` is in
   `1..254` (`STRUCTURE_RULES.supportMax`); `0` means unsupported.
   * Straight up from a supported block: no loss (`s(above) = s(below)`).
@@ -41,6 +46,62 @@ needs its middle pier. The field is the unique fixpoint
 `s(b) = max(0, max over neighbours n of s(n) - cost(n -> b))`; up edges cost
 0, all others > 0, so there are no zero-cost cycles.
 
+### Natural ground
+
+`server/sim/structure-ground.js` labels every map template once, inside the
+template field build (`SupportField.buildSteps`, same voxel scan). A ground
+cell is natural when
+
+1. a horizontal 5x5 square of ground cells at its height covers it (a 2D
+   morphological opening per layer, `GROUND_RULES.plate`): terrain is wide at
+   every height, a hill's cross-section is a blob, so slopes survive, while
+   walls, piers, columns and lanterns are thinner than 5 blocks and drop out;
+2. and its 6-connected component among the cells kept by (1) touches the
+   bottom layers (`y <= 1`) or holds at least 2048 cells
+   (`GROUND_RULES.minComponent`): stone floors and roofs held up by demoted
+   walls and small detached solids drop out, floating islands (Minecraft
+   B5's island over the Nether) stay.
+
+Bedrock is never demoted (it cannot be destroyed). Every other ground cell
+is demoted and behaves as masonry (span 6, density 1): it needs support,
+gets pinned at load if it has none, creaks and falls. The demoted set is a
+sparse bitmap over the field's 8^3 chunks (64 bytes per chunk that holds a
+demoted cell), shared read-only by every room on the map; all kind checks go
+through `SupportField.kindOf(type, x, y, z)` / `kindAt(x, y, z)`.
+
+* **Per cell, per template.** Demotion is a property of the template cell:
+  a ground block placed later on a demoted cell is building material, one
+  placed anywhere else is ground (an anchor), as before. Falling ground
+  material leaves no rubble (`STRUCTURE_RUBBLE` is 0 for ground ids): a
+  landed stone would be an anchor wherever it came to rest. A room whose
+  world no longer matches its template when the field is built (a bulk
+  rewrite) labels its current voxels instead.
+* **Thin natural edges** (cliff lips, ridge and dune crests, island
+  undersides, 1-block map-edge cliffs) are thinner than the plate and are
+  demoted too. They rest on the ground below them, so this changes nothing
+  until they are undermined: then they fall like rock would. Demoted cells
+  without support at load are pinned (49 on Minecraft B5, 7 on Citadel, 2 on
+  Bikini Bottom, none elsewhere).
+* **Known limits.** Ground material at least 5x5 thick and joined to the
+  terrain stays ground: Dust II's one-block raised rock floor (339 cells),
+  a two-block rock patch on Bikini Bottom (140), Causeway's out-of-bounds stone fill,
+  Frontier site floors one block above the heightfield (1149 cells, no
+  mounds over 3 blocks). No map has a building with walls that thick.
+
+Per map (template): demoted ground cells, pins and the pins that are props
+(below).
+
+| Map | demoted | pins (props) | | Map | demoted | pins (props) |
+|---|---|---|---|---|---|---|
+| foundry | 3761 | 19 (11) | | killhouse | 3074 | 25 (25) |
+| depot | 5360 | 172 (144) | | harbor | 64 | 598 (598) |
+| citadel | 3915 | 34 (24) | | canyon | 20794 | 234 (232) |
+| solstice | 11111 | 644 (644) | | minecraft_b5 | 12535 | 236 (89) |
+| caldera | 6297 | 44 (44) | | waterworld | 0 | 2270 (2270) |
+| nuketown | 243 | 110 (110) | | causeway | 2131 | 4 (4) |
+| dust2 | 3887 | 177 (177) | | bikini_bottom | 8433 | 197 (192) |
+| reactor | 439 | 18 (18) | | frontier | 14743 | 1213 (1193) |
+
 The old fragile rule stays: shooting a block also shatters the GLASS/LEAVES
 stacked directly above it at once (`destroyBlock`), with the usual per-block
 `block` events.
@@ -58,10 +119,23 @@ map. A pinned block is still an ordinary destructible block; when it is
 destroyed, what only it held creaks and falls, so damage next to authored
 floating geometry behaves like damage anywhere else.
 
-Pins per map today: foundry 19, depot 160, citadel 25, solstice 644, caldera
-44, nuketown 110, dust2 177, reactor 18, killhouse 25, harbor 598, canyon 234,
-minecraft_b5 179, waterworld 2270, causeway 4, bikini_bottom 195, frontier
-1210.
+**Props.** A pin on a structure that stood on the ground at load (its solid
+blocks, linked by faces or edges, reach natural ground) is a *prop*: it holds
+the authored shape (a plank floor wider than its span, a lantern roof) only
+while that structure still reaches the ground. Once the support pass after
+removals has settled, the server searches from every removed block's
+supported neighbours (faces and edges, downward first) through supported
+blocks for natural ground or a non-prop pin; a structure that no longer
+reaches either loses its props (they count as removed, credited to the
+removal that cut it off) and falls like any cut-off structure. Doomed blocks
+do not count as a connection, and their own fall runs the check again for
+what they held. A search gives up after 65536 blocks (the structure then
+counts as grounded). Pins of floating authored geometry (Minecraft B5's
+clouds, which never touched the ground) stay anchors for good. Without props,
+the Minecraft B5 lighthouse kept 475 of its 922 blocks floating after its
+tower was shot through (20 pins on its floors and lantern).
+
+The per-map pin counts are in the table above.
 
 ## Server algorithm
 
@@ -391,8 +465,15 @@ The max column is single ticks (JIT warm-up, GC, a cluster release);
 production (VoxelBox Haswell) is roughly 3-4x slower. A 9x9x20 concrete
 tower whose base is removed in one tick (1539 falling blocks) spreads over
 about 11 ticks at 30-400 us each (12 chunks, the rest crumbles). Template
-field build (once per process): 2-54 ms per small map, about 110 ms for
-Frontier (about 400 ms on the production host). Built at a room's creation,
+field build (once per process): 2-60 ms per small map, about 150-160 ms for
+Frontier (about 400-500 ms on the production host). The natural-ground
+labeling adds about 10-20 ms to Frontier's build (it reuses the build's voxel
+scan and works on 32-cell words; 3-10 ms per small map) and the prop
+classification a few ms; the scan now yields every 256 rows, so the longest
+build step is about 5 ms on Frontier. The prop check after removals costs
+about 0.05 ms per call (max 0.9 ms, Waterworld, 30 s of 4 rockets/s plus 20
+block breaks/s); 30 s `structure:bench` runs with it measured structure time
+per tick p95 42 / max 419 us on Foundry and p95 70 / max 582 us on Frontier. Built at a room's creation,
 it stalled every running room's ticks, so the server prepares them ahead
 (`server/index.js`, `server/sim/structure.js`): Frontier's in its boot
 preparation before listening (the field takes 150-190 ms there under load;
@@ -423,12 +504,20 @@ an interval to 57 ms (Waterworld, 46 ms).
   map frames, the bot terrain journal, the wire contract (no attacker in any
   structure event), per-removal credit in one tick and across a multi-tick
   pass, scripted edits next to a demolition, no friendly crush (bodies and
-  hulls, no world fallback, suicides stay) and the per-tick creak caps.
+  hulls, no world fallback, suicides stay), the per-tick creak caps, ground
+  material as building material (a stone tower and a sand wall fall, a hill,
+  a floating island and bedrock stay ground, a small floating stone block is
+  pinned for good, no ground rubble, later placements) and props (a deck
+  whose middle is pinned falls whole once its posts are cut).
 * `tools/ttt-traps-test.mjs`: a TTT round's craters are restored at the next
   round's start and reach clients as block deltas.
 * `tools/structure-maps-test.mjs`: every map loads with zero collapses,
   unchanged fingerprints and bounded memory; damage around pins settles and
-  matches a rebuild.
+  matches a rebuild. Per map, the two largest ground-material structures
+  away from the map edge lose the lowest block of every column and exactly
+  the blocks fall that would fall if they were brick. The Minecraft B5
+  lighthouse (tower cut two blocks above its floor) and the Citadel bell
+  tower (cut below its lower cornice) come down completely.
 * `tools/structure-client-test.mjs`: the client presentation on a real
   `ChunkStore`: every block drawn exactly once (terrain, proxy or chunk) at
   every step from creak to rubble, per-column swaps, saved creaks, cover

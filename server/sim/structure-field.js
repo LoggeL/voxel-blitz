@@ -4,14 +4,17 @@
 // Frontier room shares the template's chunks and owns only what it changed.
 //
 // Values: 0 = unsupported, 1..MAX = support, PIN = load-time anchor (reads as
-// MAX). Ground blocks (STRUCTURE_KIND 1) are implicit anchors and never
-// stored. Support flows from an anchor straight up at no cost and loses
+// MAX). Natural ground (STRUCTURE_KIND 1 outside the template's demoted
+// cells, structure-ground.js) is an implicit anchor and never stored; a
+// demoted ground cell is structural masonry. Every kind check goes through
+// `kindOf` / `kindAt`. Support flows from an anchor straight up at no cost and loses
 // STRUCTURE_SIDE_COST[type] per sideways or hanging (downward) step into a
 // block; the field is the unique fixpoint s(b) = max(0, max over neighbours
 // n of s(n) - cost(n -> b)). Every up edge costs 0 and every other edge > 0,
 // so no zero-cost cycle exists and the fixpoint is unique.
 import { STRUCTURE_KIND as KIND, STRUCTURE_SIDE_COST as COST, STRUCTURE_RULES } from '../../shared/structure.js';
 import { worldDimensions } from '../../shared/world/dimensions.js';
+import { ROWS_PER_YIELD, groundState, labelSteps, scanRows } from './structure-ground.js';
 
 export const SUPPORT_MAX = STRUCTURE_RULES.supportMax;
 export const PIN = 255;
@@ -56,28 +59,53 @@ const TEMPLATE_FIELDS = new WeakMap();
 const TEMPLATE_BUILDS = new WeakMap();
 /** Work units (cell visits) between the yields of a stepwise build. */
 const BUILD_STEP_UNITS = 4096;
+/**
+ * Face and edge neighbour offsets [dx, dy, dz] (18-connectivity), upper ones
+ * first: a structure's blocks belong together when they share a face or an
+ * edge (voxelised geometry often joins only along edges).
+ */
+export const LINKED = Object.freeze([1, 0, -1].flatMap(dy => [-1, 0, 1].flatMap(dz => [-1, 0, 1].map(dx => [dx, dy, dz])))
+  .filter(([dx, dy, dz]) => { const n = Math.abs(dx) + Math.abs(dy) + Math.abs(dz); return n === 1 || n === 2; }));
+/** Cells a ground search visits before it gives up (and assumes the ground is reached). */
+export const GROUND_SEARCH_CAP = 65536;
 
 /** Packed keys of every structural cell above bedrock, in index (y, z, x) order. */
 function structuralCells(field, raw) {
   const { sx, sy, sz } = field;
   let out = new Int32Array(4096), count = 0;
-  const add = (key) => {
+  for (let y = 1, i = sx * sz; y < sy; y++) for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++, i++) {
+    if (KIND[(raw ? raw[i] : field.block(x, y, z)) & 255] !== 2) continue;
     if (count === out.length) { const next = new Int32Array(out.length * 2); next.set(out); out = next; }
-    out[count++] = key;
-  };
-  if (raw) {
-    const layer = sx * sz;
-    for (let i = layer, end = sx * sy * sz; i < end; i++) {
-      if (KIND[raw[i]] !== 2) continue;
-      const x = i % sx, rest = (i - x) / sx, z = rest % sz, y = (rest - z) / sz;
-      add((y << 20) | (z << 10) | x);
-    }
-  } else {
-    for (let y = 1; y < sy; y++) for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) {
-      if (KIND[field.block(x, y, z) & 255] === 2) add((y << 20) | (z << 10) | x);
+    out[count++] = (y << 20) | (z << 10) | x;
+  }
+  return withDemoted(field, out.subarray(0, count));
+}
+
+/** Sorted structural keys plus the field's demoted ground cells, merged in key order (keys sort as y, z, x). */
+function withDemoted(field, keys) {
+  if (field.demoted === null) return keys;
+  const extra = demotedKeys(field);
+  if (!extra.length) return keys;
+  const merged = new Int32Array(keys.length + extra.length), count = keys.length;
+  let a = 0, b = 0, m = 0;
+  while (a < count || b < extra.length) merged[m++] = b >= extra.length || (a < count && keys[a] < extra[b]) ? keys[a++] : extra[b++];
+  return merged;
+}
+
+/** Packed keys of the field's demoted ground cells holding ground material now (above bedrock), sorted. */
+function demotedKeys(field) {
+  const { ncx, ncz, demoted } = field, keys = [];
+  for (let c = 0; c < demoted.length; c++) {
+    const bits = demoted[c];
+    if (!bits) continue;
+    const cx = c % ncx, cz = Math.floor(c / ncx) % ncz, cy = Math.floor(c / (ncx * ncz));
+    for (let i = 0; i < 512; i++) {
+      if (!((bits[i >> 3] >> (i & 7)) & 1)) continue;
+      const x = (cx << 3) | (i & 7), y = (cy << 3) | (i >> 6), z = (cz << 3) | ((i >> 3) & 7);
+      if (y > 0 && KIND[field.block(x, y, z) & 255] === 1) keys.push(pack(x, y, z));
     }
   }
-  return out.subarray(0, count);
+  return Int32Array.from(keys).sort();
 }
 
 export class SupportField {
@@ -85,7 +113,7 @@ export class SupportField {
    * @param {{sx:number, sy:number, sz:number}} dimensions
    * @param {(x:number, y:number, z:number) => number} blockAt live voxel reader
    */
-  constructor(dimensions, blockAt, slots = null) {
+  constructor(dimensions, blockAt, slots = null, demoted = null) {
     const { sx, sy, sz } = dimensions;
     if (sx > 1024 || sz > 1024 || sy > 128) throw new RangeError('structure field: map too large for packed keys');
     this.sx = sx; this.sy = sy; this.sz = sz;
@@ -97,6 +125,13 @@ export class SupportField {
     this.owned = new Uint8Array(count);
     if (!slots) this.owned.fill(1);
     this.base = null;
+    // Ground cells that are building material, not natural ground: a shared,
+    // read-only 8^3 chunk bitmap (structure-ground.js) or null.
+    this.demoted = demoted;
+    // Load-time pins on structures that stood on the ground at load ("props",
+    // packed keys; shared, read-only, or null): they anchor only while that
+    // structure still reaches the ground (StructureSystem.checkProps).
+    this.props = null;
     this.pins = 0;
     this.structural = 0;
   }
@@ -122,12 +157,34 @@ export class SupportField {
     chunk[((y & 7) << 6) | ((z & 7) << 3) | (x & 7)] = value;
   }
 
+  /** True when the template marked a cell's ground as building material (demoted). */
+  isDemoted(x, y, z) {
+    const bits = this.demoted[((y >> 3) * this.ncz + (z >> 3)) * this.ncx + (x >> 3)];
+    if (!bits) return false;
+    const bit = ((y & 7) << 6) | ((z & 7) << 3) | (x & 7);
+    return ((bits[bit >> 3] >> (bit & 7)) & 1) === 1;
+  }
+
+  /**
+   * Structure kind of a block of `type` at a cell: 0 passable, 1 natural
+   * ground (anchor), 2 structural. Ground material at a demoted cell is
+   * structural, whatever stands there now (the rule is per cell, fixed per
+   * map template).
+   */
+  kindOf(type, x, y, z) {
+    const kind = KIND[type & 255];
+    return kind === 1 && this.demoted !== null && this.isDemoted(x, y, z) ? 2 : kind;
+  }
+
+  /** `kindOf` the block at a cell now. */
+  kindAt(x, y, z) { return this.kindOf(this.block(x, y, z), x, y, z); }
+
   inside(x, y, z) { return x >= 0 && z >= 0 && y >= 0 && x < this.sx && z < this.sz && y < this.sy; }
 
   /** Support a voxel gives its neighbours: 0 passable/out of map, MAX ground or pin. */
   valueAt(x, y, z) {
     if (!this.inside(x, y, z)) return 0;
-    const kind = KIND[this.block(x, y, z) & 255];
+    const kind = this.kindAt(x, y, z);
     if (kind === 0) return 0;
     if (kind === 1) return MAX;
     const value = this.read(x, y, z);
@@ -148,7 +205,7 @@ export class SupportField {
   offer(x, y, z, value, up, queue) {
     if (!this.inside(x, y, z)) return;
     const type = this.block(x, y, z) & 255;
-    if (KIND[type] !== 2) return;
+    if (this.kindOf(type, x, y, z) !== 2) return;
     const candidate = up ? value : value - COST[type];
     if (candidate <= 0) return;
     const current = this.read(x, y, z);
@@ -176,6 +233,43 @@ export class SupportField {
     return used;
   }
 
+  /** True when a cell holds a prop pin (a pin that lasts only while its structure reaches the ground). */
+  isProp(key) { return this.props !== null && this.props.has(key) && this.read(key & 1023, key >> 20, (key >> 10) & 1023) === PIN; }
+
+  /**
+   * Search the solid blocks linked to cell `start` (sharing a face or an
+   * edge) for the ground, downward first. `live`: walk only supported structural blocks that are
+   * not in `skip` (doomed), and count hard (non-prop) pins as ground; else
+   * walk every solid block (the load-time state). Returns `{ grounded, seen }`
+   * with grounded true, false (a floating structure: `seen` is all of it) or
+   * null (gave up after `cap` cells).
+   */
+  searchGround(start, { live = false, skip = null, cap = GROUND_SEARCH_CAP } = {}) {
+    const seen = new Set([start]), stack = [start];
+    while (stack.length) {
+      const key = stack.pop(), x = key & 1023, z = (key >> 10) & 1023, y = key >> 20;
+      // Pushed last, popped first: below, then the sides, then above.
+      for (let d = 0; d < LINKED.length; d++) {
+        const [dx, dy, dz] = LINKED[d], nx = x + dx, ny = y + dy, nz = z + dz;
+        if (!this.inside(nx, ny, nz)) continue;
+        const next = pack(nx, ny, nz);
+        if (seen.has(next)) continue;
+        const kind = this.kindAt(nx, ny, nz);
+        if (kind === 0) continue;
+        if (kind === 1) return { grounded: true, seen };
+        if (live) {
+          const value = this.read(nx, ny, nz);
+          if (value === 0 || skip?.has(next)) continue;
+          if (value === PIN && !this.props?.has(next)) return { grounded: true, seen };
+        }
+        seen.add(next);
+        stack.push(next);
+        if (seen.size >= cap) return { grounded: null, seen };
+      }
+    }
+    return { grounded: false, seen };
+  }
+
   /** Chunks this field owns (allocated or copied) and their bytes. */
   memory() {
     let chunks = 0;
@@ -194,8 +288,9 @@ export class SupportField {
 
   /** A copy-on-write fork that reads the live world. */
   fork(blockAt) {
-    const field = new SupportField({ sx: this.sx, sy: this.sy, sz: this.sz }, blockAt, this.slots);
+    const field = new SupportField({ sx: this.sx, sy: this.sy, sz: this.sz }, blockAt, this.slots, this.demoted);
     field.base = this;
+    field.props = this.props;
     field.pins = this.pins;
     field.structural = this.structural;
     return field;
@@ -206,7 +301,9 @@ export class SupportField {
    * scan. With `pin`, every structural block left unsupported is anchored in
    * place (lowest first, preferring blocks touching supported ones, then the
    * smallest index), so a map never collapses at load. `pins` (packed keys)
-   * replays a known pin set instead (verification).
+   * replays a known pin set instead (verification). `demoted` reuses a known
+   * demoted-ground bitmap (null: none); left undefined, the natural ground is
+   * labelled from the voxels first (structure-ground.js).
    */
   static build(dimensions, blockAt, options = {}) {
     const steps = SupportField.buildSteps(dimensions, blockAt, options);
@@ -220,17 +317,28 @@ export class SupportField {
    * visits and returns the field, so a caller can spread a large build over
    * short time slices (`warmStructureTemplates`).
    */
-  static *buildSteps(dimensions, blockAt, { raw = null, pin = true, pins = null } = {}) {
+  static *buildSteps(dimensions, blockAt, { raw = null, pin = true, pins = null, demoted } = {}) {
     const field = new SupportField(dimensions, blockAt);
     const { sx, sy, sz } = field;
     if (raw) field.block = (x, y, z) => raw[(y * sz + z) * sx + x];
+    // One flat scan collects the structural cells (y = 0 is bedrock) and,
+    // unless a demoted set is given, the ground mask the natural ground is
+    // labelled from (structure-ground.js).
+    let cells;
+    if (demoted === undefined) {
+      const ground = groundState(dimensions, { raw, blockAt: field.block }), list = { keys: new Int32Array(4096), count: 0 };
+      for (let r = 0; r < ground.rows; r += ROWS_PER_YIELD) { scanRows(ground, r, Math.min(ground.rows, r + ROWS_PER_YIELD), list); yield; }
+      field.demoted = (yield* labelSteps(ground)).demoted;
+      cells = withDemoted(field, list.keys.subarray(0, list.count));
+    } else {
+      field.demoted = demoted;
+      cells = structuralCells(field, raw);
+    }
     const queue = new SupportQueue();
     if (pins) for (const key of pins) {
       const x = keyX(key), y = keyY(key), z = keyZ(key);
-      if (KIND[field.block(x, y, z) & 255] === 2) { field.write(x, y, z, PIN); queue.push(key, MAX); field.pins++; }
+      if (field.kindAt(x, y, z) === 2) { field.write(x, y, z, PIN); queue.push(key, MAX); field.pins++; }
     }
-    // One flat scan collects the structural cells (y = 0 is bedrock).
-    const cells = structuralCells(field, raw);
     yield;
     for (let i = 0; i < cells.length; i++) {
       if ((i & (BUILD_STEP_UNITS - 1)) === BUILD_STEP_UNITS - 1) yield;
@@ -273,6 +381,20 @@ export class SupportField {
           yield;
         }
       }
+      // Pins on structures connected to the ground at load are props: they
+      // hold the authored shape only while the structure still stands on
+      // the ground. One search per structure (its pins share the result).
+      const props = new Set(), known = new Map();
+      for (const key of field.pinKeys()) {
+        if (!known.has(key)) {
+          const { grounded, seen } = field.searchGround(key);
+          for (const cell of seen) if (field.read(cell & 1023, cell >> 20, (cell >> 10) & 1023) === PIN) known.set(cell, grounded !== false);
+          known.set(key, grounded !== false);
+          yield;
+        }
+        if (known.get(key)) props.add(key);
+      }
+      field.props = props.size ? props : null;
     }
     field.block = blockAt;
     return field;

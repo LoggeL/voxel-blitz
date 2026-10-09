@@ -1,16 +1,19 @@
 // Structural integrity: support rules per material, collapses, falling chunks,
 // crush damage and kill credit, rubble, budgets, determinism, the incremental
 // field against a from-scratch rebuild, placement refusal, late-join frames
-// and the protocol contract (docs/structural-physics.md).
+// and the protocol contract, ground material as building material and
+// load-time pins that release when their structure is cut off
+// (docs/structural-physics.md).
 import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
 import { destroyBlockDirect } from '../server/sim/combat.js';
-import { SupportField } from '../server/sim/structure-field.js';
+import { SupportField, PIN, pack } from '../server/sim/structure-field.js';
+import { GROUND_RULES } from '../server/sim/structure-ground.js';
 import { TerrainWatch } from '../server/bot-surface-nav.js';
 import { createMapState } from '../shared/worlddata.js';
 import { decodeMapFrame } from '../shared/world/serialize.js';
 import {
-  AIR, STONE, WOOD, PLANK, CONCRETE, BRICK, GLASS, ACCENT, BARRICADE, GROUND, SX, SZ,
+  AIR, STONE, SAND, DIRT, BEDROCK, WOOD, PLANK, CONCRETE, BRICK, GLASS, ACCENT, BARRICADE, GROUND, SX, SZ,
 } from '../shared/world/blocks.js';
 import {
   STRUCTURE_RULES, STRUCTURE_EVENT_KINDS, STRUCTURE_KIND, COLLAPSE_WEAPON, structureSpan,
@@ -25,8 +28,12 @@ const ok = (value, message) => { assert.ok(value, message); passed++; };
 const eq = (actual, expected, message) => { assert.deepEqual(actual, expected, message); passed++; };
 
 const FLOOR = 10;
-/** A foundry engine with a flat stone floor (y <= 10) and open air over x, z in [12, 116) x [12, 84). */
-function scene({ structural = true, rules = null, mode = undefined } = {}) {
+/**
+ * A foundry engine with a flat stone floor (y <= 10) and open air over x, z
+ * in [12, 116) x [12, 84). `prebuild(set)` adds blocks before the field is
+ * built (they count as map geometry: ground material there is labelled).
+ */
+function scene({ structural = true, rules = null, mode = undefined, prebuild = null } = {}) {
   const events = [];
   const engine = new GameEngine({ world: createMapState('foundry'), structural, ...(mode ? { mode } : {}),
     broadcast: (s) => events.push(...s.events) });
@@ -36,6 +43,7 @@ function scene({ structural = true, rules = null, mode = undefined } = {}) {
   for (let x = 12; x < 116; x++) for (let z = 12; z < 84; z++) for (let y = 1; y < 40; y++) {
     world.setBlock(x, y, z, y <= FLOOR ? STONE : AIR);
   }
+  prebuild?.((x, y, z, type) => world.setBlock(x, y, z, type));
   structure.reset();
   const set = (x, y, z, type) => { world.setBlock(x, y, z, type); engine.pushBlockDelta(x, y, z, type); };
   const box = (x0, y0, z0, x1, y1, z1, type) => {
@@ -60,11 +68,12 @@ function scene({ structural = true, rules = null, mode = undefined } = {}) {
 /** Assert the incremental field equals a from-scratch build with the same pins. */
 function assertFieldMatches(s, label) {
   const { world, structure } = s;
-  const rebuilt = SupportField.build(world.dimensions, (x, y, z) => world.getBlock(x, y, z), { pins: structure.field.pinKeys() });
+  const rebuilt = SupportField.build(world.dimensions, (x, y, z) => world.getBlock(x, y, z),
+    { pins: structure.field.pinKeys(), demoted: structure.field.demoted });
   const { sx, sy, sz } = world.dimensions;
   let mismatches = 0, first = null;
   for (let y = 1; y < sy; y++) for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) {
-    if (STRUCTURE_KIND[world.getBlock(x, y, z)] !== 2) continue;
+    if (structure.field.kindAt(x, y, z) !== 2) continue;
     const a = structure.field.read(x, y, z), b = rebuilt.read(x, y, z);
     if (a !== b) { mismatches++; first ??= { x, y, z, incremental: a, rebuilt: b }; }
   }
@@ -505,6 +514,91 @@ function bridge(s) {
   ok(slabs.every(([x, z]) => s.world.getBlock(x, 14, z) === AIR), 'every slab fell');
   ok(s.kinds('collapse').every(e => s.creditOf(e) === 'bomber'), 'queued clusters keep their credit');
   assertFieldMatches(s, 'creak cap');
+}
+
+// 21. Ground material as building material (structure-ground.js): a stone
+// tower and a sand wall on the stone floor are structural masonry and fall
+// when cut; wide terrain stays ground; a large floating island stays ground,
+// a small floating stone block is pinned at load (authored, it stays); bedrock
+// is never demoted.
+{
+  const box = (set, x0, y0, z0, x1, y1, z1, type) => {
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) set(x, y, z, type);
+  };
+  const s = scene({
+    prebuild: (set) => {
+      // A hollow 5x5 stone tower (y 11-20) with a stone roof.
+      box(set, 20, 11, 20, 24, 20, 24, STONE);
+      box(set, 21, 11, 21, 23, 19, 23, AIR);
+      // A 1-thick, 12-long sand wall, 4 high.
+      box(set, 30, 11, 20, 41, 14, 20, SAND);
+      // A wide dirt hill (16x16, 4 high).
+      box(set, 50, 11, 20, 65, 14, 35, DIRT);
+      // A floating stone island of minComponent cells, and a small floating stone cube.
+      box(set, 20, 26, 40, 35, 33, 55, STONE);
+      box(set, 60, 30, 50, 62, 32, 52, STONE);
+      // A thin bedrock pillar.
+      box(set, 80, 11, 40, 80, 20, 40, BEDROCK);
+    },
+  });
+  const field = s.structure.field, kind = (x, y, z) => field.kindAt(x, y, z);
+  eq(GROUND_RULES.minComponent, 16 * 16 * 8, 'the floating test island is exactly minComponent cells');
+  eq([kind(20, 15, 20), kind(22, 20, 22), kind(35, 12, 20)], [2, 2, 2], 'the stone tower, its roof and the sand wall are structural');
+  eq([kind(57, 14, 27), kind(50, 11, 20), kind(30, 10, 20), kind(27, 30, 47), kind(80, 15, 40)], [1, 1, 1, 1, 1],
+    'the hill (also its corner), the floor, the floating island and bedrock stay ground');
+  eq(kind(61, 31, 51), 2, 'a small floating stone cube is building material');
+  eq(field.read(60, 30, 50), PIN, 'it is pinned at load');
+  ok(!field.props?.has(pack(60, 30, 50)), 'as authored floating geometry (not a prop)');
+  eq(s.kinds('collapse').length, 0, 'nothing collapses at load');
+  for (let x = 20; x <= 24; x++) for (let z = 20; z <= 24; z++) if (x === 20 || x === 24 || z === 20 || z === 24) s.destroy(x, 11, z, 'sapper');
+  for (let x = 30; x <= 41; x++) s.destroy(x, 11, 20, 'sapper');
+  s.destroy(62, 32, 52);
+  s.settle();
+  let tower = 0, wall = 0, cube = 0;
+  for (let x = 20; x <= 24; x++) for (let y = 12; y <= 20; y++) for (let z = 20; z <= 24; z++) if (s.world.getBlock(x, y, z) === STONE) tower++;
+  for (let x = 30; x <= 41; x++) for (let y = 12; y <= 14; y++) if (s.world.getBlock(x, y, 20) === SAND) wall++;
+  for (let x = 60; x <= 62; x++) for (let y = 30; y <= 32; y++) for (let z = 50; z <= 52; z++) if (s.world.getBlock(x, y, z) === STONE) cube++;
+  eq([tower, wall], [0, 0], 'cutting their base brings the stone tower and the sand wall down');
+  eq(cube, 26, 'damage to the authored floating cube keeps the rest of it (a floating-at-load pin is never released)');
+  ok(s.kinds('collapse').every(e => s.creditOf(e) === 'sapper' || s.creditOf(e) === null), 'collapses are credited to the cause');
+  ok(s.kinds('collapseLand').filter(e => e.r > 0).length === 0, 'ground material leaves no rubble (it would land as ground)');
+  // Placed after load, ground material is ground (an anchor) outside the
+  // demoted cells and building material inside them.
+  s.set(70, 15, 60, STONE);
+  s.set(20, 11, 20, STONE);
+  eq([kind(70, 15, 60), kind(20, 11, 20)], [1, 2], 'later ground blocks: anchors, except on demoted cells');
+  s.settle();
+  assertFieldMatches(s, 'ground material');
+}
+
+// 22. Prop pins: a pin on a structure that stood on the ground at load holds
+// it only while the structure still reaches the ground. A 9x9 plank deck on
+// a stone floor ring: its centre is pinned at load (beyond the plank span);
+// cutting the posts drops the whole deck instead of leaving the pinned
+// middle floating.
+{
+  const s = scene({
+    prebuild: (set) => {
+      for (const [x, z] of [[30, 30], [38, 30], [30, 38], [38, 38]]) for (let y = 11; y <= 14; y++) set(x, y, z, WOOD);
+      for (let x = 30; x <= 38; x++) for (let z = 30; z <= 38; z++) set(x, 15, z, PLANK);
+    },
+  });
+  const field = s.structure.field;
+  eq(s.kinds('collapse').length, 0, 'the deck stands at load');
+  const deckPins = field.pinKeys().filter(key => (key >> 20) === 15);
+  ok(deckPins.length > 0 && deckPins.every(key => field.props?.has(key)), `its middle is held by ${deckPins.length} prop pin(s)`);
+  s.destroy(31, 15, 31, 'sapper');
+  s.settle();
+  eq(s.world.getBlock(34, 15, 34), PLANK, 'damage while the deck still stands keeps the prop');
+  eq(s.structure.stats.released, 0, 'no prop is released while the deck reaches the ground');
+  for (const [x, z] of [[30, 30], [38, 30], [30, 38], [38, 38]]) s.destroy(x, 12, z, 'sapper');
+  s.settle();
+  let deck = 0;
+  for (let x = 30; x <= 38; x++) for (let z = 30; z <= 38; z++) if (s.world.getBlock(x, 15, z) === PLANK) deck++;
+  eq(deck, 0, 'cut off from the ground, the whole deck falls (the prop pin is released)');
+  ok(s.structure.stats.released >= 1, 'the prop pin was released');
+  ok(s.kinds('collapse').every(e => s.creditOf(e) === 'sapper'), 'the fall is credited to whoever cut the posts');
+  assertFieldMatches(s, 'prop pins');
 }
 
 console.log(`structure-test: ${passed} checks passed`);

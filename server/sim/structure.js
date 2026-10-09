@@ -19,7 +19,7 @@ import {
   STRUCTURE_RUBBLE as RUBBLE, COLLAPSE_WEAPON,
 } from '../../shared/structure.js';
 import { vehicleDef } from '../../shared/vehicle-defs.js';
-import { SupportField, SupportQueue, PIN, SUPPORT_MAX as MAX, pack } from './structure-field.js';
+import { SupportField, SupportQueue, PIN, SUPPORT_MAX as MAX, LINKED, pack } from './structure-field.js';
 import { evCollapse, evCollapseLand, evCreak, evCrumble, evHit } from '../protocol/events.js';
 import { damageBlock } from './combat.js';
 
@@ -45,7 +45,7 @@ const overlaps = (ax0, ay0, az0, ax1, ay1, az1, bx0, by0, bz0, bx1, by1, bz1) =>
 /**
  * Build a map template's cached support field now (SupportField.forWorld), so
  * the first room on that map forks it (0.1 ms, 4 ms Frontier) instead of
- * building it inside its creation (Frontier: ~110 ms on a Mac, about 400 ms
+ * building it inside its creation (Frontier: ~150 ms on a Mac, about 400-500 ms
  * on the production host, stalling every running room's ticks). Returns false
  * for worlds without a template.
  */
@@ -119,7 +119,7 @@ export class StructureSystem {
     this.bulk = false;
     this.doomSerial = 0;
     this.chunkSerial = 0;
-    this.stats = { units: 0, peakUnits: 0, raiseUnits: 0, passes: 0, creaks: 0, collapses: 0, crumbles: 0, rubble: 0, hits: 0 };
+    this.stats = { units: 0, peakUnits: 0, raiseUnits: 0, passes: 0, creaks: 0, collapses: 0, crumbles: 0, rubble: 0, hits: 0, released: 0 };
     this.clearState();
     this.bind();
   }
@@ -135,6 +135,8 @@ export class StructureSystem {
     this.queue.clear();
     this.raise.clear();
     this.dooms = [];
+    // Removed cells ([key, tag] pairs) whose neighbours the next prop check visits.
+    this.cuts = [];
     // Clusters found unsupported but not yet announced (per-tick creak cap).
     this.creakQueue = [];
     this.doomed = new Set();
@@ -145,7 +147,10 @@ export class StructureSystem {
   get active() { return this.field !== null && this.world === this.engine.world; }
 
   /** Nothing queued, creaking or falling. */
-  get idle() { return !this.pass && !this.pending.length && !this.orphans.length && !this.creakQueue.length && !this.dooms.length && !this.chunks.length; }
+  get idle() {
+    return !this.pass && !this.pending.length && !this.orphans.length && !this.cuts.length && !this.creakQueue.length
+      && !this.dooms.length && !this.chunks.length;
+  }
 
   /** Attach to the engine's current world (state API worlds only; ad-hoc test worlds stay inert). */
   bind() {
@@ -194,7 +199,7 @@ export class StructureSystem {
   /** Block listener: the world just replaced `before` with `after` at a cell. */
   onChange(x, y, z, before, after) {
     if (this.bulk || !this.field) return;
-    const field = this.field, kindBefore = KIND[before & 255], kindAfter = KIND[after & 255];
+    const field = this.field, kindBefore = field.kindOf(before, x, y, z), kindAfter = field.kindOf(after, x, y, z);
     if (kindBefore !== 0) {
       let old = MAX;
       if (kindBefore === 2) {
@@ -204,6 +209,7 @@ export class StructureSystem {
         this.doomed.delete(pack(x, y, z));
       }
       if (old > 0) this.pending.push(pack(x, y, z), old, this.tag(x, y, z));
+      if (field.props !== null) this.cuts.push(pack(x, y, z), this.tag(x, y, z));
     }
     if (kindAfter === 1) {
       this.raise.push(pack(x, y, z), MAX);
@@ -228,13 +234,15 @@ export class StructureSystem {
   /** Support a structural block at a cell has now (0 unsupported or not structural, MAX anchored). */
   supportAt(x, y, z) {
     if (!this.field) return MAX;
-    return KIND[this.world.getBlock(x, y, z) & 255] === 2 ? this.field.valueAt(x, y, z) : 0;
+    return this.field.kindAt(x, y, z) === 2 ? this.field.valueAt(x, y, z) : 0;
   }
 
   /** Would structural blocks of `type` placed at `cells` all be supported? (cells support each other) */
   canSupport(cells, type) {
-    if (!this.field || KIND[type & 255] !== 2) return true;
+    if (!this.field || KIND[type & 255] === 0) return true;
     const field = this.field, values = new Map(), cost = COST[type & 255];
+    // Ground material is an anchor unless it lands on demoted (building-material) cells.
+    if (!cells.some(c => field.kindOf(type, c.x, c.y, c.z) === 2)) return true;
     const valueAt = (x, y, z) => values.get(pack(x, y, z)) ?? field.valueAt(x, y, z);
     const sorted = [...cells].sort((a, b) => a.y - b.y);
     for (let round = 0; round < 3; round++) for (const c of sorted) {
@@ -259,6 +267,8 @@ export class StructureSystem {
       }
       used += this.advance(budget - used);
     }
+    // Prop pins are checked once the removals' support pass has settled.
+    if (!this.pass && this.cuts.length && !this.pending.length && !this.orphans.length) this.checkProps();
     this.stats.units = used;
     if (used > this.stats.peakUnits) this.stats.peakUnits = used;
     if (this.creakQueue.length) this.announce();
@@ -293,7 +303,7 @@ export class StructureSystem {
         const key = pass.invalid[pass.seed++], x = key & 1023, z = (key >> 10) & 1023, y = key >> 20;
         used++;
         const type = this.world.getBlock(x, y, z) & 255;
-        if (KIND[type] !== 2 || field.read(x, y, z) !== 0) continue;
+        if (field.kindOf(type, x, y, z) !== 2 || field.read(x, y, z) !== 0) continue;
         const best = field.bestFrom(x, y, z, type);
         if (best > 0) { field.write(x, y, z, best); this.queue.push(key, best); }
       }
@@ -329,7 +339,7 @@ export class StructureSystem {
     const field = this.field;
     if (!field.inside(x, y, z)) return;
     const type = this.world.getBlock(x, y, z) & 255;
-    if (KIND[type] !== 2) return;
+    if (field.kindOf(type, x, y, z) !== 2) return;
     const support = field.read(x, y, z);
     if (support === 0 || support === PIN) return;
     if (support !== value - (up ? 0 : COST[type])) return;
@@ -354,7 +364,7 @@ export class StructureSystem {
       used++;
       if (this.doomed.has(key) || pass.candidates.has(key)) continue;
       const x = key & 1023, z = (key >> 10) & 1023, y = key >> 20;
-      if (KIND[this.world.getBlock(x, y, z) & 255] === 2 && field.read(x, y, z) === 0) {
+      if (field.kindAt(x, y, z) === 2 && field.read(x, y, z) === 0) {
         pass.candidates.set(key, i < invalid ? pass.tags[i] : pass.orphans[(i - invalid) * 2 + 1]);
       }
     }
@@ -420,6 +430,48 @@ export class StructureSystem {
     return used;
   }
 
+  /**
+   * Once support has settled after removals (`cuts`, [key, tag] pairs): a
+   * structure next to a removed cell that no longer reaches the ground
+   * through supported blocks (only its load-time prop pins hold it) loses
+   * those pins, so it falls like any other cut-off structure. Searches start
+   * at the removed cells' supported neighbours (face or edge); a structure
+   * found grounded once is not searched again in this check. Structures
+   * already doomed fall anyway, and their fall removes cells next to what
+   * they held, which runs this check again.
+   */
+  checkProps() {
+    const field = this.field, removed = this.cuts;
+    this.cuts = [];
+    if (field.props === null || !removed.length) return;
+    const settled = new Set();
+    for (let i = 0; i < removed.length; i += 2) {
+      const key = removed[i], x = key & 1023, z = (key >> 10) & 1023, y = key >> 20;
+      for (const [dx, dy, dz] of LINKED) {
+        const nx = x + dx, ny = y + dy, nz = z + dz;
+        if (!field.inside(nx, ny, nz)) continue;
+        const next = pack(nx, ny, nz);
+        if (settled.has(next) || this.doomed.has(next) || field.kindAt(nx, ny, nz) !== 2 || field.read(nx, ny, nz) === 0) continue;
+        const { grounded, seen } = field.searchGround(next, { live: true, skip: this.doomed });
+        for (const cell of seen) settled.add(cell);
+        if (grounded === false) this.releaseProps(seen, removed[i + 1]);
+      }
+    }
+  }
+
+  /** Unpin the prop pins among `cells`: they lose their support as if removed, and fall unless re-supported. */
+  releaseProps(cells, tag) {
+    const field = this.field;
+    for (const key of cells) {
+      if (!field.isProp(key)) continue;
+      field.write(key & 1023, key >> 20, (key >> 10) & 1023, 0);
+      field.pins--;
+      this.pending.push(key, MAX, tag);
+      this.orphans.push(key, tag);
+      this.stats.released++;
+    }
+  }
+
   /** Encode cells as the event origin + flat [dx, dy, dz, type] list (capped). */
   encode(cells) {
     let minX = Infinity, minY = Infinity, minZ = Infinity;
@@ -447,6 +499,7 @@ export class StructureSystem {
     this.stats.raiseUnits += this.field.propagate(this.raise);
   }
 
+  /** An unsupported cluster: its cells are doomed now; it creaks (and falls creakMs later) once announced. */
   /** An unsupported cluster: its cells are doomed now; it creaks (and falls creakMs later) once announced. */
   doom(keys, cause, origin) {
     const id = 'k' + (++this.doomSerial);
@@ -493,7 +546,7 @@ export class StructureSystem {
         if (!this.doomed.delete(key)) continue;
         const x = key & 1023, z = (key >> 10) & 1023, y = key >> 20, t = this.world.getBlock(x, y, z) & 255;
         // A block that regained support (a pillar placed in time) stays.
-        if (KIND[t] === 2 && field.read(x, y, z) === 0) cells.push({ x, y, z, t });
+        if (field.kindOf(t, x, y, z) === 2 && field.read(x, y, z) === 0) cells.push({ x, y, z, t });
       }
       if (cells.length) this.release(doom, cells);
     }
@@ -501,11 +554,14 @@ export class StructureSystem {
 
   /** Remove a doomed cluster from the world and send it down as chunks (or crumble it). */
   release(doom, cells) {
-    const engine = this.engine;
+    const engine = this.engine, cause = this.cause;
+    // The removals carry the cluster's credit (to what they held: prop checks).
+    this.cause = doom.cause ?? null;
     for (const c of cells) {
       engine.world.setBlock(c.x, c.y, c.z, AIR);
       engine.pushBlockDelta(c.x, c.y, c.z, AIR);
     }
+    this.cause = cause;
     let groups = [cells];
     if (cells.length > this.rules.maxChunkCells) {
       const byCell = new Map();
@@ -751,7 +807,7 @@ export class StructureSystem {
       for (const c of bottoms) {
         if (hits >= rules.impact.maxCells) break;
         const x = c.x + sx, y = c.y + sy - 1, z = c.z + sz, type = world.getBlock(x, y, z) & 255;
-        if (KIND[type] !== 2 || y <= 0) continue;
+        if (this.field.kindOf(type, x, y, z) !== 2 || y <= 0) continue;
         hits++;
         damageBlock(x, y, z, type, per, combat, chunk.cause);
       }

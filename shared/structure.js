@@ -48,7 +48,14 @@ export const STRUCTURE_EVENT_KINDS = Object.freeze(['creak', 'collapse', 'collap
 export const COLLAPSE_WEAPON = 'collapse';
 
 const MAX = STRUCTURE_RULES.supportMax;
-/** Per block id: 0 ignored (passable), 1 ground anchor, 2 structural. */
+/**
+ * Per block id: 0 ignored (passable), 1 ground material, 2 structural. Ground
+ * material is an anchor only as natural ground; the server demotes ground
+ * cells that are building material to structural masonry per map
+ * (server/sim/structure-ground.js), so ground ids carry masonry cost and
+ * density too. They leave no rubble: a landed ground block would be an
+ * anchor wherever it came to rest.
+ */
 export const STRUCTURE_KIND = new Uint8Array(256);
 /** Support lost per sideways step into / hanging step under a block of this id (>MAX: never). */
 export const STRUCTURE_SIDE_COST = new Uint16Array(256);
@@ -56,12 +63,12 @@ export const STRUCTURE_DENSITY = new Float32Array(256);
 export const STRUCTURE_RUBBLE = new Uint8Array(256);
 for (let id = 0; id < 256; id++) {
   if (!isSolidBlock(id)) continue;
-  if (STRUCTURE_GROUND.has(id)) { STRUCTURE_KIND[id] = 1; continue; }
-  const material = STRUCTURE_MATERIALS[STRUCTURE_CLASS[id] ?? 'masonry'];
-  STRUCTURE_KIND[id] = 2;
+  const ground = STRUCTURE_GROUND.has(id);
+  const material = STRUCTURE_MATERIALS[ground ? 'masonry' : STRUCTURE_CLASS[id] ?? 'masonry'];
+  STRUCTURE_KIND[id] = ground ? 1 : 2;
   STRUCTURE_SIDE_COST[id] = material.span > 0 ? Math.ceil(MAX / (material.span + 1)) : MAX + 1;
   STRUCTURE_DENSITY[id] = material.density;
-  STRUCTURE_RUBBLE[id] = material.rubble ? 1 : 0;
+  STRUCTURE_RUBBLE[id] = material.rubble && !ground ? 1 : 0;
 }
 
 /** Sideways blocks a structural block of this id may reach from a supported one (0 for ground/passable). */
