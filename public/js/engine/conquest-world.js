@@ -7,7 +7,7 @@ import { disposeObjectTree } from './dispose.js';
 // Conquest objectives in the world, Battlefield style: a mast whose cloth is
 // hoisted and lowered with the authoritative control scalar, a slim tall beam
 // in the owner's colour that pulses while the zone is contested (it fades out
-// within ~24-80 m of the mast, so it marks the flag from afar and never fills
+// within ~50-170 m of the mast, so it marks the flag from afar and never fills
 // the view up close), a dashed ring decal on the ground at the capture radius
 // (dropped where it would climb a wall or roof, faded right in front of the
 // camera) and a letter marker over the mast. Every value
@@ -27,11 +27,19 @@ export const CLOTH_HEIGHT = 1.6;
 /** Cloth bottom edge above the mast foot when lowered / fully hoisted. */
 export const CLOTH_LOW = 0.9;
 export const CLOTH_HIGH = MAST_HEIGHT - 0.25 - CLOTH_HEIGHT;
-export const BEAM_HEIGHT = 96;
+export const BEAM_HEIGHT = 80;
 /** Beam radius at its foot and top (m): a slim marker, not a column of light. */
-const BEAM_RADIUS = Object.freeze([0.32, 0.12]);
+const BEAM_RADIUS = Object.freeze([0.26, 0.1]);
 /** Camera distances (m) over which the beam fades in: up close the mast and cloth speak. */
-const BEAM_NEAR_FADE = Object.freeze([40, 140]);
+const BEAM_NEAR_FADE = Object.freeze([50, 170]);
+/** Beam strength (additive, kept well below 1.0): owned flags, unowned flags. */
+const BEAM_GLOW = Object.freeze({ owned: 0.3, neutral: 0.17 });
+/** Fraction of BEAM_HEIGHT over which the beam fades out toward its top. */
+const BEAM_TAIL = Object.freeze([0.1, 0.6]);
+/** Rim falloff exponent: higher reads as a softer, thinner core. */
+const BEAM_CORE_POWER = 3.0;
+/** Share of the scene fog the beam takes (0 ignores fog, 1 fogs like terrain). */
+const BEAM_FOG = 0.5;
 /**
  * Yaw of the battlefield wind (radians, three.js Y rotation): cloths stream
  * toward local +X turned by this angle, i.e. world (cos, 0, -sin); the
@@ -204,8 +212,8 @@ varying float vBeamDepth;
 varying float vBeamReach;
 #include <fog_pars_fragment>
 void main() {
-  float lift = smoothstep( 0.0, 0.04, vBeamHeight ) * ( 1.0 - smoothstep( 0.12, 0.75, vBeamHeight ) );
-  float core = pow( vBeamEdge, 2.2 );
+  float lift = smoothstep( 0.0, 0.04, vBeamHeight ) * ( 1.0 - smoothstep( ${BEAM_TAIL[0].toFixed(2)}, ${BEAM_TAIL[1].toFixed(2)}, vBeamHeight ) );
+  float core = pow( vBeamEdge, ${BEAM_CORE_POWER.toFixed(2)} );
   float a = lift * core * vBeamGlow;
   // Close to the flag the beam steps aside for the mast, cloth and ring.
   a *= smoothstep( ${BEAM_NEAR_FADE[0].toFixed(1)}, ${BEAM_NEAR_FADE[1].toFixed(1)}, vBeamReach );
@@ -230,7 +238,7 @@ void main() {
 
 function makeBeamMaterial() {
   const material = new THREE.ShaderMaterial({
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { beamFog: { value: 0.35 } }]),
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { beamFog: { value: BEAM_FOG } }]),
     vertexShader: BEAM_VERT, fragmentShader: BEAM_FRAG,
     transparent: true, depthWrite: false, depthTest: true, fog: true, toneMapped: false,
     side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
@@ -571,7 +579,7 @@ export class ConquestWorld {
     const contested = flag.state === 'contested';
     const pulse = contested ? 0.5 + 0.5 * Math.sin(this.pulse * Math.PI * 2 * 1.6) : 0;
     this.beams.setColorAt(flag.index, _color.setHex(this.colorFor(flag.owner)));
-    const glow = flag.owner ? 0.5 : 0.28;
+    const glow = flag.owner ? BEAM_GLOW.owned : BEAM_GLOW.neutral;
     this.beamParams.setXY(flag.index, contested ? glow * (0.7 + 0.3 * pulse) : glow, pulse);
     const perFlag = RING_VERTICES_PER_FLAG, base = flag.index * perFlag;
     _color.setHex(this.colorFor(flag.owner));
