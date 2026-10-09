@@ -200,6 +200,37 @@ console.log('Distant voxel shell fixture passed: open bridge, odd pole, terrain,
   full.syncChunks({ chunks: new Map() });
   assert.equal(full.stats.queued, 0, 'deferred records rebuild when shown');
   assert(full.stats.rebuilds > rebuildsHidden);
+  // Respawn: the detailed working set jumps across the map in one frame. The
+  // records under the new spawn are hidden first, then hundreds of old ones
+  // are shown again; past the range budget the index falls back to a full
+  // upload, and later ranges in the same frame must not narrow it again (the
+  // spawn records would stay drawn on the GPU under the detailed chunks).
+  const indexAttr = full.geometry.index;
+  const upload = (attribute) => { attribute.clearUpdateRanges(); attribute.onUploadCallback(); };
+  const around = (cx, cz, radius) => {
+    const chunks = new Map();
+    for (let z = cz - radius; z <= cz + radius; z++) for (let x = cx - radius; x <= cx + radius; x++) {
+      if (full.records.has(`${x},${z}`)) chunks.set(`${x},${z}`, {});
+    }
+    return chunks;
+  };
+  const oldSpawn = around(4, 4, 6), newSpawn = around(full.chunkWidth - 5, full.chunkDepth - 5, 1);
+  full.syncChunks({ chunks: oldSpawn });
+  upload(indexAttr);
+  full.syncChunks({ chunks: newSpawn });
+  const uploads = (start, count) => indexAttr.updateRanges.length === 0
+    || indexAttr.updateRanges.some(range => range.start <= start && range.start + range.count >= start + count);
+  for (const key of newSpawn.keys()) {
+    const record = full.records.get(key);
+    if (record.indexCapacity) assert(uploads(record.indexOffset, record.indexCapacity), `respawn hides shell record ${key} on the GPU`);
+  }
+  for (const key of oldSpawn.keys()) {
+    const record = full.records.get(key);
+    if (record.indexCapacity) assert(uploads(record.indexOffset, record.indexCapacity), `respawn shows shell record ${key} on the GPU`);
+  }
+  upload(indexAttr);
+  full.syncChunks({ chunks: new Map() });
+  assert(indexAttr.updateRanges.length > 0 || oldSpawn.size + newSpawn.size > 48, 'after the full upload, ranges resume');
   far.dispose();
   console.log(`Frontier distant shell passed (${buildMs.toFixed(0)} ms): ${shellQuads} quads, ${(shellBytes / 1048576).toFixed(1)} MiB, `
     + `visible terrain surface ${(terrainShare * 100).toFixed(0)} % of quads, no buried faces, rebuild ${Math.max(...updateMs).toFixed(1)} ms.`);

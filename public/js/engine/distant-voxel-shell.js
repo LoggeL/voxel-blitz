@@ -14,6 +14,10 @@ export const BURIED = 255;
 const SLOT_SLACK_QUADS = 12;
 /** Pending partial uploads per attribute before one full upload is cheaper. */
 const MAX_UPDATE_RANGES = 48;
+/** Attributes whose pending upload is the whole buffer (see markRange). */
+const FULL_UPLOADS = new WeakSet();
+/** Upload callback (`this` is the attribute): the full upload is on the GPU. */
+function endFullUpload() { FULL_UPLOADS.delete(this); }
 const NORMALS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
 const TILE_COLORS = new Map();
 
@@ -355,10 +359,23 @@ export class DistantVoxelShell {
     if (upload) this.markRange(index, start, record.indexCapacity);
   }
 
-  /** Queue a partial upload; a long backlog (no frame drawn) falls back to one full upload. */
+  /**
+   * Queue a partial upload; a long backlog (a respawn re-showing hundreds of
+   * records, no frame drawn) falls back to one full upload. That full upload
+   * holds until the renderer has done it: a range added after the fallback
+   * would narrow it again to the last few records, and the earlier ones
+   * (the records hidden under the new spawn's detailed chunks) would stay
+   * drawn on the GPU and z-fight them.
+   */
   markRange(attribute, start, count) {
-    if (attribute.updateRanges.length >= MAX_UPDATE_RANGES) attribute.clearUpdateRanges();
-    else attribute.addUpdateRange(start, count);
+    if (!FULL_UPLOADS.has(attribute)) {
+      if (attribute.updateRanges.length < MAX_UPDATE_RANGES) attribute.addUpdateRange(start, count);
+      else {
+        attribute.clearUpdateRanges();
+        FULL_UPLOADS.add(attribute);
+        attribute.onUpload(endFullUpload);
+      }
+    }
     attribute.needsUpdate = true;
   }
 
