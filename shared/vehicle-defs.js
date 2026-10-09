@@ -71,6 +71,17 @@ export const VEHICLE_RAM = freeze({
 export const RAM_RULES = freeze({ speedLoss: 0.15, damage: 0.5, glancingNormal: 0.5, flagGuardRadius: 5, baseGuardMargin: 0 });
 
 /**
+ * A ground hull driving into another hull. The contact is perfectly inelastic
+ * along its normal, so each hull's crash speed is its share of the closing
+ * speed, Δv = v_close · m_other / (m_self + m_other) (VEHICLE_MASS): a 45 t
+ * tank rear-ending a 2.5 t jeep at 13 m/s feels 0.7 m/s, the jeep 12.3 m/s.
+ * Each hull loses (Δv − `safeSpeed`) / (`fullSpeed` − `safeSpeed`) of its max
+ * hp; hulls of one team take `friendlyScale` of that. A pair crashes at most
+ * once per `pairSeconds`, however many of its ticks keep touching.
+ */
+export const HULL_CRASH_RULES = freeze({ safeSpeed: 4, fullSpeed: 44, friendlyScale: 0.25, pairSeconds: 0.75, creditSpeed: 1 });
+
+/**
  * Lock-on sources (spec F4 locks). Cones are full half-angles in radians. The
  * Engineer's AX-9 STINGER is the only infantry locker; the RX-8 AT rocket is
  * dumb-fire. Only airborne enemy aircraft can be locked.

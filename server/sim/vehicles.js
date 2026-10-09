@@ -3,7 +3,7 @@ import { isSolidBlock } from '../../shared/worlddata.js';
 import { RAM_CLASS, BLOCK_HARDNESS } from '../../shared/world/blocks.js';
 import { VEHICLE_RULES, isAircraft, vehicleEnterDistance, vehicleDirection, vehicleSeatPose, vehicleLocalPoint } from '../../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleWeaponSeatId, vehicleDriverSeat } from '../../shared/vehicle-seats.js';
-import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, VEHICLE_MASS, WRECK_PUSH_RULES, VEHICLE_RAM, RAM_RULES, vehicleDef, vehicleMaxHp,
+import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, VEHICLE_MASS, WRECK_PUSH_RULES, VEHICLE_RAM, RAM_RULES, HULL_CRASH_RULES, vehicleDef, vehicleMaxHp,
   mountPose as sharedMountPose } from '../../shared/vehicle-defs.js';
 import { VEHICLE_STATUS } from '../../shared/conquest-contract.js';
 import { groundAttitude } from '../../shared/vehicle-attitude.js';
@@ -165,6 +165,7 @@ export class VehicleSystem {
   reset(spawns = this.engine.mapMeta?.conquest?.vehicleSpawns || []) {
     this.contactClock = 0; this.clockAnchor = 0; this.anchoredNow = null;
     this.infantryContacts = new Map();
+    this.hullCrashes = new Map();
     this.fallSpeeds = new Map();
     this.boundaryAvoidance = new Map();
     this.lastDrivers = new Map();
@@ -1151,17 +1152,19 @@ export class VehicleSystem {
       const travel = Math.abs(v.speed) * dt;
       if (slide === undefined) slide = travel > 1e-6 ? this.wallSlide(v, x, z) : null;
       const impact=Math.abs(v.speed), threshold=Math.max(8,def.speed*0.55);
+      // Another hull in the way is no wall: the crash is shared by mass.
+      const hullHit = this.hullCrash(v, x, z, dir, driver);
       if (slide) {
         const normal = Math.sqrt(Math.max(0, 1 - (slide.length / travel) ** 2)), normalImpact = impact * normal;
         Object.assign(v, { x: slide.x, z: slide.z });
         v.y = this.settle(v, slide.floor, dt);
-        if (!v.scraping && normalImpact > threshold) this.damage(v.id, def.hp*clamp((normalImpact-threshold)/(def.speed-threshold),0,1), null, { cls: 'collision',
+        if (!hullHit && !v.scraping && normalImpact > threshold) this.damage(v.id, def.hp*clamp((normalImpact-threshold)/(def.speed-threshold),0,1), null, { cls: 'collision',
           impactVelocity: { vx: dir[0]*impact, vy: -(this.fallSpeeds.get(v.id)||0), vz: dir[2]*impact } });
         v.speed *= Math.exp(-WALL_SLIDE_RULES.scrape * normal * dt);
         v.scraping = true;
       } else {
         v.speed=0; v.leftTrackSpeed= -v.yawRate * (def.width || 0) / 2; v.rightTrackSpeed= v.yawRate * (def.width || 0) / 2;
-        if(impact>threshold && !v.scraping)this.damage(v.id,def.hp*clamp((impact-threshold)/(def.speed-threshold),0,1),null,{cls:'collision',
+        if(!hullHit && impact>threshold && !v.scraping)this.damage(v.id,def.hp*clamp((impact-threshold)/(def.speed-threshold),0,1),null,{cls:'collision',
           impactVelocity:{vx:dir[0]*impact,vy:-(this.fallSpeeds.get(v.id)||0),vz:dir[2]*impact}});
         v.scraping = false;
         v.y=this.settle(v,this.placement(v,v.x,v.z),dt);
@@ -1177,6 +1180,47 @@ export class VehicleSystem {
     // A disabled hull that cannot move under throttle reports immobilized.
     if (v.disabled && Math.abs(controls.throttle) > 0.1 && Math.hypot(v.x - previous.x, v.z - previous.z) < 0.02 * dt) v.stuckFor += dt;
     else v.stuckFor = 0;
+  }
+  /** Damage a ground hull and every hull blocking its pose (x, z) by each
+   * one's share of the closing speed (HULL_CRASH_RULES). True when a hull,
+   * not only voxels, blocks the pose; the wall crash is then skipped. */
+  hullCrash(v, x, z, dir, driver) {
+    const rules = VEHICLE_RULES[v.type], H = HULL_CRASH_RULES, hull = hullFootprint(v.type, x, z, v.yaw);
+    const mv = VEHICLE_MASS[v.type] ?? 1, vx = dir[0] * v.speed, vz = dir[2] * v.speed;
+    let blocked = false;
+    if (this.hullCrashes.size > 64) for (const [key, at] of this.hullCrashes) if (this.contactClock - at >= H.pairSeconds) this.hullCrashes.delete(key);
+    for (const other of this.vehicles.values()) {
+      if (other === v || other.id === v.id || !solidHull(other)) continue;
+      const or = VEHICLE_RULES[other.type];
+      if (Math.hypot(x - other.x, z - other.z) > rules.radius + or.radius + or.height) continue;
+      let nx, nz;
+      if (isAircraft(other.type)) {
+        const box = vehicleHullParts(v, x, v.y, z, v.yaw)[0];
+        if (!vehicleHullParts(other).some(part => hullBoxesOverlap(box, part))) continue;
+        const d = Math.hypot(other.x - x, other.z - z) || 1;
+        nx = (other.x - x) / d; nz = (other.z - z) / d;
+      } else {
+        if (!(v.y < other.y + or.height && other.y < v.y + rules.height)) continue;
+        const contact = footprintContact(hull, hullFootprint(other.type, other.x, other.z, other.yaw));
+        if (!contact) continue;
+        nx = contact.nx; nz = contact.nz;
+      }
+      blocked = true;
+      const otherIn = -((other.vx || 0) * nx + (other.vz || 0) * nz), closing = vx * nx + vz * nz + otherIn;
+      const key = v.id < other.id ? `${v.id}|${other.id}` : `${other.id}|${v.id}`;
+      if (!(closing > H.safeSpeed) || this.contactClock - (this.hullCrashes.get(key) ?? -Infinity) < H.pairSeconds) continue;
+      this.hullCrashes.set(key, this.contactClock);
+      const mo = VEHICLE_MASS[other.type] ?? 1, live = other.hp > 0, friendly = live && other.team === v.team;
+      const scale = friendly ? H.friendlyScale : 1, otherDriver = live ? this.momentumDriver(other) : null;
+      const share = (hit, deltaV) => scale * vehicleMaxHp(hit) * clamp((deltaV - H.safeSpeed) / (H.fullSpeed - H.safeSpeed), 0, 1);
+      const impactVelocity = { vx: nx * closing, vy: 0, vz: nz * closing };
+      // The struck hull is credited to the rammer; the rammer only to a hull that drove into it.
+      if (live) this.damage(other.id, share(other, closing * mv / (mv + mo)), friendly ? null : driver,
+        { cls: 'collision', impactVelocity });
+      if (v.hp > 0) this.damage(v.id, share(v, closing * mo / (mv + mo)), !friendly && otherIn > H.creditSpeed ? otherDriver : null,
+        { cls: 'collision', impactVelocity: { vx: -impactVelocity.vx, vy: 0, vz: -impactVelocity.vz } });
+    }
+    return blocked;
   }
   infantryNear(v) {
     for (const body of this.engine.entities.values()) if (this.infantryInReach(v, body)) return true;

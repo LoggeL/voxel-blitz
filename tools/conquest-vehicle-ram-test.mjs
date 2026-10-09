@@ -1,7 +1,7 @@
 // Conquest ground hulls: shoving wrecks and ramming through light voxels.
 import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
-import { VEHICLE_RAM, VEHICLE_MASS, RAM_RULES } from '../shared/vehicle-defs.js';
+import { VEHICLE_RAM, VEHICLE_MASS, RAM_RULES, HULL_CRASH_RULES } from '../shared/vehicle-defs.js';
 import { STONE, CONCRETE, PLANK, TIMBER, LEAVES, BRICK, WHITE_PLASTER, GLASS, BLOCK_HARDNESS } from '../shared/world/blocks.js';
 
 const GROUND = STONE;
@@ -66,6 +66,33 @@ const between = (n, lo, hi, message) => assert(n > lo && n < hi, `${message}: ${
   const moved = 193 - b.z;
   between(moved, 0.2, 4, 'a jeep nudges a jeep wreck');
   assert(a.speed < 1, 'the jeep cannot keep shoving a jeep wreck');
+}
+
+// 3b. Live hulls crash by mass share: a tank rear-ending a jeep at top speed
+// keeps nearly all its hull, the jeep takes the hit; a friendly jeep only a quarter.
+{
+  const ram = team => {
+    const f = fixture([['tank', 'tank', 200, 200], ['jeep', 'jeep', 200, 193]]);
+    f.hull('jeep').team = team; f.board('tank');
+    const tank = f.hull('tank'), jeep = f.hull('jeep');
+    tank.speed = 13; f.drive(1); f.tick(120);
+    return { tank, jeep };
+  };
+  const H = HULL_CRASH_RULES, closing = 13, mt = VEHICLE_MASS.tank, mj = VEHICLE_MASS.jeep;
+  const jeepShare = (closing * mt / (mt + mj) - H.safeSpeed) / (H.fullSpeed - H.safeSpeed);
+  const enemy = ram('bravo'), friend = ram('alpha');
+  assert(enemy.tank.hp > 990 && friend.tank.hp > 990, `a 45 t tank barely feels a 2.5 t jeep (${enemy.tank.hp.toFixed(1)}, ${friend.tank.hp.toFixed(1)})`);
+  between(320 - enemy.jeep.hp, 320 * jeepShare * 0.8, 320 * jeepShare * 1.05, 'an enemy jeep takes its mass share of the crash');
+  between(320 - friend.jeep.hp, 320 * jeepShare * H.friendlyScale * 0.8, 320 * jeepShare * H.friendlyScale * 1.05, 'a friendly jeep takes a quarter of it');
+  assert(enemy.jeep.hp > 0 && friend.jeep.hp > 0, 'neither jeep is destroyed');
+
+  // Two enemy jeeps head-on at top speed: each feels the full 24 m/s.
+  const f = fixture([['a', 'jeep', 200, 200], ['b', 'jeep', 200, 180, Math.PI]]);
+  f.hull('b').team = 'bravo'; f.board('a');
+  const a = f.hull('a'), b = f.hull('b');
+  a.speed = 24; b.speed = 24; Object.assign(b, { vx: 0, vz: 24 }); f.drive(1); f.tick(60);
+  assert(a.hp < 320 && b.hp < 320, 'a head-on crash hurts both jeeps');
+  assert(Math.abs((320 - a.hp) - (320 - b.hp)) < 1e-6, 'equal masses share the crash equally');
 }
 
 // 4. A pushed wreck stops at a wall; the pusher stops behind it, nothing overlaps.
