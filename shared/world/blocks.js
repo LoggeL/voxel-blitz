@@ -315,12 +315,12 @@ export const STRUCTURE_GROUND = Object.freeze(new Set([
  * mass (crush damage), `rubble` whether a landed chunk leaves blocks behind.
  */
 export const STRUCTURE_MATERIALS = Object.freeze({
-  glass: Object.freeze({ span: 0, density: 0.3, rubble: false }),
-  foliage: Object.freeze({ span: 4, density: 0.1, rubble: false }),
-  wood: Object.freeze({ span: 4, density: 0.5, rubble: true }),
-  thin: Object.freeze({ span: 3, density: 0.4, rubble: true }),
-  masonry: Object.freeze({ span: 6, density: 1, rubble: true }),
-  heavy: Object.freeze({ span: 10, density: 1.5, rubble: true }),
+  glass: Object.freeze({ span: 0, density: 0.3, rubble: false, load: 2 }),
+  foliage: Object.freeze({ span: 4, density: 0.1, rubble: false, load: 1 }),
+  wood: Object.freeze({ span: 4, density: 0.5, rubble: true, load: 40 }),
+  thin: Object.freeze({ span: 3, density: 0.4, rubble: true, load: 25 }),
+  masonry: Object.freeze({ span: 6, density: 1, rubble: true, load: 80 }),
+  heavy: Object.freeze({ span: 10, density: 1.5, rubble: true, load: 200 }),
 });
 /** Material class per structural block; unlisted solid non-ground blocks are masonry. */
 export const STRUCTURE_CLASS = Object.freeze({

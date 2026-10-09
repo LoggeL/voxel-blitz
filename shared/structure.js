@@ -40,6 +40,18 @@ export const STRUCTURE_RULES = Object.freeze({
   impact: Object.freeze({ perSpeed: 6, maxCells: 32 }),
   /** Blocks listed per event (`n` still counts them all). */
   eventCells: 1024,
+  /**
+   * Load check after removals (StructureSystem.checkLoads): a structure that
+   * stands only on one layer it was just cut in fails when its mass exceeds
+   * what the remaining blocks of that layer carry (STRUCTURE_LOAD) or its
+   * centre of mass leaves their footprint by less than `tipMargin` blocks.
+   * A layer is weighed only where the cut took at least `minCutShare` of
+   * its cross-section (the cut and the blocks joined to it in the layer, at
+   * most `planeCells`). Structures under `minCells` or over `maxCells`
+   * blocks are skipped, and one settled pass weighs at most `maxChecks`
+   * structures and visits at most `maxCells` blocks doing so.
+   */
+  load: Object.freeze({ minCutShare: 0.2, planeCells: 2048, minCells: 24, maxCells: 6000, maxChecks: 6, tipMargin: 0.25, toppleSpin: 0.9, toppleDrift: 0.9 }),
 });
 
 /** Event kinds this system adds to `tick.events` (docs/structural-physics.md). */
@@ -61,6 +73,8 @@ export const STRUCTURE_KIND = new Uint8Array(256);
 export const STRUCTURE_SIDE_COST = new Uint16Array(256);
 export const STRUCTURE_DENSITY = new Float32Array(256);
 export const STRUCTURE_RUBBLE = new Uint8Array(256);
+/** Mass (sum of densities) one block of this id carries as the last layer under a structure. */
+export const STRUCTURE_LOAD = new Float32Array(256);
 for (let id = 0; id < 256; id++) {
   if (!isSolidBlock(id)) continue;
   const ground = STRUCTURE_GROUND.has(id);
@@ -69,6 +83,7 @@ for (let id = 0; id < 256; id++) {
   STRUCTURE_SIDE_COST[id] = material.span > 0 ? Math.ceil(MAX / (material.span + 1)) : MAX + 1;
   STRUCTURE_DENSITY[id] = material.density;
   STRUCTURE_RUBBLE[id] = material.rubble && !ground ? 1 : 0;
+  STRUCTURE_LOAD[id] = material.load;
 }
 
 /** Sideways blocks a structural block of this id may reach from a supported one (0 for ground/passable). */

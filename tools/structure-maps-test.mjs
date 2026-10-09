@@ -114,7 +114,7 @@ const roomFor = (id) => {
   const engine = new GameEngine({ world: createMapState(id), mode: MODE_IDS.find(m => isModeMapCompatible(m, id)), mapMeta: getMapMeta(id) });
   const doom = engine.structure.doom.bind(engine.structure);
   engine.doomedKeys = new Set();
-  engine.structure.doom = (keys, cause, origin) => { for (const k of keys) engine.doomedKeys.add(k); doom(keys, cause, origin); };
+  engine.structure.doom = (keys, cause, origin, options) => { for (const k of keys) engine.doomedKeys.add(k); doom(keys, cause, origin, options); };
   return engine;
 };
 const settle = (engine) => {
@@ -186,6 +186,35 @@ const cutBox = (engine, [x0, y0, z0, x1, y1, z1]) => {
   const after = solidIn(world, above, MC_CLOUD);
   ok(before > 900 && pins > 0, `b5: the lighthouse stands at load (${before} blocks above the cut, ${pins} load-time pins)`);
   eq(after, 0, `b5: cutting the lighthouse tower brings down all ${before} blocks above the cut (${ticks} ticks, ${structure.stats.released} pins released)`);
+  engine.stop();
+}
+
+// Minecraft B5 lighthouse, load check: a hole through under half of its ring
+// (y 51-52) leaves the tower standing; chipping on block by block (each shot
+// settles first) until over half the ring is gone brings all of it down.
+{
+  const ringCells = (engine, from, to) => {
+    const cells = [];
+    for (let y = 51; y <= 52; y++) for (let z = 19; z <= 35; z++) for (let x = 20; x <= 36; x++) {
+      const share = (Math.atan2(z + 0.5 - 27.5, x + 0.5 - 28.5) + Math.PI) / (2 * Math.PI);
+      if (share >= from && share < to && isSolidBlock(engine.world.getBlock(x, y, z))) cells.push([x, y, z]);
+    }
+    return cells;
+  };
+  const above = [20, 53, 19, 36, 87, 35];
+  const engine = roomFor('minecraft_b5'), { world, structure } = engine, before = solidIn(world, above, MC_CLOUD);
+  for (const [x, y, z] of ringCells(engine, 0, 0.4)) destroyBlockDirect(x, y, z, null, engine.contexts.combat, null);
+  settle(engine);
+  ok(solidIn(world, above, MC_CLOUD) > before * 0.85 && !structure.stats.overloads, `b5: a hole through 40% of the lighthouse ring leaves it standing (${solidIn(world, above, MC_CLOUD)} of ${before})`);
+  let shots = 0;
+  for (const [x, y, z] of ringCells(engine, 0.4, 0.7)) {
+    destroyBlockDirect(x, y, z, null, engine.contexts.combat, null);
+    settle(engine);
+    shots++;
+    if (structure.stats.overloads) break;
+  }
+  eq(structure.stats.overloads, 1, `b5: chipping the ring block by block, the tower gives way after ${shots} more blocks`);
+  eq(solidIn(world, above, MC_CLOUD), 0, 'b5: and all of it comes down');
   engine.stop();
 }
 

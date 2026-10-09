@@ -60,7 +60,7 @@ function scene({ structural = true, rules = null, mode = undefined, prebuild = n
   const kinds = (kind) => events.filter(e => e.kind === kind);
   // Kill credit is server-side only (the wire names nobody): record each creak cluster's cause.
   const credit = new Map(), doom = structure.doom.bind(structure);
-  structure.doom = (keys, cause, origin) => { doom(keys, cause, origin); credit.set('k' + structure.doomSerial, cause); };
+  structure.doom = (keys, cause, origin, options) => { doom(keys, cause, origin, options); credit.set('k' + structure.doomSerial, cause); };
   const creditOf = (event) => credit.get(event.kind === 'collapse' ? event.k : event.id);
   return { engine, world, structure, set, box, destroy, run, settle, events, kinds, creditOf };
 }
@@ -599,6 +599,59 @@ function bridge(s) {
   ok(s.structure.stats.released >= 1, 'the prop pin was released');
   ok(s.kinds('collapse').every(e => s.creditOf(e) === 'sapper'), 'the fall is credited to whoever cut the posts');
   assertFieldMatches(s, 'prop pins');
+}
+
+// 23. Load: a structure that stands only on the layer just cut is weighed.
+// A hollow 7x7 brick tower (24-block ring, 16 high, roof slab) loses one
+// side of its ring at y 12 and stands (the support rules carry the wall over
+// the hole); cutting two more sides leaves one wall under it, its centre of
+// mass is outside that footprint, and the whole tower topples toward it.
+{
+  const s = scene({
+    prebuild: (set) => {
+      for (let y = 11; y <= 26; y++) for (let x = 40; x <= 46; x++) for (let z = 40; z <= 46; z++) {
+        if (x === 40 || x === 46 || z === 40 || z === 46) set(x, y, z, BRICK);
+      }
+      for (let x = 40; x <= 46; x++) for (let z = 40; z <= 46; z++) set(x, 27, z, BRICK);
+    },
+  });
+  const above = () => { let n = 0; for (let y = 14; y <= 27; y++) for (let x = 40; x <= 46; x++) for (let z = 40; z <= 46; z++) if (s.world.getBlock(x, y, z) === BRICK) n++; return n; };
+  const standing = above();
+  for (let z = 40; z <= 46; z++) s.destroy(40, 12, z, 'sapper');
+  s.settle();
+  eq(above(), standing, 'one side cut: the tower stands on the other three');
+  eq(s.structure.stats.overloads ?? 0, 0, 'nothing is overloaded');
+  for (let x = 41; x <= 46; x++) { s.destroy(x, 12, 40, 'sapper'); s.destroy(x, 12, 46, 'sapper'); }
+  s.settle();
+  eq(above(), 0, 'three sides cut: the tower above the cut falls');
+  eq(s.structure.stats.overloads, 1, 'one structure failed its load check');
+  // The far wall's middle (beyond the brick span from the last wall) falls on its own first.
+  const falls = s.kinds('collapse'), tower = falls.filter(e => e.n > 200);
+  ok(tower.length > 0 && tower.every(e => e.v[0] < 0 && e.w[2] > 0), 'the tower topples toward its centre of mass (-x): drift and lean');
+  ok(s.kinds('crumble').some(e => e.n === 5), 'the last wall gives way under it (5 blocks crumble)');
+  ok(falls.every(e => s.creditOf(e) === 'sapper'), 'the fall is credited to whoever cut it');
+  assertFieldMatches(s, 'load');
+}
+
+// 24. Load: a tall brick column on a narrow neck is crushed once the neck is
+// thinned below what it carries (mass over STRUCTURE_LOAD of what is left).
+{
+  const s = scene({
+    prebuild: (set) => {
+      for (let y = 11; y <= 30; y++) for (let x = 60; x <= 64; x++) for (let z = 60; z <= 64; z++) set(x, y, z, BRICK);
+    },
+  });
+  const above = () => { let n = 0; for (let y = 14; y <= 30; y++) for (let x = 60; x <= 64; x++) for (let z = 60; z <= 64; z++) if (s.world.getBlock(x, y, z) === BRICK) n++; return n; };
+  // 25 x 18 = 450 bricks above y 12 (STRUCTURE_LOAD 80 each): 6 bricks (480) carry it, 4 (320) do not.
+  // (This scene is built on top of the map template, so only cuts in one pass count.)
+  const keep = new Set(['61,62', '62,62', '63,62', '62,61', '62,63', '61,61']);
+  for (let x = 60; x <= 64; x++) for (let z = 60; z <= 64; z++) if (!keep.has(`${x},${z}`)) s.destroy(x, 12, z, 'sapper');
+  s.settle();
+  eq(above(), 425, 'a 6-brick neck carries the column (450 <= 480)');
+  s.destroy(61, 12, 61, 'sapper'); s.destroy(63, 12, 62, 'sapper');
+  s.settle();
+  eq(above(), 0, 'a 4-brick neck does not: the column is crushed and falls');
+  ok(s.kinds('collapse').every(e => s.creditOf(e) === 'sapper'), 'credited to the sapper');
 }
 
 console.log(`structure-test: ${passed} checks passed`);

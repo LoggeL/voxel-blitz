@@ -16,7 +16,7 @@
 import { AIR, isSolidBlock } from '../../shared/world/blocks.js';
 import {
   STRUCTURE_RULES, STRUCTURE_KIND as KIND, STRUCTURE_SIDE_COST as COST, STRUCTURE_DENSITY as DENSITY,
-  STRUCTURE_RUBBLE as RUBBLE, COLLAPSE_WEAPON,
+  STRUCTURE_RUBBLE as RUBBLE, STRUCTURE_LOAD as LOAD, COLLAPSE_WEAPON,
 } from '../../shared/structure.js';
 import { vehicleDef } from '../../shared/vehicle-defs.js';
 import { SupportField, SupportQueue, PIN, SUPPORT_MAX as MAX, LINKED, pack } from './structure-field.js';
@@ -24,6 +24,35 @@ import { evCollapse, evCollapseLand, evCreak, evCrumble, evHit } from '../protoc
 import { damageBlock } from './combat.js';
 
 const BODY_HALF = 0.35;
+/** Face neighbour offsets, flat [dx, dy, dz] triples (up first). */
+const FACES = Object.freeze([0, 1, 0, 0, -1, 0, -1, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 1]);
+
+/** Convex hull (counter-clockwise, Andrew's monotone chain) of [x, z] points. */
+function convexHull(points) {
+  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (sorted.length < 3) return sorted;
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = [], upper = [];
+  for (const p of sorted) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const p = sorted[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  return lower.slice(0, -1).concat(upper.slice(0, -1));
+}
+/** Distance of (x, z) inside a counter-clockwise convex polygon (negative outside). */
+function insideHull(hull, x, z) {
+  let inside = Infinity;
+  for (let i = 0; i < hull.length; i++) {
+    const [ax, az] = hull[i], [bx, bz] = hull[(i + 1) % hull.length], length = Math.hypot(bx - ax, bz - az);
+    if (length > 0) inside = Math.min(inside, ((bx - ax) * (z - az) - (bz - az) * (x - ax)) / length);
+  }
+  return inside;
+}
 
 /** Deterministic PRNG (mulberry32). */
 function prng(seed) {
@@ -137,18 +166,23 @@ export class StructureSystem {
     this.dooms = [];
     // Removed cells ([key, tag] pairs) whose neighbours the next prop check visits.
     this.cuts = [];
+    // Removed cells ([key, type before, tag] triples) whose layer the next load check weighs.
+    this.loadCuts = [];
     // Clusters found unsupported but not yet announced (per-tick creak cap).
     this.creakQueue = [];
     this.doomed = new Set();
     this.chunks = [];
   }
 
+  /** Load-check tuning (rule sets without one use the defaults). */
+  get loadRules() { return this.rules.load ?? STRUCTURE_RULES.load; }
+
   /** True while support is tracked for the engine's world. */
   get active() { return this.field !== null && this.world === this.engine.world; }
 
   /** Nothing queued, creaking or falling. */
   get idle() {
-    return !this.pass && !this.pending.length && !this.orphans.length && !this.cuts.length && !this.creakQueue.length
+    return !this.pass && !this.pending.length && !this.orphans.length && !this.cuts.length && !this.loadCuts.length && !this.creakQueue.length
       && !this.dooms.length && !this.chunks.length;
   }
 
@@ -210,6 +244,8 @@ export class StructureSystem {
       }
       if (old > 0) this.pending.push(pack(x, y, z), old, this.tag(x, y, z));
       if (field.props !== null) this.cuts.push(pack(x, y, z), this.tag(x, y, z));
+      // A collapse only removes unsupported blocks, which bear nothing that stays.
+      if (!this.releasing) this.loadCuts.push(pack(x, y, z), before & 255, this.tag(x, y, z));
     }
     if (kindAfter === 1) {
       this.raise.push(pack(x, y, z), MAX);
@@ -269,6 +305,8 @@ export class StructureSystem {
     }
     // Prop pins are checked once the removals' support pass has settled.
     if (!this.pass && this.cuts.length && !this.pending.length && !this.orphans.length) this.checkProps();
+    // Loads are weighed once that has settled too (released props fall first).
+    if (!this.pass && this.loadCuts.length && !this.cuts.length && !this.pending.length && !this.orphans.length) this.checkLoads();
     this.stats.units = used;
     if (used > this.stats.peakUnits) this.stats.peakUnits = used;
     if (this.creakQueue.length) this.announce();
@@ -459,6 +497,178 @@ export class StructureSystem {
     }
   }
 
+  /**
+   * Once support has settled after removals (`loadCuts`): weigh each
+   * structure that now stands only on a layer cut in this pass (it reaches no
+   * ground or anchor above that layer). It fails when its mass exceeds what
+   * that layer's remaining blocks carry (STRUCTURE_LOAD), or when its centre
+   * of mass is no longer `tipMargin` inside their footprint (convex hull);
+   * a structure that already failed with the cut blocks still in place
+   * (authored overhangs) is left to the support rules. A failed structure
+   * creaks with the layer under it and then all of it falls, a tipping one
+   * leaning and drifting toward its centre of mass. Layers are weighed lowest
+   * first, so the largest structure goes at once.
+   */
+  checkLoads() {
+    const field = this.field, rules = this.loadRules, removed = this.loadCuts;
+    this.loadCuts = [];
+    const layers = new Map();
+    for (let i = 0; i < removed.length; i += 3) {
+      const y = removed[i] >> 20;
+      let cuts = layers.get(y);
+      if (!cuts) layers.set(y, cuts = new Map());
+      cuts.set(removed[i] & 0xFFFFF, { type: removed[i + 1], tag: removed[i + 2] });
+    }
+    let checks = 0;
+    this.loadBudget = rules.maxCells;
+    for (const y of [...layers.keys()].sort((a, b) => a - b)) {
+      const cuts = layers.get(y), settled = new Set(), planed = new Set();
+      for (const [first, cut] of cuts) {
+        if (planed.has(first)) continue;
+        // Weigh only where the cut took a real share of the layer's cross-section.
+        const plane = this.crossSection(y, first, cuts, planed);
+        if (plane.cut < rules.minCutShare * (plane.cut + plane.solid)) continue;
+        for (const column of plane.cuts) {
+          const x = column & 1023, z = column >> 10;
+          for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const sx = x + dx, sz = z + dz;
+            if (!field.inside(sx, y + 1, sz)) continue;
+            const start = pack(sx, y + 1, sz);
+            if (settled.has(start) || this.doomed.has(start) || field.kindAt(sx, y + 1, sz) !== 2 || field.read(sx, y + 1, sz) === 0) continue;
+            if (checks >= rules.maxChecks || this.loadBudget <= 0) return;
+            checks++;
+            const load = this.weigh(start, y, settled);
+            if (!load) continue;
+            const before = load.bearing.concat(this.cutBearing(load, cuts));
+            if (this.fails(load, before)) continue;
+            const failure = this.fails(load, load.bearing);
+            if (!failure) continue;
+            const crush = new Set(load.bearing.map(c => pack(c.x, y, c.z)));
+            this.doom([...load.cells, ...crush], cut.tag.cause, cut.tag.origin, { crush, topple: failure.topple });
+            this.stats.overloads = (this.stats.overloads ?? 0) + 1;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * The cross-section of layer `y` around a cut cell: the cut cells
+   * (`cuts`), cells of the map template's structure already lost before
+   * (`lost`) and live structural blocks of the layer (`solid`), joined
+   * 8-connected in the layer, at most `planeCells`. Its cut columns join
+   * `planed`. Counting the earlier losses lets a layer chipped away block by
+   * block reach the weighing share too.
+   */
+  crossSection(y, first, cuts, planed) {
+    const field = this.field, world = this.world, limit = this.loadRules.planeCells;
+    const template = typeof world.templateBlock === 'function' && world.templateBlocks ? world : null;
+    const queue = [first], seen = new Set(queue), out = { cut: 0, solid: 0, cuts: [] };
+    for (let i = 0; i < queue.length; i++) {
+      const column = queue[i], x = column & 1023, z = column >> 10;
+      if (cuts.has(column)) { out.cut++; out.cuts.push(column); planed.add(column); }
+      else if (field.kindAt(x, y, z) === 2) out.solid++;
+      else out.cut++;
+      if (seen.size >= limit) continue;
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, nz = z + dz, next = (nz << 10) | nx;
+        if (seen.has(next) || !field.inside(nx, y, nz)) continue;
+        const kind = field.kindAt(nx, y, nz);
+        const live = kind === 2 && field.read(nx, y, nz) !== 0 && !this.doomed.has(pack(nx, y, nz));
+        const lost = !live && kind === 0 && template && field.kindOf(template.templateBlock(nx, y, nz), nx, y, nz) === 2;
+        if (!cuts.has(next) && !live && !lost) continue;
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * The structure above layer `y` reached from `start` (6-connected live
+   * structural blocks above y): its cells, mass, centre of mass and the
+   * blocks of layer y it rests on (`bearing`), plus the columns under its
+   * bottom cells (`columns`, cut ones included). Null when it reaches
+   * natural ground, a non-prop pin or ground in layer y, or is too small or
+   * too large to weigh.
+   */
+  weigh(start, y, settled) {
+    const field = this.field, rules = this.loadRules, world = this.world;
+    const cells = [start], seen = new Set(cells);
+    let mass = 0, mx = 0, mz = 0, anchored = false;
+    for (let i = 0; i < cells.length; i++) {
+      const key = cells[i], x = key & 1023, z = (key >> 10) & 1023, cy = key >> 20, d = DENSITY[world.getBlock(x, cy, z) & 255];
+      mass += d; mx += d * (x + 0.5); mz += d * (z + 0.5);
+      for (let n = 0; n < 18; n += 3) {
+        const nx = x + FACES[n], ny = cy + FACES[n + 1], nz = z + FACES[n + 2];
+        if (ny <= y || !field.inside(nx, ny, nz)) continue;
+        const next = pack(nx, ny, nz);
+        if (seen.has(next)) continue;
+        const kind = field.kindAt(nx, ny, nz);
+        if (kind === 0) continue;
+        seen.add(next);
+        if (kind === 1) { anchored = true; break; }
+        const value = field.read(nx, ny, nz);
+        if (value === 0 || this.doomed.has(next)) continue;
+        if (value === PIN && !field.isProp(next)) { anchored = true; break; }
+        cells.push(next);
+      }
+      if (anchored || cells.length > rules.maxCells || seen.size > this.loadBudget) break;
+    }
+    this.loadBudget -= seen.size;
+    for (const key of seen) settled.add(key);
+    // A structure too large to weigh (or to weigh in this pass's budget) is left to the support rules.
+    if (anchored || cells.length > rules.maxCells || this.loadBudget < 0 || cells.length < rules.minCells) return null;
+    const bearing = [], columns = [];
+    for (const key of cells) {
+      if ((key >> 20) !== y + 1) continue;
+      const x = key & 1023, z = (key >> 10) & 1023, below = pack(x, y, z);
+      columns.push({ x, z, column: below & 0xFFFFF });
+      const kind = field.kindAt(x, y, z);
+      if (kind === 1) return null;
+      if (kind === 2 && field.read(x, y, z) !== 0 && !this.doomed.has(below)) bearing.push({ x, z, type: world.getBlock(x, y, z) & 255 });
+    }
+    return { cells, mass, cx: mx / mass, cz: mz / mass, bearing, columns };
+  }
+
+  /**
+   * The blocks of this layer's cut (`cuts`, column -> { type }) that bore
+   * `load` before: cut cells under its bottom, and cut cells joined to those
+   * or to its bearing blocks in the layer (8-connected), whose blocks above
+   * may have fallen already.
+   */
+  cutBearing(load, cuts) {
+    const out = [], reached = new Set(), queue = [];
+    for (const c of load.bearing) queue.push(c.x, c.z);
+    for (const c of load.columns) if (cuts.has(c.column) && !reached.has(c.column)) { reached.add(c.column); queue.push(c.x, c.z); out.push({ x: c.x, z: c.z, type: cuts.get(c.column).type }); }
+    for (let i = 0; i < queue.length; i += 2) {
+      const x = queue[i], z = queue[i + 1];
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, nz = z + dz, column = (nz << 10) | nx;
+        if (nx < 0 || nz < 0 || reached.has(column) || !cuts.has(column)) continue;
+        reached.add(column);
+        queue.push(nx, nz);
+        out.push({ x: nx, z: nz, type: cuts.get(column).type });
+      }
+    }
+    return out;
+  }
+
+  /** Does `load` fail on these bearing blocks? { topple } (a unit [x, z] lean, or null when crushed), or null. */
+  fails(load, bearing) {
+    if (!bearing.length) return null;
+    let capacity = 0, bx = 0, bz = 0;
+    const points = [];
+    for (const c of bearing) {
+      capacity += LOAD[c.type]; bx += c.x + 0.5; bz += c.z + 0.5;
+      points.push([c.x, c.z], [c.x + 1, c.z], [c.x, c.z + 1], [c.x + 1, c.z + 1]);
+    }
+    bx /= bearing.length; bz /= bearing.length;
+    const lean = Math.hypot(load.cx - bx, load.cz - bz), topple = lean > 1e-6 ? [(load.cx - bx) / lean, (load.cz - bz) / lean] : null;
+    if (insideHull(convexHull(points), load.cx, load.cz) < this.loadRules.tipMargin) return { topple: topple ?? [1, 0] };
+    return load.mass > capacity ? { topple: null } : null;
+  }
+
   /** Unpin the prop pins among `cells`: they lose their support as if removed, and fall unless re-supported. */
   releaseProps(cells, tag) {
     const field = this.field;
@@ -500,11 +710,16 @@ export class StructureSystem {
   }
 
   /** An unsupported cluster: its cells are doomed now; it creaks (and falls creakMs later) once announced. */
-  /** An unsupported cluster: its cells are doomed now; it creaks (and falls creakMs later) once announced. */
-  doom(keys, cause, origin) {
+  /**
+   * An unsupported cluster: its cells are doomed now; it creaks (and falls
+   * creakMs later) once announced. An overloaded structure (checkLoads)
+   * falls whatever its support then: `crush` are the bearing blocks that
+   * give way under it (they crumble in place), `topple` its lean [x, z].
+   */
+  doom(keys, cause, origin, { crush = null, topple = null } = {}) {
     const id = 'k' + (++this.doomSerial);
     for (const key of keys) this.doomed.add(key);
-    this.creakQueue.push({ id, keys, cause, origin });
+    this.creakQueue.push({ id, keys, cause, origin, crush, topple });
   }
 
   /**
@@ -525,8 +740,8 @@ export class StructureSystem {
       if (!keys.length) continue;
       events++;
       cells += listed;
-      const { id, cause, origin } = next;
-      this.dooms.push({ id, keys, next: 0, at, fallAt: at + rules.creakMs, cause, origin });
+      const { id, cause, origin, crush, topple } = next;
+      this.dooms.push({ id, keys, next: 0, at, fallAt: at + rules.creakMs, cause, origin, crush, topple });
       const { o, b, n } = this.encode(this.cellsOf(keys));
       this.engine.tickEvents.push(evCreak(id, at, rules.creakMs, o, b, n));
       this.stats.creaks++;
@@ -545,8 +760,8 @@ export class StructureSystem {
       for (const key of slice) {
         if (!this.doomed.delete(key)) continue;
         const x = key & 1023, z = (key >> 10) & 1023, y = key >> 20, t = this.world.getBlock(x, y, z) & 255;
-        // A block that regained support (a pillar placed in time) stays.
-        if (field.kindOf(t, x, y, z) === 2 && field.read(x, y, z) === 0) cells.push({ x, y, z, t });
+        // A block that regained support (a pillar placed in time) stays; an overloaded structure falls anyway.
+        if (field.kindOf(t, x, y, z) === 2 && (doom.crush || field.read(x, y, z) === 0)) cells.push({ x, y, z, t });
       }
       if (cells.length) this.release(doom, cells);
     }
@@ -557,12 +772,17 @@ export class StructureSystem {
     const engine = this.engine, cause = this.cause;
     // The removals carry the cluster's credit (to what they held: prop checks).
     this.cause = doom.cause ?? null;
+    this.releasing = true;
     for (const c of cells) {
       engine.world.setBlock(c.x, c.y, c.z, AIR);
       engine.pushBlockDelta(c.x, c.y, c.z, AIR);
     }
+    this.releasing = false;
     this.cause = cause;
-    let groups = [cells];
+    // Bearing blocks crushed under an overloaded structure crumble where they stood.
+    const crumble = doom.crush ? cells.filter(c => doom.crush.has(pack(c.x, c.y, c.z))) : [];
+    if (crumble.length) cells = cells.filter(c => !doom.crush.has(pack(c.x, c.y, c.z)));
+    let groups = cells.length ? [cells] : [];
     if (cells.length > this.rules.maxChunkCells) {
       const byCell = new Map();
       for (const c of cells) {
@@ -575,7 +795,6 @@ export class StructureSystem {
     }
     // The chunk cap holds per cluster, across the ticks a big cluster is released over.
     const room = Math.max(0, Math.min(this.rules.maxChunksPerCluster - (doom.spawned ?? 0), this.rules.maxActiveChunks - this.chunks.length));
-    const crumble = [];
     groups.forEach((group, i) => {
       if (i < room && this.spawnChunk(doom, group)) doom.spawned = (doom.spawned ?? 0) + 1;
       else crumble.push(...group);
@@ -652,7 +871,12 @@ export class StructureSystem {
     const seed = hash(serial, minX, minY, minZ, cells.length);
     const random = prng(seed);
     let vx = 0, vz = 0, heading = random() * Math.PI * 2;
-    if (cells.length <= rules.maxDriftCells) {
+    if (doom.topple) {
+      // A tipping structure leans and drifts toward its centre of mass.
+      heading = Math.atan2(doom.topple[1], doom.topple[0]) + (random() - 0.5) * 0.3;
+      vx = Math.cos(heading) * this.loadRules.toppleDrift;
+      vz = Math.sin(heading) * this.loadRules.toppleDrift;
+    } else if (cells.length <= rules.maxDriftCells) {
       // Drift away from the support that was lost.
       const origin = doom.origin;
       if (origin) {
@@ -668,6 +892,8 @@ export class StructureSystem {
     // Tumble about the horizontal axis across the drift.
     let rate = (rules.spin[0] + (rules.spin[1] - rules.spin[0]) * random()) * (random() < 0.5 ? -1 : 1);
     if (cells.length > rules.maxDriftCells) rate *= 0.35;
+    // Negative about the cross axis: the top swings toward the heading.
+    if (doom.topple) rate = -this.loadRules.toppleSpin * (0.8 + 0.4 * random());
     const axis = heading + Math.PI / 2, spin = [Math.cos(axis) * rate, 0, Math.sin(axis) * rate];
     const id = 'c' + serial, at = engine.now, velocity = [land.vx, 0, land.vz];
     const chunk = {

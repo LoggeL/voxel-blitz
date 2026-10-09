@@ -30,14 +30,17 @@ clients that present it. Shared rules and the motion model live in
 * Passable blocks (air, water, lava, portals, Minecraft ghost blocks) neither
   need nor give support.
 
-| Class (`STRUCTURE_CLASS`) | Examples | Span | Density | Rubble |
-|---|---|---|---|---|
-| `glass` | GLASS, MC_GLASS | 0 (rests only on the block below) | 0.3 | no |
-| `foliage` | leaves, pine leaves, kelp, cactus, clouds | 4 | 0.1 | no |
-| `wood` | WOOD, PLANK, crates, logs, timber, slides, wool | 4 | 0.5 | yes |
-| `thin` | siding, ACCENT | 3 | 0.4 | yes |
-| `masonry` (default) | BRICK, PALE, plaster, roof tiles, cobble, coral, BARRICADE | 6 | 1 | yes |
-| `heavy` | CONCRETE, METAL, RUST, ASPHALT, steel, pool panels, vehicle props | 10 | 1.5 | yes |
+| Class (`STRUCTURE_CLASS`) | Examples | Span | Density | Load | Rubble |
+|---|---|---|---|---|---|
+| `glass` | GLASS, MC_GLASS | 0 (rests only on the block below) | 0.3 | 2 | no |
+| `foliage` | leaves, pine leaves, kelp, cactus, clouds | 4 | 0.1 | 1 | no |
+| `wood` | WOOD, PLANK, crates, logs, timber, slides, wool | 4 | 0.5 | 40 | yes |
+| `thin` | siding, ACCENT | 3 | 0.4 | 25 | yes |
+| `masonry` (default) | BRICK, PALE, plaster, roof tiles, cobble, coral, BARRICADE | 6 | 1 | 80 | yes |
+| `heavy` | CONCRETE, METAL, RUST, ASPHALT, steel, pool panels, vehicle props | 10 | 1.5 | 200 | yes |
+
+*Load* (`STRUCTURE_LOAD`) is the mass one block carries as the last layer
+under a structure (see *Load* below).
 
 Steps are counted per block face (Manhattan): a 5x5 plank roof on four
 corner posts stands (the centre is 4 steps from a post); a 7x7 one loses its
@@ -136,6 +139,44 @@ the Minecraft B5 lighthouse kept 475 of its 922 blocks floating after its
 tower was shot through (20 pins on its floors and lantern).
 
 The per-map pin counts are in the table above.
+
+## Load
+
+Support alone is connectivity: one column left under a tower holds all of
+it. So once support has settled after removals, the server also weighs what
+the cut layers carry (`StructureSystem.checkLoads`, `STRUCTURE_RULES.load`):
+
+* **Which structures.** For each layer `y` cut in the pass (lowest first),
+  the cut's cross-section is the cut cells, the live structural blocks of
+  layer `y` joined to them (8-connected in the layer) and the cells of the
+  map template's structure already lost there, at most 2048 cells
+  (`planeCells`). Only a cross-section that has lost at least 20 %
+  (`minCutShare`) is weighed, so chipping a layer block by block (bullets,
+  one shot per settle) reaches it too. The structure is the live structural
+  blocks above `y` (6-connected) reached from above the cut; it is skipped
+  when it reaches natural ground, a non-prop pin or ground in layer `y`, or
+  has under 24 or over 6000 blocks (`minCells`, `maxCells`; larger buildings
+  are left to the support rules). A pass weighs at most 6 structures
+  (`maxChecks`) and visits at most 6000 blocks doing so.
+* **The test.** Its *bearing* blocks are the live blocks of layer `y` under
+  its bottom cells. It fails when its mass (sum of densities) exceeds their
+  summed `STRUCTURE_LOAD` (crushed), or when its centre of mass is less than
+  `tipMargin` (0.25 blocks) inside the convex hull of their footprints
+  (tipping). A structure that already fails with this pass's cut cells (and
+  those joined to them in the layer) counted as bearing is an authored
+  overhang and is left alone.
+* **The fall.** A failed structure is doomed like an unsupported cluster
+  (one `creak`, credited to the cut), but falls whatever its support then:
+  its bearing blocks crumble in place (`crumble`) and the rest falls as
+  chunks. A tipping structure's chunks drift (`toppleDrift`, 0.9 m/s) and
+  lean (`toppleSpin`, 0.9 rad/s about the cross axis) toward its centre of
+  mass; a crushed one falls straight.
+* **Numbers.** The Minecraft B5 lighthouse (wool ring, ~570 mass above its
+  base) stands with a hole through 40 % of its ring at y 51-52 and comes
+  down once just under half of the ring is gone, whether in one blast or
+  block by block. Cost (`structure:bench`): p95 0.2 ms per tick on Foundry
+  and 0.14 ms on Frontier under 2 rockets and 12 block breaks per second,
+  spikes up to 3 ms.
 
 ## Server algorithm
 
