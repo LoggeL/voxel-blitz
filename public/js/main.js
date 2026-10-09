@@ -1309,8 +1309,9 @@ class Game {
     // pose (a cockpit eye a frame behind a 100 m/s jet would sit metres back).
     if (!seated) this.vehicleView?.setLocalView(null);
     if (seated) {
-      const fp = this.vehicleController.view?.firstPerson === true;
-      this.vehicleView?.setLocalView(fp ? { id: this.vehicleController.vehicle?.id, seatId: this.vehicleController.seatId } : null);
+      const sight = this.vehicleController.sightActive === true;
+      const fp = sight || this.vehicleController.view?.firstPerson === true;
+      this.vehicleView?.setLocalView(fp ? { id: this.vehicleController.vehicle?.id, seatId: this.vehicleController.seatId, sight } : null);
       // Same failure phase as the unseated update in the fx/rig block below.
       try { this.vehicleView?.update(dt, this.camera); } catch (error) { this.phaseError('fx/rig', error); }
       this.vehicleController.updateCamera(dt, this.vehicleView?.presentedRow(this.vehicleController.vehicle?.id));

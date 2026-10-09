@@ -142,6 +142,12 @@ export class VehicleController {
   get role() { return this.seat?.role ?? null; }
   get isDriver() { return !!this.seat?.drives; }
   get type() { return this.vehicle ? this.vehicle.type ?? this.vehicle.kind : null; }
+  /**
+   * True while the seat looks through a mount sight (the chin gunner's gimbal
+   * sensor, a held tank sight): the HUD draws the sensor overlay and
+   * VehicleView hides the own hull.
+   */
+  get sightActive() { return this.active && this.view.sightFor(this.type, this.seatId, this.opticHeld); }
   /** Every seat that owns a mount fires its own selected weapon; personal-weapon seats fire infantry guns. */
   get canFire() { return !!this.vehicle && (!!this.seat?.weapons || !!this.seat?.personalWeapons); }
   /** True when the seat's own mounts fire (not a passenger's personal weapon). */

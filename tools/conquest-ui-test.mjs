@@ -681,6 +681,32 @@ ok();
   assert.ok(jetText.includes('KM/H') && jetText.includes('ALT M') && jetText.includes('LOCKING 70%'), 'speed/alt tapes and locker label');
   assert.equal(rendered.get('tank-commander').hud.vehiclePanel.cm.hidden, true);
 
+  // Chin gunner through the gimbal sensor (docs/design/conquest/gunner-sensor/): the HUD
+  // grades the world (body[data-vehicle-sight]), shows the sensor dressing and draws the
+  // rangefinder, heading and zoom from the camera and the authoritative mount row.
+  {
+    const f = byId('heli-gunner');
+    const hud = new ConquestHud(document.body, { eventTarget: dom.window, shellRaycast: () => ({ t: 412.4 }) });
+    hud.update({ ...renderArgs(f), vehicleController: { sightActive: true, view: { zoom: 4 }, viewState: () => null } });
+    const text = textsDrawn(hud.reticles.context);
+    assert.ok(text.includes('RNG 0412 M'), `rangefinder from the sight line (${text.join('|')})`);
+    assert.ok(text.includes('SENSOR \u00B7 BW \u00B7 NFOV 4.0x'), 'sensor mode and the optic zoom');
+    assert.ok(text.some(t => /^HDG \d{3} \u00B7 EL [-+]?\d+$/.test(t)), 'heading and elevation');
+    assert.ok(text.includes('TURRET ENVELOPE'), 'the turret envelope box under the frame');
+    assert.equal(document.body.dataset.vehicleSight, 'sensor'); assert.equal(hud.sensor.hidden, false);
+    hud.update({ ...renderArgs(f), vehicleController: { sightActive: false, viewState: () => null } });
+    assert.equal(document.body.dataset.vehicleSight, '', 'first person without the sight: no grade');
+    assert.equal(hud.sensor.hidden, true);
+    assert.ok(textsDrawn(hud.reticles.context).includes('25MM CHIN \u00B7 GIMBAL'), 'the plain gimbal box');
+    hud.dispose();
+    const readout = state.sensorReadout({ x: 0, y: 50, z: 0, yaw: -Math.PI / 2, pitch: -0.3, zoom: 4 }, { raycast: () => ({ t: 412.4 }) });
+    assert.deepEqual([readout.range, readout.heading, readout.elevation, readout.zoom], [412, 90, -17, 4], 'east is 090');
+    assert.equal(state.sensorReadout({ yaw: 0, pitch: 0 }, {}).range, null, 'no return without a raycast');
+    const gimbal = state.reticleModel(seatedOf(f), { projector: projectorFor(f), sight: { ...f.camera, zoom: 1 } });
+    assert.ok(gimbal.sensor?.pip, 'the barrel pip projects from the mount row');
+    assert.equal(gimbal.sensor.slewing, false, 'the fixture camera looks along the chin gun');
+    ok();
+  }
   // Mouse-aim pilots: the aim circle at the centre and the nose marker apart from
   // it, speed / AGL tapes with the climb rate, the jet's throttle bar and stall
   // warning, and the first-entry control hint (docs/design/conquest/flight).

@@ -67,7 +67,9 @@ assert(Object.values(controller.controls(null,{dx:NaN,dy:Infinity})).every(value
 
 // Chase cameras: per-seat profile distance, wall clearance and recovery.
 for(const type of ['helicopter','transport','plane']) {
-  const row={...base,id:type,type,pitch:0};seat(row);controller.updateCamera(1/60);
+  const row={...base,id:type,type,pitch:0};seat(row);
+  controller.view.setView(type,'driver','chase',{remember:false}); // pilots start in COCKPIT
+  controller.updateCamera(1/60);
   const maximum=seatCameraProfile(type,'driver').distance;
   assert.equal(maximum,{helicopter:13,transport:15,plane:17}[type]);
   assert(Math.abs(camera.position.distanceTo(controller._focus)-maximum)<1e-6,`${type} chase distance`);
@@ -160,6 +162,7 @@ input.clearTransient();assert.equal(input.getKeys().flightYawRight,false);input.
   for(const type of ['plane','helicopter','transport']) {
     const row={...base,id:`aim-${type}`,type,yaw:.4,pitch:.05,roll:-.6};
     aimController.sync({self:{...self,vehicleId:row.id},vehicles:[row],enabled:true});
+    aimController.view.setView(type,'driver','chase',{remember:false});
     aimController.controls({},{dx:-.5,dy:-.2,mouseDx:-.5,mouseDy:-.2},false,1/60);
     const aim=aimController.flightAim;
     assert(aim&&Math.abs(aim.yaw-.9)<1e-9,`${type}: the mouse moved the aim, not the hull`);

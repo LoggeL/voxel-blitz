@@ -65,6 +65,11 @@ export class ConquestHud {
     this.root.hidden = true;
     this.root.setAttribute('aria-label', 'Conquest tactical information');
     this._watchHealthPanel();
+    // Gimbal sensor dressing (vignette, scanlines, grain) under markers and reticles;
+    // the monochrome grade of the world is a body[data-vehicle-sight] filter on #game.
+    this.sensor = el('div', 'cq-sensor', this.root);
+    this.sensor.setAttribute('aria-hidden', 'true');
+    this.sensor.hidden = true;
     this.markers = new WorldMarkers(this.root);
     this.reticles = new Reticles(this.root);
     this.topBar = new TopBar(this.root);
@@ -229,7 +234,7 @@ export class ConquestHud {
     const show = this.dead && this.active;
     this.deploy.setOpen(show, this.killerInfo);
     this.root.dataset.dead = String(this.dead);
-    if (this.dead) { this.bigMap.setOpen(false); this.reticles.clear(); this.markers.clear(); }
+    if (this.dead) { this.bigMap.setOpen(false); this.reticles.clear(); this._setSensor(false); this.markers.clear(); }
   }
 
   /**
@@ -361,6 +366,7 @@ export class ConquestHud {
       this.lock.update(null);
       this.restricted.update(null);
       this.reticles.clear();
+      this._setSensor(false);
       this.markers.clear();
       this.minimap.root.hidden = true;
       this.squadList.update(null);
@@ -384,8 +390,12 @@ export class ConquestHud {
     // V / D-pad down: the seat's camera views, shown briefly after a change.
     this.viewStrip.update(seated ? viewStripModel(this.vehicleController?.viewState?.(), clockNow(), bindingLabel('vehicleView')) : null);
     this.lock.update(panel?.lock ?? null);
+    // A mount sight (the chin gunner's gimbal sensor) reads range, heading and zoom from this camera.
+    const sight = seated && eye && angles && this.vehicleController?.sightActive === true
+      ? { ...eye, yaw: angles.yaw, pitch: angles.pitch, zoom: this.vehicleController?.view?.zoom ?? 1 } : null;
     const reticle = seated && projector ? reticleModel(seated, { projector, players, vehicles, selfTeam,
-      raycast: this.shellRaycast, flightAim: this.vehicleController?.aimFlight === true }) : null;
+      raycast: this.shellRaycast, flightAim: this.vehicleController?.aimFlight === true, sight }) : null;
+    this._setSensor(!!reticle?.sensor);
     const locker = projector ? lockerModel(self, { projector, vehicles, selfTeam, seated,
       camera: angles && eye ? { ...eye, yaw: angles.yaw, pitch: angles.pitch } : null }) : null;
     this.reticles.draw(reticle, locker, width, height, { touch });
@@ -430,6 +440,14 @@ export class ConquestHud {
   invalidateLayout() { this._obstacleCache = null; }
 
   /** Screen rects of the visible fixed HUD panels, cached per layout and refreshed a few times a second. */
+  /** Gimbal sensor look on or off: the overlay and the body flag that grades #game. */
+  _setSensor(on) {
+    if (this.sensor.hidden === !on) return;
+    this.sensor.hidden = !on;
+    const body = globalThis.document?.body;
+    if (body?.dataset) body.dataset.vehicleSight = on ? 'sensor' : '';
+  }
+
   _markerObstacles(width, height, touch) {
     const key = `${width}x${height}:${touch}`;
     const at = clockNow();
@@ -528,6 +546,7 @@ export class ConquestHud {
   hide() {
     const body = globalThis.document?.body;
     if (body?.dataset) { delete body.dataset.vehicleSeated; delete body.dataset.flightAim; }
+    this._setSensor(false);
     if (this.root.hidden) return;
     this.root.hidden = true;
     this.bigMap.setOpen(false);

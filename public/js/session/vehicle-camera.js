@@ -14,12 +14,16 @@
 //   flyby    aircraft only: a fixed point ahead of the flight path that the
 //            aircraft zooms past, then a new point further on.
 //   mount    exposed gunners (pintle, RWS, door guns): over the gun's shoulder.
-//   gimbal   the attack helicopter's chin gunner: a stabilised sight at the chin.
+//   gimbal   the attack helicopter's chin gunner: a stabilised sensor sight in
+//            the chin turret (the seat's default view). The local hull is
+//            hidden while it is up, so no barrel or nose fills the screen.
 //   passenger  an orbit around the seat hip with free look.
-// V (vehicleView) cycles the seat's `views`; the choice is remembered per hull
-// type and seat in localStorage (VEHICLE_VIEW_PREF_KEY).
+// Every seat starts in first person (cockpit; the chin gunner in its gimbal).
+// V (vehicleView) cycles the seat's `views`; only a V press stores a choice,
+// per hull type and seat, in localStorage (VEHICLE_VIEW_PREF_KEY).
 // RMB optics zoom by the seat's `optic` factor (tank 3x through the gunner's
-// sight, chin 4x, door guns 1.5x). Speed widens the FOV by up to 8 degrees.
+// sight, chin 4x, door guns 1.5x). A mount sight (chin gimbal, tank RMB
+// sight) sits at the seat's `sight` offset in the gun frame. Speed widens the FOV by up to 8 degrees.
 // Hold C for free look: the camera orbits while the weapon keeps its aim.
 import * as THREE from '../vendor/three.module.js';
 import { vehicleDef, mountPose, vehicleDirection, vehicleLocalPoint, turretLocal } from '../../../shared/vehicle-defs.js';
@@ -81,6 +85,7 @@ export function seatCameraProfile(type, seatId) {
     views: Object.freeze([...new Set(views)]),
     eye: Object.freeze(Array.isArray(camera.eye) ? [...camera.eye] : seatEyeDefault(seat)),
     eyeFrame: camera.eyeFrame ?? (seat?.mount === 'turret' ? 'turret' : 'hull'),
+    sight: Object.freeze(Array.isArray(camera.sight) ? [...camera.sight] : [0, 0.25, 0]),
   });
 }
 
@@ -112,17 +117,30 @@ export function cockpitLook(type, seatId) {
   return AIRCRAFT.has(def.handling) || def.handling === 'wheeled' ? 'hull' : 'aim';
 }
 
+/**
+ * World point at (right, up, forward) in the frame of a gun pointing along the
+ * world direction `dir` from `pivot` (no roll: right stays level).
+ */
+export function gunFramePoint(pivot, dir, right, up, forward) {
+  const yaw = Math.atan2(-dir[0], -dir[2]), pitch = Math.asin(clamp(dir[1], -1, 1));
+  const c = Math.cos(yaw), s = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  // right (c, 0, -s); forward (-s cp, sp, -c cp); up (s sp, cp, c sp).
+  return [pivot[0] + right * c - forward * s * cp + up * s * sp,
+    pivot[1] + forward * sp + up * cp,
+    pivot[2] - right * s - forward * c * cp + up * c * sp];
+}
+
 /** World eye point of a seat's first-person view on a (presented) hull row. */
 export function seatEyeWorld(row, seatId) {
   const profile = seatCameraProfile(row?.type ?? row?.kind, seatId);
   if (profile.eyeFrame === 'mount') {
-    // Behind the seat's gun, turning with it about the mount pivot.
+    // Behind the seat's gun, turning and tilting with it about the mount
+    // pivot, so the gun holds one place on screen as it traverses.
     const mountId = vehicleDef(row)?.seats.find(entry => entry.id === seatId)?.mounts?.[0];
     const pose = mountId ? mountPose(row, seatId, mountId) : null;
     if (pose) {
-      const yaw = Math.atan2(-pose.dir[0], -pose.dir[2]), c = Math.cos(yaw), s = Math.sin(yaw);
       const [right, up, back] = profile.eye;
-      return [pose.pivot[0] + right * c + back * s, pose.pivot[1] + up, pose.pivot[2] - right * s + back * c];
+      return gunFramePoint(pose.pivot, pose.dir, right, up, -back);
     }
   }
   const local = profile.eyeFrame === 'turret' && Number.isFinite(row?.turretYaw) ? turretLocal(row, profile.eye) : profile.eye;
@@ -185,6 +203,8 @@ export class VehicleCamera {
     this._type = null; this._seatId = null;
     this._fly = null;
     this.zoom = 1;
+    /** True while the last pose was a mount sight (see sightFor). */
+    this.sight = false;
     this._focus = new THREE.Vector3();
     this._direction = new THREE.Vector3();
     this._target = new THREE.Vector3();
@@ -215,6 +235,7 @@ export class VehicleCamera {
       this.camera.updateProjectionMatrix?.();
     }
     this.mode = null;
+    this.sight = false;
     this.view = null;
     this._viewKey = null;
     this._type = this._seatId = null;
@@ -293,6 +314,21 @@ export class VehicleCamera {
   get firstPerson() { return this.seated && this.view === 'cockpit'; }
 
   /**
+   * True when the seat looks through a mount sight: the chin gimbal (its
+   * default view, or RMB from first person) and a ground gunner's RMB optic
+   * (tank). VehicleView hides the local hull while it is up.
+   */
+  sightFor(type, seatId, optic = false) {
+    if (!this.seated || !type || !seatId) return false;
+    const def = vehicleDef(type), seat = def?.seats.find(entry => entry.id === seatId);
+    if (!seat?.mounts?.length) return false;
+    const profile = seatCameraProfile(type, seatId);
+    const view = `${type}:${seatId}` === this._viewKey && this.view ? this.view : this.storedView(type, seatId);
+    if (profile.mode === 'gimbal') return view === 'gimbal' || !!optic;
+    return !!optic && profile.optic > 1 && profile.mode === 'chase' && !AIRCRAFT.has(def.handling);
+  }
+
+  /**
    * True when a ground driver's look rides the hull (jeep cockpit): the
    * controller then carries its look yaw with the hull's turn.
    */
@@ -346,16 +382,20 @@ export class VehicleCamera {
 
     const mode = profile.mode;
     const gimbalSight = mode === 'gimbal' && (view === 'gimbal' || optic);
-    if (gimbalSight || (mode === 'chase' && !aircraft && optic && profile.optic > 1 && seat?.mounts?.length)) {
-      // First-person sight at the mount (chin gimbal, tank gunner's sight).
+    this.sight = this.sightFor(type, seatId, optic);
+    if (this.sight) {
+      // Sight at the mount (chin gimbal sensor, tank gunner's sight): the
+      // seat's `sight` offset in the frame of the aim, about the mount pivot.
+      // The hull is hidden meanwhile (VehicleView), so no barrel or nose
+      // geometry can sit in front of the lens.
       this.mode = gimbalSight ? 'gimbal' : view;
       const mountId = seat?.mounts?.[0];
       const pose = mountId ? mountPose(row, seatId, mountId) : null;
       const origin = pose?.pivot || [finite(row.x), finite(row.y) + finite(def?.height, 2), finite(row.z)];
       const yaw = wrap(aimYaw + this._freeYaw), pitch = clamp(aimPitch + this._freePitch, -1.5, 1.5);
-      const dir = vehicleDirection(yaw, pitch);
-      // Sit just behind the muzzle so the barrel never fills the sight.
-      camera.position.set(origin[0] + dir[0] * 0.6, origin[1] + dir[1] * 0.6 + 0.15, origin[2] + dir[2] * 0.6);
+      const [right, up, forward] = profile.sight;
+      const eye = gunFramePoint(origin, vehicleDirection(yaw, pitch), right, up, forward);
+      camera.position.set(eye[0], eye[1], eye[2]);
       camera.up.set(0, 1, 0);
       camera.rotation.set(pitch, yaw, 0, 'YXZ');
       this._seeded = true;

@@ -169,28 +169,34 @@ const seatNames = { commander: 'COMMANDER', 'door-left': 'LEFT DOOR', 'door-righ
   'rear-left': 'REAR LEFT', 'rear-right': 'REAR RIGHT' };
 /**
  * Per-seat camera profile (WP6 reads it). optic = RMB zoom factor. `views` is
- * the V-key cycle (the first entry is the default): chase, action (a close,
- * low chase), cockpit (first person from the seat's eye), flyby (aircraft
- * cinematic), or the seat's own mount / gimbal / passenger camera. `eye` is
- * the first-person eye in the hull frame, the turret frame (eyeFrame:'turret')
- * or the seat's first mount (eyeFrame:'mount': right, up, back of the pivot
- * along the gun's yaw); without it the eye sits above the seat hip.
+ * the V-key cycle (the first entry is the default): cockpit (first person from
+ * the seat's eye: the default of every seat), chase, action (a close, low
+ * chase), flyby (aircraft cinematic), or the seat's own mount / gimbal /
+ * passenger camera. The attack helicopter gunner's default is its gimbal: the
+ * chin turret's sensor sight. `eye` is the first-person eye in the hull frame,
+ * the turret frame (eyeFrame:'turret') or the seat's first mount
+ * (eyeFrame:'mount': right, up, back of the pivot in the gun's yaw and pitch
+ * frame, so the gun keeps its place on screen); without it the eye sits above
+ * the seat hip. `sight` places a mount sight (the chin gimbal, the tank's RMB
+ * gunner sight): right, up, forward of the first mount's pivot in the gun
+ * frame. The local hull is hidden while a sight is up.
  */
-const DRIVE_VIEWS = ['chase', 'action', 'cockpit'], FLY_VIEWS = ['chase', 'action', 'cockpit', 'flyby'];
+const DRIVE_VIEWS = ['cockpit', 'chase', 'action'], FLY_VIEWS = ['cockpit', 'chase', 'action', 'flyby'];
 const seatCameras = {
-  jeep: { driver: { mode: 'chase', distance: 7, height: 2.6, views: DRIVE_VIEWS, eye: [-0.4, 1.8, 0.12] },
-    gunner: { mode: 'mount', distance: 4.5, height: 1.6, optic: 1.5, views: ['mount', 'cockpit'], eye: [-0.45, 0.32, 0.45], eyeFrame: 'mount' },
-    'front-passenger': { mode: 'passenger', distance: 6, height: 2.2, views: ['passenger', 'cockpit'], eye: [0.4, 1.8, 0.12] } },
-  tank: { driver: { mode: 'chase', distance: 9.5, height: 3.4, optic: 3, views: DRIVE_VIEWS, eye: [0, 3.35, 0.3], eyeFrame: 'turret' },
-    commander: { mode: 'mount', distance: 5, height: 1.4, optic: 1.5, views: ['mount', 'cockpit'], eye: [-0.35, 0.35, 0.5], eyeFrame: 'mount' } },
+  jeep: { driver: { mode: 'chase', distance: 7, height: 2.6, views: DRIVE_VIEWS, eye: [-0.4, 1.78, 0.12] },
+    gunner: { mode: 'mount', distance: 4.5, height: 1.6, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.74, 0.6], eyeFrame: 'mount' },
+    'front-passenger': { mode: 'passenger', distance: 6, height: 2.2, views: ['cockpit', 'passenger'], eye: [0.4, 1.78, 0.12] },
+    'rear-left': { mode: 'passenger', distance: 6, height: 2.2, views: ['cockpit', 'passenger'], eye: [-0.76, 1.95, 1.1] } },
+  tank: { driver: { mode: 'chase', distance: 9.5, height: 3.4, optic: 3, views: DRIVE_VIEWS, eye: [0, 3.35, 0.3], eyeFrame: 'turret', sight: [0, 0.3, 0] },
+    commander: { mode: 'mount', distance: 5, height: 1.4, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.3, 0.6, 0.55], eyeFrame: 'mount' } },
   helicopter: { driver: { mode: 'chase', distance: 13, height: 3.6, views: FLY_VIEWS },
-    gunner: { mode: 'gimbal', distance: 0, height: 0, optic: 4, views: ['gimbal', 'cockpit'] } },
+    gunner: { mode: 'gimbal', distance: 0, height: 0, optic: 4, views: ['gimbal', 'cockpit'], sight: [0, 0.22, 0.25] } },
   transport: { driver: { mode: 'chase', distance: 15, height: 4.2, views: FLY_VIEWS },
-    'door-left': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['mount', 'cockpit'], eye: [-0.25, 0.35, 0.65], eyeFrame: 'mount' },
-    'door-right': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['mount', 'cockpit'], eye: [0.25, 0.35, 0.65], eyeFrame: 'mount' } },
+    'door-left': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.38, 0.45], eyeFrame: 'mount' },
+    'door-right': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [0.22, 0.38, 0.45], eyeFrame: 'mount' } },
   plane: { driver: { mode: 'chase', distance: 17, height: 4.4, views: FLY_VIEWS } },
 };
-const defaultCamera = { mode: 'passenger', distance: 6, height: 2.2, views: ['passenger', 'cockpit'] };
+const defaultCamera = { mode: 'passenger', distance: 6, height: 2.2, views: ['cockpit', 'passenger'] };
 
 /**
  * Mount anchors in the hull frame (or the turret frame for frame:'turret').

@@ -342,6 +342,30 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 /* --------------------------------------------------------- reticles */
 .cq-reticles { position: absolute; inset: 0; width: 100%; height: 100%; }
 
+/* Gimbal sensor sight (attack helicopter gunner, docs/design/conquest/gunner-sensor/ variant B):
+   the world turns into a monochrome sensor picture with scanlines, grain and a vignette.
+   The symbology itself is drawn on .cq-reticles. */
+body[data-vehicle-sight="sensor"] :is(canvas#game, canvas[data-sensor-grade]) { filter: grayscale(1) sepia(0.2) hue-rotate(70deg) brightness(0.86) contrast(1.42); }
+body[data-vehicle-sight="sensor"] #crosshair { display: none !important; }
+.cq-sensor {
+  position: absolute; inset: 0; overflow: hidden;
+  background:
+    radial-gradient(ellipse 78% 74% at 50% 50%, transparent 52%, #02060499 82%, #010302e6 100%),
+    repeating-linear-gradient(180deg, #00000000 0 2px, #0000001f 2px 3px),
+    linear-gradient(#a8ffc80d, #a8ffc80d);
+  box-shadow: inset 0 0 0 1px #dcffe614;
+}
+.cq-sensor::after {
+  content: ""; position: absolute; inset: -50%; opacity: 0.13; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: cq-sensor-grain 0.5s steps(4) infinite;
+}
+@keyframes cq-sensor-grain {
+  0% { transform: translate(0, 0); } 25% { transform: translate(-7%, 4%); }
+  50% { transform: translate(5%, -6%); } 75% { transform: translate(-3%, -2%); } 100% { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .cq-sensor::after { animation: none; } }
+
 /* ------------------------------------------------------------- big map */
 .cq-bigmap { position: absolute; inset: 0; display: grid; place-items: center; background: #03070acc; pointer-events: auto; z-index: 5; }
 .cq-bigmap-panel { display: grid; gap: 8px; padding: 12px; background: var(--cq-panel-solid); border: 1px solid var(--cq-line); border-radius: 6px; box-shadow: 0 10px 40px #000c; }

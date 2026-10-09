@@ -16,7 +16,10 @@ const crew = params.get('crew') === '1';
 const fx = params.get('fx') !== '0';
 const rotor = Number(params.get('rotor') ?? (state === 'wreck' ? 0 : 1));
 // Seat views (?seat=driver&view=cockpit): the real VehicleCamera poses the shot.
+// ?optic=1 holds RMB; ?hud=1 draws the seat's real reticle (and the gimbal
+// sensor look) over the shot instead of the debug centre / weapon marks.
 const seatId = params.get('seat');
+const optic = params.get('optic') === '1', hud = params.get('hud') === '1';
 const seatView = params.get('view');
 const seatShot = !!(seatId && seatView);
 const num = (key, fallback) => { const value = Number(params.get(key)); return params.has(key) && Number.isFinite(value) ? value : fallback; };
@@ -118,7 +121,10 @@ if (seatShot) {
   const { VehicleCamera } = await import('../session/vehicle-camera.js');
   seatCamera = new VehicleCamera({ camera, storage: null, getBaseFov: () => num('fov', 75) });
   seatCamera.setView(type, seatId, seatView, { remember: false });
-  view.setLocalView(seatCamera.view === 'cockpit' && params.get('head') !== '1' ? { id: rows[0].id, seatId } : null);
+  seatCamera.begin();
+  // As main.js: first person drops the own head, a mount sight hides the own hull.
+  const sight = seatCamera.sightFor(type, seatId, optic);
+  view.setLocalView((seatCamera.view === 'cockpit' || sight) && params.get('head') !== '1' ? { id: rows[0].id, seatId, sight } : null);
 }
 const poseSeat = (step, move = false) => {
   if (!seatCamera) return;
@@ -127,7 +133,7 @@ const poseSeat = (step, move = false) => {
   const mountAim = def.seats.find(seat => seat.id === seatId)?.mounts?.length ? rows[0].mounts[vehicleMountOrder(type).indexOf(`${seatId}:${def.seats.find(seat => seat.id === seatId).mounts[0]}`)] : null;
   const aimYaw = type === 'tank' && seatId === 'driver' ? rows[0].turretYaw : mountAim ? mountAim[0] : rows[0].yaw + (aimOffset ?? 0);
   const look = type === 'tank' && seatId === 'driver' ? rows[0].turretPitch : mountAim ? mountAim[1] : aimPitch;
-  seatCamera.update(step, { row, seatId, aimYaw, aimPitch: look, freeLook: false });
+  seatCamera.update(step, { row, seatId, aimYaw, aimPitch: look, freeLook: false, optic });
   if (params.has('look')) { seatCamera.addFreeLook(-num('look', 0), 0); }
 };
 
@@ -206,7 +212,33 @@ function renderHullMask() {
 }
 const hullMask = angle === 'range' ? renderHullMask() : null;
 renderer.render(scene, camera);
-if (seatShot) {
+if (seatShot && hud) {
+  // The live HUD's reticle code, CSS and gimbal sensor dressing over the real seat camera.
+  const [{ Reticles }, { reticleModel }, { createProjector, cameraAngles }, { raycastVoxels }] = await Promise.all([
+    import('../ui/conquest/reticles.js'), import('../ui/conquest-hud-state.js'), import('../ui/conquest/projection.js'), import('../../../shared/raycast.js')]);
+  const link = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: './styles/conquest.css' });
+  await new Promise(resolve => { link.onload = link.onerror = resolve; document.head.appendChild(link); });
+  canvas.dataset.sensorGrade = 'true';
+  const layer = document.createElement('section');
+  layer.className = 'vb-conquest-hud';
+  document.body.appendChild(layer);
+  const sensor = document.createElement('div');
+  sensor.className = 'cq-sensor';
+  layer.appendChild(sensor);
+  const reticles = new Reticles(layer);
+  camera.updateMatrixWorld();
+  const row = view.presentedRow(rows[0].id);
+  const seat = def.seats.find(entry => entry.id === seatId);
+  const angles = cameraAngles(camera);
+  const sight = seatCamera.sight ? { x: camera.position.x, y: camera.position.y, z: camera.position.z, ...angles, zoom: seatCamera.zoom } : null;
+  const raycast = (o, d, max) => raycastVoxels((x, y, z) => getBlock(x, y, z) === 1, o.x, o.y, o.z, d.x, d.y, d.z, max);
+  const model = reticleModel({ row, seat }, { projector: createProjector(camera, innerWidth, innerHeight), raycast, sight });
+  sensor.hidden = !model?.sensor;
+  document.body.dataset.vehicleSight = model?.sensor ? 'sensor' : '';
+  reticles.draw(model, null, innerWidth, innerHeight, { touch: params.get('touch') === '1' });
+  root.dataset.reticleKind = model?.kind ?? '';
+  root.dataset.sensorRange = String(model?.sensor?.range ?? '');
+} else if (seatShot) {
   // Reticle check: the screen centre (white) and where the weapons hit
   // (green: the aircraft boresight at 160 m, or the seat's mount 100 m out).
   const { aircraftBoresight } = await import('../session/vehicle-camera.js');

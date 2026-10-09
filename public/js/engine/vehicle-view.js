@@ -352,6 +352,10 @@ export class VehicleView {
       const opacity = inside ? VEHICLE_VIEW.insideGlassOpacity : glass.userData.baseOpacity;
       if (glass.opacity !== opacity) glass.opacity = opacity;
       this._cockpitOverlay(item, inside && !item.wreck);
+      // A mount sight (chin gimbal, tank gunner's sight) looks from inside the
+      // gun: the own hull, crew and rotor would fill the lens, so they hide.
+      const sight = inside && local.sight === true && !item.wreck;
+      if (item.model.group.visible === sight) item.model.group.visible = !sight;
       this._hpBar(item, row, cameraPosition);
       this._billboard(item, camera);
     }
@@ -478,11 +482,13 @@ export class VehicleView {
 
   /**
    * The local player's seat while its camera is first person (VehicleCamera
-   * cockpit view): { id, seatId } or null. That seat's crew avatar drops its
-   * head from the next update on.
+   * cockpit view or a mount sight): { id, seatId, sight } or null. That seat's
+   * crew avatar drops its head from the next update on; with `sight` the
+   * whole hull model hides (the camera looks from inside the gun).
    */
   setLocalView(view = null) {
-    this.localView = view && view.id != null && view.seatId ? { id: String(view.id), seatId: String(view.seatId) } : null;
+    this.localView = view && view.id != null && view.seatId
+      ? { id: String(view.id), seatId: String(view.seatId), sight: view.sight === true } : null;
   }
 
   presentedRow(id) {

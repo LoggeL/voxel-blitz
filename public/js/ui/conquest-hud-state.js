@@ -424,10 +424,12 @@ export function mountPoseOf(row, seatId, mountId, registry = vehicleDefs) {
 /**
  * Reticle description for the seat in screen space. `projector` maps world
  * points to CSS pixels; `aimDistance` is the camera-ray distance to the aimed
- * surface (defaults to 150 m without a surface).
+ * surface (defaults to 150 m without a surface). `sight` ({ x, y, z, yaw,
+ * pitch, zoom }: the camera eye, look and optic zoom) is set while the seat
+ * looks through its mount sight (the chin gimbal sensor).
  */
 export function reticleModel(seated, { projector = null, players = [], vehicles = [], selfTeam = null, aimDistance = 150, registry = vehicleDefs, raycast = null,
-  flightAim = false } = {}) {
+  flightAim = false, sight = null } = {}) {
   if (!seated?.row || !projector) return null;
   const { row, seat } = seated;
   const weapons = seatWeapons(row, seat.id);
@@ -495,7 +497,8 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
     const relYaw = state ? wrapAngle(state.yaw - finite(row.yaw) - centre) : 0;
     // Snapshot pitch is world pitch; a gimbal mount's limits ride the hull pitch.
     return { ...base, kind: 'gimbal', yaw: relYaw, pitch: state ? state.pitch - finite(row.pitch) : 0, yawLimit, pitchMin, pitchMax,
-      heat: selected.heat, overheated: selected.overheated };
+      heat: selected.heat, overheated: selected.overheated, label: selected.label,
+      sensor: sight ? sensorReadout(sight, { pose, state, raycast, project }) : null };
   }
   if (row.type === 'transport' && (seat.id === 'door-left' || seat.id === 'door-right')) {
     const state = mountState(row, seat.id, selected.mount);
@@ -528,6 +531,35 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
   // Pintle, RWS and other hitscan mounts: barrel crosshair 100 m along the mount.
   const aim = pose ? project([pose.origin[0] + pose.dir[0] * 100, pose.origin[1] + pose.dir[1] * 100, pose.origin[2] + pose.dir[2] * 100]) : null;
   return { ...base, kind: 'mg', barrel: aim ? { x: aim.x, y: aim.y } : null, heat: selected.heat, overheated: selected.overheated };
+}
+
+/** Longest sensor rangefinder cast (m); farther or open sky reads as no return. */
+export const SENSOR_RANGE_MAX = 1500;
+
+/**
+ * Gimbal sensor readouts from the camera and the authoritative mount row:
+ * rangefinder distance along the sight line (`raycast`, null without a
+ * return), compass heading and elevation of the sight (degrees, heading 0 =
+ * north, clockwise), optic zoom, and `pip`, the screen point 300 m along
+ * where the barrel actually points (it trails the sight while the turret
+ * slews) and whether it sits on the crosshair.
+ */
+export function sensorReadout(sight, { pose = null, state = null, raycast = null, project = null } = {}) {
+  const yaw = finite(sight.yaw), pitch = finite(sight.pitch);
+  const dir = forwardFromAngles(yaw, pitch);
+  let range = null;
+  if (raycast && Number.isFinite(sight.x)) {
+    const hit = raycast({ x: sight.x, y: finite(sight.y), z: finite(sight.z) }, { x: dir[0], y: dir[1], z: dir[2] }, SENSOR_RANGE_MAX);
+    if (Number.isFinite(hit?.t)) range = Math.round(hit.t);
+  }
+  const heading = Math.round(((-yaw * 180 / Math.PI) % 360 + 360) % 360) % 360;
+  let pip = null;
+  if (pose?.origin && pose?.dir && project) {
+    const far = 300, p = project([pose.origin[0] + pose.dir[0] * far, pose.origin[1] + pose.dir[1] * far, pose.origin[2] + pose.dir[2] * far]);
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) pip = { x: p.x, y: p.y };
+  }
+  return { range, heading, elevation: Math.round(pitch * 180 / Math.PI), zoom: Math.max(1, finite(sight.zoom, 1)),
+    pip, slewing: !!state && Math.abs(Math.atan2(Math.sin(state.yaw - yaw), Math.cos(state.yaw - yaw))) + Math.abs(state.pitch - pitch) > 0.02 };
 }
 
 /** World point `ahead` metres along the hull's nose axis from a mount pivot (hull frame, -Z forward). */

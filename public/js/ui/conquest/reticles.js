@@ -2,7 +2,9 @@
  * Seat reticles on one viewport canvas: tank shell impact marker (with drop,
  * range readout and a 100 m range ladder) plus the desired-aim circle and
  * reload arc, helicopter rocket pip at convergence,
- * chin-gun gimbal box, door-gun arc limits, hitscan mount crosshair, jet gun
+ * chin-gun gimbal box (and, through the gimbal sensor sight, its optic:
+ * bracket frame, bar reticle, barrel pip, range / heading / zoom readouts),
+ * door-gun arc limits, hitscan mount crosshair, jet gun
  * funnel with lead pipper, the pilot instruments (speed / AGL tapes, climb,
  * throttle, stall) with the mouse-aim circle, and the locker box for our own
  * lock attempt. Models come from reticleModel / lockerModel.
@@ -10,6 +12,8 @@
 import { el } from '../hud-support.js';
 
 const AMBER = '#ffcf5c', WHITE = '#f4f7f9', RED = '#ff4b4b', GREEN = '#7ef29a', CYAN = '#4cc3ff';
+/** Gimbal sensor symbology: pale phosphor green-white over the monochrome world. */
+const SENSOR = '#dcffe6', SENSOR_DIM = '#dcffe699';
 const TAU = Math.PI * 2;
 
 function shadowed(ctx, draw) {
@@ -88,6 +92,8 @@ export class Reticles {
 
   _text(ctx, text, x, y, color = WHITE) {
     ctx.save();
+    // Round joins: a mitred outline spikes off sharp glyphs (M, V, W).
+    ctx.lineJoin = 'round';
     ctx.lineWidth = 3; ctx.strokeStyle = '#000000b0'; ctx.strokeText(text, x, y);
     ctx.fillStyle = color; ctx.fillText(text, x, y);
     ctx.restore();
@@ -156,6 +162,7 @@ export class Reticles {
   }
 
   _gimbal(ctx, m, width, height, touch = false) {
+    if (m.sensor) { this._sensor(ctx, m, width, height, touch); return; }
     const { x, y } = m.center;
     // Crosshair on the camera ray (the chin camera looks along the gun).
     ctx.lineWidth = 1.5; ctx.strokeStyle = m.overheated ? RED : WHITE;
@@ -172,6 +179,11 @@ export class Reticles {
     const beside = touch && width > height;
     const bx = beside ? x + 80 : x - bw / 2;
     const by = beside ? y - bh / 2 + 24 : touch ? Math.min(y + 70, height / 2 + 120 - bh - 18) : Math.min(height - bh - 24, y + 70);
+    this._gimbalBox(ctx, m, bx, by, bw, bh);
+  }
+
+  /** The gun's yaw / pitch envelope with the pointing dot, the heat bar and its label. */
+  _gimbalBox(ctx, m, bx, by, bw, bh, label = '25MM CHIN \u00B7 GIMBAL') {
     this.reserved.push({ left: bx - 4, top: by - 20, right: bx + bw + 4, bottom: by + bh + 12 });
     ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffff90';
     shadowed(ctx, () => { ctx.strokeRect(bx, by, bw, bh); });
@@ -185,7 +197,74 @@ export class Reticles {
     // Heat bar under the box.
     ctx.fillStyle = '#0008'; ctx.fillRect(bx, by + bh + 6, bw, 4);
     ctx.fillStyle = m.overheated ? RED : m.heat > 0.75 ? AMBER : CYAN; ctx.fillRect(bx, by + bh + 6, bw * m.heat, 4);
-    this._text(ctx, m.overheated ? 'OVERHEAT' : '25MM CHIN · GIMBAL', bx + bw / 2, by - 6, m.overheated ? RED : WHITE);
+    this._text(ctx, m.overheated ? 'OVERHEAT' : label, bx + bw / 2, by - 6, m.overheated ? RED : WHITE);
+  }
+
+  /**
+   * Chin gimbal through its sensor (design docs/design/conquest/gunner-sensor/,
+   * variant B): range brackets, a bar reticle on the sight line, the barrel
+   * pip where the gun really points, rangefinder / heading / zoom readouts
+   * above the frame and the turret envelope box under it. Every value comes
+   * from the model (sensorReadout over the authoritative mount row).
+   */
+  _sensor(ctx, m, width, height, touch = false) {
+    const { x, y } = m.center, s = m.sensor;
+    const narrow = width < 520;
+    const fw = touch ? Math.min(width * (narrow ? 0.7 : 0.42), 380) : Math.min(width * 0.36, 520);
+    const fh = touch ? Math.min(height * (narrow ? 0.26 : 0.4), 220) : Math.min(height * 0.38, 320);
+    const left = x - fw / 2, right = x + fw / 2, top = y - fh / 2, bottom = y + fh / 2;
+    const line = m.overheated ? RED : SENSOR;
+    // Range brackets with stadia ticks.
+    ctx.lineWidth = 1.5; ctx.strokeStyle = SENSOR_DIM;
+    shadowed(ctx, () => {
+      ctx.beginPath();
+      for (const side of [-1, 1]) {
+        const bx = side < 0 ? left : right;
+        ctx.moveTo(bx - side * 12, top); ctx.lineTo(bx, top); ctx.lineTo(bx, bottom); ctx.lineTo(bx - side * 12, bottom);
+        for (let k = 1; k < 8; k++) {
+          const ty = top + (fh * k) / 8;
+          ctx.moveTo(bx, ty); ctx.lineTo(bx - side * (k % 2 ? 5 : 9), ty);
+        }
+      }
+      ctx.stroke();
+    });
+    // Bar reticle on the sight line: four bars around an open centre and a dot.
+    const gap = 14, horizontal = touch ? 34 : 46, vertical = touch ? 28 : 38;
+    ctx.lineWidth = 2.5; ctx.strokeStyle = line;
+    shadowed(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(x - horizontal, y); ctx.lineTo(x - gap, y); ctx.moveTo(x + gap, y); ctx.lineTo(x + horizontal, y);
+      ctx.moveTo(x, y - vertical); ctx.lineTo(x, y - gap); ctx.moveTo(x, y + gap); ctx.lineTo(x, y + vertical);
+      ctx.stroke();
+    });
+    ctx.fillStyle = line;
+    ctx.beginPath(); ctx.arc(x, y, 1.8, 0, TAU); ctx.fill();
+    // Barrel pip: where the 25 mm points now; it trails the sight while the turret slews.
+    if (s.pip) {
+      const p = s.pip, onTarget = Math.hypot(p.x - x, p.y - y) < 4;
+      ctx.lineWidth = 1.5; ctx.strokeStyle = onTarget ? SENSOR_DIM : AMBER;
+      shadowed(ctx, () => { ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, TAU); ctx.stroke(); });
+    }
+    // Readouts above the frame: rangefinder (left), sensor mode and zoom (centre), heading / elevation (right).
+    ctx.save();
+    ctx.font = `700 ${touch ? 12 : 14}px "Rajdhani", "Barlow Condensed", system-ui, sans-serif`;
+    const pad = (value, digits) => String(Math.abs(value)).padStart(digits, '0');
+    const range = Number.isFinite(s.range) ? `RNG ${pad(s.range, 4)} M` : 'RNG ---- M';
+    const mode = `SENSOR \u00B7 BW \u00B7 ${s.zoom > 1.5 ? 'NFOV' : 'WFOV'} ${s.zoom.toFixed(1)}x`;
+    const elevation = `${s.elevation < 0 ? '-' : s.elevation > 0 ? '+' : ''}${Math.abs(s.elevation)}`;
+    const heading = `HDG ${pad(s.heading, 3)} \u00B7 EL ${elevation}`;
+    const row = top - 12, stacked = fw < 400;
+    ctx.textAlign = 'left'; this._text(ctx, range, left, row, SENSOR);
+    ctx.textAlign = 'right'; this._text(ctx, heading, right, row, SENSOR);
+    ctx.textAlign = 'center'; this._text(ctx, mode, x, stacked ? row - 18 : row, m.overheated ? RED : SENSOR);
+    ctx.restore();
+    this.reserved.push({ left: left - 4, top: row - (stacked ? 34 : 16), right: right + 4, bottom: row + 6 });
+    // Turret envelope and heat under the frame (phones: the touch layout of the plain gimbal box).
+    const bw = touch ? Math.min(120, width * 0.3) : Math.min(170, width * 0.3), bh = bw * 0.42;
+    const beside = touch && width > height;
+    const bx = beside ? right + 18 : x - bw / 2;
+    const by = beside ? y - bh / 2 + 24 : touch ? Math.min(bottom + 26, height / 2 + 120 - bh - 18) : Math.min(height - bh - 24, bottom + 30);
+    this._gimbalBox(ctx, m, Math.min(bx, width - bw - 8), by, bw, bh, 'TURRET ENVELOPE');
   }
 
   _door(ctx, m, width) {
