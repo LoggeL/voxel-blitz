@@ -1,3 +1,4 @@
+import { worldDimensions } from '../../shared/world/dimensions.js';
 import { computeConeDeg, damageBlock, destroyBlockDirect } from './combat.js';
 
 /**
@@ -26,6 +27,10 @@ export function createSimulationContexts(engine) {
     solidAt: engine.solidAt,
     getBlock: (x, y, z) => engine.world.getBlock(x, y, z),
     setBlock: (x, y, z, value) => engine.world.setBlock(x, y, z, value),
+    inMap: (x, z) => {
+      const { sx, sz } = worldDimensions(engine.world);
+      return x >= 0 && z >= 0 && x < sx && z < sz;
+    },
     nearestClaymore: (...args) => engine.projectiles.nearestClaymore(...args),
     shootClaymore: mine => engine.projectiles.explode(mine, projectiles),
     canFire: (player) => engine.mode.canFire(player),
@@ -61,6 +66,8 @@ export function createSimulationContexts(engine) {
     targets,
     get vehicles() { return engine.vehicles; },
     get dimensions() { return engine.world.dimensions; },
+    /** Metres of airspace apron beyond the map (shared/world/airspace.js). */
+    get airLimit() { return engine.world.apron?.limit ?? 0; },
     get now() { return engine.now; },
     get entities() { return engine.combatants || engine.entities; },
     get grenadeDamage() { return engine.mode.mode !== 'gungame'; },

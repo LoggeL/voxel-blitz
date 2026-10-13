@@ -276,6 +276,32 @@ export function conquestHudFixtures() {
       flight: { aim: true, mode: 'aim', agl: 124 } }));
   }
   {
+    // The map-edge safety pilot holds a hard bank toward the centre; the
+    // pilot's aim still points out of the map.
+    const yaw = yawTo(jetAt, C) + 2.4, aimYaw = yaw + 0.5;
+    const self = meAt(jetAt.x, jetAt.z, { y: 140, vehicleId: 'alpha-plane', vehicleSeatId: 'driver', cq: { squad: 1 } });
+    const jet = vehicle('alpha-plane', 'plane', 'alpha', jetAt.x, jetAt.z, { y: 140, hp: 450, yaw, pitch: 0.04, roll: 1.05,
+      seatOccupants: { driver: 'me' }, mounts: [[yaw, 0.04, -1, 0, 0], [yaw, 0.04, 1, 0, 30]], sel: { driver: 0 }, airspeed: 47, speed: 47,
+      vx: -Math.sin(yaw) * 47, vy: -1.1, vz: -Math.cos(yaw) * 47, throttle: 0.7, enginePower: 0.7, grounded: false, gearDown: false, autopilot: true, cmr: 100 });
+    const orbit = 0.05 - 0.14;
+    out.push(state('jet-edge', 'Jet · mouse aim · map-edge safety pilot banking back in · AUTOPILOT chip', { self, players: roster(self), vehicles: [jet],
+      match: baseMatch(), camera: cam(jetAt.x + Math.sin(aimYaw) * Math.cos(orbit) * 17, 142.6 - Math.sin(orbit) * 17, jetAt.z + Math.cos(aimYaw) * Math.cos(orbit) * 17, aimYaw, 0.05),
+      flight: { aim: true, mode: 'aim', agl: 110 } }));
+  }
+  {
+    // Over the airspace apron past the combat airspace (480 m beyond the west
+    // edge): the out-of-bounds countdown that ends in the aircraft's loss.
+    const at = { x: -540, z: jetAt.z }, yaw = Math.PI / 2 + 0.3, aimYaw = yaw;
+    const self = meAt(at.x, at.z, { y: 150, vehicleId: 'alpha-plane', vehicleSeatId: 'driver', cq: { squad: 1, restrictedDs: 64 } });
+    const jet = vehicle('alpha-plane', 'plane', 'alpha', at.x, at.z, { y: 150, hp: 450, yaw, pitch: 0.02, roll: 0.1,
+      seatOccupants: { driver: 'me' }, mounts: [[yaw, 0.02, -1, 0, 0], [yaw, 0.02, 1, 0, 30]], sel: { driver: 0 }, airspeed: 58, speed: 58,
+      vx: -Math.sin(yaw) * 58, vy: 0.3, vz: -Math.cos(yaw) * 58, throttle: 0.8, enginePower: 0.8, grounded: false, gearDown: false, cmr: 100 });
+    const orbit = 0.05 - 0.14;
+    out.push(state('jet-oob', 'Jet · over the airspace apron past the combat airspace · OUT OF BOUNDS countdown', { self, players: roster(self), vehicles: [jet],
+      match: baseMatch(), camera: cam(at.x + Math.sin(aimYaw) * Math.cos(orbit) * 17, 152.6 - Math.sin(orbit) * 17, at.z + Math.cos(aimYaw) * Math.cos(orbit) * 17, aimYaw, 0.05),
+      flight: { aim: true, mode: 'aim', agl: 85 } }));
+  }
+  {
     const at = { x: C.x - 90, z: C.z + 70 }, yaw = yawTo(at, C), aimYaw = yaw + 0.35;
     const self = meAt(at.x, at.z, { y: GROUND + 18, vehicleId: 'alpha-helicopter', vehicleSeatId: 'driver', cq: { squad: 1 } });
     const heli = vehicle('alpha-helicopter', 'helicopter', 'alpha', at.x, at.z, { y: GROUND + 18, hp: 650, yaw: yaw + 0.2, pitch: 0.01, roll: 0.02,

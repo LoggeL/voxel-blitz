@@ -1,0 +1,35 @@
+{
+  "generated": "2026-10-09T18:30:47.053Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "jet-oob",
+        "title": "Jet · over the airspace apron past the combat airspace · OUT OF BOUNDS countdown",
+        "file": "docs/design/conquest/flight/captures/oob/desktop-jet-oob.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "jet-oob",
+        "title": "Jet · over the airspace apron past the combat airspace · OUT OF BOUNDS countdown",
+        "file": "docs/design/conquest/flight/captures/oob/portrait-jet-oob.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "jet-oob",
+        "title": "Jet · over the airspace apron past the combat airspace · OUT OF BOUNDS countdown",
+        "file": "docs/design/conquest/flight/captures/oob/landscape-jet-oob.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

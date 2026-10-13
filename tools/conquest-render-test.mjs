@@ -226,9 +226,12 @@ console.log('Scorch pool passed: 24 on arenas, 256 on Frontier, resized in place
   const { captureUrl, parseArgs } = await import('./render-map-scenes.mjs');
   const meta = createFrontierMetadata();
   const ids = MAP_CAPTURE_SHOTS.filter(shot => shot.map === 'frontier').map(shot => shot.id);
-  assert.deepEqual(ids, ['vista', 'farm', 'village-street', 'bridge', 'trenches', 'works', 'tank-forest', 'heli-river', 'jet-sky', 'wreck-column', 'overview'],
+  assert.deepEqual(ids, ['vista', 'farm', 'village-street', 'bridge', 'trenches', 'works', 'tank-forest', 'heli-river', 'jet-sky', 'wreck-column',
+    'airspace-west', 'airspace-return', 'airspace-river', 'airspace-edge', 'overview'],
     'the old Frontier shots are replaced by the v2 set');
   const { sx, sz } = meta.dimensions;
+  const { mapApron } = await import('../shared/world/state.js');
+  const apron = mapApron('frontier', meta.dimensions);
   for (const authored of MAP_CAPTURE_SHOTS.filter(shot => shot.map === 'frontier')) {
     assert.equal(authored.mode, 'conquest', `${authored.id} shows the Conquest layers`);
     if (authored.kind === 'orthographic') {
@@ -238,8 +241,10 @@ console.log('Scorch pool passed: 24 on arenas, 256 on Frontier, resized in place
     const shot = resolveMapCaptureShot(authored, { meta });
     const [px, py, pz] = shot.position, [tx, ty, tz] = shot.target;
     assert.ok([px, py, pz, tx, ty, tz].every(Number.isFinite), `${shot.id} resolves to finite cameras`);
-    assert.ok(px > 0 && pz > 0 && px < sx && pz < sz, `${shot.id} stands inside the map`);
-    assert.ok(py >= frontierSurfaceY(px, pz) + 1, `${shot.id} camera stands above the terrain`);
+    const onMap = px > 0 && pz > 0 && px < sx && pz < sz;
+    assert.ok(onMap || shot.airspace, `${shot.id} stands inside the map`);
+    const ground = onMap ? frontierSurfaceY(px, pz) : apron.groundAt(px, pz);
+    assert.ok(py >= ground + 1, `${shot.id} camera stands above the terrain (${py} over ${ground})`);
     assert.ok(Math.hypot(tx - px, ty - py, tz - pz) > 8, `${shot.id} looks at a subject`);
     if (shot.stage) assert.ok(shot.stage.position[1] > frontierSurfaceY(shot.stage.position[0], shot.stage.position[2]) + 8, `${shot.id} stages its hull in the air`);
   }

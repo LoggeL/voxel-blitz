@@ -24,6 +24,8 @@ import { buildBikiniBottomDetails } from './bikini-bottom-details.js';
 import { tickFluidMaterials, applyWaterPalette, configureFluidQuality } from './fluid-material.js';
 import { mapAtmosphere, resolveWeather } from './map-atmosphere.js';
 import { buildMapBackdrop } from './map-backdrop.js';
+import { buildAirspaceApron } from './airspace-apron.js';
+import { mapApron } from '../../../shared/world/state.js';
 import { buildMapAmbience } from './map-ambience.js';
 import { buildMapSigns } from './map-signs.js';
 import { buildMapLights } from './map-lights.js';
@@ -297,8 +299,13 @@ export class WorldView {
     } : null;
     this._visualBlock = visualBlock;
     // Distant skyline or horizon mountain ring (one merged draw) and the air (one points draw).
-    this.backdrop = buildMapBackdrop(palette, dimensions);
+    // Frontier's airspace apron (the outer valley aircraft fly over) is its
+    // own draw, between the map and the ranges that now stand beyond it.
+    const apron = mapApron(meta?.id, dimensions);
+    this.backdrop = buildMapBackdrop(palette, dimensions, { airspace: apron?.limit ?? 0 });
     if (this.backdrop) this.scene.add(this.backdrop.group);
+    this.apron = apron ? buildAirspaceApron(palette, apron, dimensions) : null;
+    if (this.apron) this.scene.add(this.apron.group);
     this.ambience = buildMapAmbience(palette, {
       graphics, lightUniforms: this.lightUniforms,
       floorY: palette.ambience?.floor ?? (palette.backdrop?.ground ?? 14) + 1,
@@ -599,6 +606,7 @@ export class WorldView {
     this.mapLights.dispose();
     this.skyUpdate.dispose();
     this.backdrop?.dispose();
+    this.apron?.dispose();
     this.ambience?.dispose();
     this.atlas.dispose();
     this.contactShadows.dispose();

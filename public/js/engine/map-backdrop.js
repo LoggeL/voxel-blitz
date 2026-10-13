@@ -51,7 +51,7 @@ function hash(a, b, seed) {
   return (h >>> 0) / 4294967296;
 }
 
-class BackdropBuilder {
+export class BackdropBuilder {
   constructor({ sun, ambient = 0.5, direct = 0.55, hazeY0 = 0, hazeH = 30, hazeK = 0.8, sunTint = null, skyTint = null }) {
     this.position = [];
     this.normal = [];
@@ -192,7 +192,7 @@ class BackdropBuilder {
 
 /** Rays from the map centre to a point `gap` metres beyond the rectangle. */
 function ring(dimensions) {
-  const cx = dimensions.sx / 2, cz = dimensions.sz / 2;
+  const cx = dimensions.cx ?? dimensions.sx / 2, cz = dimensions.cz ?? dimensions.sz / 2;
   const hx = dimensions.sx / 2, hz = dimensions.sz / 2;
   return {
     cx, cz, hx, hz,
@@ -208,6 +208,12 @@ function ring(dimensions) {
       return Math.hypot(Math.max(0, Math.abs(x - cx) - hx), Math.max(0, Math.abs(z - cz) - hz));
     },
   };
+}
+
+/** `frame` grown by `gap` metres on every side (a map with an airspace apron). */
+function grownRing(frame, gap) {
+  if (!(gap > 0)) return frame;
+  return ring({ sx: 2 * (frame.hx + gap), sz: 2 * (frame.hz + gap), cx: frame.cx, cz: frame.cz });
 }
 
 /**
@@ -889,24 +895,63 @@ function cloudGuard(cfg, frame, b) {
   return { cx: frame.cx, cz: frame.cz, radius: inner, top, ground: cfg.ground };
 }
 
+/** The baked-light builder a backdrop config paints with (shared with the airspace apron). */
+export function backdropBuilder(palette, cfg) {
+  const sun = new THREE.Vector3(...(palette.sunDir || [60, 90, 20])).normalize();
+  const top = (cfg.height?.[1] ?? 30);
+  return new BackdropBuilder({
+    sun, ambient: cfg.ambient ?? 0.52, direct: cfg.direct ?? 0.6,
+    hazeY0: (cfg.hazeGround ?? cfg.ground) - 2, hazeH: cfg.hazeHeight ?? top * 0.55, hazeK: cfg.lit === true ? 0 : cfg.baseHaze ?? 0.62,
+    sunTint: cfg.light?.sun ? lin(cfg.light.sun) : null, skyTint: cfg.light?.sky ? lin(cfg.light.sky) : null,
+  });
+}
+
+/**
+ * Unlit vertex-colour material with the aerial-perspective fog (AIR_FOG) a
+ * backdrop config describes. `key` names the program (fixed per map).
+ */
+export function backdropAirMaterial(cfg, key = 'backdrop-air-v5') {
+  // `skyline: [h0, h1]` fades the whole backdrop out while the camera rises
+  // from h0 to h1 metres above the backdrop ground (overview cameras). The
+  // material is then blended; its transparency is fixed at map load.
+  const skyline = Array.isArray(cfg.skyline) ? cfg.skyline : null;
+  const material = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: !!skyline });
+  const fade = { value: new THREE.Vector3(skyline ? skyline[0] : 1e5, skyline ? skyline[1] : 2e5, cfg.ground ?? 0) };
+  const air = cfg.air || {};
+  const uniform = { value: new THREE.Vector4(air.strength ?? 0.32, air.near ?? 60, air.far ?? 320, air.fog ?? 0.45) };
+  const hazeColor = new THREE.Color(cfg.hazeColor || '#ffffff');
+  const tint = { value: new THREE.Vector4(hazeColor.r, hazeColor.g, hazeColor.b, cfg.hazeColor ? cfg.hazeTint ?? 0.6 : 0) };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.backdropAir = uniform;
+    shader.uniforms.backdropHaze = tint;
+    shader.uniforms.backdropFade = fade;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec2 backdropFx;\nvarying vec2 vBackdropFx;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBackdropFx = backdropFx;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec4 backdropAir;\nuniform vec4 backdropHaze;\nuniform vec3 backdropFade;\nvarying vec2 vBackdropFx;')
+      .replace('#include <fog_fragment>', AIR_FOG);
+  };
+  material.customProgramCacheKey = () => key;
+  return material;
+}
+
 /**
  * @param {object} palette mapAtmosphere() result; `palette.backdrop` configures it
  * @param {{sx:number,sz:number}} dimensions map extents
+ * @param {{airspace?:number}} options airspace: metres of airspace apron beyond
+ *   the map (shared/world/airspace.js): the ground ring and the landforms stand
+ *   beyond it, with the config's `airspace` overrides (coarser far cells)
  * @returns {{group:THREE.Group, stats:{draws:number, vertices:number}, dispose:()=>void}|null}
  */
-export function buildMapBackdrop(palette = {}, dimensions) {
-  const cfg = palette.backdrop;
+export function buildMapBackdrop(palette = {}, dimensions, { airspace = 0 } = {}) {
+  let cfg = palette.backdrop;
   if (!cfg || !STYLES[cfg.style] || !dimensions) return null;
+  if (airspace > 0 && cfg.airspace) cfg = { ...cfg, ...cfg.airspace };
   const rng = mulberry32((cfg.seed ?? 1) * 0x9E3779B1);
-  const frame = ring(dimensions);
+  const frame = grownRing(ring(dimensions), airspace);
   const lit = cfg.lit === true;
-  const sun = new THREE.Vector3(...(palette.sunDir || [60, 90, 20])).normalize();
-  const top = (cfg.height?.[1] ?? 30);
-  const b = new BackdropBuilder({
-    sun, ambient: cfg.ambient ?? 0.52, direct: cfg.direct ?? 0.6,
-    hazeY0: (cfg.hazeGround ?? cfg.ground) - 2, hazeH: cfg.hazeHeight ?? top * 0.55, hazeK: lit ? 0 : cfg.baseHaze ?? 0.62,
-    sunTint: cfg.light?.sun ? lin(cfg.light.sun) : null, skyTint: cfg.light?.sky ? lin(cfg.light.sky) : null,
-  });
+  const b = backdropBuilder(palette, cfg);
 
   if (cfg.groundColor) {
     groundRing(b, frame, cfg.groundY ?? cfg.ground, lin(cfg.groundColor), {
@@ -927,28 +972,7 @@ export function buildMapBackdrop(palette = {}, dimensions) {
     material = new THREE.MeshLambertMaterial({ vertexColors: true });
     material.customProgramCacheKey = () => 'backdrop-lit-v1';
   } else {
-    // `skyline: [h0, h1]` fades the whole backdrop out while the camera rises
-    // from h0 to h1 metres above the backdrop ground (overview cameras). The
-    // material is then blended; its transparency is fixed at map load.
-    const skyline = Array.isArray(cfg.skyline) ? cfg.skyline : null;
-    material = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: !!skyline });
-    const fade = { value: new THREE.Vector3(skyline ? skyline[0] : 1e5, skyline ? skyline[1] : 2e5, cfg.ground ?? 0) };
-    const air = cfg.air || {};
-    const uniform = { value: new THREE.Vector4(air.strength ?? 0.32, air.near ?? 60, air.far ?? 320, air.fog ?? 0.45) };
-    const hazeColor = new THREE.Color(cfg.hazeColor || '#ffffff');
-    const tint = { value: new THREE.Vector4(hazeColor.r, hazeColor.g, hazeColor.b, cfg.hazeColor ? cfg.hazeTint ?? 0.6 : 0) };
-    material.onBeforeCompile = (shader) => {
-      shader.uniforms.backdropAir = uniform;
-      shader.uniforms.backdropHaze = tint;
-      shader.uniforms.backdropFade = fade;
-      shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec2 backdropFx;\nvarying vec2 vBackdropFx;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBackdropFx = backdropFx;');
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform vec4 backdropAir;\nuniform vec4 backdropHaze;\nuniform vec3 backdropFade;\nvarying vec2 vBackdropFx;')
-        .replace('#include <fog_fragment>', AIR_FOG);
-    };
-    material.customProgramCacheKey = () => 'backdrop-air-v5';
+    material = backdropAirMaterial(cfg);
   }
   material.name = 'backdrop';
   const mesh = new THREE.Mesh(geometry, material);

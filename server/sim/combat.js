@@ -425,8 +425,11 @@ export function destroyBlockDirect(x, y, z, key, ctx, cause = null) {
     return false;
   }
   ctx.attributeBlocks?.(cause);
-  ctx.setBlock(x, y, z, AIR);
+  // The airspace apron beyond the map answers getBlock but is not voxel state:
+  // a rejected write (out of the map) is no mutation.
+  const placed = ctx.setBlock(x, y, z, AIR);
   ctx.attributeBlocks?.(null);
+  if (placed === false) return false;
   ctx.blockHp.delete(damageKey);
   ctx.blockMining?.delete(damageKey);
   ctx.pushBlockDelta(x, y, z, AIR);
@@ -448,6 +451,7 @@ export function destroyBlock(x, y, z, key, ctx, cause = null) {
 
 export function damageBlock(x, y, z, type, dmg, ctx, cause = null) {
   if (y <= 0 || !(dmg > 0) || !Number.isFinite(dmg) || !BLOCK_HP[type] || ctx.getBlock(x, y, z) !== type) return;
+  if (ctx.inMap && !ctx.inMap(x, z)) return;
   const key = blockKey(x, y, z);
   const previousProgress = blockDamageProgress(key, type, ctx);
   let hp = ctx.blockHp.get(key) ?? BLOCK_HP[type];

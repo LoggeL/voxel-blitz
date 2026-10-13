@@ -253,7 +253,12 @@ export class ConquestAircraftDriving {
 
   groundHeight(point) {
     const world = this.game.world;
-    const x = Math.floor(point.x), z = Math.floor(point.z);
+    const x = Math.floor(point.x), z = Math.floor(point.z), d = world.dimensions;
+    // Beyond the map: the airspace apron's ground (canopy included).
+    if (d && (x < 0 || z < 0 || x >= d.sx || z >= d.sz)) {
+      const apron = world.apron?.groundAt(point.x, point.z);
+      if (apron >= 0) return apron;
+    }
     let height = world.heightAt?.(x, z);
     // heightAt is the pristine top; prefer the live column under craters.
     if (Number.isFinite(height)) {
@@ -581,13 +586,19 @@ export class ConquestAircraftDriving {
     return true;
   }
 
-  /** Interior box the flight boundary leaves a jet at its current speed (mirrors VehicleSystem). */
+  /**
+   * Interior box the flight boundary leaves a jet at its current speed
+   * (mirrors VehicleSystem): inside the map, or with an airspace apron inside
+   * the bots' flight area (the combat airspace less its margin), so a bot
+   * turns over the apron and never runs the out-of-bounds timer.
+   */
   jetBox(v) {
-    const def = rulesOf(v), { sx, sz } = this.game.world.dimensions;
+    const def = rulesOf(v), { sx, sz } = this.game.world.dimensions, apron = this.game.world.apron;
+    const gap = apron ? Math.max(0, apron.combat - apron.botMargin) : 0;
     const speed = Math.max(def.takeoffSpeed ?? 24, horizontalSpeed(v));
     const rate = Math.min(def.turn, def.gravity * Math.tan(Math.min(def.maxBank, 1.05)) / speed);
     const radius = speed / Math.max(0.1, rate);
-    const margin = Math.min(Math.min(sx, sz) * 0.43, Math.max(110, radius + speed * 1.2 + 20)) + 12;
+    const margin = Math.min(Math.min(sx, sz) * 0.43 + gap, Math.max(110, radius + speed * 1.2 + 20)) + 12 - gap;
     return { minX: margin, maxX: sx - margin, minZ: margin, maxZ: sz - margin, radius };
   }
 

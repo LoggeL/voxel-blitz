@@ -398,18 +398,25 @@ export class Reticles {
       this._text(ctx, `THR ${Math.round(fill * 100)}%`, bx + bw / 2, top + tapeH + 13, '#c9f7d6');
     }
     ctx.restore();
-    if (f.stalled) {
-      // Stall warning: a red chip above the aim, sized to its text.
-      const label = 'STALL \u00B7 NOSE DOWN';
+    // Warning chips above the aim, sized to their text: the stall warning
+    // (red) nearest, the map-edge guidance (amber) above it, so a turn the
+    // pilot did not ask for is explained. Where a chip would cover the tapes
+    // (phones) the stack sits above them instead.
+    const chips = [];
+    if (f.stalled) chips.push({ label: 'STALL \u00B7 NOSE DOWN', color: RED, fill: '#2a0b0dd0' });
+    if (f.edge) chips.push({ label: f.edge === 'autopilot' ? 'MAP EDGE \u00B7 AUTOPILOT' : 'MAP EDGE \u00B7 TURN BACK', color: AMBER, fill: '#2a1f08d0' });
+    chips.forEach(({ label, color, fill }, slot) => {
       ctx.save();
       ctx.font = '700 12px "Rajdhani", "Barlow Condensed", system-ui, sans-serif'; ctx.textAlign = 'center';
-      const w = Math.max(110, Math.ceil(ctx.measureText?.(label)?.width ?? 110) + 24), h = 22, x = width / 2 - w / 2, y = height / 2 - 80;
+      const w = Math.max(110, Math.ceil(ctx.measureText?.(label)?.width ?? 140) + 24), h = 22, x = width / 2 - w / 2;
+      const clear = x >= left + half + 4 && x + w <= right - half - 4;
+      const y = (clear ? height / 2 - 80 : top - 24 - h) - slot * (h + 6);
       this.reserved.push({ left: x, top: y, right: x + w, bottom: y + h });
-      ctx.fillStyle = '#2a0b0dd0'; ctx.strokeStyle = RED; ctx.lineWidth = 1.5;
+      ctx.fillStyle = fill; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
       ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-      ctx.fillStyle = RED; ctx.fillText(label, width / 2, y + 15);
+      ctx.fillStyle = color; ctx.fillText(label, width / 2, y + 15);
       ctx.restore();
-    }
+    });
   }
 
   /** Mouse aim: the white aim circle at the screen centre, a dotted line to the nose marker. */

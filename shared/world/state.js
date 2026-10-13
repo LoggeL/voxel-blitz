@@ -2,6 +2,17 @@ import { AIR, BEDROCK, GROUND, METAL } from './blocks.js';
 import { getMapDimensions, worldDimensions } from './dimensions.js';
 import { MAP_SPAWN_ANCHORS } from './metadata.js';
 import { encodeMapFrame, mapFingerprint, rebuildHeights, serializeBlocks } from './serialize.js';
+import { airspaceFor, apronFor } from './airspace.js';
+import { frontierTopY } from './frontier-terrain.js';
+
+/**
+ * The airspace apron of a map (shared/world/airspace.js), or null: Frontier
+ * at its authored size, whose rim the pure terrain builder supplies.
+ */
+export function mapApron(mapId, dimensions) {
+  return airspaceFor(mapId) && mapId === 'frontier' && dimensions?.sx === 768 && dimensions?.sz === 768
+    ? apronFor(mapId, dimensions, frontierTopY) : null;
+}
 
 const PRISTINE_BYTES = new WeakMap();
 const PRISTINE_FINGERPRINTS = new WeakMap();
@@ -25,6 +36,17 @@ export function createStateApi(
 ) {
   const { sx: SX, sy: SY, sz: SZ } = dimensions;
   const idx = (x, y, z) => (y * SZ + z) * SX + x;
+  // Outside the map rectangle: the airspace apron's ground up to its limit
+  // (shared/world/airspace.js), else (and beyond it) the solid map wall.
+  let airspaceMap = mapId, apron, limit = 0;
+  const outsideBlock = (x, y, z) => {
+    if (apron === undefined) {
+      apron = mapApron(airspaceMap, dimensions);
+      limit = apron ? apron.limit : 0;
+    }
+    if (!apron || x < -limit || z < -limit || x >= SX + limit || z >= SZ + limit) return METAL;
+    return apron.blockAt(x, y, z);
+  };
   let navigationRevision = 0;
   const navigationChanges = [];
   // Template-backed states (createMapState) know their pristine voxels: they
@@ -41,6 +63,10 @@ export function createStateApi(
     dimensions,
     mapId,
     meta,
+    /** The airspace apron beyond the map rectangle (null without one). */
+    get apron() { outsideBlock(-1, 0, -1); return apron; },
+    /** Name the map whose airspace answers out-of-map queries (a client state decoded as the singleton). */
+    setAirspaceMap(id) { airspaceMap = id; apron = undefined; },
     /** Optional (x, y, z, before, after) observer of every replacement (the server's structure system). */
     onBlockChange: null,
     /** The pristine template voxels this state started from (shared, read-only), or null. */
@@ -54,7 +80,7 @@ export function createStateApi(
       if (!pristine) return world.getBlock(x, y, z);
       x |= 0; y |= 0; z |= 0;
       if (y < 0) return BEDROCK;
-      if (x < 0 || z < 0 || x >= SX || z >= SZ) return METAL;
+      if (x < 0 || z < 0 || x >= SX || z >= SZ) return outsideBlock(x, y, z);
       if (y >= SY) return AIR;
       return pristine[idx(x, y, z)];
     },
@@ -70,7 +96,7 @@ export function createStateApi(
       y |= 0;
       z |= 0;
       if (y < 0) return BEDROCK;
-      if (x < 0 || z < 0 || x >= SX || z >= SZ) return METAL;
+      if (x < 0 || z < 0 || x >= SX || z >= SZ) return outsideBlock(x, y, z);
       if (y >= SY) return AIR;
       return blocks[idx(x, y, z)];
     },

@@ -199,7 +199,21 @@ const FRONTIER_SCENERY = {
     ]),
     slope: 1.1,
     groundColor: '#5f6340', groundHaze: [0.15, 0.85], groundSkirt: 30, baseHaze: 0.2, hazeHeight: 25,
-    air: Object.freeze({ strength: 0.3, near: 600, far: 1400, fog: 0.2 }) }),
+    air: Object.freeze({ strength: 0.3, near: 600, far: 1400, fog: 0.2 }),
+    // Beyond the airspace apron (shared/world/airspace.js) the ranges stand
+    // 800 m further out: coarser cells (the same vertex budget on the larger
+    // ring) and taller ridges, so they still close the valley from the map.
+    airspace: Object.freeze({ cell: 22, step: 6, band: 24,
+      ranges: Object.freeze([
+        Object.freeze({ near: 40, far: 200, height: [10, 110], scale: 80, sharp: 1.5, haze: 0.05 }),
+        Object.freeze({ near: 160, far: 340, height: [40, 300], scale: 120, sharp: 1.8, haze: 0.16 }),
+        Object.freeze({ near: 290, far: 470, height: [60, 640], scale: 170, sharp: 2.4, haze: 0.3 }),
+      ]),
+      height: [30, 420], snow: Object.freeze({ color: '#ece2d6', above: 260 }) }),
+    // The outer valley between the map and the ranges (airspace-apron.js):
+    // surface kinds in the order of APRON_KIND.
+    apron: Object.freeze({ colors: Object.freeze(['#5d7238', '#857d4a', '#a8914e', '#344a2b', '#7d7468', '#9a8a66', '#36505a', '#8a8378']),
+      bank: '#6b6648', jitter: 0.08 }) }),
 };
 /**
  * Weather presets on top of FRONTIER_SCENERY. Golden hour follows the

@@ -10,6 +10,7 @@ import { mapAtmosphere, resolveWeather, FRONTIER_WEATHER } from '../public/js/en
 import { frontierSurfaceY } from '../shared/world/frontier-terrain.js';
 import { FRONTIER_PLAN } from '../shared/conquest-contract.js';
 import { collectProgramVariants } from '../public/js/engine/shader-warmup.js';
+import { buildAirspaceApron } from '../public/js/engine/airspace-apron.js';
 
 const legacy = renderDistanceProfile('foundry', 'ultra');
 assert.deepEqual([legacy.cameraFar, legacy.fadeStart, legacy.fadeEnd], [400, 290, 392]);
@@ -55,14 +56,14 @@ const patch = () => {};
 material.onBeforeCompile = patch;
 scene.add(new THREE.Mesh(new THREE.BoxGeometry(), material));
 const release = configureSceneFarFog(scene, profile);
-assert.equal(material.defines.VB_FAR_FADE_START, '1250.0');
+assert.equal(material.defines.VB_FAR_FADE_START, '2150.0');
 assert.equal(material.onBeforeCompile, patch, 'terrain and character shader patches are preserved');
 const version = material.version;
 const later = new THREE.MeshStandardMaterial();
 scene.add(new THREE.Mesh(new THREE.BoxGeometry(), later));
 scene.onBeforeRender(null, scene, null, null);
 assert.equal(chained,1);
-assert.equal(later.defines.VB_FAR_FADE_END, '1760.0');
+assert.equal(later.defines.VB_FAR_FADE_END, '2740.0');
 assert.equal(material.version, version, 'unchanged profiles do not recompile shaders each frame');
 release();
 assert.equal(scene.onBeforeRender,previous);
@@ -92,7 +93,7 @@ for (const object of [...scene.children,...oldScene.children,...customScene.chil
   lateGroup.add(new THREE.Mesh(new THREE.BoxGeometry(), lateMaterial));
   lateScene.add(lateGroup);
   assert.equal(releaseLate.sync(), 1, 'sync binds the late root at once');
-  assert.equal(lateMaterial.defines.VB_FAR_FADE_START, '1250.0');
+  assert.equal(lateMaterial.defines.VB_FAR_FADE_START, '2150.0');
   const warmed = collectProgramVariants(lateScene).variants;
   lateScene.onBeforeRender(null, lateScene, null, null);
   assert.deepEqual([...collectProgramVariants(lateScene).variants].sort(), [...warmed].sort(), 'no program key changes on the first frame');
@@ -224,7 +225,7 @@ far.dispose();
 
 // Horizon mountain ring: one draw beyond every map edge, inside the far fade.
 for (const weather of FRONTIER_WEATHER) {
-  const backdrop = buildMapBackdrop(mapAtmosphere('frontier', { weather }), world.dimensions);
+  const backdrop = buildMapBackdrop(mapAtmosphere('frontier', { weather }), world.dimensions, { airspace: world.apron.limit });
   assert(backdrop, `${weather}: Frontier has a horizon ring`);
   let draws = 0;
   backdrop.group.traverse(object => { if (object.isMesh || object.isPoints) draws++; });
@@ -234,11 +235,35 @@ for (const weather of FRONTIER_WEATHER) {
   const mesh = backdrop.group.children.find(object => object.isMesh) || backdrop.group.children[0];
   mesh.geometry.computeBoundingBox();
   const box = mesh.geometry.boundingBox;
-  assert(box.min.x < -100 && box.min.z < -100 && box.max.x > sx + 100 && box.max.z > sz + 100, `${weather}: the ring surrounds the map`);
+  const outside = world.apron.limit + 100;
+  assert(box.min.x < -outside && box.min.z < -outside && box.max.x > sx + outside && box.max.z > sz + outside, `${weather}: the ring surrounds the map and its airspace`);
   const reach = Math.hypot(Math.max(-box.min.x, box.max.x - sx), Math.max(-box.min.z, box.max.z - sz)) + Math.hypot(sx, sz) / 2;
   assert(reach < profile.cameraFar, `${weather}: the ring stays inside the camera far plane`);
   assert(box.max.y > sy, `${weather}: peaks rise above the map's highest voxel`);
   backdrop.dispose();
+}
+
+// Airspace apron: one draw from the map rim out past the airspace limit,
+// under the ranges, its seam with the map at the rim's own height.
+{
+  const apron = world.apron, mesh = buildAirspaceApron(mapAtmosphere('frontier'), apron, world.dimensions);
+  assert(mesh && mesh.stats.draws === 1, 'Frontier draws its airspace apron');
+  assert(mesh.stats.vertices < 70000, `apron geometry is bounded (${mesh.stats.vertices})`);
+  assert(mesh.stats.waterCells > 100, 'the river runs on through the apron');
+  const geometry = mesh.group.children[0].geometry, p = geometry.attributes.position.array;
+  geometry.computeBoundingBox();
+  assert(geometry.boundingBox.min.x <= -apron.limit && geometry.boundingBox.max.z >= sz + apron.limit, 'the apron reaches the airspace limit');
+  let rim = 0, worst = 0;
+  for (let i = 0; i < p.length; i += 3) {
+    const x = p[i], z = p[i + 2];
+    const onEdge = (x === 0 || x === sx) && z >= 0 && z <= sz || (z === 0 || z === sz) && x >= 0 && x <= sx;
+    if (!onEdge) continue;
+    rim++;
+    const top = frontierSurfaceY(Math.min(sx - 1, x), Math.min(sz - 1, z));
+    worst = Math.max(worst, Math.abs(p[i + 1] - top));
+  }
+  assert(rim > 300 && worst < 4, `apron vertices on the map edge meet the rim (${rim} vertices, worst ${worst.toFixed(1)} m)`);
+  mesh.dispose();
 }
 
 // Weather: authored in mapMeta, overridable for captures, uniforms only.

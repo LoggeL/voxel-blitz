@@ -41,6 +41,12 @@ function resolveAnchors(from, to, surfaceY) {
   return { position: at(from), target: at(to) };
 }
 
+/**
+ * Frontier airspace cameras (shared/world/airspace.js): absolute positions,
+ * most of them over the apron beyond the map; `airspace` marks them.
+ */
+const airShot = (id, position, target, fov) => shot('frontier', id, position, target, fov, 'conquest', { airspace: true });
+
 const frontierOverview = () => {
   const { sx, sz } = getMapDimensions('frontier');
   return shot('frontier', 'overview', [sx / 2, 1200, sz / 2], [sx / 2, 0, sz / 2], 75, 'conquest',
@@ -72,6 +78,14 @@ const FRONTIER_SHOTS = [
   // Smoke over the burnt-out tank by the river west of C (mapMeta.conquest.dressing).
   groundShot('wreck-column', [C.x - 50, C.z + 70, 6], [C.x - 14, C.z + 30, 14], 66,
     { subject: Object.freeze({ landmark: 'wreck-tank-c-west', from: Object.freeze([-24, 6, 30]), to: Object.freeze([0, 10, 0]) }) }),
+  // Past the west edge at cruise height, looking out over the apron to the ranges.
+  airShot('airspace-west', [-90, 150, 384], [-700, 72, 330], 64),
+  // From deep in the apron, back toward the map and its HQ plateau.
+  airShot('airspace-return', [-620, 165, 230], [260, 58, 420], 62),
+  // South of the map over the river valley, looking back up the river.
+  airShot('airspace-river', [430, 120, 1040], [384, 40, 640], 64),
+  // Standing at the west map edge, looking out.
+  airShot('airspace-edge', [3.5, 58.7, 300], [-160, 62, 290], 74),
 ];
 
 /** Frontier camera re-resolved against the loaded world (surface probe, mapMeta subjects). */

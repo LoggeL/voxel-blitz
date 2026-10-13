@@ -11,7 +11,11 @@ const finiteArea = area => area && ['minX', 'maxX', 'minZ', 'maxZ'].every(k => N
  * HQ restricted zones and the combat area. An enemy inside an HQ radius, or
  * anyone outside the combat area, runs a timer; when it expires the player
  * dies with the `restricted` weapon key. Infantry and ground-vehicle crew are
- * timed; aircraft crew use the flight boundary instead. A player who keeps
+ * timed against the combat area. Aircraft crew ignore the HQs and the combat
+ * area; on a map with an airspace apron (shared/world/airspace.js) they run
+ * the same timer outside the combat airspace (`airArea`, the map grown by
+ * its `combat` gap), and its expiry destroys the aircraft. Without an apron
+ * the map-edge flight guidance bounds aircraft instead. A player who keeps
  * crossing from one zone into the other keeps the earlier deadline.
  */
 export class BoundsSystem {
@@ -20,8 +24,9 @@ export class BoundsSystem {
     this.reset(null);
   }
 
-  reset(metaConquest) {
+  reset(metaConquest, { airArea = null } = {}) {
     this.combatArea = finiteArea(metaConquest?.combatArea);
+    this.airArea = finiteArea(airArea);
     this.hqs = CONQUEST_TEAMS.flatMap(team => {
       const base = metaConquest?.bases?.[team];
       return base && Number.isFinite(base.x) && Number.isFinite(base.z) && base.radius > 0
@@ -30,25 +35,33 @@ export class BoundsSystem {
     this.timers = new Map();
   }
 
-  /** Zone the player is breaking right now: 'hq', 'oob' or null. */
-  violation(p, team) {
+  /** Zone the player is breaking right now: 'hq', 'oob', 'air' (aircraft crew) or null. */
+  violation(p, team, aircraft = false) {
+    if (aircraft) {
+      const area = this.airArea;
+      return area && (p.x < area.minX || p.x > area.maxX || p.z < area.minZ || p.z > area.maxZ) ? 'air' : null;
+    }
     if (this.hqs.some(hq => hq.team !== team && Math.hypot(p.x - hq.x, p.z - hq.z) <= hq.radius)) return 'hq';
     const area = this.combatArea;
     if (area && (p.x < area.minX || p.x > area.maxX || p.z < area.minZ || p.z > area.maxZ)) return 'oob';
     return null;
   }
 
-  /** Advance timers; `kill(entity)` is called for every expired player. */
+  /**
+   * Advance timers; `kill(entity, aircraft)` is called for every expired
+   * player, with the aircraft hull for crew whose 'air' timer ran out (once
+   * per hull and step: the hull's loss takes its whole crew).
+   */
   step(now, entities, { teamFor, vehicleFor = () => null, kill }) {
-    const seen = new Set();
+    const seen = new Set(), lost = new Set();
     for (const p of entities) {
       const id = String(p.id);
       if (p.state !== 'alive' || p.npcRole) continue;
       const team = teamFor(p);
       if (!team || ![p.x, p.z].every(Number.isFinite)) continue;
       const hull = p.vehicleId ? vehicleFor(p.vehicleId) : null;
-      if (hull && isConquestAircraft(hull.type)) continue;
-      const kind = this.violation(p, team);
+      const aircraft = !!hull && isConquestAircraft(hull.type);
+      const kind = this.violation(p, team, aircraft);
       if (!kind) continue;
       seen.add(id);
       let timer = this.timers.get(id);
@@ -59,7 +72,8 @@ export class BoundsSystem {
       if (now >= timer.endsAt) {
         this.timers.delete(id);
         seen.delete(id);
-        kill(p);
+        if (!aircraft) kill(p, null);
+        else if (!lost.has(hull)) { lost.add(hull); kill(p, hull); }
       }
     }
     for (const id of [...this.timers.keys()]) if (!seen.has(id)) this.timers.delete(id);

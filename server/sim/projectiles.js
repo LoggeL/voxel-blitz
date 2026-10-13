@@ -196,10 +196,11 @@ function visibleTo(ctx, origin, target, endMargin = 0.18) {
   );
 }
 
+/** Past the map (and its airspace apron, where aircraft fight) by 2 m. */
 function outsideWorld(p, ctx) {
-  const { sx: SX, sz: SZ } = worldDimensions(ctx);
+  const { sx: SX, sz: SZ } = worldDimensions(ctx), edge = 2 + (ctx.airLimit || 0);
   return !finitePoint(p.x, p.y, p.z) ||
-    p.y < -2 || p.x < -2 || p.z < -2 || p.x > SX + 2 || p.z > SZ + 2;
+    p.y < -2 || p.x < -edge || p.z < -edge || p.x > SX + edge || p.z > SZ + edge;
 }
 
 /** Sphere contact against the same body zones used by hitscan and bolts. */

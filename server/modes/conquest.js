@@ -9,6 +9,7 @@ import { DeploySystem } from './conquest/deploy.js';
 import { SquadRoster } from './conquest/squads.js';
 import { ScoreLedger } from './conquest/score.js';
 import { BoundsSystem, RESTRICTED_WEAPON } from './conquest/bounds.js';
+import { airspaceFor, airspaceRect } from '../../shared/world/airspace.js';
 import { createConquestRoles } from './conquest/roles.js';
 import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
@@ -93,7 +94,7 @@ export class ConquestPolicy extends TdmPolicy {
     const meta = this.mapMeta?.conquest;
     this.capture.reset(meta?.flags ?? []);
     this.ledger.reset(this.now);
-    this.bounds.reset(meta);
+    this.bounds.reset(meta, { airArea: this._airArea() });
     this.deploy.clearChoices?.();
     this.score.reset();
     this.finalStats = new Map();
@@ -153,7 +154,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.bounds.step(now, this._entities.values(), {
       teamFor: p => this.teamFor(p),
       vehicleFor: id => this.vehicleFor(id),
-      kill: p => this._kill(p, RESTRICTED_WEAPON),
+      kill: (p, aircraft) => aircraft ? this._loseAircraft(aircraft, p) : this._kill(p, RESTRICTED_WEAPON),
     });
     if (this.phase !== 'live') return;
     this.roles.tick(now, dt);
@@ -201,6 +202,19 @@ export class ConquestPolicy extends TdmPolicy {
     } else if (outcome.kind === 'defended') {
       for (const id of outcome.defenders) if (this.teamFor(id) === outcome.team) this.award(id, 'defend');
     }
+  }
+
+  /** Combat airspace of the map (its airspace apron's combat gap), or null. */
+  _airArea() {
+    const space = airspaceFor(this.mapMeta?.id), d = this.mapMeta?.dimensions;
+    return space && d ? airspaceRect(d, space.combat) : null;
+  }
+
+  /** An aircraft whose crew stayed out of the combat airspace is destroyed with its crew. */
+  _loseAircraft(hull, entity) {
+    const vehicles = this.engine?.vehicles;
+    if (typeof vehicles?.destroy === 'function' && hull.hp > 0) vehicles.destroy(hull, null, { crewKey: RESTRICTED_WEAPON });
+    if (entity.state === 'alive') this._kill(entity, RESTRICTED_WEAPON);
   }
 
   _kill(entity, weapon) {

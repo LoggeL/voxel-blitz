@@ -42,7 +42,7 @@ const ok = () => { checks++; };
 /* ------------------------------------------------------------ fixtures */
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
-  'tank-driver', 'tank-commander', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-stall', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
+  'tank-driver', 'tank-commander', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
   'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'scoreboard', 'result'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
@@ -127,6 +127,9 @@ ok();
   const inHq = state.restrictedModel({ ...oob.self, x: hq.x, z: hq.z }, cqOf(oob));
   assert.equal(inHq.title, 'ENEMY HQ · RESTRICTED');
   assert.equal(state.restrictedModel({ ...oob.self, cq: [0, 1, 0, 0, 0, 0, 0] }), null, 'cq[4] = 0: no countdown');
+  const air = state.restrictedModel({ ...oob.self, x: hq.x, z: hq.z }, cqOf(oob), { aircraft: true });
+  assert.equal(air.title, 'OUT OF BOUNDS', 'aircraft crew ignore the HQ zones');
+  assert.equal(air.detail, 'TURN BACK OR LOSE THE AIRCRAFT');
 
   const revive = byId('revive');
   const prompt = state.interactModel({ self: revive.self, players: revive.players, vehicles: revive.vehicles });
@@ -734,6 +737,15 @@ ok();
     assert.ok(stall.text.includes('STALL \u00B7 NOSE DOWN'), 'the stall warning');
     assert.equal(stall.hud.vehiclePanel.telemetry.dataset.stall, 'true');
     stall.hud.dispose();
+    assert.ok(!stall.text.some(t => t.startsWith('MAP EDGE')), 'no edge chip away from the edge');
+    const edge = flightRender('jet-edge');
+    assert.ok(edge.text.includes('MAP EDGE \u00B7 AUTOPILOT'), `the map-edge safety pilot is shown (${edge.text.join('|')})`);
+    edge.hud.dispose();
+    const oob = flightRender('jet-oob');
+    assert.equal(oob.hud.restricted.root.hidden, false, 'the aircraft out-of-bounds countdown is shown');
+    assert.equal(oob.hud.restricted.title.textContent, 'OUT OF BOUNDS');
+    assert.equal(oob.hud.restricted.detail.textContent, 'TURN BACK OR LOSE THE AIRCRAFT \u00B7 7 S');
+    oob.hud.dispose();
     const heli = flightRender('heli-aim');
     assert.equal(heli.reticle.kind, 'pods'); assert.equal(heli.reticle.aim, true); assert.equal(heli.reticle.flight.throttle, null);
     assert.ok(heli.text.includes('\u25B2 2.6 M/S') && heli.text.includes('AGL M') && !heli.text.some(t => t.startsWith('THR')), `heli climb readout (${heli.text.join('|')})`);

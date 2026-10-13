@@ -11,7 +11,9 @@ const FRONTIER = Object.freeze(Object.fromEntries([
   ['high', detail(10, 12, 14)],
   ['ultra', detail(12, 14, 16)],
 ].map(([tier, range]) => [tier, Object.freeze({
-  cameraFar: 1800, fadeStart: 1250, fadeEnd: 1760,
+  // Past the map's airspace apron (800 m) the horizon ranges reach ~2.3 km
+  // from the map centre; a pilot at the airspace limit still sees the map.
+  cameraFar: 2800, fadeStart: 2150, fadeEnd: 2740,
   fogGroundDensity: tier === 'low' ? 0.0028 : 0.002,
   fogAirDensity: tier === 'low' ? 0.001 : 0.00065,
   terrainStep: 8, silhouetteStep: 2, detail: range,

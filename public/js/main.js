@@ -369,7 +369,7 @@ class Game {
 
     // A V3 frame names its template; the map cache supplies it on a rejoin.
     try {
-      deserializeWorld(mapBytes, { resolveTemplate: (fingerprint) => mapCache.get(fingerprint) });
+      deserializeWorld(mapBytes, { resolveTemplate: (fingerprint) => mapCache.get(fingerprint), mapId: welcome.map });
     } catch (error) {
       // A reference this browser cannot serve must not be announced again.
       try { if (isMapFrame(mapBytes)) mapCache.forget(parseMapFrame(mapBytes).fingerprint); } catch { /* malformed frame */ }

@@ -120,14 +120,17 @@ export function worldBlocks() {
 /**
  * Install a map frame as the singleton world: V1/V2 bytes, or a V3 frame whose
  * template comes from the frame or from `resolveTemplate(fingerprint)` (the
- * client's map cache). Returns the V3 fingerprint, or null.
+ * client's map cache). `mapId` names the map whose airspace apron answers
+ * out-of-map queries. Returns the V3 fingerprint, or null.
  */
-export function deserializeWorld(buf, { resolveTemplate = null } = {}) {
+export function deserializeWorld(buf, { resolveTemplate = null, mapId = null } = {}) {
   const decoded = decodeMapFrame(buf, { resolveTemplate });
   const { dimensions } = decoded;
   data = decoded.blocks;
   heightMap = new Int16Array(dimensions.sx * dimensions.sz);
   defaultWorld = createStateApi(data, heightMap, null, 'foundry', null, dimensions);
+  // The singleton keeps its legacy id; `mapId` names the airspace beyond the map.
+  if (mapId) defaultWorld.setAirspaceMap(mapId);
   defaultWorld.rebuildHeightMap();
   return decoded.fingerprint;
 }

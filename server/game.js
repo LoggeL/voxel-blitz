@@ -684,7 +684,9 @@ export class GameEngine {
     if (this.blockDamage.delete(key)) {
       this.tickBlockDamage.set(key, { x, y, z, v: value, progress: 0 });
     }
-    const { sx: SX, sz: SZ } = worldDimensions(this.world);
+    const { sx: SX, sy: SY, sz: SZ } = worldDimensions(this.world);
+    // An out-of-map cell would wrap onto a real voxel's flat index.
+    if (x < 0 || z < 0 || y < 0 || x >= SX || z >= SZ || y >= SY) return;
     const i = ((y * SZ) + z) * SX + x;
     this.changedBlocks.add(i);
     this.tickBlocks.push({ i, v: value });

@@ -205,19 +205,37 @@ export class VehicleSystem {
       lk: 0, spotted: {}, cmReadyAt: 0, flaresUntil: 0, smokeUntil: 0, crewlessFor: 0, padBlockedFor: 0, stuckFor: 0,
       scraping: false, padInactive: false, sleepRevision: null });
   }
-  solid(x, y, z, aircraft = false) {
+  /** Metres of airspace beyond the map rectangle (shared/world/airspace.js), 0 without an apron. */
+  airLimit() { return this.engine.world.apron?.limit ?? 0; }
+  /** The map rectangle grown by `gap` metres. */
+  mapRect(gap = 0) {
     const d = this.engine.world.dimensions;
-    if (d && (x < 0 || z < 0 || x >= d.sx || z >= d.sz || y < 0)) return true;
-    if (d && y >= d.sy) return !aircraft;
+    return d ? { minX: -gap, maxX: d.sx + gap, minZ: -gap, maxZ: d.sz + gap } : null;
+  }
+  /** Whether x, z lies on the map rectangle (true for a boundless world). */
+  onMap(x, z) {
+    const d = this.engine.world.dimensions;
+    return !d || (x >= 0 && z >= 0 && x < d.sx && z < d.sz);
+  }
+  /** Highest voxel data at a column: the map's height, or the apron's ground beyond it. */
+  columnTop(x, z) {
+    const d = this.engine.world.dimensions;
+    return this.onMap(x, z) ? d?.sy ?? Infinity : this.engine.world.apron?.top ?? 0;
+  }
+  /** Aircraft fly over the airspace apron up to its limit; everything else stays on the map. */
+  solid(x, y, z, aircraft = false) {
+    const d = this.engine.world.dimensions, limit = aircraft ? this.airLimit() : 0;
+    if (d && (x < -limit || z < -limit || x >= d.sx + limit || z >= d.sz + limit || y < 0)) return true;
+    if (d && y >= this.columnTop(x, z)) return !aircraft && this.onMap(x, z);
     return isSolidBlock(this.engine.world.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)));
   }
   ground(x, z, around, rise = 1, fall = 3) {
-    const world = this.engine.world, d = world.dimensions;
-    if (d && (x < 0 || z < 0 || x >= d.sx || z >= d.sz)) return null;
+    const world = this.engine.world, d = world.dimensions, limit = this.airLimit();
+    if (d && (x < -limit || z < -limit || x >= d.sx + limit || z >= d.sz + limit)) return null;
     // The column and every probed y are in bounds: solid() is isSolidBlock(getBlock()).
-    const bx = Math.floor(x), bz = Math.floor(z);
+    const bx = Math.floor(x), bz = Math.floor(z), cap = d ? this.columnTop(x, z) : Infinity;
     for (let y = Math.floor(around + rise - 0.001); y >= Math.floor(around - fall); y--)
-      if (y >= 0 && (!d || y < d.sy) && isSolidBlock(world.getBlock(bx, y, bz))) return y + 1;
+      if (y >= 0 && y < cap && isSolidBlock(world.getBlock(bx, y, bz))) return y + 1;
     return null;
   }
   /** Other hulls a pose must avoid: live hulls and fresh ground wrecks. */
@@ -251,16 +269,19 @@ export class VehicleSystem {
   clearAircraftHull(v,x,y,z,yaw=v.yaw) {
     if (!(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z) && Number.isFinite(yaw)
       && Number.isFinite(v.pitch ?? 0) && Number.isFinite(v.roll ?? 0))) return false;
-    const parts=vehicleHullParts(v,x,y,z,yaw),world=this.engine.world,d=world.dimensions;
+    const parts=vehicleHullParts(v,x,y,z,yaw),world=this.engine.world,d=world.dimensions,limit=this.airLimit();
     for(const part of parts) {
       const hull=part.hull;
-      if(part.minY < -1e-7 || part.maxY > (VEHICLE_RULES[v.type].ceiling??180)+1e-7 || (d && (hull.minX<0||hull.maxX>d.sx||hull.minZ<0||hull.maxZ>d.sz)))return false;
-      if(d&&part.minY>=d.sy)continue;
-      const bottom=Math.floor(part.minY+1e-5),top=Math.min(Math.floor(part.maxY-1e-5),d?d.sy-1:Infinity);
+      if(part.minY < -1e-7 || part.maxY > (VEHICLE_RULES[v.type].ceiling??180)+1e-7 || (d && (hull.minX<-limit||hull.maxX>d.sx+limit||hull.minZ<-limit||hull.maxZ>d.sz+limit)))return false;
+      // Voxel data ends at the map's height; beyond the map, at the apron's highest ground.
+      const onMap=!d||hull.minX>=0&&hull.maxX<=d.sx&&hull.minZ>=0&&hull.maxZ<=d.sz;
+      const cap=!d?Infinity:onMap?d.sy:Math.max(d.sy,world.apron?.top??0);
+      if(part.minY>=cap)continue;
+      const bottom=Math.floor(part.minY+1e-5),top=Math.min(Math.floor(part.maxY-1e-5),cap-1);
       for(let bx=Math.floor(hull.minX);bx<Math.ceil(hull.maxX);bx++)
         for(let bz=Math.floor(hull.minZ);bz<Math.ceil(hull.maxZ);bz++)
           for(let by=bottom;by<=top;by++) {
-            // In bounds by the checks above: solid() is isSolidBlock(getBlock()).
+            // In bounds by the checks above: getBlock answers the map and the apron.
             if(isSolidBlock(world.getBlock(bx,by,bz))&&hullBoxesOverlap(part,voxelHullBox(bx,by,bz)))return false;
           }
     }
@@ -782,6 +803,27 @@ export class VehicleSystem {
     v.sleepRevision = revision;
     return false;
   }
+  /** Rectangle the map-edge flight guidance keeps aircraft `v` inside: the
+   * airspace limit (the map without an apron), or for a bot pilot the combat
+   * apron less its margin, so bots never run the out-of-bounds timer. */
+  flightArea(v, driver = this.momentumDriver(v)) {
+    const apron = this.engine.world.apron;
+    return this.mapRect(!apron ? 0 : driver?.bot ? Math.max(0, apron.combat - apron.botMargin) : apron.limit);
+  }
+  /** Pose a resting or scraping aircraft at `pose` (attitude fields). Where
+   * the new attitude would meet a voxel or the map edge, ease the airframe up
+   * a little and toward the map centre (up to a metre when wedged). False
+   * (and unchanged) when no nearby pose is clear. */
+  easePose(v, pose, dt, driver) {
+    const start={x:v.x,y:v.y,z:v.z,yaw:v.yaw,pitch:v.pitch,roll:v.roll},dimensions=this.engine.world.dimensions;
+    const cx=dimensions?dimensions.sx/2-v.x:0,cz=dimensions?dimensions.sz/2-v.z:0,length=Math.max(1e-6,Math.hypot(cx,cz));
+    for(const [up,inward] of [[0,0],[.05,0],[0,.1],[.1,.1],[.1,.25],[.15,.5],[.15,1]]) {
+      Object.assign(v,pose,{x:start.x+cx/length*inward,y:start.y+up,z:start.z+cz/length*inward});
+      if(this.clearHull(v,v.x,v.y,v.z)&&this.resolveInfantry(v,start,driver,dt))return true;
+    }
+    Object.assign(v,start);
+    return false;
+  }
   /** Aircraft move through the same voxel world, with sky above the voxel data.
    * Small spatial sweeps include descending roofs, wings and living hulls. */
   advanceAircraft(v, p, input, controls, dt) {
@@ -795,7 +837,7 @@ export class VehicleSystem {
     v.grounded = floor != null && Math.abs(v.y - floor) < 0.08 && v.vy <= 0.2;
     if (v.grounded) v.y = floor;
     if(fixedWing) {
-      const dataHeight=this.engine.world.dimensions?.sy??180;
+      const dataHeight=this.engine.world.dimensions?this.columnTop(v.x,v.z):180;
       const terrain=this.ground(v.x,v.z,Math.min(v.y+0.01,dataHeight),0,dataHeight);
       const clearance=terrain==null?Infinity:v.y-terrain;
       const previousGear=v.gearDown;
@@ -822,16 +864,18 @@ export class VehicleSystem {
     // manual stick (the pilot keeps the rest of the authority) and rotors brake
     // toward a hover. The hard recovery (which takes the controls) engages only
     // when the hull would reach the edge within a second or so.
-    const dimensions = this.engine.world.dimensions;
+    // The guarded area is the airspace limit (the map without an apron); a
+    // bot pilot is kept inside the combat apron less its margin instead.
+    const dimensions = this.engine.world.dimensions, area = dimensions && this.flightArea(v, driver);
     if (dimensions && !v.grounded && controls.allowed) {
-      const horizontal=Math.hypot(v.vx,v.vz), bank=Math.min(def.maxBank,1.05), size=Math.min(dimensions.sx,dimensions.sz);
+      const horizontal=Math.hypot(v.vx,v.vz), bank=Math.min(def.maxBank,1.05), size=Math.min(area.maxX-area.minX,area.maxZ-area.minZ);
       const rate=fixedWing?Math.min(def.turn,def.gravity*Math.tan(bank)/Math.max(def.takeoffSpeed,horizontal)):def.turn;
       const radius=horizontal/Math.max(.1,rate);
-      let pressure=0,steep=0,threatened=false;
-      for (const [position,velocity,extent] of [[v.x,v.vx,dimensions.sx],[v.z,v.vz,dimensions.sz]]) {
+      let pressure=0,steep=0,threatened=false,tight=false;
+      for (const [position,velocity,low,high] of [[v.x,v.vx,area.minX,area.maxX],[v.z,v.vz,area.minZ,area.maxZ]]) {
         const outward=velocity<-.1?-velocity:velocity>.1?velocity:0;
         if(!outward)continue;
-        const distance=velocity<0?position:extent-position;
+        const distance=velocity<0?position-low:high-position;
         if(fixedWing) {
           // A jet needs radius x (1 - sin a) to turn parallel to an edge it
           // approaches at angle a from the normal (nothing when skimming along
@@ -843,6 +887,8 @@ export class VehicleSystem {
           const p=clamp((soft-distance)/(soft-need),0,1);
           pressure=Math.max(pressure,p);steep=Math.max(steep,p>0?cosine:0);
           threatened||=distance<need*.6;
+          // Hand-back hysteresis: the full turn need, not just the takeover line.
+          tight||=distance<need;
         } else {
           // Rotors: hover-brake once the outward drift needs the room left
           // (counter tilt at the pitch limit, plus a margin), easing in 40 m early.
@@ -851,32 +897,80 @@ export class VehicleSystem {
           threatened||=distance-outward<8;
         }
       }
+      const pathYaw=horizontal>1?Math.atan2(-v.vx,-v.vz):v.yaw;
+      // Room left by the turn circle on each side (+1: yaw increasing).
+      const clearance=sign=>{
+        const cx=v.x-sign*Math.cos(pathYaw)*radius,cz=v.z+sign*Math.sin(pathYaw)*radius;
+        return Math.min(cx-radius-area.minX,area.maxX-cx-radius,cz-radius-area.minZ,area.maxZ-cz-radius);
+      };
+      const dx=dimensions.sx/2-v.x,dz=dimensions.sz/2-v.z,centerYaw=Math.atan2(-dx,-dz);
+      // The turn sense (+1: yaw increasing) that keeps the jet further from
+      // the edges: both turns are flown ahead (a second of roll-in, then the
+      // bank turn until the nose points at the centre) and the larger closest
+      // approach wins; 0 when they are alike (head-on). On a compact map a
+      // fast jet's full turn circle leaves the map either way, and in a corner
+      // turning away from the nearest edge alone can lead into the other one.
+      const escapeSense=()=>{
+        const margin=sign=>{
+          let x=v.x,z=v.z,yaw=pathYaw,closest=Infinity;
+          for(let t=0;t<12;t+=.1) {
+            if(t>=1) {
+              if(Math.abs(angleDelta(Math.atan2(x-dimensions.sx/2,z-dimensions.sz/2),yaw))<.4)break;
+              yaw+=sign*rate*.1;
+            }
+            x-=Math.sin(yaw)*horizontal*.1;z-=Math.cos(yaw)*horizontal*.1;
+            closest=Math.min(closest,x-area.minX,area.maxX-x,z-area.minZ,area.maxZ-z);
+          }
+          return closest;
+        };
+        const room=margin(1)-margin(-1);
+        return Math.abs(room)>5?Math.sign(room):0;
+      };
+      // Heading change toward the centre. With the centre well behind, the
+      // shorter way can lead through the edge, so the soft steer turns away
+      // from it, capped below a half turn so the attitude instructor (which
+      // always turns the short way) keeps that side.
+      const centreTurn=()=>{
+        let turn=angleDelta(centerYaw,v.yaw);
+        const away=fixedWing&&Math.abs(turn)>Math.PI/2?escapeSense():0;
+        if(away&&Math.sign(turn)!==away)turn-=Math.sign(turn)*2*Math.PI;
+        return clamp(turn,-2,2);
+      };
       let recovery = this.boundaryAvoidance.get(v.id);
       if(threatened&&!recovery) {
-        const pathYaw=horizontal>1?Math.atan2(-v.vx,-v.vz):v.yaw;
-        const clearance=sign=>{
-          const cx=v.x-sign*Math.cos(pathYaw)*radius,cz=v.z+sign*Math.sin(pathYaw)*radius;
-          return Math.min(cx-radius,dimensions.sx-cx-radius,cz-radius,dimensions.sz-cz-radius);
-        };
-        // Keep a turn the soft steer (or the pilot) already began; else the side with more room.
-        const turnSense=Math.abs(v.yawRate||0)>.05?Math.sign(v.yawRate):clearance(1)>clearance(-1)?1:-1;
+        // Away from the edge reached first; head-on, a turn the soft steer (or
+        // the pilot) already began, else the side whose turn circle has more
+        // room. Keeping the begun turn blindly could swing the nose straight
+        // into the edge.
+        const begun=Math.abs(v.yawRate||0)>.05?Math.sign(v.yawRate):0;
+        const turnSense=(fixedWing&&escapeSense())||begun||(clearance(1)>clearance(-1)?1:-1);
         recovery={turnSense,turning:fixedWing,radius,throttle:fixedWing?finite(v.throttle):null,
-          altitude:clamp(v.y,Math.min(dimensions.sy+15,def.ceiling-40),def.ceiling-35)};
+          altitude:clamp(v.y,Math.min(this.columnTop(v.x,v.z)+15,def.ceiling-40),def.ceiling-35)};
         this.boundaryAvoidance.set(v.id,recovery);
       }
-      const dx=dimensions.sx/2-v.x,dz=dimensions.sz/2-v.z,centerYaw=Math.atan2(-dx,-dz);
       if(recovery) {
         // The safety pilot turns toward the map centre (the instructor's bank
         // law converges without an orbit) and hands back once the jet is
         // inward on a course the soft steer would leave alone, wings near level.
         const safeMargin=Math.min(Math.max(fixedWing?60:20,recovery.radius*.3+20),size*.25);
         const inward=v.vx*dx+v.vz*dz>0;
-        const interior=v.x>safeMargin&&v.x<dimensions.sx-safeMargin&&v.z>safeMargin&&v.z<dimensions.sz-safeMargin;
+        const interior=v.x>area.minX+safeMargin&&v.x<area.maxX-safeMargin&&v.z>area.minZ+safeMargin&&v.z<area.maxZ-safeMargin;
         const targetYaw=centerYaw,error=angleDelta(targetYaw,v.yaw);
         const leveled=fixedWing&&Math.abs(error)<.6&&Math.abs(v.roll)<.3&&Math.abs(v.rollRate||0)<.6;
         const rotorAligned=!fixedWing&&inward&&Math.abs(error)<.55&&Math.abs(v.roll)<.4;
+        // Once the jet flies an inward course with room to turn (the hand-back
+        // hysteresis), the pilot gets it back without the full turn to the
+        // centre, which held the jet in a bank for ~10 s on Frontier. A
+        // mouse-aim (attitude request) jet levels itself through the
+        // instructor, so it is handed back as soon as its pilot aims back
+        // into the map; a stick jet keeps its bank on a released stick, so
+        // the safety pilot levels the wings first.
+        const aimPilot=fixedWing&&!['pitchControl','rollControl','yawControl'].some(field=>Object.hasOwn(flightInput,field));
+        const clearCourse=fixedWing&&!tight&&inward&&Math.abs(error)<Math.PI/2&&pressure<.5;
+        const aimInward=aimPilot&&Number.isFinite(flightInput.yaw)&&Math.abs(angleDelta(flightInput.yaw,centerYaw))<Math.PI/2;
+        const stickLevel=!aimPilot&&Math.abs(v.roll)<.3&&Math.abs(v.rollRate||0)<.6;
         // Hand back only on a course the soft steer would leave alone.
-        if(interior&&(leveled||rotorAligned)&&pressure<.05) {
+        if(clearCourse&&(aimInward||stickLevel)||interior&&(leveled||rotorAligned)&&pressure<.05) {
           // Hand the jet back with the pilot's own throttle setting, not the
           // safety pilot's speed management.
           if(fixedWing&&Number.isFinite(recovery.throttle))v.throttle=Math.max(finite(v.throttle),recovery.throttle);
@@ -889,10 +983,14 @@ export class VehicleSystem {
           delete flightInput.pitchControl;delete flightInput.rollControl;delete flightInput.yawControl;
           if(Math.abs(error)<.25)recovery.turning=false;
           flightInput.yaw=targetYaw;
-          flightInput.steer=recovery.turning?-recovery.turnSense*Math.min(1,Math.abs(error)/.6):0;
+          // A jet sinking fast (after a stall at the edge) unloads the bank
+          // so the wings can arrest the sink before the turn goes on.
+          const unload=fixedWing?clamp(1+(v.vy+4)/12,.35,1):1;
+          flightInput.steer=recovery.turning?-recovery.turnSense*Math.min(1,Math.abs(error)/.6)*unload:0;
           // A jet scrubbed slow (an edge graze) cannot bank without falling:
           // wings level along its heading until it has flying speed again.
-          if(fixedWing&&horizontal<def.takeoffSpeed*1.35){flightInput.yaw=v.yaw;flightInput.steer=0;}
+          // On a clear inward course a stick jet levels out for the hand-back.
+          if(fixedWing&&(horizontal<def.takeoffSpeed*1.35||clearCourse&&!aimPilot)){flightInput.yaw=v.yaw;flightInput.steer=0;}
           if(fixedWing) {
             const desiredClimb=clamp((recovery.altitude-v.y)*.4,-6,8);
             const verticalAcceleration=clamp((desiredClimb-v.vy)*1.2,-3,5);
@@ -922,7 +1020,7 @@ export class VehicleSystem {
             // Blend a moderate centre-turn bank into the pilot's own stick and,
             // deeper in the band, an elevator that holds the flight path level
             // (a banked jet on a neutral stick would sink).
-            const error=angleDelta(centerYaw,v.yaw),speed=Math.max(def.takeoffSpeed,horizontal);
+            const error=centreTurn(),speed=Math.max(def.takeoffSpeed,horizontal);
             const bankTarget=clamp(Math.atan(error*speed/def.gravity),-def.maxBank,def.maxBank);
             const auto=clamp(-((bankTarget-v.roll)*4-(v.rollRate||0)*.7)/def.bankRate,-1,1);
             flightInput.rollControl=clamp(finite(flightInput.rollControl)*(1-pressure)+auto*pressure,-1,1);
@@ -936,7 +1034,7 @@ export class VehicleSystem {
           } else {
             // Mouse aim and attitude requests: pull the aim toward the centre.
             const aimYaw=Number.isFinite(flightInput.yaw)?flightInput.yaw:v.yaw;
-            flightInput.yaw=aimYaw+angleDelta(centerYaw,aimYaw)*pressure;
+            flightInput.yaw=v.yaw+angleDelta(aimYaw,v.yaw)*(1-pressure)+centreTurn()*pressure;
             flightInput.steer=finite(flightInput.steer)*(1-pressure);
           }
         } else {
@@ -945,7 +1043,20 @@ export class VehicleSystem {
         }
       }
     } else { this.boundaryAvoidance.delete(v.id); v.edgeSteer=0; }
+    // A slow jet lying on a wingtip, its nose or its tail (a slope, a roof,
+    // the foot of the map edge or a corner of it) is not level on its gear
+    // and has no airflow over its control surfaces: its attitude would stay
+    // frozen for good. Gravity tips it back onto its wheels, where it can
+    // taxi and take off again.
+    const tipping=fixedWing&&Math.hypot(v.vx,v.vy,v.vz)<4&&(v.grounded?Math.abs(v.roll)>.02:!this.clearHull(v,v.x,v.y-2,v.z));
     FLIGHT_STEPPERS[handling](v, flightInput, dt, vehicleDef(v));
+    // The tip itself is posed after the attitude sweep below. The dug-in
+    // wingtip or nose holds the airframe in place until it is on its gear,
+    // and it settles there rather than dropping onto it.
+    if(tipping) {
+      Object.assign(v,safeAttitude);v.pitchRate=v.rollRate=v.yawRate=v.rudderRate=0;v.vy=clamp(v.vy,-2,0);
+      if(Math.abs(v.roll)>.02||Math.abs(v.pitch)>.02)v.vx=v.vz=0;
+    }
     if(v.grounded) {
       // Rotation is around the wheel contact, so raising the nose lifts the
       // aircraft root enough to keep its actual rear tire above the runway.
@@ -1003,6 +1114,11 @@ export class VehicleSystem {
       }
       safeFraction=fraction;
     }
+    if(tipping) {
+      // Level a step toward the gear.
+      const tip=1.5*dt;
+      this.easePose(v,{pitch:v.pitch+clamp(-v.pitch,-tip,tip),roll:v.roll+clamp(-v.roll,-tip,tip)},dt,driver);
+    }
     const destination = { x: v.x + v.vx * dt, y: v.y + v.vy * dt, z: v.z + v.vz * dt };
     if(Math.max(v.y,destination.y)+def.radius+def.height>=flightCeiling-ceilingGap) {
       const hullTop=Math.max(...vehicleHullParts(v).map(part=>part.maxY));
@@ -1020,7 +1136,7 @@ export class VehicleSystem {
     // A landing needs the vertical axis itself to have stopped a descent.
     const travel = Math.hypot(destination.x - v.x, destination.y - v.y, destination.z - v.z);
     const taxiing = fixedWing && v.grounded, blockedAxes = new Set(), closing = {}, approach = { vx: v.vx, vy: v.vy, vz: v.vz };
-    let target = destination, contact = false, stopped = false, crashSquared = 0;
+    let target = destination, contact = false, stopped = false, crashSquared = 0, edgeScrape = false;
     for (let pass = 0; pass < 3 && !stopped; pass++) {
       const start = { x: v.x, y: v.y, z: v.z };
       const distance = Math.hypot(target.x - start.x, target.y - start.y, target.z - start.z);
@@ -1058,7 +1174,9 @@ export class VehicleSystem {
       if (stopped || !hit) break;
       contact = true;
       const collisionParts = vehicleHullParts(v, hit.x, hit.y, hit.z);
-      const boundary = dimensions && collisionParts.some(({hull})=>hull.minX<0||hull.maxX>dimensions.sx||hull.minZ<0||hull.maxZ>dimensions.sz);
+      const wall = dimensions && this.mapRect(this.airLimit());
+      const boundary = wall && collisionParts.some(({hull})=>hull.minX<wall.minX||hull.maxX>wall.maxX||hull.minZ<wall.minZ||hull.maxZ>wall.maxZ);
+      edgeScrape ||= boundary;
       const ceiling = collisionParts.some(part=>part.maxY>flightCeiling);
       // The contact normal is every axis whose own share of the blocked
       // remainder is obstructed; a pure edge/corner hit blocks all of them.
@@ -1090,6 +1208,14 @@ export class VehicleSystem {
         { cls: 'collision', impactVelocity: approach });
     }
     if (v.hp <= 0) return;
+    if (fixedWing && edgeScrape && !v.grounded && Math.hypot(v.vx, v.vz) > 1) {
+      // The map edge stops only the outward axis, so a jet that met it nose
+      // first would slide along it with the nose still in the wall: no
+      // airflow, no control authority, stalled for good. The fin swings the
+      // nose into the remaining (along-edge) motion instead.
+      const along = Math.atan2(-v.vx, -v.vz), yaw = v.yaw + clamp(angleDelta(along, v.yaw), -1.5 * dt, 1.5 * dt);
+      if (this.easePose(v, { yaw }, dt, driver)) v.yawRate = 0;
+    }
     const supported = this.placement(v, v.x, v.z);
     v.grounded = supported != null && Math.abs(v.y - supported) < 0.08 && v.vy <= 0.2;
     if (v.grounded) { v.y = supported; v.vy = Math.max(0, v.vy); }
@@ -1582,8 +1708,10 @@ export class VehicleSystem {
     return this.damageModel.apply(this.vehicles.get(id), amount, attacker,
       { cls: cls ?? (explosive ? 'collision' : 'small'), point, origin, impactVelocity, sourceTeam });
   }
-  /** Hull death: crew die once, events fire once, the wreck blast queues. */
-  destroy(v, attacker, { sourceTeam = null } = {}) {
+  /** Hull death: crew die once, events fire once, the wreck blast queues.
+   * `crewKey` overrides the crew's kill key (an aircraft lost to the
+   * out-of-bounds timer: 'restricted'). */
+  destroy(v, attacker, { sourceTeam = null, crewKey: forcedKey = null } = {}) {
     const physicalImpact=v.impactVelocity;
     const killer=attacker || (sourceTeam==null && physicalImpact ? this.momentumDriver(v) : null), dir=vehicleDirection(v.yaw), velocity=physicalImpact ||
       (isAircraft(v.type) ? {vx:v.vx || 0,vy:v.vy || 0,vz:v.vz || 0} : {vx:dir[0]*v.speed,vy:-(this.fallSpeeds.get(v.id)||0),vz:dir[2]*v.speed});
@@ -1604,7 +1732,7 @@ export class VehicleSystem {
       this.release(p);
       if(p.state==='alive') {
         const enemyKiller = killer && this.teamOf(killer) !== v.team ? killer : null;
-        const crewKey = crashed && !enemyKiller ? 'crash' : 'vehicle';
+        const crewKey = forcedKey ?? (crashed && !enemyKiller ? 'crash' : 'vehicle');
         const crewKiller = crewKey === 'crash' ? null : killer && (killer === p || this.teamOf(killer) !== v.team) ? killer : null;
         if(typeof p.takeDamage==='function') {
           const crewDamage=Math.max(1,(Number.isFinite(p.hp)?p.hp:100)+(Number.isFinite(p.armor)?Math.max(0,p.armor):0));
@@ -1757,6 +1885,10 @@ export class VehicleSystem {
       put('throttle', v.throttle, 100); put('enginePower', v.enginePower, 100);
       if (handling === 'rotor') { put('rotorSpeed', v.rotorSpeed, 100); put('collective', v.collective, 100); }
       else { put('airspeed', v.airspeed, 100); row.gearDown = v.gearDown !== false; if (v.stalled) row.stalled = true; }
+      // Map-edge guidance for the pilot HUD: the safety pilot holds the
+      // controls (autopilot) or the soft steer is pulling hard (edgeSteer).
+      if (this.boundaryAvoidance.has(v.id)) row.autopilot = true;
+      else if (v.edgeSteer > 0.5) row.edgeSteer = q(v.edgeSteer, 100);
     }
     if (v.mounts?.length) row.mounts = this.mounts.rows(v);
     // sel lists multi-weapon seats whose selection differs from the default index 0.

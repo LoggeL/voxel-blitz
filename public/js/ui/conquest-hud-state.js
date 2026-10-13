@@ -205,17 +205,21 @@ export function squadListModel({ cq, self, players = [], vehicles = [] } = {}) {
   return { squad, name: squadName(squad), selfLeader: leaderId != null && String(leaderId) === String(self.id), rows };
 }
 
-/** Restricted / out-of-bounds countdown from cq[4]. */
-export function restrictedModel(self, cq = null) {
+/**
+ * Restricted / out-of-bounds countdown from cq[4]. `aircraft`: the player
+ * crews an aircraft, whose timer runs outside the combat airspace and whose
+ * expiry destroys the aircraft (server/modes/conquest/bounds.js).
+ */
+export function restrictedModel(self, cq = null, { aircraft = false } = {}) {
   const info = decodeConquestPlayer(self);
   if (!info || !(info.restrictedMs > 0) || !alive(self)) return null;
   const team = playerTeam(self);
   const enemyBase = team && cq?.bases?.[oppositeTeam(team)];
-  const inEnemyHq = enemyBase && Number.isFinite(enemyBase.x)
+  const inEnemyHq = !aircraft && enemyBase && Number.isFinite(enemyBase.x)
     && Math.hypot(self.x - enemyBase.x, self.z - enemyBase.z) <= finite(enemyBase.radius, 56);
   return { ms: info.restrictedMs, seconds: Math.ceil(info.restrictedMs / 1000),
     title: inEnemyHq ? 'ENEMY HQ · RESTRICTED' : 'OUT OF BOUNDS',
-    detail: inEnemyHq ? 'LEAVE THE ENEMY BASE' : 'RETURN TO THE BATTLEFIELD',
+    detail: inEnemyHq ? 'LEAVE THE ENEMY BASE' : aircraft ? 'TURN BACK OR LOSE THE AIRCRAFT' : 'RETURN TO THE BATTLEFIELD',
     urgency: clamp01(1 - info.restrictedMs / CONQUEST_RULES.outOfBoundsMs) };
 }
 
@@ -349,7 +353,7 @@ export function aircraftAgl(row, raycast = null) {
 /**
  * Pilot flight instruments from the authoritative row: airspeed (km/h), height
  * above ground, climb rate (m/s), the jet's persistent throttle (0..1, null
- * for rotors) and its stall flag (airborne only).
+ * for rotors), its stall flag and the map-edge guidance state (airborne only).
  */
 export function flightInstruments(row, { raycast = null } = {}) {
   if (!row || !isAircraftType(row.type)) return null;
@@ -358,7 +362,10 @@ export function flightInstruments(row, { raycast = null } = {}) {
   const airborne = row.grounded === false;
   return { rotor: !jet, speedKmh: Math.round(speed * 3.6), agl: aircraftAgl(row, raycast),
     altitude: Number.isFinite(row.y) ? Math.round(row.y) : null, climb: Math.round(finite(row.vy) * 10) / 10,
-    throttle: jet ? clamp01(finite(row.throttle)) : null, stalled: jet && airborne && row.stalled === true, airborne };
+    throttle: jet ? clamp01(finite(row.throttle)) : null, stalled: jet && airborne && row.stalled === true, airborne,
+    // Map-edge guidance: 'autopilot' while the safety pilot holds the
+    // controls, 'edge' while the soft steer pulls hard toward the centre.
+    edge: !airborne ? null : row.autopilot === true ? 'autopilot' : finite(row.edgeSteer) > 0.5 ? 'edge' : null };
 }
 
 export function vehiclePanelModel(seated, { selfId, players = [], selfTeam = null, yaw = null, raycast = null } = {}) {

@@ -54,6 +54,12 @@ export class NorthUpMap {
     const extent = Math.max(size.x, size.z);
     const s = px / extent;
     const toCanvas = (x, z) => ({ x: x * s, y: z * s });
+    // Aircraft over the airspace apron (beyond the map square) pin to its edge.
+    const inset = 7 * scale;
+    const place = item => {
+      const c = toCanvas(item.x, item.z);
+      return { x: Math.max(inset, Math.min(px - inset, c.x)), y: Math.max(inset, Math.min(px - inset, c.y)) };
+    };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, px, px);
     ctx.save();
@@ -81,7 +87,7 @@ export class NorthUpMap {
     const fixed = [];
     const badges = [];
     for (const item of sorted) {
-      const c = toCanvas(item.x, item.z);
+      const c = place(item);
       if (item.kind === 'flag') fixed.push({ x: c.x, y: c.y, r: 15 * scale });
       else if (item.kind === 'hq') fixed.push({ x: c.x, y: c.y, r: 12 * scale });
       else if (item.kind === 'vehicle') badges.push({ item, x: c.x, y: c.y, ox: c.x, oy: c.y, r: 9.5 * scale });
@@ -102,7 +108,7 @@ export class NorthUpMap {
     const movable = [...badges.filter(b => !spawnHulls.has(String(b.item.id))), ...spawnBadges];
     declutter(movable, fixed, { px, maxShift: 30 * scale });
     for (const item of sorted) {
-      const c = toCanvas(item.x, item.z);
+      const c = place(item);
       if (item.kind === 'flag') {
         paintFlag(ctx, item, c, item.radius * s, { letterSize: 15 * scale, pulse: item.contested ? pulse : 0 });
       } else if (item.kind === 'hq') {

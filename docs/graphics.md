@@ -103,7 +103,11 @@ tone and always saturates before the 400 m far plane (`fog-chunk.js`).
 `environment-map.js` bakes a PMREM environment from the palette once per map
 for PBR weapons and props. `map-backdrop.js` adds one merged silhouette mesh
 beyond the arena walls; `map-ambience.js` one point-sprite draw of dust, embers,
-pollen, mist or drizzle.
+pollen, mist or drizzle. On Frontier the ranges stand beyond the 800 m airspace
+apron (`buildMapBackdrop(..., { airspace })`, coarser cells from the config's
+`airspace` block) and `airspace-apron.js` draws the apron itself as one indexed
+heightfield with the same baked light and aerial fog (Frontier's far plane is
+2.8 km, see docs/conquest.md, Airspace).
 
 ## Effects
 
