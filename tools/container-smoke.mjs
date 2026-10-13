@@ -16,7 +16,7 @@ const WELCOME_KEYS = [
 const LOBBY_KEYS = [
   'bots', 'code', 'gameMode', 'host', 'map', 'members', 'phase', 't',
 ];
-const TICK_KEYS = ['blockDamage', 'blocks', 'events', 'fireFields', 'match', 'mines', 'now', 'players', 'powerups', 'smokeFields', 't'];
+const TICK_KEYS = ['blockDamage', 'blocks', 'events', 'fireFields', 'match', 'mines', 'now', 'players', 'powerups', 'smokeFields', 't', 'vehicles'];
 
 function requireCondition(condition, message) {
   if (!condition) throw new Error(message);
@@ -112,6 +112,7 @@ function validateTick(message, playerId, expectedMap) {
   'tick does not contain ContainerSmoke');
   requireCondition(Array.isArray(message.blocks) && Array.isArray(message.events),
     'tick blocks/events are incomplete');
+  requireCondition(Array.isArray(message.vehicles), 'tick vehicles is not an array');
 }
 
 function exchangeFrames(ws, signal) {
