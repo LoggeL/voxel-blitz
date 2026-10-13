@@ -3,10 +3,11 @@
 // deltas (voxel replacements, block damage rows, events) ride along with the
 // next snapshot it is sent. Part 1 drives the coalescer with a fake slow socket
 // and proves the client ends with exactly the state and event stream of a
-// client that received every tick. Part 2 stalls a real uncompressed client
-// until the real coalescer holds four seconds of simulation: it must not be
-// dropped at the 4 MB queue limit, and must resume fresh snapshots at once.
-// Kernel TCP buffer sizes differ, so elapsed wall time alone proves no pressure.
+// client that received every tick. Part 2 corks a real uncompressed connection's
+// server writer until the real coalescer holds four seconds of simulation: the
+// client must stay connected and receive fresh snapshots promptly on uncork.
+// The client keeps reading. Pausing TCP reads instead can trigger kernel RTO
+// backoff after window shrink, which is independent of application coalescing.
 import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import { mulberry32 } from '../shared/noise.js';
@@ -87,13 +88,13 @@ import { startServer, stopServer } from './lib/server-process.mjs';
 }
 
 // --------------------------------------------------------------------------
-// Part 2: a real client stops reading until observed backpressure, then recovers.
+// Part 2: real socket writes are held until observed backpressure, then recover.
 // --------------------------------------------------------------------------
 const MIN_STALL_MS = 8000;
 const HELD_SIMULATION_MS = 4000;
 const RECOVERY_MS = 3000;
 const server = startServer({ entry: 'tools/lib/tick-backpressure-fixture.mjs', ipc: true });
-let ws;
+let ws, writesHeld = false;
 let phase = 'join', closed = null, socketError = null, ticks = 0, lastNow = 0;
 let resumeAt = null, pausedAt = null, pressure = null, pong = null;
 const after = [];
@@ -132,23 +133,29 @@ try {
   await waitFor(() => ticks > 30, 10_000, 'initial snapshots');
   phase = 'stall';
   pausedAt = performance.now();
-  // Use the WebSocket API: a receiver drain may undo a raw _socket.pause().
-  ws.pause();
+  const held = await server.request('holdWrites');
+  writesHeld = true;
+  assert(held.corked > 0, 'the real server socket holds writes');
   const pressureDeadline = pausedAt + 25_000;
   do {
     await Promise.race([sleep(100), server.unexpectedExit]);
     pressure = await server.request('transport');
     assert.equal(closed, null, `the stalled client stays connected (closed with ${closed})`);
     assert(pressure.ticksInFlight <= MAX_TICKS_IN_FLIGHT, 'real transport obeys the in-flight cap');
+    assert(pressure.corked > 0, 'writes stay held until explicit release');
+    assert(pressure.queuedBytes < 512 * 1024, `held snapshots keep a bounded send queue (${pressure.queuedBytes} B)`);
     assert(performance.now() < pressureDeadline,
-      `paused client reaches backpressure: ${JSON.stringify(pressure)}`);
+      `held writer reaches backpressure: ${JSON.stringify(pressure)}`);
     // This measures actual held simulation time, not an assumed tick rate or
     // kernel send-buffer capacity. The 4 s skipped-state contract stays intact.
   } while (performance.now() - pausedAt < MIN_STALL_MS || pressure.heldTicks * pressure.tickMs < HELD_SIMULATION_MS);
-  assert(pressure.skippedTicks >= pressure.heldTicks, 'real snapshots were coalesced while paused');
+  assert.equal(pressure.ticksInFlight, MAX_TICKS_IN_FLIGHT, 'real send callbacks remain pending at the cap');
+  assert(pressure.queuedBytes > 0, 'actual WebSocket frames are queued');
+  assert(pressure.skippedTicks >= pressure.heldTicks, 'real snapshots were coalesced while writes were held');
   resumeAt = performance.now();
   phase = 'resumed';
-  ws.resume();
+  assert((await server.request('releaseWrites')).released, 'held socket writes are released');
+  writesHeld = false;
   // Send this independently of the next snapshot and require its response:
   // an absent pong must never count as a measured empty send queue.
   ws.send(JSON.stringify({ t: 'ping', nonce: 1, diagnostics: true }));
@@ -158,21 +165,29 @@ try {
   const firstFresh = after.find(row => row.now >= pressure.now);
   assert(firstFresh && firstFresh.at - resumeAt < 1000,
     `current state resumes within 1 s (${firstFresh ? Math.round(firstFresh.at - resumeAt) : 'no fresh snapshot'} ms)`);
-  const live = after.filter(row => row.at - resumeAt > 1000 && row.at - resumeAt <= RECOVERY_MS);
+  const live = after.filter(row => row.now >= pressure.now && row.at - resumeAt > 1000 && row.at - resumeAt <= RECOVERY_MS);
   assert(live.length > 60, `fresh snapshots stream after the stall (${live.length} in the last 2 s)`);
   const gaps = after.slice(1).map((row, i) => row.now - after[i].now);
   assert(Math.max(...gaps) >= HELD_SIMULATION_MS, 'the stall is skipped over, not replayed tick by tick');
   const recovered = await server.request('transport');
+  assert.equal(recovered.corked, 0, 'the server writer remains uncorked after recovery');
+  assert.equal(recovered.heldTicks, 0, 'held deltas drain through real send callbacks');
+  assert(recovered.lastSnapshotNow - lastNow < 1000, 'the client keeps up with the latest authoritative snapshot');
   assert(pong.queuedBytes < 512 * 1024, `the measured send queue is small after recovery (${pong.queuedBytes} B)`);
   assert(recovered.queuedBytes < 512 * 1024, `the send queue stays small after recovery (${recovered.queuedBytes} B)`);
-  console.log(`stalled client: connected after a ${Math.round(resumeAt - pausedAt)} ms stall, ${pressure.heldTicks} ticks coalesced, ${after.length} ticks after resume, last server time ${lastNow}, queue ${recovered.queuedBytes} B`);
+  console.log(`held writer: connected after a ${Math.round(resumeAt - pausedAt)} ms hold, ${pressure.heldTicks} ticks coalesced, fresh in ${Math.round(firstFresh.at - resumeAt)} ms, ${live.length} fresh ticks in the last 2 s, queue ${recovered.queuedBytes} B`);
 } catch (error) {
+  const transport = await server.request('transportDebug', { timeout: 1000 }).catch(problem => ({ error: problem.message }));
+  const socket = ws?._socket;
   console.error('backpressure diagnostics:', JSON.stringify({ phase, closed, ticks, lastNow, messageCounts,
     pausedAt, resumeAt, after: after.length, first: after[0], last: after.at(-1), pressure, pong,
-    websocketPaused: ws?.isPaused, socketPaused: ws?._socket?.isPaused(), readableLength: ws?._socket?.readableLength }));
+    websocketPaused: ws?.isPaused, socketPaused: socket?.isPaused(), readableLength: socket?.readableLength,
+    client: { flowing: socket?.readableFlowing, destroyed: socket?.destroyed,
+      bytesRead: socket?.bytesRead, bytesWritten: socket?.bytesWritten }, transport }));
   console.error(server.stdout, server.stderr);
   throw error;
 } finally {
+  if (writesHeld) await server.request('releaseWrites', { timeout: 1000 }).catch(() => {});
   ws?.terminate();
   await stopServer(server);
 }

@@ -1,9 +1,11 @@
-// Private IPC observation of the real server transport. No socket callbacks,
-// game ticks or wire payloads are replaced and no public debug route is added.
+// Private IPC control of the real server writer. Corking holds actual socket
+// writes and their callbacks; ticks, coalescing and wire payloads stay real.
+// No public debug route is added.
 import { LobbyManager } from '../../server/lobby.js';
 import { serveEngineCommands } from './engine-fixture.mjs';
 
 let client;
+let heldSocket;
 let snapshots = 0;
 let lastSnapshotNow = null;
 const broadcast = LobbyManager.prototype._broadcastJson;
@@ -17,6 +19,19 @@ LobbyManager.prototype._broadcastJson = function (room, message) {
 };
 
 serveEngineCommands({
+  holdWrites() {
+    if (!client) throw new Error('No live transport');
+    if (heldSocket) throw new Error('Transport writes already held');
+    heldSocket = client.ws._socket;
+    heldSocket.cork();
+    return { corked: heldSocket.writableCorked };
+  },
+  releaseWrites() {
+    if (!heldSocket) return { released: false };
+    heldSocket.uncork();
+    heldSocket = null;
+    return { released: true };
+  },
   transport(engine) {
     if (!client) throw new Error('No live transport');
     return {
@@ -25,7 +40,20 @@ serveEngineCommands({
       skippedTicks: client.skippedTicks ?? 0,
       heldTicks: client.heldTick?.ticks ?? 0,
       queuedBytes: client.ws.bufferedAmount,
+      corked: client.ws._socket.writableCorked,
       tick: engine.tickTiming.read(),
+    };
+  },
+  transportDebug() {
+    if (!client) throw new Error('No live transport');
+    const ws = client.ws, socket = ws._socket;
+    return {
+      ticksInFlight: client.ticksInFlight, skippedTicks: client.skippedTicks,
+      heldTicks: client.heldTick?.ticks, queuedBytes: ws.bufferedAmount,
+      readable: { paused: socket.isPaused(), flowing: socket.readableFlowing,
+        length: socket.readableLength, destroyed: socket.destroyed, bytesRead: socket.bytesRead },
+      writable: { length: socket.writableLength, needDrain: socket.writableNeedDrain,
+        corked: socket.writableCorked, bytesWritten: socket.bytesWritten },
     };
   },
 });
