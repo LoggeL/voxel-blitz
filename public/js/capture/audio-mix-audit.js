@@ -1,7 +1,7 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { sfx } from '../audio/sfx.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from '../audio/samples.js';
-import { VoicePool } from '../audio/voices.js';
+import { MAX_POSITIONAL_VOICES, VoicePool } from '../audio/voices.js';
 import { MINIGUN_REPORT_SLOTS } from '../audio/minigun-motor.js';
 import {
   PICKAXE_ATTACK_KINDS, PICKAXE_ATTACK_SLOTS, PICKAXE_BREAK_SLOTS, PICKAXE_DIG_SLOTS, PICKAXE_SWING_SLOTS,
@@ -129,7 +129,9 @@ async function renderScenario(label, events, seconds = SECONDS, missingHitSample
           return start(...args);
         };
         source.stop = (...args) => {
-          if (started) started.stopAt = args[0] ?? context.currentTime;
+          // Natural onended cleanup also calls stop; that is not a truncated
+          // source. Preserve only stops scheduled before the native end event.
+          if (started && started.endedAt == null) started.stopAt = args[0] ?? context.currentTime;
           return stop(...args);
         };
         source.disconnect = (...args) => {
@@ -459,9 +461,9 @@ async function main() {
   // The close blast also has a listener-relative ringing voice. Only world
   // voices count toward the positional cap exercised by this scenario.
   check(debris.trace.acquisitions.filter((entry) => entry.positional).length === 33
-    && debris.trace.cleanups.filter((entry) => entry.early && entry.at === 0).length === 17
-    && debris.trace.acquisitions.every((entry) => entry.activePositional <= 16),
-  'Debris scenario exercises 33 positional acquisitions and 17 same-frame evictions within the cap');
+    && debris.trace.cleanups.filter((entry) => entry.early && entry.at === 0).length === Math.max(0, 33 - MAX_POSITIONAL_VOICES)
+    && debris.trace.acquisitions.every((entry) => entry.activePositional <= MAX_POSITIONAL_VOICES),
+  `Debris scenario exercises 33 positional acquisitions within the ${MAX_POSITIONAL_VOICES}-voice cap`);
   const difference = debris.data.map((value, index) => value - blasts.frag.data[index]);
   const differenceRms = regionRms(difference, 0, 0.25);
   check(differenceRms > 0.0001,

@@ -40,10 +40,10 @@ try {
   assert.deepEqual(JSON.parse(files), [], 'production PostgreSQL game writes no legacy JSON');
   await stack.compose('restart', 'game'); base = await stack.ready();
   assert.equal((await request('/api/account')).user.id, user.id);
-  assert.deepEqual(await request('/api/career'), purchased);
+  assert.deepEqual(await request('/api/career'), equipped);
   await stack.compose('restart', 'db'); base = await stack.ready();
   assert.equal((await request('/api/account')).user.id, user.id);
-  assert.deepEqual(await request('/api/career'), purchased, 'Compose database volume survives restart');
+  assert.deepEqual(await request('/api/career'), equipped, 'Compose database volume survives restart');
   const protocol = await execute(process.execPath, ['tools/container-smoke.mjs'], { env: { ...process.env, BASE_URL: base } });
   console.log(protocol.stdout.trim());
   console.log('POSTGRESQL CONTAINER TESTS: ALL OK (private network, healthchecks, named volume, non-root app, HTTP/WS and committed account/career after app/database restart).');

@@ -530,13 +530,13 @@ export class ViewmodelRig {
     this._thunderbolt?.reload();
   }
 
-  /** A shot interrupted a staged reload: snap the moving parts home, keep the gun raised. */
+  /** Return the held gun smoothly while moving parts and ammunition restore immediately. */
   cancelReload() {
     if (!this._cur) return false;
     this._bubble?.cancelReload();
     this._thunderbolt?.cancelReload();
     if (this._thunderbolt && this._thunderboltState) this._thunderboltState.reloading = false;
-    const cancelled = this._actions.cancelReload(this._cur);
+    const cancelled = this._actions.cancelReload(this._cur, { smooth: true });
     this._stinger?.reset({ ...this._stingerState, lockProgress: 0, reloading: false });
     this._restoreSkipjack();
     if (this._archerState) this.setArcher(this._archerState);
@@ -602,6 +602,18 @@ export class ViewmodelRig {
   get bobAmt() { return this._bobVal; }              // 0..~1 normalized walk-bob magnitude
   get currentAdsT01() { return this._adsSmooth; }    // HUD scope-opacity readback
   get turnLag() { return this._turn.readModel; }      // gun-only angular follower readback
+
+  /** Read-only capture diagnostics; no animation state can be changed through this copy. */
+  stressDiagnostics() {
+    const actions = this._actions;
+    const reload = actions._reload;
+    return {
+      stress: actions._stress,
+      gripBeat: actions._gripBeat,
+      reload: reload ? { phase: reload.lastFrac, durationSeconds: reload.dur, variant: reload.variant } : null,
+      motion: { ...actions._motion },
+    };
+  }
 
   /** Live muzzle world position (uses the actual Object3D — correct through every nested shift). */
   getMuzzleWorldPos(out) {
@@ -839,7 +851,7 @@ export class ViewmodelRig {
       this._flinchPending = 0;
     }
     /* ---------- choreography states ---------- */
-    const actionMotion = this._actions.update(this._now, dt, cur, T);
+    const actionMotion = this._actions.update(this._now, elapsed, cur, T, ctx);
     const reloadDip = actionMotion.dip;
     const reloadRock = actionMotion.rock;
     // RIPTIDE disc states run after the reload/jerk layer so their visibility writes win.

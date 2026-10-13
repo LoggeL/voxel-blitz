@@ -5,8 +5,12 @@ import {
   PUMP_REST,
   SNIPER_BOLT_MIN_S,
 } from './models/common.js';
+import { handlingStress, handlingVariant, hesitantProgress, reloadGripBeat, addHandlingPose } from './stress-handling.js';
 
 const NOOP = () => {};
+const MOTION_KEYS = ['dip', 'rock', 'x', 'push', 'yaw', 'roll'];
+const CYCLE_POSE_ANCHORS = Object.fromEntries(Object.entries(CYCLE_FRACS)
+  .map(([kind, { s1, s2, s3 }]) => [kind, [0, s1, s2, s3, 1]]));
 
 /** The traveling rocket belongs to the action; the chamber belongs to ammo authority. */
 export function syncArcherAmmo(archer, mag) {
@@ -77,6 +81,13 @@ export class WeaponActions {
     this._reload = null;
     this._cycle = null;
     this._jerk = null;
+    this._return = null;
+    this._actionSequence = 0;
+    this._stress = 0;
+    this._phaseStress = 0;
+    this._pain = 0;
+    this._gripBeat = 0;
+    this._variant = 0.5;
     // Position offsets are meters; pitch (rock), yaw and roll are radians.
     this._motion = { dip: 0, rock: 0, x: 0, push: 0, yaw: 0, roll: 0 };
     this._disposed = false;
@@ -91,6 +102,8 @@ export class WeaponActions {
     this._reload = null;
     this._cycle = null;
     this._jerk = null;
+    this._return = null;
+    this._stress = this._phaseStress = this._pain = this._gripBeat = 0;
     this._clearMotion();
   }
 
@@ -107,6 +120,7 @@ export class WeaponActions {
     if (this._disposed || !(dur > 0) || !T || T.melee) return false;
     this._cycle = null;
     this._jerk = null;
+    this._return = null;
     const profileType = T.magTimeline.type || 'mag';
     const effectiveType = !type || type === 'magswap' ? profileType : type;
     this._reload = {
@@ -117,6 +131,7 @@ export class WeaponActions {
       thunks: 0,
       lastFrac: 0,
       done: false,
+      variant: handlingVariant(++this._actionSequence),
       // Staged tube loads thunk exactly when the authority seats each round.
       stages: stages && stages.perRoundSeconds > 0 ? {
         start: stages.startSeconds,
@@ -127,11 +142,14 @@ export class WeaponActions {
     return true;
   }
 
-  /** Interrupt an in-progress reload (a shot fired mid tube load); the pose snaps home. */
-  cancelReload(model = null) {
+  /** Restore moving parts immediately; optionally ease the held gun back to its ready pose. */
+  cancelReload(model = null, { smooth = false } = {}) {
     if (!this._reload) return false;
+    this._return = smooth ? { ...this._motion, elapsed: 0 } : null;
     if (model) this._resetReloadPose(model);
     this._reload = null;
+    this._gripBeat = 0;
+    this._phaseStress = 0;
     this._clearMotion();
     return true;
   }
@@ -174,7 +192,8 @@ export class WeaponActions {
     if (this._disposed || !T?.cycleBack || this._cycle) return false;
     let durMs = kind === 'pump' ? PUMP_MS : T.cycleMs || 900;
     if (kind === 'bolt') durMs = Math.max(SNIPER_BOLT_MIN_S * 1000, durMs);
-    this._cycle = { kind, dur: durMs / 1000, t: 0, step: 0, silent: !!silentStall };
+    this._cycle = { kind, dur: durMs / 1000, t: 0, step: 0, silent: !!silentStall,
+      variant: handlingVariant(++this._actionSequence) };
     return true;
   }
 
@@ -182,13 +201,38 @@ export class WeaponActions {
    * Advance active states in the rig's original order: reload, jerk, then manual cycle.
    * The returned object is stable and owned here, avoiding a per-frame choreography allocation.
    */
-  update(now, dt, model, T) {
+  update(now, dt, model, T, conditions = {}) {
     const motion = this._motion;
     this._clearMotion();
     if (this._disposed || !model || !T) return motion;
-    if (this._reload) this._updateReload(now, model, T, motion);
+    this._stress = handlingStress(conditions);
+    this._pain = conditions.pain || 0;
+    this._gripBeat = 0;
+    if (this._return) {
+      const returning = this._return;
+      returning.elapsed += Math.max(0, dt);
+      const u = Math.min(1, returning.elapsed / (conditions.reducedMotion ? 0.06 : 0.16));
+      const remaining = 1 - this._smooth01(u);
+      for (const key of MOTION_KEYS) motion[key] = returning[key] * remaining;
+      if (u >= 1) this._return = null;
+    }
+    if (this._reload) {
+      const reload = this._reload;
+      const elapsed = now - reload.t0;
+      const frac = Math.max(0, Math.min(1, elapsed / reload.dur));
+      this._variant = reload.variant;
+      this._phaseStress = this._stress;
+      const gripBeat = reloadGripBeat(frac, elapsed, reload, T.magTimeline, this._variant);
+      this._gripBeat = gripBeat * this._stress;
+      this._updateReload(now, model, T, motion);
+      if (this._reload) addHandlingPose(motion, frac, this._stress, this._pain,
+        this._variant, gripBeat);
+    }
+    // Springs, automatic bolts and cassette feeds run mechanically; fear only
+    // reshapes the hands' reload route and the explicit manual cycle below.
+    this._phaseStress = 0;
     if (this._jerk) this._stepJerk(model, dt);
-    if (this._cycle) this._stepCycle(model, T, dt);
+    if (this._cycle) this._stepCycle(model, T, dt, motion);
     return motion;
   }
 
@@ -348,9 +392,10 @@ export class WeaponActions {
     if (u >= 0.84) presentSkipjackReserve(skipjack, fromReserve - 1);
   }
 
-  _stepCycle(model, T, dt) {
+  _stepCycle(model, T, dt, out) {
     const cycle = this._cycle;
     const fractions = CYCLE_FRACS[cycle.kind];
+    this._variant = cycle.variant;
     cycle.t += dt;
     const u = Math.min(1, cycle.t / cycle.dur);
 
@@ -369,17 +414,30 @@ export class WeaponActions {
       this._callbacks.onBoltClack(3);
     }
 
+    // Reaches hesitate only between the existing mechanical contacts. Every
+    // clack, ejection and ready deadline above still reads the real clock.
+    const anchors = CYCLE_POSE_ANCHORS[cycle.kind];
+    let poseU = u;
+    for (let i = 1; i < anchors.length; i++) {
+      if (u <= anchors[i]) {
+        const from = anchors[i - 1], span = anchors[i] - from;
+        poseU = from + hesitantProgress((u - from) / span, this._stress, this._variant) * span;
+        break;
+      }
+    }
     if (cycle.kind === 'pump' && model.pump) {
-      model.pump.position.z = PUMP_REST.z + Math.sin(Math.PI * u) * 0.10;
+      model.pump.position.z = PUMP_REST.z + Math.sin(Math.PI * poseU) * 0.10;
     } else if (cycle.kind === 'bolt') {
       const s1 = fractions.s1;
       const s3 = fractions.s3;
-      const lift = u < s1 ? 0.45 * (u / s1)
-        : u > s3 ? 0.45 * (1 - (u - s3) / (1 - s3))
+      const lift = poseU < s1 ? 0.45 * (poseU / s1)
+        : poseU > s3 ? 0.45 * (1 - (poseU - s3) / (1 - s3))
         : 0.45;
-      model.bolt.position.z = Math.sin(Math.PI * u) * T.boltTravel;
+      model.bolt.position.z = Math.sin(Math.PI * poseU) * T.boltTravel;
       model.bolt.rotation.z = lift;
     }
+    addHandlingPose(out, u, this._stress, this._pain, this._variant,
+      Math.sin(Math.PI * u) ** 2, true);
 
     if (u >= 1) {
       model.bolt.position.z = 0;
@@ -545,6 +603,14 @@ export class WeaponActions {
         mag.position.set(path[0] * amount, path[1] * amount, path[2] * amount);
         mag.rotation.set(style.twist[0] * amount, style.twist[1] * amount, style.twist[2] * amount);
         mag.visible = !(frac >= exitEnd && frac < enterStart);
+        if (!exiting && mag.visible) {
+          // A small failed alignment and second grip, finished before seating.
+          // The hand target below follows this same magazine, never detaches.
+          const side = this._variant < 0.5 ? -1 : 1;
+          mag.position.x += side * 0.018 * this._gripBeat;
+          mag.position.z += 0.012 * this._gripBeat;
+          mag.rotation.z += side * 0.12 * this._gripBeat;
+        }
         if (isBelt) {
           this._updateBeltReload(frac, model, T, timeline, style, out);
         } else {
@@ -580,8 +646,8 @@ export class WeaponActions {
       const cartridges = model.extra.userData.cartridges;
       const showAll = frac >= timeline.start && frac < timeline.clickAt;
       for (let i = 0; i < cartridges.length; i++) {
-        const feed = this._smooth01(Math.max(0, Math.min(1,
-          (frac - timeline.start) / Math.max(0.001, timeline.clickAt - timeline.start) - i * 0.10)));
+        const feed = this._phase(
+          (frac - timeline.start) / Math.max(0.001, timeline.clickAt - timeline.start) - i * 0.10, 0, 1);
         const cartridge = cartridges[i];
         cartridge.visible = showAll && feed > 0 && feed < 0.98;
         cartridge.position.y = 0.115 + i * 0.016 + (1 - feed) ** 2 * 0.80 - feed * 0.06;
@@ -907,6 +973,7 @@ export class WeaponActions {
     state.hand.position.copy(state.position).lerp(state.target, blend);
     state.hand.quaternion.copy(state.quaternion);
     state.hand.rotation.x += 0.22 * blend;
+    state.hand.rotation.z += (this._variant < 0.5 ? -1 : 1) * 0.10 * this._gripBeat * blend;
     state.hand.visible = state.visible ? visible || blend < 0.5 : blend > 0.01 && visible;
   }
 
@@ -1082,7 +1149,8 @@ export class WeaponActions {
   _smooth01(t) { return t * t * (3 - 2 * t); }
 
   _phase(t, from, to) {
-    return this._smooth01(Math.max(0, Math.min(1, (t - from) / Math.max(0.001, to - from))));
+    const progress = Math.max(0, Math.min(1, (t - from) / Math.max(0.001, to - from)));
+    return this._smooth01(hesitantProgress(progress, this._phaseStress, this._variant));
   }
 
   /** Brief wind-up, contact at the exact cue boundary, then a damped return. */

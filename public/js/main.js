@@ -17,7 +17,7 @@ import { WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { decodeConquestPlayer } from '../../shared/conquest-contract.js';
 import { TITANFALL_PLAYER_FLAGS } from '../../shared/titan-contract.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
-import { deserializeWorld, worldBlocks, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
+import { deserializeWorld, worldBlocks, getBlock, getMapMeta, getMapDimensions, setBlock } from '../../shared/worlddata.js';
 import { isMapFrame, parseMapFrame } from '../../shared/world/serialize.js';
 import { mapCache } from './engine/map-cache.js';
 import { prewarmFrontierMetadata, frontierMetadataPrewarm } from './engine/map-meta-prewarm.js';
@@ -137,11 +137,28 @@ class Game {
       get matchState() { return game.matchState; },
       get selfRow() { return game.selfRow; },
     });
+    this._acousticRevision = 0;
+    this._acousticsAppliedRevision = 0;
     this._world = Object.freeze({
       get meta() { return game.mapMeta; },
+      get dimensions() { return getMapDimensions(game.mapMeta?.id); },
+      get mutationCount() { return game._acousticRevision; },
       getBlock,
-      setBlock,
-      applyDeltas: (deltas) => this.worldview?.applyDeltas(deltas),
+      setBlock: (x, y, z, value) => {
+        const before = getBlock(x, y, z);
+        const result = setBlock(x, y, z, value);
+        if (before !== getBlock(x, y, z)) game._acousticRevision++;
+        return result;
+      },
+      applyDeltas: (deltas) => {
+        this.worldview?.applyDeltas(deltas);
+        // Damage chips retain collision until the voxel is actually replaced.
+        // Invalidate once per changed batch, including live terrain during replay.
+        if (this._acousticsAppliedRevision !== this._acousticRevision) {
+          this._acousticsAppliedRevision = this._acousticRevision;
+          sfx.invalidateAcoustics();
+        }
+      },
     });
     this.session = new Session({
       loading: loadingScreen,
@@ -397,6 +414,7 @@ class Game {
       getBlockDamage: (x, y, z) => net.getBlockDamage(x, y, z),
       voxels: worldBlocks,
     }, this.mapMeta, { graphics, renderer: this.renderer });
+    sfx.setWorld(this._world);
     this.camera.far = this.worldview.renderDistanceProfile?.cameraFar ?? 400;
     this.camera.updateProjectionMatrix();
     this._conquestGroundFogDensity = this.worldview.scene.fog.density;
@@ -1578,6 +1596,7 @@ class Game {
     this.clock?.stop();
     this.frameRate.reset();
     sfx.stopPainMoans();
+    sfx.setWorld(null);
     this._pendingAuthoritativeSnapshots = [];
     this._bootBlockDeltas = null;
     this._lastConsumedSnapSeq = null;
@@ -1698,6 +1717,7 @@ window.__vb = {
       weapon,
       weaponAttachments: def?.attachments || { optic: "standard", grip: "standard" },
       weaponHandling: def?.handling || null,
+      weaponAnimation: game.rig?.stressDiagnostics?.() ?? null,
       weaponWeightKg: Number.isFinite(def?.weightKg) ? def.weightKg : null,
       flameStream: {
         active: !!game.weapon?.flameFiring,
@@ -1770,6 +1790,7 @@ window.__vb = {
         profile: game.worldview.renderDistanceProfile,
       } : null,
       damagedBlocks: game.net?.blockDamage?.size || 0,
+      acoustics: sfx.acousticsDiagnostics(),
     };
   },
   get wheelOpen() { return game.weaponWheel.open; },

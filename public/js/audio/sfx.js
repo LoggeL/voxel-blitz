@@ -542,6 +542,10 @@ function outputOptions(value) {
   };
 }
 
+function worldOutputOptions(value, acousticKind) {
+  return { ...outputOptions(value), environment: true, acousticKind };
+}
+
 function ensureAudioModules() {
   if (!engine.ctx || engine.ctx.state === 'closed') return false;
   if (!pool) pool = new VoicePool(engine);
@@ -1113,14 +1117,14 @@ export const sfx = {
       if (!engine.ensure()) return;
       ensureAudioModules();
       if (engine.ctx.state !== 'running') { void engine.resume(); return; }
-      flameLoops.refresh({ ...outputOptions(deferred), shooterId: deferred?.shooterId });
+      flameLoops.refresh({ ...worldOutputOptions(deferred, 'fire'), shooterId: deferred?.shooterId });
       return;
     }
     run('fire', () => {
       if (key === 'minigun') {
         // Share the six-output rapid-fire budget; the rotary report has its own
         // recording rate, gain and short transient so it stays clear at 1200 RPM.
-        const output = pool.acquireFire('lmg', outputOptions(deferred), MINIGUN_REPORT.lifetime);
+        const output = pool.acquireFire('lmg', worldOutputOptions(deferred, 'fire'), MINIGUN_REPORT.lifetime);
         const at = engine.ctx.currentTime;
         output.gain.setValueAtTime(output.gain.value, at);
         output.gain.setValueAtTime(output.gain.value, at + MINIGUN_REPORT.lifetime - 0.025);
@@ -1137,7 +1141,7 @@ export const sfx = {
       const profile = fireReportProfile(key);
       const charge = deferred && !Array.isArray(deferred) && Number.isFinite(deferred.charge)
         ? deferred.charge : 1;
-      const output = pool.acquireFire(key, outputOptions(deferred), profile.lifetime);
+      const output = pool.acquireFire(key, worldOutputOptions(deferred, 'fire'), profile.lifetime);
       if (key === 'knife') {
         const choice = { ...pickaxeSampleChoice(pickaxeSwingIndex++), gain: profile.sampleGain };
         if (samples.play(choice.slot, output, choice)
@@ -1891,7 +1895,7 @@ export const sfx = {
       const slot = [choice.slot, ...FOOTSTEP_SLOTS[choice.surface], 'movement.footstep']
         .find((candidate) => samples.getBuffer(candidate));
       const lifetime = slot ? samples.getBuffer(slot).duration / choice.rate : 0.3;
-      const output = pool.acquire(outputOptions(deferred), lifetime);
+      const output = pool.acquire(worldOutputOptions(deferred, 'footstep'), lifetime);
       if (slot) {
         let target = output;
         if (!positional && engine.ctx.createStereoPanner) {
@@ -2805,4 +2809,8 @@ export const sfx = {
   setListener(listener) {
     engine.setListener(listener);
   },
+
+  setWorld(world) { engine.setWorld(world); },
+  invalidateAcoustics() { engine.invalidateAcoustics(); },
+  acousticsDiagnostics(options) { return engine.acousticsDiagnostics(options); },
 };

@@ -10,6 +10,7 @@
 // Range (opts.range): 'near' (default) rolls off to 170 m; 'far' keeps heavy
 // sources (explosions, tank fire, destruction booms) audible to 400 m. A
 // `lowpass` (Hz) inserts a filter for the distant, muffled "far layer".
+import { acousticPosition, buildEnvironmentVoice } from './environment.js';
 
 export const MAX_POSITIONAL_VOICES = 24;
 export const VOICE_PRIORITY = Object.freeze({ ambient: 0, loop: 1, weapon: 2, anchor: 3 });
@@ -71,16 +72,26 @@ export class VoicePool {
       panner.maxDistance = range.maxDistance;
       panner.rolloffFactor = range.rolloffFactor;
       this._movePanner(panner, opts.pos, activeCtx);
-      last.connect(panner);
-      panner.connect(this._engine.bus);
-    } else {
-      last.connect(this._engine.bus);
+    }
+
+    const graph = this._engine.environmentGraph?.(opts);
+    const environment = graph
+      ? buildEnvironmentVoice(activeCtx, last, panner, graph, this._engine.bus) : null;
+    if (!environment) {
+      if (panner) last.connect(panner).connect(this._engine.bus);
+      else last.connect(this._engine.bus);
     }
 
     const entry = {
       out: output,
       panner,
       lowpass,
+      environment,
+      environmentSelf: !Array.isArray(opts?.pos),
+      source: Array.isArray(opts?.pos) ? opts.pos.slice(0, 3) : null,
+      acousticKind: opts?.acousticKind || 'world',
+      acousticAt: -Infinity,
+      acousticDeferred: false,
       priority: Math.max(0, Math.min(3, Number(opts?.priority) || 0)),
       until: now + lifetime + 0.5,
       timer: null,
@@ -89,6 +100,7 @@ export class VoicePool {
     };
     this._voices.push(entry);
     this._byOutput.set(output, entry);
+    if (environment) this._updateAcousticVoice(entry, true);
     if (panner) this._positional.push(entry);
     entry.timer = this._scheduleCleanup(
       () => this._expireVoice(entry),
@@ -162,6 +174,11 @@ export class VoicePool {
     if (!entry || entry.closed) return false;
     const ctx = this._context();
     entry.until = ctx.currentTime + lifetimeSec + 0.5;
+    if (Array.isArray(opts?.pos)) entry.source = opts.pos.slice(0, 3);
+    if (entry.environment) {
+      this._updateAcousticVoice(entry);
+      return true;
+    }
     if (entry.panner && Array.isArray(opts?.pos)) {
       if (entry.panner.positionX) {
         ['X', 'Y', 'Z'].forEach((axis, index) => {
@@ -170,6 +187,48 @@ export class VoicePool {
       } else entry.panner.setPosition(...opts.pos);
     }
     return true;
+  }
+
+  updateAcoustics(force = false) {
+    for (const entry of this._voices) {
+      if (entry.environment) this._updateAcousticVoice(entry, false, force);
+    }
+  }
+
+  _updateAcousticVoice(entry, initial = false, force = false) {
+    const ctx = this._engine.ctx;
+    const refreshInterval = entry.acousticDeferred ? 1 / 60 : 0.08;
+    if (!ctx || entry.closed || (!force && !initial && ctx.currentTime - entry.acousticAt < refreshInterval)) return;
+    const source = entry.environmentSelf ? this._engine.listenerPos() : entry.source;
+    if (!source) return;
+    const sample = this._engine.sampleAcoustics(source);
+    entry.acousticAt = ctx.currentTime;
+    entry.acousticDeferred = !!sample.deferred;
+    // The model already retains valid same-path estimates under load. A
+    // deferred result is an unknown path, including after either endpoint
+    // moves across unchanged cover, and must never inherit old clear audio.
+    entry.environment.update(sample, { self: entry.environmentSelf,
+      immediate: initial || sample.deferred });
+    if (entry.panner) {
+      this._movePanner(entry.panner,
+        acousticPosition(sample, source, this._engine.listenerPos()), ctx, initial);
+    }
+    // A short diagnostics history retains transients after normal pool cleanup.
+    // No audio samples, graph nodes or mutable world references escape here.
+    if (initial || force) this._engine.recordAcoustics(entry);
+  }
+
+  clearEnvironment() {
+    for (const entry of [...this._voices]) if (entry.environment) this._cleanupVoice(entry);
+  }
+
+  acousticsDiagnostics() {
+    return this._voices.filter(entry => entry.environment).map(entry => ({
+      source: entry.source?.slice() || null, self: entry.environmentSelf,
+      kind: entry.acousticKind, pending: entry.acousticDeferred, sample: entry.environment.sample
+        ? { ...entry.environment.sample,
+          apparentPosition: entry.environment.sample.apparentPosition?.slice() || null } : null,
+    }));
   }
 
   release(output) {
@@ -235,6 +294,7 @@ export class VoicePool {
     }
     try { entry.panner?.disconnect(); } catch (_) {}
     try { entry.lowpass?.disconnect(); } catch (_) {}
+    try { entry.environment?.dispose(); } catch (_) {}
     try { entry.out.disconnect(); } catch (_) {}
     this._removeEntry(this._voices, entry);
     this._removeEntry(this._positional, entry);
@@ -260,11 +320,16 @@ export class VoicePool {
     }
   }
 
-  _movePanner(panner, pos, activeCtx) {
+  _movePanner(panner, pos, activeCtx, immediate = true) {
     if (panner.positionX) {
-      panner.positionX.setValueAtTime(pos[0], activeCtx.currentTime);
-      panner.positionY.setValueAtTime(pos[1], activeCtx.currentTime);
-      panner.positionZ.setValueAtTime(pos[2], activeCtx.currentTime);
+      ['X', 'Y', 'Z'].forEach((axis, index) => {
+        const parameter = panner[`position${axis}`];
+        if (immediate) parameter.setValueAtTime(pos[index], activeCtx.currentTime);
+        else {
+          parameter.cancelScheduledValues(activeCtx.currentTime);
+          parameter.setTargetAtTime(pos[index], activeCtx.currentTime, 0.025);
+        }
+      });
     } else {
       panner.setPosition(pos[0], pos[1], pos[2]);
     }

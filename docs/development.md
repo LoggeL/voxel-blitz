@@ -706,6 +706,37 @@ Near misses are capped and rate-limited, with a slowly replenishing shared
 suppression budget. Repeated fire cannot permanently lock panic. Solid cover
 blocks suppression, and direct hits do not also receive near-miss panic.
 
+Weapon handling also follows Panic/Pain: reaches hesitate and recover before
+their contact, hands regrip during reloads and manual cycles, and pain adds a
+small guarded pose. A stable action variant avoids frame-dependent random
+motion. Ammo, reload completion and timed mechanical contacts keep their
+existing authority. Interruptions restore weapon parts safely and blend the
+remaining pose home. Reduced motion removes this added choreography.
+
+Environmental audio reads the live voxels through `shared/world-acoustics.js`.
+Material and wall thickness attenuate and filter positional sounds; nearby
+openings can redirect their apparent arrival. Bounded probes estimate open
+space, rooms and tunnels, driving three shared room responses in WebAudio.
+Destroyed or replaced blocks invalidate those estimates after their server
+snapshot is applied, including voices that are already playing. Surface chips
+do not change the acoustic opening until the voxel is actually removed.
+Under load, unfinished paths resume with a fixed work budget; new unknown
+paths wait silently instead of bypassing walls.
+This is a bounded acoustic approximation, not a full wave simulation.
+The ordinary HRTF/distance mix and existing Conquest arrival delays remain in
+use. UI/music stay dry; local gunshots and footsteps gain room response without
+attenuating their direct sound. Match teardown clears room tails and caches.
+
+`npm run stress:test` and `npm run acoustics:test` cover the motion, geometry
+and audio graph. `npm run stress-acoustics:browser` starts an isolated real
+server, damages the player and destroys a wall through production simulation,
+and records live WebAudio plus gameplay screenshots under
+`.artifacts/stress-acoustics/`.
+For visual QA on macOS, use a full installed Chromium browser with
+`VB_BROWSER="/path/to/browser-executable" VB_LIVE_HEADED=1 npm run stress-acoustics:browser`.
+The headed run also captures calm/stressed reload videos. Some headless
+builds render too slowly for reliable live input and transient-event capture.
+
 Scoped weapons (the stock sniper, or any 2× or stronger attachment optic) enter
 their circular full-screen optic at 72% ADS, where the spread cone has already
 settled and below which kills count as no-scopes. The outside

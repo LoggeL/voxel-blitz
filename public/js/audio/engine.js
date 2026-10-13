@@ -1,4 +1,6 @@
 // AudioContext ownership, master graph, lifecycle recovery, and deferred cues.
+import { WorldAcoustics } from '../../../shared/world-acoustics.js';
+import { buildEnvironmentGraph } from './environment.js';
 
 const GESTURE_EVENTS = ['pointerdown', 'touchend', 'keydown'];
 const MAX_QUEUED_CUES = 16;
@@ -74,6 +76,10 @@ export class AudioEngine {
     this._lastListener = null;
     this._queuedCues = [];
     this._voicePools = new Set();
+    this._acousticWorld = null;
+    this._acoustics = new WorldAcoustics();
+    this._environment = null;
+    this._acousticRecent = [];
 
     // Listener identity is stable for the lifetime of the engine so every
     // registration can be removed with the exact same callback.
@@ -87,7 +93,9 @@ export class AudioEngine {
   get bus() { return this._bus; }
   get musicDestination() { return this._masterLimiter; }
   get noiseBuffer() { return this._noiseBuffer; }
-  get echoIn() { return this._echo?.in || null; }
+  // Positional reflection sends must never bypass the obstruction filter.
+  // Legacy preview/audit pages without a world retain their existing graph.
+  get echoIn() { return this._acousticWorld ? null : this._echo?.in || null; }
   get now() { return this._ctx?.currentTime || 0; }
 
   ensure() {
@@ -98,6 +106,9 @@ export class AudioEngine {
 
     let next = null;
     try {
+      for (const pool of this._voicePools) pool.disposeAll();
+      this._environment?.dispose();
+      this._environment = null;
       next = new AudioContextCtor();
       this._ctx = next;
       const master = buildMasterGraph(next, this._audibleMasterGain());
@@ -181,6 +192,54 @@ export class AudioEngine {
       pos: Array.isArray(pos) ? pos.slice(0, 3) : null,
     };
     this._applyLastListener();
+    for (const pool of this._voicePools) pool.updateAcoustics();
+  }
+
+  setWorld(world) {
+    if (world === this._acousticWorld) { this.invalidateAcoustics(); return; }
+    for (const pool of this._voicePools) pool.clearEnvironment();
+    this._environment?.dispose();
+    this._environment = null;
+    this._acousticWorld = world && typeof world.getBlock === 'function' ? world : null;
+    this._acoustics.setWorld(this._acousticWorld);
+    this._acousticRecent.length = 0;
+  }
+
+  invalidateAcoustics() {
+    this._acoustics.invalidate();
+    for (const pool of this._voicePools) pool.updateAcoustics(true);
+  }
+
+  /** Only world voices opt in; music, menus, hitmarks and alarms stay dry. */
+  environmentGraph(opts) {
+    if (!this._acousticWorld || !(Array.isArray(opts?.pos) || opts?.environment)
+      || !this._ctx || !this._bus) return null;
+    if (!this._environment) this._environment = buildEnvironmentGraph(this._ctx, this._bus);
+    return this._environment;
+  }
+
+  sampleAcoustics(source) {
+    return this._acoustics.sample(source, this.listenerPos() || source, this.now);
+  }
+
+  recordAcoustics(entry) {
+    this._acousticRecent.push({ at: this.now, source: entry.source?.slice(),
+      self: entry.environmentSelf, kind: entry.acousticKind, ...entry.environment.sample });
+    if (this._acousticRecent.length > 24) this._acousticRecent.shift();
+  }
+
+  acousticsDiagnostics({ source } = {}) {
+    const copySample = sample => sample ? { ...sample,
+      apparentPosition: sample.apparentPosition?.slice() || null } : null;
+    const model = this._acoustics.diagnostics();
+    return { enabled: !!this._acousticWorld, profiles: this._environment ? 3 : 0,
+      model: { ...model, lastSample: copySample(model.lastSample) },
+      sample: Array.isArray(source) ? copySample(this.sampleAcoustics(source)) : null,
+      listener: this.listenerPos()?.slice() || null,
+      active: [...this._voicePools].flatMap(pool => pool.acousticsDiagnostics()),
+      recent: this._acousticRecent.map(row => ({ ...row, source: row.source?.slice(),
+        apparentPosition: row.apparentPosition?.slice() || null })),
+    };
   }
   /** Last known listener position for proximity cues (flashbang ring). */
   listenerPos() {
@@ -213,6 +272,11 @@ export class AudioEngine {
     this._flushingCues = false;
     for (const pool of this._voicePools) pool.disposeAll();
     this._voicePools.clear();
+    this._environment?.dispose();
+    this._environment = null;
+    this._acousticWorld = null;
+    this._acoustics.setWorld(null);
+    this._acousticRecent.length = 0;
 
     const echoNodes = this._echo?.nodes;
     if (echoNodes) {

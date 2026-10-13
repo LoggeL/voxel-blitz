@@ -853,6 +853,25 @@ late join whose welcome/state is already live also proceeds directly.
   recovering is required after exhaustion; movement and weapon handling cancel it.
 
 ### Audio
+`sfx.setWorld(world|null)` attaches the live voxel facade for environmental
+audio. It supplies `getBlock`, `dimensions`, and a monotonic `mutationCount`.
+`sfx.invalidateAcoustics()` refreshes active voices after an authoritative block
+batch; partial damage that leaves a solid voxel does not open a sound path.
+`shared/world-acoustics.js` owns bounded material/thickness transmission,
+nearby-opening routing and room probes. It caches by position and world
+revision, with hard work/cache limits. The WebAudio graph uses three shared
+room responses, smoothed per-voice filtering/gain/sends, and existing HRTF
+distance attenuation. It does not add a second delay to Conquest propagation.
+Direct paths take priority over optional reflection probes. Under overload,
+unfinished paths resume in later frames; unknown new paths wait silently.
+Terrain edits discard both cached paths and unfinished traces.
+Local weapon/footstep dry sound remains direct; UI and music remain outside
+environment processing. Teardown clears world voices and room tails.
+`sfx.acousticsDiagnostics()` exposes copied read-only state for the browser
+test. `npm run acoustics:test` covers geometry and graph contracts;
+`npm run stress-acoustics:browser` exercises the connected game and captures
+its actual post-limiter audio before and after server-authoritative destruction.
+
 `sfx` exports:
 `init():Promise`, `unlock():Promise<boolean>`, `dispose():Promise<void>`,
 `setMasterVolume(value)`, `startMenuMusic(fetchImpl?)`,
@@ -1145,6 +1164,13 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   meshes. The revolver uses its crane, extractor and speedloader sequence.
   Timed audio contacts still follow the canonical reload timeline; finishing
   or canceling restores the original parts and hand visibility.
+  `guns/stress-handling.js` uses the reconciled Panic/Pain values to change
+  reaches and regrips between these contacts, with a stable variant per action.
+  Reload/cycle clocks, seated rounds and sound contacts retain their authority.
+  Canceling restores moving parts immediately and blends the weapon pose home;
+  weapon change, death and disposal clear the blend. Reduced motion disables
+  the additional stress choreography. `npm run stress:test` covers these
+  timing, cancellation and pose invariants.
   Weapons with `reloadStages` (shotgun: start 0.42 s, 0.36 s per round, end
   0.22 s) keep chambered rounds, hand one spare over as loose rounds at the
   first seat, seat rounds one at a time, and yield to the trigger with every
