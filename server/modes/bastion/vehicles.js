@@ -1,5 +1,5 @@
 import { evShoot, evHit } from '../../protocol/events.js';
-import { BASTION_ENEMIES } from '../../../shared/bastion.js';
+import { BASTION_ENEMIES, BASTION_RULES as R } from '../../../shared/bastion.js';
 import { BEDROCK, METAL, BARRICADE, AIR, GROUND, isSolidBlock } from '../../../shared/world/blocks.js';
 import { damageBlock } from '../../sim/combat.js';
 import { aimAngles, wrapAngle, fwdFromYawPitch, markLaunched } from '../../sim/player.js';
@@ -50,7 +50,10 @@ export function stepVehicle(engine, policy, p, dt) {
   const stage = policy.layout.stages[p.stage], path = stage.vehicleRoute, obj = policy.objective;
   p.y = GROUND + 1.02;
   p.npcAttack = now < (ai.deployUntil || 0) ? 'deploy' : 'advance';
-  // 1. Waypoint / parking.
+  // 1. Waypoint / parking. A hull parked by a hard stall far from the objective re-probes its route.
+  if (route.stuck && now - route.stuckAt > R.vehicleRetryMs && route.index < path.length && flat(obj, p) > profile.standoff + 2) {
+    route.parked = false; route.stuck = false; route.stalledSince = 0;
+  }
   if (!route.parked && (route.index >= path.length || flat(obj, p) <= profile.standoff)) route.parked = true;
   const fwd = fwdFromYawPitch(p.yaw, 0);
   let moved = false;
@@ -85,7 +88,7 @@ export function stepVehicle(engine, policy, p, dt) {
         p.x = s.nx; p.z = s.nz; moved = true; route.stalledSince = 0;
         if (flat(target, p) < 1.5) route.index++;
       } else if (!route.stalledSince) route.stalledSince = now;
-      else if (now - route.stalledSince > HARD_STALL_MS) route.parked = true;
+      else if (now - route.stalledSince > HARD_STALL_MS) { route.parked = true; route.stuck = true; route.stuckAt = now; }
     }
   }
   // 4. Contact damage to defenders standing inside the hull footprint (spawn protection holds).
@@ -105,6 +108,7 @@ export function stepVehicle(engine, policy, p, dt) {
   // 5. Attacks.
   const target = scanTarget(engine, policy, p, ai, obj);
   const targetId = target?.id ?? null;
+  if (target) ai.engagedAt = now;
   if (ai.target !== targetId) { ai.target = targetId; ai.windup = 0; ai.burstStart = 0; }
   let aimYaw = p.yaw, canFire = false;
   if (target) {

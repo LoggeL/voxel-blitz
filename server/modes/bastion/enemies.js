@@ -1,7 +1,8 @@
 import { evShoot, evHit } from '../../protocol/events.js';
 import { BASTION_ENEMIES, BASTION_PIERCING, BASTION_RULES as R } from '../../../shared/bastion.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
-import { GROUND, BARRICADE, AIR } from '../../../shared/world/blocks.js';
+import { GROUND, BARRICADE, AIR, isSolidBlock } from '../../../shared/world/blocks.js';
+import { boxCollides, PHYSICS } from '../../../shared/player-movement.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { damageBlock } from '../../sim/combat.js';
 import { PlayerEntity, aimAngles, wrapAngle, fwdFromYawPitch, markLaunched } from '../../sim/player.js';
@@ -44,7 +45,7 @@ export class BastionEnemies {
         return dmg * f;
       } : undefined,
       ai: { target: null, seenAt: 0, burstStart: 0, burstShots: 0, pauseUntil: 0, windup: 0, lastShot: 0,
-        strikeAt: 0, breachAt: 0, slamAt: 0, breach: null, lastMoveAt: e.now, watchX: at.x, watchZ: at.z,
+        strikeAt: 0, breachAt: 0, slamAt: 0, breach: null, lastMoveAt: e.now, watchX: at.x, watchZ: at.z, engagedAt: 0, unstuck: 0,
         bestDist: Infinity, stallSince: e.now, drift: profile.vehicle ? 0 : (this.rng() * 2 - 1) * 1.6 } });
     if (profile.vehicle) {
       Object.assign(p, { npcVehicle: true, combatBox: [...profile.combatBox],
@@ -54,7 +55,7 @@ export class BastionEnemies {
       p.yaw = aimAngles([p.x, 0, p.z], [next.x, 0, next.z]).yaw;
     } else p.yaw = 0;
     p.pitch = 0;
-    e.npcs.set(p.id, p);
+    e.npcs.set(p.id, p); policy.progressAt = e.now;
     if (['brute', 'juggernaut'].includes(role) && !policy.tierSeen.has(role)) { policy.tierSeen.add(role); policy.emit('bastion_tier', { role }); }
     if (profile.vehicle) policy.emit('bastion_vehicle', { id: p.id, kind: role, pos: [p.x, p.y, p.z], lane: stage.lane, phase: 'spawn' });
     return p;
@@ -76,17 +77,56 @@ export class BastionEnemies {
     return !w.getBlock(x, GROUND + 1, z) && !w.getBlock(x, GROUND + 2, z) && !!w.getBlock(x, GROUND - 1, z)
       && !this.policy.structures.isBuiltCell(x, GROUND + 1, z);
   }
+  /** Walkable, standing on a solid floor block (no crater) and on the navigation field. */
+  clearCell(x, z) {
+    if (!this.walkable(x, z) || !isSolidBlock(this.engine.world.getBlock(x, GROUND, z))) return false;
+    const i = z * this.nav.sx + x;
+    return (this.nav.dist?.[i] ?? -1) >= 0 || (this.nav.breachDist?.[i] ?? -1) >= 0;
+  }
+  /** Centre of the clear cell within `radius` closest to the goal, or null. A cell centre always fits the body. */
+  clearSpot(x, z, radius) {
+    const sx = this.nav.sx, rank = i => (this.nav.dist?.[i] ?? -1) >= 0 ? this.nav.dist[i] : 1e5 + (this.nav.breachDist?.[i] ?? 0);
+    let best = null, bestRank = Infinity;
+    for (let dz = -radius; dz <= radius; dz++) for (let dx = -radius; dx <= radius; dx++) {
+      const cx = x + dx, cz = z + dz;
+      if (!this.clearCell(cx, cz)) continue;
+      // A diagonal neighbour needs an open side: never squeeze through a wall corner.
+      if (radius === 1 && dx && dz && !this.clearCell(x + dx, z) && !this.clearCell(x, z + dz)) continue;
+      const r = rank(cz * sx + cx);
+      if (r < bestRank) { best = { x: cx + 0.5, z: cz + 0.5 }; bestRank = r; }
+    }
+    return best;
+  }
   jitterSpawn(base) {
-    const bounds = this.policy.layout.bounds, margin = 1;
+    const bounds = this.policy.layout.bounds, margin = 1, e = this.engine;
+    this.nav.rebuild(e.blockRevision);
     // Spawn chambers may sit outside the play bounds; only clamp points that start inside them.
     const inside = base.x >= bounds.minX && base.x <= bounds.maxX && base.z >= bounds.minZ && base.z <= bounds.maxZ;
     const clamp = (v, min, max) => inside ? Math.min(max - margin, Math.max(min + margin, v)) : v;
     for (let i = 0; i < 8; i++) {
       const x = clamp(base.x + (this.rng() * 2 - 1) * 3, bounds.minX, bounds.maxX);
       const z = clamp(base.z + (this.rng() * 2 - 1) * 3, bounds.minZ, bounds.maxZ);
-      if (this.walkable(Math.floor(x), Math.floor(z))) return { x, z };
+      // The whole body must be clear, not just the cell under its centre (chamber walls and baffles).
+      if (this.clearCell(Math.floor(x), Math.floor(z)) && !boxCollides(e.solidAt, x, GROUND + 1.02, z, PHYSICS.height, PHYSICS.halfW + 0.08)) return { x, z };
     }
-    return { x: base.x, z: base.z };
+    return this.clearSpot(Math.floor(base.x), Math.floor(base.z), 3) ?? { x: base.x, z: base.z };
+  }
+  /**
+   * Watchdog relief for an NPC that wanted to move but made no progress: one cell
+   * toward the goal (never through a wall), or a fresh spawn when its body is embedded.
+   */
+  unstick(p) {
+    const ai = p.ai, spot = this.clearSpot(Math.floor(p.x), Math.floor(p.z), 1);
+    const settle = at => {
+      Object.assign(p, { x: at.x, y: GROUND + 1.02, z: at.z, vx: 0, vy: 0, vz: 0 });
+      Object.assign(ai, { stallSince: this.engine.now, bestDist: Infinity }); ai.unstuck++;
+    };
+    if (spot) settle(spot);
+    else if (boxCollides(this.engine.solidAt, p.x, p.y, p.z)) {
+      const spawns = this.policy.stage.spawns;
+      settle(this.jitterSpawn(spawns[Math.floor(this.rng() * spawns.length) % spawns.length]));
+    }
+    ai.watchX = p.x; ai.watchZ = p.z; ai.lastMoveAt = this.engine.now;
   }
   driftStep(p, next) {
     const drift = p.ai.drift || 0;
@@ -200,7 +240,12 @@ export class BastionEnemies {
       if (p.npcRole === 'brute' && target?.defender && target.distance <= 10 && target.distance > 2.2) {
         step = { x: target.defender.x, z: target.defender.z };
       }
-      const move = !holdGround && !breaching && distObj > 2.3 && step;
+      const arrived = this.nav.arrived(p);
+      const move = !holdGround && !breaching && !arrived && distObj > 2.3 && step;
+      if (target || breaching) ai.engagedAt = e.now;
+      // Stuck watchdog: wanting to move without covering npcStuckMove for npcStuckMs.
+      if (!move || Math.hypot(p.x - ai.watchX, p.z - ai.watchZ) > R.npcStuckMove) { ai.watchX = p.x; ai.watchZ = p.z; ai.lastMoveAt = e.now; }
+      else if (e.now - ai.lastMoveAt > R.npcStuckMs) this.unstick(p);
       if (move) {
         if (distObj < ai.bestDist - 0.5) { ai.bestDist = distObj; ai.stallSince = e.now; }
         else if (ai.drift && e.now - ai.stallSince > 2500) ai.drift = 0;
@@ -209,7 +254,11 @@ export class BastionEnemies {
       const angles = aimAngles([p.x, p.eyeY, p.z], aimPoint);
       p.yaw = turn(p.yaw, angles.yaw, dt * 3); p.pitch = turn(p.pitch, angles.pitch, dt * 3);
       p.input.yaw = p.yaw; p.input.pitch = p.pitch;
-      if (move) { p.input.keys.f = true; p.input.viewYaw = aimAngles([p.x, 0, p.z], [step.x, 0, step.z]).yaw; }
+      if (move) {
+        p.input.keys.f = true; p.input.viewYaw = aimAngles([p.x, 0, p.z], [step.x, 0, step.z]).yaw;
+        // Feet below the floor only happen in a crater: hop out (1.4 m never clears a sandbag line from the floor).
+        if (p.grounded && p.y < GROUND + 0.9) p.input.keys.jump = true;
+      }
       p.npcAttack = 'advance';
       // 3. Breach: melee the built cell (breachers fire their rocket at it instead).
       if (breaching && !profile.rocket) {
@@ -221,7 +270,7 @@ export class BastionEnemies {
         const near = this.nearestStructure(p, STRIKE_REACH);
         // Wide objectives are struck from their surface, not their centre.
         const objReach = STRIKE_REACH + Math.max(0, Math.max(obj.half[0], obj.half[2]) - 1);
-        if (distObj <= objReach && obj.hp > 0 && this.visible(p, objPoint)) {
+        if ((distObj <= objReach || arrived) && obj.hp > 0 && this.visible(p, objPoint)) {
           p.npcAttack = 'strike';
           if (e.now >= ai.strikeAt) { obj.takeDamage(profile.objectiveHit, false, p); ai.strikeAt = e.now + STRIKE_MS; p.firing = true; }
         } else if (near) {
@@ -230,6 +279,8 @@ export class BastionEnemies {
         }
       }
       if (p.npcRole === 'brute') this.slam(p, profile, target, obj, distObj, breaching);
+      // Rushers strike the objective or a structure without holding it as a target: that is contact too.
+      if (p.npcAttack === 'strike' || p.npcAttack === 'slam') ai.engagedAt = e.now;
       // Rocket profiles keep the breach cell as a target so the rocket branch below fires at it.
       if (!target || (targetId === 'breach' && !profile.rocket) || Math.abs(wrapAngle(angles.yaw - p.yaw)) > 0.15 || e.now - ai.seenAt < 600) continue;
       if (p.npcRole === 'brute' && (!target.defender || target.distance < 4 || target.distance > 10)) continue;

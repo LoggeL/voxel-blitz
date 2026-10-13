@@ -6,6 +6,10 @@ export const BASTION_RULES = Object.freeze({
   spawnIntervalMs: 3000, warningMs: 5000, groupSize: 3, vehicleIntervalMs: 9000,
   repairMs: 4000, repairRadius: 3, repairHp: 200, repairPrice: 150, repairLimit: 2,
   extractGraceMs: 30000, buildRadius: 6, breachStallMs: 4000,
+  // Straggler failsafe: mark the last few hostiles, withdraw the ones out of contact, then all of them.
+  straggleCount: 3, straggleRevealMs: 15000, straggleWithdrawMs: 45000, waveStallMs: 90000, engageGraceMs: 5000,
+  straggleForceMs: 60000,
+  npcStuckMs: 6000, npcStuckMove: 0.75, vehicleRetryMs: 4000,
   build: Object.freeze({ barricadeVoxels: 48, turrets: 2, crates: 1 }),   // per stage
 });
 // Column order of every wave row = queue round-robin order = size order for

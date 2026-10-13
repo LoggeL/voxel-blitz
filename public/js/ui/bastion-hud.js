@@ -21,6 +21,41 @@ export function bastionVehicleSummary(vehicles) {
   return [...counts].map(([k, n]) => `${k} ×${n}`).join(' · ');
 }
 
+/** Banner copy for the bastion events that deserve a 4 s HUD read; null for the rest. */
+export function bastionEventBanner(event) {
+  const name = role => BASTION_ENEMIES[role]?.name || String(role || '').toUpperCase();
+  switch (event?.kind) {
+    // `kind` is the event id on the wire; the unit kind travels as `type` (BastionPolicy.emit).
+    case 'bastion_vehicle': return event.phase === 'spawn' ? `VEHICLE INBOUND · ${name(event.type ?? event.vehicle ?? event.role)}` : null;
+    case 'bastion_tier': return `${name(event.role)} SIGHTED`;
+    case 'bastion_breach': return 'BREACH AT THE LINE';
+    case 'bastion_structure': return event.destroyed ? 'STRUCTURE LOST' : null;
+    case 'bastion_regroup': return event.next?.name ? `FALL BACK TO ${event.next.name}` : null;
+    case 'bastion_extract': return 'EXTRACTION CALLED · HOLD THE BEACON';
+    case 'bastion_stragglers': return 'LAST HOSTILES MARKED';
+    case 'bastion_withdraw': {
+      const n = Number.isFinite(event.count) ? event.count : event.ids?.length;
+      return n > 0 ? `${n} ${n === 1 ? 'HOSTILE' : 'HOSTILES'} WITHDREW` : null;
+    }
+    default: return null;
+  }
+}
+
+/**
+ * Server clock of the next straggler withdrawal (the countdown, then the forced
+ * deadline for marked hostiles still fighting) while it is ahead (hold rows only), else null.
+ */
+export function bastionWithdrawClock(match, now) {
+  const b = match?.bastion, at = b?.withdrawAt;
+  return match?.phase === 'live' && b?.stage?.kind !== 'extract' && Number.isFinite(at) && at > now ? at : null;
+}
+
+/** Marker text for a revealed straggler: `‹ RUNNER · 38 m` at the screen edge, `◇ RUNNER · 38 m` in view. */
+export function bastionStragglerLabel(kind, meters, edge, side) {
+  const name = BASTION_ENEMIES[kind]?.name || String(kind || '').toUpperCase();
+  return `${edge ? (side === 'left' ? '‹' : '›') : '◇'} ${name} · ${Math.round(meters)} m`;
+}
+
 /**
  * @param {object} m         MatchHud dom bag
  * @param {object} match     match snapshot (mode bastion)
@@ -53,8 +88,12 @@ export function updateBastionHud(m,match,self,now,ctx={}) {
   } else label=`STAGE ${stageNo} / ${stageCount} · ${stageName} · WAVE ${stageWave} / ${waves}`;
   if(!extract||phase!=='live') m.phaseLabel.classList.remove('vb-bastion-urgent');
   m.phaseLabel.textContent=label;m.phaseLabel.dataset.compact=label;
-  m.clock.style.display=BASTION_BREAK_PHASES.includes(phase)?'block':'none';
-  m.clock.textContent=`${Math.max(0,Math.ceil((match.phaseEndsAt-now)/1000))}s`;
+  // Breaks count down to the next wave; a live hold row counts down to the straggler withdrawal.
+  const withdrawAt=bastionWithdrawClock(match,now), endsAt=BASTION_BREAK_PHASES.includes(phase)?match.phaseEndsAt:withdrawAt;
+  m.clock.style.display=endsAt!=null?'block':'none';
+  m.clock.textContent=`${Math.max(0,Math.ceil((endsAt-now)/1000))}s`;
+  m.clock.classList.toggle('vb-clock-urgent',withdrawAt!=null&&withdrawAt-now<=10000);
+  const marked=phase==='live'&&b.stragglers?.length?` · ${b.stragglers.length} HOSTILES MARKED`:'';
   m.bombBanner.style.display='block';
   const laneName=bastionLaneName(ctx.laneNames,stage?.lane||b.lanes?.[0]);
   const repairStatus=bastionRepairStatus(match,self);
@@ -63,7 +102,7 @@ export function updateBastionHud(m,match,self,now,ctx={}) {
   const transient=ctx.banner&&ctx.banner.until>localNow?ctx.banner.text:null;
   m.bombBanner.textContent=waiting?'JOINING AT NEXT BREAK':b.returnAt?`EMERGENCY RETURN · ${Math.max(0,Math.ceil((b.returnAt-now)/1000))}s`
     :transient?transient
-    :phase==='post'?stageName:phase==='live'?`${laneName} BREACH${b.supply?.active&&!self?.bastion?.supplyUsed?' · SUPPLY OPEN':''}`
+    :phase==='post'?stageName:phase==='live'?`${laneName} BREACH${b.supply?.active&&!self?.bastion?.supplyUsed?' · SUPPLY OPEN':''}${marked}`
     :repairStatus==='ok'?`HOLD ${bindingLabel('interact')} TO REPAIR ($${BASTION_RULES.repairPrice})`
     :repairStatus==='limit'?`REPAIRS USED · ${BASTION_RULES.repairLimit} PER BREAK`
     :repairStatus==='credits'?`REPAIR NEEDS $${BASTION_RULES.repairPrice}`

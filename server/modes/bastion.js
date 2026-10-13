@@ -49,7 +49,7 @@ export class BastionPolicy {
     this.repairs = 0; this.repair = null; this.ready = new Set(); this.queue = [];
     this.killed = 0; this.total = 0; this.waveTeam = 0; this.plan = null; this.rowId = null;
     this.holdEndsAt = null; this.transition = null; this.held = []; this.tierSeen.clear(); this.fuses.length = 0;
-    this.nextSpawnAt = 0; this.nextVehicleAt = 0;
+    this.nextSpawnAt = 0; this.nextVehicleAt = 0; this.clearStragglers();
     this.matchWinner = null; this.reason = null; this.returnAt = null; this.returnId = null;
     this.soloAvailable = true; this.soloUsed = false; this.supplyUsed = new Set();
     this.active.clear(); this.engine.npcs.clear(); this.clearHazards();
@@ -65,7 +65,7 @@ export class BastionPolicy {
   setStage(i) {
     const stage = this.layout.stages[i]; if (!stage) return;
     if (this.objective) this.engine.objectives.delete(this.objective.id);
-    this.stageIndex = i; this.stage = stage; this.stageWave = 0;
+    this.stageIndex = i; this.stage = stage; this.stageWave = 0; this.clearStragglers();
     this.objective = this.buildObjective(stage.objective);
     this.engine.objectives.set(this.objective.id,this.objective);
     this.ai.nav.goal = this.objective; this.ai.nav.version = -1;
@@ -111,7 +111,7 @@ export class BastionPolicy {
   }
   onPlayerDeath(p) {
     if (p.npcRole) {
-      p.respawnAt = this.now + 1800; this.killed++;
+      p.respawnAt = this.now + 1800; this.killed++; this.progressAt = this.now;
       if (p.npcVehicle) {
         this.ai.dropTroops(p);
         this.emit('bastion_vehicle',{id:p.id,kind:p.npcRole,pos:[p.x,p.y,p.z],phase:'destroyed'});
@@ -222,6 +222,7 @@ export class BastionPolicy {
       if (held) { this.finish(true,'extracted'); return; }
       if (this.now >= this.holdEndsAt + R.extractGraceMs) { this.finish(false,'missed'); return; }
     }
+    if (this.stage.kind === 'hold') this.straggleTick();
     if (!this.queue.length && !this.aliveEnemies().length && !this.returnAt) {
       if (this.stage.kind === 'hold') {
         this.credits += bastionReward(this.wave);
@@ -239,9 +240,42 @@ export class BastionPolicy {
     }
   }
   aliveEnemies() { return [...this.engine.npcs.values()].filter(p=>p.state === 'alive'); }
+  clearStragglers() { this.straggleSince = null; this.withdrawAt = null; this.forceAt = null; this.revealed = new Set(); this.progressAt = this.now; }
+  /**
+   * Hold-row failsafe: the last few hostiles (or every hostile after a stall without kills
+   * or spawns) are marked, and after the countdown the ones out of contact withdraw;
+   * straggleForceMs later every marked hostile withdraws, fighting or not.
+   */
+  straggleTick() {
+    const alive = this.aliveEnemies();
+    const few = !this.queue.length && alive.length > 0 && alive.length <= R.straggleCount;
+    if (few) this.straggleSince ??= this.now; else this.straggleSince = null;
+    const stalled = alive.length > 0 && this.now - this.progressAt >= R.waveStallMs;
+    if (this.withdrawAt === null && ((few && this.now - this.straggleSince >= R.straggleRevealMs) || stalled)) {
+      this.withdrawAt = this.now + R.straggleWithdrawMs; this.revealed = new Set(alive.map(n=>n.id));
+      this.emit('bastion_stragglers',{count:alive.length,withdrawAt:this.withdrawAt});
+    }
+    if (this.withdrawAt === null) return;
+    if (this.now >= this.withdrawAt) {
+      this.forceAt ??= this.withdrawAt + R.straggleForceMs;
+      const forced = this.now >= this.forceAt;
+      const gone = alive.filter(n=>this.revealed.has(n.id) && (forced || this.now - (n.ai?.engagedAt || 0) >= R.engageGraceMs));
+      if (gone.length) this.withdraw(gone);
+    }
+    // Every marked hostile is gone (killed or withdrawn): drop the clock so the HUD stops counting down.
+    if (![...this.revealed].some(id=>this.engine.npcs.get(id)?.state === 'alive')) {
+      this.withdrawAt = null; this.forceAt = null; this.revealed.clear(); this.straggleSince = null; this.progressAt = this.now;
+    }
+  }
+  /** Remove NPCs without a kill: no feed entry, no score, no troop drop. Frees their cap slots. */
+  withdraw(list) {
+    // An APC that never dropped its troops also settles them, so `killed` can still reach `total`.
+    for (const n of list) { this.engine.npcs.delete(n.id); this.killed += 1 + (n.route && !n.route.dropped ? BASTION_ENEMIES[n.npcRole].drop?.count ?? 0 : 0); }
+    this.emit('bastion_withdraw',{count:list.length,ids:list.map(n=>n.id)});
+  }
   /** Queue the next row of the current stage: round-robin over roles, vehicles behind the infantry. */
   startWaveRow() {
-    this.wave++; this.stageWave++; this.round = this.wave; this.waveTeam = this.active.size;
+    this.wave++; this.stageWave++; this.round = this.wave; this.waveTeam = this.active.size; this.clearStragglers();
     const rowId = this.stage.waves[this.stageWave-1] ?? this.stage.loop ?? this.stage.waves.at(-1);
     this.plan = bastionWave(rowId,this.waveTeam); this.rowId = rowId;
     this.total = this.plan.total + this.plan.counts[APC] * BASTION_ENEMIES.apc.drop.count; this.killed = 0;
@@ -285,7 +319,7 @@ export class BastionPolicy {
   beginSupply(transition = null) {
     this.phase = 'supply'; this.prep++; this.startedAt = this.now; this.transition = transition;
     this.phaseEndsAt = this.now + (transition === 'regroup' ? R.regroupMs : R.supplyMs);
-    this.ready.clear(); this.repairs = 0; this.repair = null; this.armorBought = false;
+    this.ready.clear(); this.repairs = 0; this.repair = null; this.armorBought = false; this.clearStragglers();
     this.engine.npcs.clear(); this.clearHazards(); this.structures.refillAll();
     for (const p of this.engine.entities.values()) {
       const armor = this.active.has(p.id) && p.state === 'alive' ? p.armor : 0;
@@ -299,7 +333,7 @@ export class BastionPolicy {
   finish(won,reason) {
     if (this.phase === 'post') return;
     this.phase = 'post'; this.phaseEndsAt = null; this.matchWinner = won ? 'alpha' : 'bravo';
-    this.reason = reason; this.repair = null; this.returnAt = null;
+    this.reason = reason; this.repair = null; this.returnAt = null; this.clearStragglers();
     this.clearHazards(); for (const p of this.engine.entities.values()) this.clearInput(p);
     this.emit('match_end',{mode:this.mode,winner:this.matchWinner,reason,wave:this.wave,stage:this.stageIndex});
   }
@@ -386,7 +420,8 @@ export class BastionPolicy {
         credits:this.availableCredits(),upgrades:{...this.upgrades},armorBought:this.armorBought,repairs:this.repairs,
         ready:this.ready.size,defenders:this.active.size,soloAvailable:this.soloAvailable&&!this.soloUsed,returnAt:this.returnAt,
         supply:{...point(stage.supply),active:this.phase==='live'&&this.killed>=Math.ceil(this.total/2)},
-        lanes:[stage.lane],reason:this.reason,warningUntil:this.nextSpawnAt||0,
+        lanes:[stage.lane],reason:this.reason,warningUntil:this.nextSpawnAt||0,withdrawAt:this.forceAt ?? this.withdrawAt,
+        stragglers:this.withdrawAt === null ? [] : alive.filter(n=>this.revealed.has(n.id)).map(n=>({id:n.id,kind:n.npcRole,...point(n)})),
         structures:this.structures.rows(),budget:this.structures.budget(),
         vehicles:alive.filter(v=>v.npcVehicle).map(v=>({id:v.id,kind:v.npcRole}))}};
   }

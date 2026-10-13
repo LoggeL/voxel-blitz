@@ -75,7 +75,7 @@ function press(key, extra = {}) {
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
 const { bindingLabel } = await import('../public/js/keybindings.js');
-const { updateBastionHud, bastionVehicleSummary, bastionLaneName } = await import('../public/js/ui/bastion-hud.js');
+const { updateBastionHud, bastionVehicleSummary, bastionLaneName, bastionWithdrawClock, bastionStragglerLabel, bastionEventBanner } = await import('../public/js/ui/bastion-hud.js');
 const { structureBudget } = await import('../public/js/ui/bastion-armory.js');
 const { BuyMenuController } = await import('../public/js/ui/buy-menu.js');
 
@@ -147,7 +147,36 @@ const { BuyMenuController } = await import('../public/js/ui/buy-menu.js');
   m = hud(match('post'), self(1));
   assert.equal(m.phaseLabel.textContent, 'RUN COMPLETE');assert.equal(m.bombBanner.textContent, 'REACTOR');
   assert.equal(hud(match('prep'), self(2), { banner: { text: 'STRUCTURE LOST', until: 1 } }).bombBanner.textContent, 'STRUCTURE LOST');
-  console.log('ok: Bastion HUD phase labels and authoritative repair prompt');
+  // Straggler failsafe: the live clock counts down to the withdrawal, never the stale phaseEndsAt.
+  m = hud(match('live', { withdrawAt: 40000 }), self(1));
+  assert.equal(m.clock.style.display, 'block');assert.equal(m.clock.textContent, '30s');assert.equal(m.clock.classList.contains('vb-clock-urgent'), false);
+  assert(hud(match('live', { withdrawAt: 15000 }), self(1)).clock.classList.contains('vb-clock-urgent'), 'last ten seconds are urgent');
+  m = hud(match('live'), self(1));assert.equal(m.clock.style.display, 'none', 'no live clock without a withdrawal');
+  m.clock.classList.add('vb-clock-urgent');updateBastionHud(m, match('live'), self(1), 10000, { localNow: 0 });
+  assert.equal(m.clock.classList.contains('vb-clock-urgent'), false, 'urgency clears every update');
+  assert.equal(hud(match('live', { withdrawAt: 5000 }), self(1)).clock.style.display, 'none', 'a passed withdrawal hides the clock');
+  assert.equal(hud(match('live', { stragglers: [{ id: 'n1', kind: 'breacher' }] }), self(1)).bombBanner.textContent, 'NORTH GATE BREACH · 1 HOSTILES MARKED');
+  m = hud(match('supply', { withdrawAt: 40000 }), self(5));assert.equal(m.clock.style.display, 'block');assert.equal(m.clock.textContent, '10s', 'breaks keep the phase clock');
+  m = hud(match('live', { stage: extract, withdrawAt: 40000 }), self(1));assert.equal(m.clock.style.display, 'none', 'extraction ignores withdrawals');
+  assert.equal(bastionWithdrawClock(match('live', { stage: extract, withdrawAt: 40000 }), 10000), null);
+  assert.equal(bastionWithdrawClock(match('live', { withdrawAt: 40000 }), 10000), 40000);
+  assert.equal(bastionStragglerLabel('juggernaut', 38.4, true, 'left'), '‹ JUGGERNAUT · 38 m');
+  assert.equal(bastionStragglerLabel('runner', 7.6, true, 'right'), '› RUNNER · 8 m');
+  assert.equal(bastionStragglerLabel('apc', 12, false, 'left'), '◇ APC · 12 m');
+  // Event banners (main.js routes every bastion_* event through bastionEventBanner).
+  assert.equal(bastionEventBanner({ kind: 'bastion_stragglers', count: 2, withdrawAt: 40000 }), 'LAST HOSTILES MARKED');
+  assert.equal(bastionEventBanner({ kind: 'bastion_withdraw', count: 2, ids: ['n1', 'n2'] }), '2 HOSTILES WITHDREW');
+  assert.equal(bastionEventBanner({ kind: 'bastion_withdraw', count: 1, ids: ['n1'] }), '1 HOSTILE WITHDREW');
+  assert.equal(bastionEventBanner({ kind: 'bastion_withdraw', ids: ['n1', 'n2', 'n3'] }), '3 HOSTILES WITHDREW', 'ids back up a missing count');
+  assert.equal(bastionEventBanner({ kind: 'bastion_withdraw' }), null, 'never an undefined count');
+  assert.equal(bastionEventBanner({ kind: 'bastion_vehicle', phase: 'spawn', type: 'apc' }), 'VEHICLE INBOUND · APC');
+  assert.equal(bastionEventBanner({ kind: 'bastion_vehicle', phase: 'destroyed', type: 'apc' }), null);
+  assert.equal(bastionEventBanner({ kind: 'bastion_regroup', next: { name: 'CAUSEWAY' } }), 'FALL BACK TO CAUSEWAY');
+  assert.equal(bastionEventBanner({ kind: 'bastion_lane' }), null);
+  // After the countdown, marked hostiles still fighting count down to the forced deadline on the same clock.
+  m = hud(match('live', { withdrawAt: 70000, stragglers: [{ id: 'n1', kind: 'runner' }] }), self(1));
+  assert.equal(m.clock.style.display, 'block');assert.equal(m.clock.textContent, '60s');
+  console.log('ok: Bastion HUD phase labels, authoritative repair prompt, straggler countdown and event banners');
 }
 {
   // Tab moves focus exactly one control, selects included, however often the
@@ -187,5 +216,24 @@ const { BuyMenuController } = await import('../public/js/ui/buy-menu.js');
     assert.equal(document.listeners.length, 0);document.body.textContent = '';document.activeElement = null;
   }
   console.log('ok: armory Tab order across snd/ttt/bastion rebuilds');
+}
+{
+  // Straggler markers: one per revealed hostile, from the presented body when the roster has it, hidden off the live row.
+  const THREE = await import('../public/js/vendor/three.module.js');
+  const { BastionStragglers } = await import('../public/js/ui/bastion-stragglers.js');
+  Object.assign(globalThis.window, { innerWidth: 1280, innerHeight: 720 });
+  const camera = new THREE.PerspectiveCamera(70, 1280 / 720, 0.1, 500);camera.position.set(0, 1.6, 0);camera.lookAt(0, 1.6, -10);
+  const stragglers = [{ id: 'n1', kind: 'runner', x: 0, y: 0.4, z: -20 }, { id: 'n2', kind: 'juggernaut', x: 0, y: 0.4, z: 30 }];
+  const game = { running: true, camera, hud: { isBuyMenuOpen: () => false }, roster: { positionOf: id => id === 'n2' ? { x: -30, y: 0.4, z: 0 } : null },
+    matchState: { mode: 'bastion', phase: 'live', bastion: { stragglers } } };
+  const view = new BastionStragglers();view.update(game);
+  assert.equal(view.root.hidden, false);assert.equal(view.markers.length, 2);
+  assert.equal(view.markers[0].textContent, '◇ RUNNER · 20 m', 'in view: server position');
+  assert.equal(view.markers[1].textContent, '‹ JUGGERNAUT · 30 m', 'off screen left: presented body position');
+  game.matchState = { ...game.matchState, bastion: { stragglers: [stragglers[0]] } };view.update(game);
+  assert.equal(view.markers[1].hidden, true, 'a withdrawn straggler loses its marker');
+  game.matchState = { ...game.matchState, phase: 'supply' };view.update(game);assert.equal(view.root.hidden, true);
+  view.dispose();assert.equal(document.body.querySelector('#bastion-stragglers'), null);
+  console.log('ok: straggler markers follow the revealed hostiles');
 }
 console.log('Bastion UI tests passed');

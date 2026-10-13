@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
 import { getMapMeta, createMapState, BARRICADE, AIR } from '../shared/worlddata.js';
-import { GROUND, BEDROCK, isSolidBlock } from '../shared/world/blocks.js';
+import { GROUND, BEDROCK, METAL, isSolidBlock } from '../shared/world/blocks.js';
+import { boxCollides } from '../shared/player-movement.js';
 import { BASTION_RULES as R, BASTION_ROLES, BASTION_ENEMIES, BASTION_WAVES, BASTION_FACTORS, BASTION_VEHICLE_FACTORS,
   BASTION_CAPS, BASTION_SHOP, BASTION_RELOAD_MULT, bastionWeaponDef, bastionWave, bastionReward, bastionPurchaseId, parseBastionPurchase, bastionRepairAvailable,
   bastionRepairStatus } from '../shared/bastion.js';
@@ -517,5 +518,177 @@ for(const map of PVE){
   assert.equal(bastionWeaponDef({}, WEAPONS.rifle), WEAPONS.rifle);
   assert.ok(BASTION_SHOP.reload.description.startsWith(`${Math.round((1 - BASTION_RELOAD_MULT) * 100)}% faster`));
   console.log('ok: FAST RELOAD text and reload timings share BASTION_RELOAD_MULT');
+}
+{
+  // Stuck enemies (docs/pve-bastion.md, Gegner): validated spawns, the stuck watchdog, the crater hop and the tower ring end.
+  const mulberry=seed=>()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+  const embedded=(e,q,y=G+1.02)=>boxCollides(e.solidAt,q.x,y,q.z);
+  const onField=(m,q)=>m.ai.nav.dist[Math.floor(q.z)*m.ai.nav.sx+Math.floor(q.x)]>=0;
+  const PARK={x:100,y:G+11.02,z:20};
+  const pinned=(e,m,ms,each=()=>{})=>{for(let at=0;at<ms;at+=50){each();e.step(50);m.objective.hp=m.objective.maxHp;}};
+  for(const map of PVE){
+    // Every jittered spawn and APC drop fits the whole body on a reachable floor cell.
+    const {e,m}=make(1,map);m.ai.rng=mulberry(7);
+    for(const [i,s] of m.layout.stages.entries()){
+      m.setStage(i);
+      for(const sp of s.spawns)for(let k=0;k<2000;k++){const q=m.ai.jitterSpawn(sp);assert(!embedded(e,q)&&onField(m,q),`${map} ${s.id} spawn ${sp.x},${sp.z} -> ${q.x.toFixed(2)},${q.z.toFixed(2)}`);}
+      const route=s.vehicleRoute;
+      for(let r=1;r<route.length;r++){
+        const a=route[r-1],c=route[r],len=Math.hypot(c.x-a.x,c.z-a.z),f=fwd(aimAngles([a.x,0,a.z],[c.x,0,c.z]).yaw);
+        for(let t=0;t<=len;t+=0.5){
+          const base={x:a.x+(c.x-a.x)*t/len-f.x*3,z:a.z+(c.z-a.z)*t/len-f.z*3};
+          for(let k=0;k<200;k++){const q=m.ai.jitterSpawn(base);assert(!embedded(e,q)&&onField(m,q),`${map} ${s.id} drop ${base.x.toFixed(1)},${base.z.toFixed(1)} -> ${q.x.toFixed(2)},${q.z.toFixed(2)}`);}
+        }
+      }
+    }
+    e.stop();
+  }
+  {
+    // The diagnosed candidate: 1.8 m west of the pump spawn the body overlaps the chamber baffle.
+    const {e,m}=make(1,'causeway');m.setStage(1);
+    const bad={x:128.2,z:25};assert(embedded(e,bad),'the diagnosed point is embedded');
+    const seq=[0.2,0.5],rest=mulberry(3);m.ai.rng=()=>seq.length?seq.shift():rest();
+    const q=m.ai.jitterSpawn({x:130,z:25});assert(!(q.x===bad.x&&q.z===bad.z)&&!embedded(e,q),`rejected ${JSON.stringify(q)}`);e.stop();
+  }
+  {
+    // A runner placed inside the baffle (bypassing the jitter) is relocated by the watchdog and reaches the pump.
+    const {e,m,p}=make(1,'causeway');protect(p);Object.assign(p,PARK);m.setStage(1);m.startWave();m.queue=[];
+    const r=m.ai.spawnAt('runner',1,{x:128.2,z:25});assert(embedded(e,r,r.y));
+    pinned(e,m,R.npcStuckMs+1000);
+    assert(!embedded(e,r,r.y)&&Math.hypot(r.x-128.2,r.z-25)>2,`watchdog freed the runner: ${[r.x,r.y,r.z].map(n=>n.toFixed(2))}`);assert(r.ai.unstuck>=1);
+    let near=false;for(let at=0;at<30000&&!near;at+=50){pinned(e,m,50);near=Math.hypot(r.x-m.objective.x,r.z-m.objective.z)<4;}
+    assert(near,`freed runner reaches the pump: ${r.x.toFixed(1)},${r.z.toFixed(1)}`);e.stop();
+  }
+  {
+    // Soak: 30 seeded runners per Causeway hold stage all leave their spawn.
+    const L=layoutOf('causeway');
+    for(const [i,s] of L.stages.entries()){
+      if(s.kind!=='hold')continue;
+      const {e,m,p}=make(1,'causeway');protect(p);Object.assign(p,PARK);m.ai.rng=mulberry(11+i);m.setStage(i);m.startWave();m.queue=[];
+      const runners=Array.from({length:30},(_,k)=>{const n=m.ai.spawn('runner',i,k);return {n,x:n.x,z:n.z};});
+      pinned(e,m,20000,()=>Object.assign(p,PARK));
+      for(const {n,x,z} of runners)assert(Math.hypot(n.x-x,n.z-z)>=3,`causeway ${s.id} runner left ${x.toFixed(1)},${z.toFixed(1)}: ${n.x.toFixed(1)},${n.z.toFixed(1)}`);
+      e.stop();
+    }
+  }
+  {
+    // A runner inside a blown 3x3 crater hops out and reaches the generator.
+    const {e,m,p}=make(1,'causeway');protect(p);Object.assign(p,PARK);
+    const hole=[];for(let x=158;x<=160;x++)for(let z=79;z<=81;z++)hole.push([x,G,z]);seal(e,hole,AIR);
+    m.startWave();m.queue=[];const r=m.ai.spawnAt('runner',0,{x:159.5,y:G+0.02,z:80.5});
+    pinned(e,m,20000,()=>Object.assign(p,PARK));
+    const d=Math.hypot(r.x-m.objective.x,r.z-m.objective.z);
+    assert(r.y>=G+0.9&&d<4,`crater runner climbed out: y ${(r.y-G).toFixed(2)} dist ${d.toFixed(1)}`);e.stop();
+  }
+  {
+    // The tower ring is METAL: a runner stops at the ring's end and still strikes.
+    const {e,m,p}=make(1,'causeway');protect(p);Object.assign(p,PARK);m.setStage(3);m.startWave();m.queue=[];
+    const r=m.ai.spawnAt('runner',3,{x:52.5,z:72.5});r.ai.drift=0;let hp=m.objective.hp;
+    for(let at=0;at<20000;at+=50){Object.assign(p,PARK);e.step(50);}
+    assert(m.objective.hp<hp,`tower runner struck from ${r.x.toFixed(2)},${r.z.toFixed(2)} (${r.npcAttack})`);e.stop();
+  }
+  {
+    // A vehicle parked by a hard stall re-probes and drives on once the way is clear.
+    const {e,m,p}=make(1,'causeway');protect(p);Object.assign(p,PARK);m.startWave();m.queue=[];
+    const wall=[];for(const x of [166,167])for(let z=50;z<=70;z++)for(const y of [G+1,G+2])if(e.world.getBlock(x,y,z)===AIR)wall.push([x,y,z]);
+    seal(e,wall,METAL);const v=m.ai.spawn('buggy',0,0);
+    for(let at=0;at<20000&&!v.route.stuck;at+=50){Object.assign(p,PARK);e.step(50);}
+    assert(v.route.stuck&&v.route.parked,`buggy parked by the metal wall at ${v.x.toFixed(1)},${v.z.toFixed(1)}`);
+    seal(e,wall,AIR);const x=v.x,z=v.z;
+    pinned(e,m,R.vehicleRetryMs+1000,()=>Object.assign(p,PARK));
+    assert(Math.hypot(v.x-x,v.z-z)>1&&v.route.parked===false,`buggy drove on: ${v.x.toFixed(1)},${v.z.toFixed(1)} parked ${v.route.parked}`);e.stop();
+  }
+  console.log('ok: body-clear spawns and drops, stuck watchdog, crater hop, tower ring strike and vehicle retry');
+}
+{
+  // Straggler failsafe (docs/pve-bastion.md, Nachzügler): mark, count down, withdraw without a kill.
+  const CHAMBER={x:179,y:G+1.02,z:72},PARK={x:100,y:G+11.02,z:20};
+  const setup=()=>{const h=make(1,'causeway');protect(h.p);Object.assign(h.p,PARK);h.m.startWave();h.m.queue=[];return h;};
+  const pin=n=>Object.assign(n,{...CHAMBER,vx:0,vy:0,vz:0});
+  const run=(h,ms,each=()=>{})=>{for(let at=0;at<ms&&h.m.phase==='live';at+=50){each();Object.assign(h.p,PARK);h.e.step(50);}};
+  {
+    const h=setup(),{e,m,p}=h,credits=m.credits,kills=p.kills;
+    const n=m.ai.spawnAt('runner',0,CHAMBER);
+    run(h,50,()=>pin(n));assert(m.straggleSince!==null,'one hostile left starts the straggler clock');const since=m.straggleSince;
+    run(h,R.straggleRevealMs-200,()=>pin(n));assert.equal(m.withdrawAt,null,'no marks during the grace');
+    run(h,400,()=>pin(n));assert(m.withdrawAt!==null,'marked after the grace');
+    const reveal=m.withdrawAt-R.straggleWithdrawMs;assert(reveal-since>=R.straggleRevealMs&&reveal-since<R.straggleRevealMs+100,`reveal at ${reveal-since}`);
+    const row=m.matchSnapshot().bastion;assert.equal(row.withdrawAt,m.withdrawAt);
+    assert.equal(row.stragglers.length,1);assert.equal(row.stragglers[0].id,n.id);assert.equal(row.stragglers[0].kind,'runner');
+    assert(Number.isFinite(row.stragglers[0].x)&&Number.isFinite(row.stragglers[0].z));
+    run(h,100,()=>pin(n));assert(h.seen('bastion_stragglers').some(ev=>ev.count===1&&ev.withdrawAt===m.withdrawAt),'reveal event');
+    run(h,R.straggleWithdrawMs,()=>pin(n));
+    assert.equal(e.npcs.has(n.id),false,'the straggler withdrew');assert(h.seen('bastion_withdraw').some(ev=>ev.count===1&&ev.ids.includes(n.id)));
+    // The client banner reads the wire events as emitted.
+    const { bastionEventBanner }=await import('../public/js/ui/bastion-hud.js');
+    assert.equal(bastionEventBanner(h.seen('bastion_stragglers')[0]),'LAST HOSTILES MARKED');
+    assert.equal(bastionEventBanner(h.seen('bastion_withdraw')[0]),'1 HOSTILE WITHDREW');
+    assert.equal(m.phase,'supply');assert.equal(m.credits,credits+bastionReward(1),'the wave reward still pays');
+    assert.equal(p.kills,kills,'no kill credit');assert.equal(h.seen('kill').some(ev=>ev.victim===n.id),false,'no kill feed entry');e.stop();
+  }
+  {
+    // An engaged hostile is never withdrawn; once out of contact for engageGraceMs it is.
+    const h=setup(),{e,m}=h,n=m.ai.spawnAt('runner',0,CHAMBER);
+    run(h,R.straggleRevealMs+R.straggleWithdrawMs+1000,()=>{pin(n);n.ai.engagedAt=e.now;});
+    assert(m.withdrawAt!==null&&e.now>m.withdrawAt&&e.npcs.has(n.id)&&m.phase==='live','engaged straggler stays');
+    assert.equal(m.matchSnapshot().bastion.stragglers.length,1,'and stays marked');
+    run(h,R.engageGraceMs+200,()=>pin(n));assert.equal(e.npcs.has(n.id),false);assert.equal(m.phase,'supply');e.stop();
+  }
+  {
+    // Driven by the AI: a runner striking the objective is in contact (it never holds the objective as a target),
+    // stays past the countdown, and withdraws at the forced deadline all the same.
+    const h=setup(),{e,m}=h,o=m.objective;
+    const n=m.ai.spawnAt('runner',0,{x:o.x+o.half[0]+0.9,y:G+1.02,z:o.z});let strikes=0;
+    run(h,R.straggleRevealMs+R.straggleWithdrawMs+2000,()=>{o.hp=o.maxHp;if(n.npcAttack==='strike')strikes++;});
+    assert(strikes>100,`runner struck the objective (${strikes} ticks)`);
+    assert(m.withdrawAt!==null&&e.now>m.withdrawAt&&e.npcs.has(n.id)&&m.phase==='live','a striking runner is not withdrawn at the countdown');
+    assert(e.now-n.ai.engagedAt<R.engageGraceMs,'strikes stamp contact');
+    assert.equal(m.forceAt,m.withdrawAt+R.straggleForceMs);assert.equal(m.matchSnapshot().bastion.withdrawAt,m.forceAt,'the HUD clock moves to the forced deadline');
+    run(h,m.forceAt-e.now-200,()=>{o.hp=o.maxHp;});assert(e.npcs.has(n.id)&&m.phase==='live','still fighting before the forced deadline');
+    run(h,400,()=>{o.hp=o.maxHp;});assert.equal(e.npcs.has(n.id),false,'forced withdrawal');assert.equal(m.phase,'supply');e.stop();
+  }
+  {
+    // A brute slamming the objective stamps contact the same way.
+    const h=setup(),{e,m}=h,o=m.objective;
+    const n=m.ai.spawnAt('brute',0,{x:o.x+o.half[0]+0.9,y:G+1.02,z:o.z});let slams=0;
+    run(h,4000,()=>{o.hp=o.maxHp;if(n.npcAttack==='slam')slams++;});
+    assert(slams>0,'brute slammed the objective');assert(e.now-n.ai.engagedAt<R.engageGraceMs,'slams stamp contact');e.stop();
+  }
+  {
+    // No kill and no spawn for waveStallMs: a special blocked by its cap no longer deadlocks the queue.
+    const h=setup(),{e,m,p}=h;assert.equal(m.plan.specialCap,1);
+    const n=m.ai.spawnAt('breacher',0,CHAMBER);m.queue=['breacher'];
+    run(h,R.waveStallMs-500,()=>pin(n));assert.equal(m.withdrawAt,null);assert.deepEqual(m.queue,['breacher'],'the cap holds the queued breacher');
+    run(h,600,()=>pin(n));assert(m.withdrawAt!==null,'stall reveal');assert.equal(m.matchSnapshot().bastion.stragglers[0].kind,'breacher');
+    run(h,R.straggleWithdrawMs+R.spawnIntervalMs+100,()=>pin(n));
+    assert.equal(e.npcs.has(n.id),false);assert.equal(m.queue.length,0,'the queued breacher spawned');
+    const next=m.aliveEnemies();assert.equal(next.length,1);assert.equal(next[0].npcRole,'breacher');assert.equal(m.withdrawAt,null);
+    e.killPlayer(next[0],p,'rifle',false);run(h,100);assert.equal(m.phase,'supply');e.stop();
+  }
+  {
+    // Killing every marked hostile before the countdown ends drops the clock at once.
+    const h=setup(),{e,m,p}=h,a=m.ai.spawnAt('runner',0,CHAMBER),b=m.ai.spawnAt('runner',0,{...CHAMBER,z:58});
+    run(h,R.straggleRevealMs+200,()=>{pin(a);Object.assign(b,{...CHAMBER,z:58,vx:0,vy:0,vz:0});});assert(m.withdrawAt!==null);
+    e.killPlayer(a,p,'rifle',false);run(h,100,()=>Object.assign(b,{...CHAMBER,z:58,vx:0,vy:0,vz:0}));assert(m.withdrawAt!==null,'one marked hostile left keeps the clock');
+    m.queue=['runner'];e.killPlayer(b,p,'rifle',false);run(h,100);
+    assert.equal(m.phase,'live');assert.equal(m.withdrawAt,null,'no marked hostile left: no clock');
+    assert.equal(m.matchSnapshot().bastion.withdrawAt,null);e.stop();
+  }
+  {
+    // A withdrawn APC that never dropped its troops settles them too, so killed still reaches total.
+    const h=setup(),{e,m}=h,before=m.killed,v=m.ai.spawn('apc',0,0);
+    m.withdraw([v]);assert.equal(m.killed,before+1+BASTION_ENEMIES.apc.drop.count);
+    const w=m.ai.spawn('apc',0,0);w.route.dropped=true;m.withdraw([w]);assert.equal(m.killed,before+2+BASTION_ENEMIES.apc.drop.count);e.stop();
+  }
+  {
+    // Extraction keeps its own clock: no marks, no withdrawal.
+    const h=make(1,'causeway'),{e,m,p}=h,L=layoutOf('causeway');protect(p);Object.assign(p,PARK);
+    m.setStage(L.stages.length-1);m.startWave();m.queue=[];const ends=m.holdEndsAt,spot={x:41,y:G+1.02,z:118};
+    const n=m.ai.spawnAt('runner',L.stages.length-1,spot);
+    for(let at=0;at<70000;at+=50){Object.assign(n,{...spot,vx:0,vy:0,vz:0});Object.assign(p,PARK);e.step(50);}
+    assert.equal(m.phase,'live');assert.equal(m.withdrawAt,null);assert.deepEqual(m.matchSnapshot().bastion.stragglers,[]);
+    assert.equal(m.holdEndsAt,ends);assert(e.npcs.has(n.id));e.stop();
+  }
+  console.log('ok: straggler marks, withdrawal countdown, engaged exemption, striking rushers, forced deadline, stall trigger, cap deadlock and extraction exemption');
 }
 console.log('Bastion tests passed');

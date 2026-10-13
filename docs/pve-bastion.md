@@ -64,7 +64,7 @@ weitere Spieler beitreten.
 | Phase | Regel |
 | --- | --- |
 | `prep` | 25 Sekunden vor der ersten Welle; Bewegung, Käufe, Bauen, Reparatur und Bereitschaft. Kein Feuer. |
-| `live` | Die Wellenreihen der aktuellen Stufe; endet erst ohne lebende oder ausstehende Gegner. Kein Kauf, kein Bau. |
+| `live` | Die Wellenreihen der aktuellen Stufe; endet erst ohne lebende oder ausstehende Gegner (oder nach der Nachzügler-Regel). Kein Kauf, kein Bau. |
 | `supply` | 20 Sekunden nach jeder gehaltenen Welle, 30 Sekunden als Rückzug (`transition: 'regroup'`) nach der letzten Welle einer Stufe. Käufe, Bauen und Reparatur. |
 | `post` | Ergebnis bis zur Bestätigung der Fortsetzung (Rundenabstimmung), danach fünf Sekunden Countdown und ein frischer Lauf. |
 
@@ -85,6 +85,22 @@ Pause. Läuft der Timer ab, gewinnt das Team, sobald das Beacon lebt und
 mindestens ein lebender aktiver Verteidiger innerhalb von 8 Metern um das Beacon
 steht. Passiert das 30 Sekunden nach Ablauf nicht, ist das Shuttle weg
 (`missed`).
+
+**Nachzügler.** Eine Haltewelle hängt nie an einzelnen Gegnern fest. Sind keine
+Gegner mehr ausstehend und leben höchstens 3, beginnt eine Schonfrist von 15
+Sekunden; danach markiert das HUD die verbliebenen Gegner (Rolle und Entfernung,
+am Bildrand mit Richtungspfeil, auch für tote und zuschauende Verteidiger), das
+Banner meldet `<Zugang> BREACH · <n> HOSTILES MARKED`, und die Uhr zählt 45
+Sekunden herunter, die letzten 10 rot. Zum selben Countdown führt eine Phase
+von 90 Sekunden ohne getöteten und ohne neu erschienenen Gegner, etwa wenn eine
+Spezialrolle hinter ihrem Limit wartet. Läuft der Countdown ab, ziehen sich alle markierten Gegner zurück, die in
+den letzten 5 Sekunden weder auf einen Verteidiger, einen Bau oder das Ziel
+gezielt, noch zugeschlagen (Läufer, Brute), noch eine Barrikade bearbeitet
+haben; wer noch kämpft, bleibt markiert und zieht sich ab 5 Sekunden ohne
+Kontakt zurück. Die Uhr zählt dann 60 weitere Sekunden herunter; danach ziehen
+sich alle markierten Gegner zurück, auch kämpfende. Ein Rückzug ist kein Abschuss:
+kein Killfeed, keine Punkte, kein APC-Abwurf. Die Wellenbelohnung zahlt normal.
+Die Extraktionsstufe behält ihre eigene Uhr; dort gilt die Regel nie.
 
 Niederlagegründe: `objective` (das aktive Ziel fällt auf 0 HP), `team` (kein
 lebender aktiver Verteidiger und keine ausstehende Solo-Rückkehr), `missed`
@@ -163,13 +179,27 @@ Verteidiger, Zielschaden auf Bauten. Der JUGGERNAUT lässt sich nicht
 unterdrücken, kündigt jede Salve mit einem Anlauf an und nimmt von hinten das
 1,6-Fache.
 
+**Festsitzen.** Ein Spawnpunkt (auch ein APC-Abwurf) gilt nur, wenn der ganze
+Körper frei steht, die Zelle einen festen Boden hat und auf dem
+Navigationsfeld liegt; sonst nimmt der Gegner die freie Zellmitte im Umkreis
+von 3 Metern, die dem Ziel am nächsten liegt. Wer mit den Füßen unter
+Bodenhöhe steht (Krater), springt beim Laufen heraus; 1,4 Meter Sprunghöhe
+reichen nicht über einen Sandsackwall. Will ein Infanterist 6 Sekunden lang
+laufen und kommt keine 0,75 Meter voran, rückt er eine freie Zelle zum Ziel
+vor (diagonal nur mit offener Seite, nie durch eine Wand); steckt sein Körper
+ohne freie Nachbarzelle in einer Wand, erscheint er neu an einem Spawnpunkt der
+Stufe. Am Ende des Zielrings (ein Feldminimum, etwa am Metallsockel des
+Uplink-Turms) bleibt ein Läufer stehen und schlägt von dort zu.
+
 **Fahrzeuge** folgen der Fahrzeugroute ihrer Stufe, halten im Standabstand vor
 dem Ziel und schießen von dort. Sie sind NPC-Einträge mit einem großen
 Trefferkasten (`npcVehicle`), Rumpfdrehung zählt für Treffer nicht. Zerstörbare
 Blöcke und Bauten im Weg werden gerammt (alle 250 ms ein Viertel des
 Rammschadens; ein Barrikadenblock mit 480 HP fällt so nach rund 3 s beim BUGGY,
 1,25 s beim APC und 1 s beim WALKER), Bedrock und Metall werden umfahren; nach
-drei Sekunden Stillstand parkt das Fahrzeug und kämpft von dort. Verteidiger im
+drei Sekunden Stillstand parkt das Fahrzeug, kämpft von dort und prüft alle 4
+Sekunden erneut, solange es fern vom Ziel steht (weiter als Standabstand plus
+zwei Meter). Verteidiger im
 Rumpf nehmen Rammschaden und Rückstoß. Der BUGGY rammt zusätzlich das Zielobjekt. Der APC setzt beim
 ersten Halt, unter halber Lebensenergie oder beim Tod vier Läufer ab (was das
 Limit nicht zulässt, wird vorn in die Warteschlange gestellt). Der WALKER feuert
@@ -333,29 +363,40 @@ der Extraktionsstufe gibt es keine Pause mehr, in der sie zurückkehren könnten
 - Client: `engine/bastion-world.js` und `bastion-structures.js` (Ziele,
   Zugänge, Bauzone, Bauten), `avatar/bastion-avatar.js` und `bastion-vehicle.js`
   (Gegnersilhouetten und Fahrzeuge), `player/build-controller.js` (Baumodus und
-  Geist), `ui/bastion-hud.js` und `bastion-armory.js`.
+  Geist), `ui/bastion-hud.js` (inklusive Rückzugs-Countdown), `bastion-armory.js`
+  und `bastion-stragglers.js` (Markierungen der Nachzügler).
 
 Protokoll: NPC-Zeilen tragen `npcRole`, `npcAttack`, bei Bedarf `npcScale` und
 `npcVehicle`. `match.bastion` liefert `stage` (Index, Anzahl, Name, Art, Welle,
 Übergang, Extraktionsende, Bauzone, nächste Stufe), `core` als Alias des aktiven
-Ziels, `held`, `structures`, `budget`, `vehicles`, `lanes` und `supply`. Käufe
+Ziels, `held`, `structures`, `budget`, `vehicles`, `lanes`, `supply`,
+`withdrawAt` (Serveruhr des nächsten Rückzugs, nach dem Countdown die
+Zwangsfrist, sonst `null`) und `stragglers`
+(`[{id,kind,x,y,z}]`, nur während eines Countdowns). Käufe
 laufen über den bestehenden Buy-Frame mit
 `bastion:<run>:<prep>:<request>:<action>[:item][:<x>:<y>:<z>:<facing>]`; Bauten
 nutzen `build:<kind>:<x>:<y>:<z>:<facing>`. Ereignisse: `bastion_stage`,
 `bastion_regroup`, `bastion_extract`, `bastion_build`, `bastion_structure`,
-`bastion_breach`, `bastion_vehicle`, `bastion_tier` neben den bisherigen.
+`bastion_breach`, `bastion_vehicle`, `bastion_tier`, `bastion_stragglers`
+(`count`, `withdrawAt`) und `bastion_withdraw` (`count`, `ids`) neben den
+bisherigen.
 
 `npm run bastion:test` deckt beide Karten: Wellentabelle und Registry, Käufe und
 Baugrammatik, Bauregeln mit Budget und Rückbau, Durchbruch-KI, Wachturm,
 Fahrzeuge (Fahren, Rammen, Kleinwaffenfaktor, APC-Raketen und Abwurf),
 Zielschaden je Profil, komplette Läufe bis zur Extraktion mit exakter Kasse,
 verpasste Extraktion und Beacon-Verlust, Stufenwechsel, Erreichbarkeit jeder
-Stufe, skalierte Trefferzonen, Layout-Verträge (Zugänge, Routen, Türbreite)
-und die Client-Konstruktion. Der WebSocket-Test prüft Lobby, Kauf, späten
+Stufe, skalierte Trefferzonen, Layout-Verträge (Zugänge, Routen, Türbreite),
+die Client-Konstruktion, freie Spawn- und Abwurfpunkte auf beiden Karten, den
+Festsitz-Wächter, den Kratersprung, den Schlag vom Ende des Turmrings, das
+erneute Anfahren eines Fahrzeugs und die Nachzügler-Regel (Markierung,
+Countdown, Kampfausnahme auch für zuschlagende Läufer und Brutes, Zwangsfrist,
+Stillstand mit Limit-Blockade, keine Wirkung in der Extraktion). Der WebSocket-Test prüft Lobby, Kauf, späten
 Beitritt, vier Plätze, getrennte NPC-Snapshots und einen Sandsackbau auf Causeway.
 `tools/bastion-ui-test.mjs` prüft ohne Browser HUD-Beschriftungen und
-Reparaturhinweis, Baubudgets, das gemeinsame Kauffenster (`buyWindowOpen`) und die
-Tab-Reihenfolge der Versorgung nach Wechseln zwischen den Shop-Modi.
+Reparaturhinweis, Rückzugs-Countdown, Ereignisbanner (`bastionEventBanner`) und
+Nachzügler-Markierungen, Baubudgets,
+das gemeinsame Kauffenster (`buyWindowOpen`) und die Tab-Reihenfolge der Versorgung nach Wechseln zwischen den Shop-Modi.
 Der Fahrzeug-Roster-Test prüft die Client-Darstellung: HP-Balken nach
 Rollen-HP, Motorgeräusch pro Frame und dessen Ende bei Zerstörung, Verlassen
 und Aufräumen, ein Wrack ohne Blut, das nach dem Ausblenden nicht neu entsteht.

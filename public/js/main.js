@@ -11,7 +11,7 @@ import { loadingScreen, formatBytes } from './ui/loading-screen.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
 import { ProgressionTree } from './ui/progression.js';
 import { AccountMenu } from './ui/account-menu.js';
-import { BASTION_ENEMIES, bastionRepairAvailable } from '../../shared/bastion.js';
+import { bastionRepairAvailable } from '../../shared/bastion.js';
 import { FrameRateController } from './engine/frame-rate.js';
 import { WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { decodeConquestPlayer } from '../../shared/conquest-contract.js';
@@ -22,6 +22,7 @@ import { mapCache } from './engine/map-cache.js';
 import { prewarmFrontierMetadata, frontierMetadataPrewarm } from './engine/map-meta-prewarm.js';
 import { Input } from './engine/input.js';
 import { HUD } from './ui/hud.js';
+import { bastionEventBanner } from './ui/bastion-hud.js';
 import { displaySettings } from './ui/display-settings.js';
 import { MAP_LABELS, weaponImagePath } from './ui/hud-support.js';
 import { mapAtmosphere } from './engine/map-atmosphere.js';
@@ -173,7 +174,7 @@ class Game {
           }
           if (event.kind.startsWith('bastion_')) {
             // Transient HUD banners for the tells that need a read before the audio cue.
-            const banner = this.bastionBannerFor(event);
+            const banner = bastionEventBanner(event);
             if (banner) this.hud.bastionBanner(banner);
             sfx.bastionCue(event.kind, event.pos ?? (Number.isFinite(event.x) ? [event.x, event.y, event.z] : null));
             if (event.kind === 'bastion_lane') this.worldview?.bastion?.event?.(event.kind);
@@ -253,21 +254,6 @@ class Game {
   showBuildRefusal(reason) {
     const text = this.rt?.BUILD_REASON_TEXT?.[reason] || 'CANNOT BUILD HERE';
     if (!this.build?.refused?.(reason)) this.hud.bastionBanner?.(text);
-  }
-
-  /** Banner copy for the bastion events that deserve a 4 s HUD read; null for the rest. */
-  bastionBannerFor(event) {
-    const name = role => BASTION_ENEMIES[role]?.name || String(role || '').toUpperCase();
-    switch (event.kind) {
-      // `kind` is the event id on the wire; the unit kind travels as `type` (BastionPolicy.emit).
-      case 'bastion_vehicle': return event.phase === 'spawn' ? `VEHICLE INBOUND · ${name(event.type ?? event.vehicle ?? event.role)}` : null;
-      case 'bastion_tier': return `${name(event.role)} SIGHTED`;
-      case 'bastion_breach': return 'BREACH AT THE LINE';
-      case 'bastion_structure': return event.destroyed ? 'STRUCTURE LOST' : null;
-      case 'bastion_regroup': return event.next?.name ? `FALL BACK TO ${event.next.name}` : null;
-      case 'bastion_extract': return 'EXTRACTION CALLED · HOLD THE BEACON';
-      default: return null;
-    }
   }
 
   resize() {
@@ -757,6 +743,7 @@ class Game {
       nowMs: Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : undefined });
     this.objectiveCues?.syncMatch(match, self?.team, self);
     if (match?.mode === 'ttt') this.tttControls ??= new this.rt.TttControls(this);
+    if (match?.mode === 'bastion') this.bastionStragglers ??= new this.rt.BastionStragglers();
     this.tttControls?.sync(match,self,players);
     this.rig?.setCosmetics(self?.cosmetics);
     this.ownBody?.setCosmetics(self?.cosmetics);
@@ -1409,6 +1396,7 @@ class Game {
 
     const spectating = this.spectator?.active === true;
     this.tttControls?.update();
+    this.bastionStragglers?.update(this);
     this.syncTouchContext();
     this.syncAimAssist(now);
     this.syncDeviceInfo(now);
@@ -1572,6 +1560,7 @@ class Game {
     this.feedback?.dispose();
     this.runHud?.dispose();
     this.tttControls?.dispose();this.tttControls=null;
+    this.bastionStragglers?.dispose(); this.bastionStragglers = null;
     this.killcam?.dispose();
     this.killcam = null;
     this.deathFade?.dispose();

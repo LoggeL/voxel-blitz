@@ -96,6 +96,13 @@ export class BastionNavigation {
     const step = this._descend(this.dist, p);
     return step ? { x: step.x, z: step.z } : null;
   }
+  /** On a terminal of the free-cell field (a seed with no lower neighbour): the end of the objective ring. */
+  arrived(p) {
+    const sx = this.sx, i = Math.floor(p.z) * sx + Math.floor(p.x), d = this.dist?.[i] ?? -1;
+    if (d < 0) return false;
+    for (const n of [i - 1, i + 1, i - sx, i + sx]) { const v = this.dist[n] ?? -1; if (v >= 0 && v < d) return false; }
+    return true;
+  }
   /** Same descent on the breach field; `built` marks a cell that must be breached. */
   breachNext(p) {
     const step = this._descend(this.breachDist, p);
