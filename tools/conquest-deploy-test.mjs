@@ -433,4 +433,53 @@ const inRing = (p, flag) => Math.abs(Math.hypot(p.x - flag.x, p.z - flag.z) - 6)
   assert(median(after) < median(before), `median spawn-to-enemy ${median(after).toFixed(1)} m < old picker ${median(before).toFixed(1)} m`);
 }
 
-console.log('Conquest deploy: respawn gate, flag cells (40 m sight, away from enemy flags, variety), contested/enemy/invalid/seat/busy/cooldown refusals, HQ timeout fallback, squad ring spawn with damage lock and cooldown, vehicle seat deploy, director bots at respawnAt, opening-life squad kit mix, shared deployOptions parity, balanced squads and closer forward spawns passed.');
+// --- deploy before the first spawn (gateDeploy: the lobby gates every human join) ---------------
+{
+  const { game, events, policy } = fixture();
+  game.addBot('bot-0');
+  const bot = game.entities.get('bot-0');
+  const a = human(game, 'p1_alpha'), b = human(game, 'p2_bravo');
+  const tickets = { ...policy.tickets };
+  assert.equal(policy.gateDeploy(bot), false, 'bots are never gated');
+  assert.equal(policy.gateDeploy(a), true);
+  assert.equal(policy.gateDeploy(b), true);
+  for (const p of [a, b]) {
+    assert.equal(p.state, 'dead', 'a gated join waits unspawned');
+    assert.equal(p.deaths, 0, 'unspawned is no death');
+    assert(policy.hqPool(p).some(s => near(s, p, 0.01)), 'held at its HQ');
+  }
+  assert.equal(bot.state, 'alive', 'bots spawn at once');
+  run(game, CONQUEST_RULES.deployTimeoutMs + 2000);
+  assert.equal(a.state, 'dead', 'no spawn without a deploy, and the timeout waits for the first input');
+  assert.deepEqual(policy.tickets, tickets, 'waiting costs no ticket');
+  assert(!events.some(e => (e.kind === 'die' && e.id === a.id) || (e.kind === 'kill' && e.victim === a.id) || e.kind === 'respawn'),
+    'unspawning emits no death or respawn');
+  game.applyInput(a.id, { seq: 1, keys: {} });
+  game.applyInput(b.id, { seq: 1, keys: {} });
+  run(game, 1000);
+  const home = policy.flags.find(f => f.owner === a.team);
+  assert.equal(intent(game, a, `flag:${home.id}`, 'recon'), true, 'the deploy screen accepts an own flag');
+  run(game, 2 * TICK_MS);
+  assert.equal(a.state, 'alive', 'DEPLOY spawns at once (no respawn delay before the first spawn)');
+  assert(inRing(a, home), 'at the chosen flag');
+  assert.equal(decodeConquestPlayer(game.lastSnapshot.players.find(p => p.id === a.id)).kit, 'recon');
+  assert.equal(a.deaths, 0);
+  assert.equal(b.state, 'dead', 'an idle joiner keeps waiting until the deploy timeout');
+  run(game, CONQUEST_RULES.deployTimeoutMs);
+  assert.equal(b.state, 'alive', 'auto-deploy after deployTimeoutMs from the first input');
+  assert(policy.hqPool(b).some(s => near(s, b, 0.01)), 'the timeout deploys at HQ');
+
+  // A rematch holds gated humans on the deploy screen again; bots spawn at HQ at once.
+  policy.reset();
+  for (const p of [a, b]) assert.equal(p.state, 'dead', 'a rematch starts gated humans on the deploy screen');
+  assert.equal(bot.state, 'alive', 'a rematch respawns bots at once');
+  assert.equal(intent(game, b, 'hq'), true);
+  run(game, 2 * TICK_MS);
+  assert.equal(b.state, 'alive');
+  // A lobby team change of a gated human also keeps it unspawned.
+  assert.equal(policy.setLobbyTeam(a, 'bravo'), true);
+  assert.equal(a.state, 'dead');
+  assert(policy.hqPool(a).some(s => near(s, a, 0.01)), 'held at its new HQ');
+}
+
+console.log('Conquest deploy: respawn gate, flag cells (40 m sight, away from enemy flags, variety), contested/enemy/invalid/seat/busy/cooldown refusals, HQ timeout fallback, squad ring spawn with damage lock and cooldown, vehicle seat deploy, director bots at respawnAt, opening-life squad kit mix, shared deployOptions parity, balanced squads, closer forward spawns and gated humans deploying before their first spawn (join, timeout after the first input, rematch, team change) passed.');

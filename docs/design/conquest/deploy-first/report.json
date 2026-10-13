@@ -1,0 +1,244 @@
+{
+  "steps": [
+    {
+      "at": 1,
+      "text": "server up",
+      "port": 50680
+    },
+    {
+      "at": 3.7,
+      "text": "lobby ready",
+      "code": "AS7G6"
+    },
+    {
+      "at": 5.2,
+      "text": "match running"
+    },
+    {
+      "at": 5.2,
+      "text": "desktop start: deploy screen open",
+      "s": {
+        "running": true,
+        "alive": false,
+        "feet": {
+          "x": 84.5,
+          "y": 37.02,
+          "z": 374.5
+        },
+        "localId": "p1_27quq3",
+        "server": {
+          "state": "dead",
+          "x": 84.5,
+          "z": 374.5,
+          "deaths": 0,
+          "respawnAt": 1791887952441
+        },
+        "deployOpen": true,
+        "deployLabel": "DEPLOY · WEST HQ",
+        "status": "AUTO-DEPLOY IN 15 S",
+        "killerHidden": true,
+        "pointerLock": false,
+        "deathOverlay": false,
+        "touchDeploy": null
+      },
+      "aliveSeen": false,
+      "serverAliveSeen": false
+    },
+    {
+      "at": 8.8,
+      "text": "W on the deploy screen",
+      "before": {
+        "state": "dead",
+        "x": 84.5,
+        "z": 374.5,
+        "deaths": 0,
+        "respawnAt": 1791887952591
+      },
+      "after": {
+        "state": "dead",
+        "x": 84.5,
+        "z": 374.5,
+        "deaths": 0,
+        "respawnAt": 1791887952591
+      },
+      "aliveLocal": false
+    },
+    {
+      "at": 9,
+      "text": "screenshot desktop-01-first-join-deploy"
+    },
+    {
+      "at": 9,
+      "text": "DEPLOY clicked"
+    },
+    {
+      "at": 11.6,
+      "text": "deployed",
+      "s": {
+        "running": true,
+        "alive": true,
+        "feet": {
+          "x": 84.5,
+          "y": 37,
+          "z": 374.5
+        },
+        "localId": "p1_27quq3",
+        "server": {
+          "state": "alive",
+          "x": 84.5,
+          "z": 374.5,
+          "deaths": 0,
+          "respawnAt": null
+        },
+        "deployOpen": false,
+        "deployLabel": "DEPLOYING…",
+        "status": "",
+        "killerHidden": true,
+        "pointerLock": false,
+        "deathOverlay": false,
+        "touchDeploy": null
+      }
+    },
+    {
+      "at": 12,
+      "text": "screenshot desktop-02-deployed"
+    },
+    {
+      "at": 13.9,
+      "text": "walk after deploy",
+      "moved": 6.59,
+      "server": {
+        "state": "alive",
+        "x": 84.5,
+        "z": 367.91,
+        "deaths": 0,
+        "respawnAt": null
+      }
+    },
+    {
+      "at": 14.3,
+      "text": "screenshot desktop-03-gameplay"
+    },
+    {
+      "at": 14.4,
+      "text": "keeper joined"
+    },
+    {
+      "at": 15.2,
+      "text": "phone join clicked"
+    },
+    {
+      "at": 17.1,
+      "text": "phone mid-match: deploy screen open",
+      "s": {
+        "running": true,
+        "alive": false,
+        "feet": {
+          "x": 84.5,
+          "y": 37.02,
+          "z": 374.5
+        },
+        "localId": "p3_8wbphz",
+        "server": {
+          "state": "dead",
+          "x": 84.5,
+          "z": 374.5,
+          "deaths": 0,
+          "respawnAt": 1791887964425
+        },
+        "deployOpen": true,
+        "deployLabel": "DEPLOY · WEST HQ",
+        "status": "AUTO-DEPLOY IN 15 S",
+        "killerHidden": true,
+        "pointerLock": false,
+        "deathOverlay": false,
+        "touchDeploy": true
+      },
+      "aliveSeen": false,
+      "serverAliveSeen": false
+    },
+    {
+      "at": 19.7,
+      "text": "screenshot phone-01-first-join-deploy"
+    },
+    {
+      "at": 20,
+      "text": "DEPLOY tapped",
+      "p": {
+        "x": 195,
+        "y": 806
+      }
+    },
+    {
+      "at": 22.7,
+      "text": "screenshot phone-02-deployed"
+    },
+    {
+      "at": 24.7,
+      "text": "screenshot phone-03-moving"
+    },
+    {
+      "at": 25.1,
+      "text": "phone joystick",
+      "moved": 11.46
+    }
+  ],
+  "errors": [],
+  "desktop": {
+    "serverAliveBeforeDeploy": false,
+    "deployOpenStats": {
+      "running": true,
+      "alive": false,
+      "feet": {
+        "x": 84.5,
+        "y": 37.02,
+        "z": 374.5
+      },
+      "localId": "p1_27quq3",
+      "server": {
+        "state": "dead",
+        "x": 84.5,
+        "z": 374.5,
+        "deaths": 0,
+        "respawnAt": 1791887952441
+      },
+      "deployOpen": true,
+      "deployLabel": "DEPLOY · WEST HQ",
+      "status": "AUTO-DEPLOY IN 15 S",
+      "killerHidden": true,
+      "pointerLock": false,
+      "deathOverlay": false,
+      "touchDeploy": null
+    },
+    "heldMoved": 0,
+    "walkedM": 6.591893457126218
+  },
+  "phone": {
+    "serverAliveBeforeDeploy": false,
+    "deployOpenStats": {
+      "running": true,
+      "alive": false,
+      "feet": {
+        "x": 84.5,
+        "y": 37.02,
+        "z": 374.5
+      },
+      "localId": "p3_8wbphz",
+      "server": {
+        "state": "dead",
+        "x": 84.5,
+        "z": 374.5,
+        "deaths": 0,
+        "respawnAt": 1791887964425
+      },
+      "deployOpen": true,
+      "deployLabel": "DEPLOY · WEST HQ",
+      "status": "AUTO-DEPLOY IN 15 S",
+      "killerHidden": true,
+      "pointerLock": false,
+      "deathOverlay": false,
+      "touchDeploy": true
+    },
+    "walkedM": 11.4575687062719
+  }
+}

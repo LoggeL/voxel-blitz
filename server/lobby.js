@@ -427,6 +427,8 @@ export class LobbyManager {
           spawns.set(human.id, engine.addClient(human.id, human.name));
           engine.entities.get(human.id).weaponLoadout = human.meta.weaponLoadout;
           stampCareerLevel(engine, human.id, human.meta);
+          // Conquest: humans wait on the deploy screen before their first spawn (ConquestPolicy.gateDeploy).
+          engine.mode.policy.gateDeploy?.(human.id);
           this._bindKarma(engine, human.meta, human.id);
         }
         const preserveTeams = ['tdm', 'snd', 'conquest'].includes(room.gameMode) && ['tdm', 'snd', 'conquest'].includes(gameMode);
@@ -650,6 +652,8 @@ export class LobbyManager {
       added = true;
       room.engine.entities.get(id).weaponLoadout = meta.weaponLoadout;
       stampCareerLevel(room.engine, id, meta);
+      // Conquest: a join (also mid-match, also a bot takeover) deploys from the deploy screen (ConquestPolicy.gateDeploy).
+      room.engine.mode.policy.gateDeploy?.(id);
       this._bindKarma(room.engine, meta, id);
       room.members.set(id, member);
       if (!room.host) room.host = id;

@@ -455,6 +455,27 @@ export class LocalPlayer {
     };
   }
 
+  /**
+   * Dead without a death: the server holds this body unspawned (Conquest
+   * deploy screen before a spawn). No head camera, recoil kick or gore; the
+   * next authoritative alive row respawns it as usual.
+   */
+  holdUnspawned() {
+    if (!this._alive) return false;
+    this._alive = false;
+    this._hp = 0;
+    this.burning = 0;
+    this.adsT = 0;
+    this.scopeActive = false;
+    this.spawnProtected = false;
+    this.currentSpeedXZ = 0;
+    this.deathElapsed = 0;
+    this._lastLocalImpact = null;
+    this.deathHead.stop();
+    this.medkit.cancel();
+    return true;
+  }
+
   /** Apply only the player-state/view half of a non-lethal local hit. */
   applyHit(ev) {
     if (!this._alive || !ev) return null;

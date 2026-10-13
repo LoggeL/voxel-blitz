@@ -14,6 +14,7 @@ import { createConquestRoles } from './conquest/roles.js';
 import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
 import { evHit } from '../protocol/events.js';
+import { interruptMedkit } from '../sim/medkit.js';
 
 /** Kill key of a fall death (kill feed "FELL"); see shared/conquest-contract.js DEATH_KEYS. */
 export const FALL_KILL_KEY = 'fall';
@@ -141,6 +142,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.lastTickAt = now;
     this._view = null;
     this._syncRevived();
+    this._holdDeployClock();
     const presence = buildCapturePresence(this._entities.values(), {
       teamFor: p => this.teamFor(p),
       vehicleFor: id => this.vehicleFor(id),
@@ -172,6 +174,7 @@ export class ConquestPolicy extends TdmPolicy {
     const state = this._state(entity);
     if (!entity || !state) return false;
     state.deathHandled = false;
+    state.deployHeld = false;
     // The roles package keeps the kit the body died with; mirror it so a kit
     // picked on the deploy screen while down does not linger.
     this.deploy.onRevived(entity, this.roles.kitOf?.(entity) ?? null, this.roles.variantOf?.(entity) ?? 0, this.roles.gadgetOf?.(entity) ?? 0);
@@ -389,6 +392,7 @@ export class ConquestPolicy extends TdmPolicy {
     if (!entity || !state) return false;
     const resolved = this.deploy.consume(entity);
     state.deathHandled = false;
+    state.deployHeld = false;
     this.bounds.clear(entity.id);
     this.applyRespawnLoadout(entity);
     this.deploy.finalize(entity, resolved);
@@ -396,8 +400,62 @@ export class ConquestPolicy extends TdmPolicy {
     return true;
   }
 
-  /** Round start, rematch and lobby team changes spawn at HQ at once. */
+  /**
+   * Network humans never spawn without a deploy choice. The lobby gates every
+   * admission (lobby join, mid-match join, bot takeover): instead of the
+   * immediate HQ spawn of a join, lobby team change or rematch, a gated human
+   * waits unspawned on the deploy screen (state 'dead', but no death, ticket,
+   * kill-feed row or event) and spawns through the deploy intent exactly as
+   * after a death, deploy timeout included. That timeout only runs once the
+   * client sends its first input (it has loaded the map). Bots and
+   * engine-level fixtures keep the immediate HQ spawn.
+   */
+  gateDeploy(player) {
+    const entity = this._entity(player);
+    const state = this._state(entity);
+    if (!entity || entity.bot || !state) return false;
+    state.deployGate = true;
+    this._holdForDeploy(entity);
+    return true;
+  }
+
+  /** Unspawn a gated human (a taken-over dead body stays dead) until a deploy; see gateDeploy. */
+  _holdForDeploy(entity) {
+    const state = this._state(entity);
+    const wasAlive = entity.state === 'alive';
+    entity.state = 'dead';
+    // Off any seat it inherited (a taken-over bot); the hull carries on uncrewed.
+    this.engine?.vehicles?.release?.(entity);
+    entity.hp = 0;
+    entity.spawnProtectedUntil = 0;
+    entity.spawnProtected = false;
+    if (wasAlive) {
+      interruptMedkit(entity);
+      Object.assign(entity, { armor: 0, burn: null, burning: 0, firing: false, ads: false, adsT: 0, reloading: false,
+        reloadStage: null, charging: false, chargeT: 0, charge: 0, vx: 0, vy: 0, vz: 0, chute: 0, chuteT: 0 });
+      // Stand by at the team's HQ: the welcome view and the spectator fallback anchor.
+      const hq = this.hqPool(entity)[0];
+      if (hq && [hq.x, hq.y, hq.z].every(Number.isFinite)) Object.assign(entity, { x: hq.x, y: hq.y, z: hq.z });
+    }
+    entity.respawnAt = Math.max(this.now, !wasAlive && Number.isFinite(entity.respawnAt) ? entity.respawnAt : this.now);
+    state.deathHandled = true;
+    state.deployHeld = true;
+    this.deploy.onDeath(entity);
+    this.bounds.clear(entity.id);
+  }
+
+  /** The deploy timeout of a held human waits for its client: until the first input, the clock stands still. */
+  _holdDeployClock() {
+    for (const [id, state] of this._players) {
+      if (!state.deployHeld) continue;
+      const entity = this._entities.get(id);
+      if (entity?.state === 'dead' && entity.input == null && !(entity.respawnAt > this.now)) entity.respawnAt = this.now;
+    }
+  }
+
+  /** Round start, rematch and lobby team changes spawn at HQ at once (a gated human waits on the deploy screen). */
   _respawn(entity, { emitEvent = true } = {}) {
+    if (!entity.bot && this._state(entity)?.deployGate) { this._holdForDeploy(entity); return; }
     const spawn = this.chooseSpawn(entity, entity.lastSpawnIndex);
     this._respawnEntity(entity, spawn, { emitEvent });
     const state = this._state(entity);

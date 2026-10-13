@@ -80,7 +80,58 @@ try {
       && row.cqs.length === CONQUEST_CQS_LENGTH);
     assert.equal(Object.keys(row).filter(k => k !== 'attachments').sort().join(','), CONQUEST_PLAYER_KEYS, `${row.id} carries the complete Conquest row`);
   }
-  console.log('Conquest lobby: configure, compressed map decode, authoritative bytes, 16 roster slots, waiting admission and the v2 live snapshot (slim match.conquest within 400 B, home flags, squads, cq/cqs rows, metadata fleet) verified.');
+
+  // Deploy before the first spawn (ConquestPolicy.gateDeploy): a joining human waits unspawned on the
+  // deploy screen while the bots spawn at once; DEPLOY spawns it at the chosen point, like after a death.
+  const isBot = row => /^bot-\d+$/.test(row.id);
+  const rowOf = (msg, id) => msg.players.find(p => p.id === id);
+  const near = (row, cells, radius) => cells.some(c => Math.hypot(row.x - c.x, row.z - c.z) <= radius);
+  const hostRow = rowOf(tick, welcome.id);
+  assert.equal(hostRow.state, 'dead', 'the joining human waits on the deploy screen, unspawned');
+  assert.equal(hostRow.deaths, 0, 'waiting to deploy is no death');
+  assert(Number.isFinite(hostRow.respawnAt) && hostRow.respawnAt <= tick.now, 'the deploy screen may deploy at once');
+  assert(tick.players.filter(isBot).length === 15 && tick.players.filter(isBot).every(p => p.state === 'alive'), 'bots spawn at once');
+  const waited = await host.waitForJson(m => m.t === 'tick' && m.now >= tick.now + 1500, 'the human idles on the deploy screen', host.mark());
+  assert.equal(rowOf(waited, welcome.id).state, 'dead', 'no spawn without a deploy');
+  assert.equal(rowOf(waited, welcome.id).deaths, 0, 'waiting is still no death');
+  const team = hostRow.team;
+  const homeFlag = meta.flags.find(f => f.home === team);
+  host.input(1);
+  let at = host.mark();
+  host.send({ t: 'conquest', deploy: { spawn: `flag:${homeFlag.id}`, kit: 'assault', variant: 0 } });
+  const deployed = await host.waitForJson(m => m.t === 'tick' && rowOf(m, welcome.id)?.state === 'alive', 'the human deploys', at);
+  const hostAlive = rowOf(deployed, welcome.id);
+  assert(near(hostAlive, homeFlag.spawns.length ? homeFlag.spawns : [homeFlag], 8), `deployed at the chosen flag ${homeFlag.id}`);
+  assert.equal(hostAlive.deaths, 0, 'the first deploy is no respawn after a death');
+
+  // A mid-match join takes over a bot's slot and also starts on the deploy screen.
+  const guest = new Client(port, 'Late joiner', { handshakeTimeout: 30000, frameTimeout: 30000 });
+  clients.push(guest);
+  const guestWelcome = await guest.join({ firstFrame: { t: 'join', name: 'Late joiner', lobby: welcome.lobby.code, contract: CONQUEST_CONTRACT_VERSION } });
+  assert.equal(guestWelcome.phase, 'live');
+  const guestTick = await guest.waitForJson(m => m.t === 'tick' && rowOf(m, guestWelcome.id), 'the late joiner in the match');
+  assert.equal(guestTick.players.length, 16, 'the late joiner took over a bot slot');
+  assert.equal(rowOf(guestTick, guestWelcome.id).state, 'dead', 'a mid-match join waits on the deploy screen');
+  assert.equal(rowOf(guestTick, welcome.id).state, 'alive', 'a join leaves the deployed host alone');
+  const guestTeam = rowOf(guestTick, guestWelcome.id).team;
+  const hqCells = getMapMeta('frontier').spawns.conquest[guestTeam];
+  guest.input(1);
+  at = guest.mark();
+  guest.send({ t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', variant: 0 } });
+  const guestDeployed = await guest.waitForJson(m => m.t === 'tick' && rowOf(m, guestWelcome.id)?.state === 'alive', 'the late joiner deploys', at);
+  assert(near(rowOf(guestDeployed, guestWelcome.id), hqCells, 6), 'deployed at the chosen HQ');
+
+  // A death still opens the deploy screen and DEPLOY spawns again after the respawn delay.
+  at = guest.mark();
+  await new Promise(resolve => setTimeout(resolve, 300));
+  guest.send({ t: 'conquest', redeploy: 1 });
+  const died = await guest.waitForJson(m => m.t === 'tick' && rowOf(m, guestWelcome.id)?.state === 'dead', 'the late joiner redeploys', at);
+  assert.equal(rowOf(died, guestWelcome.id).deaths, 1, 'a redeploy is a death');
+  at = guest.mark();
+  guest.send({ t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', variant: 0 } });
+  const again = await guest.waitForJson(m => m.t === 'tick' && rowOf(m, guestWelcome.id)?.state === 'alive', 'the late joiner deploys again', at);
+  assert(again.now >= rowOf(died, guestWelcome.id).respawnAt, 'the respawn delay still applies after a death');
+  console.log('Conquest lobby: configure, compressed map decode, authoritative bytes, 16 roster slots, waiting admission and the v2 live snapshot (slim match.conquest within 400 B, home flags, squads, cq/cqs rows, metadata fleet), deploy before the first spawn (start and mid-match join wait unspawned, bots spawn at once, DEPLOY at the chosen flag / HQ, death and deploy again) verified.');
 } finally {
   await Promise.all(clients.map(c => c.close()));
   await stopServer(server);

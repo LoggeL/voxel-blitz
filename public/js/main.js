@@ -366,6 +366,7 @@ class Game {
     this.hud.setMapMeta(this.mapMeta);
     this.player.setBaseFov(this.session.baseFov);
     this.player.respawn({ ...welcome.spawn, state: 'alive', hp: 100 }, { spawnProtected: false });
+    this._conquestSelfDeaths = null;
 
     // A V3 frame names its template; the map cache supplies it on a rejoin.
     try {
@@ -767,6 +768,16 @@ class Game {
         break;
       }
     }
+    // Conquest: a body the server holds on the deploy screen before a spawn (join, bot takeover,
+    // rematch) never died: no death event and no new death on its row, so no death presentation.
+    const selfDeaths = self ? self.deaths | 0 : null;
+    if (match?.mode === 'conquest' && self?.state === 'dead' && !deathEvent && this.player.alive
+        && !(Number.isFinite(this._conquestSelfDeaths) && selfDeaths > this._conquestSelfDeaths)
+        && this.player.holdUnspawned?.()) {
+      this.weapon?.deathReset();
+      this.session.syncGameplayInput();
+    }
+    this._conquestSelfDeaths = selfDeaths;
     const reconciled = this.player.reconcile(self, snapshot.snapSeq, {
       deathEvent,
       impact: hitEvent,
