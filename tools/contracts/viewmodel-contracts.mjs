@@ -231,6 +231,71 @@ export async function runViewmodelContracts(ok, installGlobals) {
     ok(hipScale === 1 && scopedScale > 0.15 && scopedScale < 0.25
         && Math.abs(yawTurned - 0.1 * scopedScale) < 1e-9,
     'look input scales with the live zoom so a 5x scope turns at about a fifth of hip speed');
+
+    // Read the actual camera and consume a diagonal look delta. The brace must
+    // calm every input device after their deltas converge, without delaying it.
+    const sampleBracedLook = (def, ads, baseFov = 75) => {
+      const raw = { dx: 0.08, dy: -0.05 };
+      const braceInput = new Proxy({
+        wantAdsHeld: ads > 0,
+        consumeDelta: () => raw,
+        getKeys: () => ({}),
+        setGameplayEnabled() {},
+      }, { get: (target, key) => target[key] ?? (() => false) });
+      const bracePlayer = new LocalPlayer({ input: braceInput, physics, sendHz: 20 });
+      bracePlayer.setGameplayInputEnabled(true);
+      const braceCamera = new THREE.PerspectiveCamera(baseFov, 1, 0.01, 100);
+      // Settle FOV, then sample compensation against that same live FOV.
+      bracePlayer.updateCamera(0.1, braceCamera, def, ads, baseFov);
+      bracePlayer.updateCamera(0.1, braceCamera, def, ads, baseFov);
+      const scale = bracePlayer.lookScale;
+      bracePlayer.update(1 / 60, 1000, {
+        weapon: { def, slot: WEAPON_IDS.indexOf(def.id), adsT: ads },
+      });
+      const result = { fov: braceCamera.fov, scope: bracePlayer.scopeActive, scale,
+        yaw: -bracePlayer.view.yaw / raw.dx, pitch: -bracePlayer.view.pitch / raw.dy,
+        focalScale: Math.tan(braceCamera.fov * Math.PI / 360) / Math.tan(baseFov * Math.PI / 360) };
+      bracePlayer.dispose();
+      return result;
+    };
+    const braceHip = sampleBracedLook(WEAPONS.minigun, 0);
+    const braceAds = sampleBracedLook(WEAPONS.minigun, 1);
+    const braceMiddle = sampleBracedLook(WEAPONS.minigun, 0.5);
+    const braceStart = sampleBracedLook(WEAPONS.minigun, 0.0001);
+    const close = (a, b) => Math.abs(a - b) < 1e-9;
+    ok(braceHip.fov === 75 && braceHip.scale === 1
+      && close(braceHip.yaw, 1) && close(braceHip.pitch, 1),
+    'minigun hip look keeps the full immediate yaw and pitch input');
+    ok(close(braceAds.scale / braceAds.focalScale, 0.75)
+      && close(braceAds.yaw, braceAds.scale) && close(braceAds.pitch, braceAds.scale)
+      && !braceAds.scope,
+    'minigun bracing reduces both look axes by 25 percent beyond zoom compensation without a scope');
+    ok(braceMiddle.scale / braceMiddle.focalScale > 0.75
+      && braceMiddle.scale / braceMiddle.focalScale < 1
+      && braceMiddle.fov > braceAds.fov && braceMiddle.fov < braceHip.fov
+      && braceStart.scale / braceStart.focalScale > 0.999
+      && close(braceMiddle.yaw, braceMiddle.scale) && close(braceMiddle.pitch, braceMiddle.scale),
+    'minigun brace sensitivity and zoom enter smoothly instead of switching at the ADS edge');
+    for (const baseFov of [65, 75, 100]) {
+      const braced = sampleBracedLook(WEAPONS.minigun, 1, baseFov);
+      ok(close(1 / braced.focalScale, 1.15) && close(braced.scale, 0.75 / 1.15),
+        `minigun keeps mild 1.15x brace zoom and the same look response at base FOV ${baseFov}`);
+    }
+    for (const ads of [0, 0.5, 1]) {
+      const rifle = sampleBracedLook(WEAPONS.rifle, ads);
+      ok(close(rifle.scale, rifle.focalScale)
+        && close(rifle.yaw, rifle.scale) && close(rifle.pitch, rifle.scale),
+        `rifle retains ordinary focal-length look compensation at ADS ${ads}`);
+    }
+    const lmgAds = sampleBracedLook(WEAPONS.lmg, 1);
+    ok(lmgAds.fov === 58 && WEAPONS.lmg.zoom === 1.2
+      && close(lmgAds.scale, lmgAds.focalScale)
+      && close(lmgAds.yaw, lmgAds.scale) && close(lmgAds.pitch, lmgAds.scale),
+    'LMG keeps its original 58-degree ADS view and ordinary look compensation');
+    const legacyMinigun = configuredWeapon('minigun', { minigun: { optic: 'scope2' } });
+    ok(legacyMinigun === WEAPONS.minigun && !isScopedWeapon(legacyMinigun)
+      && !sampleBracedLook(legacyMinigun, 1).scope,
+    'a saved minigun scope selection normalizes to the factory brace without a scope overlay');
     player.dispose();
   }
 

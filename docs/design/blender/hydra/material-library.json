@@ -3,31 +3,31 @@
   "asset": "hydra",
   "materials": [
     {
-      "material": "HYDRA | olive drab",
-      "texture": "olive-paint"
-    },
-    {
-      "material": "HYDRA | rubber",
-      "texture": "pebbled-rubber"
-    },
-    {
-      "material": "HYDRA | ivory coating",
-      "texture": "ivory-ceramic"
-    },
-    {
-      "material": "HYDRA | tan webbing",
-      "texture": "tan-webbing"
-    },
-    {
       "material": "HYDRA | gunmetal",
       "texture": "phosphated-steel"
+    },
+    {
+      "material": "HYDRA | dark steel",
+      "texture": "blued-steel"
+    },
+    {
+      "material": "HYDRA | machined steel",
+      "texture": "machined-steel"
     },
     {
       "material": "HYDRA | orange paint",
       "texture": "orange-paint"
     },
     {
-      "material": "HYDRA | dark steel",
+      "material": "HYDRA | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "HYDRA | brass",
+      "texture": "aged-brass"
+    },
+    {
+      "material": "HYDRA | heated barrels",
       "texture": "blued-steel"
     }
   ]

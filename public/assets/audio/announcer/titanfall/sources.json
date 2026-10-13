@@ -1,0 +1,114 @@
+{
+  "generator": "tools/synthesize-titanfall-announcer.mjs",
+  "method": "macOS say + ffmpeg cockpit intercom band (offline, no cloud voice service, original lines)",
+  "license": "Original synthesis for this project (no third-party recording)",
+  "format": "WAV PCM s16le mono 22050 Hz",
+  "command": "node tools/synthesize-titanfall-announcer.mjs --voice \"Samantha\" --rate 185",
+  "filter": "highpass=f=240,lowpass=f=4600,acompressor=threshold=-22dB:ratio=4:attack=5:release=80:makeup=5,equalizer=f=2400:t=q:w=1.4:g=3,aecho=0.8:0.5:18:0.18,alimiter=limit=0.89,aformat=sample_fmts=s16:sample_rates=22050:channel_layouts=mono",
+  "clips": [
+    {
+      "id": "titanfall_ready",
+      "text": "Titanfall ready.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 62314,
+      "sha256": "60f360eac6f48dd14fd0e775b996883a8fef627e858c87efd4c7200a661b0d36"
+    },
+    {
+      "id": "titan_ready",
+      "text": "Your titan is ready.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 67994,
+      "sha256": "f865464404790a3c25599950f7af65f951989de7cabf47c4b7ab376bdaa1e767"
+    },
+    {
+      "id": "prepare_titanfall",
+      "text": "Prepare for titanfall.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 79012,
+      "sha256": "ae526b28b35dfceea5b6bbf453872acaf8ed8f8840f573b6efccfd07cef44a04"
+    },
+    {
+      "id": "core_online",
+      "text": "Core online.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 57708,
+      "sha256": "27992596aa2a52f1e1bf916727a2a47bbd61a27961844abd2bd8e6b70248e156"
+    },
+    {
+      "id": "titan_doomed",
+      "text": "Warning: titan doomed.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 82252,
+      "sha256": "2d382271ffd9fcacdc50290739bd9d3289144307cae7fc97ace4bbc0dda01837"
+    },
+    {
+      "id": "eject",
+      "text": "Eject, eject, eject.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 93778,
+      "sha256": "2b90960b9b6f1e01ab58c52816eb4c9755724bb3225f4b4ce9a0e3473b84885a"
+    },
+    {
+      "id": "enemy_titan",
+      "text": "Enemy titanfall incoming.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 87154,
+      "sha256": "9fb229840f648d5e0aa7be8e1c47ccc5237be9c8196083109b10c3cdc00d0244"
+    },
+    {
+      "id": "rodeo_warning",
+      "text": "Warning: rodeo.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 72974,
+      "sha256": "54436329f2bc5042789887020679ec2f98a1864171ca26bf3339b7a57ccaaf68"
+    },
+    {
+      "id": "battery_acquired",
+      "text": "Battery acquired.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 66896,
+      "sha256": "e28f9a3725c66412818bd7e2a585c7ba414432fc7e08f703af72feca698ddc22"
+    },
+    {
+      "id": "winning",
+      "text": "We are winning this fight.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 67374,
+      "sha256": "bab26ca1ff65627e8a67af75d473de6e804e1e7cc58c40c3c7977ecf62782012"
+    },
+    {
+      "id": "losing",
+      "text": "We are losing this fight.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 70130,
+      "sha256": "be2ed6f84908d8dd4a3795027180c5fa005f0915786b2a6e1d65ca88700c21c0"
+    },
+    {
+      "id": "match_win",
+      "text": "Mission accomplished.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 64138,
+      "sha256": "a510547239d8dd65b8c77f98394d9fa32daa7d48d193638290fe2cd582be88ea"
+    },
+    {
+      "id": "match_lose",
+      "text": "Mission failed.",
+      "voice": "Samantha",
+      "rate": 185,
+      "bytes": 53180,
+      "sha256": "2199f5a7fc0909b32eed02b26455ea028e987c4984c73c41a7ab3c791ddcd0d3"
+    }
+  ]
+}

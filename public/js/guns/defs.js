@@ -145,7 +145,12 @@ export const TIMERS = {
     cycleKind: null,
     ejectOnFire: true,
     magTimeline: { start: 0.16, home: 0.84, clickAt: 0.93, type: 'belt' },
-    adsOffset: { x: 0.0, y: -0.155, z: -0.78 },
+    // Show the exposed rotor beside the round motor housing in hip fire.
+    hipOffset: { x: 0.18, y: -0.25, z: -0.40 },
+    hipYaw: 0.35,
+    // Brace the heavy receiver at the side, slightly closer, with a clear target.
+    adsOffset: { x: 0.15, y: -0.24, z: -0.38 },
+    adsYaw: 0.30,
     kick: { stiffness: 205, damping: 25, yawWobble: 0.75 },
   },
   revolver: {
@@ -358,8 +363,8 @@ TIMERS.mgl = {
 };
 
 TIMERS.stinger = {
-  // AX-9 STINGER: long AA tube on a gripstock. No cycle; the "bolt" is the seeker
-  // arming switch and the "mag" is the coolant/battery unit the reload swaps.
+  // AX-9 STINGER: the mag group is the complete replaceable launch canister;
+  // the receiver, battery and seeker stay on the clamped cradle throughout reload.
   rof: WEAPONS.stinger.rpm,
   adsTime: WEAPONS.stinger.adsTime,
   deployTime: WEAPONS.stinger.deployTime,
@@ -380,6 +385,108 @@ TIMERS.stinger = {
   magTimeline: { start: 0.2, home: 0.82, clickAt: 0.9, type: 'mag' },
   adsOffset: { x: 0, y: -0.178, z: -0.5 },   // ring sight on the camera axis (STINGER_SIGHT_Y).
   kick: { stiffness: 140, damping: 19, yawWobble: 0.5 },
+};
+
+// Titanfall anti-titan pilot weapons (docs/titanfall.md §6, WP4). Each adsOffset.y is
+// minus the model's sight height (shared/player-hitboxes.js SIGHT_HEIGHT).
+TIMERS.chargerifle = {
+  // CR-6 LONGBOW: long capacitor-bank charge rifle. The trigger fills the bank and the
+  // beam leaves on release with no mechanical cycle: the red bank glow decay is the
+  // signature; the "bolt" is the charging sled, the "mag" the capacitor cell.
+  rof: WEAPONS.chargerifle.rpm,
+  adsTime: WEAPONS.chargerifle.adsTime,
+  deployTime: WEAPONS.chargerifle.deployTime,
+  weightKg: WEAPONS.chargerifle.weightKg,
+  viewKick: { pitchDeg: WEAPONS.chargerifle.recoil.pitch, yawDeg: WEAPONS.chargerifle.recoil.yaw },
+  muzzle: [0, 0.06, -0.82],
+  portY: 0.15,
+  ejectRight: -0.06,
+  barrelLen: 0.50,        // emitter bore breech -0.32 -> muzzle.
+  heatLen: [0.30, 0.92],  // the bank glow runs the whole emitter between the fork rails.
+  boltTravel: 0.09,
+  rechargeDur: 0.26,      // long red decay: the bank vents after the shot.
+  pumpMag: 0,
+  cycleBack: false,
+  cycleKind: null,
+  ejectOnFire: false,     // a beam: nothing to fling.
+  magTimeline: { start: 0.2, home: 0.8, clickAt: 0.9, type: 'mag' },
+  adsOffset: { x: 0, y: -0.165, z: -0.80 },
+  kick: { stiffness: 165, damping: 20, yawWobble: 0.45 },
+};
+
+TIMERS.archer = {
+  // AT-12 ARCHER: split-shell guided launcher. One missile per load, no cycle;
+  // the uncage latch is the bolt, a full rocket seats in the hinged loading trough.
+  rof: WEAPONS.archer.rpm,
+  adsTime: WEAPONS.archer.adsTime,
+  deployTime: WEAPONS.archer.deployTime,
+  weightKg: WEAPONS.archer.weightKg,
+  viewKick: { pitchDeg: WEAPONS.archer.recoil.pitch, yawDeg: WEAPONS.archer.recoil.yaw },
+  muzzle: [0, 0.075, -0.90],
+  portY: 0.1,
+  ejectRight: -0.03,
+  barrelLen: 0.20,        // exposed launch tube mouth -0.70 -> muzzle.
+  heatLen: [0.55, 0.95],  // motor scorch at the tube mouth.
+  boltTravel: 0.02,
+  rechargeDur: 0.24,
+  pumpMag: 0,
+  cycleBack: false,
+  cycleKind: null,
+  ejectOnFire: false,     // the missile is the round.
+  triggerZ: -0.11,
+  magTimeline: { start: 0.18, home: 0.84, clickAt: 0.92, type: 'mag' },
+  adsOffset: { x: 0, y: -0.19, z: -0.52 },
+  kick: { stiffness: 140, damping: 19, yawWobble: 0.55 },
+};
+
+TIMERS.thunderbolt = {
+  // TB-4 THUNDERBOLT: big-bore coil launcher with a four-round drum. No cycle; the
+  // "bolt" is the drum-advance pawl, the "mag" the drum the reload swaps.
+  rof: WEAPONS.thunderbolt.rpm,
+  adsTime: WEAPONS.thunderbolt.adsTime,
+  deployTime: WEAPONS.thunderbolt.deployTime,
+  weightKg: WEAPONS.thunderbolt.weightKg,
+  viewKick: { pitchDeg: WEAPONS.thunderbolt.recoil.pitch, yawDeg: WEAPONS.thunderbolt.recoil.yaw },
+  muzzle: [0, 0.07, -0.74],
+  portY: 0.12,
+  ejectRight: -0.04,
+  barrelLen: 0.34,        // coil barrel breech -0.40 -> muzzle.
+  heatLen: [0.10, 0.95],  // the coil stack glows along the whole barrel.
+  boltTravel: 0.03,
+  rechargeDur: 0.3,       // slow blue coil decay after each orb.
+  pumpMag: 0,
+  cycleBack: false,
+  cycleKind: null,
+  ejectOnFire: false,
+  triggerZ: -0.12,
+  magTimeline: { start: 0.16, home: 0.82, clickAt: 0.9, type: 'mag' },
+  adsOffset: { x: 0, y: -0.17, z: -0.5 },
+  kick: { stiffness: 150, damping: 18, yawWobble: 0.6 },
+};
+
+TIMERS.kraber = {
+  // KR-50 KRABER: heavy bolt-action anti-materiel rifle with a long fluted barrel, a
+  // big double-baffle brake, a high scope and a folded bipod.
+  rof: WEAPONS.kraber.rpm,
+  adsTime: WEAPONS.kraber.adsTime,
+  deployTime: WEAPONS.kraber.deployTime,
+  weightKg: WEAPONS.kraber.weightKg,
+  viewKick: { pitchDeg: WEAPONS.kraber.recoil.pitch, yawDeg: WEAPONS.kraber.recoil.yaw },
+  cycleMs: 1050,          // bolt rechamber length; mode 'bolt' drives rig.boltAnim().
+  muzzle: [0, 0.055, -0.95],
+  portY: 0.15,
+  ejectRight: -0.08,
+  barrelLen: 0.65,        // barrel breech -0.30 -> brake face.
+  heatLen: [0.55, 0.88],  // mirage band ahead of the fore-end, behind the brake.
+  boltTravel: 0.18,
+  rechargeDur: 0.1,
+  pumpMag: 0,
+  cycleBack: true,
+  cycleKind: 'bolt',
+  ejectOnFire: false,
+  magTimeline: { start: 0.2, home: 0.8, clickAt: 0.88, type: 'mag' },
+  adsOffset: { x: 0, y: -0.21, z: -0.66 },
+  kick: { stiffness: 150, damping: 17, yawWobble: 0.45 },
 };
 
 /**

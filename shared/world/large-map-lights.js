@@ -17,20 +17,46 @@ export const LARGE_MAP_LIGHTS = Object.freeze({
     ...[[26, 62], [44, 81], [147, 62], [165, 81], [79, 41], [112, 102], [44, 34], [147, 109]].map(([x, z], index) =>
       ({ id: `expedition-lantern-${index}`, kind: 'lantern', x, z, color: 'warm' })),
   ]),
+  // Ashfall (point-symmetric about 223 - x, 175 - z): yard floods in team colours,
+  // warm street lanterns on the block corners and round the arena rim.
+  ashfall: freeze([
+    ...[30, 58, 117, 145].flatMap(z => [
+      { id: `militia-flood-${z}`, kind: 'flood', x: 4, z, face: '+x', color: 'cyan' },
+      { id: `imc-flood-${z}`, kind: 'flood', x: 219, z: 175 - z, face: '-x', color: 'amber' },
+    ]),
+    ...[[44, 35], [69, 35], [82, 35], [105, 35], [118, 35], [141, 35], [154, 35], [179, 35], [83, 88], [112, 59]]
+      .flatMap(([x, z], index) => [
+        { id: `colony-lantern-${index}`, kind: 'lantern', x, z, color: 'warm' },
+        { id: `colony-lantern-${index}-r`, kind: 'lantern', x: 223 - x, z: 175 - z, color: 'warm' },
+      ]),
+    // Raised work lamps (`y`: the voxel they stand on): the Pour Line rails, the blast-wall
+    // tops, the rodeo perch decks (the arena-north one on the corner away from the Smelter
+    // Hall breach's landing column), the yard tower booths and the ore docks.
+    ...[[110, 13, 48], [113, 13, 64], [110, 13, 86], [55, 8, 73], [54, 8, 77], [67, 8, 73], [66, 8, 77],
+      [44, 7, 103], [66, 7, 19], [88, 7, 59], [24, 12, 58], [28, 12, 58], [24, 12, 121], [28, 12, 121], [60, 3, 93]]
+      .flatMap(([x, rise, z], index) => [
+        { id: `work-lamp-${index}`, kind: 'bollard', x, y: GROUND + rise, z, color: 'warm' },
+        { id: `work-lamp-${index}-r`, kind: 'bollard', x: 223 - x, y: GROUND + rise, z: 175 - z, color: 'warm' },
+      ]),
+  ]),
 });
 
 const faceNormal = face => face === '+x' ? [1, 0, 0] : face === '-x' ? [-1, 0, 0]
   : face === '-z' ? [0, 0, -1] : [0, 0, 1];
 
-/** Small, solid voxel fixtures; support cells include the entire grounded stem. */
+/**
+ * Small, solid voxel fixtures; support cells include the entire grounded stem.
+ * `light.y` (optional) is the voxel a raised fixture stands on (a deck, a wall top), GROUND otherwise.
+ */
 export function lightFixtureGeometry(light) {
   const cells = [];
   const { x, z } = light;
-  const add = (dx, dy, dz, type) => cells.push([x + dx, GROUND + dy, z + dz, type]);
+  const base = Number.isFinite(light.y) ? light.y : GROUND;
+  const add = (dx, dy, dz, type) => cells.push([x + dx, base + dy, z + dz, type]);
   const surfaces = [];
   const panel = (face, rise, width, height) => {
     const normal = faceNormal(face);
-    surfaces.push({ position: [x + 0.5 + normal[0] * 0.518, GROUND + rise,
+    surfaces.push({ position: [x + 0.5 + normal[0] * 0.518, base + rise,
       z + 0.5 + normal[2] * 0.518], normal, width, height });
   };
   if (light.kind === 'flood') {
@@ -49,7 +75,7 @@ export function lightFixtureGeometry(light) {
     add(0, top + 1, 0, METAL);
     for (const face of ['+x', '-x', '+z', '-z']) panel(face, top + 0.5, 0.72, 0.72);
   }
-  return { cells, surfaces, foundation: [x, GROUND, z] };
+  return { cells, surfaces, foundation: [x, base, z] };
 }
 
 export function addMapLightFixtures(world, map) {

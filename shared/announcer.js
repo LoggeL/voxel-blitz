@@ -39,11 +39,36 @@ export const OBJECTIVE_CUES = Object.freeze({
 export const OBJECTIVE_CUE_ROOT = '/assets/audio/announcer/objective';
 export const objectiveCueUrl = cue => Object.hasOwn(OBJECTIVE_CUES, cue) ? `${OBJECTIVE_CUE_ROOT}/${cue}.wav` : null;
 
-/** Every cue a local announcer voice may speak (multikill plus objective). */
+/**
+ * Titanfall (Attrition) calls (docs/titanfall.md §8.4). Original lines, spoken
+ * offline by macOS `say` (tools/synthesize-titanfall-announcer.mjs); every entry
+ * maps to /assets/audio/announcer/titanfall/<id>.wav. They rank below every
+ * multikill call, like the objective calls.
+ */
+export const TITANFALL_CUES = Object.freeze({
+  titanfall_ready: objectiveCue('Titanfall ready', 1.6),
+  titan_ready: objectiveCue('Your titan is ready', 1.5),
+  prepare_titanfall: objectiveCue('Prepare for titanfall', 1.45),
+  core_online: objectiveCue('Core online', 1.55),
+  titan_doomed: objectiveCue('Warning: titan doomed', 1.85),
+  eject: objectiveCue('Eject, eject, eject', 1.9),
+  enemy_titan: objectiveCue('Enemy titanfall incoming', 1.1),
+  rodeo_warning: objectiveCue('Warning: rodeo', 1.8),
+  battery_acquired: objectiveCue('Battery acquired', 1.3),
+  winning: objectiveCue('We are winning this fight', 1.05),
+  losing: objectiveCue('We are losing this fight', 1.05),
+  match_win: objectiveCue('Mission accomplished', 1.95),
+  match_lose: objectiveCue('Mission failed', 1.95),
+});
+export const TITANFALL_CUE_ROOT = '/assets/audio/announcer/titanfall';
+export const titanfallCueUrl = cue => Object.hasOwn(TITANFALL_CUES, cue) ? `${TITANFALL_CUE_ROOT}/${cue}.wav` : null;
+
+/** Every cue a local announcer voice may speak (multikill, objective and titanfall). */
 export function announcerCueInfo(cue) {
   if (typeof cue !== 'string') return null;
   if (Object.hasOwn(ANNOUNCER_CUES, cue)) return ANNOUNCER_CUES[cue];
   if (Object.hasOwn(OBJECTIVE_CUES, cue)) return OBJECTIVE_CUES[cue];
+  if (Object.hasOwn(TITANFALL_CUES, cue)) return TITANFALL_CUES[cue];
   return null;
 }
 

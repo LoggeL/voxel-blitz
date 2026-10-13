@@ -28,7 +28,7 @@ import {
   AIR, FLUID_BLOCKS, worldDimensions, GROUND,
 } from '../shared/worlddata.js';
 import { WEAPON_IDS, WEAPONS, PLAYER_HALF, computeRecoilKickDeg } from '../shared/combatmath.js';
-import { DEFAULT_WEAPON_ID, WEAPON_PRICES } from '../shared/modes.js';
+import { DEFAULT_WEAPON_ID, WEAPON_PRICES, isCombinedArms, isTitanfall } from '../shared/modes.js';
 import { MAX_BOTS } from '../shared/lobby-limits.js';
 import { mulberry32 } from '../shared/noise.js';
 import { raycastVoxels } from '../shared/raycast.js';
@@ -45,6 +45,9 @@ import { FLAME_RULES } from '../shared/flame-rules.js';
 import { ConquestVehicleDriving } from './bot-vehicle-driving.js';
 import { BotCommander, createBotDirector } from './bot-commander.js';
 import { ConquestAircraftDriving } from './bot-aircraft.js';
+import { TitanfallBots } from './bot-titanfall.js';
+import { isTitanType } from '../shared/titan-contract.js';
+import { PILOT_AT_RULES } from './sim/titanfall/pilot-projectiles.js';
 import { applyConquestVehicleCombat, applyMountedCombat, ballisticAim, bestWeaponFor, clearFlight, infantryArmorEffect, pickBotThreat, vehicleHullRules, STINGER_ENGAGE_RANGE } from './bot-vehicle-combat.js';
 import { CONQUEST_RULES } from '../shared/conquest-contract.js';
 import { KIT_ROLE_RULES } from '../shared/conquest-kits.js';
@@ -122,6 +125,14 @@ const GLAIVE_RETURN_MIN_AGE_MS = 300; // never while a fresh disc is still leavi
 const GLAIVE_LINEUP_COS = Math.cos(15 * Math.PI / 180);
 const BUBBLE_SLOT = WEAPON_IDS.indexOf('bubble');
 const STINGER_SLOT = WEAPON_IDS.indexOf('stinger');
+// Titanfall AT weapons (docs/titanfall.md §6): put away for pilots like the AT rocket.
+const TF_AT_IDS = new Set(['chargerifle', 'archer', 'thunderbolt']);
+// Titanfall: the M-DOCK 12 stays a close-quarters gun for bots (playtest: kills at ~80 m).
+// Past SWAP the sidearm comes out (back to the shotgun under BACK); it never fires past FIRE.
+const TF_SHOTGUN = Object.freeze({ slot: WEAPON_IDS.indexOf('shotgun'), side: WEAPON_IDS.indexOf('revolver'), swap: 22, back: 14, fire: 28 });
+const ARCHER_UNLOCKED_MS = 3000;  // an ARCHER held this long on a titan without a lock fires unguided
+const TF_HOP_MS = 800;             // titanfall: pinned this long with no route, hop at the target
+const TF_PERCH_MS = 1500;          // titanfall: idle on a route-less perch this long, hop off it
 const BUBBLE_MAX_RANGE = 24;      // m: Soap Shots still connect (the lifetime pops them at ~27 m)
 const BUBBLE_DRAW_RANGE = 12;     // m: redraw the launcher / blow a Big Bubble inside this
 const BUBBLE_GROUP_DIST = 3.5;    // m: a second enemy this close to the target earns a Big Bubble
@@ -352,6 +363,8 @@ class BotManager {
     this.tickIndex = 0;                 // staggers idle scans and listening across bots
     this.vehicleDriving = new ConquestVehicleDriving(game, this);
     this.aircraftDriving = new ConquestAircraftDriving(game, this);
+    // Titanfall pilots and titans (inert in every other mode).
+    this.titanfall = new TitanfallBots(game, this);
     // Heightfield maps: build the 2.5D surface graph from the world now (spec:
     // at attach time, not inside the first tick). The change-log cursor lives
     // with the cached graph, so a later manager on the same world resumes it.
@@ -378,6 +391,7 @@ class BotManager {
     if (this.commander) { this.game.mode.setBotDirector?.(null); this.commander = null; this.director = null; }
     this.vehicleDriving.clear();
     this.aircraftDriving.clear();
+    this.titanfall.clear();
     if (this._unhook) { this._unhook(); this._unhook = null; }
     for (const br of this.brains) this.game.removeClient(br.id);
     this.brains = [];
@@ -392,6 +406,7 @@ class BotManager {
     brain.resetCombat();
     this.vehicleDriving.release(brain.id);
     this.aircraftDriving.release(brain.id);
+    this.titanfall.release(brain.id);
     this.brains.pop();
     return spawnInfo;
   }
@@ -409,6 +424,7 @@ class BotManager {
       const br = this.brains.pop();
       this.vehicleDriving.release(br.id);
       this.aircraftDriving.release(br.id);
+      this.titanfall.release(br.id);
       br.resetCombat();
       this.game.removeClient(br.id);
     }
@@ -431,6 +447,7 @@ class BotManager {
     }
     this.vehicleDriving.update(this.brains, now);
     this.aircraftDriving.update(this.brains, now);
+    this.titanfall.update(this.brains, now);
     for (let i = this.brains.length - 1; i >= 0; i--) {
       const br = this.brains[i];
       const p = this.game.entities.get(br.id);
@@ -558,6 +575,18 @@ class BotManager {
     return true;
   }
 
+  /** Titanfall ledge test: an unsupported step whose fall ends in fluid (any depth of drop). */
+  fluidDropAt(p, x, z) {
+    const solid = this.solidAt;
+    if (solidBelow(solid, x, p.y, z) || boxCollides(solid, x, p.y + 0.05, z)) return false;
+    const cx = Math.floor(x), cz = Math.floor(z), feet = Math.floor(p.y + 0.05);
+    for (let y = feet - 1; y >= 0; y--) {
+      if (this.game.fluidAt(cx, y, cz)) return true;
+      if (solid(cx, y, cz)) return false;
+    }
+    return true;
+  }
+
   /**
    * Surface maps: a grounded walker never steps off a quay, a bridge end or a
    * crater lip by accident (the river banks are too steep to climb back).
@@ -567,7 +596,7 @@ class BotManager {
    * of the wish, so each axis component is checked as well. A route that
    * swims on purpose (its next node is open water) is left alone.
    */
-  guardLedges(br, p, inp) {
+  guardLedges(br, p, inp, fluidOnly = false) {
     const keys = inp.keys;
     const f = (keys.f ? 1 : 0) - (keys.b ? 1 : 0), s = (keys.r ? 1 : 0) - (keys.l ? 1 : 0);
     if (!f && !s) return;
@@ -578,11 +607,17 @@ class BotManager {
       const l = Math.hypot(fw, sd);
       return [(-sin * fw + cos * sd) / l, (-cos * fw - sin * sd) / l];
     };
+    // Titanfall pilots take no fall damage: only a drop into water is a ledge there, and so
+    // is a step out of the policy's bot bounds (frontier's play area).
+    const b = fluidOnly ? this.game.mode.policy?.botBounds?.() : null;
+    const outside = (x, z) => !!b && (x < b.minX + 1 || x > b.maxX - 1 || z < b.minZ + 1 || z > b.maxZ - 1);
+    const inside = !outside(p.x, p.z);
+    const ledgeAt = fluidOnly ? (q, x, z) => (inside && outside(x, z)) || this.fluidDropAt(q, x, z) : (q, x, z) => this.ledgeAt(q, x, z);
     const unsafe = ([dx, dz]) => {
       const x = p.x + dx * LEDGE_PROBE, z = p.z + dz * LEDGE_PROBE;
-      if (this.ledgeAt(p, x, z)) return true;
+      if (ledgeAt(p, x, z)) return true;
       if (!boxCollides(this.solidAt, x, p.y + 0.05, z)) return false;
-      return (Math.abs(dx) > 0.2 && this.ledgeAt(p, x, p.z)) || (Math.abs(dz) > 0.2 && this.ledgeAt(p, p.x, z));
+      return (Math.abs(dx) > 0.2 && ledgeAt(p, x, p.z)) || (Math.abs(dz) > 0.2 && ledgeAt(p, p.x, z));
     };
     const want = world(f, s);
     if (!unsafe(want)) return;
@@ -654,11 +689,15 @@ class BotManager {
       return;
     }
     if (!br.stuckSince) { br.stuckSince = now; return; }
-    if (now - br.stuckSince >= STUCK_WINDOW_MS) {
+    if (now - br.stuckSince >= STUCK_WINDOW_MS && br.climbing) {
+      // On an authored climb (a perch stair) a detour would walk off it: jump the step instead.
+      br.unstickUntil = now + UNSTICK_MS;
+      br.stuckSince = now;
+    } else if (now - br.stuckSince >= STUCK_WINDOW_MS) {
       // Replan from the current position without restarting a failed hop.
       // Surface maps side-step a few metres around whatever pins the body (a
       // hull, a wreck, a crater lip) instead of walking off to a random spot.
-      br.roamTarget = (surfaceNavigation(this.game.world) && this.sidestepSpot(br, p)) || randSpot(this.game.world, br.rng, p);
+      br.roamTarget = (surfaceNavigation(this.game.world) && this.sidestepSpot(br, p)) || this.roamSpot(br, p);
       br.roamDeadline = now + ROAM_TIMEOUT_MS;
       br.detourUntil = now + OBJECTIVE_DETOUR_MS;
       br.jumpCdUntil = now + JUMP_CD_MS;
@@ -670,6 +709,28 @@ class BotManager {
       br.stuckSince = now;
       if (br.trap) br.trap.wedges++;
     }
+  }
+
+  /**
+   * A roam target. A mode policy with `botBounds()` (titanfall on frontier,
+   * docs/titanfall.md §9) keeps it inside that rectangle; every other mode gets
+   * the stock randSpot with the same rng draws.
+   */
+  roamSpot(br, p) {
+    const world = this.game.world, b = this.game.mode.policy?.botBounds?.();
+    if (!b) return randSpot(world, br.rng, p);
+    const inset = 8, w = Math.max(0, b.maxX - b.minX - 2 * inset), d = Math.max(0, b.maxZ - b.minZ - 2 * inset);
+    for (let i = 0; i < 14; i++) {
+      const s = standable(world, b.minX + inset + br.rng() * w, b.minZ + inset + br.rng() * d);
+      if (s) return s;
+    }
+    return { x: Math.min(b.maxX - inset, Math.max(b.minX + inset, p.x)), y: p.y, z: Math.min(b.maxZ - inset, Math.max(b.minZ + inset, p.z)) };
+  }
+
+  /** True when `spot` lies outside the policy's bot bounds (never without `botBounds`). */
+  outsideBotBounds(spot) {
+    const b = spot && this.game.mode.policy?.botBounds?.();
+    return !!b && (spot.x < b.minX || spot.x > b.maxX || spot.z < b.minZ || spot.z > b.maxZ);
   }
 
   /**
@@ -696,7 +757,9 @@ class BotManager {
   /** Nearest visible enemy; a held target must pass every sight check again. */
   pickTarget(p, br = null) {
     const heldId = br?.enemyId;
-    const held = heldId ? this.game.entities.get(heldId) : null;
+    // Titanfall: attrition minions (engine.npcs, WP8) are targets too, after pilots at a similar range.
+    const pool = this.game.mode.mode === 'titanfall' ? this.game.combatants ?? this.game.entities : this.game.entities;
+    const held = heldId ? pool.get(heldId) : null;
     const observe = target => observeBotTarget(p, target, this.solidAt,
       this.game.projectiles.smoke, this.game.now, target.id === heldId && br?.noticeProgress >= 1, br?.difficulty);
     if (held && held.state === 'alive' && !held.vehicleId && this.game.mode.isEnemy(p, held)) {
@@ -711,11 +774,14 @@ class BotManager {
     // bots take turns. First contact moves by at most one skipped tick.
     if (br && (this.tickIndex + br.index) % SCAN_EVERY) return null;
     let best = null, bestSighting = null, bestD = Infinity;
-    for (const o of this.game.entities.values()) {
+    for (const o of pool.values()) {
       if (o === held || o.state !== 'alive' || o.vehicleId || !this.game.mode.isEnemy(p, o)) continue;
+      // A minion counts 1.4x farther and is skipped beyond 35 m (five raycasts per candidate).
+      const weight = o.tfNpc ? 1.4 : 1;
+      if (o.tfNpc && Math.hypot(o.x - p.x, o.z - p.z) > 35) continue;
       const sighting = observe(o);
-      if (sighting && sighting.distance < bestD) {
-        best = o; bestSighting = sighting; bestD = sighting.distance;
+      if (sighting && sighting.distance * weight < bestD) {
+        best = o; bestSighting = sighting; bestD = sighting.distance * weight;
       }
     }
     if (best && br) { br.enemyId = best.id; br.sighting = bestSighting; }
@@ -799,8 +865,8 @@ class BotManager {
       const slots = owned.map((id) => WEAPON_IDS.indexOf(id)).filter((slot) => slot >= 0);
       return slots.length ? slots : [DEFAULT_WEAPON_SLOT];
     }
-    if (mode.mode === 'conquest') {
-      // Kits narrow the arsenal (WP8 roles set p.owned on every spawn).
+    if (isCombinedArms(mode.mode)) {
+      // Kits narrow the arsenal (WP8 roles set p.owned on every spawn; the titanfall loadout likewise).
       if (!Array.isArray(p.owned)) return ALL_WEAPON_SLOTS;
       const slots = p.owned.map(id => WEAPON_IDS.indexOf(id)).filter(slot => slot >= 0);
       return slots.length ? slots : [DEFAULT_WEAPON_SLOT];
@@ -830,12 +896,13 @@ class BotManager {
 
   preferredSlot(br, ownedSlots) {
     if (this.game.mode.mode === 'gungame') return ownedSlots[0];
-    if (this.game.mode.mode === 'conquest') {
+    if (isCombinedArms(this.game.mode.mode)) {
       // The kit primary: the first owned gun that is neither the AT launcher,
-      // the sidearm nor a melee tool.
+      // the sidearm nor a melee tool (titanfall: nor an AT weapon).
       const primary = ownedSlots.find(slot => {
         const def = WEAPONS[WEAPON_IDS[slot]];
-        return def && def.mode !== 'melee' && def.projectile !== 'rocket' && def.projectile !== 'stinger' && WEAPON_IDS[slot] !== 'revolver';
+        return def && def.mode !== 'melee' && def.projectile !== 'rocket' && def.projectile !== 'stinger' && WEAPON_IDS[slot] !== 'revolver'
+          && !TF_AT_IDS.has(WEAPON_IDS[slot]);
       });
       return primary ?? ownedSlots[0];
     }
@@ -924,7 +991,10 @@ class BotManager {
     const weaponTurnRate = weaponTurnProfile(p.def.handling).maxSpeed;
     const turnRate = Math.min(profile.turnRate, weaponTurnRate);
     const pitchTurnRate = Math.min(PITCH_TURN_RATE, weaponTurnRate);
-    const cq = this.game.mode.mode === 'conquest';
+    // Combined arms (conquest, titanfall): hull-aware threats, AT weapons, kits.
+    // Commander, flag and capture logic stays conquest-only (attachCommander).
+    const cq = isCombinedArms(this.game.mode.mode);
+    const tf = cq && isTitanfall(this.game.mode.mode);
     // Respawn bookkeeping: a fresh life drops stale targeting/navigation.
     if (br.lastLives !== p.lives) {
       br.lastLives = p.lives;
@@ -980,7 +1050,8 @@ class BotManager {
     }
     if (cq) this.trackDamage(br, p, now);
 
-    const vehicleIntent = this.aircraftDriving.think(br, p, goal, now, dtS, inp)
+    const vehicleIntent = (tf ? this.titanfall.think(br, p, goal, now, dtS, inp) : null)
+      ?? this.aircraftDriving.think(br, p, goal, now, dtS, inp)
       ?? this.vehicleDriving.think(br, p, goal, now, dtS, inp);
     if (vehicleIntent?.board) {
       // Walking to an assigned seat is an ordinary objective: route, look and
@@ -988,19 +1059,26 @@ class BotManager {
       const board = vehicleIntent.board;
       if (board.enter && !inp.vehicleAction) inp.vehicleAction = board.enter;
       goal = { kind: 'board', target: board.point, point: board.point, interact: false, arrive: board.arrive,
-        vehicleId: board.vehicleId, lookYaw: goal.lookYaw };
+        vehicleId: board.vehicleId, lookYaw: goal.lookYaw, rush: board.rush };
+    } else if (vehicleIntent?.perch) {
+      // Titanfall rodeo perch (an authored climb, Ashfall): walk up and hold it as overwatch.
+      const perch = vehicleIntent.perch;
+      goal = { kind: 'perch', target: perch.point, point: perch.point, interact: false, arrive: perch.arrive,
+        role: 'overwatch', lookYaw: perch.lookYaw };
     } else if (vehicleIntent) {
       const v = vehicleIntent.vehicle;
       if (v && vehicleIntent.weapon && inp.vehicleAction?.type !== 'exit') {
         // Every seat that owns mounts fights: tank main gun and coax, the
         // commander RWS, the jeep pintle, door guns and the chin gun.
-        const threatAxis = this.director?.threatAxis(p) ?? null;
+        const threatAxis = this.director?.threatAxis(p) ?? vehicleIntent.heading ?? null;
         const aircraft = isAircraft(v.type);
         const engaged = v.type === 'tank' && vehicleIntent.seatId === 'driver'
           ? applyConquestVehicleCombat(this.game, br, p, now, dtS, inp, ownedSlots, { tank: v, threatAxis })
           : applyMountedCombat(this.game, br, p, v, vehicleIntent.seatId, now, dtS, inp,
-            { threatAxis, aircraft, sightRange: aircraft ? BOT_AIRCRAFT_SIGHT_RANGE : undefined });
+            { threatAxis, aircraft, sightRange: aircraft ? BOT_AIRCRAFT_SIGHT_RANGE : undefined, titan: vehicleIntent.titan === true });
         if (engaged?.target && engaged.recognized) this.callSpot(br, p, engaged.target, now, profile);
+        // Titanfall: walk the titan and use its abilities once the aim is set.
+        if (vehicleIntent.titan) this.titanfall.afterMounted(br, p, v, engaged, now, dtS, inp);
       } else { br.vehicleCombat = null; br.mounted = null; }
       return inp;
     }
@@ -1107,8 +1185,11 @@ class BotManager {
 
     // ----- panic retreat ---------------------------------------------------
     // Conquest also backs off from a hull nothing in the loadout can hurt.
+    // (A pilot holding a titanfall rodeo perch waits for the hull to walk into leap reach.)
     const evadeHull = cq && !enemy && br.danger?.sighting && br.danger.sighting.distance < HULL_EVADE_DIST
-      && (br.danger.target.type === 'tank' || br.danger.target.type === 'helicopter') ? br.danger.target : null;
+      && !(goal.kind === 'perch' && objectiveArrived)
+      && (br.danger.target.type === 'tank' || br.danger.target.type === 'helicopter' || (tf && isTitanType(br.danger.target.type)))
+      ? br.danger.target : null;
     // Low HP and a dry magazine (Conquest) both fall back to cover.
     const dryNearEnemy = cq && enemy && !hullTarget && p.mag[p.weapon] === 0 && p.reserve[p.weapon] > 0
       && enemyFlatEarly(enemy, p) < RELOAD_COVER_DIST;
@@ -1134,8 +1215,8 @@ class BotManager {
         };
         const score = (s) => (s ? (hidden(s) ? 1000 : 0) + dist3(s.x, s.y, s.z, panicFrom.x, panicFrom.y, panicFrom.z) : -1);
         br.roamTarget = score(cA) >= score(cB)
-          ? (cA || cB || randSpot(this.game.world, br.rng, p))
-          : (cB || cA || randSpot(this.game.world, br.rng, p));
+          ? (cA || cB || this.roamSpot(br, p))
+          : (cB || cA || this.roamSpot(br, p));
       }
       br.roamDeadline = now + RETREAT_MS;
       br.retreatUntil = now + RETREAT_MS;
@@ -1169,9 +1250,10 @@ class BotManager {
     if ((!objective || takingDetour)
         && (!br.roamTarget
           || now >= br.roamDeadline
-          || dist3(p.x, p.y, p.z, br.roamTarget.x, br.roamTarget.y, br.roamTarget.z) < ARRIVE_DIST)) {
+          || dist3(p.x, p.y, p.z, br.roamTarget.x, br.roamTarget.y, br.roamTarget.z) < ARRIVE_DIST
+          || this.outsideBotBounds(br.roamTarget))) {
       if (!(cq && fallingBack)) {
-        br.roamTarget = randSpot(this.game.world, br.rng, p);
+        br.roamTarget = this.roamSpot(br, p);
         br.roamDeadline = now + ROAM_TIMEOUT_MS;
       }
     }
@@ -1212,7 +1294,9 @@ class BotManager {
       const supportGoal = !!goal.support || goal.kind === 'heal';
       const holdPoint = objectiveArrived && (HOLD_STANCES.has(goalStance(goal)) || supportGoal);
       if (fallingBack) cqMotion = 'travel';
-      else if (hullTarget) cqMotion = 'combat';
+      // Titanfall: an embark, rodeo or battery run keeps walking while the gun stays up.
+      else if (tf && goal.rush && objective) cqMotion = 'travel';
+      else if (hullTarget && !(goal.kind === 'perch' && objectiveArrived)) cqMotion = 'combat';
       else if (inZone) cqMotion = 'zone';
       else if (holdPoint) cqMotion = 'hold';
       // A revive or repair not yet in reach walks in shooting on the move: holding still a few
@@ -1234,7 +1318,9 @@ class BotManager {
     // Engage on damage permission, not fire permission: TTT prep lets the knife
     // "fire" but nobody can be hurt, and a live swing would only mine the wall.
     const meleeLive = melee && !!enemy && !hullTarget && this.game.mode.canDamage(p, enemy);
-    const wet = (x, z) => this.game.fluidAt(Math.floor(x), Math.floor(p.y + 0.55), Math.floor(z));
+    // Fluid at the feet or one voxel under them (ashfall's sunk slag runners: a step in burns).
+    const wet = (x, z) => this.game.fluidAt(Math.floor(x), Math.floor(p.y + 0.55), Math.floor(z))
+      || this.game.fluidAt(Math.floor(x), Math.floor(p.y - 0.45), Math.floor(z));
 
     if (combatMovement && cqMotion === 'zone') {
       // Hold the flag: strafe across the line of fire, turning back inward
@@ -1293,6 +1379,15 @@ class BotManager {
           const wx = wp.x - p.x, wz = wp.z - p.z, wl = Math.hypot(wx, wz);
           if (Math.hypot(flank.x - p.x, flank.z - p.z) > 2.5 && wl > 0.3) br.moveWish = { x: wx / wl, z: wz / wl };
           else inp.keys.crouch = now < br.pauseUntil;
+        }
+      }
+      // Titanfall: keep moving round a titan between firing spots 28-42 m out.
+      if (tf && hullTarget && isTitanType(enemy.type)) {
+        const spot = this.titanfall.standoffSpot(br, p, enemy, now, (x, z, y) => standable(this.game.world, x, z, y));
+        if (spot && Math.hypot(spot.x - p.x, spot.z - p.z) > 2.5) {
+          const wp = navigationWaypoint(this.game.world, p, spot, br, now);
+          const wx = wp.x - p.x, wz = wp.z - p.z, wl = Math.hypot(wx, wz);
+          if (wl > 0.3) br.moveWish = { x: wx / wl, z: wz / wl };
         }
       }
       if (melee) {
@@ -1394,10 +1489,17 @@ class BotManager {
         const dist = Math.hypot(enemyFlat, enemy.y - p.y);
         let wanted = hullTarget ? bestWeaponFor(p, ownedSlots, enemy, dist) : null;
         // Launchers give way to a gun for infantry: the AT rocket up close, the STINGER always.
-        if (!hullTarget && (p.def.projectile === 'rocket' && dist < 30 || p.def.projectile === 'stinger')) {
+        // Titanfall: the AT weapons give way to the primary for pilots.
+        if (!hullTarget && (p.def.projectile === 'rocket' && dist < 30 || p.def.projectile === 'stinger' || (tf && TF_AT_IDS.has(p.def.id)))) {
           wanted = ownedSlots.find(s => s !== p.weapon && WEAPONS[WEAPON_IDS[s]]?.mode !== 'melee'
             && WEAPONS[WEAPON_IDS[s]]?.projectile !== 'rocket' && WEAPONS[WEAPON_IDS[s]]?.projectile !== 'stinger'
+            && !(tf && TF_AT_IDS.has(WEAPON_IDS[s]))
             && (p.mag[s] > 0 || p.reserve[s] > 0)) ?? null;
+        }
+        if (tf && !hullTarget && (wanted === null || wanted === p.weapon)) {
+          const S = TF_SHOTGUN, has = s => ownedSlots.includes(s) && (p.mag[s] > 0 || p.reserve[s] > 0);
+          if (p.weapon === S.slot && dist > S.swap && has(S.side)) wanted = S.side;
+          else if (p.weapon === S.side && dist < S.back && has(S.slot)) wanted = S.slot;
         }
         if (wanted !== null && wanted !== p.weapon) { inp.switchTo = wanted; weaponPending = true; }
       }
@@ -1415,7 +1517,9 @@ class BotManager {
       const mgl = p.def.projectile === 'mgl';
       const rocket = cq && p.def.projectile === 'rocket';
       // STINGER: hold the seeker on the hull centre; the missile does the leading.
-      const stingerAim = cq && p.def.projectile === 'stinger';
+      const stingerAim = cq && (p.def.projectile === 'stinger' || (tf && p.def.projectile === 'archer'));
+      // Titanfall THUNDERBOLT: a slow straight orb, led by its flight time.
+      const orb = tf && p.def.projectile === 'thunderbolt';
       const mglFlat = mgl ? Math.max(0.35, Math.hypot(aimX - p.x, aimZ - p.z) - MGL_RULES.muzzleForward) : 0;
       const bubbleFlat = bubble ? Math.hypot(aimX - p.x, aimZ - p.z) : 0;
       // Only a Big Bubble actually being blown aims on the Big Bubble profile: a stale
@@ -1439,7 +1543,8 @@ class BotManager {
             : flight ? (flight.t > 0 ? projectileLead(enemy, bubbleFlat, bubbleFlat / flight.t, br.skill) : [0, 0])
               // The FIRESTORM stream flies at FLAME_RULES.speed: lead by its flight time.
               : p.def.flame ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), FLAME_RULES.speed, br.skill)
-                : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
+                : orb ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), PILOT_AT_RULES.thunderbolt.speed, br.skill)
+                  : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
       const aim = [aimX + lead[0], (rocketAim ? rocketAim.point[1] : aimY) - (flight ? (flight.rise - BUBBLE_RULES.muzzleDrop) * br.skill : 0), aimZ + lead[1]];
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
@@ -1447,7 +1552,8 @@ class BotManager {
         aim[1] - (eye[1] - MGL_RULES.muzzleDrop)) : null;
       const pitchT = rocketAim ? rocketAim.pitch : roundAim?.pitch != null ? roundAim.pitch : mgl && mglPitch !== null
         ? mglPitch : Math.atan2(aim[1] - eye[1], flat);
-      const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError * pers.aimError;
+      // A cloaked pilot seen only up close (titanfall) multiplies the error (bot-perception.js).
+      const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError * pers.aimError * (br.sighting.aimErrorMul ?? 1);
       const sigmaRad = sigmaDeg * Math.PI / 180;
       // Correlated wander drifts the intended point; the eased steering
       // follows it, so the crosshair moves in curves rather than tick jitter.
@@ -1498,7 +1604,11 @@ class BotManager {
           : hullTarget ? clearFlight(this.game, p, enemy, eye, aimDir, aimDistance, { explosive: false })
             : (mgl || !raycastVoxels(this.solidAt, ...eye, ...aimDir, aimDistance)));
       // The STINGER only releases on a complete lock (the server refuses it otherwise).
-      if (stingerAim) canShoot &&= hullTarget && (p.lockProgress ?? 0) >= 0.99;
+      // The ARCHER flies unguided after ARCHER_UNLOCKED_MS on a titan without a lock.
+      if (stingerAim && tf && p.def.projectile === 'archer') {
+        if (!hullTarget || br.archerId !== enemy.id) { br.archerId = hullTarget ? enemy.id : null; br.archerSince = now; }
+        canShoot &&= hullTarget && ((p.lockProgress ?? 0) >= 0.99 || now - br.archerSince >= ARCHER_UNLOCKED_MS);
+      } else if (stingerAim) canShoot &&= hullTarget && (p.lockProgress ?? 0) >= 0.99;
       if (cq && hullTarget && WEAPONS[WEAPON_IDS[p.weapon]] && bestWeaponFor(p, [p.weapon], enemy, aimDistance) === null) canShoot = false;
       // Call the contact out to the team once the crosshair is on it.
       if (cq && br.noticeProgress >= 1 && Math.abs(wrapAngle(baseYaw - intendedYaw)) < 0.12) this.callSpot(br, p, enemy, now, profile);
@@ -1546,6 +1656,7 @@ class BotManager {
           br.glaiveSwapAt = now + GLAIVE_SWAP_CD_MS;
         }
       }
+      if (tf && p.weapon === TF_SHOTGUN.slot && aimDistance > TF_SHOTGUN.fire) canShoot = false;
       if (mgl) {
         const others = ownedSlots.some((slot) => slot !== p.weapon);
         if (mglPitch === null || aimDistance > MGL_MAX_RANGE) canShoot = false;
@@ -1571,9 +1682,10 @@ class BotManager {
               const holdMs = br.bubbleBig ? 0.95 * p.def.charge.ms : 0;
               inp.wantFire = p.charging ? p.chargeT < holdMs : !p.triggerPrev;
             } else if (p.def.mode === 'charge') {
-              // Charge weapons release near full power.
+              // Charge weapons release near full power; a full-charge-only capacitor
+              // (the titanfall LONGBOW) is held until it fires itself.
               const chargeMs = p.def.charge?.ms || 850;
-              inp.wantFire = p.charging ? p.chargeT < chargeMs * 0.95 : !p.triggerPrev;
+              inp.wantFire = p.charging ? (p.def.charge?.fullOnly === true || p.chargeT < chargeMs * 0.95) : !p.triggerPrev;
             } else {
               inp.wantFire = p.def.mode === 'auto' || !p.triggerPrev;
             }
@@ -1582,8 +1694,10 @@ class BotManager {
         }
       }
       // Stop and pop: a ranged burst is fired standing still (movement spread
-      // dwarfs the aimed cone), then the legs resume between bursts.
-      if (cq && br.inBurst && aimDistance > STOP_AND_POP_RANGE && cqMotion && cqMotion !== 'zone' && cqMotion !== 'hold') {
+      // dwarfs the aimed cone), then the legs resume between bursts. Titanfall: a titan is
+      // too big to miss and a slow AT burst would root the pilot, so it keeps moving.
+      if (cq && br.inBurst && aimDistance > STOP_AND_POP_RANGE && cqMotion && cqMotion !== 'zone' && cqMotion !== 'hold'
+        && !(tf && hullTarget)) {
         moving = false; br.moveWish = null;
         inp.keys.f = inp.keys.b = inp.keys.l = inp.keys.r = false;
         inp.keys.sprint = false;
@@ -1650,10 +1764,11 @@ class BotManager {
       } else if (!combatMovement) inp.yaw = br.aim.steer('yaw', p.yaw, moveYaw, turnRate, dtS);
       // The duel dance steers by keys, not by the route: on surface maps keep
       // it off ledges, out of the river and away from walls it would grind into.
-      if (cq && cqMotion === 'combat' && surfaceNavigation(this.game.world)) this.guardDanceKeys(p, inp);
+      // (A titanfall stand-off walk follows its surface route, not the dance.)
+      if (cq && cqMotion === 'combat' && surfaceNavigation(this.game.world) && !(tf && br.moveWish)) this.guardDanceKeys(p, inp);
       // Ground routes go around cover. Legacy terrain routes may hop only
       // toward a supported, body-clear landing in the actual input direction.
-      if (!Number.isFinite(this.game.world.meta?.navigationFloor)
+      if ((!Number.isFinite(this.game.world.meta?.navigationFloor) || br.climbing)
           && p.grounded && now >= br.jumpCdUntil && canHopObstacle(this.solidAt, p, inp)) {
         inp.keys.jump = true;
         br.jumpCdUntil = now + br.hopCdMs;
@@ -1662,7 +1777,7 @@ class BotManager {
       inp.keys.crouch = true; // hold low at the cover spot
     }
     br.moveWish = null;
-    if (cq && moving && p.grounded && !inFluid && surfaceNavigation(this.game.world)) this.guardLedges(br, p, inp);
+    if (cq && moving && p.grounded && !inFluid && (tf || surfaceNavigation(this.game.world))) this.guardLedges(br, p, inp, tf);
     if (swimming) this.swimExit(br, p, inp, waypoint); else br.swimKeys = null;
     // Bobbing at the surface lifts the body centre out of the water now and then.
     const wetBody = !!inFluid || this.game.fluidAt(Math.floor(p.x), Math.floor(p.y + 0.05), Math.floor(p.z));
@@ -1686,6 +1801,36 @@ class BotManager {
     }
 
     br.intendsMove = moving && (inp.keys.f || inp.keys.b || inp.keys.l || inp.keys.r);
+    // Titanfall: a route whose next node is not clear of the body's own cell hands back that
+    // cell, so no key is set; count the walk as a wish so the stuck watchdog side-steps.
+    // Still pinned after a moment (a crater lip, a route-less pit): walk and hop straight at the target.
+    if (tf && moving && !br.intendsMove && !br.moveWish && navDist > ARRIVE_DIST && Math.hypot(ndx, ndz) <= 0.35) {
+      br.intendsMove = true;
+      if (br.stuckSince && now - br.stuckSince > TF_HOP_MS && !fightNow) {
+        inp.yaw = br.aim.steer('yaw', p.yaw, Math.atan2(-(nav.x - p.x), -(nav.z - p.z)), turnRate, dtS);
+        inp.keys.f = true;
+        inp.keys.jump = !!p.grounded;
+      }
+    }
+    // A perch the ground graph has no route off hands the roam back the bot's own spot: hop
+    // off toward the map centre.
+    if (tf && !objective && !fightNow && !searching && !br.intendsMove && navDist <= ARRIVE_DIST) {
+      br.tfPerchSince ??= now;
+      if (now - br.tfPerchSince > TF_PERCH_MS) {
+        const { sx, sz } = worldDimensions(this.game.world);
+        inp.yaw = br.aim.steer('yaw', p.yaw, Math.atan2(-(sx / 2 - p.x), -(sz / 2 - p.z)), turnRate, dtS);
+        inp.keys.f = true;
+        inp.keys.jump = !!p.grounded;
+        br.intendsMove = true;
+        if (now - br.tfPerchSince > TF_PERCH_MS * 3) { br.tfPerchSince = null; br.roamDeadline = 0; }
+      }
+    } else if (tf) br.tfPerchSince = null;
+    // A walk that gains nothing for a moment (a crater lip, a block the step-up misses): hop.
+    if (tf && br.intendsMove) {
+      const pin = br.tfPin;
+      if (!pin || Math.hypot(p.x - pin.x, p.z - pin.z) > 0.8) br.tfPin = { x: p.x, z: p.z, at: now };
+      else if (now - pin.at > TF_HOP_MS * 1.5 && p.grounded) { inp.keys.jump = true; pin.at = now; }
+    } else if (tf) br.tfPin = null;
     br.motion = cqMotion ?? (moving ? (searching ? 'search' : 'walk') : 'idle');
 
     return inp;

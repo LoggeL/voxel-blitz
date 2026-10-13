@@ -12,6 +12,8 @@ import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 import { slideContact, stepSlideRide } from '../../shared/slide-rules.js';
 import { slidePlayerVehicleAxis, constrainPlayerVehicleMotion } from '../../shared/player-vehicle-collision.js';
 import { CHUTE, stepChuteState, stepChuteVelocity } from '../../shared/parachute.js';
+import { createPilotState, pilotJumpSeq, pilotPreStep, pilotSpeedFor, pilotAccel, pilotVertical, pilotPostCollide,
+  resetPilotMotion } from '../../shared/pilot-movement.js';
 
 // Shooter-side rewind reads up to maxViewAgeMs (450 ms) back; at 60 Hz that
 // needs 27 samples, so 32 keeps a full window plus headroom.
@@ -158,12 +160,16 @@ export function stepMovement(p, dt, ctx) {
     p.coyote = 0;
     p.grounded = solidBelow(ctx.solidAt, p.x, p.y, p.z);
     p.chute = CHUTE.none;
+    if (ctx.pilotRules && p.pilot) { resetPilotMotion(p.pilot); pilotJumpSeq(p.pilot, inp?.jumpSeq, true); }
     recordPose(p, ctx.now);
     return;
   }
 
   const kf = inp ? inp.keys : IDLE_KEYS;
-  const jumpPressed = !!kf.jump && !p.jumpWasHeld;
+  // Titanfall pilot state (shared/pilot-movement.js); the jumpSeq counter keeps short presses (§3.6).
+  const pilot = ctx.pilotRules && !p.npcRole ? (p.pilot ??= createPilotState()) : null;
+  const seqPress = pilot ? pilotJumpSeq(pilot, inp?.jumpSeq) : false;
+  const jumpPressed = (!!kf.jump && !p.jumpWasHeld) || seqPress;
   p.jumpWasHeld = !!kf.jump;
   const fwdAmt = (kf.f ? 1 : 0) - (kf.b ? 1 : 0);
   const strafe = (kf.r ? 1 : 0) - (kf.l ? 1 : 0);
@@ -219,18 +225,25 @@ export function stepMovement(p, dt, ctx) {
     p.coyote = 0;
     p.sprint = false;
     p.jumpGroundY = null;
+    if (pilot) resetPilotMotion(pilot);
     recordPose(p, ctx.now);
     return;
   }
   p.slide = null;
   if (p.grounded) p.jumpGroundY = p.y;
-  const deliberateGrab = !p.grounded && jumpPressed && !low && !chuteBefore;
+  // Titanfall pilot movement (shared/pilot-movement.js): double jump, wall-jump, slide entry.
+  const pilotLadder = handsFree && !low && ladderHere;
+  const pilotJump = !!pilot && pilotPreStep(pilot, p, { jump: !!kf.jump && !low, jumpPressed: jumpPressed && !low, crouch: p.crouch,
+    wishX: wx, wishZ: wz, yaw: movementYaw, bot: !!p.bot, ladder: pilotLadder, swim: swimming }, ctx, dt);
+  const deliberateGrab = !pilotJump && !p.grounded && jumpPressed && !low && !chuteBefore;
+  // Pilot mantle: an airborne pilot's automatic grab reaches from the feet, not the takeoff (bots keep the stock grab).
+  const reachFromFeet = deliberateGrab || (!!pilot && !p.bot && !p.grounded);
   if (handsFree && !p.vault && swimming) {
     p.vault = findSwimExit(ctx.solidAt, p, { x: wx, z: wz }, !!kf.jump, p.crouch || low, movementYaw);
   } else if (handsFree && !p.vault && !swimming && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
       fwdAmt, p.crouch || low, p.y, p.jumpGroundY)) {
     p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz },
-      deliberateGrab ? p.y : p.jumpGroundY, movementYaw, deliberateGrab ? 0 : 1);
+      reachFromFeet ? p.y : p.jumpGroundY, movementYaw, reachFromFeet ? 0 : 1);
   }
   if (ctx.airRules) {
     // A ledge grab wins over opening the canopy; bots never toggle it by hand.
@@ -248,6 +261,7 @@ export function stepMovement(p, dt, ctx) {
     p.grounded = !active && solidBelow(ctx.solidAt, p.x, p.y, p.z);
     p.coyote = 0;
     if (!active || hullBlocked) p.vault = null;
+    if (pilot) resetPilotMotion(pilot);
     recordPose(p, ctx.now);
     return;
   }
@@ -256,8 +270,10 @@ export function stepMovement(p, dt, ctx) {
   if (p.npcRole) speed *= p.npcSpeed || 1;
   // A pulse concussion drags the legs: 60% speed until the deadline passes.
   if (Number.isFinite(p.concussedUntil) && p.concussedUntil > ctx.now) speed *= CONCUSSED_SPEED_MULT;
+  if (pilot) speed = pilotSpeedFor(pilot, { sprint: !!p.sprint, crouch: !!p.crouch, ads: !!p.ads,
+    stim: (p.pilotTac?.stimUntil ?? 0) > ctx.now }, speed);
   const accel = 1 - Math.exp(-(p.grounded ? ACCEL_GROUND : ACCEL_AIR) * dt);
-  if (!p.chute) {
+  if (!p.chute && !(pilot && pilotAccel(pilot, p, { x: wx, z: wz, speed, accel, ladder: pilotLadder, swim: swimming }, ctx, dt))) {
     p.vx += (wx * speed - p.vx) * accel;
     p.vz += (wz * speed - p.vz) * accel;
   }
@@ -282,6 +298,9 @@ export function stepMovement(p, dt, ctx) {
   } else if (swimming) {
     p.vy = swimVerticalVelocity(p.vy, !!kf.jump, !!kf.crouch, dt, ctx.fluidAt, p.x, p.y, p.z);
     p.coyote = 0;
+  } else if (pilot && pilotVertical(pilot, p, ctx, dt)) {
+    // Pilot jumps (ground, double), wallrun and grapple replaced the stock jump and gravity.
+    if (pilot.jumped === 1) p.exhaustion = clamp01(p.exhaustion + CONDITION_RULES.exhaustionJumpGain);
   } else {
     // Jump with a short coyote window.
     if (!low && kf.jump && (p.grounded || p.coyote > 0) && p.vy <= 0.01) {
@@ -297,8 +316,8 @@ export function stepMovement(p, dt, ctx) {
   // Downward travel bypasses only while its destination remains in-volume,
   // so the ordinary collision path catches the floor at the ladder foot.
   const canStepTerrain = p.grounded && !kf.jump && !p.vault && !ladderDirected && p.vy <= 0.01;
-  slideAxis(p, 'x', p.vx * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain, ctx.vehicles);
-  slideAxis(p, 'z', p.vz * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain, ctx.vehicles);
+  const hitX = slideAxis(p, 'x', p.vx * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain, ctx.vehicles);
+  const hitZ = slideAxis(p, 'z', p.vz * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain, ctx.vehicles);
   const dy = p.vy * dt;
   const impactVy = p.vy, wasAirborne = !p.grounded;
   const ladderBypass = ladderUp
@@ -321,6 +340,7 @@ export function stepMovement(p, dt, ctx) {
     if (!ladderDirected && p.grounded) p.coyote = COYOTE_S;
     p.grounded = false;
   }
+  if (pilot) pilotPostCollide(pilot, p, ctx, { x: hitX, z: hitZ, y: hitY, dy }, dt);
 
   if (p.grounded && wasAirborne && !ladderBypass) {
     p.chute = CHUTE.none; p.chuteT = 0;

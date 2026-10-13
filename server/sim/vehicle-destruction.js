@@ -39,6 +39,8 @@ export function vehicleDestructionBlast(system, vehicle, attacker = null, { sour
   for (const victim of (engine.combatants || engine.entities).values()) {
     if (occupantShielded(victim) || victim.state !== 'alive' || typeof victim.takeDamage !== 'function'
         || victim.spawnProtectedUntil > engine.now) continue;
+    // Titanfall: a pilot just ejected from this hull leaves before its destruction blast (eject cloak window).
+    if (victim.ghostVehicleId === vehicle.id && victim.ejectCloakUntil > engine.now) continue;
     const isSelf = !!attacker && String(victim.id) === String(attacker.id);
     if (!isSelf) {
       const victimTeam = engine.mode?.teamFor?.(victim) ?? victim.team;

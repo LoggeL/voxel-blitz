@@ -1,0 +1,989 @@
+{
+  "generated": "2026-10-13T12:31:16.624Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ion-idle-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ion-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ion-doom-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ion-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ion-core-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ion-core-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-scorch-idle-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-scorch-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-scorch-doom-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-scorch-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-scorch-core-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-scorch-core-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-northstar-idle-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-northstar-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-northstar-doom-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-northstar-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-northstar-core-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-northstar-core-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ronin-idle-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ronin-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ronin-doom-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ronin-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ronin-core-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-ronin-core-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-legion-idle-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-legion-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-legion-doom-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-legion-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-legion-core-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/desktop-legion-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ion-idle-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ion-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ion-doom-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ion-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ion-core-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ion-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-scorch-idle-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-scorch-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-scorch-doom-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-scorch-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-scorch-core-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-scorch-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-northstar-idle-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-northstar-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-northstar-doom-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-northstar-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-northstar-core-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-northstar-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ronin-idle-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ronin-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ronin-doom-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ronin-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ronin-core-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-ronin-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-legion-idle-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-legion-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-legion-doom-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-legion-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-legion-core-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-legion-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ion-idle-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ion-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ion-doom-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ion-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ion-core-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ion-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-scorch-idle-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-scorch-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-scorch-doom-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-scorch-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-scorch-core-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-scorch-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-northstar-idle-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-northstar-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-northstar-doom-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-northstar-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-northstar-core-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-northstar-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ronin-idle-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ronin-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ronin-doom-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ronin-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ronin-core-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-ronin-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-legion-idle-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-legion-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-legion-doom-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-legion-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-legion-core-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/portrait-legion-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ion-idle-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ion-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ion-doom-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ion-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ion-core-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ion-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-scorch-idle-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-scorch-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-scorch-doom-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-scorch-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-scorch-core-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-scorch-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-northstar-idle-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-northstar-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-northstar-doom-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-northstar-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-northstar-core-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-northstar-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ronin-idle-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ronin-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ronin-doom-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ronin-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ronin-core-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-ronin-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-legion-idle-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-legion-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-legion-doom-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-legion-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-legion-core-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/captures/landscape-legion-core-fov100.png"
+    }
+  ],
+  "hud": [
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/captures/desktop-hud-ion-idle.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/captures/desktop-hud-ion-doom.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/captures/desktop-hud-legion-idle.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/captures/desktop-hud-legion-doom.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-hud-ion-idle.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-hud-ion-doom.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-hud-legion-idle.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/captures/ultrawide-hud-legion-doom.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/captures/portrait-hud-ion-idle.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/captures/portrait-hud-ion-doom.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/captures/portrait-hud-legion-idle.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/captures/portrait-hud-legion-doom.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/captures/landscape-hud-ion-idle.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/captures/landscape-hud-ion-doom.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/captures/landscape-hud-legion-idle.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/captures/landscape-hud-legion-doom.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    }
+  ],
+  "overlaps": [],
+  "errors": []
+}

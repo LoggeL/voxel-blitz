@@ -8,6 +8,14 @@ import {
 
 const NOOP = () => {};
 
+/** The traveling rocket belongs to the action; the chamber belongs to ammo authority. */
+export function syncArcherAmmo(archer, mag) {
+  archer.authoritativeMag = Math.max(0, Math.trunc(Number(mag) || 0));
+  if (archer.reloading) return;
+  archer.round.visible = false;
+  archer.chambered.visible = archer.authoritativeMag > 0;
+}
+
 /** Place the remaining cassette shells in consecutive slots, starting at the top. */
 export function presentSkipjackReserve(skipjack, reserve) {
   const rounds = skipjack.rounds;
@@ -220,6 +228,21 @@ export class WeaponActions {
       rocket.gate.position.copy(rocket.hinge);
       rocket.gate.rotation.set(0, 0, 0);
     }
+    const stinger = model.extra.userData.stinger;
+    if (stinger) {
+      for (const clamp of stinger.clamps || []) clamp.rotation.set(0, 0, 0);
+      stinger.latch?.rotation.set(0, 0, 0);
+      if (stinger.frontCover) stinger.frontCover.visible = (stinger.authoritativeMag ?? 1) > 0;
+    }
+    const archer = model.extra.userData.archer;
+    if (archer?.round) {
+      archer.reloading = false;
+      archer.gate.position.copy(archer.hinge);
+      archer.gate.rotation.set(0, 0, 0);
+      archer.round.position.copy(archer.seat);
+      archer.round.rotation.set(0, 0, 0);
+      syncArcherAmmo(archer, archer.authoritativeMag);
+    }
     const skipjack = model.extra.userData.skipjack;
     if (skipjack) {
       skipjack.cassette.position.copy(skipjack.cassette.userData.homePosition);
@@ -425,6 +448,17 @@ export class WeaponActions {
       return;
     }
 
+    if (model.extra.userData.archer?.round) {
+      this._updateArcherReload(frac, model, out);
+      reload.lastFrac = frac;
+      if (frac >= 1) {
+        this._resetReloadPose(model);
+        this._reload = null;
+        this._clearMotion();
+      }
+      return;
+    }
+
     if (model.extra.userData.rocketReload) {
       this._updateRocketReload(frac, model, out);
       reload.lastFrac = frac;
@@ -438,6 +472,17 @@ export class WeaponActions {
 
     if (model.extra.userData.skipjack) {
       this._updateSkipjackReload(frac, model, T, out);
+      reload.lastFrac = frac;
+      if (frac >= 1) {
+        this._resetReloadPose(model);
+        this._reload = null;
+        this._clearMotion();
+      }
+      return;
+    }
+
+    if (model.extra.userData.stinger?.canister) {
+      this._updateStingerReload(frac, model, T, out);
       reload.lastFrac = frac;
       if (frac >= 1) {
         this._resetReloadPose(model);
@@ -550,6 +595,69 @@ export class WeaponActions {
       this._resetReloadPose(model);
       this._reload = null;
       this._clearMotion();
+    }
+  }
+
+  /** Release the cradle, lift out the spent launch tube, and clamp in a fresh one. */
+  _updateStingerReload(frac, model, T, out) {
+    const parts = model.extra.userData.stinger;
+    const canister = parts.canister;
+    const { start, home, clickAt } = T.magTimeline;
+    const liftEnd = start + 0.09;
+    const exitEnd = 0.46;
+    const enterStart = 0.56;
+    const alignAt = home - 0.09;
+    const open = this._phase(frac, 0.10, start) * (1 - this._phase(frac, 0.84, clickAt));
+    for (const clamp of parts.clamps || []) clamp.rotation.z = -1.35 * open;
+    if (parts.latch) parts.latch.rotation.x = -0.62 * open;
+
+    const hold = this._phase(frac, 0.015, 0.13) * (1 - this._phase(frac, clickAt, 1));
+    const seat = this._contact(frac, home, 0.075);
+    const latch = this._contact(frac, clickAt, 0.06);
+    out.dip = 0.025 * hold + 0.010 * seat;
+    out.rock = 0.16 * hold - 0.07 * seat;
+    out.x = -0.035 * hold + 0.014 * seat;
+    out.push = 0.06 * hold - 0.035 * seat + 0.015 * latch;
+    out.yaw = -0.16 * hold;
+    out.roll = -0.24 * hold + 0.035 * latch;
+
+    if (frac < enterStart) {
+      // First clear the two open clamps vertically, then carry the full tube
+      // across the left edge. The receiver, sight and battery stay attached.
+      const lift = this._phase(frac, start, liftEnd);
+      const carry = this._phase(frac, liftEnd, exitEnd);
+      canister.position.set(-0.16 * lift - 0.86 * carry, 0.19 * lift + 0.32 * carry, -0.40 * lift - 0.20 * carry);
+      canister.rotation.set(0.09 * carry, -0.15 * carry, 0.18 * carry);
+    } else {
+      // The replacement rises outside the cradle, aligns above it, then seats.
+      const arrive = this._phase(frac, enterStart, alignAt);
+      const seatIn = this._phase(frac, alignAt, home);
+      const alignBore = this._phase(frac, alignAt, home - 0.035);
+      const drawBack = this._phase(frac, home - 0.035, home);
+      canister.position.set((-1.05 + 0.85 * arrive) * (1 - seatIn),
+        (-0.76 + 0.95 * arrive) * (1 - seatIn), (-0.60 + 0.20 * arrive) * (1 - drawBack));
+      canister.rotation.set(-0.14 * (1 - arrive), (0.12 + 0.48 * arrive) * (1 - alignBore), -0.16 * (1 - arrive));
+    }
+    canister.visible = !(frac >= exitEnd && frac < enterStart);
+    if (parts.frontCover) parts.frontCover.visible = frac >= enterStart;
+
+    // Reach for the release first, then keep the palm on the moving tube until
+    // it seats; finish by pressing the clamp latch before returning to the grip.
+    const grip = this._phase(frac, 0.04, 0.15) * (1 - this._phase(frac, clickAt, 0.985));
+    const palm = parts.reloadPalm ||= canister.position.clone();
+    palm.set(-0.055, 0.055, -0.30).applyQuaternion(canister.quaternion).add(canister.position);
+    let x = palm.x;
+    let y = palm.y;
+    let z = palm.z;
+    const close = this._phase(frac, home, 0.85);
+    if (frac >= home) {
+      x += (-0.075 - x) * close;
+      y += (0.045 - y) * close;
+      z += (-0.20 - z) * close;
+    }
+    this._moveReloadHand(model, x, y, z, grip, canister.visible);
+    for (const [at, click] of [[start, 1], [home, 2], [clickAt, 3]]) {
+      if (frac >= at && this._reload.lastFrac < at) this._callbacks.onReloadClick(click);
     }
   }
 
@@ -819,6 +927,69 @@ export class WeaponActions {
     shell.rotation.x = -0.35 * (1 - reach);
     this._moveReloadHand(model, shell.position.x - 0.025, shell.position.y - 0.022, shell.position.z + 0.02,
       this._phase(frac, 0.01, 0.10) * (1 - this._phase(frac, 0.92, 1)), loading);
+  }
+
+  /** Open the split shell, lower a full rocket into the trough, seat and latch. */
+  _updateArcherReload(frac, model, out) {
+    const reload = this._reload;
+    const timeline = model.T.magTimeline;
+    const parts = model.extra.userData.archer;
+    const present = this._phase(frac, 0.02, 0.19) * (1 - this._phase(frac, 0.94, 1));
+    const seat = this._contact(frac, timeline.home, 0.065);
+    const latch = this._contact(frac, timeline.clickAt, 0.045);
+    out.x = -0.065 * present;
+    out.dip = 0.055 * present + 0.012 * seat;
+    out.rock = 0.17 * present - 0.07 * seat + 0.035 * latch;
+    out.yaw = 0.34 * present;
+    out.roll = -0.14 * present - 0.025 * latch;
+    out.push = 0.025 * present - 0.050 * seat + 0.020 * latch;
+
+    // The longitudinal pin stays on the right. Its top half swings up and out
+    // to +x, leaving the left hand's entire approach and the trough clear.
+    const open = this._phase(frac, timeline.start, 0.30) *
+      (1 - this._phase(frac, 0.86, timeline.clickAt));
+    parts.gate.position.copy(parts.hinge);
+    parts.gate.rotation.z = -1.90 * open - 0.035 * this._contact(frac, 0.30, 0.055);
+    const cos = Math.cos(parts.gate.rotation.z), sin = Math.sin(parts.gate.rotation.z);
+    const grab = [parts.hinge.x - 0.108 * cos - 0.040 * sin,
+      parts.hinge.y - 0.108 * sin + 0.040 * cos, parts.hinge.z + 0.025];
+
+    const round = parts.round;
+    const bring = this._phase(frac, 0.34, 0.49);
+    const align = this._phase(frac, 0.54, 0.68);
+    const lower = this._phase(frac, 0.68, 0.75);
+    const insert = this._phase(frac, 0.75, timeline.home);
+    parts.reloading = true;
+    parts.chambered.visible = false;
+    round.visible = frac >= 0.34;
+    round.position.set(parts.seat.x - (0.38 - 0.21 * bring) * (1 - align),
+      parts.seat.y + (0.33 - 0.12 * bring) * (1 - lower),
+      parts.seat.z + 0.10 * (1 - insert));
+    // Present the whole missile broadside before turning its nose down the
+    // bore. An end-on approach lets the exhaust and support palm hide it.
+    round.rotation.set(0, 1.0 * (1 - align), -0.10 * (1 - align));
+    // Keep the round at its seat through the closing beat. Only completion or
+    // cancellation hands visibility back to authority, never an animation cue.
+    const roundCos = Math.cos(round.rotation.y), roundSin = Math.sin(round.rotation.y);
+    const grip = [round.position.x - 0.025 * roundCos + 0.025 * roundSin,
+      round.position.y - 0.068, round.position.z + 0.025 * roundSin + 0.025 * roundCos];
+    let target = grab;
+    if (frac >= 0.30 && frac < 0.37) {
+      target = this._blendTargets(grab, grip, this._phase(frac, 0.30, 0.37));
+    } else if (frac >= 0.37 && frac < 0.84) {
+      target = grip;
+    } else if (frac >= 0.84 && frac < 0.86) {
+      target = this._blendTargets(grip, grab, this._phase(frac, 0.84, 0.86));
+    }
+    this._moveReloadHand(model, target[0], target[1], target[2],
+      this._phase(frac, 0.04, 0.16) * (1 - this._phase(frac, 0.94, 1)));
+    const palm = model.extra.userData.reloadHand?.hand;
+    if (palm) palm.rotation.y += round.rotation.y * this._phase(frac, 0.30, 0.37) *
+      (1 - this._phase(frac, 0.84, 0.86));
+    model.bolt.rotation.x = 0.28 * open * (1 - this._phase(frac, 0.84, timeline.clickAt));
+    for (const [at, click] of [[timeline.start, 1], [timeline.home, 2], [timeline.clickAt, 3]]) {
+      if (frac >= at && reload.lastFrac < at) this._callbacks.onReloadClick(click);
+    }
   }
 
   /**

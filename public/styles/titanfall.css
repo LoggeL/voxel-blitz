@@ -1,0 +1,829 @@
+/* Titanfall HUD, loadout and touch styles (docs/titanfall.md §8.1). Owned by WP6.
+   Injected lazily by public/js/titanfall/titanfall-client.js (never linked from
+   index.html) and removed when the match ends. References:
+   docs/design/titanfall/hud-pilot.png and hud-titan.png (option 2),
+   loadout.png (with the README corrections). body[data-titanfall] carries the
+   painted layout: pilot | titan | dead | hidden. */
+
+.tf-hud {
+  --tf-own: var(--team-alpha, #38bdf8);
+  --tf-enemy: var(--team-bravo, #fb923c);
+  --tf-glass: rgba(11, 14, 18, 0.82);
+  --tf-line: rgba(58, 66, 80, 0.75);
+  --tf-amber: var(--amber, #ff9f1c);
+  --tf-ok: var(--ok, #7fd069);
+  --tf-danger: var(--danger, #ff3355);
+  --tf-shield: #45b8ff;
+  --tf-strut: min(6vw, 116px);
+  --tf-cut: 8px;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  font-family: var(--font-ui);
+  color: var(--txt, #e8ecf1);
+  text-transform: uppercase;
+}
+.tf-hud[data-layout="hidden"] { display: none; }
+.tf-hud [hidden] { display: none !important; }
+.tf-glass, .tf-tile {
+  background: var(--tf-glass);
+  border: 1px solid var(--tf-line);
+  clip-path: polygon(var(--tf-cut) 0, 100% 0, 100% calc(100% - var(--tf-cut)), calc(100% - var(--tf-cut)) 100%, 0 100%, 0 var(--tf-cut));
+}
+.tf-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid #e8ecf1aa;
+  border-radius: 3px;
+  font: 700 12px/1 var(--font-ui);
+  letter-spacing: 0;
+  color: var(--txt, #e8ecf1);
+  background: #0b0e12cc;
+}
+.tf-ring-bg { fill: none; stroke: #ffffff22; stroke-width: 4; }
+.tf-ring-fill { fill: none; stroke: var(--tf-amber); stroke-width: 4; stroke-linecap: butt; transition: stroke-dasharray 120ms linear; }
+
+/* Hide the stock pieces the titanfall HUD replaces. */
+body[data-titanfall] #match-header { display: none !important; }
+/* Behind the loadout screen and while held for DEPLOY (titan-ui.js setDeployCover; the spectator
+   overlay itself is suppressed through SpectatorHud): no stock death note or recap. */
+body[data-titanfall-deploy] :is(#deathnote, #deathrecap) { visibility: hidden !important; }
+body:is([data-titanfall="titan"], [data-titanfall="embark"]) :is(#healthbar, #ammo, #grenade-count, #weaponname, #weapon-icon, #charge-meter, #grenade-readied,
+  #grenade-aim, #medkit-inventory, #medkit-progress, #pickaxe-meter, #player-status-strip) { display: none !important; }
+/* On-gun ammo counters (titan-ui.js sets data-titanfall-gun-display while the drawn pilot gun's counter is on screen,
+   weapon-display.js): the floating ammo card and the coil charge meter go, on desktop and touch alike; scoped (KRABER),
+   third person, seated, spectating and the ARCHER aiming (its housing covers the counter) keep them, so there is
+   always a readout. On desktop the grenade card moves right into the freed corner under the AT chip, clear of the
+   counter behind the rear sight. */
+body[data-titanfall-gun-display] :is(#ammo, #charge-meter) { display: none !important; }
+@media (min-width: 521px) { html:not(.vb-touch-mode) body[data-titanfall-gun-display] #grenade-count { right: 22px; } }
+/* First-person titan cockpit (titan-ui.js sets data-titanfall-cockpit while titan-cockpit-hud.js draws): every titan
+   readout is diegetic, so the DOM titan HUD, score bar and banner go; the stock crosshair, hit marker, kill feed and
+   badge only turn invisible (the cockpit HUD reads their state from these nodes). Touch buttons stay (input). */
+body[data-titanfall-cockpit] .tf-hud :is(.tf-titan, .tf-top, .tf-banner) { display: none !important; }
+body[data-titanfall-cockpit] :is(#crosshair, #hitmarker, #killfeed, .vb-career-badge) { visibility: hidden !important; }
+
+/* Stock right-column readouts in the titan cockpit: the career badge sits between the CORE tile and the
+   DOOMED panel, the kill feed below the DOOMED panel, all inside the right pillar line. */
+html:not(.vb-touch-mode) body[data-titanfall="titan"] #killfeed { top: 404px; right: calc(min(6vw, 116px) * 0.35); }
+html:not(.vb-touch-mode) body[data-titanfall="titan"] .vb-career-badge { top: 240px; right: calc(min(6vw, 116px) * 0.35); }
+/* Short screens (1280×720 playtest): five rows ran over the SMOKE chip and the Q/E/G tiles; the newest three stay. */
+@media (max-height: 860px) {
+  html:not(.vb-touch-mode) body[data-titanfall="titan"] #killfeed > :nth-child(n+4) { display: none; }
+}
+@media (orientation: portrait) {
+  /* Touch keeps the kill feed hidden (touch-controls.css); the badge clears the AT chip and the CORE tile. */
+  .vb-touch-mode body[data-titanfall="pilot"] .vb-career-badge { top: calc(max(10px, env(safe-area-inset-top)) + 156px); }
+  .vb-touch-mode body[data-titanfall="titan"] .vb-career-badge { top: calc(max(10px, env(safe-area-inset-top)) + 162px); right: max(12px, env(safe-area-inset-right)); }
+}
+
+/* ---- score bar ------------------------------------------------------------------- */
+.tf-top {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  width: min(640px, calc(100vw - 32px));
+  padding: 7px 18px 8px;
+  background: var(--tf-glass);
+  border: 1px solid var(--tf-line);
+  border-top: 0;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 18px) 100%, 18px 100%);
+}
+.tf-top[data-own="bravo"] { --tf-own: var(--team-bravo, #fb923c); --tf-enemy: var(--team-alpha, #38bdf8); }
+.tf-top-side { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 10px; }
+.tf-enemy { grid-template-columns: 1fr auto auto; }
+.tf-team { font-size: 14px; font-weight: 700; letter-spacing: 0.12em; }
+.tf-own .tf-team, .tf-own .tf-score { color: var(--tf-own); }
+.tf-enemy .tf-team, .tf-enemy .tf-score { color: var(--tf-enemy); }
+.tf-score { font-size: 24px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.tf-bar { position: relative; display: block; height: 6px; background: #ffffff1c; }
+.tf-bar > i { position: absolute; inset: 0 auto 0 0; width: var(--fill, 0%); background: var(--tf-own); transition: width 200ms linear; }
+.tf-enemy .tf-bar > i { left: auto; right: 0; background: var(--tf-enemy); }
+.tf-clock { display: grid; justify-items: center; line-height: 1; }
+.tf-clock b { font-size: 22px; font-weight: 700; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.tf-clock b[data-urgent="true"] { color: var(--tf-danger); }
+.tf-clock span { margin-top: 2px; font-size: 10px; letter-spacing: 0.14em; color: var(--sub, #93a0ad); }
+
+.tf-banner {
+  position: absolute;
+  top: 118px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 22px;
+  background: rgba(60, 8, 16, 0.84);
+  border: 1px solid var(--tf-danger);
+  color: #ffd5dc;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  animation: tf-blink 0.9s steps(2, jump-none) infinite;
+}
+.tf-banner[data-kind="toast"] { background: var(--tf-glass); border-color: var(--tf-amber); color: var(--tf-amber); animation: none; }
+@keyframes tf-blink { 50% { opacity: 0.55; } }
+
+/* ---- pilot layout ----------------------------------------------------------------- */
+.tf-tactical {
+  position: absolute;
+  left: calc(50% + 42px);
+  top: calc(50% + 34px);
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 10px 7px;
+  --tf-cut: 6px;
+}
+.tf-tac-label { font-size: 15px; font-weight: 700; letter-spacing: 0.08em; }
+.tf-tactical .tf-pips { grid-column: 1 / -1; }
+.tf-tactical[data-state="active"] { border-color: var(--tf-amber); }
+.tf-tactical[data-state="cooling"] .tf-tac-label { color: var(--sub, #93a0ad); }
+/* Pilot wrist display (titan-ui.js sets data-titanfall-wrist while pilot-wrist.js drew the forearm screen): the
+   floating chip hides; the touch tactical button stays. */
+body[data-titanfall-wrist] .tf-hud .tf-tactical { display: none !important; }
+.tf-pips { display: flex; gap: 6px; }
+.tf-pips > i { width: 12px; height: 12px; border: 2px solid var(--tf-amber); border-radius: 50%; }
+.tf-pips > i[data-fill="full"] { background: var(--tf-amber); }
+.tf-pips > i[data-fill="part"] { background: linear-gradient(0deg, #ff9f1c88 50%, transparent 50%); }
+.tf-pips > i[data-fill="empty"] { border-color: #ffffff55; }
+
+.tf-rodeo {
+  position: absolute;
+  left: 50%;
+  bottom: 168px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px 6px 8px;
+}
+.tf-rodeo-ring { width: 50px; height: 50px; }
+.tf-rodeo-icon {
+  position: absolute;
+  left: 25px;
+  top: 50%;
+  width: 14px;
+  height: 20px;
+  margin: -10px 0 0 0;
+  border: 2px solid var(--tf-amber);
+  border-radius: 2px;
+  box-shadow: inset 0 -8px 0 #ff9f1c88;
+}
+.tf-rodeo-text { display: grid; gap: 3px; }
+.tf-rodeo-hold { display: flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 600; letter-spacing: 0.12em; }
+.tf-rodeo-text b { font-size: 17px; letter-spacing: 0.1em; color: var(--tf-amber); }
+.tf-rodeo[data-kind="mount"] .tf-rodeo-text b { color: var(--txt, #fff); }
+.tf-rodeo[data-kind="riding"] .tf-rodeo-text b { color: var(--tf-danger); }
+
+.tf-dock {
+  position: absolute;
+  left: 22px;
+  bottom: 112px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tf-meter { position: relative; display: flex; align-items: center; gap: 2px; }
+.tf-hex { width: 82px; height: 82px; overflow: visible; }
+.tf-hex-bg { fill: rgba(11, 14, 18, 0.88); stroke: #ffffff26; stroke-width: 6; }
+.tf-hex-fill { fill: none; stroke: var(--tf-amber); stroke-width: 6; stroke-dasharray: 0 100; transition: stroke-dasharray 200ms linear; }
+.tf-hex-core { fill: #ff9f1c1f; stroke: none; }
+.tf-hex-icon path { fill: #ff9f1c66; stroke: var(--tf-amber); stroke-width: 2; }
+.tf-hex-eye { fill: var(--tf-amber); }
+.tf-meter[data-state="ready"] .tf-hex-core { fill: #ff9f1c55; }
+/* Owned: the gauge is the titan's hull, in green, never the meter's amber. */
+.tf-meter[data-state="owned"] .tf-hex-core { fill: #7fd06933; }
+.tf-meter[data-state="owned"] .tf-hex-icon path { fill: #7fd06966; stroke: var(--tf-ok); }
+.tf-meter[data-state="owned"] .tf-hex-eye { fill: var(--tf-ok); }
+.tf-meter[data-state="owned"] .tf-meter-text :is(b, .tf-meter-state) { color: var(--tf-ok); }
+.tf-meter[data-state="doomed"] .tf-hex-core { fill: #ff335533; }
+.tf-meter[data-state="doomed"] .tf-hex-icon path { fill: #ff335566; stroke: var(--tf-danger); }
+.tf-meter[data-state="doomed"] .tf-meter-text b { color: var(--tf-danger); }
+.tf-meter[data-state="ready"] .tf-hex-icon path { fill: var(--tf-amber); }
+.tf-meter[data-state="ready"] .tf-hex { filter: drop-shadow(0 0 8px #ff9f1caa); }
+.tf-meter[data-state="owned"] .tf-hex-fill { stroke: var(--tf-ok); }
+.tf-meter[data-state="doomed"] .tf-hex-fill, .tf-meter[data-state="bay"] .tf-hex-fill { stroke: var(--tf-danger); }
+.tf-meter-text {
+  display: grid;
+  line-height: 1.05;
+  padding: 6px 12px 6px 14px;
+  margin-left: -10px;
+  background: var(--tf-glass);
+  border: 1px solid var(--tf-line);
+  border-left: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+}
+.tf-meter-text span { font-size: 13px; font-weight: 600; letter-spacing: 0.14em; }
+.tf-meter-text b { font-size: 22px; color: var(--tf-amber); font-variant-numeric: tabular-nums; }
+.tf-meter-text .tf-meter-state { font-size: 10px; color: var(--sub, #93a0ad); letter-spacing: 0.1em; }
+.tf-meter-text .tf-meter-state:empty { display: none; }
+.tf-meter[data-state="bay"] .tf-meter-state, .tf-meter[data-state="doomed"] .tf-meter-state { color: var(--tf-danger); }
+.tf-call {
+  --progress: 0%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 10px;
+  border-color: var(--tf-amber);
+  color: var(--tf-amber);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  overflow: hidden;
+}
+.tf-call::after { content: ''; position: absolute; inset: auto 0 0 0; height: 3px; width: var(--progress); background: var(--tf-amber); }
+.tf-call .tf-key { border-color: var(--tf-amber); color: var(--tf-amber); }
+.tf-call[data-kind="embark"] { border-color: var(--tf-ok); color: var(--tf-ok); }
+.tf-call[data-kind="embark"] .tf-key { border-color: var(--tf-ok); color: var(--tf-ok); }
+.tf-call[data-kind="embark"]::after { background: var(--tf-ok); }
+.tf-battery {
+  position: absolute;
+  left: 256px;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+.tf-battery-icon { width: 11px; height: 17px; border: 2px solid var(--tf-ok); border-radius: 2px; box-shadow: inset 0 -7px 0 #7fd069aa; }
+
+.tf-at {
+  position: absolute;
+  right: 22px;
+  bottom: 164px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  padding: 6px 14px 6px 8px;
+}
+.tf-at[data-equipped="true"] { border-color: var(--w-chargerifle, var(--tf-amber)); }
+.tf-at-ring { width: 40px; height: 40px; }
+.tf-at[data-lock="locked"] .tf-ring-fill { stroke: var(--tf-danger); }
+.tf-at-text { display: grid; line-height: 1.1; }
+.tf-at-role { font-size: 10px; letter-spacing: 0.16em; color: var(--sub, #93a0ad); }
+.tf-at-text b { font-size: 15px; letter-spacing: 0.1em; }
+.tf-at-ammo { margin-left: auto; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tf-at-text b { white-space: nowrap; }
+/* Drawn: the stock ammo card already shows the count; the lock ring stays the chip's point. */
+.tf-at[data-equipped="true"] .tf-at-ammo { opacity: 0.45; }
+
+/* ---- titan cockpit layout -------------------------------------------------------- */
+.tf-titan { position: absolute; inset: 0; }
+.tf-titan > * { z-index: 1; }
+/* No CSS cockpit struts: WP5's 3D cockpit overlay draws the frame (brace, pillars, MFD dash) in the cockpit
+   view, and the chase view has none. --tf-strut only keeps the panels inside the 3D pillars. */
+.tf-titan .tf-tile { position: absolute; background: rgba(9, 12, 16, 0.9); border-color: #ff9f1c55; }
+.tf-weapon {
+  left: calc(var(--tf-strut) * 0.35);
+  top: 96px;
+  width: 230px;
+  padding: 9px 14px 10px;
+  transform: skewY(6deg);
+  transform-origin: left top;
+}
+.tf-weapon-label { display: block; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; color: var(--tf-amber); }
+.tf-weapon-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.tf-weapon-row b { font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.tf-ammo-bar, .tf-charge-bar { position: relative; display: block; flex: 1; height: 12px; background: repeating-linear-gradient(90deg, #45b8ff33 0 7px, transparent 7px 9px); }
+.tf-ammo-bar > i, .tf-charge-bar > i { position: absolute; inset: 0 auto 0 0; width: var(--fill, 0%);
+  background: repeating-linear-gradient(90deg, var(--tf-shield) 0 7px, transparent 7px 9px); }
+.tf-charge-bar { margin-top: 6px; height: 4px; background: #ffffff1c; }
+.tf-charge-bar > i { background: var(--tf-amber); }
+
+.tf-core {
+  right: calc(var(--tf-strut) * 0.35);
+  top: 86px;
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-items: center;
+  align-items: center;
+  gap: 2px 8px;
+  width: 132px;
+  padding: 10px 10px 12px;
+}
+.tf-core-title { grid-column: 1 / -1; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; color: var(--tf-amber); }
+.tf-core > b { grid-column: 1 / -1; font-size: 20px; color: var(--tf-amber); font-variant-numeric: tabular-nums; }
+.tf-core-ring { width: 58px; height: 58px; }
+.tf-core-ring .tf-ring-fill, .tf-core-ring .tf-ring-bg { stroke-width: 6; }
+.tf-core-label { grid-column: 1 / -1; font-size: 10px; letter-spacing: 0.12em; color: var(--sub, #93a0ad); }
+.tf-core[data-state="ready"] { border-color: var(--tf-amber); box-shadow: 0 0 18px #ff9f1c66; }
+.tf-core[data-state="ready"] .tf-key { border-color: var(--tf-amber); color: var(--tf-amber); animation: tf-blink 0.8s steps(2, jump-none) infinite; }
+.tf-core[data-state="active"] .tf-ring-fill { stroke: #fff; }
+
+.tf-doom {
+  position: absolute;
+  right: calc(var(--tf-strut) * 0.35);
+  top: 290px;
+  display: grid;
+  gap: 6px;
+  width: 168px;
+  padding: 10px 12px 10px;
+  background: rgba(50, 6, 12, 0.9);
+  border: 1px solid var(--tf-danger);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.tf-doom-title { font-size: 19px; letter-spacing: 0.16em; color: var(--tf-danger); text-align: center; animation: tf-blink 0.7s steps(2, jump-none) infinite; }
+.tf-doom-cells { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.tf-doom-cells > i { height: 9px; background: #ff335533; }
+.tf-doom-cells > i[data-fill="full"] { background: var(--tf-danger); }
+.tf-eject { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.12em; color: #ffd5dc; }
+.tf-eject .tf-key { border-color: var(--tf-danger); }
+.tf-eject b { font-size: 14px; color: var(--tf-danger); letter-spacing: 0.14em; }
+.tf-eject-taps { color: var(--tf-danger); font-variant-numeric: tabular-nums; }
+
+.tf-dash {
+  left: calc(var(--tf-strut) * 0.35);
+  top: calc(50% - 30px);
+  display: grid;
+  gap: 6px;
+  width: 132px;
+  padding: 8px 12px 10px;
+}
+.tf-dash-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 700; letter-spacing: 0.16em; color: var(--tf-amber); }
+.tf-chevrons { display: flex; gap: 2px; }
+.tf-chevrons > i {
+  width: 26px;
+  height: 26px;
+  background: #ffffff22;
+  clip-path: polygon(0 0, 45% 0, 100% 50%, 45% 100%, 0 100%, 55% 50%);
+}
+.tf-chevrons > i[data-fill="full"] { background: var(--tf-amber); }
+.tf-chevrons > i[data-fill="part"] { background: linear-gradient(90deg, #ff9f1c 40%, #ffffff22 40%); }
+
+.tf-reticle-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(300px, 34vh);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 2px solid #ff9f1c66;
+  border-radius: 50%;
+  -webkit-mask-image: linear-gradient(180deg, #000 0 64%, transparent 76%);
+  mask-image: linear-gradient(180deg, #000 0 64%, transparent 76%);
+}
+.tf-health {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + min(150px, 17vh) - 40px);
+  width: 440px;
+  transform: translateX(-50%);
+}
+.tf-arc { display: block; width: 100%; height: auto; overflow: visible; }
+/* Dark glass band behind both segment bands, so the arc reads over bright ground. */
+.tf-arc-band { fill: none; stroke: rgba(11, 14, 18, 0.72); stroke-width: 44; stroke-linecap: butt; }
+.tf-seg { stroke: #0b0e12; stroke-width: 1; }
+.tf-seg-hull { fill: #ffffff14; }
+.tf-seg-hull.is-lit { fill: var(--tf-ok); }
+.tf-seg-shield { fill: #ffffff10; }
+.tf-seg-shield.is-lit { fill: var(--tf-shield); }
+/* Doomed: the hull cells are empty; the lit cells are the doom countdown. */
+.tf-titan[data-doomed="true"] .tf-seg-hull.is-lit { fill: var(--tf-danger); }
+.tf-health-text {
+  position: absolute;
+  left: 50%;
+  top: 90%;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 3px 12px 4px;
+  background: var(--tf-glass);
+  border: 1px solid var(--tf-line);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  white-space: nowrap;
+}
+.tf-shield-text { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--tf-shield); }
+.tf-shield-text:empty { display: none; }
+.tf-hull-text { font-size: 15px; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.tf-titan[data-doomed="true"] .tf-hull-text { color: var(--tf-danger); }
+
+.tf-abilities {
+  position: absolute;
+  right: calc(var(--tf-strut) * 0.35);
+  bottom: 40px;
+  display: flex;
+  gap: 8px;
+}
+.tf-ability {
+  position: relative !important;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 84px;
+  padding: 6px 4px 8px;
+}
+.tf-ability .tf-key { position: absolute; left: 6px; top: 6px; }
+.tf-ability-ring { width: 44px; height: 44px; margin-top: 18px; }
+.tf-ability-icon { position: absolute; top: 37px; width: 18px; height: 18px; background: var(--tf-amber); }
+.tf-icon-defensive { clip-path: polygon(50% 0, 100% 18%, 92% 62%, 50% 100%, 8% 62%, 0 18%); background: var(--tf-shield); }
+.tf-icon-tactical { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.tf-icon-ordnance { clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+.tf-ability-pct { position: absolute; top: 39px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }
+.tf-ability-pct:not(:empty) + .tf-ability-label { color: var(--sub, #93a0ad); }
+.tf-ability[data-state="cooling"] .tf-ability-icon { opacity: 0.3; }
+.tf-ability-label { font-size: 10px; line-height: 1.1; letter-spacing: 0.08em; text-align: center; }
+.tf-ability[data-state="ready"] { border-color: #ff9f1caa; }
+.tf-ability[data-state="active"] { border-color: var(--tf-shield); box-shadow: inset 0 0 12px #45b8ff66; }
+.tf-smoke {
+  right: calc(var(--tf-strut) * 0.35);
+  bottom: 152px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.tf-smoke[data-state="empty"] { color: var(--sub, #93a0ad); }
+.tf-smoke .tf-pips > i { width: 10px; height: 10px; }
+.tf-lock {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - min(150px, 17vh) - 44px);
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  border: 1px solid var(--tf-danger);
+  background: rgba(50, 6, 12, 0.8);
+  color: #ffd5dc;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+.tf-lock[data-state="3"] { display: none; }   /* MISSILE INBOUND is the banner */
+.tf-dead { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); font-size: 13px; letter-spacing: 0.14em; color: var(--sub, #93a0ad); }
+
+/* ---- loadout ------------------------------------------------------------------- */
+.tf-loadout {
+  --tf-own: var(--team-alpha, #38bdf8);
+  position: fixed;
+  inset: 0;
+  /* Above the touch controls (z-menu - 10): DEPLOY and the picks are the only controls while it is up. */
+  z-index: calc(var(--z-menu, 100) - 5);
+  background: radial-gradient(ellipse at 30% 20%, rgba(18, 26, 34, 0.72), rgba(5, 7, 10, 0.92));
+  font-family: var(--font-ui);
+  color: var(--txt, #e8ecf1);
+  text-transform: uppercase;
+  pointer-events: auto;
+  backdrop-filter: blur(3px);
+}
+.tf-loadout[hidden] { display: none; }
+.tf-lo-scroll {
+  box-sizing: border-box;
+  display: grid;
+  /* The body row takes its content height (the taller panel sets it, the other stretches to match);
+     the foot row takes the rest and keeps DEPLOY at the bottom. */
+  grid-template-rows: auto auto 1fr;
+  gap: 18px;
+  width: min(1560px, 100%);
+  height: 100%;
+  margin: 0 auto;
+  padding: clamp(16px, 3.5vh, 44px) clamp(16px, 2.6vw, 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.tf-lo-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.tf-lo-title { margin: 0; font-size: clamp(34px, 4.4vw, 64px); font-weight: 700; letter-spacing: 0.32em; line-height: 1; }
+.tf-lo-sub { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; letter-spacing: 0.24em; color: var(--tf-own); }
+.tf-lo-respawn { display: flex; align-items: baseline; gap: 16px; padding: 12px 22px; background: var(--glass, #0b0e12ee); border: 1px solid var(--line, #3a4250); letter-spacing: 0.2em; font-size: 16px; }
+.tf-lo-respawn b { font-size: 32px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.tf-lo-respawn[hidden] { display: none; }
+.tf-lo-body { display: grid; grid-template-columns: minmax(380px, 0.62fr) 1fr; gap: 20px; min-height: 0; }
+.tf-lo-panel {
+  padding: 16px 20px 18px;
+  background: rgba(11, 14, 18, 0.88);
+  border: 1px solid var(--line, #3a4250);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+.tf-lo-panel h3 { margin: 0 0 10px; font-size: 22px; letter-spacing: 0.28em; font-weight: 700; }
+.tf-lo-group { padding: 10px 0 12px; border-top: 1px solid #3a425088; }
+.tf-lo-group h4 { margin: 0 0 8px; font-size: 14px; letter-spacing: 0.24em; color: var(--sub, #93a0ad); font-weight: 600; }
+.tf-lo-chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+.tf-lo-chip, .tf-lo-card {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  min-height: 84px;
+  padding: 8px 4px;
+  background: #11161ccc;
+  border: 1px solid #3a4250;
+  border-radius: 2px;
+  color: var(--txt, #e8ecf1);
+  font: 600 12px/1.1 var(--font-ui);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.tf-lo-chip:hover, .tf-lo-card:hover { border-color: #93a0ad; }
+.tf-lo-chip.is-selected, .tf-lo-card.is-selected { border: 2px solid var(--tf-own); background: #0c4a6e44; box-shadow: 0 0 14px rgba(56, 189, 248, 0.35); }
+.tf-lo-weapon { width: 84%; max-width: 92px; height: 38px; object-fit: contain; filter: grayscale(1) brightness(1.5) opacity(0.8); }
+/* The source art is dark: the selected pick is the brightest, with a team-blue glow. */
+.tf-lo-chip.is-selected .tf-lo-weapon { filter: grayscale(1) brightness(2.2) drop-shadow(0 0 6px #38bdf880); }
+.tf-lo-chip > span { text-align: center; line-height: 1.15; }
+.tf-lo-tac-icon { width: 32px; height: 32px; fill: none; stroke: #e8ecf1; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+.tf-tac-cloak { stroke-dasharray: 3 2; }
+.tf-lo-chip.is-selected .tf-lo-tac-icon { stroke: var(--tf-own); opacity: 1; filter: drop-shadow(0 0 5px #38bdf880); }
+.tf-lo-pstats { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #3a425088; }
+.tf-lo-pstats-name { font-size: 16px; letter-spacing: 0.2em; }
+.tf-lo-pstats .tf-lo-stat { grid-template-columns: 80px 1fr 28px; }
+.tf-lo-stat-value { font-size: 13px; color: var(--txt, #e8ecf1); text-align: right; font-variant-numeric: tabular-nums; }
+.tf-lo-hint { margin: 10px 0 0; font-size: 13px; letter-spacing: 0.14em; color: var(--sub, #93a0ad); }
+.tf-lo-titan { display: grid; grid-template-rows: auto 1fr auto; gap: 14px; min-height: 0; }
+.tf-lo-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; min-height: 0; }
+.tf-lo-card { grid-template-rows: minmax(0, 1fr) auto auto; align-content: stretch; min-height: 250px; padding: 6px 6px 12px; position: relative; overflow: hidden; }
+.tf-lo-portrait { position: relative; width: 100%; height: 100%; min-height: 0; display: grid; place-items: center; overflow: hidden; }
+/* Rendered at the slot's own aspect around the whole silhouette: contain, never crop. */
+.tf-lo-portrait > canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 50%; }
+.tf-lo-card:not(.is-selected) .tf-lo-portrait > canvas { filter: saturate(0.7) brightness(0.85); }
+.tf-lo-portrait[data-live="false"]::before {
+  content: '';
+  width: 54%;
+  height: 74%;
+  background: #3a4250;
+  clip-path: polygon(30% 0, 70% 0, 74% 14%, 100% 20%, 96% 56%, 82% 56%, 78% 100%, 58% 100%, 50% 62%, 42% 100%, 22% 100%, 18% 56%, 4% 56%, 0 20%, 26% 14%);
+}
+.tf-lo-card-name { font-size: 20px; letter-spacing: 0.22em; }
+.tf-lo-card-chassis { font-size: 12px; letter-spacing: 0.24em; color: var(--sub, #93a0ad); }
+.tf-lo-kit { padding: 12px 16px; background: #0b0e12cc; border: 1px solid #3a4250; }
+.tf-lo-kit-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 10px; }
+.tf-lo-kit-head b { font-size: 24px; letter-spacing: 0.22em; }
+.tf-lo-kit-head span { font-size: 13px; letter-spacing: 0.2em; color: var(--sub, #93a0ad); }
+.tf-lo-kit-row { display: grid; grid-template-columns: 1fr minmax(220px, 0.42fr); gap: 18px; align-items: center; }
+.tf-lo-kit-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.tf-lo-kit-tile { display: grid; justify-items: center; gap: 6px; padding: 10px 4px; background: #11161c; border: 1px solid #3a4250; font-size: 11px; letter-spacing: 0.08em; text-align: center; }
+.tf-lo-kit-icon { width: 26px; height: 26px; background: #e8ecf1; }
+.tf-kit-weapon .tf-lo-kit-icon { width: 46px; height: 16px; clip-path: polygon(0 30%, 70% 30%, 70% 0, 100% 0, 100% 70%, 40% 70%, 35% 100%, 20% 100%, 22% 70%, 0 70%); }
+.tf-kit-defensive .tf-lo-kit-icon { clip-path: polygon(50% 0, 100% 18%, 92% 62%, 50% 100%, 8% 62%, 0 18%); background: var(--tf-own); }
+.tf-kit-tactical .tf-lo-kit-icon { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.tf-kit-ordnance .tf-lo-kit-icon { clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+.tf-kit-core .tf-lo-kit-icon { border-radius: 50%; background: radial-gradient(circle, #fff 0 22%, var(--amber, #ff9f1c) 24% 46%, transparent 48%); }
+.tf-lo-stats { display: grid; gap: 10px; }
+.tf-lo-stat { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 10px; font-size: 13px; letter-spacing: 0.18em; color: var(--sub, #93a0ad); }
+.tf-lo-bar { position: relative; display: block; height: 8px; background: #ffffff1a; }
+.tf-lo-bar > i { position: absolute; inset: 0 auto 0 0; width: var(--fill, 0%); background: var(--tf-own); }
+.tf-lo-foot { display: flex; justify-content: flex-end; align-items: flex-end; }
+.tf-lo-deploy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-width: min(420px, 100%);
+  padding: 16px 34px;
+  background: var(--amber, #ff9f1c);
+  border: 0;
+  color: #14100a;
+  font: 700 30px/1 var(--font-ui);
+  letter-spacing: 0.24em;
+  cursor: pointer;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+.tf-lo-deploy:hover { background: var(--amber-hi, #ffb84d); }
+.tf-lo-chevron { width: 14px; height: 22px; background: #14100a; clip-path: polygon(0 0, 40% 0, 100% 50%, 40% 100%, 0 100%, 60% 50%); }
+
+/* Short desktop screens: keep the whole screen in view. */
+@media (max-height: 860px) and (min-width: 901px) {
+  .tf-lo-card { min-height: 150px; }
+  .tf-lo-chip { min-height: 54px; }
+  .tf-lo-group { padding: 6px 0 8px; }
+  /* 1280×720 (playtest): the panels overflowed their row and DEPLOY covered the kit tiles. */
+  .tf-lo-scroll { gap: 10px; padding-top: 16px; padding-bottom: 12px; }
+  .tf-lo-title { font-size: 40px; }
+  .tf-lo-sub { margin-top: 4px; font-size: 15px; }
+  .tf-lo-pstats { gap: 4px; margin-top: 8px; padding-top: 8px; }
+  .tf-lo-hint { margin-top: 6px; }
+  .tf-lo-kit { padding: 8px 14px; }
+  .tf-lo-kit-head { margin-bottom: 6px; }
+  .tf-lo-kit-tile { padding: 6px 4px; gap: 4px; }
+  .tf-lo-deploy { padding: 10px 30px; font-size: 24px; }
+}
+/* Mid-width desktops: NORTHSTAR fits its card (it was clipped to NORTHSTA at 1280 px). */
+@media (max-width: 1440px) and (min-width: 901px) {
+  .tf-lo-card-name { font-size: 17px; letter-spacing: 0.12em; }
+}
+
+/* Phones and narrow windows: one column, scrolled (README correction). */
+@media (max-width: 900px) {
+  .tf-lo-scroll { display: block; padding: max(12px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); }
+  .tf-lo-head { margin-bottom: 12px; }
+  .tf-lo-title { font-size: 28px; letter-spacing: 0.24em; }
+  .tf-lo-sub { font-size: 12px; margin-top: 4px; }
+  .tf-lo-respawn { padding: 6px 10px; font-size: 10px; gap: 8px; }
+  .tf-lo-respawn b { font-size: 20px; }
+  .tf-lo-body { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .tf-lo-panel { padding: 10px 12px 12px; }
+  .tf-lo-panel h3 { font-size: 15px; margin-bottom: 6px; }
+  .tf-lo-group h4 { font-size: 10px; margin-bottom: 6px; }
+  .tf-lo-chips { gap: 5px; }
+  .tf-lo-chip { min-height: 58px; font-size: 10px; letter-spacing: 0; padding: 6px 2px; }
+  .tf-lo-weapon { height: 24px; }
+  .tf-lo-tac-icon { width: 22px; height: 22px; }
+  .tf-lo-hint { font-size: 11px; letter-spacing: 0.04em; }
+  .tf-lo-pstats { display: none; }
+  .tf-lo-cards { gap: 5px; }
+  .tf-lo-card { min-height: 0; padding: 4px 2px 8px; }
+  .tf-lo-portrait { aspect-ratio: 220 / 300; height: auto; }
+  .tf-lo-card-name { font-size: 11px; letter-spacing: 0.02em; }
+  .tf-lo-card-chassis { font-size: 9px; letter-spacing: 0.02em; }
+  .tf-lo-kit { padding: 8px 10px; }
+  .tf-lo-kit-head b { font-size: 16px; }
+  .tf-lo-kit-head span { font-size: 10px; letter-spacing: 0.1em; }
+  .tf-lo-kit-row { grid-template-columns: 1fr; gap: 10px; }
+  .tf-lo-kit-tiles { gap: 4px; }
+  .tf-lo-kit-tile { font-size: 10px; letter-spacing: 0; padding: 6px 2px; line-height: 1.1; }
+  .tf-lo-stat { grid-template-columns: 56px 1fr; font-size: 10px; }
+  .tf-lo-foot { position: sticky; bottom: 0; margin-top: 12px; }
+  .tf-lo-deploy { width: 100%; min-width: 0; font-size: 20px; padding: 12px 20px; }
+}
+/* Phone landscape: pilot and titan side by side; a compact right-aligned DEPLOY. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .tf-lo-body { grid-template-columns: 1fr 1.3fr; gap: 8px; }
+  .tf-lo-head { margin-bottom: 6px; }
+  .tf-lo-title { font-size: 22px; }
+  .tf-lo-group { padding: 4px 0 6px; }
+  .tf-lo-chip { min-height: 46px; gap: 3px; }
+  .tf-lo-weapon { height: 18px; }
+  .tf-lo-tac-icon { width: 20px; height: 20px; }
+  .tf-lo-kit-row { grid-template-columns: 1fr; gap: 6px; }
+  .tf-lo-kit-icon { width: 18px; height: 18px; }
+  .tf-lo-kit-tile { gap: 3px; padding: 4px 2px; }
+  .tf-lo-foot { justify-content: flex-end; margin-top: 8px; }
+  .tf-lo-deploy { width: auto; padding: 8px 20px; font-size: 18px; gap: 14px; }
+}
+
+/* ---- narrow screens and touch play ------------------------------------------------ */
+@media (max-width: 900px) {
+  .tf-hud { --tf-strut: 4vw; }
+  .tf-top { width: min(420px, calc(100vw - 132px)); gap: 8px; padding: 5px 12px 6px; }
+  .tf-team { font-size: 10px; letter-spacing: 0.06em; }
+  .tf-score { font-size: 17px; }
+  .tf-top-side { gap: 5px; grid-template-columns: auto auto; }
+  .tf-enemy { grid-template-columns: auto auto; }
+  .tf-top-side .tf-bar { grid-column: 1 / -1; grid-row: 2; height: 4px; }
+  .tf-clock b { font-size: 16px; }
+  .tf-clock span { font-size: 8px; }
+  .tf-banner { top: 204px; font-size: 12px; padding: 6px 12px; letter-spacing: 0.1em; }
+  .tf-weapon { top: 64px; width: 150px; padding: 6px 10px 7px; }
+  .tf-weapon-label { font-size: 10px; }
+  .tf-weapon-row b { font-size: 20px; }
+  .tf-core { top: 60px; width: 96px; padding: 6px 6px 8px; }
+  .tf-core-title { font-size: 11px; }
+  .tf-core > b { font-size: 14px; }
+  .tf-core-ring { width: 40px; height: 40px; }
+  .tf-core-label { display: none; }
+  /* Portrait: the arc fits between the 3D cockpit pillars (about 17 % and 82 % of the width). */
+  .tf-health { width: min(320px, 62vw); top: calc(50% + 46px); }
+  .tf-hull-text { font-size: 12px; }
+  .tf-shield-text { font-size: 12px; }
+  .tf-health-text { padding: 2px 10px 3px; }
+  .tf-reticle-ring { width: min(220px, 56vw); }
+  .tf-tactical { left: calc(50% + 26px); top: calc(50% + 26px); padding: 4px 8px 5px; }
+  .tf-tac-label { font-size: 12px; }
+}
+/* Touch: the ability row, core, smoke and dash become buttons (touch-controls.js); the HUD
+   keeps the weapon, core gauge, health arc and the doomed / eject chip above the button row. */
+.vb-touch-mode .tf-titan :is(.tf-abilities, .tf-smoke, .tf-dash) { display: none; }
+.vb-touch-mode .tf-top { top: max(10px, env(safe-area-inset-top)); }
+.vb-touch-mode .tf-doom {
+  top: auto;
+  right: auto;
+  left: 50%;
+  bottom: calc(max(20px, env(safe-area-inset-bottom)) + 168px);
+  transform: translateX(-50%);
+  width: min(280px, 72vw);
+  padding: 6px 10px;
+}
+.vb-touch-mode .tf-doom-title { font-size: 14px; }
+.vb-touch-mode .tf-eject { font-size: 10px; }
+.vb-touch-mode .tf-dock { left: max(12px, env(safe-area-inset-left)); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 124px); gap: 8px; }
+.vb-touch-mode .tf-hex { width: 58px; height: 58px; }
+.vb-touch-mode .tf-meter-text { padding: 4px 8px 4px 12px; }
+.vb-touch-mode .tf-meter-text span { font-size: 10px; }
+.vb-touch-mode .tf-meter-text b { font-size: 16px; }
+/* The long BAY FULL line wraps instead of running under the stock pouch button. */
+.vb-touch-mode .tf-meter-text .tf-meter-state { max-width: 96px; letter-spacing: 0.02em; }
+/* Touch: CALL TITAN is the context button; the EMBARK hold prompt stays, above the meter, without a key chip. */
+.vb-touch-mode .tf-call { display: none; }
+.vb-touch-mode .tf-call[data-kind="embark"] { display: flex; position: absolute; left: 0; bottom: calc(100% + 8px); padding: 6px 12px 6px 10px; font-size: 13px; white-space: nowrap; }
+.vb-touch-mode .tf-call .tf-key { display: none; }
+.vb-touch-mode .tf-battery { left: max(12px, env(safe-area-inset-left)); bottom: auto; top: calc(max(10px, env(safe-area-inset-top)) + 116px); font-size: 11px; padding: 5px 8px; }
+.vb-touch-mode .tf-at { right: max(12px, env(safe-area-inset-right)); bottom: auto; top: calc(max(10px, env(safe-area-inset-top)) + 112px); min-width: 0; width: auto; max-width: 176px; padding: 4px 8px 4px 4px; gap: 6px; }
+.vb-touch-mode .tf-at-ring { width: 28px; height: 28px; }
+.vb-touch-mode .tf-at-text b { font-size: 11px; letter-spacing: 0.04em; }
+.vb-touch-mode .tf-at-role { display: none; }
+.vb-touch-mode .tf-at-ammo { font-size: 13px; }
+.vb-touch-mode .tf-rodeo { bottom: calc(max(20px, env(safe-area-inset-bottom)) + 230px); padding: 4px 12px 4px 6px; }
+.vb-touch-mode .tf-rodeo-ring { width: 40px; height: 40px; }
+.vb-touch-mode .tf-rodeo-icon { left: 20px; }
+.vb-touch-mode .tf-rodeo-text b { font-size: 13px; }
+.vb-touch-mode .tf-key { min-width: 16px; height: 16px; font-size: 10px; }
+.vb-touch-mode :is(.tf-tactical, .tf-core, .tf-rodeo, .tf-call) .tf-key { display: none; }
+
+/* Titanfall touch buttons (public/js/engine/touch-controls.js). --ready is 0..1. */
+.vb-touch-titanfall {
+  --ready: 1;
+  font-weight: 700;
+  background: conic-gradient(#ff9f1c66 calc(var(--ready) * 360deg), #0b0e1273 0) padding-box;
+}
+.vb-touch-titanfall[data-ready="true"] { border-color: var(--amber, #ff9f1c); }
+.vb-touch-pilotTactical { --touch-column: calc(var(--touch-fire) + var(--touch-button) + 24px); font-size: 9px; letter-spacing: 0; padding: 0 2px; overflow: hidden; }
+.vb-touch-callTitan {
+  --touch-column: calc(var(--touch-fire) + var(--touch-button) + 24px);
+  --touch-row: calc(var(--touch-fire) + 12px);
+  width: 64px;
+  border-radius: 8px;
+  color: var(--amber, #ff9f1c);
+  border-color: var(--amber, #ff9f1c);
+}
+/* Titan: bottom ability row DASH Q E G left of FIRE; CORE and SMOKE above it; EJECT above those. */
+.vb-touch-titanDash, .vb-touch-titanDefensive, .vb-touch-titanTactical, .vb-touch-titanOrdnance { border-radius: 10px; font-size: 9px; letter-spacing: 0; padding: 0 2px; overflow: hidden; }
+.vb-touch-titanOrdnance { --touch-column: calc(var(--touch-fire) + 12px); }
+.vb-touch-titanTactical { --touch-column: calc(var(--touch-fire) + var(--touch-button) + 24px); }
+.vb-touch-titanDefensive { --touch-column: calc(var(--touch-fire) + var(--touch-button) * 2 + 36px); }
+.vb-touch-titanDash { --touch-column: calc(var(--touch-fire) + var(--touch-button) * 3 + 48px); font-size: 10px; }
+.vb-touch-titanCore { --touch-row: calc(var(--touch-fire) + 12px); width: var(--touch-fire); height: var(--touch-fire); font-size: 12px; }
+.vb-touch-titanSmoke { --touch-column: calc(var(--touch-fire) + 12px); --touch-row: calc(var(--touch-fire) + 12px); font-size: 9px; }
+.vb-touch-titanEject {
+  --touch-column: calc(var(--touch-fire) + var(--touch-button) + 24px);
+  --touch-row: calc(var(--touch-fire) + 12px);
+  width: calc(var(--touch-button) * 2 + 12px);
+  border-radius: 8px;
+  border-color: var(--danger, #ff3355);
+  background: #5a1414cc;
+  color: #ffd5dc;
+}
+/* EMBARK is a hold: green chip, the conic fill is the 300 ms hold ring. EXIT (seated) disembarks with a tap. */
+.vb-touch-callTitan[data-context="EMBARK"] {
+  border-color: var(--ok, #7fd069);
+  color: var(--ok, #7fd069);
+  background: conic-gradient(#7fd06988 calc(var(--ready) * 360deg), #0b0e1273 0) padding-box;
+}
+.vb-touch-controls[data-titanfall="titan"] .vb-touch-callTitan { color: var(--txt, #e8ecf1); border-color: #ffffffaa; }
+/* Narrow phones: four ability buttons in one row reach the stick. DASH joins the CORE / SMOKE row and
+   EJECT / EXIT become one-button chips beside it, so every titan button stays right of the stick. */
+@media (max-width: 430px) {
+  .vb-touch-titanDash { --touch-column: calc(var(--touch-fire) + var(--touch-button) + 24px); --touch-row: calc(var(--touch-fire) + 12px); }
+  .vb-touch-titanEject, .vb-touch-controls[data-titanfall="titan"] .vb-touch-callTitan {
+    --touch-column: calc(var(--touch-fire) + var(--touch-button) * 2 + 36px);
+    --touch-row: calc(var(--touch-fire) + 12px);
+    width: var(--touch-button);
+    font-size: 10px;
+    letter-spacing: 0;
+    padding: 0;
+  }
+}
+.vb-touch-controls.is-left-handed :is(.vb-touch-pilotTactical, .vb-touch-callTitan, .vb-touch-titanDash, .vb-touch-titanDefensive,
+  .vb-touch-titanTactical, .vb-touch-titanOrdnance, .vb-touch-titanCore, .vb-touch-titanSmoke, .vb-touch-titanEject) {
+  right: auto;
+  left: calc(var(--touch-edge-x) + var(--touch-column));
+}
+
+/* Phone landscape: short screens keep the arc above the ability row and the battery chip off the pause corner. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .tf-reticle-ring { width: 150px; }
+  .tf-health { width: 250px; top: calc(50% + 14px); }
+
+  .vb-touch-mode .tf-dock { bottom: calc(max(20px, env(safe-area-inset-bottom)) + 104px); }
+  .vb-touch-mode .tf-doom { bottom: auto; top: 158px; left: auto; right: max(12px, env(safe-area-inset-right)); transform: none; width: 190px; padding: 4px 8px; gap: 3px; }
+  .tf-banner { top: 112px; }
+}
+.vb-touch-mode .tf-eject .tf-key { display: none; }
+
+/* Narrow keyboard / mouse windows (phone-sized, no touch): the touch layout's placements, so the stock
+   ammo / grenade cards, the meter dock, the AT chip and the rodeo prompt stop stacking on each other.
+   Both layouts drop the kill feed as touch does (it ran across the canopy, the doom panel and the AT chip). */
+@media (max-width: 600px) {
+  html:not(.vb-touch-mode) body:is([data-titanfall="titan"], [data-titanfall="pilot"], [data-titanfall="embark"]) #killfeed { display: none; }
+  html:not(.vb-touch-mode) body[data-titanfall="pilot"] .vb-career-badge { top: 156px; }
+  html:not(.vb-touch-mode) .tf-at { right: 12px; bottom: auto; top: 112px; min-width: 0; width: auto; max-width: 176px; padding: 4px 8px 4px 4px; gap: 6px; }
+  html:not(.vb-touch-mode) .tf-at-ring { width: 28px; height: 28px; }
+  html:not(.vb-touch-mode) .tf-at-text b { font-size: 11px; letter-spacing: 0.04em; }
+  html:not(.vb-touch-mode) .tf-at-role { display: none; }
+  html:not(.vb-touch-mode) .tf-at-ammo { font-size: 13px; }
+  html:not(.vb-touch-mode) .tf-battery { left: 12px; bottom: auto; top: 116px; font-size: 11px; padding: 5px 8px; }
+  html:not(.vb-touch-mode) .tf-dock { left: 12px; bottom: 160px; gap: 8px; }
+  html:not(.vb-touch-mode) .tf-hex { width: 58px; height: 58px; }
+  html:not(.vb-touch-mode) .tf-meter-text { padding: 4px 8px 4px 12px; }
+  html:not(.vb-touch-mode) .tf-meter-text span { font-size: 10px; }
+  html:not(.vb-touch-mode) .tf-meter-text b { font-size: 16px; }
+  html:not(.vb-touch-mode) .tf-call { padding: 6px 10px 6px 8px; font-size: 13px; letter-spacing: 0.08em; white-space: nowrap; }
+  html:not(.vb-touch-mode) .tf-rodeo { bottom: 252px; padding: 4px 12px 4px 6px; }
+  html:not(.vb-touch-mode) .tf-rodeo-ring { width: 40px; height: 40px; }
+  html:not(.vb-touch-mode) .tf-rodeo-icon { left: 20px; }
+  html:not(.vb-touch-mode) .tf-rodeo-text b { font-size: 13px; }
+}

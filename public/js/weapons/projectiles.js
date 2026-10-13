@@ -18,6 +18,17 @@ import { createBlenderParts } from '../engine/blender-assets.js';
 import { BLAST_STYLE, ExplosionFX, lightWeight } from './explosion-fx.js';
 import { makeSoapFilm } from '../guns/soap-film.js';
 
+// Mode projectile views (docs/titanfall.md §6.1): the lazily loaded titanfall client installs
+// its `{ has(type), get(type) }` registry (titanfall/projectile-views.js), consulted before the
+// stock types. Null in every other mode, so they never download it and launch() is unchanged.
+let modeProjectileViews = null;
+/** Install (or with null remove) the mode projectile view registry; returns the previous one. */
+export function setModeProjectileViews(views = null) {
+  const previous = modeProjectileViews;
+  modeProjectileViews = typeof views?.has === 'function' && typeof views?.get === 'function' ? views : null;
+  return previous;
+}
+
 /** Unconfirmed local launches are dropped after this long without a matching authority event. */
 const LOCAL_CONFIRM_TIMEOUT_S = 1.0;
 const PREVIEW_MAX_POINTS = 96;
@@ -694,6 +705,7 @@ export class ProjectileFX {
     if (!event || !Array.isArray(event.o) || !Array.isArray(event.v)) return false;
     const values = [...event.o, ...event.v].map(Number);
     if (!values.every(Number.isFinite)) return false;
+    if (modeProjectileViews?.has(event.type)) return modeProjectileViews.get(event.type).launch(this, event, { local, fromSelf });
     const type = event.type === 'rocket' || event.type === 'shell' || event.type === 'bolt' || event.type === 'glaive' || event.type === 'mgl'
       || event.type === 'bubble' || GRENADE_TYPES[event.type]
       ? event.type
@@ -1254,6 +1266,8 @@ export class ProjectileFX {
     const x = Number(event?.x), y = Number(event?.y), z = Number(event?.z);
     if (![x, y, z].every(Number.isFinite)) return false;
     if (type === 'smoke') return true;
+    // A Leadwall pellet that ran out of range in the air (radius 0) just ends.
+    if (type === 'leadwall' && !(Number(event.radius) > 0)) return true;
     const style = styleFor(type);
     if (type === 'bubble') {
       // A soap pop is a torn skin, not a fireball: the flash and ring scale with the

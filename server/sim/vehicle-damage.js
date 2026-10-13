@@ -68,6 +68,7 @@ export class VehicleDamageModel {
   apply(vehicle, amount, attacker, { cls = 'small', point = null, origin = null, impactVelocity = null, sourceTeam = null } = {}) {
     const system = this.system, v = vehicle;
     if (!v || !(v.hp > 0) || !Number.isFinite(amount) || amount <= 0) return false;
+    if (system.titans && vehicleDef(v)?.armor === 'titan') return system.titans.applyDamage(v, amount, cls, attacker, { point, origin, impactVelocity, sourceTeam }) !== false;
     if (!isDamageClass(cls) && !PHYSICAL_DAMAGE_CLASSES.includes(cls)) return false;
     if (attacker && (system.teamOf(attacker) === v.team || this.engine.mode?.canDamage?.(attacker, v) === false)) return false;
     const def = vehicleDef(v), max = def.hp, now = system.nowMs();
@@ -135,6 +136,7 @@ export class VehicleDamageModel {
   /** Burning drains a disabled hull; regen restores an undamaged one up to its cap. */
   step(v, dt) {
     if (!(v.hp > 0) || !(dt > 0)) return;
+    if (vehicleDef(v)?.armor === 'titan') return;
     const max = vehicleMaxHp(v), now = this.system.nowMs();
     if (v.disabled && v.burning) {
       v.hp = Math.max(0, v.hp - max * VEHICLE_DAMAGE_RULES.burnFractionPerSecond * dt);

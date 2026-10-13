@@ -18,7 +18,7 @@ import { afterRoomTick } from './game.js';
 import { surfaceNavigation } from './bot-navigation.js';
 import { roadGraph } from './bot-vehicle-driving.js';
 import { coalesceTick, resetHeldTicks, tickSent, tickSettled } from './protocol/tick-backlog.js';
-import { TICK_MS, parseAdmissionFrame, parseBuyFrame, parseConquestIntent, sanitizeName } from './protocol/admission.js';
+import { TICK_MS, parseAdmissionFrame, parseBuyFrame, parseConquestIntent, parseTitanfallIntent, sanitizeName } from './protocol/admission.js';
 
 const MAX_CONNECTIONS = 256;
 const MAX_MESSAGE_BYTES = 64 * 1024;
@@ -337,6 +337,8 @@ async function main() {
           meta.mapCache = admission.mapCache ? [...admission.mapCache] : null;
           // Conquest wire contract of the tab's code (0 = a tab from before the check).
           meta.clientContract = admission.contract ?? 0;
+          // Titanfall wire contract of the tab's code (0 = a tab from before titanfall).
+          meta.clientTitanfall = admission.titanfall ?? 0;
           meta.mastery = masteryView(profile?.mastery);
           // Authoritative level for the Conquest kit unlocks (guests without a career are level 1).
           meta.careerLevel = profile ? careerLevel(profile.xp) : 1;
@@ -425,6 +427,10 @@ async function main() {
         }
         if (msg.t === 'conquest') {
           manager.conquest(meta, parseConquestIntent(msg));
+          return;
+        }
+        if (msg.t === 'titanfall') {
+          manager.titanfall(meta, parseTitanfallIntent(msg));
           return;
         }
         if (msg.t === 'chat') manager.chat(meta, msg.text);

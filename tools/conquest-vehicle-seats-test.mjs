@@ -5,7 +5,7 @@ import { parseVehicleAction } from '../server/protocol/admission.js';
 import { WEAPON_IDS, WEAPONS } from '../shared/combatmath.js';
 import { VEHICLE_RULES, vehicleLocalPoint, vehicleSeatPose } from '../shared/vehicles.js';
 import { VEHICLE_SEATS, vehicleSeats, vehicleOccupiedSeats, vehicleWeaponSeatId, vehicleDriverSeat } from '../shared/vehicle-seats.js';
-import { VEHICLE_TOPOLOGY } from '../shared/conquest-contract.js';
+import { VEHICLE_TOPOLOGY, VEHICLE_TYPE_IDS } from '../shared/conquest-contract.js';
 
 function fixture(type = 'jeep') {
   const frames = [], dimensions = {sx:512,sy:64,sz:512};
@@ -31,8 +31,8 @@ const near=(a,b,message)=>assert(Math.abs(a-b)<1e-7,message);
 
 assert(Object.isFrozen(VEHICLE_SEATS));
 assert.equal(vehicleSeats('constructor').length,0);assert.equal(vehicleSeats(null).length,0);
-assert.deepEqual(Object.fromEntries(Object.entries(VEHICLE_SEATS).map(([type,seats])=>[type,seats.length])),{jeep:4,tank:2,helicopter:2,transport:5,plane:1});
-for(const [type,seats] of Object.entries(VEHICLE_SEATS)) {
+assert.deepEqual(Object.fromEntries(Object.entries(VEHICLE_SEATS).filter(([type])=>VEHICLE_TYPE_IDS.includes(type)).map(([type,seats])=>[type,seats.length])),{jeep:4,tank:2,helicopter:2,transport:5,plane:1});
+for(const [type,seats] of Object.entries(VEHICLE_SEATS).filter(([type])=>VEHICLE_TYPE_IDS.includes(type))) {
   assert(Object.isFrozen(seats));
   assert.deepEqual(seats.map(seat=>seat.id),VEHICLE_TOPOLOGY[type].map(seat=>seat.id),`${type} seat order is the contract F-key order`);
   for(const seat of seats) {
@@ -51,7 +51,7 @@ for(const action of [{type:'enter',vehicleId:'v',seatId:null},{type:'enter',vehi
 
 // A requested free seat is honoured; plain entrants then fill the remaining
 // seats in topology order, capacity is finite and nobody holds two seats.
-for(const type of Object.keys(VEHICLE_SEATS)) {
+for(const type of VEHICLE_TYPE_IDS) {
   const f=fixture(type),seats=vehicleSeats(type),last=seats.at(-1);
   assert(f.board(f.people[0],last.id),'a requested free seat is honoured');
   assert.equal(f.people[0].vehicleSeatId,last.id);
@@ -193,7 +193,7 @@ for(const type of ['jeep','tank','helicopter'])for(const method of ['release','e
 
 // Hull interception protects every seat through ordinary infantry rays.
 // A successful exit and delayed mounted packets cannot become infantry fire.
-for(const type of Object.keys(VEHICLE_SEATS))for(const [index,seat] of vehicleSeats(type).entries()) {
+for(const type of VEHICLE_TYPE_IDS)for(const [index,seat] of vehicleSeats(type).entries()) {
   const f=fixture(type),p=f.people[index],rifle=WEAPON_IDS.indexOf('rifle');
   for(let i=0;i<=index;i++)assert(f.board(f.people[i]));
   Object.assign(p,{weapon:rifle,deployT:0,cooldown:0});

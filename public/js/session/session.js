@@ -5,6 +5,7 @@ import { GameplayUiFlow } from './gameplay-ui.js';
 import { PregameFlow } from './pregame.js';
 import { musicVolume } from '../audio/music-volume.js';
 import { CONQUEST_EVENT_KINDS } from '../../../shared/conquest-contract.js';
+import { TITANFALL_EVENT_KINDS } from '../../../shared/titan-contract.js';
 
 const DEFAULT_PERSIST = Object.freeze({
   name: 'vb-name',
@@ -30,6 +31,10 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   ...CONQUEST_EVENT_KINDS,
   'explosion',
   'glaiveStock',
+  // Titanfall THUNDERBOLT orb zap arcs {pid, o, to} (docs/titanfall.md §6, WP4; titanfall only).
+  'arcZap',
+  // Titanfall (docs/titanfall.md §3.8; emitted only in titanfall rooms): drop, embark, doom/eject, rodeo, batteries, core, OOB, abilities.
+  ...TITANFALL_EVENT_KINDS,
   'respawn',
   'die',
   'body_identified',
@@ -292,7 +297,8 @@ export class Session {
         !this._gameplay.running ||
         (!this._gameplay.alive && !this._gameplay.spectating && this._gameplay.matchState?.phase !== 'post') ||
         this.hud.settingsOpen ||
-        this.hud.isBuyMenuOpen()
+        this.hud.isBuyMenuOpen() ||
+        this._gameplayUi.overlayBlocked
       ) {
         return;
       }
@@ -485,6 +491,11 @@ export class Session {
 
   restoreGameplayFocus() {
     return this._gameplayUi.restoreFocus();
+  }
+
+  /** Mode overlays (Titanfall loadout) that need the cursor block gameplay input while open. */
+  setOverlayBlock(key, on) {
+    return this._gameplayUi.setOverlayBlock(key, on);
   }
 
   canOpenBuyMenu() {

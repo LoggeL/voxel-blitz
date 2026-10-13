@@ -161,3 +161,40 @@ console.log('Killcam: bounded history, pose interpolation, frozen terrain, damag
   assert.equal(snapshot.players[0].ads,true);
 }
 console.log('Killcam scope: selected magnification survives client input, server authority and snapshot.');
+
+// Run the replay camera with real recorded poses and a real viewmodel. UI and
+// world-effect owners are inert because this regression concerns projection.
+{
+  const { Killcam } = await import('../public/js/player/killcam.js');
+  const { PerspectiveCamera } = await import('../public/js/vendor/three.module.js');
+  const { ViewmodelRig } = await import('../public/js/guns/viewmodel.js');
+  const { WEAPON_IDS } = await import('../shared/combatmath.js');
+  const noop = () => {};
+  for (const baseFov of [65, 75, 100]) for (const ads of [0, 1]) {
+    const recording = new KillcamHistory();
+    const killer = { ...pose('killer', 5), weapon: WEAPON_IDS.indexOf('minigun'),
+      adsT: ads, ads: !!ads, grounded: true, moveSpeed: 0,
+      attachments: { optic: 'scope2', grip: 'standard' } };
+    for (const serverNow of [0, 500]) recording.record({ serverNow, players: [killer], events: [] });
+    const camera = new PerspectiveCamera(baseFov, 1, 0.04, 1500);
+    const rig = new ViewmodelRig(camera);
+    const replay = Object.assign(Object.create(Killcam.prototype), {
+      active: true, clip: recording.clip({ ...death, w: 'minigun' }, 'fun'),
+      camera, rig, now: () => 250, started: 0, replayStart: 0, previousTime: -1,
+      scope: { classList: { contains: () => false, toggle: noop },
+        style: { getPropertyValue: () => '', setProperty: noop }, querySelector: () => ({}) },
+      hitmarker: { dataset: {}, classList: { toggle: noop } },
+      tracers: { update: noop }, projectiles: { update: noop }, impacts: { update: noop },
+      roster: { sync: noop, hideLabels: noop }, timeLabel: {}, progress: { style: {} },
+    });
+    try {
+      assert.equal(replay.update(1 / 60, 16 / 9, baseFov), true);
+      const magnification = Math.tan(baseFov * Math.PI / 360) / Math.tan(camera.fov * Math.PI / 360);
+      assert.ok(Math.abs(magnification - (ads ? 1.15 : 1)) < 1e-9,
+        `minigun replay keeps ${ads ? '1.15x brace zoom' : 'the hip FOV'} at base FOV ${baseFov}`);
+      assert.equal(replay.scopeActive, false, 'legacy minigun optic does not restore a replay scope overlay');
+      assert.equal(rig.root.visible, true, 'the braced minigun remains visible in replay');
+    } finally { rig.dispose(); }
+  }
+}
+console.log('Killcam minigun: hip and braced zoom respect custom FOV and legacy optics cannot restore a scope.');

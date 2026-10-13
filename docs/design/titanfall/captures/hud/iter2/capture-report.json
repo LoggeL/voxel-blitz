@@ -1,0 +1,191 @@
+{
+  "generated": "2026-10-13T04:20:51.939Z",
+  "page": "public/titanfall-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "pilot",
+        "title": "Pilot · meter 72 % · grapple 1/2 · battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-pilot.png",
+        "overlaps": []
+      },
+      {
+        "id": "pilot-ready",
+        "title": "Pilot · TITANFALL READY",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-pilot-ready.png",
+        "overlaps": []
+      },
+      {
+        "id": "bay-full",
+        "title": "Pilot · TITAN BAY FULL",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-bay-full.png",
+        "overlaps": []
+      },
+      {
+        "id": "embark",
+        "title": "Pilot · own titan near · hold T embark",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-embark.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-mount",
+        "title": "Pilot · enemy titan back in reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-rodeo-mount.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-rodeo-rip.png",
+        "overlaps": []
+      },
+      {
+        "id": "oob",
+        "title": "Pilot · out of bounds",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-oob.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan",
+        "title": "Titan · ION · core 86 %",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-titan.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-doomed",
+        "title": "Titan · DOOMED · eject",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-titan-doomed.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-rider",
+        "title": "Titan · enemy pilot on board · lock",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-titan-rider.png",
+        "overlaps": []
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter2/desktop-dead.png",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "pilot",
+        "title": "Pilot · meter 72 % · grapple 1/2 · battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-pilot.png",
+        "overlaps": []
+      },
+      {
+        "id": "pilot-ready",
+        "title": "Pilot · TITANFALL READY",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-pilot-ready.png",
+        "overlaps": []
+      },
+      {
+        "id": "bay-full",
+        "title": "Pilot · TITAN BAY FULL",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-bay-full.png",
+        "overlaps": []
+      },
+      {
+        "id": "embark",
+        "title": "Pilot · own titan near · hold T embark",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-embark.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-mount",
+        "title": "Pilot · enemy titan back in reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-rodeo-mount.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-rodeo-rip.png",
+        "overlaps": []
+      },
+      {
+        "id": "oob",
+        "title": "Pilot · out of bounds",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-oob.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan",
+        "title": "Titan · ION · core 86 %",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-titan.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-doomed",
+        "title": "Titan · DOOMED · eject",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-titan-doomed.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-rider",
+        "title": "Titan · enemy pilot on board · lock",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-titan-rider.png",
+        "overlaps": []
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter2/portrait-dead.png",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found) (http://127.0.0.1:53759/assets/weapons/hud/chargerifle.png)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found) (http://127.0.0.1:53759/assets/weapons/hud/chargerifle.png)"
+  ]
+}

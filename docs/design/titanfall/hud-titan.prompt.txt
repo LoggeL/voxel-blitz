@@ -1,0 +1,13 @@
+Use case: ui-mockup. Asset type: in-cockpit HUD design reference for piloting a giant 7 m battle mech in an existing browser voxel shooter. Create one wide image containing two clearly separate alternative cockpit HUD layouts side by side, labelled OPTION 1 and OPTION 2, each showing a desktop landscape 16:9 screen and below it a smaller mobile portrait 9:16 inset of the same layout. Existing HUD identity to match exactly: near-black charcoal glass panels (#0b0e12 at 93% opacity) with slim 1 px slate borders (#3a4250) and small chamfered corners, amber accent #ff9f1c, condensed uppercase Rajdhani-style typography with wide letter spacing, sky blue #38bdf8 for own team and shields, orange #fb923c for enemy, health green #7fd069, danger red #ff3355. View: first person from inside the mech cockpit looking out over the actual blocky voxel world (sunny sky with soft cartoon clouds, grey concrete voxel ground, rust-red girders, sandstone banks, everything made of visible cubes) at an enemy mech in desert camouflage 60 m away. The cockpit frame is part of the HUD: dark gunmetal voxel struts angling in from the screen corners and a thin top brace, with faint panel seams and small multi-function display tiles, leaving a wide clear view in the middle.
+Functional HUD elements, compact and practical for HTML/CSS:
+- hull health: a long segmented bar with a blue shield overlay on top of the green health segments, readout 7200 / 10000 and SHIELD 1500;
+- dash pips: three small chevron pips, two full and one refilling;
+- ability cooldown tiles with key chips: Q VORTEX SHIELD (ready), E LASER TRIPWIRE (cooldown ring 40%), G LASER SHOT (ready);
+- core meter: CORE 86% with key chip V, glowing when full;
+- primary weapon ammo: SPLITTER RIFLE 34 | energy bar;
+- titan crosshair: a larger bracket reticle with range readout;
+- doom warning example: a red flashing banner DOOMED with a draining red bar and a prompt HOLD X EJECT in a chip;
+- small attrition score strip at top centre MILITIA 142 / IMC 128 and timer.
+Option 1: clean edge panels, health bar bottom centre, abilities bottom right, core gauge as a vertical bar on the right strut.
+Option 2: elements integrated into the cockpit struts as glowing display tiles, health as an arc under the reticle, core as a radial ring around the reticle.
+Mobile insets keep the cockpit struts thin and place dash, abilities, core and eject as touch buttons in safe areas. No real game branding, no logos, no chat panels, no fictional extra metrics, only the listed labels.

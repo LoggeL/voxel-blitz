@@ -16,12 +16,15 @@ import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY } from '../shared/bot-person
 import { WEAPON_IDS, WEAPONS } from '../shared/combatmath.js';
 import { VEHICLE_RULES, vehicleDirection, vehicleMuzzlePose } from '../shared/vehicles.js';
 import { vehicleSeatOccupantId, vehicleSeats, vehicleWeaponSeatId } from '../shared/vehicle-seats.js';
-import { VEHICLE_WEAPON_META, seatWeaponList, vehicleMountOrder } from '../shared/conquest-contract.js';
+import { seatWeaponList, vehicleMountOrder, vehicleWeaponMeta } from '../shared/conquest-contract.js';
+import { isCombinedArms, isTitanfall } from '../shared/modes.js';
+import { TITAN_TYPE_IDS, isTitanType } from '../shared/titan-contract.js';
+import { titanCockpitEye } from './sim/titanfall/titan-mounts.js';
 import { ROCKET_RULES } from '../shared/rocket-rules.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { cancelCharge } from './sim/combat.js';
 import { armorMultiplier as sharedArmorMultiplier, infantryDamageClass } from '../shared/vehicle-armor.js';
-import { VEHICLE_DEFS, LOCK_RULES } from '../shared/vehicle-defs.js';
+import { VEHICLE_DEFS, LOCK_RULES, VEHICLE_WEAPONS } from '../shared/vehicle-defs.js';
 
 const wrap = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const HALF_FOV = 55 * Math.PI / 180;
@@ -44,7 +47,11 @@ export const TANK_OMNI_RANGE = 40;
 export const GUNNER_OMNI_RANGE = 30;
 /** A hull this effective or less is a danger to avoid, not a target to shoot. */
 export const MIN_ARMOR_EFFECT = 0.15;
-const HULL_THREAT = Object.freeze({ tank: 2.2, helicopter: 1.9, transport: 1.25, jeep: 1.4, plane: 0.9 });
+const HULL_THREAT = Object.freeze({ tank: 2.2, helicopter: 1.9, transport: 1.25, jeep: 1.4, plane: 0.9,
+  ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, 2.4])) });
+/** Titanfall AT launchers (docs/titanfall.md §6): ARCHER lock range, THUNDERBOLT orb reach (30 m/s × 2.5 s). */
+const ARCHER_ENGAGE_RANGE = LOCK_RULES.archer?.range ?? 180;
+export const THUNDERBOLT_ENGAGE_RANGE = 68;
 const ARMOR_BY_TYPE = Object.freeze({ jeep: 'light', tank: 'heavy', helicopter: 'air', transport: 'air', plane: 'air' });
 
 /** Armour class of a hull type from the shared registry (spec 5.1). */
@@ -145,6 +152,11 @@ function hostileHulls(game, p, ignoreId = null) {
     if (!(v.hp > 0) || v.id === ignoreId || v.id === p.vehicleId) continue;
     if (v.team != null && teamOf(game, p) === v.team) continue;
     const crew = hullCrew(game, v).filter(o => game.mode.isEnemy(p, o));
+    // Titanfall: an enemy titan without crew (an AUTO-TITAN) is hostile by its team; a falling one is not yet a target.
+    if (isTitanType(v.type)) {
+      if (v.dropping || v.team == null) continue;
+      if (!crew.length && !hullCrew(game, v).length) crew.push(game.entities.get(v.owner) ?? { id: `owner:${v.owner}`, lives: 0 });
+    }
     if (!crew.length || game.mode.canDamage?.(p, v) === false) continue;
     out.push({ v, occupant: crew[0] });
   }
@@ -163,7 +175,8 @@ export function pickBotThreat(game, p, br, {
   observer = p, effectFor = () => 1, omniRange = 0, sightRange, scan = true, now = game.now,
   ignoreVehicleId = null, includeInfantry = true, includeHulls = true, exclude = null, airSightRange = null,
 } = {}) {
-  const options = { omniRange, sightRange };
+  // Titanfall: the cloak gate in observeBotTarget (docs/titanfall.md §9).
+  const options = isTitanfall(game.mode.mode) ? { omniRange, sightRange, titanfall: true } : { omniRange, sightRange };
   // An AA-armed bot watches the sky farther out (airborne aircraft only).
   const airOptions = airSightRange ? { omniRange, sightRange: Math.max(airSightRange, sightRange ?? 0) } : options;
   const smoke = game.projectiles?.smoke;
@@ -172,7 +185,7 @@ export function pickBotThreat(game, p, br, {
   let best = null, danger = null;
   const consider = (target, sighting, kind) => {
     const eff = effectFor(target, sighting.distance);
-    const base = kind === 'hull' ? HULL_THREAT[target.type] ?? 1.3 : kind === 'crew' ? 1.15 : 1;
+    const base = kind === 'hull' ? HULL_THREAT[target.type] ?? 1.3 : kind === 'crew' ? 1.15 : kind === 'minion' ? 0.6 : 1;
     const shooting = shooterId && (shooterId === target.id || shooterId === target.occupantId) ? 2 : 1;
     const held = target.id === heldId ? 1.6 : 1;
     const raw = base * shooting / (1 + sighting.distance / 35);
@@ -186,14 +199,17 @@ export function pickBotThreat(game, p, br, {
   const tracked = id => id === heldId && br.noticeProgress >= 1;
   const sweepAll = scan;
   if (includeInfantry) {
-    for (const o of game.entities.values()) {
+    // Titanfall: attrition minions (engine.npcs, WP8) too, weighted below pilots.
+    const pool = isTitanfall(game.mode.mode) ? game.combatants ?? game.entities : game.entities;
+    for (const o of pool.values()) {
       if (o === p || o.state !== 'alive' || !game.mode.isEnemy(p, o)) continue;
       if ((!sweepAll && o.id !== heldId) || exclude?.(o.id)) continue;
+      if (o.tfNpc && Math.hypot(o.x - observer.x, o.z - observer.z) > 40) continue;
       const seated = !!o.vehicleId;
       if (seated && !seatedExposed(game, o)) continue;
       if (game.mode.canDamage?.(p, o) === false) continue;
       const sighting = observeBotTarget(observer, o, game.solidAt, smoke, now, tracked(o.id), br.difficulty, options);
-      if (sighting) consider(o, sighting, seated ? 'crew' : 'infantry');
+      if (sighting) consider(o, sighting, seated ? 'crew' : o.tfNpc ? 'minion' : 'infantry');
     }
   }
   if (includeHulls) {
@@ -253,7 +269,11 @@ function usableSlots(p, ownedSlots, distance, target = null) {
     if (!(p.mag[slot] > 0 || p.reserve[slot] > 0)) continue;
     if (def.projectile === 'rocket' && (distance < 10 || distance > 145)) continue;
     if (def.projectile === 'stinger' && !stingerTarget(target, distance)) continue;
-    if (def.projectile && def.projectile !== 'rocket' && def.projectile !== 'mgl' && def.projectile !== 'stinger') continue;
+    // Titanfall AT launchers (titanfall loadouts only): the ARCHER inside its lock range, the THUNDERBOLT orb's reach.
+    if (def.projectile === 'archer' && distance > ARCHER_ENGAGE_RANGE) continue;
+    if (def.projectile === 'thunderbolt' && distance > THUNDERBOLT_ENGAGE_RANGE) continue;
+    if (def.projectile && def.projectile !== 'rocket' && def.projectile !== 'mgl' && def.projectile !== 'stinger'
+      && def.projectile !== 'archer' && def.projectile !== 'thunderbolt') continue;
     out.push({ slot, id, cls: weaponDamageClass(id), loaded: p.mag[slot] > 0 });
   }
   return out;
@@ -427,13 +447,30 @@ function mountedObserver(game, v, seatId, mountId, p) {
 }
 
 /**
+ * Titanfall: a seated pilot's crosshair is the cockpit eye's ray, and the titan
+ * mount converges on its first hit (titan-mounts.js `titanAimPoint`). The eye
+ * aims at the shot's lead point (hitscan and flat shells), or along the launch
+ * line for an arcing shell, whose far crosshair point then lies on that line.
+ */
+function titanSightAim(v, aim, meta, wander, inp) {
+  let yaw = aim.yaw, pitch = aim.pitch;
+  if (!((meta?.gravity ?? 0) > 0)) {
+    const eye = titanCockpitEye(v), d = delta(eye, aim.point);
+    yaw = Math.atan2(-d[0], -d[2]);
+    pitch = Math.atan2(d[1], Math.hypot(d[0], d[2]));
+  }
+  inp.yaw = wrap(yaw + wander.yaw);
+  inp.pitch = Math.max(-1.4, Math.min(1.4, pitch + wander.pitch));
+}
+
+/**
  * Drive one occupied weapon seat: pick the threat, select the mount weapon
  * that hurts it, lead and drop-compensate, and pull the trigger only when the
  * authoritative barrel actually points there. With no threat the guns slew
  * along the threat axis with a sweep. Returns the engagement or null.
  */
-export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { threatAxis = null, aircraft = false, sightRange } = {}) {
-  if (game.mode.mode !== 'conquest' || !mountSystem(game)) return null;
+export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { threatAxis = null, aircraft = false, sightRange, titan = false } = {}) {
+  if (!isCombinedArms(game.mode.mode) || !mountSystem(game)) return null;
   const weapons = seatWeaponList(v.type, seatId);
   if (!weapons.length || !game.mode.canFire(p) || p.state !== 'alive') return null;
   let state = br.mounted;
@@ -446,7 +483,7 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   const primary = weapons[0].mount;
   const { observer } = mountedObserver(game, v, seatId, primary, p);
   const effectFor = target => target.kind === 'hull'
-    ? Math.max(...weapons.map(w => armorMultiplier(VEHICLE_WEAPON_META[w.weapon]?.cls, target.armor))) : 1;
+    ? Math.max(...weapons.map(w => armorMultiplier(vehicleWeaponMeta(w.weapon)?.cls, target.armor))) : 1;
   const heldBr = { enemyId: state.targetId, noticeProgress: state.progress, difficulty: br.difficulty, damageFrom: br.damageFrom };
   // Targets the mount just failed to bring to bear are skipped inside the
   // picker, so the next-best visible threat is engaged meanwhile.
@@ -479,7 +516,7 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   // Weapon selection for this target.
   let choice = 0, bestScore = -1;
   weapons.forEach((w, index) => {
-    const score = mountedSuitability(VEHICLE_WEAPON_META[w.weapon], target, sighting.distance) + (index === (v.sel?.[seatId] ?? state.requestedSel ?? 0) ? 0.02 : 0);
+    const score = mountedSuitability(vehicleWeaponMeta(w.weapon), target, sighting.distance) + (index === (v.sel?.[seatId] ?? state.requestedSel ?? 0) ? 0.02 : 0);
     if (score > bestScore) { bestScore = score; choice = index; }
   });
   const selected = Number.isInteger(v.sel?.[seatId]) ? v.sel[seatId] : (state.requestedSel ?? 0);
@@ -488,22 +525,26 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
     state.selAt = now + 450; state.requestedSel = choice;
   }
   const active = weapons[Math.min(weapons.length - 1, Math.max(0, selected))];
-  const meta = VEHICLE_WEAPON_META[active.weapon];
+  const meta = vehicleWeaponMeta(active.weapon);
   const { pose } = mountedObserver(game, v, seatId, active.mount, p);
   const origin = pose?.origin ?? [observer.x, observer.eyeY, observer.z];
   const skill = br.skill ?? 0.5;
   const aim = ballisticAim(origin, sighting.aimPoint, target, { speed: meta?.speed ?? 0, gravity: meta?.gravity ?? 0,
     maxSeconds: 6, leadSkill: 0.8 + 0.2 * skill });
-  const sigma = (0.9 - 0.6 * skill) * profile.aimError * pers.aimError * Math.PI / 180;
+  // A cloaked pilot seen only up close is aimed at with a multiplied error (Titanfall, bot-perception.js).
+  const sigma = (0.9 - 0.6 * skill) * profile.aimError * pers.aimError * Math.PI / 180 * (sighting.aimErrorMul ?? 1);
   const wander = state.aim.wander(dtS, sigma, 0.6, br.rng);
   inp.yaw = wrap(aim.yaw + wander.yaw);
   inp.pitch = Math.max(-1.4, Math.min(1.4, aim.pitch + wander.pitch));
+  if (titan) titanSightAim(v, aim, meta, wander, inp);
   inp.wantFire = false;
   if (state.progress < 1 || bestScore <= 0.05) return { target, sighting, recognized: state.progress >= 1 };
   const dir = pose?.dir ?? vehicleDirection(inp.yaw, inp.pitch);
   const want = vehicleDirection(aim.yaw, aim.pitch);
   const error = Math.acos(Math.max(-1, Math.min(1, dir[0] * want[0] + dir[1] * want[1] + dir[2] * want[2])));
-  const tolerance = Math.max(0.012, Math.min(0.06, 1.4 / Math.max(1, aim.distance)));
+  let tolerance = Math.max(0.012, Math.min(0.06, 1.4 / Math.max(1, aim.distance)));
+  // A titan's arcing or pellet shell converges on the crosshair with some parallax; its splash and cone forgive it.
+  if (titan && meta?.kind !== 'hitscan') tolerance = Math.max(tolerance, 0.07);
   // A slewing mount that keeps closing the error is still on its way round
   // (a tank turret needs ~3 s for 180 degrees); only a stalled one gives up.
   if (error < tolerance || error < (state.lastError ?? Infinity) - 0.01) state.trackSince = now;
@@ -520,10 +561,19 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   const hitscan = meta?.kind === 'hitscan';
   const lineClear = clearFlight(game, p, target, origin, dir, aim.distance,
     { speed: meta?.speed ?? 0, gravity: meta?.gravity ?? 0, explosive: !hitscan });
+  // A titan railgun holds the trigger to a full charge and releases it on target (a held full charge waits).
+  const charged = titan ? VEHICLE_WEAPONS[active.weapon]?.chargeSeconds : 0;
+  if (charged) {
+    const mountIndex = vehicleMountOrder(v.type).indexOf(`${seatId}:${active.mount}`);
+    const release = (v.mounts?.[mountIndex]?.charge ?? 0) >= 0.97 && error < tolerance && lineClear;
+    inp.wantFire = !release;
+    return { target, sighting, recognized: true, fired: release };
+  }
   if (error >= tolerance || !lineClear || state.cooling) { state.inBurst = false; return { target, sighting, recognized: true }; }
   if (!hitscan) { inp.wantFire = true; return { target, sighting, recognized: true, fired: true }; }
   if (now >= state.pauseUntil) {
-    if (!state.inBurst) { state.burstEnd = now + 900 + br.rng() * 900; state.inBurst = true; }
+    // Titan guns (the Predator spins up for 0.6 s) fire longer bursts.
+    if (!state.inBurst) { state.burstEnd = now + (titan ? 1600 + br.rng() * 1600 : 900 + br.rng() * 900); state.inBurst = true; }
     if (now < state.burstEnd) inp.wantFire = true;
     else { state.inBurst = false; state.pauseUntil = now + 350 + profile.burstPauseMs; }
   }

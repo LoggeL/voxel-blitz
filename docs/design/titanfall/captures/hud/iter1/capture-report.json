@@ -1,0 +1,367 @@
+{
+  "generated": "2026-10-13T04:19:25.660Z",
+  "page": "public/titanfall-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "pilot",
+        "title": "Pilot · meter 72 % · grapple 1/2 · battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-pilot.png",
+        "overlaps": [
+          "meter × healthbar",
+          "at × grenades"
+        ]
+      },
+      {
+        "id": "pilot-ready",
+        "title": "Pilot · TITANFALL READY",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-pilot-ready.png",
+        "overlaps": [
+          "meter × healthbar",
+          "at × grenades"
+        ]
+      },
+      {
+        "id": "bay-full",
+        "title": "Pilot · TITAN BAY FULL",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-bay-full.png",
+        "overlaps": [
+          "meter × healthbar",
+          "at × grenades"
+        ]
+      },
+      {
+        "id": "embark",
+        "title": "Pilot · own titan near · hold T embark",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-embark.png",
+        "overlaps": [
+          "meter × healthbar",
+          "at × grenades"
+        ]
+      },
+      {
+        "id": "rodeo-mount",
+        "title": "Pilot · enemy titan back in reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-rodeo-mount.png",
+        "overlaps": [
+          "meter × healthbar",
+          "at × grenades"
+        ]
+      },
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-rodeo-rip.png",
+        "overlaps": [
+          "meter × healthbar",
+          "at × grenades"
+        ]
+      },
+      {
+        "id": "oob",
+        "title": "Pilot · out of bounds",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-oob.png",
+        "overlaps": [
+          "meter × healthbar",
+          "at × grenades"
+        ]
+      },
+      {
+        "id": "titan",
+        "title": "Titan · ION · core 86 %",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-titan.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-doomed",
+        "title": "Titan · DOOMED · eject",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-titan-doomed.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-rider",
+        "title": "Titan · enemy pilot on board · lock",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-titan-rider.png",
+        "overlaps": []
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 0,
+        "file": "docs/design/titanfall/captures/hud/iter1/desktop-dead.png",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "pilot",
+        "title": "Pilot · meter 72 % · grapple 1/2 · battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-pilot.png",
+        "overlaps": [
+          "ammo × touch:weapon"
+        ]
+      },
+      {
+        "id": "pilot-ready",
+        "title": "Pilot · TITANFALL READY",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-pilot-ready.png",
+        "overlaps": [
+          "ammo × touch:weapon"
+        ]
+      },
+      {
+        "id": "bay-full",
+        "title": "Pilot · TITAN BAY FULL",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-bay-full.png",
+        "overlaps": [
+          "ammo × touch:weapon"
+        ]
+      },
+      {
+        "id": "embark",
+        "title": "Pilot · own titan near · hold T embark",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-embark.png",
+        "overlaps": [
+          "ammo × touch:weapon"
+        ]
+      },
+      {
+        "id": "rodeo-mount",
+        "title": "Pilot · enemy titan back in reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-rodeo-mount.png",
+        "overlaps": [
+          "ammo × touch:weapon"
+        ]
+      },
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-rodeo-rip.png",
+        "overlaps": [
+          "ammo × touch:weapon"
+        ]
+      },
+      {
+        "id": "oob",
+        "title": "Pilot · out of bounds",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-oob.png",
+        "overlaps": [
+          "banner × healthbar",
+          "banner × ammo",
+          "banner × grenades",
+          "banner × touch:weapon",
+          "ammo × touch:weapon"
+        ]
+      },
+      {
+        "id": "titan",
+        "title": "Titan · ION · core 86 %",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-titan.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-doomed",
+        "title": "Titan · DOOMED · eject",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-titan-doomed.png",
+        "overlaps": [
+          "doom × health"
+        ]
+      },
+      {
+        "id": "titan-rider",
+        "title": "Titan · enemy pilot on board · lock",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-titan-rider.png",
+        "overlaps": [
+          "banner × weapon"
+        ]
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter1/portrait-dead.png",
+        "overlaps": [
+          "lo-head × touch:pause"
+        ]
+      }
+    ]
+  },
+  "overlaps": [
+    {
+      "size": "desktop",
+      "id": "pilot",
+      "hits": [
+        "meter × healthbar",
+        "at × grenades"
+      ]
+    },
+    {
+      "size": "desktop",
+      "id": "pilot-ready",
+      "hits": [
+        "meter × healthbar",
+        "at × grenades"
+      ]
+    },
+    {
+      "size": "desktop",
+      "id": "bay-full",
+      "hits": [
+        "meter × healthbar",
+        "at × grenades"
+      ]
+    },
+    {
+      "size": "desktop",
+      "id": "embark",
+      "hits": [
+        "meter × healthbar",
+        "at × grenades"
+      ]
+    },
+    {
+      "size": "desktop",
+      "id": "rodeo-mount",
+      "hits": [
+        "meter × healthbar",
+        "at × grenades"
+      ]
+    },
+    {
+      "size": "desktop",
+      "id": "rodeo-rip",
+      "hits": [
+        "meter × healthbar",
+        "at × grenades"
+      ]
+    },
+    {
+      "size": "desktop",
+      "id": "oob",
+      "hits": [
+        "meter × healthbar",
+        "at × grenades"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "pilot",
+      "hits": [
+        "ammo × touch:weapon"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "pilot-ready",
+      "hits": [
+        "ammo × touch:weapon"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "bay-full",
+      "hits": [
+        "ammo × touch:weapon"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "embark",
+      "hits": [
+        "ammo × touch:weapon"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "rodeo-mount",
+      "hits": [
+        "ammo × touch:weapon"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "rodeo-rip",
+      "hits": [
+        "ammo × touch:weapon"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "oob",
+      "hits": [
+        "banner × healthbar",
+        "banner × ammo",
+        "banner × grenades",
+        "banner × touch:weapon",
+        "ammo × touch:weapon"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "titan-doomed",
+      "hits": [
+        "doom × health"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "titan-rider",
+      "hits": [
+        "banner × weapon"
+      ]
+    },
+    {
+      "size": "portrait",
+      "id": "dead",
+      "hits": [
+        "lo-head × touch:pause"
+      ]
+    }
+  ],
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found) (http://127.0.0.1:53650/assets/weapons/hud/chargerifle.png)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found) (http://127.0.0.1:53650/assets/weapons/hud/chargerifle.png)"
+  ]
+}

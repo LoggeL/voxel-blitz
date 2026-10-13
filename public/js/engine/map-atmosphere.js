@@ -87,6 +87,18 @@ const PALETTES = {
     sunDisc: 0.35, sunDir: [20, 120, 10],
     grade: { shadowTint: [-0.01, 0.008, 0.02], highlightTint: [0.0, 0.01, 0.012], saturation: 1.1 },
     light: { minSky: 0.4 }, envIntensity: 0.55 },
+  // Ashfall: smelter-colony dusk. Deep violet zenith over a burning orange
+  // horizon, a low western sun (about 34 degrees: long shadows, the alleys still
+  // readable), ember haze, warm highlights and cool violet shadows dark enough
+  // for the work lamps and the slag to glow.
+  ashfall: { skybox: null, skyTop: '#2c2452', skyHorizon: '#f2803e', skyMid: '#b65c5c', skyMidAt: 0.3,
+    fog: '#8d5a4a', density: 0.002, horizonGlow: '#ff6a1e', horizonGlowStrength: 0.32, sunGlow: 0.45,
+    // A pixel-snapped deck painted in the dome instead of voxel puffs drifting through the overview.
+    clouds: false, cloudLayer: { cover: 0.42, lit: '#ff9f62', shade: '#4c3656' }, cloud: '#e48a60',
+    skyLight: '#8f80bc', groundLight: '#6e4232', sun: '#ffa35e', ambient: 0.54, sunlight: 1.75,
+    sunDir: [-75, 56, 22], sunDisc: 1.4, envIntensity: 0.38,
+    grade: { highlightTint: [0.05, 0.012, -0.03], shadowTint: [-0.01, -0.006, 0.026], saturation: 1.14, contrast: 1.08 },
+    light: { minSky: 0.38 } },
 };
 /**
  * Scenery beyond the walls and in the air (map-backdrop.js, map-ambience.js).
@@ -156,6 +168,17 @@ const SCENERY = {
       colors: ['#5e6a62', '#6b766d', '#535e57', '#646d60'], top: '#62745a', top2: '#6f7d5f', rock: '#7d8581', rockAbove: 30, lip: 0.8,
       height: [22, 60], near: 95, depth: 110, scale: 65, band: 3.5, maxRise: 0.34, groundColor: '#56635b',
       sea: { y: 33, sides: ['north'], color: '#4b6a72' } } },
+  // Ashfall: red mesas round the colony; the smelter works' stacks and cooling towers rise
+  // between the canyon rim and the mesas, mostly north-west and south-east (the hero and
+  // boulevard views), sooted brick and stained concrete.
+  ashfall: { ambience: { kind: 'embers', density: 0.55, mix: 0.6 },
+    backdrop: { style: 'terrain', shape: 'mesa', seed: 15, ground: 14.95,
+      colors: ['#80392a', '#6c3025', '#97482f', '#5c2b21'], top: '#a0583a', top2: '#8a4a33',
+      height: [16, 46], near: 100, depth: 115, terrace: 7, scale: 52, band: 4, maxRise: 0.3,
+      groundColor: '#62392b', hazeColor: '#c9714f', hazeTint: 0.32, air: { strength: 0.2, fog: 0.22 }, skyline: [70, 140],
+      stacks: [[214, 52, 84, 7], [226, 64, 92, 8], [238, 48, 76, 6], [34, 52, 84, 7], [46, 64, 92, 8], [352, 58, 70, 6]],
+      towers: [[198, 78, 58, 20], [256, 70, 62, 22], [18, 78, 58, 20]],
+      industry: { white: '#7b6a60', band: '#3b2a25', metal: '#2a2120', concrete: '#9a8a7e', stain: '#4d3b33' } } },
   minecraft_b5: { ambience: { kind: 'sparse' },
     backdrop: { style: 'islands', seed: 13, ground: 35, colors: ['#7c7c7a', '#6e6e6c', '#86786a', '#747472'], top: '#6a9a45', top2: '#5f8f3d',
       sand: '#d9cc93', sandBelow: 2, height: [1, 18], near: 110, depth: 120, scale: 38, band: 2, baseHaze: 0.15, hazeHeight: 6, cell: 4, step: 2, air: { strength: 0.2 }, open: [[240, 300]] } },

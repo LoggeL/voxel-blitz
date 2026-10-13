@@ -22,6 +22,10 @@ export const BREACH_Z = {
   bubble: -0.30,   // nozzle tube start
   mgl: -0.33,
   stinger: -0.62,
+  chargerifle: -0.32,
+  archer: -0.70,   // exposed launch-tube mouth
+  thunderbolt: -0.40,
+  kraber: -0.30,
 };
 
 // Heat-sleeve radii include the existing tiny clearance that prevents z-fighting.
@@ -42,6 +46,10 @@ export const BARREL_R = {
   bubble: 0.0235,  // nozzle r 0.022 plus clearance
   mgl: 0.0415,
   stinger: 0.0545,
+  chargerifle: 0.0175,
+  archer: 0.0605,
+  thunderbolt: 0.0465,
+  kraber: 0.0235,
 };
 
 export const BOLT_HOME = {
@@ -61,6 +69,10 @@ export const BOLT_HOME = {
   bubble: 0.045,   // plunger rod under the bulb
   mgl: -0.035,
   stinger: -0.040,
+  chargerifle: -0.030,
+  archer: -0.040,
+  thunderbolt: -0.040,
+  kraber: -0.010,
 };
 
 export const PUMP_REST = new THREE.Vector3(0, 0.038, -0.30);
@@ -82,6 +94,10 @@ export const TRIGGER_Z = {
   bubble: -0.035,
   mgl: -0.105,
   stinger: -0.11,
+  chargerifle: -0.095,
+  archer: -0.11,
+  thunderbolt: -0.12,
+  kraber: -0.13,
 };
 
 // Camera-space hip carry; +x is true screen-right.

@@ -1,0 +1,21 @@
+Variant A (selected)
+Built-in image_gen; input ../after/desktop-chargerifle-charged.jpg
+
+Use case: precise-object-edit
+Asset type: stronger energy charge effect reference for the CR-6 LONGBOW in an existing voxel FPS.
+Input images: Image 1 is the edit target, the current full-charge in-game screenshot.
+Primary request: change ONLY the weapon's emissive materials and energy effects to make it look dangerously overcharged, extremely hot, almost about to burst if it doesn't discharge immediately. Preserve all HUD text, scene, camera, rifle geometry, exactly three cells each side, sights, hands and ammunition display. Add luminous energy channels along the receiver and existing bus bars, hot glowing vents on the foregrip, blazing focusing rings and luminous inner rails in the emitter fork. The six cells should have brilliant orange-white cores inside intense red-orange light halos. Include small local light spill on the dark receiver, but the screen must remain readable and the sightline clear. Make the energy bank the brightest feature, with a connected visual flow toward the barrel.
+Style/medium: keep the supplied low-poly real-time game rendering style.
+Constraints: no new text, no fire, no literal explosion, no screen-wide flash, no giant orb, no change to background or UI. This is a code-implementable VFX design reference.
+ Variant A: dense orange-white reactor glow and broad soft red-orange halos around each cell, strong continuous hot channels, a concentrated muzzle corona. Industrial reactor at its limit.
+
+Variant B
+Built-in image_gen; input ../after/desktop-chargerifle-charged.jpg
+
+Use case: precise-object-edit
+Asset type: stronger energy charge effect reference for the CR-6 LONGBOW in an existing voxel FPS.
+Input images: Image 1 is the edit target, the current full-charge in-game screenshot.
+Primary request: change ONLY the weapon's emissive materials and energy effects to make it look dangerously overcharged, extremely hot, almost about to burst if it doesn't discharge immediately. Preserve all HUD text, scene, camera, rifle geometry, exactly three cells each side, sights, hands and ammunition display. Add luminous energy channels along the receiver and existing bus bars, hot glowing vents on the foregrip, blazing focusing rings and luminous inner rails in the emitter fork. The six cells should have brilliant orange-white cores inside intense red-orange light halos. Include small local light spill on the dark receiver, but the screen must remain readable and the sightline clear. Make the energy bank the brightest feature, with a connected visual flow toward the barrel.
+Style/medium: keep the supplied low-poly real-time game rendering style.
+Constraints: no new text, no fire, no literal explosion, no screen-wide flash, no giant orb, no change to background or UI. This is a code-implementable VFX design reference.
+ Variant B: unstable crimson overload, narrow yellow-white cores, several tiny energy arc streaks hugging the cell bank and barrel, pulsing hot vents, soft red light spill. A dangerous electrical capacitor bank.

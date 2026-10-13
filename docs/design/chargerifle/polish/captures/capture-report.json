@@ -1,0 +1,72 @@
+{
+  "generated": "2026-10-13T21:12:36.445Z",
+  "fov": 75,
+  "ads": 0,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/chargerifle/polish/captures/desktop-chargerifle-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "charge",
+      "live": true,
+      "file": "docs/design/chargerifle/polish/captures/desktop-chargerifle-charge.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": true,
+      "file": "docs/design/chargerifle/polish/captures/desktop-chargerifle-charged.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/chargerifle/polish/captures/landscape-chargerifle-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "charge",
+      "live": true,
+      "file": "docs/design/chargerifle/polish/captures/landscape-chargerifle-charge.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": true,
+      "file": "docs/design/chargerifle/polish/captures/landscape-chargerifle-charged.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": false,
+      "file": "docs/design/chargerifle/polish/captures/portrait-chargerifle-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "charge",
+      "live": false,
+      "file": "docs/design/chargerifle/polish/captures/portrait-chargerifle-charge.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": false,
+      "file": "docs/design/chargerifle/polish/captures/portrait-chargerifle-charged.jpg"
+    }
+  ],
+  "errors": []
+}

@@ -123,13 +123,19 @@ export function parseAdmissionFrame(raw) {
   const hasContract = Object.prototype.hasOwnProperty.call(raw, 'contract');
   const contract = hasContract ? parseContract(raw.contract) : null;
   if (hasContract && contract === null) return null;
-  const result = parseAdmissionFields(raw, hasMapCache, hasContract);
+  // Optional `titanfall`: the TITANFALL_CONTRACT_VERSION (server/lobby.js staleTitanfallClient).
+  const hasTitanfall = Object.prototype.hasOwnProperty.call(raw, 'titanfall');
+  const titanfall = hasTitanfall ? parseContract(raw.titanfall) : null;
+  if (hasTitanfall && titanfall === null) return null;
+  const result = parseAdmissionFields(raw, hasMapCache, hasContract, hasTitanfall);
   if (!result) return null;
-  return { ...result, ...(hasMapCache ? { mapCache } : {}), ...(hasContract ? { contract } : {}) };
+  return { ...result, ...(hasMapCache ? { mapCache } : {}), ...(hasContract ? { contract } : {}),
+    ...(hasTitanfall ? { titanfall } : {}) };
 }
 
-function parseAdmissionFields(raw, hasMapCache, hasContract) {
-  const keys = (list) => [...list, ...(hasMapCache ? ['mapCache'] : []), ...(hasContract ? ['contract'] : [])];
+function parseAdmissionFields(raw, hasMapCache, hasContract, hasTitanfall = false) {
+  const keys = (list) => [...list, ...(hasMapCache ? ['mapCache'] : []), ...(hasContract ? ['contract'] : []),
+    ...(hasTitanfall ? ['titanfall'] : [])];
 
   const hasPassword = Object.prototype.hasOwnProperty.call(raw, 'password');
   if (hasPassword && !validLobbyPassword(raw.password)) return null;
@@ -237,6 +243,37 @@ export function parseVehicleAction(raw) {
         && raw.index >= 0 && raw.index < VEHICLE_WEAPON_SLOTS ? { type: 'weapon', index: raw.index } : null;
     default:
       return null;
+  }
+}
+
+const TITANFALL_INTENT_KEYS = Object.freeze(['loadout', 'call', 'ability', 'eject', 'tac', 'rodeo', 'deploy']);
+const TITANFALL_ABILITY_VERBS = Object.freeze(['def', 'tac', 'ord', 'core', 'smoke', 'dash', 'melee', 'mode']);
+const TITANFALL_RODEO_VERBS = Object.freeze(['mount', 'rip', 'insert', 'dismount']);
+const flagValue = value => value === 1 || value === true;
+
+/**
+ * Titanfall intent frame `{t:'titanfall', <one key>}` (docs/titanfall.md §3.7):
+ * loadout (packed int 0..0xffff), call ([x,y,z] aim hint, or 1), ability
+ * (def|tac|ord|core|smoke|dash|melee|mode), eject (1), tac (1), rodeo
+ * (mount|rip|insert|dismount), deploy (the packed loadout to spawn with, 0..0xffff).
+ * Returns `{type, value}` or null.
+ */
+export function parseTitanfallIntent(raw) {
+  if (!isRecord(raw)) return null;
+  if (Object.hasOwn(raw, 't') && raw.t !== 'titanfall') return null;
+  const intents = Object.keys(raw).filter(key => key !== 't');
+  if (intents.length !== 1 || !TITANFALL_INTENT_KEYS.includes(intents[0])) return null;
+  const type = intents[0], value = raw[type];
+  switch (type) {
+    case 'loadout':
+    case 'deploy': return Number.isInteger(value) && value >= 0 && value <= 0xffff ? { type, value } : null;
+    case 'call':
+      if (flagValue(value)) return { type, value: null };
+      return Array.isArray(value) && value.length === 3 && value.every(n => Number.isFinite(n) && Math.abs(n) <= 8192)
+        ? { type, value: value.slice() } : null;
+    case 'ability': return TITANFALL_ABILITY_VERBS.includes(value) ? { type, value } : null;
+    case 'rodeo': return TITANFALL_RODEO_VERBS.includes(value) ? { type, value } : null;
+    default: return flagValue(value) ? { type, value: 1 } : null; // eject, tac
   }
 }
 

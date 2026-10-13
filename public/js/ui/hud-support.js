@@ -5,6 +5,7 @@ import { BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { bubbleProfile } from '../../../shared/bubble-rules.js';
 import { MGL_RULES } from '../../../shared/mgl-rules.js';
 import { VEHICLE_WEAPON_META } from '../../../shared/conquest-contract.js';
+import { TITAN_WEAPON_META, TITAN_KILL_KEYS } from '../../../shared/titan-contract.js';
 
 export const GLYPH = Object.freeze({
   rifle: 'R',
@@ -24,6 +25,11 @@ export const GLYPH = Object.freeze({
   bubble: 'SB',
   mgl: 'GL3',
   stinger: 'AA',
+  // Titanfall AT weapons (WP4 region).
+  chargerifle: 'CR',
+  archer: 'AR',
+  thunderbolt: 'TB',
+  kraber: 'KR',
 });
 
 export const WEAPON_NAMES = Object.freeze({
@@ -43,8 +49,16 @@ export const WEAPON_NAMES = Object.freeze({
   bubble: 'SB-1 SUDSBLASTER',
   mgl: 'GL-3 SKIPJACK',
   stinger: 'AX-9 STINGER',
+  // Titanfall AT weapons (docs/titanfall.md §6, WP4 region).
+  chargerifle: 'CR-6 LONGBOW',
+  archer: 'AT-12 ARCHER',
+  thunderbolt: 'TB-4 THUNDERBOLT',
+  kraber: 'KR-50 KRABER',
   // Conquest kill keys: mounted vehicle weapons, roadkills and the restricted-area timer.
   ...Object.fromEntries(Object.entries(VEHICLE_WEAPON_META).map(([key, meta]) => [key, meta.label])),
+  // Titanfall (docs/titanfall.md §2.3, WP0 region): titan mounts and the titan kill keys.
+  ...Object.fromEntries(Object.entries(TITAN_WEAPON_META).map(([key, meta]) => [key, meta.label])),
+  ...TITAN_KILL_KEYS,
   vehicle: 'ROADKILL',
   restricted: 'RESTRICTED AREA',
   // Conquest fall damage (shared/parachute.js): self death, or credited to the enemy who knocked you off.
@@ -58,7 +72,9 @@ export const WEAPON_NAMES = Object.freeze({
 });
 
 /** Kill keys that have no weapon-slot art; the kill feed draws a vector icon for them. */
-export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted', 'fall', 'crash', 'redeploy', 'collapse']);
+export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted', 'fall', 'crash', 'redeploy', 'collapse',
+  // Titanfall (WP0 region): titan mounts, then the remaining titan kill keys.
+  ...new Set([...Object.keys(TITAN_WEAPON_META), ...Object.keys(TITAN_KILL_KEYS)])]);
 export const isVehicleKillKey = key => typeof key === 'string' && VEHICLE_KILL_KEYS.includes(key);
 
 export function weaponImagePath(weaponId) {
@@ -102,6 +118,11 @@ export const WEAPON_CLASSES = Object.freeze({
   bubble: 'BUBBLE LAUNCHER · TAP OR HOLD · FLOATS UP',
   mgl: `GRENADE LAUNCHER · ARC & BOUNCE · ${MGL_RULES.maxBounces} SURFACE BOUNCES`,
   stinger: 'AA LAUNCHER · LOCK ON AIRCRAFT · FLARES DECOY',
+  // Titanfall AT weapons (WP4 region).
+  chargerifle: 'CHARGE RIFLE · FULL CHARGE ONLY · PIERCE',
+  archer: 'AT LAUNCHER · LOCK ON TITANS · DUMB-FIRE',
+  thunderbolt: 'ARC LAUNCHER · ZAPS 3 IN 6m · BURSTS ON CONTACT',
+  kraber: 'ANTI-MATERIEL RIFLE · BOLT · ONE SHOT',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
@@ -158,6 +179,7 @@ export const MODE_LABELS = Object.freeze({
   snd: 'SEARCH & DESTROY',
   gungame: 'GUN GAME',
   training: 'TRAINING · RANGE & KILLHOUSE',
+  titanfall: 'TITANFALL',
 });
 
 export const MAP_LABELS = Object.freeze({
@@ -177,6 +199,7 @@ export const MAP_LABELS = Object.freeze({
   waterworld: 'WATERWORLD',
   causeway: 'CAUSEWAY · LINEAR',
   bikini_bottom: 'BIKINI BOTTOM',
+  ashfall: 'ASHFALL · TITAN ARENA',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
@@ -196,6 +219,7 @@ export const MAP_PREVIEWS = Object.freeze({
   waterworld: './assets/maps/waterworld.webp',
   causeway: './assets/maps/causeway.webp',
   bikini_bottom: './assets/maps/bikini-bottom.webp',
+  ashfall: './assets/maps/ashfall.webp',
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });

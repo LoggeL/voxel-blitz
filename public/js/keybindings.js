@@ -41,10 +41,34 @@ export const KEYBINDING_ACTIONS = Object.freeze([
   // V is the infantry quick melee, which no seat uses.
   ['vehicleView', 'Vehicle camera view (chase / cockpit / ...)', ['KeyV'], 'vehicle'],
   ['vehicleWeaponNext', 'Next vehicle weapon', ['KeyQ'], 'vehicle'],
+  // Titanfall (docs/titanfall.md §8.2). Separate key spaces: on foot the pilot keys
+  // replace lean (Q/E) only in titanfall; seated in a titan the titan keys replace the
+  // vehicle and infantry keys. Capture-phase controllers consume them.
+  ['pilotTactical', 'Pilot tactical: grapple / stim / cloak (Titanfall)', ['KeyQ'], 'pilot'],
+  ['callTitan', 'Call titan (Titanfall)', ['KeyE'], 'pilot'],
+  ['titanDash', 'Titan dash', ['Space'], 'titan'],
+  ['titanDefensive', 'Titan defensive (hold)', ['KeyQ'], 'titan'],
+  ['titanTactical', 'Titan tactical', ['KeyE'], 'titan'],
+  ['titanOrdnance', 'Titan ordnance', ['KeyG'], 'titan'],
+  ['titanCore', 'Titan core', ['KeyV'], 'titan'],
+  ['titanSmoke', 'Titan electric smoke', ['KeyC'], 'titan'],
+  ['titanEject', 'Titan eject (triple tap while doomed)', ['KeyX'], 'titan'],
+  ['titanMelee', 'Titan melee', ['KeyF'], 'titan'],
+  ['titanView', 'Titan camera (cockpit / chase)', ['KeyH'], 'titan'],
 ].map(([id, label, codes, context = 'gameplay']) => Object.freeze({ id, label, codes: Object.freeze(codes), context })));
 const ACTIONS = new Map(KEYBINDING_ACTIONS.map(action => [action.id, action]));
 const listeners = new Set();
-const overlaps = (a, b) => a.context === b.context || [a.id, b.id].some(id => id === 'scoreboard' || id === 'buy');
+// Titanfall's capture-phase controllers consume their keys before Input and the seated
+// VehicleController see them, so those keys must not double up with gameplay keys that are
+// live at the same time: on foot the pilot keys replace only lean; seated in a titan the
+// titan keys must leave the walker's movement, fire, reload, interact and slot keys alone.
+const PILOT_SHARES = new Set(['leanLeft', 'leanRight']);
+const TITAN_CLASHES = new Set(['forward', 'back', 'left', 'right', 'sprint', 'fire', 'reload', 'interact',
+  ...Array.from({ length: 10 }, (_, i) => `slot${i + 1}`)]);
+const shadows = (a, b) => b.context === 'gameplay'
+  && ((a.context === 'pilot' && !PILOT_SHARES.has(b.id)) || (a.context === 'titan' && TITAN_CLASHES.has(b.id)));
+const overlaps = (a, b) => a.context === b.context || shadows(a, b) || shadows(b, a)
+  || [a.id, b.id].some(id => id === 'scoreboard' || id === 'buy');
 let storageKey = KEYBINDINGS_PREF_KEY;
 let cachedRaw;
 let cachedBindings;
@@ -72,10 +96,12 @@ export function normalizeKeybindings(value) {
   // A damaged preference must never make one press trigger two combat actions.
   // Saved choices claim their keys first, so the default of an action added
   // after the save (Q/E lean) yields to a key the player already assigned.
+  // Titanfall's pilot/titan keys come last, so they never take a key from any other mode.
   const accepted = [];
-  for (const claimSaved of [true, false]) {
+  const titanfallKey = action => action.context === 'pilot' || action.context === 'titan';
+  for (const [titanfall, claimSaved] of [[false, true], [false, false], [true, true], [true, false]]) {
     for (const action of KEYBINDING_ACTIONS) {
-      if (saved.has(action.id) !== claimSaved) continue;
+      if (titanfallKey(action) !== titanfall || saved.has(action.id) !== claimSaved) continue;
       result[action.id] = result[action.id].filter(code => {
         if (accepted.some(other => other.code === code && overlaps(action, other.action))) return false;
         accepted.push({ action, code });
@@ -112,9 +138,18 @@ export function setKeybinding(actionId, code) {
     return { ok: false, error: 'Choose a letter, number, arrow, modifier, or navigation key. Escape is reserved for menus.' };
   }
   const bindings = readKeybindings();
+  // A Titanfall pilot/titan key never blocks a key for the other modes' actions: it yields
+  // (as in normalizeKeybindings) and that Titanfall action is left unbound instead.
+  const titanfallAction = a => a.context === 'pilot' || a.context === 'titan';
+  const yields = other => titanfallAction(other) && !titanfallAction(action);
   const conflict = code && KEYBINDING_ACTIONS.find(other => other.id !== actionId
-    && overlaps(other, action) && bindings[other.id].includes(code));
+    && overlaps(other, action) && !yields(other) && bindings[other.id].includes(code));
   if (conflict) return { ok: false, conflict: conflict.id, error: `${keyCodeLabel(code)} is assigned to ${conflict.label}. Clear or change that action first.` };
+  if (code) {
+    for (const other of KEYBINDING_ACTIONS) {
+      if (other.id !== actionId && yields(other) && overlaps(other, action)) bindings[other.id] = bindings[other.id].filter(c => c !== code);
+    }
+  }
   bindings[actionId] = code ? [code] : [];
   return { ok: true, bindings: publish(bindings) };
 }

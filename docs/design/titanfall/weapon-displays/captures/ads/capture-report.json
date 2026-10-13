@@ -1,0 +1,345 @@
+{
+  "generated": "2026-10-13T19:31:43.566Z",
+  "fov": 75,
+  "ads": 1,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-rifle-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-rifle-empty-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-smg-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-smg-empty-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-shotgun-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-shotgun-cycle-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "staged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-shotgun-staged-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "lmg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-lmg-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "lmg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-lmg-empty-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "kraber",
+      "state": "full",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-kraber-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "kraber",
+      "state": "cycle",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-kraber-cycle-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "revolver",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-revolver-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "revolver",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-revolver-empty-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-chargerifle-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "charge",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-chargerifle-charge-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-chargerifle-charged-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-chargerifle-cycle-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "full",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-archer-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "lock",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-archer-lock-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "locked",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-archer-locked-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-thunderbolt-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-thunderbolt-cycle-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "mgl",
+      "state": "full",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-mgl-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "mgl",
+      "state": "empty",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/desktop-mgl-empty-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-rifle-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-rifle-empty-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-smg-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-smg-empty-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-shotgun-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-shotgun-cycle-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "state": "staged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-shotgun-staged-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "lmg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-lmg-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "lmg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-lmg-empty-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "kraber",
+      "state": "full",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-kraber-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "kraber",
+      "state": "cycle",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-kraber-cycle-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "revolver",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-revolver-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "revolver",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-revolver-empty-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-chargerifle-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "charge",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-chargerifle-charge-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-chargerifle-charged-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-chargerifle-cycle-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "full",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-archer-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "lock",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-archer-lock-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "locked",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-archer-locked-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-thunderbolt-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "thunderbolt",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-thunderbolt-cycle-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "mgl",
+      "state": "full",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-mgl-full-ads.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "mgl",
+      "state": "empty",
+      "live": false,
+      "file": "docs/design/titanfall/weapon-displays/captures/ads/landscape-mgl-empty-ads.jpg"
+    }
+  ],
+  "errors": []
+}

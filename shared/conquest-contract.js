@@ -1,4 +1,6 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
+// Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
+import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
 export const CONQUEST_CONTRACT_VERSION = 3;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
@@ -175,10 +177,14 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
     S('driver', 'pilot', true, false, false, [M('nose', ['planeCannon']), M('rails', ['aaMissile'])]),
   ]),
 });
+/** Seat topology of a conquest or titan type (titan types: shared/titan-contract.js). */
+const topologyOf = type => VEHICLE_TOPOLOGY[type] || TITAN_TOPOLOGY[type];
+/** META row of a conquest or titan mount weapon, or null. */
+export const vehicleWeaponMeta = key => VEHICLE_WEAPON_META[key] || TITAN_WEAPON_META[key] || null;
 /** Flattened mount order used by vehicle rows `mounts[]`. */
-export const vehicleMountOrder = type => (VEHICLE_TOPOLOGY[type] || []).flatMap(seat => seat.mounts.map(m => `${seat.id}:${m.id}`));
+export const vehicleMountOrder = type => (topologyOf(type) || []).flatMap(seat => seat.mounts.map(m => `${seat.id}:${m.id}`));
 /** Weapons a seat cycles through with `{type:'weapon', index}`; index into this list. */
-export const seatWeaponList = (type, seatId) => ((VEHICLE_TOPOLOGY[type] || []).find(s => s.id === seatId)?.mounts || []).flatMap(m => m.weapons.map(w => ({ mount: m.id, weapon: w })));
+export const seatWeaponList = (type, seatId) => ((topologyOf(type) || []).find(s => s.id === seatId)?.mounts || []).flatMap(m => m.weapons.map(w => ({ mount: m.id, weapon: w })));
 
 /** Vehicle row status bitfield `st`. */
 export const VEHICLE_STATUS = Object.freeze({ engine: 1, disabled: 2, burning: 4, immobilized: 8, flares: 16, smoke: 32, grounded: 64, wreck: 128 });

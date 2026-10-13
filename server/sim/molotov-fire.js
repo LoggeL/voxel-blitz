@@ -52,14 +52,21 @@ export class MolotovFireSystem {
     this.exposed.clear();
   }
 
-  ignite(projectile, ctx) {
+  /**
+   * `override` (titanfall thermite, incendiary trap): { radius?, durationMs?,
+   * damagePerSecond? (pilots), hullDamagePerSecond?, key? (pilot kill key),
+   * maxCells? (at most MOLOTOV_FIRE.maxCells), onHullDamage? (called with the
+   * hull and the damage it took from this field, for the titan core meter) }
+   * over the molotov profile.
+   */
+  ignite(projectile, ctx, override = null) {
     if (ctx.canAffectWorld?.() === false) return null;
     const { x, y, z } = projectile;
     if (![x, y, z].every(Number.isFinite)) return null;
     const groundY = groundAt(ctx, x, y + 0.01, z);
     if (groundY == null) return null;
     const cells = [];
-    const profile = molotovFireProfile(projectile.chaosLevel);
+    const profile = override ? { ...molotovFireProfile(projectile.chaosLevel), ...override } : molotovFireProfile(projectile.chaosLevel);
     const radius = profile.radius;
     const origin = [x, groundY + 0.12, z];
     for (let iz = Math.floor(z - radius); iz <= Math.floor(z + radius); iz++) {
@@ -72,7 +79,7 @@ export class MolotovFireSystem {
       }
     }
     cells.sort((a, b) => Math.hypot(a[0] - x, a[2] - z) - Math.hypot(b[0] - x, b[2] - z));
-    cells.length = Math.min(cells.length, MOLOTOV_FIRE.maxCells);
+    cells.length = Math.min(cells.length, override ? Math.min(MOLOTOV_FIRE.maxCells, profile.maxCells ?? Infinity) : MOLOTOV_FIRE.maxCells);
     if (!cells.length) return null;
     // Drop the oldest field when the room's visual/network budget is full.
     if (this.active.size >= MOLOTOV_FIRE.maxFields) this.active.delete(this.active.keys().next().value);
@@ -80,6 +87,11 @@ export class MolotovFireSystem {
       owner: projectile.owner || ctx.entities.get(projectile.ownerId) || null,
       x, y: groundY, z, radius, createdAt: ctx.now,
       expiresAt: ctx.now + profile.durationMs, damagePerSecond: profile.damagePerSecond, cells };
+    if (override) {
+      if (Number.isFinite(override.hullDamagePerSecond)) field.hullDamagePerSecond = override.hullDamagePerSecond;
+      if (typeof override.key === 'string') field.key = override.key;
+      if (typeof override.onHullDamage === 'function') field.onHullDamage = override.onHullDamage;
+    }
     this.active.set(field.id, field);
     return field;
   }
@@ -141,6 +153,7 @@ export class MolotovFireSystem {
         }
         pending ||= { owner: contact.owner, elapsed: 0, damage: 0 };
         pending.owner = contact.owner;
+        pending.key = contact.key ?? null;
         pending.elapsed += seconds;
         pending.damage += exposure;
         this.pending.set(victim.id, pending);
@@ -153,13 +166,13 @@ export class MolotovFireSystem {
       if (pending.elapsed + 1e-9 < MOLOTOV_FIRE.damageInterval && contact && contact.expiresAt > ctx.now) continue;
       this.pending.delete(victim.id);
       pending.damage = combatDamage(pending.damage);
-      const lethal = victim.takeDamage(pending.damage, false, pending.owner, 'molotov');
+      const lethal = victim.takeDamage(pending.damage, false, pending.owner, pending.key ?? 'molotov');
       ctx.pushEvent(evHit(pending.owner?.id || '', victim.id, pending.damage, false,
         [victim.x, victim.y + 0.22, victim.z], victim.lastDamage));
       if (lethal) {
         victim.molotovBurning = 0;
         this.exposed.delete(victim.id);
-        ctx.killPlayer(victim, pending.owner, 'molotov', false, null);
+        ctx.killPlayer(victim, pending.owner, pending.key ?? 'molotov', false, null);
       }
     }
     for (const id of this.pending.keys()) if (!ctx.entities.has(id)) this.pending.delete(id);
@@ -181,7 +194,12 @@ export class MolotovFireSystem {
           && footprintsOverlap(hull, hullFootprint('voxel', c[0], c[2], 0)));
         if (!cell) continue;
         const elapsed = Math.max(0, Math.min(ctx.now, field.expiresAt) - Math.max(ctx.now - dt * 1000, field.createdAt)) / 1000;
-        if (elapsed > 0) vehicles.damage(v.id, field.damagePerSecond * elapsed, field.owner, { cls: 'fire', origin: [cell[0], cell[1], cell[2]] });
+        if (elapsed > 0) {
+          // onHullDamage gets what the owner's damage log gained (after armour and refusals).
+          const logged = () => v.damageLog?.get(String(field.owner?.id))?.dmg ?? 0, before = field.onHullDamage ? logged() : 0;
+          vehicles.damage(v.id, (field.hullDamagePerSecond ?? field.damagePerSecond) * elapsed, field.owner, { cls: 'fire', origin: [cell[0], cell[1], cell[2]] });
+          if (field.onHullDamage) field.onHullDamage(v, Math.max(0, logged() - before));
+        }
         break;
       }
     }

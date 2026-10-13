@@ -1,0 +1,156 @@
+{
+  "generated": "2026-10-13T21:56:41.298Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "ion-doom",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "confirm": "doom",
+        "after": 0.35
+      },
+      "particles": {
+        "alive": 13,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-confirms/desktop-cockpit-ion-doom-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "ion-kill",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "confirm": "kill",
+        "after": 0.35
+      },
+      "particles": {
+        "alive": 15,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-confirms/desktop-cockpit-ion-kill-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "ion-doom",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "confirm": "doom",
+        "after": 0.35
+      },
+      "particles": {
+        "alive": 12,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-confirms/landscape-cockpit-ion-doom-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "ion-kill",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "confirm": "kill",
+        "after": 0.35
+      },
+      "particles": {
+        "alive": 12,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-confirms/landscape-cockpit-ion-kill-fire.png"
+    },
+    {
+      "size": "portrait",
+      "view": "cockpit",
+      "shot": "ion-doom",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "confirm": "doom",
+        "after": 0.35
+      },
+      "particles": {
+        "alive": 11,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-confirms/portrait-cockpit-ion-doom-fire.png"
+    },
+    {
+      "size": "portrait",
+      "view": "cockpit",
+      "shot": "ion-kill",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "confirm": "kill",
+        "after": 0.35
+      },
+      "particles": {
+        "alive": 13,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-confirms/portrait-cockpit-ion-kill-fire.png"
+    }
+  ],
+  "errors": []
+}

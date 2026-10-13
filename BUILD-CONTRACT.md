@@ -182,6 +182,15 @@ After admission:
 - `{t:'chat',text:string}` broadcasts at most 120 trimmed characters only to
   this member's room, with control/zero-width characters stripped. Each member
   may burst 3 lines, then 1 line/s; excess lines are dropped silently.
+- Titanfall (`docs/titanfall.md` §3.6-3.7): admission frames may carry
+  `titanfall:<contract version>`; a socket without a current version cannot
+  enter or configure a titanfall room. `{t:'titanfall',<one key>}` with exactly
+  one of `loadout:packed int`, `call:[x,y,z]|1`, `ability:'def'|'tac'|'ord'|
+  'core'|'smoke'|'dash'|'melee'|'mode'`, `eject:1`, `tac:1` or
+  `rodeo:'mount'|'rip'|'insert'|'dismount'` routes to the member's room
+  (per-type gaps 250/500/250/100 ms; `loadout` is also accepted before the match).
+  In titanfall only, `input` additionally accepts `jumpSeq` (uint8) and
+  `titanHold` (6 bits); other modes ignore both.
 Client binary frames are ignored. Sockets must admit within 10 seconds, may
 send at most 180 messages/s, and may send at most 64 KiB per frame.
 
@@ -275,6 +284,16 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   long enough for interpolation; the client drains each visible event exactly
   once in arrival order and keeps the most recently drained batch in
   `latestEvents`.
+- Titanfall rooms (`docs/titanfall.md` §3.1-3.5) add, only in that mode: a
+  player-row `tf` 8-tuple `[mv,titanId|0,loadout,flags,meter100,rodeoVehicleId|0,
+  grapple|0,titanKills]` (`PLAYER_KEYS` stay exact), `match.titanfall`
+  `{v,endsAt,scoreLimit,sc,bat,bay}` (at most 400 B), and titan vehicle rows
+  with `tw` (6), `own` and `ab` (4). After each tick every member is also sent its
+  own self-only `{t:'tfs',s:<tick now>,d:[12 numbers]}` frame; the tick itself
+  is still serialized once for all members. Titan events (`titanfall_drop`,
+  `titanfall_refused`, `titan_embark`, `titan_disembark`, `titan_doomed`,
+  `titan_eject`, `rodeo_*`, `battery_*`, `core_*`, `oob_warning`) ride in
+  `tick.events`; a destroyed titan reuses `vehicle_destroyed`.
 - Recoverable command failures send `{t:'error',msg}`. Malformed first frames
   send the error then close `4002`; unknown public lobbies close `4004`; full
   rooms or room-capacity exhaustion close `4005`. Global capacity is 32
@@ -324,6 +343,31 @@ truth for mode ids, map compatibility, timings, and economy. `MAP_MODE_COMPATIBI
 covers the four combat modes.
 `MAP_MODE_COMPATIBILITY.killhouse` covers only training.
 `MAP_MODE_COMPATIBILITY.bikini_bottom` is `COMBAT_MODE_IDS` (Fun, TTT, 1v1, Chaos Lab, TDM, S&D, Gun Game).
+Titanfall (Attrition, `docs/titanfall.md` §2.1) is appended last to `MODE_IDS`
+(append-only) with `MODE_RULES.titanfall` `{label:'TITANFALL',title:'ATTRITION',
+teams:true,friendlyFire:false,respawnMs:4000,scoreLimit:300,timeLimitMs:720000,
+allowDraw:true,vehicles:'titans',points:{pilot:5,titan:10,grunt:1,spectre:2}}`.
+It plays only on `frontier`, `harbor` and `canyon` (`COMBAT_MODE_IDS` is unchanged),
+is an owned-loadout mode, and `isTitanfall(mode)`, `modeHasVehicles(mode)`
+(conquest or titanfall) and `isCombinedArms` gate every titanfall branch.
+`shared/lobby-limits.js` caps titanfall at `min(map limit, 16)` and lists it in
+`hasLobbyTeams`.
+
+### shared/titan-contract.js
+Dependency-free, deeply frozen titan contract (`docs/titanfall.md` §2.2):
+`TITANFALL_CONTRACT_VERSION=1`, `TITAN_TYPE_IDS` (`titan_ion`, `titan_scorch`,
+`titan_northstar`, `titan_ronin`, `titan_legion`), `TITAN_TOPOLOGY` in the
+`VEHICLE_TOPOLOGY` row shape, `TITAN_WEAPON_META`, `TITAN_ABILITIES`,
+`TITAN_KILL_KEYS`, the pilot kit lists, the loadout pack
+(`primary|at<<4|tactical<<8|titan<<12`) and the `tf`/`tfs`/`tw`/`ab` encoders.
+`VEHICLE_TYPE_IDS` and `VEHICLE_WEAPON_META` stay conquest-only;
+`shared/vehicle-defs.js` builds `VEHICLE_DEFS`, `VEHICLE_RULES`,
+`VEHICLE_HANDLING`, `VEHICLE_WEAPONS` and `VEHICLE_MASS` over the conquest types
+first, then the titans (handling `walker`, armour `titan`), and
+`conquest-contract.js` resolves titan types through `vehicleMountOrder`,
+`seatWeaponList` and `vehicleWeaponMeta`. Titan armour is the separate
+`TITAN_ARMOR`/`TITAN_ZONES` table in `shared/vehicle-armor.js`; `ARMOR_MATRIX`
+is unchanged.
 
 ### shared/player-hitboxes.js
 `playerHitboxes(player)` defines oriented head, torso, hip, arm and leg volumes
@@ -386,6 +430,19 @@ The slot roster is exactly
 Damage is flat to 20 world units by default; the shotgun starts falloff at 12
 and the lance at 45. It then falls linearly to the table's far value at the
 listed end.
+
+`WEAPON_IDS` continues past the table: 14 `mgl` (GL-3 SKIPJACK, the last free
+slot), 15 `stinger` (AX-9 STINGER, Conquest Engineer kit only), then the four
+Titanfall anti-titan pilot weapons (`docs/titanfall.md` §6): 16 `chargerifle`
+(CR-6 LONGBOW, `charge`, fires only at full charge — `chargeReleaseFires(def,
+charge01)` — 50 to a pilot, `hullDamage` 300 to a titan), 17 `archer` (AT-12
+ARCHER, guided missile, `projectile:'archer'`), 18 `thunderbolt` (TB-4
+THUNDERBOLT, arc orb, `projectile:'thunderbolt'`) and 19 `kraber` (KR-50
+KRABER, scoped bolt rifle, `damageClass:'hmg'`). Those five kit ids carry
+`gadgetOnly` and are listed in `GADGET_ONLY_WEAPON_IDS`; `FREE_WEAPON_IDS` is
+every other id (the 15 free slots), so no gadget id reaches a free roster,
+Bastion's armory or the default wheel. Appending ids grows every player row's
+`mag`/`reserve` arrays (one entry per `WEAPON_IDS` slot) in every mode.
 
 The LONGARC is `auto`: every bolt leaves at full power with no capacitor
 charge. The LONGARC is `projectile:'bolt'`: its
@@ -1102,6 +1159,20 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   per snapshot (snaps beyond 3.2 m land fully); the camera carries the negated
   correction as an offset clamped to 1.6 m that decays at 13/s (7/s after a
   snap), so corrections never pop.
+  Titanfall pilots (`ctx.pilotRules`, `docs/titanfall.md` §4) run
+  `shared/pilot-movement.js` in the same order on server and client
+  (`pilotPreStep` → speed/`pilotAccel` → `pilotVertical` → collide →
+  `pilotPostCollide`); with `pilotRules` false both integrators stay
+  bit-identical to the stock rules. Jump presses travel as `input.jumpSeq`
+  (uint8, one press consumed per tick). Above 0.25 m of error the client
+  adopts the trailing `tfs` frame (velocity, wall, jumps, slide) only once its
+  `jumpSeqAck` equals the local `jumpSeq`, never winding a run's wall or slide
+  timer back; a grapple anchor comes from `tf`. Pilot prediction steps on the
+  server's fixed 1/60 s (`PILOT_STEP_S`, `PlayerPhysics.stepPilotFixed`) at
+  any display rate, latches a press made between two steps, and presents the
+  camera and body between the last two steps (`pilotLerp`). A seated or
+  riding pilot (integrate skipped) has its pilot motion cleared and its jump
+  presses consumed in the policy's `beforeTick`.
 - **Gamepad:** standard mapping via `readGamepadFrame`; sticks use
   `stickCurve` (move dead zone 0.18 linear, look dead zone 0.12 with expo
   1.75); button edges fold into the same Input queues as the keyboard; a pad

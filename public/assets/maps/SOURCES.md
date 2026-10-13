@@ -21,6 +21,7 @@ external assets, compositing or retouching is included in these previews.
 | reactor | `reactor-preview.webp` | `.artifacts/map-renders/reactor-hero.png` (2026-09-22, `node tools/render-map-scenes.mjs --map reactor`; re-rendered after the staged Bastion layout, objective pads and route strips) |
 | causeway | `causeway.webp` | `.artifacts/map-renders/causeway-hero.png` (2026-09-22, `node tools/render-map-scenes.mjs --map causeway`; low shot west along the corridor from the east gate after the rock faces were skinned in stone strata) |
 | bikini_bottom | `bikini-bottom.webp` | `.artifacts/map-renders/bikini_bottom-hero.png` (2026-09-22, `node tools/render-map-scenes.mjs --map bikini_bottom`; `cwebp -q 82 -metadata none`) |
+| ashfall | `ashfall.webp` | `node tools/render-map-scenes.mjs --map ashfall --shot hero --width 1440 --height 900` (2026-10-13; `cwebp -q 82 -metadata none`; desktop and mobile captures in `docs/design/titanfall/map/captures/`) |
 
 Capture command:
 

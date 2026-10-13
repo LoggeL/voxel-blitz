@@ -1,0 +1,37 @@
+{
+  "generated": "2026-10-13T21:00:30.335Z",
+  "fov": 75,
+  "ads": 1,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/chargerifle/overload/ads/desktop-chargerifle-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": true,
+      "file": "docs/design/chargerifle/overload/ads/desktop-chargerifle-charged-ads.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/chargerifle/overload/ads/portrait-chargerifle-full-ads.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": true,
+      "file": "docs/design/chargerifle/overload/ads/portrait-chargerifle-charged-ads.jpg"
+    }
+  ],
+  "errors": []
+}

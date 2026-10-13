@@ -8,6 +8,8 @@ import { VEHICLE_DAMAGE_RULES, VEHICLE_WEAPONS, vehicleDef, mountPose, clampMoun
 import { raycastVoxels } from '../../shared/raycast.js';
 import { fireMountedRay } from './combat.js';
 import { evVehicleShoot } from '../protocol/events.js';
+import { isTitanType } from '../../shared/titan-contract.js';
+import { stepTitanMounts, fireTitanMount, titanMountRows, selectTitanWeapon } from './titanfall/titan-mounts.js';
 
 const wrap = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
@@ -93,6 +95,7 @@ export class VehicleMounts {
   }
   /** The weapon action: pick an entry of the seat's weapon list. */
   select(vehicle, seatId, index) {
+    if (isTitanType(vehicle.type)) return selectTitanWeapon(this, vehicle, seatId, index);
     const list = seatWeaponList(vehicle.type, seatId);
     if (!list.length || !Number.isInteger(index) || index < 0 || index >= list.length) return false;
     vehicle.sel[seatId] = index;
@@ -108,6 +111,7 @@ export class VehicleMounts {
 
   /** Slew, cool, reload, rearm and fire every mount of one live hull. */
   step(vehicle, dt) {
+    if (isTitanType(vehicle.type)) return stepTitanMounts(this, vehicle, dt);
     const def = vehicleDef(vehicle);
     if (!def || !vehicle.mounts?.length) return;
     const slewScale = vehicle.disabled ? VEHICLE_DAMAGE_RULES.disabledSlew : 1;
@@ -175,6 +179,7 @@ export class VehicleMounts {
   }
 
   fire(vehicle, seat, operator, mountId, weaponKey) {
+    if (isTitanType(vehicle.type)) return fireTitanMount(this, vehicle, seat, operator, mountId, weaponKey);
     const state = this.state(vehicle, mountId), weapon = VEHICLE_WEAPONS[weaponKey];
     if (!state || !weapon || state.weapon !== weaponKey || state.cooldown > 1e-9 || state.overheated || state.reloadT > 0
       || Number.isFinite(weapon.magazine) && state.ammo <= 0) return false;
@@ -216,8 +221,9 @@ export class VehicleMounts {
     return true;
   }
 
-  /** Snapshot rows: [yaw, pitch, ammo (-1 unlimited), heat100, reload100 (remaining)]. */
+  /** Snapshot rows: [yaw, pitch, ammo (-1 unlimited), heat100, reload100 (remaining)]; titans add charge100 (titan-mounts.js). */
   rows(vehicle) {
+    if (isTitanType(vehicle.type)) return titanMountRows(vehicle);
     return (vehicle.mounts || []).map(state => {
       const weapon = VEHICLE_WEAPONS[state.weapon];
       let reload = 0;

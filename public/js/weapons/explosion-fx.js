@@ -77,6 +77,43 @@ export const BLAST_STYLE = Object.freeze({
     light: Object.freeze({ color: 0xff9b43, range: 7, intensity: 15, life: 0.42 }),
     scorch: 0,
   }),
+  // Titanfall AT rounds (WP4). ARCHER: a rocket blast with a cyan shock ring.
+  archer: Object.freeze({
+    color: 0xffc27a, grow: 0.5, life: 0.55, ring: true, ringColor: 0x4ee6ff, flash: 2.8, flashLife: 0.15,
+    fire: Object.freeze({ count: 10, size: 2.0, speed: 6.5, life: 0.6, tint: FIRE_HOT }),
+    smoke: Object.freeze({ count: 14, size: 1.8, speed: 3, life: 2.6, shade: 0.19 }),
+    light: Object.freeze({ color: 0xffb060, range: 10, intensity: 20, life: 0.55 }),
+    scorch: 3.6,
+  }),
+  // THUNDERBOLT arc orb: an electric-blue wire burst with a ring, no fire or scorch.
+  arcball: Object.freeze({
+    color: 0x7aa8ff, grow: 0.6, life: 0.45, wireframe: true, ring: true, ringColor: 0xc4d8ff, flash: 2,
+    light: Object.freeze({ color: 0x7aa8ff, range: 10, intensity: 16, life: 0.5 }),
+  }),
+  // Titan ordnance (WP5 projectile views): T-203 thermite shell, cluster missile,
+  // Flight Core rocket and leadwall pellet pops. Titanfall only.
+  t203: Object.freeze({
+    color: 0xffb347, grow: 0.42, life: 0.5, ring: true, ringColor: 0xff5a10, flash: 2.6, flashLife: 0.14,
+    fire: Object.freeze({ count: 10, size: 1.9, speed: 4.5, life: 0.8, tint: FIRE_OILY }),
+    smoke: Object.freeze({ count: 10, size: 1.6, speed: 2.2, life: 2.4, shade: 0.12 }),
+    light: Object.freeze({ color: 0xff7a24, range: 10, intensity: 18, life: 0.7 }),
+    scorch: 3.6,
+  }),
+  cluster: Object.freeze({
+    color: 0xffc070, grow: 0.4, life: 0.45, ring: true, ringColor: 0xff8a2c, flash: 2.4, flashLife: 0.12,
+    fire: Object.freeze({ count: 8, size: 1.6, speed: 5.5, life: 0.5, tint: FIRE_HOT }),
+    smoke: Object.freeze({ count: 10, size: 1.5, speed: 2.6, life: 2.2, shade: 0.18 }),
+    light: Object.freeze({ color: 0xffa040, range: 9, intensity: 16, life: 0.45 }),
+    scorch: 3,
+  }),
+  flightRocket: Object.freeze({
+    color: 0xbfe6ff, grow: 0.36, life: 0.4, ring: true, ringColor: 0x8fdcff, flash: 2.2, flashLife: 0.11,
+    fire: Object.freeze({ count: 6, size: 1.4, speed: 5, life: 0.45, tint: FIRE_HOT }),
+    smoke: Object.freeze({ count: 8, size: 1.3, speed: 2.4, life: 1.8, shade: 0.2 }),
+    light: Object.freeze({ color: 0x8fdcff, range: 8, intensity: 13, life: 0.4 }),
+    scorch: 2.4,
+  }),
+  leadwall: Object.freeze({ color: 0xffd27a, grow: 0.06, life: 0.14, ring: false, flash: 1.2 }),
   molotov: Object.freeze({
     color: 0xff7924, grow: 0.2, life: 0.3, ring: false, flash: 1.6, flashLife: 0.12,
     fire: Object.freeze({ count: 6, size: 1.3, speed: 3.2, life: 0.5, tint: FIRE_OILY }),

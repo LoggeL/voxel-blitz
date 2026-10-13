@@ -14,7 +14,8 @@ const SEEDS = Object.freeze({ jeep: 3, tank: 7, helicopter: 11, transport: 13, p
 function resolverFor(type, team) {
   const key = `${type}|${team}`;
   let resolve = resolvers.get(key);
-  if (!resolve) { resolve = createPaletteResolver(team, SEEDS[type] ?? 5); resolvers.set(key, resolve); }
+  // Titans (titan-common.js) sample the camo coarser: no second-octave flecks on 7 m plates.
+  if (!resolve) { resolve = createPaletteResolver(team, SEEDS[type] ?? 5, String(type).startsWith('titan_') ? { detail: 0.1 } : undefined); resolvers.set(key, resolve); }
   return resolve;
 }
 
@@ -58,11 +59,28 @@ export function partGeometry(type, team, part, variant = 'intact') {
   return entry;
 }
 
-/** Drop every cached geometry (tests and page teardown only). */
-export function clearVehicleGeometryCache() {
+/**
+ * Drop every cached geometry (tests and page teardown only). With `matchType(type)` only the
+ * types it accepts (and their palette resolvers): titanfall frees its titans on leaving the
+ * match; no hull of those types may still be drawn.
+ */
+export function clearVehicleGeometryCache(matchType = null) {
+  if (typeof matchType === 'function') {
+    const typeOf = key => key.slice(0, key.indexOf('|'));
+    for (const [key, entry] of geometryCache) {
+      if (!matchType(typeOf(key))) continue;
+      entry.opaque?.dispose(); entry.glass?.dispose();
+      geometryCache.delete(key);
+    }
+    for (const key of [...resolvers.keys()]) if (matchType(typeOf(key))) resolvers.delete(key);
+    return;
+  }
   for (const entry of geometryCache.values()) { entry.opaque?.dispose(); entry.glass?.dispose(); }
   geometryCache.clear();
 }
+
+/** Cached part geometries (tests, leak checks). */
+export const vehicleGeometryCacheSize = () => geometryCache.size;
 
 /**
  * One model under construction. Nodes remember their hull-frame pivot so an

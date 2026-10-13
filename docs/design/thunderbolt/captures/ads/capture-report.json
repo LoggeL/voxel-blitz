@@ -1,0 +1,30 @@
+{
+  "generated": "2026-10-13T21:31:33.596Z",
+  "fov": 75,
+  "ads": 1,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/thunderbolt/captures/ads/desktop-thunderbolt-full-ads.png"
+    },
+    {
+      "size": "portrait",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/thunderbolt/captures/ads/portrait-thunderbolt-full-ads.png"
+    },
+    {
+      "size": "landscape",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/thunderbolt/captures/ads/landscape-thunderbolt-full-ads.png"
+    }
+  ],
+  "errors": []
+}

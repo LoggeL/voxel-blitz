@@ -1,0 +1,719 @@
+{
+  "generated": "2026-10-13T21:10:40.019Z",
+  "page": "public/titanfall-wrist-capture.html",
+  "wrist": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/integration/captures/desktop-rifle-grapple-1.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 55,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 1,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 991.6289548839384,
+        "top": 784.695967713413,
+        "width": 153.56314643902056,
+        "height": 115.0188916832193
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/integration/captures/desktop-rifle-stim-active.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 55,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 2,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 991.6289548839384,
+        "top": 784.695967713413,
+        "width": 153.56314643902056,
+        "height": 115.0188916832193
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/integration/captures/desktop-smg-grapple-1.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 41,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 3,
+        "offHand": true,
+        "scale": 1
+      },
+      "box": {
+        "left": 558.3919304406136,
+        "top": 789.2836966618265,
+        "width": 220.11264478196165,
+        "height": 177.08299381646918
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/integration/captures/desktop-smg-stim-active.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 41,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": true,
+        "scale": 1
+      },
+      "box": {
+        "left": 558.3919304406136,
+        "top": 789.2836966618265,
+        "width": 220.11264478196165,
+        "height": 177.08299381646918
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/integration/captures/desktop-chargerifle-grapple-1.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 175,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 5,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 993.6422041650279,
+        "top": 775.1531647972143,
+        "width": 143.78201808613187,
+        "height": 107.08859104357225
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/integration/captures/desktop-chargerifle-stim-active.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 175,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 6,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 993.6422041650279,
+        "top": 775.1531647972143,
+        "width": 143.78201808613187,
+        "height": 107.08859104357225
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/integration/captures/portrait-rifle-grapple-1.png",
+      "live": true,
+      "gunLive": false,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 8,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 253.38325249850917,
+        "top": 584.3061002073453,
+        "width": 84.21270980302202,
+        "height": 61.48843006259585
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/integration/captures/portrait-rifle-stim-active.png",
+      "live": true,
+      "gunLive": false,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 9,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 253.38325249850917,
+        "top": 584.3061002073453,
+        "width": 84.21270980302202,
+        "height": 61.48843006259585
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "smg",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/integration/captures/portrait-smg-grapple-1.png",
+      "live": true,
+      "gunLive": false,
+      "draws": 33,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 10,
+        "offHand": true,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 109.37884286197088,
+        "top": 492.98486170707133,
+        "width": 120.39162988764117,
+        "height": 85.51382604870196
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "smg",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/integration/captures/portrait-smg-stim-active.png",
+      "live": true,
+      "gunLive": false,
+      "draws": 33,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 11,
+        "offHand": true,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 109.37884286197088,
+        "top": 492.98486170707133,
+        "width": 120.39162988764117,
+        "height": 85.51382604870196
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/integration/captures/portrait-chargerifle-grapple-1.png",
+      "live": true,
+      "gunLive": false,
+      "draws": 132,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 12,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 251.49067860379918,
+        "top": 579.5539843075795,
+        "width": 79.51760613909326,
+        "height": 57.95231930415355
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/integration/captures/portrait-chargerifle-stim-active.png",
+      "live": true,
+      "gunLive": false,
+      "draws": 132,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 13,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 251.49067860379918,
+        "top": 579.5539843075795,
+        "width": 79.51760613909326,
+        "height": 57.95231930415355
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/integration/captures/landscape-rifle-grapple-1.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 55,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 14,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 410.04521003528606,
+        "top": 273.46319434703025,
+        "width": 83.61765027651631,
+        "height": 63.14689971963645
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/integration/captures/landscape-rifle-stim-active.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 55,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 15,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 410.04521003528606,
+        "top": 273.46319434703025,
+        "width": 83.61765027651631,
+        "height": 63.14689971963645
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/integration/captures/landscape-smg-grapple-1.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 41,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 16,
+        "offHand": true,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 254.03484973339602,
+        "top": 271.8710139724216,
+        "width": 121.19783839652905,
+        "height": 96.24734016911214
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/integration/captures/landscape-smg-stim-active.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 41,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 17,
+        "offHand": true,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 254.03484973339602,
+        "top": 271.8710139724216,
+        "width": 121.19783839652905,
+        "height": 96.24734016911214
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/integration/captures/landscape-chargerifle-grapple-1.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 175,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 18,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 412.29085471451714,
+        "top": 270.60345519890006,
+        "width": 78.18832494751518,
+        "height": 58.645810068407854
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/integration/captures/landscape-chargerifle-stim-active.png",
+      "live": true,
+      "gunLive": true,
+      "draws": 175,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 19,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 412.29085471451714,
+        "top": 270.60345519890006,
+        "width": 78.18832494751518,
+        "height": 58.645810068407854
+      }
+    }
+  ],
+  "errors": []
+}

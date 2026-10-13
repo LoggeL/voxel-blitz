@@ -82,6 +82,10 @@ export const TOUCH_ACTIONS = Object.freeze([
   'grenade', 'pouch', 'flightUp', 'flightDown', 'flightBrake',
   // Conquest: seat cycle and countermeasure while seated, full map and spot on foot or seated, deploy while dead.
   'vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy',
+  // Titanfall (docs/titanfall.md §8.2): the pilot's context chip (call titan / rodeo / battery) and
+  // tactical, the titan's dash, abilities, core, smoke and the doomed eject.
+  'callTitan', 'pilotTactical', 'titanDash', 'titanDefensive', 'titanTactical', 'titanOrdnance', 'titanCore',
+  'titanSmoke', 'titanEject',
 ]);
 const ACTION_BITS = Object.freeze(Object.fromEntries(TOUCH_ACTIONS.map((action, i) => [action, 1 << i])));
 /**
@@ -94,6 +98,32 @@ const ACTION_BITS = Object.freeze(Object.fromEntries(TOUCH_ACTIONS.map((action, 
 export const CONQUEST_TOUCH_ACTIONS = Object.freeze(['vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy']);
 export const CONQUEST_TOUCH_EVENT = 'vb-conquest-action';
 const CONQUEST_ACTION_SET = new Set(CONQUEST_TOUCH_ACTIONS);
+/**
+ * Titanfall buttons act on the titanfall UI (public/js/titanfall/titan-ui.js): a
+ * `vb-titanfall-action` CustomEvent ({detail: {action, down}}) on the window, on
+ * press (down true) and on release (down false). Their visibility and faces come
+ * from `context.titanfall`, which the titanfall UI supplies through
+ * setTitanfallTouchSource while a titanfall match runs:
+ * { layout: 'pilot'|'titan', context: label|null, ready: {action: 0..1}, doomed }.
+ */
+export const TITANFALL_TOUCH_ACTIONS = Object.freeze(['callTitan', 'pilotTactical', 'titanDash', 'titanDefensive', 'titanTactical',
+  'titanOrdnance', 'titanCore', 'titanSmoke', 'titanEject']);
+export const TITANFALL_TOUCH_EVENT = 'vb-titanfall-action';
+const TITANFALL_ACTION_SET = new Set(TITANFALL_TOUCH_ACTIONS);
+const TITAN_SEAT_ACTIONS = Object.freeze(['titanDash', 'titanDefensive', 'titanTactical', 'titanOrdnance', 'titanCore', 'titanSmoke']);
+const TITANFALL_LABELS = Object.freeze({ callTitan: ['TITAN', 'Call titan'], pilotTactical: ['TAC', 'Pilot tactical'],
+  titanDash: ['DASH', 'Titan dash'], titanDefensive: ['Q', 'Titan defensive (hold)'], titanTactical: ['E', 'Titan tactical'],
+  titanOrdnance: ['G', 'Titan ordnance'], titanCore: ['CORE', 'Titan core'], titanSmoke: ['SMOKE', 'Electric smoke'],
+  titanEject: ['EJECT', 'Eject (tap three times)'] });
+let titanfallTouchSource = null;
+/** Install the titanfall touch context source `() => object|null` (null removes it). */
+export function setTitanfallTouchSource(source) { titanfallTouchSource = typeof source === 'function' ? source : null; }
+function withTitanfall(context) {
+  if (!context || !titanfallTouchSource) return context;
+  let titanfall = null;
+  try { titanfall = titanfallTouchSource() ?? null; } catch { titanfall = null; }
+  return titanfall ? { ...context, titanfall } : context;
+}
 const vehicleCanDrive = context => context.vehicleCanDrive ?? (!context.vehicleRole || ['driver', 'pilot'].includes(context.vehicleRole));
 const AIRCRAFT_TYPES = new Set(['helicopter', 'transport', 'plane']);
 
@@ -109,6 +139,14 @@ function visibleTouchMask(context) {
   if (!context || context.alive === false || context.wheelOpen || context.pouchOpen) return 0;
   let mask = ACTION_BITS.jump;
   const conquest = context.conquest === true ? ACTION_BITS.bigMap | ACTION_BITS.spot : 0;
+  const titanfall = context.titanfall && typeof context.titanfall === 'object' ? context.titanfall : null;
+  if (titanfall?.layout === 'titan' && context.vehicleSeated) {
+    // Seated in the own titan: fire plus the ability row; EJECT only while doomed.
+    let titan = context.vehicleCanFire === true && context.canFire !== false ? ACTION_BITS.fire : 0;
+    for (const action of TITAN_SEAT_ACTIONS) titan |= ACTION_BITS[action];
+    // The context chip (EXIT) disembarks with a tap.
+    return titan | (titanfall.doomed ? ACTION_BITS.titanEject : 0) | (titanfall.context ? ACTION_BITS.callTitan : 0);
+  }
   if (context.vehicleSeated) {
     const drives = vehicleCanDrive(context);
     mask = drives ? ACTION_BITS.jump : 0;
@@ -123,6 +161,7 @@ function visibleTouchMask(context) {
     return mask | conquest;
   }
   mask |= conquest;
+  if (titanfall?.layout === 'pilot') mask |= ACTION_BITS.pilotTactical | (titanfall.context ? ACTION_BITS.callTitan : 0);
   if (context.canFire !== false) {
     mask |= ACTION_BITS.fire | ACTION_BITS.ads;
   }
@@ -219,7 +258,7 @@ export class TouchControls {
    * that hides mid-hold is released first so nothing stays latched behind the HUD.
    */
   setContext(context = null) {
-    const next = context && typeof context === 'object' ? context : null;
+    const next = withTitanfall(context && typeof context === 'object' ? context : null);
     const seatKey = next?.vehicleSeated ? `${next.vehicleType || ''}:${next.vehicleId || ''}:${next.vehicleSeatId || ''}` : '';
     if ((this._seatKey || '') !== seatKey) {
       // Still-visible controls release when changing vehicles or seats.
@@ -291,7 +330,42 @@ export class TouchControls {
     if (this.dom.flightUp) this.dom.flightUp.setAttribute('aria-label', next?.vehicleType === 'plane' ? 'Pitch aircraft up' : 'Climb helicopter');
     if (this.dom.flightDown) this.dom.flightDown.setAttribute('aria-label', next?.vehicleType === 'plane' ? 'Pitch aircraft down' : 'Descend helicopter');
     this._paintGrenade(next);
+    this._paintTitanfall(next?.titanfall ?? null);
     return changed;
+  }
+
+  /** Titanfall button faces: the pilot context label and each ability's readiness (--ready, data-ready). */
+  _paintTitanfall(titanfall) {
+    if (!this.dom.callTitan) return;
+    const label = typeof titanfall?.context === 'string' && titanfall.context ? titanfall.context : 'TITAN';
+    if (this.dom.callTitan.textContent !== label) this.dom.callTitan.textContent = label;
+    // Styling hooks: the chip's context (EMBARK is a hold ring, EXIT a seat chip) and the titanfall layout.
+    // Other modes never get either attribute.
+    const chip = this.dom.callTitan.dataset;
+    if (chip && (chip.context ?? null) !== (titanfall ? label : null)) {
+      if (titanfall) chip.context = label;
+      else delete chip.context;
+    }
+    const layout = titanfall?.layout === 'titan' || titanfall?.layout === 'pilot' ? titanfall.layout : null;
+    const root = this.root?.dataset;
+    if (root && (root.titanfall ?? null) !== layout) {
+      if (layout) root.titanfall = layout;
+      else delete root.titanfall;
+    }
+    for (const action of TITANFALL_TOUCH_ACTIONS) {
+      const button = this.dom[action];
+      if (action !== 'callTitan') {
+        const face = typeof titanfall?.labels?.[action] === 'string' && titanfall.labels[action] ? titanfall.labels[action] : TITANFALL_LABELS[action][0];
+        if (button.textContent !== face) button.textContent = face;
+      }
+      const value = Number(titanfall?.ready?.[action]);
+      const ready = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+      const text = ready.toFixed(2);
+      if (button.dataset.readyValue === text) continue;
+      button.dataset.readyValue = text;
+      button.dataset.ready = String(ready >= 1);
+      button.style.setProperty('--ready', text);
+    }
   }
 
   /**
@@ -358,6 +432,8 @@ export class TouchControls {
     this._heldPointers.delete(action);
     this._heldSince.delete(action);
     this._latched.delete(action);
+    // A titanfall button that hides mid-press releases its held ability (defensive).
+    if (TITANFALL_ACTION_SET.has(action) && this._pulsePointers.has(action)) this._titanfallAction(action, false);
     this._pulsePointers.delete(action);
     if (button) this._setPressed(button, action, false);
     if (action === 'grenade') this._endGrenadeHold();
@@ -406,6 +482,10 @@ export class TouchControls {
     d.bigMap = this._button(root, 'bigMap', 'MAP', 'Open the battlefield map');
     d.spot = this._button(root, 'spot', 'SPOT', 'Spot the enemy you are aiming at');
     d.deploy = this._button(root, 'deploy', 'DEPLOY', 'Deploy at the selected spawn');
+    for (const action of TITANFALL_TOUCH_ACTIONS) {
+      d[action] = this._button(root, action, TITANFALL_LABELS[action][0], TITANFALL_LABELS[action][1]);
+      d[action].classList.add('vb-touch-titanfall');
+    }
     d.grenade = this._button(root, 'grenade', '',
       'Throw ready grenade (tap to throw, hold to aim, lift to throw)');
     d.grenade.dataset.type = 'none';
@@ -452,6 +532,7 @@ export class TouchControls {
     this._bindPulse(d.build, 'build');
     this._bindPulse(d.pouch, 'pouch');
     for (const action of CONQUEST_TOUCH_ACTIONS) this._bindPulse(d[action], action);
+    for (const action of TITANFALL_TOUCH_ACTIONS) this._bindTitanfall(d[action], action);
     this._bindGrenade(d.grenade);
     d.grenadePowerChips.forEach((chip, i) => this._bindPowerChip(chip, i));
     this._bindPulse(d.pause, 'pause');
@@ -774,6 +855,36 @@ export class TouchControls {
     this._listen(button, 'lostpointercapture', release);
   }
 
+  /** Titanfall button: acts on press (a dash must not wait for the lift), reports the release. */
+  _bindTitanfall(button, action) {
+    this._listen(button, 'pointerdown', (event) => {
+      if (!this.enabled || this._hidden.has(action) || this._pulsePointers.has(action)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this._pulsePointers.set(action, event.pointerId);
+      this._setPressed(button, action, true);
+      this._capture(button, event);
+      this._titanfallAction(action, true);
+    });
+    const release = (event) => {
+      if (this._pulsePointers.get(action) !== event.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this._pulsePointers.delete(action);
+      this._setPressed(button, action, false);
+      this._titanfallAction(action, false);
+    };
+    this._listen(button, 'pointerup', release);
+    this._listen(button, 'pointercancel', release);
+    this._listen(button, 'lostpointercapture', release);
+  }
+
+  _titanfallAction(action, down) {
+    const target = this.document?.defaultView ?? (typeof window !== 'undefined' ? window : null);
+    const Event = target?.CustomEvent ?? globalThis.CustomEvent;
+    if (target?.dispatchEvent && typeof Event === 'function') target.dispatchEvent(new Event(TITANFALL_TOUCH_EVENT, { detail: { action, down: !!down } }));
+  }
+
   setEnabled(enabled) {
     const next = !!enabled;
     if (next === this.enabled) return;
@@ -808,6 +919,7 @@ export class TouchControls {
       const released = new Set([...this._heldPointers.keys(), ...this._latched]);
       if (released.has('grenade')) this.onPulse('grenadeCancel');
       for (const action of released) this.onHold(action, false, eventTime(null));
+      for (const action of this._pulsePointers.keys()) if (TITANFALL_ACTION_SET.has(action)) this._titanfallAction(action, false);
     }
     this._lookTap = null;
     this._endGrenadeHold();

@@ -1,4 +1,5 @@
 import { worldDimensions } from '../../shared/world/dimensions.js';
+import { isTitanfall } from '../../shared/modes.js';
 import { computeConeDeg, damageBlock, destroyBlockDirect } from './combat.js';
 
 /**
@@ -90,6 +91,8 @@ export function createSimulationContexts(engine) {
     movementLocked: false,
     // Conquest flies parachutes and ejection seats and applies fall damage.
     get airRules() { return engine.mode?.airborneRules?.() === true; },
+    // Titanfall pilot movement hooks (shared/pilot-movement.js).
+    get pilotRules() { return isTitanfall(engine.mode?.mode); },
     onLand: (entity, speed) => engine.mode?.fallDamage?.(entity, speed),
     onFall: (entity, reason) => {
       if (reason === 'invalid') engine.forceRespawn(entity);

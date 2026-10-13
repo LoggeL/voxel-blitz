@@ -2,8 +2,13 @@ import { COL } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, PUMP_REST, TRIGGER_Z } from './common.js';
 import { buildMastiff } from './mastiff.js';
 
+// Titanfall on-gun ammo counter seat (weapon-display.js): screen centre on the top rear of the receiver, facing back
+// toward the eye (Halo-style rear deck counter), size in m; `seat` names the surface it stands on.
+export const DISPLAY_MOUNT = Object.freeze({ x: -0.010, y: 0.062, z: 0.125, w: 0.045, h: 0.035, seat: 'rear' });
+
 /** Build the M-DOCK 12's full-stock, tube-fed pump-action silhouette. */
 export function build({ kit, T, groups }) {
+  groups.body.userData.displayMount = DISPLAY_MOUNT;
   if (buildMastiff({ kit, groups })) return;
   const { box, cylZ, brakeRings, ironSights } = kit;
   const { body, mag, bolt, pump, trigger, extra } = groups;

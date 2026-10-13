@@ -352,6 +352,35 @@ export async function runAudioContracts(ok, installGlobals) {
       ].every((cue) => startedBy(cue) >= 2),
       'grenade pouch cues (dry click, ready, pin back, fuse tick, claymore clamp) start synthesized voices');
 
+      // A loaded SKIPJACK bank must never replace the TB-4's electric identity.
+      await sfx.loadSamples(Object.fromEntries(['fire', 'draw', 'reload.1', 'reload.2', 'reload.3']
+        .map(cue => [`weapons.mgl.${cue}`, `/test/skipjack-${cue}.ogg`])),
+      async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
+      for (const positional of [false, true]) {
+        const mark = audio.nodes.length;
+        const sources = startedBy(() => sfx.fire('thunderbolt', positional ? { pos: [3, 1, -8] } : null));
+        const nodes = audio.nodes.slice(mark);
+        ok(sources >= 5 && !nodes.some(node => node.kind === 'buffer-source' && node.buffer?.decoded),
+          `thunderbolt ${positional ? 'remote' : 'local'} fire keeps its own electrical report with SKIPJACK loaded`);
+        ok(nodes.some(node => node.kind === 'panner') === positional,
+          `thunderbolt ${positional ? 'remote' : 'local'} fire retains the shared positional routing`);
+        ok(nodes.some(node => node.kind === 'oscillator'
+          && node.frequency.events.some(event => event[0] === 'exponential' && event[1] > 1500)),
+        'thunderbolt discharge has an ascending capacitor release rather than the grenade pressure thump');
+      }
+      for (const step of [1, 2, 3]) {
+        const mark = audio.nodes.length;
+        ok(startedBy(() => sfx.reloadClick(step, 'thunderbolt')) >= 3
+          && !audio.nodes.slice(mark).some(node => node.kind === 'buffer-source' && node.buffer?.decoded),
+        `thunderbolt reload stage ${step} uses its capacitor handling cue`);
+        ok(startedBy(() => sfx.cycleClick(step, 'thunderbolt')) === 2,
+          `thunderbolt indexing contact ${step} is available to the live rig`);
+      }
+      const thunderboltDrawMark = audio.nodes.length;
+      sfx.draw('thunderbolt');
+      ok(!audio.nodes.slice(thunderboltDrawMark).some(node => node.kind === 'buffer-source' && node.buffer?.decoded),
+        'thunderbolt draw does not leak the SKIPJACK recording');
+
       // The flamethrower owns a sustained procedural stream, not a sampled shot,
       // and the pickaxe swing is one bare recording checked on its own below.
       const fireWeapons = WEAPON_IDS.filter((weapon) =>

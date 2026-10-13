@@ -37,7 +37,9 @@ const CORPSE_SECONDS = 10;
 const CORPSE_FADE_SECONDS = 1.2;
 
 export class AvatarRoster {
-  constructor({ scene, getBlock = null, gore = null, getMyId = () => null, now = nowMs, footstep = null, vehicle = null }) {
+  constructor({ scene, getBlock = null, gore = null, getMyId = () => null, now = nowMs, footstep = null, vehicle = null, presentation = null }) {
+    // Mode presentation hook (titanfall pilots: docs/titanfall.md §4.2): avatarState(row, avatar, dt).
+    this._presentation = presentation;
     this._footstep = typeof footstep === 'function' ? footstep : null;
     // Positional engine drone: vehicle(id, [x,y,z], kind) while alive, vehicle(id, null) to stop.
     this._vehicleSfx = typeof vehicle === 'function' ? vehicle : null;
@@ -75,6 +77,9 @@ export class AvatarRoster {
       get maxAvatarSpeed() { return counters.maxAvatarSpeed; },
     });
   }
+
+  /** Mode presentation for remote bodies (`{ avatarState(row, avatar, dt) }`), or null. */
+  setPresentation(presentation = null) { this._presentation = presentation; }
 
   /** Barrel tip of a living remote avatar, or null. Presentation only: hits
    *  stay authoritative. */
@@ -390,6 +395,7 @@ export class AvatarRoster {
         firing: pickaxe || remote.firing,
         ads: !pickaxe && remote.ads,
         reloading: !pickaxe && remote.reloading,
+        mag: pickaxe ? undefined : remote.mag?.[remote.weapon],
         crouching: remote.crouch,
         proneT: remote.proneT,
         leanT: remote.leanT,
@@ -415,6 +421,7 @@ export class AvatarRoster {
       avatar.hips.rotation.z += (swing * stride * 0.045 - avatar.hips.rotation.z) * poseBlend;
       avatar.head.rotation.x += (remote.pitch * 0.7 - hit01 * 0.1 + (avatar.swimHeadTilt || 0) - avatar.head.rotation.x) * poseBlend;
       avatar.head.rotation.z += (-flinch * 0.7 + (avatar.leanRoll || 0) - avatar.head.rotation.z) * poseBlend;
+      this._presentation?.avatarState?.(remote, avatar, dt);
       setAvatarFlash(avatar, hit01);
       // The flash owns the emissive channel while it lasts; the tell returns after it.
       if (hit01 === 0 && avatar.bastionSignal) applyBastionSignal(avatar, remote);

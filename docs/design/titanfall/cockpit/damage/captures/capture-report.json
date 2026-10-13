@@ -1,0 +1,492 @@
+{
+  "generated": "2026-10-13T18:25:44.427Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "hull75",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-hull75.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "hull55",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-hull55.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "hull35",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-hull35.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "hull15",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-hull15.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-doom.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "boot-dark",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-boot-dark.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "boot-open",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-boot-open.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "boot-glass",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-boot-glass.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "exit",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-exit.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "hull75",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-hull75.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "hull55",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-hull55.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "hull35",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-hull35.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "hull15",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-hull15.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-doom.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "boot-dark",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-boot-dark.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "boot-open",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-boot-open.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "boot-glass",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-boot-glass.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "exit",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-exit.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "hull75",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-hull75.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "hull55",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-hull55.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "hull35",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-hull35.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "hull15",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-hull15.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-doom.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "boot-dark",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-boot-dark.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "boot-open",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-boot-open.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "boot-glass",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-boot-glass.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "exit",
+      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-exit.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "hull75",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-hull75.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "hull55",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-hull55.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "hull35",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-hull35.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "hull15",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-hull15.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-doom.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "boot-dark",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-boot-dark.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "boot-open",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-boot-open.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "boot-glass",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-boot-glass.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "exit",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-exit.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "hull75",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-hull75.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "hull55",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-hull55.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "hull35",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-hull35.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "hull15",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-hull15.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-doom.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "boot-dark",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-boot-dark.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "boot-open",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-boot-open.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "boot-glass",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-boot-glass.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "exit",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-exit.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "hull75",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-hull75.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "hull55",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-hull55.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "hull35",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-hull35.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "hull15",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-hull15.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-doom.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "boot-dark",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-boot-dark.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "boot-open",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-boot-open.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "boot-glass",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-boot-glass.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "exit",
+      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-exit.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "hull75",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-hull75.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "hull55",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-hull55.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "hull35",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-hull35.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "hull15",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-hull15.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-doom.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "boot-dark",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-boot-dark.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "boot-open",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-boot-open.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "boot-glass",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-boot-glass.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "exit",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-exit.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "hull75",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-hull75.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "hull55",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-hull55.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "hull35",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-hull35.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "hull15",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-hull15.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-doom.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "boot-dark",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-boot-dark.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "boot-open",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-boot-open.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "boot-glass",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-boot-glass.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "exit",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-exit.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "hull75",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-hull75.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "hull55",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-hull55.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "hull35",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-hull35.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "hull15",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-hull15.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-doom.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "boot-dark",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-boot-dark.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "boot-open",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-boot-open.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "boot-glass",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-boot-glass.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "exit",
+      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-exit.png"
+    }
+  ],
+  "errors": []
+}

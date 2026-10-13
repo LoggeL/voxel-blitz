@@ -13,15 +13,35 @@ import { AircraftPilot } from '../vehicles/aircraft-pilot.js';
 import { hasCockpitOverlay, makeCockpitOverlay } from '../vehicles/cockpit-overlay.js';
 import { createVehicleFragments, fragmentMaterial } from '../vehicles/vehicle-fragments.js';
 import { createVehicleMaterial, createVehicleGlassMaterial, createRotorBlurMaterial, setVehicleMaterialState } from '../vehicles/voxel-model/material.js';
-import { canonicalMountKey, isAircraftType, rowMaxHp, mountIndex } from '../vehicles/voxel-model/anchors.js';
+import { canonicalMountKey, isAircraftType, rowMaxHp, mountIndex, TITAN_TYPES, isWalkerType } from '../vehicles/voxel-model/anchors.js';
+
+// Titanfall walkers (docs/titanfall.md §7): the lazily loaded titanfall client installs its
+// presentation `{ createModel(type, options), update(item, row, dt) }` here
+// (titan-presentation.js install()), so no other mode downloads or parses it. Until then
+// titan rows are not presented.
+let walkerPresentation = null;
+/** Install (or with null remove) the walker presentation; returns the previous one. */
+export function setWalkerPresentation(presentation = null) {
+  const previous = walkerPresentation;
+  walkerPresentation = typeof presentation?.createModel === 'function' && typeof presentation?.update === 'function' ? presentation : null;
+  return previous;
+}
+export const walkerPresentationInstalled = () => walkerPresentation !== null;
 
 const angleDelta = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 const finite = value => Number.isFinite(value) ? value : 0;
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 export const VEHICLE_MODEL_FACTORIES = Object.freeze({
   jeep: makeJeepModel, tank: makeTankModel, helicopter: makeHelicopterModel, transport: makeTransportModel, plane: makePlaneModel,
+  // Titanfall walkers: the installed walker presentation picks the model (docs/titanfall.md §7).
+  ...Object.fromEntries(TITAN_TYPES.map(type => [type, (options) => {
+    if (!walkerPresentation) throw new Error(`vehicle-view: no walker presentation installed for ${type}`);
+    return walkerPresentation.createModel(type, options);
+  }])),
 });
 const modelFactories = VEHICLE_MODEL_FACTORIES;
+/** A row kind VehicleView can present now (walkers only once their presentation is installed). */
+const presentable = kind => Object.hasOwn(modelFactories, kind) && (walkerPresentation !== null || !isWalkerType(kind));
 
 /** Presentation tuning (no gameplay values). */
 export const VEHICLE_VIEW = Object.freeze({
@@ -100,6 +120,13 @@ export class VehicleView {
     this.selfId = null; this.selfTeam = null;
     /** The local player's first-person seat { id, seatId } (setLocalView), or null. */
     this.localView = null;
+    /** Client-predicted poses by vehicle id (own titan, setPredictedPose). */
+    this.predicted = new Map();
+    /**
+     * Walker cockpit override (titan-transit.js): `(item, inside) => boolean | null`; true/false
+     * forces the first-person cockpit overlay on or off (embark and exit camera moves), null keeps `inside`.
+     */
+    this.cockpitOverride = null;
     this._disposed = false;
     this._position = new THREE.Vector3();
     this._quaternion = new THREE.Quaternion(); this._cameraRotation = new THREE.Quaternion();
@@ -144,7 +171,7 @@ export class VehicleView {
     if (self) { this.selfId = self.id != null ? String(self.id) : null; this.selfTeam = self.team ?? null; }
     const destructions = new Map();
     for (const event of Array.isArray(events) ? events : []) {
-      if (!destructionEvent(event) || event.vehicleId == null || !Object.hasOwn(modelFactories, event.vehicleType) || !eventFeet(event, event.vehicleType)) continue;
+      if (!destructionEvent(event) || event.vehicleId == null || !presentable(event.vehicleType) || !eventFeet(event, event.vehicleType)) continue;
       const id = String(event.vehicleId);
       if (!destructions.has(id)) destructions.set(id, []);
       destructions.get(id).push(event);
@@ -155,7 +182,7 @@ export class VehicleView {
     const retained = new Set();
     for (const source of Array.isArray(rows) ? rows : []) {
       const row = source && { ...source, kind: source.type ?? source.kind };
-      if (!row || !Object.hasOwn(modelFactories, row.kind) || row.id == null || ![row.x, row.y, row.z, row.yaw].every(Number.isFinite)) continue;
+      if (!row || !presentable(row.kind) || row.id == null || ![row.x, row.y, row.z, row.yaw].every(Number.isFinite)) continue;
       const aircraft = isAircraftType(row.kind);
       row.pitch = finite(row.pitch); row.roll = finite(row.roll);
       const id = String(row.id); retained.add(id);
@@ -254,7 +281,7 @@ export class VehicleView {
     for (const mount of Object.values(model.mounts)) restYaw.set(mount.yawNode, mount.yawNode.rotation.y);
     return {
       kind, team, root, model, materials, hpBar, hull: model.group, turret: model.turret, gun: model.gun,
-      wheels: model.wheels, row: null, wreck: false, wreckAge: 0, lampLevel: 1,
+      wheels: model.wheels, row: null, wreck: false, wreckAge: 0, lampLevel: 1, walker: isWalkerType(kind),
       crew: new Map(), driver: null, pendingDestruction: null, cancelledDestructions: new Set(),
       mounts: new Map(), restYaw, recoil: new Map(),
       attitude: { pitch: 0, roll: 0, targetPitch: 0, targetRoll: 0, x: NaN, z: NaN, yaw: NaN, age: Infinity, seeded: false },
@@ -274,7 +301,9 @@ export class VehicleView {
     const ratio = clamp(Number.isFinite(row.hp) ? row.hp / rowMaxHp(row) : 1, 0, 1);
     // Scorch blotches spread below three-quarters HP (half the hull by the
     // time it burns); a wreck is charred all over.
-    const soot = wreck ? 1 : Math.max(0, (0.75 - ratio) / 0.75) * 0.55 + (status.burning ? 0.15 : 0);
+    let soot = wreck ? 1 : Math.max(0, (0.75 - ratio) / 0.75) * 0.55 + (status.burning ? 0.15 : 0);
+    // A doomed titan (tw[3] doom timer) chars to partial blotches, not all over (titanfall art review 2).
+    if (!wreck && isWalkerType(item.kind) && Array.isArray(row.tw) && row.tw[3] > 0) soot = Math.min(soot, 0.35);
     const occupied = vehicleOccupiedSeats(row).length > 0;
     const engine = status.engine || row.engineOn === true || occupied;
     item.lampLevel = wreck ? 0 : engine ? 1 : 0.18;
@@ -318,11 +347,18 @@ export class VehicleView {
       const row = item.row; if (!row) continue;
       if (item.pendingDestruction) { this._billboard(item, camera); continue; }
       const root = item.root, aircraft = isAircraftType(item.kind);
-      root.position.lerp(this._position.set(row.x, row.y, row.z), alpha);
-      const yaw = root.rotation.y + angleDelta(row.yaw, root.rotation.y) * alpha;
+      // A predicted pose (own titan) is already smooth: it is presented as is.
+      const predicted = item.walker && !item.wreck ? this.predicted.get(item.id) : null;
+      if (predicted) root.position.set(predicted.x, predicted.y, predicted.z);
+      else root.position.lerp(this._position.set(row.x, row.y, row.z), alpha);
+      const yaw = predicted ? predicted.yaw : root.rotation.y + angleDelta(row.yaw, root.rotation.y) * alpha;
       if (aircraft) {
         root.rotation.set(root.rotation.x + angleDelta(row.pitch, root.rotation.x) * alpha, yaw,
           root.rotation.z + angleDelta(row.roll, root.rotation.z) * alpha, 'YXZ');
+      } else if (item.walker) {
+        // Walkers stand upright; titan-presentation.js poses the rig (legs, pelvis, hatch).
+        root.rotation.set(0, yaw, 0, 'YXZ');
+        walkerPresentation?.update(item, row, step);
       } else {
         this._groundAttitude(item, row, step);
         root.rotation.set(item.attitude.pitch, yaw, item.attitude.roll, 'YXZ');
@@ -334,7 +370,7 @@ export class VehicleView {
       if (!item.wreck) this._aimMounts(item, row, step);
       this._recoil(item, step);
       const railIndex = item.kind === 'plane' ? mountIndex('plane', 'rails') : -1;
-      item.model.animate(step, {
+      if (!item.walker) item.model.animate(step, {
         speed: finite(row.speed), visualSteer: finite(row.visualSteer),
         leftTrackSpeed: finite(row.leftTrackSpeed ?? row.speed), rightTrackSpeed: finite(row.rightTrackSpeed ?? row.speed),
         rotorSpeed: this._rotorSpeed(item, row), grounded: row.grounded ?? (row.st != null ? item.status?.grounded : true),
@@ -351,7 +387,8 @@ export class VehicleView {
       glass.userData.baseOpacity ??= glass.opacity;
       const opacity = inside ? VEHICLE_VIEW.insideGlassOpacity : glass.userData.baseOpacity;
       if (glass.opacity !== opacity) glass.opacity = opacity;
-      this._cockpitOverlay(item, inside && !item.wreck);
+      const forced = item.walker ? this.cockpitOverride?.(item, inside) ?? null : null;
+      this._cockpitOverlay(item, (forced ?? inside) && !item.wreck);
       // A mount sight (chin gimbal, tank gunner's sight) looks from inside the
       // gun: the own hull, crew and rotor would fill the lens, so they hide.
       const sight = inside && local.sight === true && !item.wreck;
@@ -476,6 +513,8 @@ export class VehicleView {
       if (item.cockpit) (item.model.body || item.model.group).add(item.cockpit.group);
     }
     if (item.cockpit) item.cockpit.group.visible = wanted;
+    // Live cockpits (the titan's MFDs and warning lamps) follow the presented row.
+    if (wanted) item.cockpit?.update?.(item.row);
     // Frames that would box in a first-person seat (the jeep windscreen) fold away.
     for (const node of item.model.firstPersonHidden || []) node.visible = !wanted;
   }
@@ -493,8 +532,22 @@ export class VehicleView {
 
   presentedRow(id) {
     const item = this.items.get(String(id));
+    const predicted = item?.walker && !item.wreck ? this.predicted.get(item.id) : null;
+    if (predicted && item.row) return { ...item.row, x: predicted.x, y: predicted.y, z: predicted.z, yaw: predicted.yaw, pitch: 0, roll: 0 };
     return item?.row ? { ...item.row, x: item.root.position.x, y: item.root.position.y, z: item.root.position.z,
       yaw: item.root.rotation.y, pitch: item.root.rotation.x, roll: item.root.rotation.z } : null;
+  }
+
+  /**
+   * Client-predicted pose `{ x, y, z, yaw }` for one walker (titan-predict.js, §5.1),
+   * used by update() and presentedRow() instead of the eased row; null clears it.
+   */
+  setPredictedPose(id, pose = null) {
+    if (id == null) return false;
+    const key = String(id);
+    if (!pose || ![pose.x, pose.y, pose.z, pose.yaw].every(Number.isFinite)) { this.predicted.delete(key); return false; }
+    this.predicted.set(key, { x: pose.x, y: pose.y, z: pose.z, yaw: pose.yaw });
+    return true;
   }
 
   /** World muzzle pose of a mount from the rendered rig: { origin, dir }. */
@@ -553,7 +606,7 @@ export class VehicleView {
     item.hpBar.geometry.dispose();
     for (const mesh of item.model.kit.extraMeshes) if (mesh.userData.ownedGeometry) mesh.geometry.dispose();
     for (const material of Object.values(item.materials)) material.dispose();
-    item.root.removeFromParent(); this.items.delete(id);
+    item.root.removeFromParent(); this.items.delete(id); this.predicted.delete(id);
   }
 
   dispose() {

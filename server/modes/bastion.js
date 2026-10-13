@@ -346,7 +346,8 @@ export class BastionPolicy {
     if (req.action === 'ready') { this.ready.add(p.id); return true; }
     if (req.action === 'build') return this.structures.place(p,req);
     if (req.action === 'loadout') {
-      if (!WEAPON_IDS.includes(req.item) || ['knife','revolver'].includes(req.item)) return false;
+      // The Titanfall AT ids are titanfall-loadout only (docs/titanfall.md §6, bastion leak).
+      if (!WEAPON_IDS.includes(req.item) || ['knife','revolver','chargerifle','archer','thunderbolt','kraber'].includes(req.item)) return false;
       state.primary = req.item; this.loadout(p); return true;
     }
     if (req.action === 'throwable') {

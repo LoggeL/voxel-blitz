@@ -14,7 +14,7 @@ import {
   createMapState,
   getMapMeta,
 } from '../shared/worlddata.js';
-import { DEFAULT_MAP_ID } from '../shared/modes.js';
+import { DEFAULT_MAP_ID, isTitanfall, modeHasVehicles } from '../shared/modes.js';
 import { NETWORK_PRESENTATION } from '../shared/networking.js';
 import { TICK_MS } from './protocol/admission.js';
 import { TickTiming } from './diagnostics.js';
@@ -188,7 +188,7 @@ export class GameEngine {
 
   start(tickRateMs = TICK_MS) {
     if (this.running) return this;
-    if (this.mode.mode === 'conquest') groundNavigation(this.world);
+    if (modeHasVehicles(this.mode.mode)) groundNavigation(this.world);
     this.intervalMs = tickRateMs;
     this.running = true;
     tickingEngines++;
@@ -294,7 +294,9 @@ export class GameEngine {
       entities: this.entities, pushEvent: (event) => this.tickEvents.push(event),
     });
 
-    const players = Array.from(this.combatants.values());
+    let players = Array.from(this.combatants.values());
+    // Titanfall minions ride compactly in match.titanfall.npc, not as player rows.
+    if (this.npcs.size && this.mode.mode === 'titanfall') players = players.filter(player => !player.tfNpc);
     for (const player of players) Object.assign(player, this.mode.playerSnapshot(player));
     const snapshot = makeSnapshot(
       players,
@@ -446,7 +448,7 @@ export class GameEngine {
     if (!player || !msg || typeof msg !== 'object') return;
     // enter/exit/seat move the body; cm and weapon act on the hull in place.
     const action = parseVehicleAction(msg.vehicleAction);
-    const acted = !!(action && this.mode.mode === 'conquest' && this.mode.phase === 'live'
+    const acted = !!(action && modeHasVehicles(this.mode.mode) && this.mode.phase === 'live'
       && this.vehicles?.action(player, action));
     const seatTransition = acted && SEAT_TRANSITIONS.has(action.type);
     const mountedPacket = Object.hasOwn(msg,'vehicleControlId') || Object.hasOwn(msg,'vehicleControlSeatId');
@@ -519,6 +521,14 @@ export class GameEngine {
     // Carry/turn lag changes weapon aim without steering the player's feet.
     // Older clients omit viewYaw and retain their original movement convention.
     input.viewYaw = Number.isFinite(msg.viewYaw) ? wrapAngle(msg.viewYaw) : input.yaw;
+    // Titanfall only (§3.6): the jump-press sequence (edge de-duplication) and held titan controls.
+    if (isTitanfall(this.mode?.mode)) {
+      input.jumpSeq = Number.isFinite(msg.jumpSeq) ? msg.jumpSeq & 255 : (previous?.jumpSeq ?? 0);
+      input.titanHold = Number.isFinite(msg.titanHold) ? msg.titanHold & 63 : 0;
+      // The seated pilot's crosshair ray [x, y, z, yaw, pitch] (camera eye and look); the titan mount converges on it.
+      input.titanSight = Array.isArray(msg.titanSight) && msg.titanSight.length === 5 && msg.titanSight.every(Number.isFinite)
+        ? msg.titanSight.slice() : undefined;
+    }
     const requestedWeapon = msg.switchTo != null ? msg.switchTo : msg.weapon;
     if (Number.isFinite(requestedWeapon)) input.switchTo = clampWeaponSlot(requestedWeapon);
     if (suppressInfantry) {
@@ -609,6 +619,13 @@ export class GameEngine {
     return !!this.mode.conquestIntent?.(player, intent);
   }
 
+  /** Titanfall intent passthrough: {type:'loadout'|'call'|'ability'|'eject'|'tac'|'rodeo', value} from parseTitanfallIntent. */
+  titanfallIntent(id, intent) {
+    const player = this.entities.get(String(id));
+    if (!player || !intent || typeof intent !== 'object') return false;
+    return !!this.mode.titanfallIntent?.(player, intent);
+  }
+
   /** Mark a hull spotted for `team` until `untilMs` (engine clock). */
   spotVehicle(vehicleId, team, untilMs) {
     return !!this.vehicles?.spot?.(vehicleId, team, untilMs);
@@ -616,6 +633,7 @@ export class GameEngine {
 
   integrate(player, dt) {
     if (player.vehicleId) return;
+    if (player.rodeoVehicleId) return;
     const ctx = this.contexts.movement;
     ctx.solidAt = this.mode.mode === 'bastion' && !player.npcRole ? this.defenderSolidAt : this.solidAt;
     ctx.movementLocked = !this.mode.canMove(player);

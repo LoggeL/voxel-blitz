@@ -22,11 +22,12 @@ export const MAP_PLAYER_LIMITS = Object.freeze({
   waterworld: 16,
   causeway: 4,
   bikini_bottom: 12,
+  ashfall: 16,
 });
 
 export function lobbyCapacity(gameMode, map = 'foundry') {
   const mapLimit = MAP_PLAYER_LIMITS[map] ?? MAP_PLAYER_LIMITS.foundry;
-  return Math.min(mapLimit, gameMode === 'duel' ? 2 : gameMode === 'bastion' ? 4 : MAX_PLAYERS);
+  return Math.min(mapLimit, gameMode === 'duel' ? 2 : gameMode === 'bastion' ? 4 : gameMode === 'titanfall' ? 16 : MAX_PLAYERS);
 }
 
 /** Duel is 1v1, Training and Bastion populate their own targets: no lobby bots. */
@@ -35,5 +36,5 @@ export function modeAllowsBots(gameMode) {
 }
 
 export function hasLobbyTeams(gameMode) {
-  return gameMode === 'tdm' || gameMode === 'snd' || gameMode === 'conquest';
+  return gameMode === 'tdm' || gameMode === 'snd' || gameMode === 'conquest' || gameMode === 'titanfall';
 }

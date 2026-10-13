@@ -149,12 +149,14 @@ function runDirectContracts() {
   ok(stateEvents[0]?.kind === 'die' && stateEvents[1]?.kind === 'respawn',
     'embedded die and respawn events are dispatchable by kind');
 
-  // Fifteen free slots, then the kit-only Conquest STINGER (slot 16, never in a free roster).
-  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger'];
-  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8, 3.1, 2.6, 5.6, 10.4];
+  // Fifteen free slots, then the kit-only Conquest STINGER (slot 16) and the four Titanfall
+  // AT pilot weapons (slots 17-20); none of the kit-only ids is ever in a free roster.
+  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger',
+    'chargerifle', 'archer', 'thunderbolt', 'kraber'];
+  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8, 3.1, 2.6, 5.6, 10.4, 4.4, 7.2, 6.8, 7.6];
   ok(JSON.stringify(WEAPON_IDS) === JSON.stringify(expectedWeaponIds)
     && JSON.stringify(FREE_WEAPON_IDS) === JSON.stringify(expectedWeaponIds.slice(0, 15)),
-    'weapon roster exposes the exact fifteen free slots plus the kit-only STINGER');
+    'weapon roster exposes the exact fifteen free slots plus the kit-only STINGER and Titanfall AT ids');
   const definitionsComplete = WEAPON_IDS.every((id, slot) => {
     const def = WEAPONS[id];
     return def?.id === id && typeof def.name === 'string' && def.name.length > 0
@@ -181,13 +183,14 @@ function runDirectContracts() {
       && def.recoil.resetMs > 60000 / def.rpm
       && Number.isFinite(def.recoil?.adsMult) && def.recoil.adsMult > 0 && def.recoil.adsMult <= 1
       && (def.mode === 'melee' || def.id === 'longarc' || def.id === 'lance' || def.id === 'glaive' || def.id === 'bubble' || def.id === 'mgl' || def.id === 'stinger'
+        || def.id === 'chargerifle' || def.id === 'archer' || def.id === 'thunderbolt'
         ? def.tracer === null
         : (typeof def.tracer?.color === 'string' && Number.isFinite(def.tracer?.width)
           && Number.isFinite(def.tracer?.len)))
       && typeof def.sfx === 'string'
       && def.weightKg === expectedWeights[slot];
   });
-  ok(definitionsComplete, 'all sixteen weapon definitions carry the complete shared contract');
+  ok(definitionsComplete, 'all twenty weapon definitions carry the complete shared contract');
   const recoilSignatures = WEAPON_IDS.map((id) => WEAPONS[id].recoil.yawPattern.join(','));
   const rifleKick0 = computeRecoilKickDeg(WEAPONS.rifle, 0, 0, 0.5);
   const rifleKick5 = computeRecoilKickDeg(WEAPONS.rifle, 5, 0, 0.5);

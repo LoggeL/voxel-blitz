@@ -15,6 +15,7 @@ import { bastionRepairAvailable } from '../../shared/bastion.js';
 import { FrameRateController } from './engine/frame-rate.js';
 import { WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { decodeConquestPlayer } from '../../shared/conquest-contract.js';
+import { TITANFALL_PLAYER_FLAGS } from '../../shared/titan-contract.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
 import { deserializeWorld, worldBlocks, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
 import { isMapFrame, parseMapFrame } from '../../shared/world/serialize.js';
@@ -154,6 +155,7 @@ class Game {
         onGameplayEvent: (event) => {
           // Conquest HUD (ticker, banners, kill feed, hitmarkers) and objective audio see every event first.
           this.conquestHud?.handleEvent(event, this.myId);
+          this.titanfall?.onEvent(event);
           this.objectiveCues?.handleEvent(event, this.selfRow?.team);
           this.conquestSoundscape?.handleEvent(event);
           if (event.kind === 'vehicle_destroyed' || (event.kind === 'explosion' && event.type === 'vehicle')) {
@@ -490,7 +492,7 @@ class Game {
         this.rig?.glaiveReturn({ world: detail, all: false });
       },
     });
-    if (welcome.gameMode === 'conquest') this.vehicleDestructionFX = new rt.VehicleDestructionFX(this.liveEffectsGroup, {
+    if (welcome.gameMode === 'conquest' || welcome.gameMode === 'titanfall') this.vehicleDestructionFX = new rt.VehicleDestructionFX(this.liveEffectsGroup, {
       explosions: this.effects.projectiles.explosions, camera: this.camera, getBlock,
       quality: graphics.tier,
       getFragments: (id, options) => this.vehicleView?.destructionFragments(id, options),
@@ -546,7 +548,7 @@ class Game {
     this.muzzleLights = new rt.MuzzleLights(this.worldview.scene);
     // Mounted-weapon, hull-hit, countermeasure and locomotion FX; built before warm-up
     // so its decal, sprite and particle programs compile with the scene.
-    if (welcome.gameMode === 'conquest') this.vehicleFx = new rt.VehicleFx({ fx: this.particleField, vehicleView: this.vehicleView,
+    if (welcome.gameMode === 'conquest' || welcome.gameMode === 'titanfall') this.vehicleFx = new rt.VehicleFx({ fx: this.particleField, vehicleView: this.vehicleView,
       sfx, cameraShake: this.cameraShake, getBlock, tracers: this.effects.tracers, muzzleLights: this.muzzleLights,
       scene: this.liveEffectsGroup });
     this.roster = new rt.AvatarRoster({
@@ -625,6 +627,16 @@ class Game {
       },
     });
     this.runHud = new RunHud({ getMyId: () => this.myId });
+    // Titanfall client registry (docs/titanfall.md §8.1): fetched only for titanfall matches.
+    if (welcome.gameMode === 'titanfall') {
+      const titanfallClient = await rt.loadTitanfallClient();
+      if (!isActive()) return;
+      this.titanfall?.dispose();
+      this.titanfall = titanfallClient.create(this);
+      // Portrait programs and the hidden pilot-weapon models the shader warm-up below links.
+      await this.titanfall.prepare?.();
+      if (!isActive()) return;
+    }
 
     // renderer.compile never runs scene.onBeforeRender: apply the Frontier far-fade
     // defines to roots added after the WorldView before they are warmed.
@@ -737,8 +749,13 @@ class Game {
       this.player.physics.vehicleColliders = Array.isArray(snapshot.vehicles) ? snapshot.vehicles : [];
       // Conquest predicts the parachute and ejection seat (shared/parachute.js).
       this.player.physics.airRules = match?.mode === 'conquest';
+      // Titanfall pilot movement hooks (shared/pilot-movement.js).
+      this.player.physics.pilotRules = match?.mode === 'titanfall';
     }
-    this.vehicleController?.sync({ self, vehicles: snapshot.vehicles, enabled: match?.mode === 'conquest' });
+    this.vehicleController?.sync({ self, vehicles: snapshot.vehicles, enabled: match?.mode === 'conquest' || match?.mode === 'titanfall' });
+    // Before this.serverNow advances: the tick's step is the authoritative clock delta.
+    this.titanfall?.tick(snapshot, Number.isFinite(snapshot.serverNow) && Number.isFinite(this.serverNow)
+      ? Math.max(0, (snapshot.serverNow - this.serverNow) / 1000) : 0);
     this.conquestHud?.update({ match, mapMeta: this.mapMeta, self, players, vehicles: snapshot.vehicles, camera: this.camera,
       nearbyVehicle: this.vehicleController?.nearest, vehicleController: this.vehicleController,
       nowMs: Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : undefined });
@@ -784,7 +801,15 @@ class Game {
       id: this.myId,
       killerPos: deathEvent?.killer ? players.find((row) => row.id === deathEvent.killer) || null : null,
     });
-    if (reconciled.transition?.kind === 'death') {
+    // Titanfall (§3.4 deploy): a player held off the field until DEPLOY (join, match start) never
+    // died, so there is no death presentation; the spectator view sits behind the loadout screen.
+    const heldForDeploy = reconciled.transition?.kind === 'death' && !deathEvent && match?.mode === 'titanfall'
+      && Array.isArray(self?.tf) && (self.tf[3] & TITANFALL_PLAYER_FLAGS.staged) !== 0;
+    if (heldForDeploy) {
+      this.player.deathHead?.stop?.();
+      this.weapon?.deathReset();
+      this.session.syncGameplayInput();
+    } else if (reconciled.transition?.kind === 'death') {
       // The replay waits for the local head flight and its cut to black.
       if (deathEvent?.kind === 'kill') {
         this.killcam?.start(deathEvent, match?.mode, { delayMs: this.rt.DEATH_HEAD.introMs });
@@ -1143,6 +1168,7 @@ class Game {
 
   weaponFrameContext() {
     const position = this.camera.position;
+    const lockProgress = this.titanfall ? this.titanfall.lockProgress() : decodeConquestPlayer(this.selfRow)?.lockProgress ?? 0;
     return {
       allowFire: this.isAuthoritativeFireAllowed(),
       allowMelee: this.isAuthoritativeFireAllowed('melee'),
@@ -1160,7 +1186,8 @@ class Game {
       cameraZ: position.z,
       generation: this._loopGeneration,
       // AX-9 STINGER: the server only releases on a complete lock (cq[5] = 100).
-      lockReady: (decodeConquestPlayer(this.selfRow)?.lockProgress ?? 0) >= 1,
+      lockReady: lockProgress >= 1,
+      lockProgress,
     };
   }
 
@@ -1231,7 +1258,7 @@ class Game {
         const vehicleAction = this.session.gameplayInputEnabled ? this.vehicleController.consumeAction() : null;
         if (vehicleAction?.type === 'exit') { sampled.wantFire = false; this._vehicleControlSample = null; }
         this.net?.sendInput({ ...sampled, keys: {}, weapon: this.weapon.slot, vehicleAction,
-          reload: this._seatReloadQueued === true,
+          reload: this._seatReloadQueued === true, ...(this.titanfall ? { titanHold: this.titanfall.titanHold() } : {}),
           vehicleControlId: row.id, vehicleControlSeatId: this.vehicleController.seatId });
         this._seatReloadQueued = false;
       }
@@ -1328,6 +1355,7 @@ class Game {
     // Markers and reticles follow the camera every frame; snapshots only ingest.
     this.conquestHud?.refresh({ camera: this.camera, nowMs: (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now)),
       interactDown: !!this.player?.keys?.interact, chute: this.player?.alive ? this.player.physics.chutePrompt?.() ?? null : null });
+    this.titanfall?.frame(dt, { camera: this.camera, nowMs: (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now)) });
     try {
       // Body velocity in the camera frame: +x strafing right, +z backing up. The rig uses
       // it for a lagged lateral lean so the carried gun swings against direction changes.
@@ -1553,6 +1581,7 @@ class Game {
     this._pendingAuthoritativeSnapshots = [];
     this._bootBlockDeltas = null;
     this._lastConsumedSnapSeq = null;
+    this.titanfall?.dispose(); this.titanfall = null;
     this.vehicleController?.dispose(); this.vehicleController = null;
     this.vehicleView?.dispose(); this.vehicleView = null;
     this.vehicleDestructionFX?.dispose(); this.vehicleDestructionFX = null;

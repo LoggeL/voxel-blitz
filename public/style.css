@@ -46,6 +46,10 @@
   --w-bubble:   #9fe9ff;
   --w-mgl:      #d3ba58;
   --w-stinger:  #9cff6b;
+  --w-chargerifle: #ff5a3c;
+  --w-archer:   #4ee6ff;
+  --w-thunderbolt: #7aa8ff;
+  --w-kraber:   #ffc04a;
 
   /* geometry */
   --cut: 10px;               /* chamfer bite */
@@ -2416,6 +2420,10 @@ h1.vb-title::after {
 .vb-w-bubble   { --gun-tint: var(--w-bubble); }
 .vb-w-mgl      { --gun-tint: var(--w-mgl); }
 .vb-w-stinger  { --gun-tint: var(--w-stinger); }
+.vb-w-chargerifle { --gun-tint: var(--w-chargerifle); }
+.vb-w-archer   { --gun-tint: var(--w-archer); }
+.vb-w-thunderbolt { --gun-tint: var(--w-thunderbolt); }
+.vb-w-kraber   { --gun-tint: var(--w-kraber); }
 
 #ammo.vb-w-rifle #weaponname, #weaponname.vb-w-rifle       { color: var(--w-rifle); }
 #ammo.vb-w-smg #weaponname, #weaponname.vb-w-smg           { color: var(--w-smg); }
@@ -2433,6 +2441,10 @@ h1.vb-title::after {
 #ammo.vb-w-bubble #weaponname, #weaponname.vb-w-bubble     { color: var(--w-bubble); }
 #ammo.vb-w-mgl #weaponname, #weaponname.vb-w-mgl             { color: var(--w-mgl); }
 #ammo.vb-w-stinger #weaponname, #weaponname.vb-w-stinger     { color: var(--w-stinger); }
+#ammo.vb-w-chargerifle #weaponname, #weaponname.vb-w-chargerifle { color: var(--w-chargerifle); }
+#ammo.vb-w-archer #weaponname, #weaponname.vb-w-archer       { color: var(--w-archer); }
+#ammo.vb-w-thunderbolt #weaponname, #weaponname.vb-w-thunderbolt { color: var(--w-thunderbolt); }
+#ammo.vb-w-kraber #weaponname, #weaponname.vb-w-kraber       { color: var(--w-kraber); }
 
 /* RIPTIDE: disc pips replace the mag/reserve readout. Filled = in hand,
    spinning ring = in flight, pinned ring = embedded pickup, conic fill =

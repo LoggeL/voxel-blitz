@@ -84,6 +84,14 @@ const SIGNS = {
     ['BOATING SCHOOL', 'STUDENT DRIVERS AHEAD', 63.5, 22.5, 51, 5, 1.2, '+z'],
     ['GOO LAGOON', 'NO SWIMMING AFTER CHUM', 38.5, 16.5, 68, 2.6, 1.0, '-z'],
   ],
+  // Ashfall: painted on the smelter hall fascia over the boulevard, lit on the Pour's
+  // crucible rim beside the north runner (and their twins).
+  ashfall: [
+    ['SMELTER 4', 'ASHFALL COLONY', 90.5, 20.5, 36, 10, 2.2, '-z'],
+    ['SMELTER 4', 'ASHFALL COLONY', 133.5, 20.5, 140, 10, 2.2, '+z'],
+    ['THE POUR', 'MOLTEN SLAG · KEEP CLEAR', 109.5, 15.6, 80, 2.8, 1.1, '-z', 'warm'],
+    ['THE POUR', 'MOLTEN SLAG · KEEP CLEAR', 114.5, 15.6, 96, 2.8, 1.1, '+z', 'warm'],
+  ],
 };
 const COLORS = {
   harbor: ['#173239', '#b9f4ff'], canyon: ['#265452', '#f8deb1'],
@@ -96,6 +104,7 @@ const COLORS = {
   waterworld: ['#1f4e7a', '#e9f4fb'],
   causeway: ['#1e3a4a', '#d9f2ff'],
   bikini_bottom: ['#fff1c9', '#1d5f86'],
+  ashfall: ['#3a2a26', '#ffcf94'],
 };
 const supportsPaint = type => type !== AIR && type !== GLASS;
 

@@ -1,0 +1,79 @@
+{
+  "generated": "2026-10-13T19:32:02.335Z",
+  "fov": 65,
+  "ads": 0,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-rifle-low-fov65.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-smg-low-fov65.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-shotgun-low-fov65.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "lmg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-lmg-low-fov65.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "kraber",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-kraber-low-fov65.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "revolver",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-revolver-low-fov65.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-chargerifle-low-fov65.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-archer-low-fov65.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-thunderbolt-low-fov65.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "mgl",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov65/desktop-mgl-low-fov65.jpg"
+    }
+  ],
+  "errors": []
+}

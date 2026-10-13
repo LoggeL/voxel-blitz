@@ -22,6 +22,7 @@ import { generateKillhouseInto } from './flatmap-killhouse.js';
 import { generateMinecraftB5Into } from './flatmap-minecraft-b5.js';
 import { generateWaterworldInto } from './flatmap-waterworld.js';
 import { generateBikiniBottomInto } from './flatmap-bikini-bottom.js';
+import { generateAshfallInto } from './flatmap-ashfall.js';
 import { createStateApi } from './state.js';
 import { generateFoundryInto } from './terrain-foundry.js';
 
@@ -60,6 +61,7 @@ function buildPristineTemplate(id) {
   else if (id === 'waterworld') generateWaterworldInto(world, blocks, heights);
   else if (id === 'causeway') generateCausewayInto(world, blocks, heights);
   else if (id === 'bikini_bottom') generateBikiniBottomInto(world, blocks, heights);
+  else if (id === 'ashfall') generateAshfallInto(world, blocks, heights);
   else generateSolsticeInto(world, blocks, heights);
 
   blocks.fill(BEDROCK, 0, SX * SZ);

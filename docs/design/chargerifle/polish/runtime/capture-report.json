@@ -1,0 +1,1472 @@
+{
+  "generated": "2026-10-13T21:12:41.379Z",
+  "source": "production WorldView / CombatPostProcess / ViewmodelRig / MuzzleLights",
+  "fixture": "CR-6 charge read model; settled hip pose; no match or server simulation",
+  "shots": [
+    {
+      "file": "docs/design/chargerifle/polish/runtime/desktop-high-idle.png",
+      "size": "desktop",
+      "quality": "high",
+      "state": "idle",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/desktop-high-charge.png",
+      "size": "desktop",
+      "quality": "high",
+      "state": "charge",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.0073728,
+      "lightIntensity": 0.0073728,
+      "lightColor": "ff5b11",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/desktop-high-charged.png",
+      "size": "desktop",
+      "quality": "high",
+      "state": "charged",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.11800000000000001,
+      "lightIntensity": 0.11800000000000001,
+      "lightColor": "ff6a12",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 9.82
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/desktop-high-charged-spill-disabled.png",
+      "diagnostic": true,
+      "size": "desktop",
+      "quality": "high",
+      "state": "charged",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 1,
+      "spill": false,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.11800000000000001,
+      "lightIntensity": 0,
+      "lightColor": "ff6a12",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 9.82
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/desktop-low-idle.png",
+      "size": "desktop",
+      "quality": "low",
+      "state": "idle",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/desktop-low-charge.png",
+      "size": "desktop",
+      "quality": "low",
+      "state": "charge",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.0073728,
+      "lightIntensity": 0.0073728,
+      "lightColor": "ff5b11",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/desktop-low-charged.png",
+      "size": "desktop",
+      "quality": "low",
+      "state": "charged",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.11800000000000001,
+      "lightIntensity": 0.11800000000000001,
+      "lightColor": "ff6a12",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 9.82
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/landscape-high-idle.png",
+      "size": "landscape",
+      "quality": "high",
+      "state": "idle",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/landscape-high-charge.png",
+      "size": "landscape",
+      "quality": "high",
+      "state": "charge",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.0073728,
+      "lightIntensity": 0.0073728,
+      "lightColor": "ff5b11",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/landscape-high-charged.png",
+      "size": "landscape",
+      "quality": "high",
+      "state": "charged",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.11800000000000001,
+      "lightIntensity": 0.11800000000000001,
+      "lightColor": "ff6a12",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 9.82
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/landscape-low-idle.png",
+      "size": "landscape",
+      "quality": "low",
+      "state": "idle",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/landscape-low-charge.png",
+      "size": "landscape",
+      "quality": "low",
+      "state": "charge",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.0073728,
+      "lightIntensity": 0.0073728,
+      "lightColor": "ff5b11",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/landscape-low-charged.png",
+      "size": "landscape",
+      "quality": "low",
+      "state": "charged",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.11800000000000001,
+      "lightIntensity": 0.11800000000000001,
+      "lightColor": "ff6a12",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 9.82
+        }
+      ],
+      "display": true
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/portrait-high-idle.png",
+      "size": "portrait",
+      "quality": "high",
+      "state": "idle",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/portrait-high-charge.png",
+      "size": "portrait",
+      "quality": "high",
+      "state": "charge",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.0073728,
+      "lightIntensity": 0.0073728,
+      "lightColor": "ff5b11",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/portrait-high-charged.png",
+      "size": "portrait",
+      "quality": "high",
+      "state": "charged",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.11800000000000001,
+      "lightIntensity": 0.11800000000000001,
+      "lightColor": "ff6a12",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 9.82
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/portrait-low-idle.png",
+      "size": "portrait",
+      "quality": "low",
+      "state": "idle",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/portrait-low-charge.png",
+      "size": "portrait",
+      "quality": "low",
+      "state": "charge",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.0073728,
+      "lightIntensity": 0.0073728,
+      "lightColor": "ff5b11",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 0.02
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 2.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 2.5959999999999996
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 0.02
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/chargerifle/polish/runtime/portrait-low-charged.png",
+      "size": "portrait",
+      "quality": "low",
+      "state": "charged",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "source": "chargerifle_charge_light",
+      "sourceIntensity": 0.11800000000000001,
+      "lightIntensity": 0.11800000000000001,
+      "lightColor": "ff6a12",
+      "lightDistance": 0.85,
+      "cells": [
+        {
+          "name": "chargerifle_cell_left_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_left_2",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_0",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_1",
+          "emissive": 9.82
+        },
+        {
+          "name": "chargerifle_cell_right_2",
+          "emissive": 9.82
+        }
+      ],
+      "display": false
+    }
+  ],
+  "errors": []
+}

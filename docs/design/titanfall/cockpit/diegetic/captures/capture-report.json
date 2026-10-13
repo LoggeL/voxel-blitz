@@ -1,0 +1,2236 @@
+{
+  "generated": "2026-10-13T13:20:37.747Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-idle-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-firing-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-firing-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-doom-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-core-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-core-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-cooldown-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-cooldown-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-rodeo-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-rodeo-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-feed-fov65.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-ion-feed-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-idle-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-firing-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-firing-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-doom-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-core-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-cooldown-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-cooldown-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-rodeo-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-rodeo-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-feed-fov65.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-ion-feed-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-idle-fov65.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-idle-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-firing-fov65.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-firing-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-doom-fov65.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-doom-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-core-fov65.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-core-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-cooldown-fov65.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-cooldown-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-rodeo-fov65.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-rodeo-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-feed-fov65.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-ion-feed-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-idle-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-firing-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-firing-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-doom-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-core-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-cooldown-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-cooldown-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-rodeo-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-rodeo-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-feed-fov65.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-ion-feed-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-idle-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-firing-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-firing-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-doom-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-core-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-cooldown-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-cooldown-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-rodeo-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-rodeo-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 65,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-feed-fov65.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-ion-feed-fov100.png"
+    }
+  ],
+  "hud": [
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-composite-ion-idle.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "firing",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-composite-ion-firing.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-composite-ion-doom.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "core",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-composite-ion-core.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-composite-ion-cooldown.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-composite-ion-rodeo.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "feed",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/desktop-composite-ion-feed.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-composite-ion-idle.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "firing",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-composite-ion-firing.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-composite-ion-doom.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "core",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-composite-ion-core.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-composite-ion-cooldown.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-composite-ion-rodeo.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ion",
+      "state": "feed",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/ultrawide-composite-ion-feed.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-composite-ion-idle.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "firing",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-composite-ion-firing.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-composite-ion-doom.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "core",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-composite-ion-core.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-composite-ion-cooldown.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-composite-ion-rodeo.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "small",
+      "type": "titan_ion",
+      "state": "feed",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/small-composite-ion-feed.png",
+      "mfds": 5,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-composite-ion-idle.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "firing",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-composite-ion-firing.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-composite-ion-doom.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "core",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-composite-ion-core.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-composite-ion-cooldown.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-composite-ion-rodeo.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "feed",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/portrait-composite-ion-feed.png",
+      "mfds": 0,
+      "overlaps": []
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "idle",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-composite-ion-idle.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "firing",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-composite-ion-firing.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "doom",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-composite-ion-doom.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "core",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-composite-ion-core.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "cooldown",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-composite-ion-cooldown.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "rodeo",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-composite-ion-rodeo.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "feed",
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/landscape-composite-ion-feed.png",
+      "mfds": 5,
+      "overlaps": [
+        "mfd2 × touch:titanDash",
+        "mfd2 × touch:titanDefensive"
+      ]
+    }
+  ],
+  "overlaps": [],
+  "errors": [],
+  "models": {
+    "titan_ion:idle:keys": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 1800,
+        "maxHp": 2500,
+        "hpFrac": 0.72,
+        "shield": 525,
+        "shieldMax": 875,
+        "shieldFrac": 0.21,
+        "healthText": "1800 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "VORTEX SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "LASER TRIPWIRE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 18,
+          "magazine": 22,
+          "ammoText": "18",
+          "frac": 0.8181818181818182,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:firing:keys": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 1600,
+        "maxHp": 2500,
+        "hpFrac": 0.64,
+        "shield": 219,
+        "shieldMax": 875,
+        "shieldFrac": 0.0876,
+        "healthText": "1600 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "VORTEX SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "LASER TRIPWIRE",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 3,
+          "magazine": 22,
+          "ammoText": "3",
+          "frac": 0.13636363636363635,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:doom:keys": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 300,
+        "maxHp": 2500,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 875,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 300",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "VORTEX SHIELD",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "LASER TRIPWIRE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 11,
+          "magazine": 22,
+          "ammoText": "11",
+          "frac": 0.5,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:core:keys": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 2250,
+        "maxHp": 2500,
+        "hpFrac": 0.9,
+        "shield": 875,
+        "shieldMax": 875,
+        "shieldFrac": 0.35,
+        "healthText": "2250 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "VORTEX SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "LASER TRIPWIRE",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 22,
+          "magazine": 22,
+          "ammoText": "22",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:cooldown:keys": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 1375,
+        "maxHp": 2500,
+        "hpFrac": 0.55,
+        "shield": 88,
+        "shieldMax": 875,
+        "shieldFrac": 0.0352,
+        "healthText": "1375 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "VORTEX SHIELD",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "LASER TRIPWIRE",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "LASER SHOT",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 0,
+          "magazine": 22,
+          "ammoText": "0",
+          "frac": 0,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:rodeo:keys": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 1000,
+        "maxHp": 2500,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 875,
+        "shieldFrac": 0,
+        "healthText": "1000 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "VORTEX SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "LASER TRIPWIRE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "LASER SHOT",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 13,
+          "magazine": 22,
+          "ammoText": "13",
+          "frac": 0.5909090909090909,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_ion:feed:keys": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 2000,
+        "maxHp": 2500,
+        "hpFrac": 0.8,
+        "shield": 350,
+        "shieldMax": 875,
+        "shieldFrac": 0.14,
+        "healthText": "2000 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "VORTEX SHIELD",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "LASER TRIPWIRE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 15,
+          "magazine": 22,
+          "ammoText": "15",
+          "frac": 0.6818181818181818,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    },
+    "titan_ion:idle:touch": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 1800,
+        "maxHp": 2500,
+        "hpFrac": 0.72,
+        "shield": 525,
+        "shieldMax": 875,
+        "shieldFrac": 0.21,
+        "healthText": "1800 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "VORTEX SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "LASER TRIPWIRE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 18,
+          "magazine": 22,
+          "ammoText": "18",
+          "frac": 0.8181818181818182,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:firing:touch": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 1600,
+        "maxHp": 2500,
+        "hpFrac": 0.64,
+        "shield": 219,
+        "shieldMax": 875,
+        "shieldFrac": 0.0876,
+        "healthText": "1600 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "VORTEX SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "LASER TRIPWIRE",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 3,
+          "magazine": 22,
+          "ammoText": "3",
+          "frac": 0.13636363636363635,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:doom:touch": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 300,
+        "maxHp": 2500,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 875,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 300",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "VORTEX SHIELD",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "LASER TRIPWIRE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 11,
+          "magazine": 22,
+          "ammoText": "11",
+          "frac": 0.5,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:core:touch": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 2250,
+        "maxHp": 2500,
+        "hpFrac": 0.9,
+        "shield": 875,
+        "shieldMax": 875,
+        "shieldFrac": 0.35,
+        "healthText": "2250 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "VORTEX SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "LASER TRIPWIRE",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 22,
+          "magazine": 22,
+          "ammoText": "22",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:cooldown:touch": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 1375,
+        "maxHp": 2500,
+        "hpFrac": 0.55,
+        "shield": 88,
+        "shieldMax": 875,
+        "shieldFrac": 0.0352,
+        "healthText": "1375 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "VORTEX SHIELD",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "LASER TRIPWIRE",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "LASER SHOT",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 0,
+          "magazine": 22,
+          "ammoText": "0",
+          "frac": 0,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ion:rodeo:touch": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 1000,
+        "maxHp": 2500,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 875,
+        "shieldFrac": 0,
+        "healthText": "1000 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "VORTEX SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "LASER TRIPWIRE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "LASER SHOT",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 13,
+          "magazine": 22,
+          "ammoText": "13",
+          "frac": 0.5909090909090909,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_ion:feed:touch": {
+      "titan": {
+        "type": "titan_ion",
+        "label": "ION",
+        "chassis": "atlas",
+        "hp": 2000,
+        "maxHp": 2500,
+        "hpFrac": 0.8,
+        "shield": 350,
+        "shieldMax": 875,
+        "shieldFrac": 0.14,
+        "healthText": "2000 / 2500",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "VORTEX SHIELD",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "LASER TRIPWIRE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "LASER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "LASER CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "splitter",
+          "label": "SPLITTER RIFLE",
+          "ammo": 15,
+          "magazine": 22,
+          "ammoText": "15",
+          "frac": 0.6818181818181818,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    }
+  }
+}

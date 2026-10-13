@@ -5,7 +5,13 @@ import { buildKestrel } from './kestrel.js';
 
 // VK-77: modular, short-stroke service rifle. The large forms deliberately follow the
 // side-profile HUD reference; shallow overlays keep the silhouette readable without textures.
+
+// Titanfall on-gun ammo counter seat (weapon-display.js): screen centre on the top rear of the receiver, facing back
+// toward the eye (Halo-style rear deck counter), size in m; `seat` names the surface it stands on.
+export const DISPLAY_MOUNT = Object.freeze({ x: 0.000, y: 0.086, z: 0.068, w: 0.045, h: 0.035, seat: 'deck' });
+
 export function build({ kit, T, groups }) {
+  groups.body.userData.displayMount = DISPLAY_MOUNT;
   if (buildKestrel({ groups })) return;
   const { mat, box, cylZ, brakeRings, ironSights } = kit;
   const { body, mag, bolt, trigger } = groups;

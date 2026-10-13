@@ -139,6 +139,27 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('canyon', 'river-lanterns', [87, 16.62, 49], [79, 19, 41], 80),
   shot('canyon', 'snd-site-a', [35, 16.62, 87], [35, 17, 71], 78, 'snd'),
   shot('canyon', 'snd-site-b', [155, 16.62, 60], [155, 17, 71], 78, 'snd'),
+  // Ashfall (Titanfall arena): north-up plan (square viewport), the hero over the
+  // cooling ring, and the pilot's-eye views of the lanes, alleys and bridges.
+  shot('ashfall', 'overview', [112, 220, 88], [112, 0, 88], 75, null, { kind: 'orthographic', scale: 226 }),
+  shot('ashfall', 'hero', [200, 58, 166], [104, 16, 80], 60),
+  shot('ashfall', 'cooling-ring', [78, 16.62, 66], [114, 22, 90], 74),
+  shot('ashfall', 'militia-yard', [14, 17.62, 96], [110, 21, 84], 72),
+  shot('ashfall', 'hab-alley', [57.5, 16.62, 62.5], [57.5, 22, 38], 74),
+  shot('ashfall', 'skybridge', [116, 28.62, 41], [70, 27, 45], 72),
+  shot('ashfall', 'relay-nest', [137, 36.62, 46.5], [104, 15, 92], 70),
+  shot('ashfall', 'boulevard', [36, 16.62, 27], [190, 22, 27], 70),
+  // Ashfall feature shots (docs/titanfall.md §14): the Pour, the Pour Line deck, the blast-wall
+  // slalom by the ore dock, the toppled crane over the boulevard, a yard tower and a rodeo perch,
+  // the staggered lane cover on a ring road and the cross-street billboards.
+  shot('ashfall', 'the-pour', [117.5, 21.5, 71.5], [109.5, 15, 86], 70),
+  shot('ashfall', 'pour-line', [111.5, 28.62, 62], [111.5, 18, 88], 74),
+  shot('ashfall', 'slalom', [45, 18.6, 75.5], [76, 19, 77], 74),
+  shot('ashfall', 'crane', [116, 16.62, 31], [140, 26, 16], 72),
+  shot('ashfall', 'yard-tower', [16, 18.6, 36], [27, 24, 56], 72),
+  shot('ashfall', 'perch', [39.5, 18.5, 90.5], [45.5, 19.5, 100.5], 74),
+  shot('ashfall', 'ring-road', [36.5, 22, 152], [36.5, 16, 60], 70),
+  shot('ashfall', 'billboards', [75.5, 18, 68], [75.5, 26, 50], 72),
   shot('reactor', 'hero', [90, 38, 80], [64, 17, 46], 68, 'bastion'),
   shot('reactor', 'core', [67, 18, 68], [64, 18, 51], 75, 'bastion'),
   // Causeway: the dam corridor from the east, then the three stage yards.

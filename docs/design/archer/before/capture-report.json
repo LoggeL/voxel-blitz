@@ -1,0 +1,30 @@
+{
+  "generated": "2026-10-13T20:46:03.422Z",
+  "fov": 75,
+  "ads": 0,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/archer/before/desktop-archer-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/archer/before/landscape-archer-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "archer",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/archer/before/portrait-archer-full.jpg"
+    }
+  ],
+  "errors": []
+}

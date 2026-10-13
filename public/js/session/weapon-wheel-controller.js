@@ -3,9 +3,12 @@ import { WEAPON_NAMES, WEAPON_CLASSES, weaponImagePath } from '../ui/hud-support
 import { usesOwnedLoadout } from '../../../shared/modes.js';
 import { KIT_GADGET_LABELS, kitWeaponRole as kitRole, kitWeaponDigit } from '../../../shared/conquest-kits.js';
 import { bindingLabel } from '../keybindings.js';
+import { titanWeaponRole, TITANFALL_DIGIT_ROLES } from '../../../shared/titan-contract.js';
 
 /** Conquest kit wheel segment order: one role per segment, clockwise from the top. */
 export const KIT_WHEEL_ROLES = Object.freeze(['primary', 'gadget', 'sidearm', 'melee']);
+/** Titanfall kit wheel segment order (docs/titanfall.md §6.2): the AT weapon takes the gadget segment. */
+export const TITANFALL_WHEEL_ROLES = Object.freeze(['primary', 'at', 'sidearm', 'melee']);
 
 /** Kit-relative slot binding that equips `id` in Conquest (`slot1` primary … `slot4` melee). */
 function kitSlotAction(id) {
@@ -41,6 +44,7 @@ export class WeaponWheelController {
     const mode = context.match?.mode;
     const authoritative = Array.isArray(context.self?.owned) && usesOwnedLoadout(mode);
     if (authoritative && mode === 'conquest') return this.kitEntries(context);
+    if (authoritative && mode === 'titanfall') return this.kitEntries(context, 'titanfall');
     // Kit-only gadgets (the STINGER) sit at the end of WEAPON_IDS and only appear
     // when the authoritative kit owns them, so every listed index stays its slot.
     const shown = WEAPON_IDS.filter(id => !WEAPONS[id].gadgetOnly || (authoritative && context.self.owned.includes(id)));
@@ -69,13 +73,16 @@ export class WeaponWheelController {
    * `key` is the kit-relative slot key that equips the weapon outside the wheel
    * (KIT_DIGIT_ROLES: 1 primary, 2 sidearm, 3 gadget, 4 melee).
    */
-  kitEntries(context = this.getContext()) {
+  kitEntries(context = this.getContext(), mode = 'conquest') {
+    const titanfall = mode === 'titanfall';
+    const roleOf = titanfall ? titanWeaponRole : kitRole;
     const owned = context.self.owned.filter(id => Object.hasOwn(WEAPONS, id) && WEAPON_IDS.includes(id));
-    const ordered = KIT_WHEEL_ROLES.flatMap(role => owned.filter(id => kitRole(id) === role));
+    const ordered = (titanfall ? TITANFALL_WHEEL_ROLES : KIT_WHEEL_ROLES).flatMap(role => owned.filter(id => roleOf(id) === role));
     return ordered.map((id) => {
       const slot = WEAPON_IDS.indexOf(id);
-      const role = kitRole(id);
-      const action = kitSlotAction(id);
+      const role = roleOf(id);
+      const digit = titanfall ? TITANFALL_DIGIT_ROLES.indexOf(role) : -1;
+      const action = titanfall ? (digit >= 0 ? `slot${digit + 1}` : null) : kitSlotAction(id);
       const gadgetRole = role === 'gadget' ? KIT_GADGET_LABELS[id]?.role : null;
       return {
         id,
@@ -87,7 +94,7 @@ export class WeaponWheelController {
         owned: true,
         current: context.weapon?.slot === slot,
         slot,
-        role: gadgetRole ? `${role.toUpperCase()} · ${gadgetRole}` : role.toUpperCase(),
+        role: gadgetRole ? `${role.toUpperCase()} · ${gadgetRole}` : role === 'at' ? 'AT' : role.toUpperCase(),
       };
     });
   }
@@ -100,6 +107,9 @@ export class WeaponWheelController {
    */
   directIndex(digitSlot, entries = this.entries()) {
     if (!entries.some(entry => entry.role)) return digitSlot;
+    if (this.getContext()?.match?.mode === 'titanfall') {
+      return entries.findIndex(entry => TITANFALL_DIGIT_ROLES.indexOf(titanWeaponRole(entry.id)) === digitSlot);
+    }
     return entries.findIndex(entry => kitWeaponDigit(entry.id) === digitSlot);
   }
 
@@ -165,7 +175,9 @@ export class WeaponWheelController {
     if (forced && !this.open) this.openWheel();
     const openable = context.enabled && context.alive &&
       context.self?.state === 'alive' && context.spectating !== true &&
-      !this.hud.isBuyMenuOpen() && !this.hud.settingsOpen;
+      !this.hud.isBuyMenuOpen() && !this.hud.settingsOpen &&
+      // Titanfall: no infantry wheel while seated in a titan (§6.2).
+      !(context.match?.mode === 'titanfall' && context.self?.vehicleId != null);
     if (this.open && ((!forced && !openable) || this.input.isWeaponWheelOpen?.() === false)) {
       this.close();
       return;

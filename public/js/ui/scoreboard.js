@@ -8,7 +8,10 @@ import { scoreboardRow, squadName } from './conquest/scoring.js';
 
 /** Conquest live columns: squad, score, kills, deaths, objective score, vehicles destroyed, revives. */
 const CONQUEST_COLUMNS = Object.freeze(['SQ', 'PLAYER', 'SCORE', 'K', 'D', 'OBJ', 'VEH', 'REV']);
-const COLUMN_LABELS = Object.freeze({ K: 'Kills', D: 'Deaths', SQ: 'Squad', OBJ: 'Objective score', VEH: 'Vehicles destroyed', REV: 'Revives' });
+const COLUMN_LABELS = Object.freeze({ K: 'Kills', D: 'Deaths', SQ: 'Squad', OBJ: 'Objective score', VEH: 'Vehicles destroyed', REV: 'Revives', TITANS: 'Titans destroyed' });
+/** Titanfall (docs/titanfall.md §8.3): team flavour names and the titan-kill column (`tf[7]`). */
+const TITANFALL_TEAMS = Object.freeze({ alpha: 'MILITIA', bravo: 'IMC' });
+const titanKills = player => Array.isArray(player?.tf) ? Math.max(0, player.tf[7] | 0) : 0;
 
 /** Mode-specific tables, separate from the always-visible match summary. */
 export class Scoreboard {
@@ -42,7 +45,7 @@ export class Scoreboard {
       } : p);
     const signature = JSON.stringify([mode, match?.map, match?.scores, match?.conquest?.tickets, match?.attackers, selfId, match.continuation?.id,
       roster.map((p) => [p.id, p.name, p.team, p.bot, p.kills, p.deaths, p.score, p.state, p.bomb, p.local, p.ping, p.tttRole, p.tttDead, p.tttPost, p.karma,
-        mode === 'conquest' ? [p.cq?.[1], p.squad, p.cqs] : null])]);
+        mode === 'conquest' ? [p.cq?.[1], p.squad, p.cqs] : mode === 'titanfall' ? titanKills(p) : null])]);
     if (signature === this.signature) {
       this.updateVotes(match.continuation);
       return;
@@ -64,10 +67,11 @@ export class Scoreboard {
         const heading = el('h3', `vb-sb-team-heading vb-badge-${team}`, section);
         const role = mode === 'snd' ? (match.attackers === team ? 'ATTACK' : 'DEFEND') : '';
         const teamPlayers = ranked.filter((p) => p.team === team);
-        const label = squad ? 'SQUAD' : mode === 'conquest' ? TEAM_DISPLAY[team] : team.toUpperCase();
+        const label = squad ? 'SQUAD' : mode === 'conquest' ? TEAM_DISPLAY[team] : mode === 'titanfall' ? TITANFALL_TEAMS[team] : team.toUpperCase();
         heading.textContent = this.resultPresentation || squad ? label : `${label} ${(mode === 'conquest' ? match?.conquest?.tickets?.[team] : match?.scores?.[team]) ?? 0}`;
         el('span', '', heading).textContent = this.resultPresentation
-          ? this.playerCounts(teamPlayers) : role || (mode === 'conquest' ? 'TICKETS' : mode === 'tdm' ? `FIRST TO ${MODE_RULES.tdm.scoreLimit}` : '');
+          ? this.playerCounts(teamPlayers) : role || (mode === 'conquest' ? 'TICKETS' : mode === 'tdm' ? `FIRST TO ${MODE_RULES.tdm.scoreLimit}`
+            : mode === 'titanfall' ? `FIRST TO ${match?.titanfall?.scoreLimit ?? MODE_RULES.titanfall.scoreLimit}` : '');
         if (this.resultPresentation) this.resultGroup(section, teamPlayers, mode, selfId, label);
         else this.table(section, teamPlayers, mode, selfId);
       }
@@ -126,8 +130,10 @@ export class Scoreboard {
     const table = el('table', '', parent);
     const head = el('tr', '', el('thead', '', table));
     const columns = this.resultPresentation
-      ? [...(mode === 'ttt' ? [] : ['#']), 'PLAYER', ...(mode === 'gungame' ? ['WEAPON'] : mode === 'ttt' ? [] : mode === 'conquest' ? ['SCORE', 'K', 'D', 'OBJ', 'VEH', 'REV'] : ['K', 'D']), ...(mode === 'snd' ? ['STATUS'] : [])]
+      ? [...(mode === 'ttt' ? [] : ['#']), 'PLAYER', ...(mode === 'gungame' ? ['WEAPON'] : mode === 'ttt' ? [] : mode === 'conquest' ? ['SCORE', 'K', 'D', 'OBJ', 'VEH', 'REV']
+        : mode === 'titanfall' ? ['SCORE', 'K', 'D', 'TITANS'] : ['K', 'D']), ...(mode === 'snd' ? ['STATUS'] : [])]
       : mode === 'conquest' ? [...CONQUEST_COLUMNS]
+      : mode === 'titanfall' ? ['PLAYER', 'SCORE', 'K', 'D', 'TITANS']
       : mode === 'training' ? ['PLAYER']
       : mode === 'gungame' ? ['#', 'PLAYER', 'WEAPON']
         : mode === 'snd' ? ['PLAYER', 'K', 'D', 'STATUS']
@@ -193,6 +199,8 @@ export class Scoreboard {
         for (const value of [stats.score, stats.kills, stats.deaths, stats.objective, stats.vehicles, stats.revives]) {
           el('td', 'vb-sb-number', tr).textContent = String(value);
         }
+      } else if (mode === 'titanfall') {
+        for (const value of [player.score | 0, player.kills | 0, player.deaths | 0, titanKills(player)]) el('td', 'vb-sb-number', tr).textContent = String(value);
       } else if (mode !== 'training' && mode !== 'ttt') {
         el('td', 'vb-sb-number', tr).textContent = String(player.kills | 0);
         el('td', 'vb-sb-number', tr).textContent = String(player.deaths | 0);

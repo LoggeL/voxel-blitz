@@ -37,7 +37,7 @@ export const CONDITION_RULES = Object.freeze({
 
 /**
  * @typedef {Object} WeaponDef
- * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble'|'mgl'|'stinger')
+ * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble'|'mgl'|'stinger'|'chargerifle'|'archer'|'thunderbolt'|'kraber')
  * @property {string} name          display name
  * @property {'auto'|'semi'|'pump'|'bolt'|'charge'|'melee'} mode trigger behavior; `charge` fires on
  *                                  trigger release and scales with the hold (see `charge`); `melee`
@@ -74,8 +74,11 @@ export const CONDITION_RULES = Object.freeze({
  * @property {object} handling      ergonomics, sway amplitude/rate, vertical/horizontal recoil
  * @property {string} sfx           bank key for the audio engine
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
- * @property {'rocket'|'bolt'|'glaive'|'bubble'|'mgl'|'stinger'} [projectile]  when set, the shot launches an authoritative projectile instead of firing hitscan rays
- * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number}} [charge]  charge-fire profile
+ * @property {'rocket'|'bolt'|'glaive'|'bubble'|'mgl'|'stinger'|'archer'|'thunderbolt'} [projectile]  when set, the shot launches an authoritative projectile instead of firing hitscan rays
+ * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number,fullOnly?:boolean,retainMs?:number,decayMs?:number}} [charge]  charge-fire profile;
+ *                              `fullOnly` shots leave only at a full charge (`chargeReleaseFires`)
+ * @property {number} [hullDamage] hitscan damage a hull takes instead of `damage` (before armour)
+ * @property {string} [damageClass] hull damage class (shared/vehicle-armor.js); defaults by id
  * @property {{speed:number,gravity:number,zeroM:number,maxFlightS:number}} [ballistic] the round flies with
  *                              finite muzzle speed and drop instead of arriving instantly (shared/bullet-ballistics.js)
  * @property {number} [hitRadius] outer radius around a body reached by the rail corona
@@ -204,7 +207,9 @@ export const WEAPONS = {
       ],
       jitter: 0.07, resetMs: 340, adsMult: 0.70, recovery: 0.55,
     },
-    adsFov: 58, zoom: 1.2, adsTime: 0.22,
+    // Braced side hold with a small zoom, without a sight-aligned scope view.
+    adsFov: 2 * Math.atan(Math.tan(75 * Math.PI / 360) / 1.15) * 180 / Math.PI,
+    zoom: 1.15, adsTime: 0.22,
     reloadTime: 4.2, tacTime: 3.4, deployTime: 0.8,
     tracer: { color: '#ffbf5f', width: 1.3, len: 30 },
     sfx: 'lmg',
@@ -451,12 +456,119 @@ export const WEAPONS = {
     sfx: 'rocket',
     projectile: 'stinger',
   },
+  // ---- Titanfall anti-titan pilot weapons (docs/titanfall.md §6). All are
+  // `gadgetOnly`: only the titanfall loadout (server/sim/titanfall/loadout.js)
+  // issues them, so every free roster, wheel and shop stays unchanged.
+  chargerifle: {
+    // CR-6 LONGBOW charge rifle: the capacitor fires itself at a full 1.1 s charge,
+    // an early release briefly retains then bleeds charge without a shot. The beam pierces
+    // bodies; titans take `hullDamage` at the AT class, pilots `damage`.
+    id: 'chargerifle', penetration: 600, name: 'CR-6 LONGBOW', mode: 'charge', gadgetOnly: true,
+    weightKg: 4.4,
+    rpm: 24, magSize: 3, spareMags: 3,
+    damage: [62.5, 62.5, 120], falloffStart: 60, headMult: 1.0, pellets: 1, // pilots 50 after combatDamage
+    hullDamage: 300,
+    spreadDeg: { hip: 0.9, ads: 0.04 }, bloomDeg: 0.3, bloomMaxDeg: 1.8,
+    bloomRecover: 3.6, moveSpreadDeg: 1.6,
+    crouchSpreadMult: 0.7,
+    recoil: {
+      pitch: 2.9, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.5, yawPattern: [0.45, -0.55, 0.35, -0.25],
+      jitter: 0.05, resetMs: 2700, adsMult: 0.6, recovery: 0.6,
+    },
+    adsFov: 44, zoom: 1.7, adsTime: 0.22,
+    reloadTime: 2.6, tacTime: 2.6, deployTime: 0.7,
+    tracer: null,
+    sfx: 'lance',
+    damageClass: 'at',
+    charge: {
+      ms: 1100,           // a full charge; the shot only leaves at full charge
+      holdMaxMs: 1100,    // and fires itself the moment it gets there
+      minDamageMult: 0.1,
+      damageExponent: 2,
+      fullOnly: true,
+      retainMs: 180,      // a brief trigger release preserves the bank
+      decayMs: 700,       // then loses one full charge per 700 ms
+    },
+    hitRadius: 0.45,
+    coreRadius: 0.15,
+    pierce: { players: 3, playerFalloff: 0.85 },
+  },
+  archer: {
+    // AT-12 ARCHER: aim down the sights at an enemy titan for 1.2 s to lock
+    // (LOCK_RULES.archer); a locked missile homes, an unlocked one flies straight.
+    id: 'archer', name: 'AT-12 ARCHER', mode: 'semi', gadgetOnly: true,
+    weightKg: 7.2,
+    rpm: 60, magSize: 1, spareMags: 4,
+    damage: [150, 150, 60], headMult: 1.0, pellets: 1, penetration: 0, // display only: the missile deals it
+    spreadDeg: { hip: 1.0, ads: 0.2 }, bloomDeg: 0, bloomMaxDeg: 0,
+    bloomRecover: 1, moveSpreadDeg: 1.3,
+    crouchSpreadMult: 0.8,
+    recoil: {
+      pitch: 3.0, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.7, yawPattern: [-0.55, 0.45, -0.35, 0.6],
+      jitter: 0.12, resetMs: 1500, adsMult: 0.8, recovery: 0.5,
+    },
+    adsFov: 48, zoom: 1.6, adsTime: 0.34,
+    reloadTime: 3.0, tacTime: 3.0, deployTime: 0.9,
+    tracer: null,          // the missile and its exhaust replace a tracer
+    sfx: 'rocket',
+    projectile: 'archer',
+    damageClass: 'at',
+  },
+  thunderbolt: {
+    // TB-4 THUNDERBOLT: a slow arc orb that zaps up to three enemies within 6 m every
+    // 0.25 s on its way and bursts on contact (server/sim/titanfall/pilot-projectiles.js).
+    id: 'thunderbolt', name: 'TB-4 THUNDERBOLT', mode: 'semi', gadgetOnly: true,
+    weightKg: 6.8,
+    rpm: 50, magSize: 4, spareMags: 3,
+    damage: [50, 50, 30], headMult: 1.0, pellets: 1, penetration: 0, // display only: the orb deals it
+    spreadDeg: { hip: 1.2, ads: 0.3 }, bloomDeg: 0.2, bloomMaxDeg: 1.2,
+    bloomRecover: 2.5, moveSpreadDeg: 1.4,
+    crouchSpreadMult: 0.8,
+    recoil: {
+      pitch: 2.2, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.55, yawPattern: [0.3, -0.45, 0.55, -0.2],
+      jitter: 0.1, resetMs: 1300, adsMult: 0.78, recovery: 0.55,
+    },
+    adsFov: 54, zoom: 1.4, adsTime: 0.3,
+    reloadTime: 3.8, tacTime: 3.2, deployTime: 0.85,
+    tracer: null,
+    sfx: 'thunderbolt',
+    projectile: 'thunderbolt',
+    damageClass: 'at',
+  },
+  kraber: {
+    // KR-50 KRABER: a heavy bolt-action anti-materiel rifle. One flying round per
+    // bolt; a body hit at any range downs a pilot, titans shrug it off (hmg class).
+    id: 'kraber', penetration: 260, name: 'KR-50 KRABER', mode: 'bolt', gadgetOnly: true, scoped: true,
+    weightKg: 7.6,
+    rpm: 54.5, magSize: 4, spareMags: 4,
+    damage: [200, 160, 260], falloffStart: 80, headMult: 1.5, pellets: 1, // far 160 x 0.8 = 128: one shot
+    spreadDeg: { hip: 6.5, ads: 0.015 }, bloomDeg: 1.4, bloomMaxDeg: 8,
+    bloomRecover: 2.6, moveSpreadDeg: 4.0,
+    crouchSpreadMult: 0.55,
+    recoil: {
+      pitch: 5.2, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.8, yawPattern: [0.35, -0.3],
+      jitter: 0.08, resetMs: 2000, adsMult: 0.55, recovery: 0.5,
+    },
+    adsFov: 16, zoom: 6, adsTime: 0.34,
+    reloadTime: 3.4, tacTime: 2.6, deployTime: 0.7,
+    tracer: { color: '#ffd9a8', width: 2.0, len: 44 },
+    // The 12.7 mm round flies (shared/bullet-ballistics.js): 600 m/s, 9 m/s² drop.
+    ballistic: { speed: 600, gravity: 9, zeroM: 100, maxFlightS: 3 },
+    sfx: 'sniper',
+    damageClass: 'hmg',
+  },
 };
 
 // Attach immutable handling profiles without duplicating the baseline recoil numbers.
 for (const [id, def] of Object.entries(WEAPONS)) WEAPONS[id] = withWeaponHandling(def);
 
-export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger'];
+export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger',
+  // Titanfall AT weapons (append-only; slots are wire indices).
+  'chargerifle', 'archer', 'thunderbolt', 'kraber'];
 
 /** Kit-only gadgets: never part of a free roster, a weapon wheel or a shop. */
 export const GADGET_ONLY_WEAPON_IDS = Object.freeze(WEAPON_IDS.filter(id => WEAPONS[id]?.gadgetOnly === true));
@@ -476,7 +588,18 @@ export function chargeProfile(def) {
     ms: Number.isFinite(charge?.ms) ? charge.ms : 850,
     holdMaxMs: Number.isFinite(charge?.holdMaxMs) ? charge.holdMaxMs : 2200,
     minDamageMult: Number.isFinite(charge?.minDamageMult) ? charge.minDamageMult : 1,
+    retainMs: Number.isFinite(charge?.retainMs) ? Math.max(0, charge.retainMs) : 0,
+    decayMs: Number.isFinite(charge?.decayMs) ? Math.max(0, charge.decayMs) : 0,
   };
+}
+
+/**
+ * Whether releasing a `charge` weapon at `charge01` lets the shot leave. A
+ * `charge.fullOnly` capacitor (the CR-6 LONGBOW) keeps an early release from
+ * firing; every other charge weapon fires at any charge.
+ */
+export function chargeReleaseFires(def, charge01) {
+  return def?.charge?.fullOnly !== true || (Number.isFinite(charge01) && charge01 >= 1);
 }
 
 /** Normalized 0..1 charge for a hold of `heldMs` on a `charge` weapon. */
@@ -484,6 +607,15 @@ export function chargeFromHold(def, heldMs) {
   const profile = chargeProfile(def);
   const held = Number.isFinite(heldMs) ? Math.max(0, heldMs) : 0;
   return Math.min(1, held / Math.max(1, profile.ms));
+}
+
+/** Remaining charge since releasing the trigger. Only configured banks retain energy. */
+export function chargeAfterRelease(def, charge01, releasedMs) {
+  const profile = chargeProfile(def);
+  if (!(profile.decayMs > 0)) return 0;
+  const stored = Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 0));
+  const elapsed = Math.max(0, Number.isFinite(releasedMs) ? releasedMs : 0);
+  return Math.max(0, stored - Math.max(0, elapsed - profile.retainMs) / profile.decayMs);
 }
 
 /** Damage multiplier grows from the tap floor to full power using the charge curve. */

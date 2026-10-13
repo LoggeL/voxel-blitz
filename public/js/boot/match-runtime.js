@@ -43,3 +43,5 @@ export { createObjectiveCues } from "../audio/objective-cues.js";
 export { ConquestSoundscape } from "../audio/conquest-soundscape.js";
 export { CONQUEST_SAMPLE_MANIFEST, CONQUEST_SAMPLE_MANIFEST_LITE, STRUCTURE_SAMPLE_MANIFEST } from "../audio/conquest-bank.js";
 export { FRONTIER_PLAN } from "../../../shared/conquest-contract.js";
+// Titanfall client registry (docs/titanfall.md §8.5): a loader, so only titanfall matches fetch it.
+export const loadTitanfallClient = () => import('../titanfall/titanfall-client.js');

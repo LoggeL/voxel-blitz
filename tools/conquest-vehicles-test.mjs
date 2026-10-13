@@ -3,6 +3,7 @@ import { VehicleSystem } from '../server/sim/vehicles.js';
 import { GameEngine } from '../server/game.js';
 import { groundAttitude } from '../shared/vehicle-attitude.js';
 import { VEHICLE_DEFS, VEHICLE_LIFECYCLE, mountPose, vehicleMaxHp } from '../shared/vehicle-defs.js';
+import { VEHICLE_TYPE_IDS } from '../shared/conquest-contract.js';
 import { playerHullContact } from '../shared/player-vehicle-collision.js';
 import { boxCollides } from '../shared/player-movement.js';
 function fixture(type='jeep') {
@@ -254,7 +255,7 @@ for (const [speed, safe] of [[10, true], [22, false]]) {
 
 // Quantized rows stay within the 260 B average budget for every hull type.
 {
-  const types = Object.keys(VEHICLE_DEFS);
+  const types = [...VEHICLE_TYPE_IDS];
   const f = engineFixture(types.map((type, i) => ({ id: `${type}-1`, type, team: i % 2 ? 'bravo' : 'alpha', x: 40 + i * 40, y: 1, z: 200, yaw: 0.3 })));
   for (const [i, type] of types.entries()) f.board(f.player(`p${i}`, i % 2 ? 'bravo' : 'alpha'), `${type}-1`);
   f.tick(5);

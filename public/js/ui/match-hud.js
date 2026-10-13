@@ -220,7 +220,7 @@ export class MatchHud {
     }
     if (curMode !== 'bastion') toggleClass(m.phaseLabel, 'vb-bastion-urgent', false);
     const phase = match?.phase || 'live';
-    const isTeamMode = curMode === 'tdm' || curMode === 'snd';
+    const isTeamMode = curMode === 'tdm' || curMode === 'snd' || curMode === 'titanfall';
     this.playerStatus.update(this._latestPlayers, curMode, selfRow?.id);
 
     if (m.modeBadge) {
@@ -261,6 +261,8 @@ export class MatchHud {
         setText(m.phaseLabel, `FIRST TO ${match?.killLimit ?? MODE_RULES.duel.killLimit} KILLS`);
       } else if (curMode === 'tdm') {
         setText(m.phaseLabel, `FIRST TO ${MODE_RULES.tdm.scoreLimit}`);
+      } else if (curMode === 'titanfall') {
+        setText(m.phaseLabel, `FIRST TO ${match?.titanfall?.scoreLimit ?? MODE_RULES.titanfall.scoreLimit}`);
       } else if (curMode === 'gungame') {
         setText(m.phaseLabel, `WEAPON ${gunLevel(selfRow)} / ${GUN_GAME_WEAPON_ORDER.length}`);
       } else if (curMode === 'training') {
@@ -284,8 +286,8 @@ export class MatchHud {
         setText(m[`${side}Score`], player ? match?.scores?.[player.id] ?? player.kills ?? 0 : 0);
       }
     } else if (isTeamMode) {
-      setText(m.alphaName, 'ALPHA');
-      setText(m.bravoName, 'BRAVO');
+      setText(m.alphaName, curMode === 'titanfall' ? 'MILITIA' : 'ALPHA');
+      setText(m.bravoName, curMode === 'titanfall' ? 'IMC' : 'BRAVO');
       setStyle(m.alphaBlock, 'display', 'flex');
       setStyle(m.bravoBlock, 'display', 'flex');
 

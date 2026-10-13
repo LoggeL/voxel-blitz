@@ -1,0 +1,138 @@
+{
+  "source": "docs/design/blender/thunderbolt/thunderbolt.blend",
+  "meshes": 181,
+  "triangles": 39988,
+  "materialGroupBatches": 24,
+  "parts": {
+    "body": 21012,
+    "rotor": 12068,
+    "orb0": 960,
+    "orb1": 960,
+    "orb2": 960,
+    "orb3": 960,
+    "trigger": 60,
+    "bolt": 504,
+    "optic": 1136,
+    "energy": 960,
+    "arcs": 408
+  },
+  "materials": {
+    "ceramic": {
+      "textureFile": "textures/thunderbolt-ceramic.png",
+      "textureBumpScale": 0.0003,
+      "textureTint": [
+        0.94,
+        0.97,
+        1.0,
+        1.0
+      ],
+      "tbEnergy": false,
+      "tbArc": false,
+      "tbOrb": false
+    },
+    "phosphate": {
+      "textureFile": "textures/palette/phosphated-steel.jpg",
+      "textureBumpScale": 0.0003,
+      "textureTint": [
+        0.2,
+        0.23,
+        0.29,
+        1.0
+      ],
+      "tbEnergy": false,
+      "tbArc": false,
+      "tbOrb": false
+    },
+    "steel": {
+      "textureFile": "textures/palette/machined-steel.jpg",
+      "textureBumpScale": 0.00018,
+      "textureTint": [
+        0.75,
+        0.8,
+        0.88,
+        1.0
+      ],
+      "tbEnergy": false,
+      "tbArc": false,
+      "tbOrb": false
+    },
+    "copper": {
+      "textureFile": "textures/palette/aged-copper.jpg",
+      "textureBumpScale": 0.0002,
+      "textureTint": [
+        0.8,
+        0.7,
+        0.62,
+        1.0
+      ],
+      "tbEnergy": false,
+      "tbArc": false,
+      "tbOrb": false
+    },
+    "rubber": {
+      "textureFile": "textures/palette/pebbled-rubber.jpg",
+      "textureBumpScale": 0.0008,
+      "textureTint": [
+        0.085,
+        0.095,
+        0.115,
+        1.0
+      ],
+      "tbEnergy": false,
+      "tbArc": false,
+      "tbOrb": false
+    },
+    "polymer": {
+      "textureFile": "textures/palette/molded-polymer.jpg",
+      "textureBumpScale": 0.00055,
+      "textureTint": [
+        0.12,
+        0.14,
+        0.18,
+        1.0
+      ],
+      "tbEnergy": false,
+      "tbArc": false,
+      "tbOrb": false
+    },
+    "energy": {
+      "textureFile": "textures/palette/machined-steel.jpg",
+      "textureBumpScale": 0.00018,
+      "textureTint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "tbEnergy": true,
+      "tbArc": false,
+      "tbOrb": false
+    },
+    "arc": {
+      "textureFile": "textures/palette/machined-steel.jpg",
+      "textureBumpScale": 0.00018,
+      "textureTint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "tbEnergy": false,
+      "tbArc": true,
+      "tbOrb": false
+    },
+    "orb": {
+      "textureFile": "textures/palette/machined-steel.jpg",
+      "textureBumpScale": 0.0,
+      "textureTint": [
+        0.003,
+        0.012,
+        0.055,
+        1.0
+      ],
+      "tbEnergy": false,
+      "tbArc": false,
+      "tbOrb": true
+    }
+  }
+}

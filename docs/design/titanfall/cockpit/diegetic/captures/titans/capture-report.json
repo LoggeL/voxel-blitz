@@ -1,0 +1,6754 @@
+{
+  "generated": "2026-10-13T13:21:54.761Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-scorch-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-scorch-firing-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-scorch-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-scorch-core-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-scorch-cooldown-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-scorch-rodeo-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_scorch",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-scorch-feed-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-northstar-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-northstar-firing-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-northstar-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-northstar-core-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-northstar-cooldown-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-northstar-rodeo-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-northstar-feed-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-ronin-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-ronin-firing-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-ronin-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-ronin-core-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-ronin-cooldown-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-ronin-rodeo-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ronin",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-ronin-feed-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-legion-idle-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-legion-firing-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-legion-doom-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-legion-core-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-legion-cooldown-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-legion-rodeo-fov100.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/desktop-legion-feed-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-scorch-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-scorch-firing-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-scorch-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-scorch-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-scorch-cooldown-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-scorch-rodeo-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_scorch",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-scorch-feed-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-northstar-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-northstar-firing-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-northstar-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-northstar-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-northstar-cooldown-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-northstar-rodeo-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_northstar",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-northstar-feed-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-ronin-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-ronin-firing-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-ronin-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-ronin-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-ronin-cooldown-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-ronin-rodeo-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_ronin",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-ronin-feed-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-legion-idle-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-legion-firing-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-legion-doom-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-legion-core-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-legion-cooldown-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-legion-rodeo-fov100.png"
+    },
+    {
+      "size": "ultrawide",
+      "type": "titan_legion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/ultrawide-legion-feed-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-scorch-idle-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_scorch",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-scorch-firing-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-scorch-doom-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-scorch-core-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_scorch",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-scorch-cooldown-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_scorch",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-scorch-rodeo-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_scorch",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-scorch-feed-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-northstar-idle-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_northstar",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-northstar-firing-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-northstar-doom-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-northstar-core-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_northstar",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-northstar-cooldown-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_northstar",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-northstar-rodeo-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_northstar",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-northstar-feed-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-ronin-idle-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ronin",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-ronin-firing-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-ronin-doom-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-ronin-core-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ronin",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-ronin-cooldown-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ronin",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-ronin-rodeo-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_ronin",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-ronin-feed-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-legion-idle-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_legion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-legion-firing-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-legion-doom-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-legion-core-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_legion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-legion-cooldown-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_legion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-legion-rodeo-fov100.png"
+    },
+    {
+      "size": "small",
+      "type": "titan_legion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/small-legion-feed-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-scorch-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-scorch-firing-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-scorch-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-scorch-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-scorch-cooldown-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-scorch-rodeo-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_scorch",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-scorch-feed-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-northstar-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-northstar-firing-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-northstar-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-northstar-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-northstar-cooldown-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-northstar-rodeo-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-northstar-feed-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-ronin-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-ronin-firing-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-ronin-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-ronin-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-ronin-cooldown-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-ronin-rodeo-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ronin",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-ronin-feed-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-legion-idle-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-legion-firing-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-legion-doom-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-legion-core-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-legion-cooldown-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-legion-rodeo-fov100.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/portrait-legion-feed-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-scorch-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-scorch-firing-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-scorch-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-scorch-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-scorch-cooldown-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-scorch-rodeo-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_scorch",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-scorch-feed-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-northstar-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-northstar-firing-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-northstar-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-northstar-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-northstar-cooldown-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-northstar-rodeo-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-northstar-feed-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-ronin-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-ronin-firing-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-ronin-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-ronin-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-ronin-cooldown-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-ronin-rodeo-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ronin",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-ronin-feed-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "idle",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-legion-idle-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "firing",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-legion-firing-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "doom",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-legion-doom-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "core",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-legion-core-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "cooldown",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-legion-cooldown-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "rodeo",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-legion-rodeo-fov100.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "feed",
+      "fov": 100,
+      "file": "docs/design/titanfall/cockpit/diegetic/captures/titans/landscape-legion-feed-fov100.png"
+    }
+  ],
+  "hud": [],
+  "overlaps": [],
+  "errors": [],
+  "models": {
+    "titan_scorch:idle:keys": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 2304,
+        "maxHp": 3200,
+        "hpFrac": 0.72,
+        "shield": 672,
+        "shieldMax": 1120,
+        "shieldFrac": 0.21,
+        "healthText": "2304 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "THERMAL SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "INCENDIARY TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:firing:keys": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 2048,
+        "maxHp": 3200,
+        "hpFrac": 0.64,
+        "shield": 280,
+        "shieldMax": 1120,
+        "shieldFrac": 0.0875,
+        "healthText": "2048 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "THERMAL SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "INCENDIARY TRAP",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0.72,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:doom:keys": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 384,
+        "maxHp": 3200,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 1120,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 384",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "THERMAL SHIELD",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "INCENDIARY TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:core:keys": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 2880,
+        "maxHp": 3200,
+        "hpFrac": 0.9,
+        "shield": 1120,
+        "shieldMax": 1120,
+        "shieldFrac": 0.35,
+        "healthText": "2880 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "THERMAL SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "INCENDIARY TRAP",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:cooldown:keys": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 1760,
+        "maxHp": 3200,
+        "hpFrac": 0.55,
+        "shield": 112,
+        "shieldMax": 1120,
+        "shieldFrac": 0.035,
+        "healthText": "1760 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "THERMAL SHIELD",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "INCENDIARY TRAP",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "FIREWALL",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 0,
+          "magazine": 1,
+          "ammoText": "0",
+          "frac": 0,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:rodeo:keys": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 1280,
+        "maxHp": 3200,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 1120,
+        "shieldFrac": 0,
+        "healthText": "1280 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "THERMAL SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "INCENDIARY TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "FIREWALL",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_scorch:feed:keys": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 2560,
+        "maxHp": 3200,
+        "hpFrac": 0.8,
+        "shield": 448,
+        "shieldMax": 1120,
+        "shieldFrac": 0.14,
+        "healthText": "2560 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "THERMAL SHIELD",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "INCENDIARY TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    },
+    "titan_northstar:idle:keys": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1440,
+        "maxHp": 2000,
+        "hpFrac": 0.72,
+        "shield": 420,
+        "shieldMax": 700,
+        "shieldFrac": 0.21,
+        "healthText": "1440 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "TETHER TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "VTOL HOVER",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 16,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:firing:keys": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1280,
+        "maxHp": 2000,
+        "hpFrac": 0.64,
+        "shield": 175,
+        "shieldMax": 700,
+        "shieldFrac": 0.0875,
+        "healthText": "1280 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "TETHER TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "VTOL HOVER",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 3,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0.72
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:doom:keys": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 240,
+        "maxHp": 2000,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 700,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 240",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "TETHER TRAP",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "VTOL HOVER",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 10,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:core:keys": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1800,
+        "maxHp": 2000,
+        "hpFrac": 0.9,
+        "shield": 700,
+        "shieldMax": 700,
+        "shieldFrac": 0.35,
+        "healthText": "1800 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "TETHER TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "VTOL HOVER",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 20,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:cooldown:keys": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1100,
+        "maxHp": 2000,
+        "hpFrac": 0.55,
+        "shield": 70,
+        "shieldMax": 700,
+        "shieldFrac": 0.035,
+        "healthText": "1100 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "TETHER TRAP",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "VTOL HOVER",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "CLUSTER MISSILE",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 0,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:rodeo:keys": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 800,
+        "maxHp": 2000,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 700,
+        "shieldFrac": 0,
+        "healthText": "800 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "TETHER TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "VTOL HOVER",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "CLUSTER MISSILE",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 12,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_northstar:feed:keys": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1600,
+        "maxHp": 2000,
+        "hpFrac": 0.8,
+        "shield": 280,
+        "shieldMax": 700,
+        "shieldFrac": 0.14,
+        "healthText": "1600 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "TETHER TRAP",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "VTOL HOVER",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 14,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    },
+    "titan_ronin:idle:keys": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1440,
+        "maxHp": 2000,
+        "hpFrac": 0.72,
+        "shield": 420,
+        "shieldMax": 700,
+        "shieldFrac": 0.21,
+        "healthText": "1440 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "SWORD BLOCK",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "ARC WAVE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 2,
+          "magazine": 3,
+          "ammoText": "2",
+          "frac": 0.6666666666666666,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:firing:keys": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1280,
+        "maxHp": 2000,
+        "hpFrac": 0.64,
+        "shield": 175,
+        "shieldMax": 700,
+        "shieldFrac": 0.0875,
+        "healthText": "1280 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "SWORD BLOCK",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "ARC WAVE",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 1,
+          "magazine": 3,
+          "ammoText": "1",
+          "frac": 0.3333333333333333,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:doom:keys": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 240,
+        "maxHp": 2000,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 700,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 240",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "SWORD BLOCK",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "ARC WAVE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 2,
+          "magazine": 3,
+          "ammoText": "2",
+          "frac": 0.6666666666666666,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:core:keys": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1800,
+        "maxHp": 2000,
+        "hpFrac": 0.9,
+        "shield": 700,
+        "shieldMax": 700,
+        "shieldFrac": 0.35,
+        "healthText": "1800 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "SWORD BLOCK",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "ARC WAVE",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 3,
+          "magazine": 3,
+          "ammoText": "3",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:cooldown:keys": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1100,
+        "maxHp": 2000,
+        "hpFrac": 0.55,
+        "shield": 70,
+        "shieldMax": 700,
+        "shieldFrac": 0.035,
+        "healthText": "1100 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "SWORD BLOCK",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "ARC WAVE",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "PHASE DASH",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 0,
+          "magazine": 3,
+          "ammoText": "0",
+          "frac": 0,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:rodeo:keys": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 800,
+        "maxHp": 2000,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 700,
+        "shieldFrac": 0,
+        "healthText": "800 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "SWORD BLOCK",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "ARC WAVE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "PHASE DASH",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 2,
+          "magazine": 3,
+          "ammoText": "2",
+          "frac": 0.6666666666666666,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_ronin:feed:keys": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1600,
+        "maxHp": 2000,
+        "hpFrac": 0.8,
+        "shield": 280,
+        "shieldMax": 700,
+        "shieldFrac": 0.14,
+        "healthText": "1600 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "SWORD BLOCK",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "ARC WAVE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 2,
+          "magazine": 3,
+          "ammoText": "2",
+          "frac": 0.6666666666666666,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    },
+    "titan_legion:idle:keys": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 2304,
+        "maxHp": 3200,
+        "hpFrac": 0.72,
+        "shield": 672,
+        "shieldMax": 1120,
+        "shieldFrac": 0.21,
+        "healthText": "2304 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "GUN SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "MODE SWITCH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 80,
+          "magazine": 100,
+          "ammoText": "80",
+          "frac": 0.8,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:firing:keys": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 2048,
+        "maxHp": 3200,
+        "hpFrac": 0.64,
+        "shield": 280,
+        "shieldMax": 1120,
+        "shieldFrac": 0.0875,
+        "healthText": "2048 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "GUN SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "MODE SWITCH",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 15,
+          "magazine": 100,
+          "ammoText": "15",
+          "frac": 0.15,
+          "heat": 0.72,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:doom:keys": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 384,
+        "maxHp": 3200,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 1120,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 384",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "GUN SHIELD",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "MODE SWITCH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 50,
+          "magazine": 100,
+          "ammoText": "50",
+          "frac": 0.5,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:core:keys": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 2880,
+        "maxHp": 3200,
+        "hpFrac": 0.9,
+        "shield": 1120,
+        "shieldMax": 1120,
+        "shieldFrac": 0.35,
+        "healthText": "2880 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "GUN SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "MODE SWITCH",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 100,
+          "magazine": 100,
+          "ammoText": "100",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:cooldown:keys": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 1760,
+        "maxHp": 3200,
+        "hpFrac": 0.55,
+        "shield": 112,
+        "shieldMax": 1120,
+        "shieldFrac": 0.035,
+        "healthText": "1760 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "GUN SHIELD",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "MODE SWITCH",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "POWER SHOT",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 0,
+          "magazine": 100,
+          "ammoText": "0",
+          "frac": 0,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:rodeo:keys": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 1280,
+        "maxHp": 3200,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 1120,
+        "shieldFrac": 0,
+        "healthText": "1280 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "GUN SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "MODE SWITCH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "POWER SHOT",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 60,
+          "magazine": 100,
+          "ammoText": "60",
+          "frac": 0.6,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_legion:feed:keys": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 2560,
+        "maxHp": 3200,
+        "hpFrac": 0.8,
+        "shield": 448,
+        "shieldMax": 1120,
+        "shieldFrac": 0.14,
+        "healthText": "2560 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "Q",
+            "label": "GUN SHIELD",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "E",
+            "label": "MODE SWITCH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "G",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 70,
+          "magazine": 100,
+          "ammoText": "70",
+          "frac": 0.7,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    },
+    "titan_scorch:idle:touch": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 2304,
+        "maxHp": 3200,
+        "hpFrac": 0.72,
+        "shield": 672,
+        "shieldMax": 1120,
+        "shieldFrac": 0.21,
+        "healthText": "2304 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "THERMAL SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "INCENDIARY TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:firing:touch": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 2048,
+        "maxHp": 3200,
+        "hpFrac": 0.64,
+        "shield": 280,
+        "shieldMax": 1120,
+        "shieldFrac": 0.0875,
+        "healthText": "2048 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "THERMAL SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "INCENDIARY TRAP",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0.72,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:doom:touch": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 384,
+        "maxHp": 3200,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 1120,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 384",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "THERMAL SHIELD",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "INCENDIARY TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:core:touch": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 2880,
+        "maxHp": 3200,
+        "hpFrac": 0.9,
+        "shield": 1120,
+        "shieldMax": 1120,
+        "shieldFrac": 0.35,
+        "healthText": "2880 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "THERMAL SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "INCENDIARY TRAP",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:cooldown:touch": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 1760,
+        "maxHp": 3200,
+        "hpFrac": 0.55,
+        "shield": 112,
+        "shieldMax": 1120,
+        "shieldFrac": 0.035,
+        "healthText": "1760 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "THERMAL SHIELD",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "INCENDIARY TRAP",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "FIREWALL",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 0,
+          "magazine": 1,
+          "ammoText": "0",
+          "frac": 0,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_scorch:rodeo:touch": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 1280,
+        "maxHp": 3200,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 1120,
+        "shieldFrac": 0,
+        "healthText": "1280 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "THERMAL SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "INCENDIARY TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "FIREWALL",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_scorch:feed:touch": {
+      "titan": {
+        "type": "titan_scorch",
+        "label": "SCORCH",
+        "chassis": "ogre",
+        "hp": 2560,
+        "maxHp": 3200,
+        "hpFrac": 0.8,
+        "shield": 448,
+        "shieldMax": 1120,
+        "shieldFrac": 0.14,
+        "healthText": "2560 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "THERMAL SHIELD",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "INCENDIARY TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "FIREWALL",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLAME CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "t203",
+          "label": "T-203 THERMITE",
+          "ammo": 1,
+          "magazine": 1,
+          "ammoText": "1",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    },
+    "titan_northstar:idle:touch": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1440,
+        "maxHp": 2000,
+        "hpFrac": 0.72,
+        "shield": 420,
+        "shieldMax": 700,
+        "shieldFrac": 0.21,
+        "healthText": "1440 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "TETHER TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "VTOL HOVER",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 16,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:firing:touch": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1280,
+        "maxHp": 2000,
+        "hpFrac": 0.64,
+        "shield": 175,
+        "shieldMax": 700,
+        "shieldFrac": 0.0875,
+        "healthText": "1280 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "TETHER TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "VTOL HOVER",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 3,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0.72
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:doom:touch": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 240,
+        "maxHp": 2000,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 700,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 240",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "TETHER TRAP",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "VTOL HOVER",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 10,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:core:touch": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1800,
+        "maxHp": 2000,
+        "hpFrac": 0.9,
+        "shield": 700,
+        "shieldMax": 700,
+        "shieldFrac": 0.35,
+        "healthText": "1800 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "TETHER TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "VTOL HOVER",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 20,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:cooldown:touch": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1100,
+        "maxHp": 2000,
+        "hpFrac": 0.55,
+        "shield": 70,
+        "shieldMax": 700,
+        "shieldFrac": 0.035,
+        "healthText": "1100 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "TETHER TRAP",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "VTOL HOVER",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "CLUSTER MISSILE",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 0,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_northstar:rodeo:touch": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 800,
+        "maxHp": 2000,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 700,
+        "shieldFrac": 0,
+        "healthText": "800 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "TETHER TRAP",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "VTOL HOVER",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "CLUSTER MISSILE",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 12,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_northstar:feed:touch": {
+      "titan": {
+        "type": "titan_northstar",
+        "label": "NORTHSTAR",
+        "chassis": "stryder",
+        "hp": 1600,
+        "maxHp": 2000,
+        "hpFrac": 0.8,
+        "shield": 280,
+        "shieldMax": 700,
+        "shieldFrac": 0.14,
+        "healthText": "1600 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "TETHER TRAP",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "VTOL HOVER",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "CLUSTER MISSILE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "FLIGHT CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "railgun",
+          "label": "PLASMA RAILGUN",
+          "ammo": 14,
+          "magazine": null,
+          "ammoText": "∞",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    },
+    "titan_ronin:idle:touch": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1440,
+        "maxHp": 2000,
+        "hpFrac": 0.72,
+        "shield": 420,
+        "shieldMax": 700,
+        "shieldFrac": 0.21,
+        "healthText": "1440 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "SWORD BLOCK",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "ARC WAVE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 2,
+          "magazine": 3,
+          "ammoText": "2",
+          "frac": 0.6666666666666666,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:firing:touch": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1280,
+        "maxHp": 2000,
+        "hpFrac": 0.64,
+        "shield": 175,
+        "shieldMax": 700,
+        "shieldFrac": 0.0875,
+        "healthText": "1280 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "SWORD BLOCK",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "ARC WAVE",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 1,
+          "magazine": 3,
+          "ammoText": "1",
+          "frac": 0.3333333333333333,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:doom:touch": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 240,
+        "maxHp": 2000,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 700,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 240",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "SWORD BLOCK",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "ARC WAVE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 2,
+          "magazine": 3,
+          "ammoText": "2",
+          "frac": 0.6666666666666666,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:core:touch": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1800,
+        "maxHp": 2000,
+        "hpFrac": 0.9,
+        "shield": 700,
+        "shieldMax": 700,
+        "shieldFrac": 0.35,
+        "healthText": "1800 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "SWORD BLOCK",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "ARC WAVE",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 3,
+          "magazine": 3,
+          "ammoText": "3",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:cooldown:touch": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1100,
+        "maxHp": 2000,
+        "hpFrac": 0.55,
+        "shield": 70,
+        "shieldMax": 700,
+        "shieldFrac": 0.035,
+        "healthText": "1100 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "SWORD BLOCK",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "ARC WAVE",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "PHASE DASH",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 0,
+          "magazine": 3,
+          "ammoText": "0",
+          "frac": 0,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_ronin:rodeo:touch": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 800,
+        "maxHp": 2000,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 700,
+        "shieldFrac": 0,
+        "healthText": "800 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "SWORD BLOCK",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "ARC WAVE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "PHASE DASH",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 2,
+          "magazine": 3,
+          "ammoText": "2",
+          "frac": 0.6666666666666666,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_ronin:feed:touch": {
+      "titan": {
+        "type": "titan_ronin",
+        "label": "RONIN",
+        "chassis": "stryder",
+        "hp": 1600,
+        "maxHp": 2000,
+        "hpFrac": 0.8,
+        "shield": 280,
+        "shieldMax": 700,
+        "shieldFrac": 0.14,
+        "healthText": "1600 / 2000",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 3,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "SWORD BLOCK",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "ARC WAVE",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "PHASE DASH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SWORD CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "leadwall",
+          "label": "LEADWALL",
+          "ammo": 2,
+          "magazine": 3,
+          "ammoText": "2",
+          "frac": 0.6666666666666666,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    },
+    "titan_legion:idle:touch": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 2304,
+        "maxHp": 3200,
+        "hpFrac": 0.72,
+        "shield": 672,
+        "shieldMax": 1120,
+        "shieldFrac": 0.21,
+        "healthText": "2304 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "GUN SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "MODE SWITCH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.46,
+          "pct": 46,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 80,
+          "magazine": 100,
+          "ammoText": "80",
+          "frac": 0.8,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:firing:touch": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 2048,
+        "maxHp": 3200,
+        "hpFrac": 0.64,
+        "shield": 280,
+        "shieldMax": 1120,
+        "shieldFrac": 0.0875,
+        "healthText": "2048 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1.5,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0.5
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "GUN SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "MODE SWITCH",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.58,
+          "pct": 58,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 15,
+          "magazine": 100,
+          "ammoText": "15",
+          "frac": 0.15,
+          "heat": 0.72,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:doom:touch": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 384,
+        "maxHp": 3200,
+        "hpFrac": 0,
+        "shield": 0,
+        "shieldMax": 1120,
+        "shieldFrac": 0,
+        "healthText": "DOOMED · 384",
+        "doomed": true,
+        "doomLeft": 4.2,
+        "doomFrac": 0.6,
+        "eject": {
+          "key": "X",
+          "taps": 1,
+          "label": "EJECT"
+        },
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "GUN SHIELD",
+            "ready": 0.2,
+            "readyPct": 20,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "MODE SWITCH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.3,
+          "pct": 30,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 50,
+          "magazine": 100,
+          "ammoText": "50",
+          "frac": 0.5,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 6,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:core:touch": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 2880,
+        "maxHp": 3200,
+        "hpFrac": 0.9,
+        "shield": 1120,
+        "shieldMax": 1120,
+        "shieldFrac": 0.35,
+        "healthText": "2880 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "GUN SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "MODE SWITCH",
+            "ready": 0.4,
+            "readyPct": 40,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 1,
+          "pct": 100,
+          "ready": true,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 100,
+          "magazine": 100,
+          "ammoText": "100",
+          "frac": 1,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:cooldown:touch": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 1760,
+        "maxHp": 3200,
+        "hpFrac": 0.55,
+        "shield": 112,
+        "shieldMax": 1120,
+        "shieldFrac": 0.035,
+        "healthText": "1760 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 0.6,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            0.6,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "GUN SHIELD",
+            "ready": 0.25,
+            "readyPct": 25,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "MODE SWITCH",
+            "ready": 0.6,
+            "readyPct": 60,
+            "state": "cooling"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "POWER SHOT",
+            "ready": 0.05,
+            "readyPct": 5,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.62,
+          "pct": 62,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 1,
+          "max": 2,
+          "key": "C",
+          "active": true
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 0,
+          "magazine": 100,
+          "ammoText": "0",
+          "frac": 0,
+          "heat": 0,
+          "reload": 0.35,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": null
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": null
+    },
+    "titan_legion:rodeo:touch": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 1280,
+        "maxHp": 3200,
+        "hpFrac": 0.4,
+        "shield": 0,
+        "shieldMax": 1120,
+        "shieldFrac": 0,
+        "healthText": "1280 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 1,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            0
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "GUN SHIELD",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "MODE SWITCH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "POWER SHOT",
+            "ready": 0.5,
+            "readyPct": 50,
+            "state": "cooling"
+          }
+        ],
+        "core": {
+          "frac": 0.8,
+          "pct": 80,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 0,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 60,
+          "magazine": 100,
+          "ammoText": "60",
+          "frac": 0.6,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": true,
+        "batteryOut": true,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 2,
+          "label": "LOCKED"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "08:41",
+        "urgent": false
+      },
+      "rider": "ENEMY PILOT ON BOARD"
+    },
+    "titan_legion:feed:touch": {
+      "titan": {
+        "type": "titan_legion",
+        "label": "LEGION",
+        "chassis": "ogre",
+        "hp": 2560,
+        "maxHp": 3200,
+        "hpFrac": 0.8,
+        "shield": 448,
+        "shieldMax": 1120,
+        "shieldFrac": 0.14,
+        "healthText": "2560 / 3200",
+        "doomed": false,
+        "doomLeft": 0,
+        "doomFrac": 0,
+        "eject": null,
+        "dash": {
+          "pips": 2,
+          "max": 2,
+          "key": "SPACE",
+          "cells": [
+            1,
+            1
+          ]
+        },
+        "abilities": [
+          {
+            "slot": "defensive",
+            "key": "",
+            "label": "GUN SHIELD",
+            "ready": 0.8,
+            "readyPct": 80,
+            "state": "cooling"
+          },
+          {
+            "slot": "tactical",
+            "key": "",
+            "label": "MODE SWITCH",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          },
+          {
+            "slot": "ordnance",
+            "key": "",
+            "label": "POWER SHOT",
+            "ready": 1,
+            "readyPct": 100,
+            "state": "ready"
+          }
+        ],
+        "core": {
+          "frac": 0.7,
+          "pct": 70,
+          "ready": false,
+          "active": false,
+          "key": "V",
+          "label": "SMART CORE"
+        },
+        "smoke": {
+          "charges": 2,
+          "max": 2,
+          "key": "C",
+          "active": false
+        },
+        "weapon": {
+          "key": "predatorClose",
+          "label": "PREDATOR CANNON",
+          "ammo": 70,
+          "magazine": 100,
+          "ammoText": "70",
+          "frac": 0.7,
+          "heat": 0,
+          "reload": 0,
+          "charge": 0
+        },
+        "rider": false,
+        "batteryOut": false,
+        "phase": 0,
+        "embarking": false,
+        "lock": {
+          "state": 3,
+          "label": "MISSILE INBOUND"
+        }
+      },
+      "top": {
+        "own": {
+          "team": "alpha",
+          "label": "MILITIA",
+          "score": 142,
+          "frac": 0.47333333333333333
+        },
+        "enemy": {
+          "team": "bravo",
+          "label": "IMC",
+          "score": 128,
+          "frac": 0.4266666666666667
+        },
+        "limit": 300,
+        "clock": "00:42",
+        "urgent": true
+      },
+      "rider": null
+    }
+  }
+}

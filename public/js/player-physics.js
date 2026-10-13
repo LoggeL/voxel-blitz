@@ -10,6 +10,8 @@ import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 import { slideContact, stepSlideRide } from '../../shared/slide-rules.js';
 import { slidePlayerVehicleAxis, constrainPlayerVehicleMotion } from '../../shared/player-vehicle-collision.js';
 import { CHUTE, EJECTION, chuteAvailable, stepChuteState, stepChuteVelocity } from '../../shared/parachute.js';
+import { createPilotState, pilotSpeedFor, pilotPreStep, pilotAccel, pilotVertical, pilotPostCollide,
+  resetPilotMotion, PILOT_RULES, PILOT_STEP_S } from '../../shared/pilot-movement.js';
 
 const { walk: WALK, sprint: SPRINT, crouch: CROUCH, jump: JUMP_VEL,
   accelGround: GROUND_ACCEL, accelAir: AIR_ACCEL, gravity: GRAVITY } = PHYSICS;
@@ -18,6 +20,8 @@ const LADDER_DOWN_SPEED = -MOVEMENT_RULES.ladderDown;
 /** After a predicted chute toggle, snapshots still carry the old state for about
  * one round trip: they are not adopted for this long (seconds of prediction). */
 const CHUTE_ADOPT_HOLD_S = 0.6;
+/** After a predicted grapple release, the row's anchor is not re-adopted for this long. */
+const GRAPPLE_ADOPT_HOLD_S = 0.4;
 
 export class PlayerPhysics {
   constructor(mapMeta = null) {
@@ -49,6 +53,22 @@ export class PlayerPhysics {
     this.chute = CHUTE.none;
     this.chuteT = 0;
     this._chuteHold = 0;
+    // Titanfall pilot movement (shared/pilot-movement.js), predicted like the authority;
+    // false everywhere else, so stock movement is untouched. pilotInput: {sprint, crouch, ads, stim} (LocalPlayer).
+    this.pilotRules = false;
+    this.pilot = createPilotState();
+    this.pilotInput = null;
+    this._pilotBody = null;
+    this._pilotCtx = null;
+    this._grappleHold = 0;
+    // pilotSpeedFor input of the step: pilotInput with the server's post-prone sprint gate.
+    this._pilotSpeedInput = { sprint: false, crouch: false, ads: false, stim: false };
+    // stepPilotFixed: the authority's fixed step, a press seen between two steps, and
+    // pilotLerp (metres): the presented body trails pos by the unstepped share of the last step.
+    this._pilotAcc = 0;
+    this._pilotJumpLatch = false;
+    this._pilotStepDelta = { x: 0, y: 0, z: 0 };
+    this.pilotLerp = { x: 0, y: 0, z: 0 };
     // Live authoritative snapshot rows, refreshed by the match runtime.
     this.vehicleColliders = [];
     this.setMapMeta(mapMeta);
@@ -86,6 +106,140 @@ export class PlayerPhysics {
     if (this.chute === CHUTE.seat) return 'seat';
     if (this.grounded || this.swimming || this.vault || this.vel.y > -2) return null;
     return chuteAvailable({ grounded: false, chute: this.chute, x: this.pos.x, y: this.pos.y, z: this.pos.z }, this._solidAt, this._fluidAt) ? 'ready' : null;
+  }
+
+  /**
+   * Authoritative pilot state from a decoded `tfs` self frame (§3.2): velocity,
+   * wall, jumps, slide. LocalPlayer.reconcile calls it only when the position
+   * error says the prediction diverged and the frame has consumed every local
+   * jump press (jumpSeqAck), so a fresh predicted jump is never undone.
+   */
+  adoptPilot(frame) {
+    if (!this.pilotRules || !frame || ![frame.vx, frame.vy, frame.vz].every(Number.isFinite)) return false;
+    const pilot = this.pilot, wasWall = pilot.wall;
+    this.vel.x = frame.vx;
+    this.vel.y = frame.vy;
+    this.vel.z = frame.vz;
+    const wall = Number.isInteger(frame.wallN) && Math.abs(frame.wallN) <= 2 ? frame.wallN : 0;
+    if (wall !== pilot.wall) {
+      if (wall) {
+        // The plane is re-derived from the body: the wall lies opposite its normal.
+        const n = wall > 0 ? 1 : -1, reach = PHYSICS.halfW + PILOT_RULES.wallrun.probe, xAxis = Math.abs(wall) === 1;
+        pilot.wallPlane = Math.floor(xAxis ? this.pos.x - n * reach : this.pos.z - n * reach);
+        pilot.wallSpeed = Math.max(PILOT_RULES.wallrun.speed, Math.hypot(frame.vx, frame.vz));
+        pilot.wallTan = xAxis ? frame.vz : frame.vx;
+        pilot.wallGap = 0;
+        pilot.wallStepAt = null;
+      }
+      pilot.wall = wall;
+    }
+    // The frame is about a round trip old: on the run (or slide) the prediction is
+    // already on, its timer only moves forward, so adopting never lengthens the run.
+    const wallT = wall && Number.isFinite(frame.wallT) ? frame.wallT : 0;
+    pilot.wallT = wall && wall === wasWall && wallT < pilot.wallT ? pilot.wallT : wallT;
+    if (Number.isInteger(frame.jumpsLeft)) pilot.jumpsLeft = frame.jumpsLeft;
+    const slideT = Number.isFinite(frame.slideT) ? Math.max(0, frame.slideT) : 0;
+    pilot.slideT = slideT > 0 && pilot.slideT > slideT ? pilot.slideT : slideT;
+    if (Number.isFinite(frame.slideCd)) pilot.slideCd = Math.max(0, frame.slideCd);
+    if (pilot.slideT === 0) pilot.slideAir = 0;
+    return true;
+  }
+
+  /** The authoritative grapple anchor (`tf[6]`, metres) or null: starts or ends the predicted pull. */
+  adoptPilotGrapple(anchor) {
+    if (!this.pilotRules) return false;
+    const pilot = this.pilot;
+    if (Array.isArray(anchor) && anchor.length === 3 && anchor.every(Number.isFinite)) {
+      if (pilot.grapple) { pilot.grapple.anchor = anchor.slice(); return false; }
+      // A locally released grapple stays released until the authority catches up.
+      if (this._grappleHold > 0) return false;
+      pilot.grapple = { anchor: anchor.slice(), t: 0 };
+      pilot.wall = 0; pilot.wallT = 0; pilot.slideT = 0;
+      return true;
+    }
+    if (!pilot.grapple) return false;
+    pilot.grapple = null;
+    return true;
+  }
+
+  /** Fresh pilot state (spawn, teleport, death, leaving the mode). */
+  resetPilot() {
+    this.pilot = createPilotState();
+    this._grappleHold = 0;
+    this.resetPilotStep();
+  }
+
+  /** Drops the fixed-step backlog, a latched press and the presentation trail (spawn, rodeo, death). */
+  resetPilotStep() {
+    this._pilotAcc = 0;
+    this._pilotJumpLatch = false;
+    this._pilotStepDelta.x = this._pilotStepDelta.y = this._pilotStepDelta.z = 0;
+    this.pilotLerp.x = this.pilotLerp.y = this.pilotLerp.z = 0;
+  }
+
+  /** A jump press this frame (LocalPlayer): the next fixed step sees it even if it was released first. */
+  notePilotJumpPress() {
+    this._pilotJumpLatch = true;
+  }
+
+  /**
+   * Pilot prediction on the authority's fixed step (PILOT_STEP_S): the pilot rules
+   * (air strafe, wall probes, hop window) are tick-based, so stepping at the frame
+   * rate would drift from the 60 Hz server on high-refresh displays. Runs as many
+   * whole steps as the frame time allows (at most four backlogged) and sets pilotLerp so the
+   * camera and body present the state between the last two steps. Returns true
+   * when a step accepted a ground jump.
+   */
+  stepPilotFixed(frameDt, wish, speedTarget, wantJump, climbAxis = 0, yaw = null) {
+    this._pilotAcc = Math.min(this._pilotAcc + (frameDt > 0 ? frameDt : 0), PILOT_STEP_S * 4);
+    let jumped = false;
+    // A frame a hair short of a step still steps (vsync jitter around 60 Hz), the debt carries over.
+    while (this._pilotAcc >= PILOT_STEP_S * 0.9) {
+      const x = this.pos.x, y = this.pos.y, z = this.pos.z, shiftX = this.pilot.shiftX, shiftZ = this.pilot.shiftZ;
+      if (this._pilotJumpLatch) this.jumpWasHeld = false;
+      if (this.step(PILOT_STEP_S, wish, speedTarget, !!wantJump || this._pilotJumpLatch, climbAxis, yaw)) jumped = true;
+      this._pilotJumpLatch = false;
+      this._pilotAcc -= PILOT_STEP_S;
+      // A wall step-around (pilot shiftX/Z) is not presented between steps: the pilot camera eases it out.
+      this._pilotStepDelta.x = this.pos.x - x - (this.pilot.shiftX - shiftX);
+      this._pilotStepDelta.y = this.pos.y - y;
+      this._pilotStepDelta.z = this.pos.z - z - (this.pilot.shiftZ - shiftZ);
+    }
+    const behind = Math.max(0, Math.min(1, 1 - this._pilotAcc / PILOT_STEP_S));
+    this.pilotLerp.x = -this._pilotStepDelta.x * behind;
+    this.pilotLerp.y = -this._pilotStepDelta.y * behind;
+    this.pilotLerp.z = -this._pilotStepDelta.z * behind;
+    return jumped;
+  }
+
+  /** Movement lock: wallrun, slide and grapple end, counters stay (server: resetPilotMotion). */
+  clearPilotMotion() {
+    resetPilotMotion(this.pilot);
+  }
+
+  /** The physics body as the shared pilot hooks see it (server field names) and their context. */
+  _pilotView() {
+    if (!this._pilotBody) {
+      const pos = this.pos, vel = this.vel, physics = this;
+      this._pilotBody = {
+        get x() { return pos.x; }, set x(value) { pos.x = value; },
+        get y() { return pos.y; }, set y(value) { pos.y = value; },
+        get z() { return pos.z; }, set z(value) { pos.z = value; },
+        get vx() { return vel.x; }, set vx(value) { vel.x = value; },
+        get vy() { return vel.y; }, set vy(value) { vel.y = value; },
+        get vz() { return vel.z; }, set vz(value) { vel.z = value; },
+        get grounded() { return physics.grounded; }, set grounded(value) { physics.grounded = value; },
+        get coyote() { return physics.coyote; }, set coyote(value) { physics.coyote = value; },
+        get crouch() { return physics._crouching; },
+        get sprint() { return physics._pilotSpeedInput.sprint; },
+      };
+      this._pilotCtx = {
+        pilotRules: true, solidAt: this._solidAt, fluidAt: this._fluidAt,
+        get vehicles() { return physics.vehicleColliders; }, get mapMeta() { return physics.mapMeta; },
+        get now() { return Number.isFinite(physics.pilotNow) ? physics.pilotNow : 0; },
+      };
+    }
+    return this._pilotBody;
   }
 
   moveAxis(axis, amount, canStep = false) {
@@ -143,20 +297,39 @@ export class PlayerPhysics {
       this.grounded = false;
       this.coyote = 0;
       this.jumpGroundY = null;
+      if (this.pilotRules) resetPilotMotion(this.pilot);
       return false;
     }
     this.slide = null;
     if (swimming) speedTarget = Math.min(speedTarget, SWIM_RULES.speed);
     speedTarget *= this.speedScale;
     if (this.grounded) this.jumpGroundY = this.pos.y;
-    const deliberateGrab = !this.grounded && jumpPressed && !low && !chuteBefore;
+    // Titanfall pilot movement: double jump, wall-jump, slide entry (same place as server/sim/movement.js).
+    const pilotBody = this.pilotRules ? this._pilotView() : null;
+    const hadGrapple = !!pilotBody && !!this.pilot.grapple;
+    if (this._grappleHold > 0) this._grappleHold = Math.max(0, this._grappleHold - dt);
+    if (pilotBody) {
+      // The server's sprint gate reads prone after this step's stance update (`low`).
+      const input = this._pilotSpeedInput, source = this.pilotInput;
+      input.sprint = !!source?.sprint && !low;
+      input.crouch = source ? !!source.crouch : !!this._crouching;
+      input.ads = !!source?.ads;
+      input.stim = !!source?.stim;
+      speedTarget = pilotSpeedFor(this.pilot, input, speedTarget);
+    }
+    const pilotLadder = !this.climbBlocked && !chuteBefore && !low && onLadderNow;
+    const pilotJump = !!pilotBody && pilotPreStep(this.pilot, pilotBody, { jump: !!wantJump && !low, jumpPressed: jumpPressed && !low,
+      crouch: this._crouching, wishX: wish.x, wishZ: wish.z, yaw, ladder: pilotLadder, swim: swimming }, this._pilotCtx, dt);
+    const deliberateGrab = !pilotJump && !this.grounded && jumpPressed && !low && !chuteBefore;
+    // Pilot mantle: an airborne pilot's automatic grab reaches from the feet, not the takeoff (as the server).
+    const reachFromFeet = deliberateGrab || (!!pilotBody && !this.grounded);
     const handsFree = !this.climbBlocked && !chuteBefore;
     if (handsFree && !this.vault && swimming) {
       this.vault = findSwimExit(this._solidAt, this.pos, wish, !!wantJump, this._crouching || low, yaw);
     } else if (handsFree && !this.vault && !swimming && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
         this._crouching || low, this.pos.y, this.jumpGroundY)) {
       this.vault = findVault(this._solidAt, this.pos, wish,
-        deliberateGrab ? this.pos.y : this.jumpGroundY, yaw, deliberateGrab ? 0 : 1);
+        reachFromFeet ? this.pos.y : this.jumpGroundY, yaw, reachFromFeet ? 0 : 1);
     }
     if (this.airRules) {
       // Same order as server/sim/movement.js: a ledge grab wins over the canopy.
@@ -175,6 +348,7 @@ export class PlayerPhysics {
       this.grounded = !active && this.solidBelow(this.pos.x, this.pos.y, this.pos.z);
       this.coyote = 0;
       if (!active || hullBlocked) this.vault = null;
+      if (pilotBody) resetPilotMotion(this.pilot);
       return false;
     }
     const onLadder = handsFree && !low && onLadderNow;
@@ -185,13 +359,15 @@ export class PlayerPhysics {
 
     const accel = this.grounded ? GROUND_ACCEL : AIR_ACCEL;
     const blend = 1 - Math.exp(-accel * dt);
-    if (!this.chute) {
+    if (!this.chute && !(pilotBody && pilotAccel(this.pilot, pilotBody, { x: wish.x, z: wish.z, speed: speedTarget, accel: blend,
+      ladder: pilotLadder, swim: swimming }, this._pilotCtx, dt))) {
       this.vel.x += (wish.x * speedTarget - this.vel.x) * blend;
       this.vel.z += (wish.z * speedTarget - this.vel.z) * blend;
     }
     let jumpAccepted = false;
 
-    if (!this.chute && !onLadder && !swimming && wantJump && (this.grounded || this.coyote > 0) && this.vel.y <= 0.01) {
+    // Pilot rules jump inside pilotVertical, in the server's place (after the ladder and swim branches).
+    if (!pilotBody && !this.chute && !onLadder && !swimming && wantJump && (this.grounded || this.coyote > 0) && this.vel.y <= 0.01) {
       this.vel.y = JUMP_VEL;
       this.grounded = false;
       this.coyote = 0;
@@ -211,11 +387,24 @@ export class PlayerPhysics {
       this.vel.y = swimVerticalVelocity(this.vel.y, !!wantJump, !!this._crouching, dt, this._fluidAt,
         this.pos.x, this.pos.y, this.pos.z);
       this.coyote = 0;
+    } else if (pilotBody && pilotVertical(this.pilot, pilotBody, this._pilotCtx, dt)) {
+      // Pilot jumps (ground, double), wallrun and grapple replaced the stock jump and gravity.
+      if (this.pilot.jumped === 1) jumpAccepted = true;
+    } else if (pilotBody) {
+      // Pilot rules on a ladder: the stock jump in the server's place.
+      if (!onLadder && wantJump && (this.grounded || this.coyote > 0) && this.vel.y <= 0.01) {
+        this.vel.y = JUMP_VEL;
+        this.grounded = false;
+        this.coyote = 0;
+        jumpAccepted = true;
+      }
+      this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);
     } else this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);
 
     const canStepTerrain = this.grounded && !wantJump && !this.vault && !ladderDirected && this.vel.y <= 0.01;
-    this.moveAxis('x', this.vel.x * dt, canStepTerrain);
-    this.moveAxis('z', this.vel.z * dt, canStepTerrain);
+    const hitX = this.moveAxis('x', this.vel.x * dt, canStepTerrain);
+    const hitZ = this.moveAxis('z', this.vel.z * dt, canStepTerrain);
+    const dy = this.vel.y * dt;
     const descending = this.vel.y < 0;
     let hitY = false;
     // Climbing crosses the solid deck; descending bypasses only while the
@@ -239,6 +428,10 @@ export class PlayerPhysics {
     } else {
       if (this.grounded) this.coyote = COYOTE_S;
       this.grounded = false;
+    }
+    if (pilotBody) {
+      pilotPostCollide(this.pilot, pilotBody, this._pilotCtx, { x: hitX, z: hitZ, y: hitY, dy }, dt);
+      if (hadGrapple && !this.pilot.grapple) this._grappleHold = GRAPPLE_ADOPT_HOLD_S;
     }
     if (this.grounded && this.chute) { this.chute = CHUTE.none; this.chuteT = 0; this._chuteHold = CHUTE_ADOPT_HOLD_S; }
 

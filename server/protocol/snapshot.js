@@ -14,6 +14,7 @@ import { POWERUP_RULES, POWERUP_TYPES } from '../../shared/powerups.js';
 import { copySmokeFields } from '../../shared/smoke-rules.js';
 import { MOLOTOV_FIRE } from '../../shared/molotov-rules.js';
 import { KIT_IDS } from '../../shared/conquest-contract.js';
+import { encodeTitanfallPlayer } from '../../shared/titan-contract.js';
 
 const D2 = 100, D3 = 1000;
 
@@ -196,6 +197,7 @@ function playerRow(p, nowMs) {
   if (p.tttKarma) row.karma = Math.round(p.tttKarma.base);
   if (p.chaosUpgrades) row.chaosUpgrades = { ...p.chaosUpgrades };
   if (isRecord(p.conquest)) { row.cq = conquestPlayerRow(p, nowMs); row.cqs = conquestStatsRow(p); }
+  if (isRecord(p.titanfall)) row.tf = encodeTitanfallPlayer(p.titanfall);
   if (p.bastion) { row.bastion = { ...p.bastion }; row.bastionUpgrades = { ...p.bastionUpgrades }; }
   if (p.npcRole) {
     row.npcRole = p.npcRole; row.npcAttack = p.npcAttack;

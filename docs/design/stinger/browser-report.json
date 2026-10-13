@@ -1,0 +1,1181 @@
+[
+  {
+    "state": "held",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-held.png",
+    "bytes": 266974,
+    "renderInfo": {
+      "calls": 77,
+      "triangles": 20322
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "scoped",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-scoped.png",
+    "bytes": 189398,
+    "renderInfo": {
+      "calls": 74,
+      "triangles": 19570
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        1.8,
+        1.8,
+        1.8,
+        1.8,
+        1.8
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "lock-acquire",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-lock-acquire.png",
+    "bytes": 266981,
+    "renderInfo": {
+      "calls": 77,
+      "triangles": 20322
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        1.15,
+        1.15,
+        1.15,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "lock-ready",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-lock-ready.png",
+    "bytes": 267117,
+    "renderInfo": {
+      "calls": 77,
+      "triangles": 20322
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        1.8,
+        1.8,
+        1.8,
+        1.8,
+        1.8
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "empty",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-empty.png",
+    "bytes": 266973,
+    "renderInfo": {
+      "calls": 76,
+      "triangles": 20274
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": false,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "firing",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-firing.png",
+    "bytes": 265739,
+    "renderInfo": {
+      "calls": 78,
+      "triangles": 20278
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": false,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "reload-open",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-reload-open.png",
+    "bytes": 350231,
+    "renderInfo": {
+      "calls": 76,
+      "triangles": 20274
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": false,
+      "clamps": [
+        -1.35,
+        -1.35
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "reload-eject",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-reload-eject.png",
+    "bytes": 465774,
+    "renderInfo": {
+      "calls": 76,
+      "triangles": 20274
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          -1.0114227559535762,
+          0.5068084673315634,
+          -0.5980052920822271
+        ],
+        "visible": true
+      },
+      "cover": false,
+      "clamps": [
+        -1.35,
+        -1.35
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "reload-load",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-reload-load.png",
+    "bytes": 553978,
+    "renderInfo": {
+      "calls": 78,
+      "triangles": 20430
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          -0.20000000000000007,
+          0.18999999999999995,
+          -0.39999999999999997
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        -1.35,
+        -1.35
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "reload-charge",
+    "layout": "desktop",
+    "width": 1600,
+    "height": 800,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/desktop/stinger-reload-charge.png",
+    "bytes": 277807,
+    "renderInfo": {
+      "calls": 74,
+      "triangles": 19646
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "held",
+    "layout": "mobile",
+    "width": 844,
+    "height": 390,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/mobile/stinger-held.png",
+    "bytes": 72461,
+    "renderInfo": {
+      "calls": 77,
+      "triangles": 20322
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "scoped",
+    "layout": "mobile",
+    "width": 844,
+    "height": 390,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/mobile/stinger-scoped.png",
+    "bytes": 53222,
+    "renderInfo": {
+      "calls": 74,
+      "triangles": 19570
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        1.8,
+        1.8,
+        1.8,
+        1.8,
+        1.8
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "lock-ready",
+    "layout": "mobile",
+    "width": 844,
+    "height": 390,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/mobile/stinger-lock-ready.png",
+    "bytes": 72408,
+    "renderInfo": {
+      "calls": 77,
+      "triangles": 20322
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        1.8,
+        1.8,
+        1.8,
+        1.8,
+        1.8
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "reload-open",
+    "layout": "mobile",
+    "width": 844,
+    "height": 390,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/mobile/stinger-reload-open.png",
+    "bytes": 92825,
+    "renderInfo": {
+      "calls": 76,
+      "triangles": 20274
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": false,
+      "clamps": [
+        -1.35,
+        -1.35
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "reload-load",
+    "layout": "mobile",
+    "width": 844,
+    "height": 390,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/mobile/stinger-reload-load.png",
+    "bytes": 148429,
+    "renderInfo": {
+      "calls": 78,
+      "triangles": 20430
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          -0.20000000000000007,
+          0.18999999999999995,
+          -0.39999999999999997
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        -1.35,
+        -1.35
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "held",
+    "layout": "portrait",
+    "width": 390,
+    "height": 844,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/portrait/stinger-held.png",
+    "bytes": 91863,
+    "renderInfo": {
+      "calls": 70,
+      "triangles": 19310
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "scoped",
+    "layout": "portrait",
+    "width": 390,
+    "height": 844,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/portrait/stinger-scoped.png",
+    "bytes": 141842,
+    "renderInfo": {
+      "calls": 69,
+      "triangles": 18758
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        1.8,
+        1.8,
+        1.8,
+        1.8,
+        1.8
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "reload-load",
+    "layout": "portrait",
+    "width": 390,
+    "height": 844,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/portrait/stinger-reload-load.png",
+    "bytes": 97861,
+    "renderInfo": {
+      "calls": 64,
+      "triangles": 19110
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          -0.20000000000000007,
+          0.18999999999999995,
+          -0.39999999999999997
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        -1.35,
+        -1.35
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "held",
+    "angle": "hero",
+    "layout": "inspection",
+    "width": 1400,
+    "height": 850,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/inspection/stinger-hero.png",
+    "bytes": 188494,
+    "renderInfo": {
+      "calls": 45,
+      "triangles": 2796
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "held",
+    "angle": "left",
+    "layout": "inspection",
+    "width": 1400,
+    "height": 850,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/inspection/stinger-left.png",
+    "bytes": 165969,
+    "renderInfo": {
+      "calls": 45,
+      "triangles": 2796
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  },
+  {
+    "state": "held",
+    "angle": "rear",
+    "layout": "inspection",
+    "width": 1400,
+    "height": 850,
+    "output": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/stinger/inspection/stinger-rear.png",
+    "bytes": 92297,
+    "renderInfo": {
+      "calls": 45,
+      "triangles": 2796
+    },
+    "presentation": {
+      "canister": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "visible": true
+      },
+      "cover": true,
+      "clamps": [
+        0,
+        0
+      ],
+      "lamps": [
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.035
+      ],
+      "surfaces": [
+        {
+          "name": "stinger/brushed-steel",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0002
+        },
+        {
+          "name": "stinger/rubber",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0007
+        },
+        {
+          "name": "stinger/olive-paint",
+          "width": 1254,
+          "height": 1254,
+          "bump": 0.0003
+        }
+      ],
+      "finite": true
+    },
+    "browserErrors": []
+  }
+]

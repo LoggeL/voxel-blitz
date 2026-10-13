@@ -1,0 +1,933 @@
+{
+  "generated": "2026-10-13T19:31:25.530Z",
+  "fov": 75,
+  "ads": 0,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-rifle-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-rifle-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-rifle-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-rifle-empty.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-smg-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-smg-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-smg-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-smg-empty.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-shotgun-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-shotgun-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-shotgun-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-shotgun-cycle.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "staged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-shotgun-staged.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "lmg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-lmg-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "lmg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-lmg-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "lmg",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-lmg-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "lmg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-lmg-empty.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "kraber",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-kraber-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "kraber",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-kraber-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "kraber",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-kraber-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "kraber",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-kraber-cycle.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "revolver",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-revolver-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "revolver",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-revolver-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "revolver",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-revolver-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "revolver",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-revolver-empty.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-chargerifle-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-chargerifle-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-chargerifle-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "charge",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-chargerifle-charge.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-chargerifle-charged.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-chargerifle-cycle.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-archer-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-archer-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-archer-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "lock",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-archer-lock.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "locked",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-archer-locked.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-thunderbolt-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-thunderbolt-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-thunderbolt-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-thunderbolt-cycle.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "mgl",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-mgl-full.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "mgl",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-mgl-low.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "mgl",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-mgl-reload.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "mgl",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/desktop-mgl-empty.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-rifle-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-rifle-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-rifle-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-rifle-empty.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-smg-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-smg-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-smg-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-smg-empty.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-shotgun-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-shotgun-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-shotgun-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-shotgun-cycle.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "state": "staged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-shotgun-staged.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "lmg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-lmg-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "lmg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-lmg-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "lmg",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-lmg-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "lmg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-lmg-empty.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "kraber",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-kraber-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "kraber",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-kraber-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "kraber",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-kraber-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "kraber",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-kraber-cycle.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "revolver",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-revolver-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "revolver",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-revolver-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "revolver",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-revolver-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "revolver",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-revolver-empty.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-chargerifle-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-chargerifle-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-chargerifle-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "charge",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-chargerifle-charge.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-chargerifle-charged.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-chargerifle-cycle.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-archer-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-archer-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-archer-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "lock",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-archer-lock.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "locked",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-archer-locked.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-thunderbolt-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "thunderbolt",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-thunderbolt-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "thunderbolt",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-thunderbolt-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "thunderbolt",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-thunderbolt-cycle.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "mgl",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-mgl-full.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "mgl",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-mgl-low.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "mgl",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-mgl-reload.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "mgl",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/landscape-mgl-empty.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-rifle-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-rifle-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-rifle-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-rifle-empty.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "smg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-smg-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "smg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-smg-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "smg",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-smg-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "smg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-smg-empty.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "shotgun",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-shotgun-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "shotgun",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-shotgun-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "shotgun",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-shotgun-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "shotgun",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-shotgun-cycle.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "shotgun",
+      "state": "staged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-shotgun-staged.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "lmg",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-lmg-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "lmg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-lmg-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "lmg",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-lmg-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "lmg",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-lmg-empty.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "kraber",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-kraber-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "kraber",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-kraber-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "kraber",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-kraber-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "kraber",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-kraber-cycle.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "revolver",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-revolver-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "revolver",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-revolver-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "revolver",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-revolver-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "revolver",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-revolver-empty.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-chargerifle-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-chargerifle-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-chargerifle-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "charge",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-chargerifle-charge.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "charged",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-chargerifle-charged.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-chargerifle-cycle.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "archer",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-archer-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "archer",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-archer-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "archer",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-archer-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "archer",
+      "state": "lock",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-archer-lock.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "archer",
+      "state": "locked",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-archer-locked.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-thunderbolt-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "thunderbolt",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-thunderbolt-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "thunderbolt",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-thunderbolt-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "thunderbolt",
+      "state": "cycle",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-thunderbolt-cycle.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "mgl",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-mgl-full.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "mgl",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-mgl-low.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "mgl",
+      "state": "reload",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-mgl-reload.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "mgl",
+      "state": "empty",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/portrait-mgl-empty.jpg"
+    }
+  ],
+  "errors": []
+}

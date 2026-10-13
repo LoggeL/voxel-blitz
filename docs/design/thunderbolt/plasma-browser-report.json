@@ -1,0 +1,77 @@
+{
+  "source": "thunderbolt",
+  "fields": 5,
+  "visiblePixels": 29530,
+  "startTime": 0,
+  "movingTime": 0.41,
+  "frozenTime": 0.41,
+  "movement": {
+    "pixels": 6408,
+    "total": 95519,
+    "maximum": 176
+  },
+  "freeze": {
+    "pixels": 0,
+    "total": 0,
+    "maximum": 0
+  },
+  "discharge": {
+    "pixels": 2455,
+    "total": 77371,
+    "maximum": 71
+  },
+  "rollback": {
+    "pixels": 0,
+    "total": 0,
+    "maximum": 0
+  },
+  "baseProgramCount": 1,
+  "fog": [
+    {
+      "kind": "linear",
+      "dense": {
+        "pixels": 0,
+        "total": 0,
+        "maximum": 0
+      },
+      "clear": {
+        "pixels": 0,
+        "total": 0,
+        "maximum": 0
+      }
+    },
+    {
+      "kind": "exponential",
+      "dense": {
+        "pixels": 0,
+        "total": 0,
+        "maximum": 0
+      },
+      "clear": {
+        "pixels": 0,
+        "total": 0,
+        "maximum": 0
+      }
+    }
+  ],
+  "removeFog": {
+    "pixels": 0,
+    "total": 0,
+    "maximum": 0
+  },
+  "programs": [
+    {
+      "linked": true,
+      "runnable": true
+    },
+    {
+      "linked": true,
+      "runnable": true
+    },
+    {
+      "linked": true,
+      "runnable": true
+    }
+  ],
+  "glError": 0
+}

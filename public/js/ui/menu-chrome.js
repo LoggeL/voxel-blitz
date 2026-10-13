@@ -16,6 +16,7 @@ const MENU_BACKDROPS = Object.freeze({
   reactor: MAP_PREVIEWS.reactor,
   causeway: MAP_PREVIEWS.causeway,
   bikini_bottom: MAP_PREVIEWS.bikini_bottom,
+  ashfall: MAP_PREVIEWS.ashfall,
 });
 
 const backdrops = new WeakMap();

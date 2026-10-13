@@ -1,11 +1,11 @@
 import { startServer, stopServer } from '../lib/server-process.mjs';
 import { launchCdpSession } from '../lib/cdp-session.mjs';
 
-/** Render one delivered Blender asset's geometry and ImageGen maps into a transparent HUD icon. */
+/** Render a textured runtime model into a transparent HUD icon. */
 // `side: 'left'` renders the left flank (e.g. SKIPJACK's cassette) and mirrors the
 // image so the muzzle still points right like every other HUD icon.
-export async function renderBlenderHud({ asset, weapon, width = 480, height = 240, side = 'right' } = {}) {
-  if (!asset || !weapon) throw new TypeError('renderBlenderHud requires { asset, weapon }');
+export async function renderBlenderHud({ asset = null, weapon, width = 480, height = 240, side = 'right' } = {}) {
+  if (!weapon || (!asset && weapon !== 'stinger')) throw new TypeError('renderBlenderHud requires an asset or the textured Stinger');
   const left = side === 'left';
   const server = startServer({ entry: 'tools/capture-server.mjs' });
   let browser;
@@ -17,7 +17,13 @@ export async function renderBlenderHud({ asset, weapon, width = 480, height = 24
       const { buildGun, disposeGunModels } = await import('/js/guns/assemble.js');
       const { MaterialCache } = await import('/js/guns/kit.js');
       const cache=new MaterialCache(),gun=buildGun(${JSON.stringify(weapon)},cache),root=gun.root;
-      if (gun.body.userData.blenderAsset !== ${JSON.stringify(asset)}) throw new Error(${JSON.stringify(`${asset} runtime asset not loaded`)});
+      if (${JSON.stringify(asset)} && gun.body.userData.blenderAsset !== ${JSON.stringify(asset)}) throw new Error(${JSON.stringify(`${asset} runtime asset not loaded`)});
+      if (${JSON.stringify(weapon)} === 'stinger') {
+        const maps = new Set(); root.traverse(part => {
+          if(part.material?.map?.name?.startsWith('stinger/')) maps.add(part.material.map.name);
+        });
+        if(maps.size !== 3) throw new Error('Stinger ImageGen textures not loaded');
+      }
       // Use the game's rest pose: covers and gates stay present; loose reload rounds stay hidden.
       for(const name of ['hand_l','hand_r']) { const hand=root.getObjectByName(name);if(hand)hand.visible=false; }
       root.updateMatrixWorld(true);

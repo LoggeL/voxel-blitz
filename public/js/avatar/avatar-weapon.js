@@ -3,8 +3,11 @@ import { applyStattrakModule } from '../guns/stattrak-module.js';
 import { applyGunCosmetics } from '../cosmetics/skins.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
+import { animateChargeRifle } from '../guns/chargerifle-animation.js';
 import { glaivePresentationFor } from '../guns/glaive-presentation.js';
 import { bubblePresentationFor } from '../guns/bubble-presentation.js';
+import { thunderboltAnimationFor } from '../guns/thunderbolt-animation.js';
+import { WeaponActions, syncArcherAmmo } from '../guns/actions.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { SWIM } from '../../../shared/player-stance.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
@@ -82,17 +85,25 @@ export class AvatarWeaponModel {
   }
 
   /** 0..1 reload pose weight (third-person mag work). */
-  get reloadT() { return this._reload; }
+  get reloadT() { return this._weaponId === 'archer' ? 0 : this._reload; }
   /** 0..1 draw progress; 1 once the new weapon is fully raised. */
   get deployT() {
     return this._deployDur > 0 ? 1 - this._deployT / this._deployDur : 1;
   }
 
-  get flashLight() { return this._model?.flash.light || null; }
+  get flashLight() {
+    const shot = this._model?.flash.light || null;
+    if (!this._model || shot?.intensity > 0 || this._weaponId !== 'chargerifle') return shot;
+    const charge = this._model.chargeLight ??= this._model.body.getObjectByName('chargerifle_charge_light');
+    return charge?.intensity > 0 ? charge : shot;
+  }
 
   get id() { return this._weaponId; }
   get modelRoot() { return this._model?.root || null; }
-  get handPose() { return this._profile?.hands || HANDS.rifle; }
+  get handPose() {
+    return this._archerActions?.reloading && this._archerHandPose
+      ? this._archerHandPose : this._profile?.hands || HANDS.rifle;
+  }
   get twoHanded() { return !!this.handPose.support; }
   get adsT() { return this._ads; }
 
@@ -131,6 +142,13 @@ export class AvatarWeaponModel {
     this._model.root.scale.setScalar(MODEL_SCALE);
     const sightHeight = Number(this._model.body?.userData?.sightHeight);
     this._profile = mountProfile(nextId, Number.isFinite(sightHeight) ? sightHeight : 0.12);
+    if (nextId === 'archer') {
+      this._archerActions = new WeaponActions();
+      this._archerClock = 0;
+      this._archerReloadObserved = false;
+      this._archerHandPose = { ...this._profile.hands,
+        support: new THREE.Vector3().copy(this._profile.hands.support) };
+    }
     this._model.flash.grp.scale.setScalar(0.58);
     for (const object of this._model.flash.grp.children) {
       if (object.isMesh) object.scale.set(1, 0.22, 1);
@@ -153,6 +171,7 @@ export class AvatarWeaponModel {
     firing = false,
     ads = false,
     reloading = false,
+    mag,
     crouchT = 0,
     prone = 0,
     stride = 0,
@@ -180,6 +199,7 @@ export class AvatarWeaponModel {
     if (this._weaponId === 'glaive') this._animateGlaive(frameDt, !!firing, glaive);
     const bubble = this._weaponId === 'bubble';
     if (bubble) this._animateBubble(frameDt, !!firing, charge);
+    if (this._weaponId === 'thunderbolt') this._animateThunderbolt(frameDt, !!firing, mag, !!reloading);
     const melee = this._model.T.melee === true;
     const continuous = this._model.T.continuous === true;
     const weight = WEAPONS[this._weaponId]?.weightKg || 3.4;
@@ -248,8 +268,44 @@ export class AvatarWeaponModel {
     this._model.flash.light.intensity = this._flash * 1.4;
     // A remote capacitor charge lights the coils exactly like the first-person rig.
     const charge01 = Math.max(0, Math.min(1, Number(charge) || 0));
+    if (this._weaponId === 'chargerifle') animateChargeRifle(this._model.body, charge01, this._machineTime);
     const glow = this._model.uni.uGlow;
     glow.value = Math.max(charge01, glow.value * Math.exp(-frameDt / 0.05), this._flash);
+    if (this._weaponId === 'archer') this._animateArcher(frameDt, mag, !!reloading);
+  }
+
+  /** Snapshot edges start one reload; only authoritative ammunition fills the chamber. */
+  _animateArcher(dt, mag, reloading) {
+    const parts = this._model.extra.userData.archer;
+    if (!parts?.round || !this._archerActions) return;
+    if (Number.isFinite(mag)) this._archerMag = Math.max(0, Math.trunc(mag));
+    syncArcherAmmo(parts, this._archerMag ?? 0);
+    this._archerClock += dt;
+    if (reloading && !this._archerReloadObserved) {
+      this._archerActions.startReload(this._archerClock, WEAPONS.archer.reloadTime,
+        null, this._model.T);
+    } else if (!reloading && this._archerReloadObserved) {
+      this._archerActions.cancelReload(this._model);
+    }
+    // The authority can hold this flag beyond our presentation duration. Keep
+    // the edge latched so the fresh missile does not loop back out of the tube.
+    this._archerReloadObserved = reloading;
+    this._archerActions.update(this._archerClock, dt, this._model, this._model.T);
+    syncArcherAmmo(parts, this._archerMag ?? 0);
+    const hand = this._model.extra.userData.reloadHand?.hand;
+    if (hand) {
+      hand.getWorldPosition(this._archerHandPose.support);
+      this._model.root.worldToLocal(this._archerHandPose.support);
+      // The external avatar hand follows this exact action target. Its hidden
+      // first-person glove must stay hidden even when the action moves it.
+      hand.visible = false;
+    }
+  }
+
+  _resetArcher() {
+    if (!this._archerActions || !this._model) return;
+    this._archerActions.reset(this._model);
+    syncArcherAmmo(this._model.extra.userData.archer, this._archerMag ?? 0);
   }
 
   /**
@@ -269,6 +325,25 @@ export class AvatarWeaponModel {
     if (firing && !this._bubbleFiring) presentation.fire();
     this._bubbleFiring = firing;
     presentation.update(dt);
+  }
+
+  /** Snapshot ammunition, rather than the held firing flag, owns each drum index. */
+  _animateThunderbolt(dt, firing, mag, reloading) {
+    const animation = thunderboltAnimationFor(this._model);
+    if (!animation) return;
+    const previous = this._thunderboltState;
+    const known = Number.isFinite(mag);
+    const next = known ? Math.max(0, Math.min(4, Math.trunc(mag))) : previous?.mag ?? 0;
+    // Both values come from authoritative snapshots. A held flag or a count
+    // correction cannot consume a round or replay the same quarter turn.
+    if (known && firing && !reloading && previous && !previous.reloading && next === previous.mag - 1) {
+      animation.setState(previous);
+      animation.fire();
+    }
+    const state = { mag: next, reloading };
+    animation.setState(state);
+    if (known || previous) this._thunderboltState = state;
+    animation.update(dt);
   }
 
   _animateGlaive(dt, firing, glaive) {
@@ -309,8 +384,12 @@ export class AvatarWeaponModel {
   }
 
   resetPose() {
+    this._resetArcher();
     if (this._model && this._weaponId === 'glaive') glaivePresentationFor(this._model).reset();
     if (this._model && this._weaponId === 'bubble') bubblePresentationFor(this._model)?.reset();
+    if (this._model && this._weaponId === 'thunderbolt') {
+      thunderboltAnimationFor(this._model)?.reset({ mag: this._thunderboltState?.mag ?? 0 });
+    }
     this._bubbleFiring = false;
     this._glaiveOut = [];
     this._glaiveFiring = false;
@@ -342,6 +421,10 @@ export class AvatarWeaponModel {
   stopDeathEffects() {
     this._flash = 0;
     if (!this._model) return;
+    this._resetArcher();
+    if (this._weaponId === 'thunderbolt') {
+      thunderboltAnimationFor(this._model)?.reset({ mag: this._thunderboltState?.mag ?? 0 });
+    }
     this._model.flash.grp.visible = false;
     this._model.flash.light.intensity = 0;
     for (const material of this._model.flash.mats) material.opacity = 0;
@@ -357,6 +440,9 @@ export class AvatarWeaponModel {
   }
 
   _disposeModel() {
+    this._archerActions?.dispose(this._model);
+    this._archerActions = null;
+    this._archerHandPose = null;
     if (this._model) disposeGunModels([this._model], this._cache);
     this._model = null;
     this._cache = null;

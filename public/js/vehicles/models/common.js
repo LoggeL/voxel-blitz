@@ -22,6 +22,11 @@ export function blueprint(type, build) {
   if (!parts) { parts = build(); blueprints.set(type, parts); }
   return parts;
 }
+/** Forget the blueprints of the types `matchType(type)` accepts (titanfall on leaving the match). */
+export function forgetBlueprints(matchType) {
+  for (const type of [...blueprints.keys()]) if (matchType(type)) blueprints.delete(type);
+}
+export const blueprintCount = () => blueprints.size;
 
 export function createKit(type, options = {}) {
   const team = options.team === 'alpha' || options.team === 'bravo' ? options.team : 'neutral';

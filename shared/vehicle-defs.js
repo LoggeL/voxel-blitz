@@ -7,7 +7,10 @@
  * Frames: metres, hull-local +X right, +Y up, forward is -Z. World yaw follows
  * vehicleDirection (yaw 0 faces -Z, positive yaw turns toward -X / left).
  */
-import { VEHICLE_TOPOLOGY, VEHICLE_WEAPON_META, COUNTERMEASURES, VEHICLE_TYPE_IDS, vehicleMountOrder, seatWeaponList } from './conquest-contract.js';
+import { VEHICLE_TOPOLOGY, COUNTERMEASURES, VEHICLE_TYPE_IDS, vehicleMountOrder, seatWeaponList, vehicleWeaponMeta } from './conquest-contract.js';
+import { TITAN_TYPE_IDS, TITAN_TOPOLOGY, isTitanType } from './titan-contract.js';
+import { TITAN_DEFS_INPUT } from './vehicle-handling/titan.js';
+import { TITAN_WEAPONS } from './vehicle-handling/titan-weapons.js';
 import { JEEP_RULES } from './vehicle-handling/jeep.js';
 import { TANK_RULES } from './vehicle-handling/tank.js';
 import { HELICOPTER_RULES } from './vehicle-handling/helicopter.js';
@@ -45,7 +48,8 @@ export const VEHICLE_LIFECYCLE = freeze({
 });
 
 /** Hull mass in tonnes: momentum transfer when a hull shoves a wreck. */
-export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9 });
+export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9,
+  ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, TITAN_DEFS_INPUT[type].mass])) });
 
 /**
  * Ground wrecks shoved by a driving hull (see VehicleSystem.pushWrecks). A
@@ -89,6 +93,8 @@ export const HULL_CRASH_RULES = freeze({ safeSpeed: 4, fullSpeed: 44, friendlySc
 export const LOCK_RULES = freeze({
   stinger: { range: 320, cone: 7 * Math.PI / 180, seconds: 1.4 },
   aaMissile: { range: 350, cone: 10 * Math.PI / 180, seconds: 1.5 },
+  // Titanfall Archer (docs/titanfall.md §5.6): locks enemy titans only; consumer is WP4.
+  archer: { range: 180, cone: 6 * Math.PI / 180, seconds: 1.2 },
   losIntervalMs: 100,
 });
 
@@ -104,7 +110,7 @@ export const COUNTERMEASURE_RULES = freeze({
  * refills one round per rail after each launch; heat weapons lock out for
  * `overheatSeconds` at heat 1 and cool by `coolPerSecond`.
  */
-const weapon = (key, numbers) => ({ key, ...VEHICLE_WEAPON_META[key], ...numbers });
+const weapon = (key, numbers) => ({ key, ...vehicleWeaponMeta(key), ...numbers });
 export const VEHICLE_WEAPONS = freeze({
   tankAP: weapon('tankAP', { cooldown: 3.5, sharedCooldown: 'main', damage: 400, splash: 60, splashRadius: 2.5, splashCls: 'at',
     terrainRadius: 2.5, terrainPower: 160, maxDestroyedBlocks: 40, lifetimeMs: 4000, knockback: 14 }),
@@ -126,6 +132,8 @@ export const VEHICLE_WEAPONS = freeze({
   aaMissile: weapon('aaMissile', { cooldown: 1, magazine: 2, rearmSeconds: 15, damage: 300, splash: 40, splashRadius: 3, splashCls: 'aa',
     terrainRadius: 0, terrainPower: 0, maxDestroyedBlocks: 0, lifetimeMs: 6000, knockback: 10,
     turnRate: 2.4, navConstant: 4, proximity: 3 }),
+  // Titan mount weapons (shared/vehicle-handling/titan-weapons.js, WP3 numbers).
+  ...TITAN_WEAPONS,
 });
 
 /**
@@ -281,7 +289,29 @@ const destruction = {
   plane: { radius: 10, damage: 200, damageFalloffExponent: 1.22 },
 };
 
+/** Titan definitions (docs/titanfall.md §2.5) from TITAN_DEFS_INPUT. */
+function buildTitanDef(type) {
+  const input = TITAN_DEFS_INPUT[type], rules = input.rules, order = vehicleMountOrder(type);
+  const seats = TITAN_TOPOLOGY[type].map((seat, index) => ({
+    id: seat.id, index, role: seat.role, drives: seat.drives, exposed: seat.exposed, personalWeapons: seat.personalWeapons,
+    mounts: seat.mounts.map(m => m.id), weapons: seat.mounts.length > 0, position: input.seatHip, mount: 'hull',
+    label: seatLabels[seat.role] ?? seat.role.toUpperCase(), camera: input.camera,
+  }));
+  const mounts = {};
+  for (const seat of TITAN_TOPOLOGY[type]) for (const [index, mount] of seat.mounts.entries()) {
+    const key = `${seat.id}:${mount.id}`;
+    mounts[mount.id] = { id: mount.id, key, seatId: seat.id, order: index, index: order.indexOf(key),
+      weapons: [...mount.weapons], frame: 'hull', fixed: false, slavedTo: null, ...input.mountAnchors[mount.id] };
+  }
+  return {
+    type, handling: 'walker', armor: 'titan', damageClass: 'titan', openCrew: false, collider: input.collider, hullBoxes: input.hullBoxes,
+    chassis: input.chassis, hp: rules.hp, respawnSeconds: rules.respawnSeconds, rules, height: rules.height, radius: rules.radius,
+    countermeasure: null, seats, mounts, mountOrder: order, destruction: input.destruction,
+  };
+}
+
 function buildDef(type) {
+  if (isTitanType(type)) return buildTitanDef(type);
   const rules = handlingRules[type];
   const seats = VEHICLE_TOPOLOGY[type].map((seat, index) => ({
     id: seat.id, index, role: seat.role, drives: seat.drives, exposed: seat.exposed, personalWeapons: seat.personalWeapons,
@@ -306,9 +336,11 @@ function buildDef(type) {
   };
 }
 
-export const VEHICLE_DEFS = freeze(Object.fromEntries(VEHICLE_TYPE_IDS.map(type => [type, buildDef(type)])));
-export const VEHICLE_HANDLING = freeze(Object.fromEntries(VEHICLE_TYPE_IDS.map(type => [type, VEHICLE_DEFS[type].handling])));
-export const VEHICLE_RULES = freeze(Object.fromEntries(VEHICLE_TYPE_IDS.map(type => [type, VEHICLE_DEFS[type].rules])));
+/** Conquest roster first (VEHICLE_TYPE_IDS stays conquest-only), then the titans. */
+const DEF_TYPE_IDS = [...VEHICLE_TYPE_IDS, ...TITAN_TYPE_IDS];
+export const VEHICLE_DEFS = freeze(Object.fromEntries(DEF_TYPE_IDS.map(type => [type, buildDef(type)])));
+export const VEHICLE_HANDLING = freeze(Object.fromEntries(DEF_TYPE_IDS.map(type => [type, VEHICLE_DEFS[type].handling])));
+export const VEHICLE_RULES = freeze(Object.fromEntries(DEF_TYPE_IDS.map(type => [type, VEHICLE_DEFS[type].rules])));
 
 const typeOf = value => typeof value === 'object' && value !== null ? value.type ?? value.kind : value;
 /** Definition for a type string or any row/hull carrying `type` (or legacy `kind`). */
@@ -317,6 +349,8 @@ export function vehicleDef(value) {
   return typeof type === 'string' && Object.hasOwn(VEHICLE_DEFS, type) ? VEHICLE_DEFS[type] : null;
 }
 export const isAircraftType = value => ['rotor', 'fixedwing'].includes(vehicleDef(value)?.handling);
+/** Titan walkers (handling 'walker'). */
+export const isWalkerType = value => vehicleDef(value)?.handling === 'walker';
 /** Maximum hull points for a row, hull or type. */
 export const vehicleMaxHp = value => vehicleDef(value)?.hp ?? 0;
 export const vehicleSeatList = value => vehicleDef(value)?.seats ?? [];

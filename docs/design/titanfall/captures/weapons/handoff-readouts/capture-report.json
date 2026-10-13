@@ -1,0 +1,390 @@
+{
+  "generated": "2026-10-13T21:36:53.476Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "northstar-charge",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              -1,
+              0,
+              0,
+              50
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 4,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/desktop-cockpit-northstar-charge-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "northstar-ready",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              -1,
+              0,
+              0,
+              100
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 11,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/desktop-cockpit-northstar-ready-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "legion-spin",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              100,
+              0,
+              0,
+              50
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/desktop-cockpit-legion-spin-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "legion-ready",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              100,
+              0,
+              0,
+              100
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/desktop-cockpit-legion-ready-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "northstar-charge",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              -1,
+              0,
+              0,
+              50
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 5,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/landscape-cockpit-northstar-charge-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "northstar-ready",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              -1,
+              0,
+              0,
+              100
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 9,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/landscape-cockpit-northstar-ready-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "legion-spin",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              100,
+              0,
+              0,
+              50
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/landscape-cockpit-legion-spin-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "legion-ready",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              100,
+              0,
+              0,
+              100
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/landscape-cockpit-legion-ready-idle.png"
+    },
+    {
+      "size": "portrait",
+      "view": "cockpit",
+      "shot": "northstar-charge",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              -1,
+              0,
+              0,
+              50
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 4,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/portrait-cockpit-northstar-charge-idle.png"
+    },
+    {
+      "size": "portrait",
+      "view": "cockpit",
+      "shot": "northstar-ready",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              -1,
+              0,
+              0,
+              100
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 9,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/portrait-cockpit-northstar-ready-idle.png"
+    },
+    {
+      "size": "portrait",
+      "view": "cockpit",
+      "shot": "legion-spin",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              100,
+              0,
+              0,
+              50
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/portrait-cockpit-legion-spin-idle.png"
+    },
+    {
+      "size": "portrait",
+      "view": "cockpit",
+      "shot": "legion-ready",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "row": {
+          "mounts": [
+            [
+              0,
+              -0.1,
+              100,
+              0,
+              0,
+              100
+            ]
+          ]
+        }
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/handoff-readouts/portrait-cockpit-legion-ready-idle.png"
+    }
+  ],
+  "errors": []
+}

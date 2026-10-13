@@ -16,6 +16,10 @@
   <!-- Static, muted capture page: no audio, no network, deterministic scenes. -->
   <canvas id="capture" aria-label="VOXEL BLITZ vehicle capture"></canvas>
   <div id="label"></div>
-  <script type="module" src="./js/capture/vehicle-capture.js"></script>
+  <!-- Titanfall walkers (?type=titan_*) use their own rig-aware scene (docs/titanfall.md §7.4). -->
+  <script type="module">
+    const type = new URLSearchParams(location.search).get('type') || '';
+    import(type.startsWith('titan_') ? './js/capture/titan-capture.js' : './js/capture/vehicle-capture.js');
+  </script>
 </body>
 </html>

@@ -67,6 +67,9 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   mgl: Object.freeze({
     lifetime: 0.95, sampleGain: 1.02, sampleRate: 0.93, layerGain: 0.36,
   }),
+  thunderbolt: Object.freeze({
+    lifetime: 0.85, sampleGain: 1, sampleRate: 1, layerGain: 0.3,
+  }),
 });
 
 export function fireReportProfile(key) {
@@ -264,6 +267,42 @@ export function shotMgl(out, primitives, includeMechanics = true) {
     });
     primitives.tone(out, {
       t0: t0 + 0.23, type: 'square', f0: 720, f1: 340, dec: 0.045, g: 0.055,
+    });
+  }
+}
+
+/** TB-4 release: capacitor snap, resonant orb pulse and a decaying electric trail. */
+export function shotThunderbolt(out, primitives, includeMechanics = true) {
+  const t0 = primitives.nowT();
+  primitives.hiss(out, {
+    t0, filter: 'bandpass', f: 4700, sweepTo: 1400, sweepMs: 0.055,
+    q: 2.2, dec: 0.065, g: 0.34,
+  });
+  primitives.tone(out, {
+    t0, type: 'triangle', f0: 760, f1: 2100, att: 0.002, dec: 0.045, g: 0.14,
+  });
+  // The low, rounded body belongs to an energy sphere leaving the cage.
+  primitives.tone(out, {
+    t0: t0 + 0.018, type: 'sine', f0: 190, f1: 62, att: 0.006, dec: 0.38, g: 0.46,
+  });
+  primitives.tone(out, {
+    t0: t0 + 0.028, type: 'sine', f0: 910, f1: 185, att: 0.012, dec: 0.56, g: 0.17,
+  });
+  primitives.hiss(out, {
+    t0: t0 + 0.045, filter: 'bandpass', f: 2600, sweepTo: 520,
+    sweepMs: 0.52, q: 3.8, att: 0.02, dec: 0.58, g: 0.14,
+  });
+  // Separate sparks keep the tail granular instead of sounding like rocket exhaust.
+  [0.075, 0.14, 0.235, 0.36].forEach((delay, index) => {
+    primitives.hiss(out, {
+      t0: t0 + delay, filter: 'bandpass', f: 5700 - index * 850,
+      q: 3.2, dec: 0.018 + index * 0.005, g: 0.14 * 0.7 ** index,
+    });
+  });
+  if (includeMechanics) {
+    // Local indexing contacts come from the rig; remote listeners hear the same cadence.
+    [0.06, 0.17, 0.3].forEach((delay, index) => {
+      cycleActionClick(out, primitives, 'thunderbolt', index + 1, t0 + delay);
     });
   }
 }
@@ -471,6 +510,7 @@ export function renderFireReport(
   else if (key === 'knife') shotKnife(out, primitives);
   else if (key === 'rocket') shotRocket(out, primitives);
   else if (key === 'mgl') shotMgl(out, primitives, includeMechanics);
+  else if (key === 'thunderbolt') shotThunderbolt(out, primitives, includeMechanics);
   else if (key === 'glaive') shotGlaive(out, primitives);
   else if (key === 'bubble') shotBubble(out, primitives, charge);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);

@@ -1,5 +1,6 @@
 import { applyAttachmentModel } from './attachment-model.js';
 import { applyStattrakModule } from './stattrak-module.js';
+import { applyWeaponDisplay, weaponDisplayInView, WEAPON_DISPLAY_IN_VIEW } from './weapon-display.js';
 import { applyGunCosmetics } from '../cosmetics/skins.js';
 // First-person viewmodel facade: public gunfeel API plus one rig-owned
 // material cache and one action-state owner.
@@ -7,11 +8,14 @@ import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from './heavy-weapon-animation.js';
+import { animateChargeRifle } from './chargerifle-animation.js';
 import { glaivePresentationFor } from './glaive-presentation.js';
 import { bubblePresentationFor } from './bubble-presentation.js';
+import { stingerPresentationFor } from './stinger-presentation.js';
+import { thunderboltAnimationFor } from './thunderbolt-animation.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
 import { buildGun, disposeGunModels } from './assemble.js';
-import { WeaponActions, syncSkipjackAmmo } from './actions.js';
+import { WeaponActions, syncArcherAmmo, syncSkipjackAmmo } from './actions.js';
 import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
 import { kickMassScale } from './defs.js';
@@ -58,6 +62,9 @@ export class ViewmodelRig {
     // Arms live in the same camera-local, fov-counter-scaled space as the gun,
     // so they follow the held weapon's gloves through every bob, kick and aim.
     this._arms = new ViewmodelArms(this.root);
+    // Arm-worn gear ({ standIn(content, hip, hipYaw), place(arms) }, the titanfall pilot's wrist display): rides the
+    // posed forearm.
+    this.armGear = null;
 
     this._disposed = false;
     this._models = {};                 // lazily-built gun cache keyed by weapon id
@@ -83,7 +90,14 @@ export class ViewmodelRig {
     this._glaiveState = null;          // authoritative {discs, magSize, fab01} from WeaponState
     this._bubble = null;               // BubblePresentation for the drawn SUDSBLASTER, else null
     this._bubbleState = null;          // authoritative {mag, magSize} from WeaponState
+    this._stinger = null;              // seeker lamps and launch-cover presentation
+    this._stingerState = null;         // frame-authoritative {mag, lockProgress, reloading}
+    this._thunderbolt = null;          // four-orb drum and electric discharge presentation
+    this._thunderboltState = null;     // ammunition/reload state, never filled by an animation
     this._skipjackState = null;        // total chambered + cassette rounds from WeaponState
+    this._archerState = null;          // chambered missile count from WeaponState
+    this._weaponDisplay = null;        // titanfall on-gun display model (weapon-display.js), else null
+    this._weaponDisplayInView = true;  // the drawn gun's counter on screen at its last settled pose
     this._id = null;
     this._now = 0;                     // rig-local clock, advanced only by update()
     this._queue = [];                  // deferred timer-boundary events {at, fn}
@@ -154,6 +168,9 @@ export class ViewmodelRig {
     const profile = weaponSwapProfile(WEAPONS[id]);
     this._swap = { id, elapsed: this._swap?.elapsed || 0, ...profile };
     this._actions.reset(this._cur);
+    this._stinger?.reset({ ...this._stingerState, lockProgress: 0, reloading: false });
+    if (this._thunderboltState) this._thunderboltState.reloading = false;
+    this._thunderbolt?.reset({ ...this._thunderboltState, reloading: false });
     this._queue.length = 0;
     this._adsTarget = 0;
     this.flashOff(true);
@@ -200,6 +217,8 @@ export class ViewmodelRig {
     }
     const next = this._models[key];
     applyGunCosmetics(next, key, this._cosmetics);
+    if (this._thunderboltState) this._thunderboltState.reloading = false;
+    this._thunderbolt?.reset({ ...this._thunderboltState, reloading: false });
     this._actions.reset(this._cur);
     this._actions.reset(next);
     if (this._cur && this._cur !== next) this.content.remove(this._cur.root);
@@ -210,7 +229,13 @@ export class ViewmodelRig {
     if (this._glaive) this._glaive.reset(this._glaiveState?.discs);
     this._bubble = key === 'bubble' ? bubblePresentationFor(next) : null;
     if (this._bubble) this._bubble.reset(this._bubbleState?.mag, this._bubbleState?.magSize);
+    this._stinger = key === 'stinger' ? stingerPresentationFor(next) : null;
+    if (this._stinger) this._stinger.reset({ ...this._stingerState, lockProgress: 0, reloading: false });
+    this._thunderbolt = key === 'thunderbolt'
+      ? thunderboltAnimationFor(next, (step) => this.onBoltClack?.(step)) : null;
+    this._thunderbolt?.reset(this._thunderboltState);
     this._restoreSkipjack();
+    if (this._archerState) this.setArcher(this._archerState);
     next.muzzleMarker.add(this._chargeOrb);
     this._chargeOrb.visible = false;
     this.pivot.position.copy(next.pivotCam);
@@ -223,6 +248,7 @@ export class ViewmodelRig {
     this._lean.p = this._lean.v = 0;
     this._surge.p = this._surge.v = 0;
     this._chargeT = 0;
+    if (key === 'chargerifle') animateChargeRifle(next.body, 0);
     this._flameActive = false;
     this._flameFuel = 1;
     this._fallSpeed = 0;
@@ -314,7 +340,9 @@ export class ViewmodelRig {
     // The disc leaves a pneumatic spindle: no muzzle flash, the presentation plays the throw.
     if (this._glaive) this._glaive.throw(def?.glaive?.outMs);
     else if (this._bubble) this._bubble.fire();   // soap, not powder: the film releases, no flash
+    else if (this._thunderbolt) this._thunderbolt.fire();
     else this.revealFlash();
+    this._stinger?.fire();
 
     const cycMs = 60000 / T.rof;          // rpm-referenced gate — literally the fire-cap definition
     this._lockUntil = Math.max(this._lockUntil, now + cycMs / 1000);
@@ -326,9 +354,15 @@ export class ViewmodelRig {
     } else if (this._bubble) {
       // The bulb plunger jerks back; there is no bolt to clack.
       this._enqueue(0.014, () => this._actions.startJerk(this._id, this._cur, T.boltTravel, 0.05));
+    } else if (this._thunderbolt) {
+      // The drum presentation owns its latch/index/lock contacts at .06/.17/.30 s.
+      this._enqueue(0.014, () => this._actions.startJerk(this._id, this._cur, T.boltTravel, 0.05));
     } else if (this._id === 'minigun') {
       // The rotary feed ejects steadily; it has no reciprocating rifle bolt.
       if (T.ejectOnFire) this._enqueue(0.025, () => this._emitShell());
+    } else if (this._stinger) {
+      // The uncaging switch settles after launch; a launcher has no rifle bolt.
+      this._enqueue(0.014, () => this._actions.startJerk(this._id, this._cur, T.boltTravel, 0.18));
     } else {
       this._enqueue(0.010, () => { if (this.onBoltClack) this.onBoltClack(1); }); // rack back
       this._enqueue(0.014, () => {
@@ -347,6 +381,10 @@ export class ViewmodelRig {
       this.onMuzzleFlash(this._tmpV.clone(), this._tmpQ.clone());
     }
     if (this._id === 'mgl') this._actions.beginSkipjackShot(cur, this._skipjackState?.mag);
+    if (this._id === 'archer' && cur.extra.userData.archer?.round) {
+      this.setArcher({ mag: Math.max(0,
+        (this._archerState?.mag ?? cur.extra.userData.archer.authoritativeMag) - 1) });
+    }
     return true;
   }
 
@@ -383,6 +421,39 @@ export class ViewmodelRig {
     if (this._bubble && state) this._bubble.setMag(state.mag, state.magSize);
   }
 
+  /** The AX-9 seeker only shows the live lock while a launch tube is loaded. */
+  setStinger(state) {
+    this._stingerState = state ? { mag: state.mag, lockProgress: state.lockProgress, reloading: !!state.reloading } : null;
+    this._stinger?.setState(this._stingerState);
+  }
+
+  /** Titanfall on-gun display model (weapon-display.js) or null; null strips every built gun's panel. */
+  setWeaponDisplay(model) {
+    this._weaponDisplay = model || null;
+    if (!this._weaponDisplay) for (const [id, bundle] of Object.entries(this._models)) applyWeaponDisplay(bundle, id, null);
+  }
+
+  /**
+   * The drawn gun carries a panel, the viewmodel is shown (not scoped, seated or spectating), the panel is on
+   * screen at its last settled pose (not off the edge of a portrait phone) and, for a panel the sight picture
+   * hides, not aiming down sights:
+   * titanfall hides the floating ammo card (titan-ui.js). Swaps and throws keep it, so the card never flickers.
+   */
+  get weaponDisplayLive() {
+    // A counter the sight picture hides (the ARCHER housing: mount.adsHidden) hands back to the card in ADS.
+    const hiddenInAds = this._cur?.body.userData.displayMount?.adsHidden === true && this._adsSmooth > 0.5;
+    return !!(this._weaponDisplay && this._cur?.weaponDisplay && this.root.visible && this._weaponDisplayInView && !hiddenInAds);
+  }
+
+  /** Ammo updates never replace a rocket while the loading hand still owns it. */
+  setArcher(state) {
+    if (!state) return;
+    if (!this._archerState) this._archerState = { mag: 0 };
+    this._archerState.mag = Math.max(0, Math.trunc(Number(state.mag) || 0));
+    const archer = this._models.archer?.extra.userData.archer;
+    if (archer?.round) syncArcherAmmo(archer, this._archerState.mag);
+  }
+
   /** One round is already chambered; the cassette shows only the remaining rounds. */
   setSkipjack(state) {
     if (!state) {
@@ -399,8 +470,16 @@ export class ViewmodelRig {
     syncSkipjackAmmo(skipjack, state.mag);
   }
 
+  /** TB-4 orbs follow the same accepted/predicted ammunition as the HUD. */
+  setThunderbolt(state) {
+    this._thunderboltState = state ? { mag: state.mag, magSize: state.magSize,
+      reloading: !!state.reloading } : null;
+    const animation = thunderboltAnimationFor(this._models.thunderbolt);
+    if (animation && state) animation.setState(state);
+  }
+
   /** An empty trigger pull: the SUDSBLASTER film forms weakly and pops. */
-  dryFire() { this._bubble?.dryFire(); }
+  dryFire() { this._bubble?.dryFire(); this._stinger?.dryFire(); }
 
   setFlame(active, fuel = 1) {
     this._flameActive = !!active;
@@ -408,7 +487,7 @@ export class ViewmodelRig {
   }
 
   /**
-   * Charge weapons: live 0..1 capacitor charge while the trigger is held. Drives the coil
+   * Charge weapons: live 0..1 capacitor charge, including any retained energy. Drives the coil
    * glow floor and a slight rearward squeeze; presentation only, it never gates fire.
    */
   setCharge(t01) {
@@ -438,16 +517,29 @@ export class ViewmodelRig {
         fresh: Math.min(skipjack.rounds.length, magSize - (chambered ? 1 : 0)),
         chambered, fullLoad: magSize };
     }
-    this._actions.startReload(this._now - elapsed, dur, type, this._cur.T, stages);
+    const started = this._actions.startReload(this._now - elapsed, dur, type, this._cur.T, stages);
+    const archer = this._cur.extra.userData.archer;
+    if (started && archer?.round) {
+      archer.reloading = true;
+      archer.chambered.visible = false;
+      // Seek immediately when recovering an already running server reload.
+      this._actions.update(this._now, 0, this._cur, this._cur.T);
+    }
     this._bubble?.reload(dur, this._cur.T.magTimeline, elapsed);
+    this._stinger?.setState({ ...this._stingerState, lockProgress: 0, reloading: true });
+    this._thunderbolt?.reload();
   }
 
   /** A shot interrupted a staged reload: snap the moving parts home, keep the gun raised. */
   cancelReload() {
     if (!this._cur) return false;
     this._bubble?.cancelReload();
+    this._thunderbolt?.cancelReload();
+    if (this._thunderbolt && this._thunderboltState) this._thunderboltState.reloading = false;
     const cancelled = this._actions.cancelReload(this._cur);
+    this._stinger?.reset({ ...this._stingerState, lockProgress: 0, reloading: false });
     this._restoreSkipjack();
+    if (this._archerState) this.setArcher(this._archerState);
     return cancelled;
   }
 
@@ -577,8 +669,10 @@ export class ViewmodelRig {
     const attachments = ownDef ? ownDef.attachments : ctx.weaponLoadout?.[this._id];
     if (cur) applyAttachmentModel(cur, this._id, attachments);
     if (cur) applyStattrakModule(cur, this._id, attachments, this._mastery?.[this._id]?.kills);
+    if (cur) applyWeaponDisplay(cur, this._id, this._weaponDisplay);
     if (cur) animateHeavyWeapon(cur.body, { dt: elapsed, time: this._now,
       minigun: this._minigunState, flameActive: this._flameActive, fuel: this._flameFuel });
+    if (cur && this._id === 'chargerifle') animateChargeRifle(cur.body, this._chargeT, this._now, !!ctx.reducedMotion);
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
     // Floating swimmers are never grounded, so the jump/land springs and the
     // airborne dampen must not fire; the shared stance rule is swimming && !grounded.
@@ -755,6 +849,8 @@ export class ViewmodelRig {
     const glaivePitch = (this._glaiveMotion?.tiltPitch || 0) * cosmeticMotion;
     // SUDSBLASTER film, bulb and tank run after the reload layer too (the tank turns inside the mag).
     this._bubble?.update(elapsed, { speed01: this._sprint, leanX: this._lean.p * cosmeticMotion, adsT: adsE });
+    this._stinger?.update(elapsed, { reloading: this._actions.reloading });
+    this._thunderbolt?.update(elapsed, { reducedMotion: ctx.reducedMotion });
 
     /* grenade wind-up + throw lunge (mass-scaled: a heavy gun is slower to pull aside) */
     const windRate = 9 * Math.sqrt(mass);
@@ -849,21 +945,38 @@ export class ViewmodelRig {
     const stow = this._smooth01(this._stow);
     const swimSway = Math.sin(this._now * 2.4) * 0.01 * swimCarry;
     const hip = T.hipOffset || HIP;
+    // The top-loaded missile needs horizontal room on a portrait phone. Move
+    // the hip presentation inward and away; aiming returns to the same sight
+    // line and scale as desktop, without changing the weapon's local anchors.
+    const archerNarrow = this._id === 'archer' ?
+      this._smooth01(Math.max(0, Math.min(1, (1 - (this.camera?.aspect || 1)) / 0.54))) * (1 - adsE) : 0;
     this.content.position.set(
-      hip.x + (T.adsOffset.x - hip.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway,
+      hip.x + (T.adsOffset.x - hip.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway - 0.10 * archerNarrow,
       hip.y + (T.adsOffset.y - hip.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065 - swimCarry * 0.05 - stow * 0.34,
-      hip.z + (T.adsOffset.z - hip.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush + stow * 0.08
+      hip.z + (T.adsOffset.z - hip.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush + stow * 0.08 - 0.22 * archerNarrow
     );
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22 - stow * 0.95,
-      swingRy + (dep.ry || 0) + (actionMotion.yaw || 0) + (T.hipYaw || 0) * (1 - adsE),
+      swingRy + (dep.ry || 0) + (actionMotion.yaw || 0) + (T.hipYaw || 0) * (1 - adsE) + (T.adsYaw || 0) * adsE,
       swingRz + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0) + swimCarry * 0.06 + stow * 0.35);
-    this.content.scale.setScalar(this._id === 'knife' ? this._swingPose.s || 1 : 1);   // narrow-screen pick framing
+    this.content.scale.setScalar(this._id === 'knife' ? this._swingPose.s || 1 : 1 - 0.28 * archerNarrow);
 
     /* arms: two-bone reach from each glove back to the player's own shoulders.
        Runs after the pose is composed, so it reads the final hand transforms. */
-    this._arms.update(cur, viewPitch, this.content.visible);
+    const gear = this.armGear;
+    // Worn gear lends the left arm a stand-in fist for a gun without a support glove while no other hands are busy;
+    // the fist follows a damped share of this pose (hip rest -> current).
+    this._arms.offHand = gear && vaultBlend + throwableBlend + medkitBlend < 0.01
+      ? gear.standIn?.(this.content, hip, T.hipYaw || 0) ?? null : null;
+    this._arms.update(cur, viewPitch, this.content.visible, elapsed);
     // The narrow-screen pick shrinks its fist; the sleeve thins with it so the cuff never swallows the glove.
     for (const arm of this._arms.arms) arm.segments.forearm.scale.x = arm.segments.forearm.scale.y = this.content.scale.x;
+    gear?.place(this._arms);
+    // On-gun counter on screen, measured on a settled pose only (no swap, reload, throw, vault, medkit or stow), so
+    // a dip never flickers the ammo card while a gun held off the view's edge keeps it.
+    if (this._weaponDisplay && cur.weaponDisplay && !this._swap && !this._actions.reloading
+      && vaultBlend + throwableBlend + medkitBlend + stow < 0.01) {
+      this._weaponDisplayInView = weaponDisplayInView(cur, this.camera) >= WEAPON_DISPLAY_IN_VIEW;
+    }
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);
@@ -906,7 +1019,12 @@ export class ViewmodelRig {
     this._queue = keep;
   }
 
-  get flashLight() { return this._cur?.flash.light || null; }
+  get flashLight() {
+    const shot = this._cur?.flash.light || null;
+    if (!this._cur || shot?.intensity > 0 || this._id !== 'chargerifle') return shot;
+    const charge = this._cur.chargeLight ??= this._cur.body.getObjectByName('chargerifle_charge_light');
+    return charge?.intensity > 0 ? charge : shot;
+  }
 
   _uniSet(glow, heat) {
     if (!this._cur) return;

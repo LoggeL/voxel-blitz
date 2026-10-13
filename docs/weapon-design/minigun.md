@@ -1,8 +1,8 @@
 # M-6 FURNACE
 
 The playable weapon uses six rotating barrels and a 300-round drum at 1200 RPM, with four spare drums.
-Its lowered olive and graphite motor armor leaves the steel rotor exposed. Open
-barrel collars, an amber index tooth, a bowed brass feed belt, and a large drum
+Its compact faceted motor housing leaves the six hollow steel barrels exposed. Open
+orange barrel collars, asymmetric index keys, a brass feed belt, and a large drum
 make the rotating assembly readable. A rear-facing five-cell temperature strip
 shows heat directly on the weapon.
 
@@ -11,6 +11,14 @@ to pre-spin it while keeping the trigger released. Pre-spin consumes no rounds,
 adds no heat, and cools at the normal 20 percentage points per second. Once the
 rotor reaches full speed, pressing fire starts shooting immediately. Aim can
 stay held during trigger pauses to keep the rotor ready.
+
+Aiming braces the gun at the player's side, pulling it slightly closer while
+keeping the center of the screen clear. It uses a mild 1.15× zoom relative to
+the player's chosen field of view. Look sensitivity eases down by another 25%
+on top of normal zoom compensation, across mouse, touch and controller input.
+The minigun has no selectable optics or full-screen scope. Saved optic choices
+normalize to its factory setup. Bracing keeps the existing aim pre-spin,
+recoil, spread and weapon turn lag.
 
 Each shot adds 1.35% heat below the sweet spot and 0.81% once it reaches 65%.
 Damage increases with heat, reaching +30% at 65% heat. The bonus plateaus there,
@@ -30,9 +38,29 @@ The server owns the thermal state and damage; the client predicts local feedback
 Remote avatars receive the same rotor and heat state through snapshots.
 
 `npm run minigun:test` checks aim pre-spin, immediate trigger response, ammunition,
-cooling, eligibility gates, the thermal lifecycle, and model animation.
+cooling, eligibility gates, the thermal lifecycle, model animation, and the
+shipped Blender asset's six-barrel contract. `node tools/hydra-browser-test.mjs`
+loads that asset in Chromium and verifies movement of actual barrel vertices,
+stationary receiver geometry, per-weapon heat isolation, first-person and avatar
+animation, and desktop/mobile captures with a clear braced aiming view.
 
 ## Visual reference
+
+The Blender model follows alternative A in
+`docs/design/blender/hydra/concepts/furnace-options.png`, generated with the
+built-in ImageGen tool. The exact prompt is beside it in `prompt.txt`.
+`docs/design/blender/hydra/hydra.blend` is the editable source;
+`public/assets/blender/hydra.gltf` and its binary contain the runtime geometry.
+Six barrel meshes and their collars ship separately under `extra` with rotor
+metadata. `models/hydra.js` mounts those meshes on the actual bore-axis joint.
+The same authoritative spin and heat state drives both player and avatar guns.
+
+The aiming comparison is in `docs/design/blender/hydra/concepts/ads/`.
+The chosen direction keeps the weapon to the side instead of aligning its iron
+sights. The final framing is verified with the real model in
+`docs/design/blender/hydra/captures/desktop-scoped.png` and `mobile-scoped.png`.
+
+### Procedural fallback reference
 
 `minigun-concept.png` was generated with the built-in Image-Gen tool as a shape,
 material and silhouette reference for the procedural Three.js model. Numbers and

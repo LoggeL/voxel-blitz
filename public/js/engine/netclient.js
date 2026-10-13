@@ -14,6 +14,7 @@ import {
   grenadeTypeAt,
 } from '../../../shared/grenade-rules.js';
 import { CONQUEST_CONTRACT_VERSION } from '../../../shared/conquest-contract.js';
+import { TITANFALL_CONTRACT_VERSION } from '../../../shared/titan-contract.js';
 import { NetworkTiming } from './network-timing.js';
 import {
   findSnapshotWindow,
@@ -71,6 +72,9 @@ class BlockDamageMap extends Map {
 /** Conquest intent fields, one per `{t:'conquest'}` frame, and their minimum send gaps. */
 const CONQUEST_INTENT_FIELDS = Object.freeze(['deploy', 'spot', 'support', 'redeploy']);
 const CONQUEST_INTENT_GAP_MS = Object.freeze({ deploy: 250, spot: 500, support: 100, redeploy: 1000 });
+/** Titanfall intent fields, one per `{t:'titanfall'}` frame (docs/titanfall.md §3.7), and their minimum send gaps (server/lobby.js titanfall()). */
+export const TITANFALL_INTENT_FIELDS = Object.freeze(['loadout', 'call', 'ability', 'eject', 'tac', 'rodeo', 'deploy']);
+const TITANFALL_INTENT_GAP_MS = Object.freeze({ loadout: 250, call: 500, ability: 100, eject: 250, tac: 100, rodeo: 100, deploy: 250 });
 /** Same limits as the server's parseVehicleAction (shared/conquest-contract.js VEHICLE_ACTION_TYPES). */
 const VEHICLE_ID_MAX = 64;
 const VEHICLE_SEAT_ID_MAX = 32;
@@ -248,6 +252,10 @@ export class NetClient {
 
     /** Called with map bytes right before connect()'s promise resolves. */
     this.onMap = null;
+    /** Titanfall self-only frames `{t:'tfs', s, d}` (§3.2): newest, a short ring, and a callback. */
+    this.latestTitanfallSelf = null;
+    this.titanfallSelfFrames = [];
+    this.onTitanfallSelf = null;
 
     this._listeners = new Map();
     this._seq = 0;               // outgoing input sequence
@@ -349,6 +357,8 @@ export class NetClient {
     this.blockDamage.clear();
     this.latestEvents = Object.freeze([]);
     this.latestSnapshots.length = 0;
+    this.latestTitanfallSelf = null;
+    this.titanfallSelfFrames.length = 0;
     this._drainState.seen.clear();
     this._drainState.seq = -1;
     this._drainState.snapSeq = -1;
@@ -400,6 +410,8 @@ export class NetClient {
     // The Conquest wire contract this page was built against; the server keeps
     // a tab running older code out of Conquest rooms (reload to update).
     initialFrame.contract = CONQUEST_CONTRACT_VERSION;
+    // Same for Titanfall rooms (server/lobby.js staleTitanfallClient).
+    initialFrame.titanfall = TITANFALL_CONTRACT_VERSION;
     // Template fingerprints this client holds; the field (even empty) opts in
     // to V3 map frames (shared/world/serialize.js), which a rejoin turns into
     // a reference plus the changed cells.
@@ -638,7 +650,51 @@ export class NetClient {
     }
     if (Number.isInteger(input.switchTo)) msg.switchTo = input.switchTo;
     if (Number.isFinite(input.viewYaw)) msg.viewYaw = input.viewYaw;
+    // Titanfall only (§3.6): sent only when the caller defines them, so every other frame is unchanged.
+    if (Number.isFinite(input.jumpSeq)) msg.jumpSeq = input.jumpSeq & 255;
+    if (Number.isFinite(input.titanHold)) msg.titanHold = input.titanHold & 63;
+    // Titan crosshair ray [x, y, z, yaw, pitch] (camera eye in cm, look in mrad); the mount converges on it.
+    if (Array.isArray(input.titanSight) && input.titanSight.length === 5 && input.titanSight.every(Number.isFinite)) {
+      msg.titanSight = input.titanSight.map((n, i) => Math.round(n * (i < 3 ? 100 : 1000)) / (i < 3 ? 100 : 1000));
+    }
     return this._sendJson(msg);
+  }
+
+  /**
+   * Titanfall intent frame `{t:'titanfall', loadout | call | ability | eject | tac | rodeo}`
+   * (docs/titanfall.md §3.7). Exactly one intent per frame (the first field in
+   * TITANFALL_INTENT_FIELDS order); the server's parseTitanfallIntent rejects the
+   * rest. Per-intent gaps match server/lobby.js titanfall().
+   */
+  sendTitanfall(fields) {
+    if (!fields || typeof fields !== 'object') return false;
+    const key = TITANFALL_INTENT_FIELDS.find(field => Object.hasOwn(fields, field));
+    if (!key) return false;
+    const at = now();
+    this._titanfallSentAt ??= {};
+    if (at - (this._titanfallSentAt[key] ?? -Infinity) < TITANFALL_INTENT_GAP_MS[key]) return false;
+    if (!this._sendJson({ t: 'titanfall', [key]: fields[key] })) return false;
+    this._titanfallSentAt[key] = at;
+    return true;
+  }
+
+  /** The `tfs` self frame (§3.2) whose `s` equals a snapshot's serverNow, or null. */
+  titanfallSelfFor(serverNow) {
+    if (!Number.isFinite(serverNow)) return null;
+    for (let i = this.titanfallSelfFrames.length - 1; i >= 0; i--) {
+      if (this.titanfallSelfFrames[i].s === serverNow) return this.titanfallSelfFrames[i];
+    }
+    return null;
+  }
+
+  _onTitanfallSelf(msg) {
+    if (!Array.isArray(msg.d) || !Number.isFinite(msg.s)) return;
+    const frame = immutableWireCopy({ t: 'tfs', s: msg.s, d: msg.d });
+    this.latestTitanfallSelf = frame;
+    this.titanfallSelfFrames.push(frame);
+    if (this.titanfallSelfFrames.length > RING_LEN) this.titanfallSelfFrames.shift();
+    if (this.onTitanfallSelf) this.onTitanfallSelf(frame);
+    this._emit('tfs', frame);
   }
 
   /**
@@ -884,6 +940,9 @@ export class NetClient {
         break;
       case 'tick':
         this._onTick(msg);
+        break;
+      case 'tfs':
+        this._onTitanfallSelf(msg);
         break;
       case 'pong': {
         const atMs = now();

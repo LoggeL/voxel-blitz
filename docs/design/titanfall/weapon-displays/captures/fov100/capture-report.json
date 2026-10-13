@@ -1,0 +1,219 @@
+{
+  "generated": "2026-10-13T19:31:54.005Z",
+  "fov": 100,
+  "ads": 0,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-rifle-low-fov100.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-smg-low-fov100.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-shotgun-low-fov100.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "lmg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-lmg-low-fov100.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "kraber",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-kraber-low-fov100.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "revolver",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-revolver-low-fov100.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "chargerifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-chargerifle-low-fov100.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-archer-low-fov100.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-thunderbolt-low-fov100.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "mgl",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/desktop-mgl-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-rifle-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-smg-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-shotgun-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "lmg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-lmg-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "kraber",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-kraber-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "revolver",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-revolver-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "chargerifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-chargerifle-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-archer-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "thunderbolt",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-thunderbolt-low-fov100.jpg"
+    },
+    {
+      "size": "landscape",
+      "weapon": "mgl",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/landscape-mgl-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-rifle-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "smg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-smg-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "shotgun",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-shotgun-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "lmg",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-lmg-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "kraber",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-kraber-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "revolver",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-revolver-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "chargerifle",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-chargerifle-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "archer",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-archer-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "thunderbolt",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-thunderbolt-low-fov100.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "mgl",
+      "state": "low",
+      "live": true,
+      "file": "docs/design/titanfall/weapon-displays/captures/fov100/portrait-mgl-low-fov100.jpg"
+    }
+  ],
+  "errors": []
+}

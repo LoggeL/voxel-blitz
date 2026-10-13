@@ -1,0 +1,86 @@
+[
+  {
+    "weapon": "stinger",
+    "state": "swap-stow",
+    "file": "stinger-swap-stow.png",
+    "bytes": 14927
+  },
+  {
+    "weapon": "stinger",
+    "state": "swap-draw",
+    "file": "stinger-swap-draw.png",
+    "bytes": 18753
+  },
+  {
+    "weapon": "stinger",
+    "state": "swap-ready",
+    "file": "stinger-swap-ready.png",
+    "bytes": 122390
+  },
+  {
+    "weapon": "stinger",
+    "state": "held",
+    "file": "stinger-held.png",
+    "bytes": 122398
+  },
+  {
+    "weapon": "stinger",
+    "state": "vaulting",
+    "file": "stinger-vaulting.png",
+    "bytes": 379559
+  },
+  {
+    "weapon": "stinger",
+    "state": "scoped",
+    "file": "stinger-scoped.png",
+    "bytes": 45000
+  },
+  {
+    "weapon": "stinger",
+    "state": "firing",
+    "file": "stinger-firing.png",
+    "bytes": 122742
+  },
+  {
+    "weapon": "stinger",
+    "state": "reload-open",
+    "file": "stinger-reload-open.png",
+    "bytes": 193671
+  },
+  {
+    "weapon": "stinger",
+    "state": "reload-eject",
+    "file": "stinger-reload-eject.png",
+    "bytes": 61981
+  },
+  {
+    "weapon": "stinger",
+    "state": "reload-load",
+    "file": "stinger-reload-load.png",
+    "bytes": 126655
+  },
+  {
+    "weapon": "stinger",
+    "state": "reload-charge",
+    "file": "stinger-reload-charge.png",
+    "bytes": 149971
+  },
+  {
+    "weapon": "stinger",
+    "state": "lock-acquire",
+    "file": "stinger-lock-acquire.png",
+    "bytes": 122516
+  },
+  {
+    "weapon": "stinger",
+    "state": "lock-ready",
+    "file": "stinger-lock-ready.png",
+    "bytes": 122275
+  },
+  {
+    "weapon": "stinger",
+    "state": "empty",
+    "file": "stinger-empty.png",
+    "bytes": 122199
+  }
+]

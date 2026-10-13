@@ -16,11 +16,11 @@ for arg in sys.argv:
         DOCS = Path(arg).parent
 if DOCS is None:
     from pathlib import Path
-    DOCS = Path('/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/hydra')
+    DOCS = Path(__file__).resolve().parents[3] / 'docs/design/blender/hydra'
 
 scene = bpy.context.scene
 scene.render.engine = 'CYCLES'
-scene.cycles.samples = 40
+scene.cycles.samples = 24
 scene.cycles.use_denoising = True
 scene.cycles.device = 'CPU'
 scene.render.resolution_x, scene.render.resolution_y = 1600, 1000
@@ -29,10 +29,10 @@ scene.render.image_settings.file_format = 'PNG'
 
 VIEWS = {
     # name: (camera pos, look-at, lens)
-    'hero': ((1.75, -1.45, 0.95), (0.0, 0.27, 0.03), 55),
-    'side': ((3.2, 0.27, 0.06), (0.0, 0.27, 0.06), 80),
-    'left': ((-3.2, 0.27, 0.06), (0.0, 0.27, 0.06), 80),
-    'ads': ((0.0, -0.75, 0.24), (0.0, 0.50, 0.15), 45),
+    'hero': ((-1.22, 1.9, 0.82), (0.0, 0.33, -0.035), 62),
+    'side': ((2.8, 0.34, 0.01), (0.0, 0.34, 0.01), 80),
+    'left': ((-2.8, 0.34, 0.01), (0.0, 0.34, 0.01), 80),
+    'ads': ((0.0, -0.68, 0.175), (0.0, 0.50, 0.155), 48),
     'rear': ((-1.5, -1.2, 0.75), (0.0, 0.12, 0.03), 55),
 }
 
@@ -44,6 +44,7 @@ def area_light(name, location, energy, size=1.4, colour=(1, 1, 1, 1)):
     data.color = colour[:3]
     obj = bpy.data.objects.new(name, data)
     obj.location = location
+    obj.rotation_euler = (Vector((0,.30,0)) - Vector(location)).to_track_quat('-Z', 'Y').to_euler()
     scene.collection.objects.link(obj)
     return obj
 

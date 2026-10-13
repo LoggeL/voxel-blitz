@@ -1,0 +1,1078 @@
+{
+  "generated": "2026-10-13T20:26:47.885Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "ion",
+      "pose": "idle",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-ion-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "ion",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 4,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 69,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-ion-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "ion-split",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": true,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 65,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-ion-split-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "scorch",
+      "pose": "idle",
+      "params": {
+        "type": "titan_scorch",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-scorch-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "scorch",
+      "pose": "fire",
+      "params": {
+        "type": "titan_scorch",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 33,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-scorch-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "northstar",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-northstar-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "northstar",
+      "pose": "fire",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 100,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-northstar-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "northstar-tap",
+      "pose": "fire",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 0.3,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 64,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-northstar-tap-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "ronin",
+      "pose": "idle",
+      "params": {
+        "type": "titan_ronin",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-ronin-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "ronin",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ronin",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 32,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-ronin-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "legion",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-legion-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "cockpit",
+      "shot": "legion",
+      "pose": "fire",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 10,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 112,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-cockpit-legion-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "ion",
+      "pose": "idle",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-ion-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "ion",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 4,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 70,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-ion-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "ion-split",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": true,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 65,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-ion-split-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "scorch",
+      "pose": "idle",
+      "params": {
+        "type": "titan_scorch",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-scorch-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "scorch",
+      "pose": "fire",
+      "params": {
+        "type": "titan_scorch",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 33,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-scorch-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "northstar",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-northstar-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "northstar",
+      "pose": "fire",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 100,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-northstar-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "northstar-tap",
+      "pose": "fire",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 0.3,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 64,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-northstar-tap-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "ronin",
+      "pose": "idle",
+      "params": {
+        "type": "titan_ronin",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-ronin-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "ronin",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ronin",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 32,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-ronin-fire.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "legion",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-legion-idle.png"
+    },
+    {
+      "size": "desktop",
+      "view": "chase",
+      "shot": "legion",
+      "pose": "fire",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 10,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 113,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/desktop-chase-legion-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "ion",
+      "pose": "idle",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-ion-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "ion",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 4,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 73,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-ion-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "ion-split",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": true,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 65,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-ion-split-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "scorch",
+      "pose": "idle",
+      "params": {
+        "type": "titan_scorch",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-scorch-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "scorch",
+      "pose": "fire",
+      "params": {
+        "type": "titan_scorch",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 33,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-scorch-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "northstar",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-northstar-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "northstar",
+      "pose": "fire",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 100,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-northstar-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "northstar-tap",
+      "pose": "fire",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 0.3,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 64,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-northstar-tap-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "ronin",
+      "pose": "idle",
+      "params": {
+        "type": "titan_ronin",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-ronin-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "ronin",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ronin",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 32,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-ronin-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "legion",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-legion-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "cockpit",
+      "shot": "legion",
+      "pose": "fire",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "cockpit",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 10,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 113,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-cockpit-legion-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "ion",
+      "pose": "idle",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-ion-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "ion",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 4,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 69,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-ion-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "ion-split",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": true,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 65,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-ion-split-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "scorch",
+      "pose": "idle",
+      "params": {
+        "type": "titan_scorch",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-scorch-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "scorch",
+      "pose": "fire",
+      "params": {
+        "type": "titan_scorch",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 33,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-scorch-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "northstar",
+      "pose": "idle",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-northstar-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "northstar",
+      "pose": "fire",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 100,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-northstar-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "northstar-tap",
+      "pose": "fire",
+      "params": {
+        "type": "titan_northstar",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 0.3,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 64,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-northstar-tap-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "ronin",
+      "pose": "idle",
+      "params": {
+        "type": "titan_ronin",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-ronin-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "ronin",
+      "pose": "fire",
+      "params": {
+        "type": "titan_ronin",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 1,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 32,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-ronin-fire.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "legion",
+      "pose": "idle",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "idle",
+        "aimPitch": -0.1,
+        "core": 0.46
+      },
+      "particles": {
+        "alive": 0,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-legion-idle.png"
+    },
+    {
+      "size": "landscape",
+      "view": "chase",
+      "shot": "legion",
+      "pose": "fire",
+      "params": {
+        "type": "titan_legion",
+        "team": "alpha",
+        "view": "chase",
+        "fov": 75,
+        "pose": "fire",
+        "aimPitch": -0.1,
+        "core": 0.46,
+        "shots": 10,
+        "charge": 1,
+        "split": false,
+        "after": 0.016666666666666666
+      },
+      "particles": {
+        "alive": 113,
+        "emitters": 0
+      },
+      "file": "docs/design/titanfall/captures/weapons/landscape-chase-legion-fire.png"
+    }
+  ],
+  "errors": []
+}

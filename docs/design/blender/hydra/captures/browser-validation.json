@@ -1,0 +1,1385 @@
+{
+  "dynamic": {
+    "asset": "hydra",
+    "visibleBarrels": 6,
+    "rotorChildren": 12,
+    "barrelVertexBefore": [
+      0.06356900185346603,
+      0.07900000363588333,
+      -0.41600000858306885
+    ],
+    "barrelVertexAfter": [
+      -0.010247569353614754,
+      -0.012171463386703413,
+      -0.41600000858306885
+    ],
+    "barrelVertexTravel": 0.11730781126515255,
+    "fixedReceiverTravel": 0,
+    "localRotorRadians": 4.2,
+    "remoteRotorRadians": 2.1,
+    "thermalMaterials": 1,
+    "heatIndicators": 5
+  },
+  "captures": {
+    "desktop-held": {
+      "name": "desktop",
+      "width": 1600,
+      "height": 900,
+      "kind": "viewmodel",
+      "state": "held",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 75,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.1620024532683732,
+            -0.36722824852328323,
+            0.9547464181183574
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.17910599294449986,
+            -0.36382624422721116,
+            0.9551675005092191
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.19589554425336816,
+            -0.36048669424144886,
+            0.9555808526305053
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.21237968249922662,
+            -0.35720789288270244,
+            0.9559866856028196
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.22856665673115273,
+            -0.3539881993619346,
+            0.9563852025144921
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          -0.28913764877640996,
+          -0.5303384062455232,
+          -0.7997092621564078
+        ],
+        "max": [
+          0.3611288275690081,
+          -0.13571433734256771,
+          0.12861196576189482
+        ],
+        "nearPlaneMeshes": 7,
+        "eyePlaneMeshes": 6
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0,
+      "drawCalls": 58,
+      "triangles": 26348,
+      "bytes": 312051
+    },
+    "desktop-scoped": {
+      "name": "desktop",
+      "width": 1600,
+      "height": 900,
+      "kind": "viewmodel",
+      "state": "scoped",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 67.42567517070124,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.13784915633675432,
+            -0.4028228425485216,
+            0.9591921260302809
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.1593032831647751,
+            -0.3994827512132431,
+            0.959532151711214
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.18040454961663333,
+            -0.3961975950377328,
+            0.9598665849207945
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.20116159962312333,
+            -0.3929660282893686,
+            0.9601955626563693
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.22158277584827313,
+            -0.3897867521383238,
+            0.9605192171405192
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          -0.33801331262733236,
+          -0.6187604963512807,
+          -0.9078916857623398
+        ],
+        "max": [
+          0.403151811052494,
+          -0.15721362690012128,
+          0.1486870012139947
+        ],
+        "nearPlaneMeshes": 7,
+        "eyePlaneMeshes": 6
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0,
+      "drawCalls": 55,
+      "triangles": 24964,
+      "bytes": 293055
+    },
+    "desktop-firing": {
+      "name": "desktop",
+      "width": 1600,
+      "height": 900,
+      "kind": "viewmodel",
+      "state": "firing",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 75,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.1609027554888565,
+            -0.36830325744716735,
+            0.9546279404466129
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.1780567600118025,
+            -0.36487127272955,
+            0.9550516072258645
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.1948947509039124,
+            -0.3615025125464805,
+            0.9554674691524945
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.21142538856664742,
+            -0.35819524422000404,
+            0.955875740119672
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.2276570029608699,
+            -0.35494780118309033,
+            0.956276625859399
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          -0.28960767395624615,
+          -0.5308987764290726,
+          -0.7986238329299314
+        ],
+        "max": [
+          0.36086957118724683,
+          -0.13579019241510432,
+          0.12867736803375124
+        ],
+        "nearPlaneMeshes": 7,
+        "eyePlaneMeshes": 6
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0.7,
+      "drawCalls": 60,
+      "triangles": 26352,
+      "bytes": 311709
+    },
+    "desktop-reload-eject": {
+      "name": "desktop",
+      "width": 1600,
+      "height": 900,
+      "kind": "viewmodel",
+      "state": "reload-eject",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 75,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.09757572237589231,
+            -0.3718635637914151,
+            0.939524712312043
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.11660180690810108,
+            -0.36955060513393334,
+            0.9407817986216956
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.13485551644220964,
+            -0.3673315423821306,
+            0.9419878527794419
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.1523829558335959,
+            -0.3652007706715801,
+            0.9431459210128128
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.16922661474859155,
+            -0.3631531246283199,
+            0.9442588106875462
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          0.03529618674771521,
+          -0.5534810788741837,
+          -0.4232821402088129
+        ],
+        "max": [
+          0.3413824281723898,
+          -0.1396943584168239,
+          0.13043703340533863
+        ],
+        "nearPlaneMeshes": 7,
+        "eyePlaneMeshes": 6
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0,
+      "drawCalls": 34,
+      "triangles": 12988,
+      "bytes": 291342
+    },
+    "desktop-reload-charge": {
+      "name": "desktop",
+      "width": 1600,
+      "height": 900,
+      "kind": "viewmodel",
+      "state": "reload-charge",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 75,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.18291087523396055,
+            -0.46214631326791555,
+            0.944649063216686
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.2031640907208631,
+            -0.4547911209630638,
+            0.9453164322044892
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.22293645043775132,
+            -0.4476105570603861,
+            0.9459679563883541
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.24224488722089782,
+            -0.44059847220215853,
+            0.9466041937265867
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.2611055285690573,
+            -0.4337490094984089,
+            0.9472256756406058
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          -0.34056958501104,
+          -0.5548264272163425,
+          -0.4462528070605922
+        ],
+        "max": [
+          0.3669967256136871,
+          -0.13935702613912088,
+          0.13149888370890983
+        ],
+        "nearPlaneMeshes": 12,
+        "eyePlaneMeshes": 12
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0,
+      "drawCalls": 43,
+      "triangles": 21960,
+      "bytes": 276735
+    },
+    "mobile-held": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "kind": "viewmodel",
+      "state": "held",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 75,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.6232709769048749,
+            -0.36722824852328323,
+            0.9547464181183574
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.6890733130263605,
+            -0.36382624422721116,
+            0.9551675005092191
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.7536676437599666,
+            -0.36048669424144886,
+            0.9555808526305053
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.8170869608175373,
+            -0.35720789288270244,
+            0.9559866856028196
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.8793630007115345,
+            -0.3539881993619346,
+            0.9563852025144921
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          -0.28913764877640996,
+          -0.5303384062455232,
+          -0.7997092621564078
+        ],
+        "max": [
+          0.3611288275690081,
+          -0.13571433734256771,
+          0.12861196576189482
+        ],
+        "nearPlaneMeshes": 7,
+        "eyePlaneMeshes": 6
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0,
+      "drawCalls": 56,
+      "triangles": 26052,
+      "bytes": 169721
+    },
+    "mobile-scoped": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "kind": "viewmodel",
+      "state": "scoped",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 67.42567517070124,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.5303461558893249,
+            -0.4028228425485216,
+            0.9591921260302809
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.6128864774521717,
+            -0.3994827512132431,
+            0.959532151711214
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.6940692416019989,
+            -0.3961975950377328,
+            0.9598665849207945
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.7739277040771103,
+            -0.3929660282893686,
+            0.9601955626563693
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.8524939615541538,
+            -0.3897867521383238,
+            0.9605192171405192
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          -0.33801331262733236,
+          -0.6187604963512807,
+          -0.9078916857623398
+        ],
+        "max": [
+          0.403151811052494,
+          -0.15721362690012128,
+          0.1486870012139947
+        ],
+        "nearPlaneMeshes": 7,
+        "eyePlaneMeshes": 6
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0,
+      "drawCalls": 52,
+      "triangles": 24560,
+      "bytes": 170889
+    },
+    "mobile-firing": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "kind": "viewmodel",
+      "state": "firing",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 75,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.6190401168437372,
+            -0.36830325744716735,
+            0.9546279404466129
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.6850366060397096,
+            -0.36487127272955,
+            0.9550516072258645
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.7498172980645106,
+            -0.3615025125464805,
+            0.9554674691524945
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.8134155120239334,
+            -0.35819524422000404,
+            0.955875740119672
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.8758632957218198,
+            -0.35494780118309033,
+            0.956276625859399
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          -0.28960767395624615,
+          -0.5308987764290726,
+          -0.7986238329299314
+        ],
+        "max": [
+          0.36086957118724683,
+          -0.13579019241510432,
+          0.12867736803375124
+        ],
+        "nearPlaneMeshes": 7,
+        "eyePlaneMeshes": 6
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0.7,
+      "drawCalls": 58,
+      "triangles": 26056,
+      "bytes": 170333
+    },
+    "mobile-reload-eject": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "kind": "viewmodel",
+      "state": "reload-eject",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 75,
+      "inFrameRotorVertices": 329,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.37540243731169504,
+            -0.3718635637914151,
+            0.939524712312043
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.44860136766011305,
+            -0.36955060513393334,
+            0.9407817986216956
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.5188287447394868,
+            -0.3673315423821306,
+            0.9419878527794419
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.5862619474578002,
+            -0.3652007706715801,
+            0.9431459210128128
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.6510644460299088,
+            -0.3631531246283199,
+            0.9442588106875462
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          0.03529618674771521,
+          -0.5534810788741837,
+          -0.4232821402088129
+        ],
+        "max": [
+          0.3413824281723898,
+          -0.1396943584168239,
+          0.13043703340533863
+        ],
+        "nearPlaneMeshes": 7,
+        "eyePlaneMeshes": 6
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0,
+      "drawCalls": 34,
+      "triangles": 12988,
+      "bytes": 190368
+    },
+    "mobile-reload-charge": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "kind": "viewmodel",
+      "state": "reload-charge",
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": 75,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.7037118117263255,
+            -0.46214631326791555,
+            0.944649063216686
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.781631874955708,
+            -0.4547911209630638,
+            0.9453164322044892
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.857701944932021,
+            -0.4476105570603861,
+            0.9459679563883541
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": true,
+          "projectedCenter": [
+            0.9319871672453002,
+            -0.44059847220215853,
+            0.9466041937265867
+          ],
+          "occluder": null
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": false,
+          "visible": false,
+          "projectedCenter": [
+            1.0045495891158258,
+            -0.4337490094984089,
+            0.9472256756406058
+          ],
+          "occluder": null
+        }
+      ],
+      "armCameraBounds": {
+        "min": [
+          -0.34056958501104,
+          -0.5548264272163425,
+          -0.4462528070605922
+        ],
+        "max": [
+          0.3669967256136871,
+          -0.13935702613912088,
+          0.13149888370890983
+        ],
+        "nearPlaneMeshes": 12,
+        "eyePlaneMeshes": 12
+      },
+      "attachmentCameraBounds": {
+        "min": [
+          null,
+          null,
+          null
+        ],
+        "max": [
+          null,
+          null,
+          null
+        ],
+        "nearPlaneMeshes": 0,
+        "eyePlaneMeshes": 0
+      },
+      "sightBlocker": null,
+      "sightHit": null,
+      "rotorRadians": 0,
+      "drawCalls": 43,
+      "triangles": 21960,
+      "bytes": 161783
+    },
+    "hero-cold": {
+      "width": 1400,
+      "height": 900,
+      "kind": "model",
+      "angle": "hero",
+      "heat": 0,
+      "spinSeconds": 0,
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": null,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.22952713770608618,
+            0.4934371611421047,
+            -0.5751122530213644
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.2400125172557354,
+            0.4878744920879019,
+            -0.5768191922552404
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.2504978951778396,
+            0.482311823897139,
+            -0.5785261312241646
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.2609832763550339,
+            0.47674915397949635,
+            -0.5802330707229926
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.2714686546840243,
+            0.4711864855728735,
+            -0.5819400097581546
+          ],
+          "occluder": "body_3"
+        }
+      ],
+      "armCameraBounds": null,
+      "attachmentCameraBounds": null,
+      "sightBlocker": "mag_4",
+      "sightHit": {
+        "name": "mag_4",
+        "geometry": "BufferGeometry",
+        "localPoint": [
+          -0.09563262574374654,
+          -0.0914586242288351,
+          -0.27229452645406127
+        ]
+      },
+      "rotorRadians": 0,
+      "drawCalls": 31,
+      "triangles": 9204,
+      "bytes": 315939
+    },
+    "hero-hot": {
+      "width": 1400,
+      "height": 900,
+      "kind": "model",
+      "angle": "hero",
+      "heat": 1,
+      "spinSeconds": 0,
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": null,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.22952713770608618,
+            0.4934371611421047,
+            -0.5751122530213644
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.2400125172557354,
+            0.4878744920879019,
+            -0.5768191922552404
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.2504978951778396,
+            0.482311823897139,
+            -0.5785261312241646
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.2609832763550339,
+            0.47674915397949635,
+            -0.5802330707229926
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.2714686546840243,
+            0.4711864855728735,
+            -0.5819400097581546
+          ],
+          "occluder": "body_3"
+        }
+      ],
+      "armCameraBounds": null,
+      "attachmentCameraBounds": null,
+      "sightBlocker": "mag_4",
+      "sightHit": {
+        "name": "mag_4",
+        "geometry": "BufferGeometry",
+        "localPoint": [
+          -0.09563262574374654,
+          -0.0914586242288351,
+          -0.27229452645406127
+        ]
+      },
+      "rotorRadians": 0,
+      "drawCalls": 31,
+      "triangles": 9204,
+      "bytes": 307264
+    },
+    "rotor-idle": {
+      "width": 1400,
+      "height": 900,
+      "kind": "model",
+      "angle": "rotor",
+      "heat": 0,
+      "spinSeconds": 0,
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": null,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            0.08242844703925012,
+            0.5221387025910154,
+            -0.6141918309596597
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            0.039654764732465625,
+            0.5219928779314613,
+            -0.6143415965416854
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.003118910934969613,
+            0.5218470532945422,
+            -0.6144913621004644
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.04589259988110338,
+            0.5217012286123531,
+            -0.6146411277057366
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.08866627720837594,
+            0.5215554039697753,
+            -0.6147908932703272
+          ],
+          "occluder": "body_3"
+        }
+      ],
+      "armCameraBounds": null,
+      "attachmentCameraBounds": null,
+      "sightBlocker": "minigun_spindle",
+      "sightHit": {
+        "name": "minigun_spindle",
+        "geometry": "BufferGeometry",
+        "localPoint": [
+          0.007562501281499864,
+          0.05925390697084368,
+          -0.8410000205039978
+        ]
+      },
+      "rotorRadians": 0,
+      "drawCalls": 31,
+      "triangles": 9204,
+      "bytes": 663035
+    },
+    "rotor-spinning": {
+      "width": 1400,
+      "height": 900,
+      "kind": "model",
+      "angle": "rotor",
+      "heat": 0,
+      "spinSeconds": 0.017,
+      "asset": "hydra",
+      "finite": true,
+      "cameraFov": null,
+      "inFrameRotorVertices": 418,
+      "heatCellVisibility": [
+        {
+          "name": "minigun_heat_indicator_0",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            0.08242844703925012,
+            0.5221387025910154,
+            -0.6141918309596597
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_1",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            0.039654764732465625,
+            0.5219928779314613,
+            -0.6143415965416854
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_2",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.003118910934969613,
+            0.5218470532945422,
+            -0.6144913621004644
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_3",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.04589259988110338,
+            0.5217012286123531,
+            -0.6146411277057366
+          ],
+          "occluder": "body_3"
+        },
+        {
+          "name": "minigun_heat_indicator_4",
+          "inFrame": true,
+          "visible": false,
+          "projectedCenter": [
+            -0.08866627720837594,
+            0.5215554039697753,
+            -0.6147908932703272
+          ],
+          "occluder": "body_3"
+        }
+      ],
+      "armCameraBounds": null,
+      "attachmentCameraBounds": null,
+      "sightBlocker": "minigun_spindle",
+      "sightHit": {
+        "name": "minigun_spindle",
+        "geometry": "BufferGeometry",
+        "localPoint": [
+          0.007562501281499854,
+          0.05925390697084368,
+          -0.8410000205039978
+        ]
+      },
+      "rotorRadians": 0.7140000000000001,
+      "drawCalls": 31,
+      "triangles": 9204,
+      "bytes": 667651
+    }
+  }
+}

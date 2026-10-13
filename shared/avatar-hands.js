@@ -60,6 +60,22 @@ export const HANDS = {
     grip: { x: 0.045, y: -0.03, z: -0.07 },                 // pistol grip under the gripstock.
     support: { x: -0.06, y: 0.0, z: -0.36, on: 'body' },    // forward handle under the tube clamp.
   },
+  chargerifle: {
+    grip: { x: 0.045, y: 0.010, z: -0.10 },                 // pistol grip behind the capacitor bank.
+    support: { x: -0.055, y: 0.000, z: -0.44, on: 'body' }, // cup under the emitter shroud.
+  },
+  archer: {
+    grip: { x: 0.045, y: -0.03, z: -0.07 },                 // pistol grip under the launcher body.
+    support: { x: -0.06, y: -0.01, z: -0.38, on: 'body' },  // forward grip under the seeker hood.
+  },
+  thunderbolt: {
+    grip: { x: 0.045, y: -0.02, z: -0.08 },                 // pistol grip behind the drum.
+    support: { x: -0.06, y: -0.03, z: -0.40, on: 'body' },  // handle under the coil barrel.
+  },
+  kraber: {
+    grip: { x: 0.045, y: 0.020, z: -0.13 },                 // thumbhole grip behind the bolt.
+    support: { x: -0.055, y: -0.010, z: -0.50, on: 'body' }, // palm under the long fore-end.
+  },
   knife: {
     grip: { x: 0.020, y: -0.225, z: -0.035 },                // fist rides low: the baked glove
                                                             // cuff must stay under the 0.02 sight line.

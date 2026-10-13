@@ -244,11 +244,16 @@ function buildChassis(groups, kit, T, surfaces) {
   return { amber, feed };
 }
 
+// Titanfall on-gun ammo counter seat (weapon-display.js): screen centre on the top rear of the receiver, facing back
+// toward the eye (Halo-style rear deck counter), size in m; `seat` names the surface it stands on.
+export const DISPLAY_MOUNT = Object.freeze({ x: -0.015, y: 0.138, z: 0.030, w: 0.045, h: 0.035, seat: 'deck', pod: 0.05 });
+
 // GL-3 SKIPJACK is authored as five rigid runtime parts. Up to three reserve
 // rounds travel with the flank cassette (`mag`); one shot is already chambered.
 // The charging pawl remains independent, so firing and reload motion stay
 // inside the normal viewmodel contract.
 export function buildSkipjack({ groups, kit, T }) {
+  groups.body.userData.displayMount = DISPLAY_MOUNT;
   const parts = createBlenderParts('skipjack');
   if (!parts) return false;
 

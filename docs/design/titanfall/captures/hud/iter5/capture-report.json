@@ -1,0 +1,320 @@
+{
+  "generated": "2026-10-13T05:04:21.087Z",
+  "page": "public/titanfall-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "pilot",
+        "title": "Pilot · meter 72 % · grapple 1/2 · battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-pilot.png",
+        "overlaps": []
+      },
+      {
+        "id": "wallrun",
+        "title": "Pilot · wall-running · double jump spent · meter 99 %",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-wallrun.png",
+        "overlaps": []
+      },
+      {
+        "id": "pilot-ready",
+        "title": "Pilot · TITANFALL READY",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-pilot-ready.png",
+        "overlaps": []
+      },
+      {
+        "id": "bay-full",
+        "title": "Pilot · TITAN BAY FULL",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-bay-full.png",
+        "overlaps": []
+      },
+      {
+        "id": "embark",
+        "title": "Pilot · own titan near · hold T embark",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-embark.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-mount",
+        "title": "Pilot · enemy titan back in reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-rodeo-mount.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-rodeo-rip.png",
+        "overlaps": []
+      },
+      {
+        "id": "oob",
+        "title": "Pilot · out of bounds",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-oob.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan",
+        "title": "Titan · ION · core 86 %",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-titan.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-doomed",
+        "title": "Titan · DOOMED · eject",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-titan-doomed.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-rider",
+        "title": "Titan · enemy pilot on board · lock",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-titan-rider.png",
+        "overlaps": []
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter5/desktop-dead.png",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "pilot",
+        "title": "Pilot · meter 72 % · grapple 1/2 · battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-pilot.png",
+        "overlaps": []
+      },
+      {
+        "id": "wallrun",
+        "title": "Pilot · wall-running · double jump spent · meter 99 %",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-wallrun.png",
+        "overlaps": []
+      },
+      {
+        "id": "pilot-ready",
+        "title": "Pilot · TITANFALL READY",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-pilot-ready.png",
+        "overlaps": []
+      },
+      {
+        "id": "bay-full",
+        "title": "Pilot · TITAN BAY FULL",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-bay-full.png",
+        "overlaps": []
+      },
+      {
+        "id": "embark",
+        "title": "Pilot · own titan near · hold T embark",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-embark.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-mount",
+        "title": "Pilot · enemy titan back in reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-rodeo-mount.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-rodeo-rip.png",
+        "overlaps": []
+      },
+      {
+        "id": "oob",
+        "title": "Pilot · out of bounds",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-oob.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan",
+        "title": "Titan · ION · core 86 %",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-titan.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-doomed",
+        "title": "Titan · DOOMED · eject",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-titan-doomed.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-rider",
+        "title": "Titan · enemy pilot on board · lock",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-titan-rider.png",
+        "overlaps": []
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter5/portrait-dead.png",
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "pilot",
+        "title": "Pilot · meter 72 % · grapple 1/2 · battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-pilot.png",
+        "overlaps": []
+      },
+      {
+        "id": "wallrun",
+        "title": "Pilot · wall-running · double jump spent · meter 99 %",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-wallrun.png",
+        "overlaps": []
+      },
+      {
+        "id": "pilot-ready",
+        "title": "Pilot · TITANFALL READY",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-pilot-ready.png",
+        "overlaps": []
+      },
+      {
+        "id": "bay-full",
+        "title": "Pilot · TITAN BAY FULL",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-bay-full.png",
+        "overlaps": []
+      },
+      {
+        "id": "embark",
+        "title": "Pilot · own titan near · hold T embark",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-embark.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-mount",
+        "title": "Pilot · enemy titan back in reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-rodeo-mount.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-rodeo-rip.png",
+        "overlaps": []
+      },
+      {
+        "id": "oob",
+        "title": "Pilot · out of bounds",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-oob.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan",
+        "title": "Titan · ION · core 86 %",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-titan.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-doomed",
+        "title": "Titan · DOOMED · eject",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-titan-doomed.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-rider",
+        "title": "Titan · enemy pilot on board · lock",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-titan-rider.png",
+        "overlaps": []
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter5/landscape-dead.png",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": [],
+  "warnings": [],
+  "backdrop": {
+    "mode": "live",
+    "scenes": {
+      "titan": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "pose": "idle"
+      },
+      "pilot": {
+        "type": "titan_legion",
+        "team": "bravo",
+        "view": "range",
+        "pose": "idle"
+      }
+    }
+  }
+}

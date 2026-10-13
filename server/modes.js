@@ -18,6 +18,7 @@ import { TdmPolicy } from './modes/tdm.js';
 import { GunGamePolicy } from './modes/gungame.js';
 import { BastionPolicy } from './modes/bastion.js';
 import { TrainingPolicy } from './modes/training.js';
+import { TitanfallPolicy } from './modes/titanfall.js';
 import { RoundContinuation } from './modes/round-continuation.js';
 
 
@@ -166,7 +167,7 @@ export class ModeController {
       glaiveStock: (entity) => engine.projectiles.glaiveStock(entity),
       chooseSpawn: (pool, entity, excludeIndex) => {
         if (Array.isArray(pool) && pool.length) {
-          const candidates = ['fun', 'chaos', 'tdm', 'snd', 'gungame'].includes(modeId)
+          const candidates = ['fun', 'chaos', 'tdm', 'snd', 'gungame', 'titanfall'].includes(modeId)
             ? engine.spawnSelector.expand(pool) : pool;
           return engine.selectSafestSpawn(candidates, entity, excludeIndex);
         }
@@ -192,6 +193,7 @@ export class ModeController {
     else if (modeId === 'tdm') this.policy = new TdmPolicy(context);
     else if (modeId === 'gungame') this.policy = new GunGamePolicy(context);
     else if (modeId === 'training') this.policy = new TrainingPolicy(context);
+    else if (modeId === 'titanfall') this.policy = new TitanfallPolicy(context, engine);
     else this.policy = new FunPolicy(context);
   }
 
@@ -278,6 +280,10 @@ export class ModeController {
   /** Conquest `{t:'conquest'}` intent (deploy, spot, support, redeploy) parsed by parseConquestIntent. */
   conquestIntent(player, intent) {
     return typeof this.policy.conquestIntent === 'function' && this.policy.conquestIntent(player, intent) === true;
+  }
+  /** Titanfall `{t:'titanfall'}` intent (loadout, call, ability, eject, tac, rodeo) parsed by parseTitanfallIntent. */
+  titanfallIntent(player, intent) {
+    return typeof this.policy.titanfallIntent === 'function' && this.policy.titanfallIntent(player, intent) === true;
   }
   /** Conquest flies parachutes and applies fall damage (shared/parachute.js); other modes do not. */
   airborneRules() { return typeof this.policy.fallDamage === 'function'; }

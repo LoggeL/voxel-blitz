@@ -1,5 +1,5 @@
 import { DEFAULT_TRAITOR_PERCENT, TTT_TRAITOR_PERCENTS } from '../../../shared/ttt.js';
-import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, DUEL_WEAPONS, MAP_IDS, MODE_IDS, MODE_RULES, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
+import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, DUEL_WEAPONS, MAP_IDS, MODE_IDS, MODE_RULES, isModeMapCompatible, mapForMode, titanfallScoreLimit } from '../../../shared/modes.js';
 import { el, MAP_LABELS, MODE_LABELS, WEAPON_NAMES, savePref } from './hud-support.js';
 import { FRONTIER_PLAN, KIT_IDS, KITS, TEAM_DISPLAY } from '../../../shared/conquest-contract.js';
 import { MAX_BOTS, lobbyCapacity, modeAllowsBots } from '../../../shared/lobby-limits.js';
@@ -117,7 +117,8 @@ export class LobbySettings {
       ? `BASE 1V1 WEAPON SET: ${DUEL_WEAPONS.map(id => WEAPON_NAMES[id] || id).join(' · ')}. No throwables.` : '';
     this.capacity.textContent = `${state.members?.length || 0} / ${limit} SLOTS · ${MAP_LABELS[state.map] || state.map}`;
     this.hint.textContent = state.gameMode === 'conquest'
-      ? `${CONQUEST_HINT}` : state.gameMode === 'bastion'
+      ? `${CONQUEST_HINT}` : state.gameMode === 'titanfall'
+      ? `Attrition, MILITIA vs IMC: pilots wallrun, call titans from orbit and rodeo enemy titans. First to ${titanfallScoreLimit(1)}-${titanfallScoreLimit(8)} points (scales with team size), up to 8 v 8.` : state.gameMode === 'bastion'
       ? `1–4 players defend ${MAP_LABELS[state.map] || state.map} stage by stage: build, hold, fall back, extract. No friendly bots.` : state.gameMode === 'duel'
       ? 'Share the invite link. Two players, no bots. Both players must be ready.' : isHost
       ? 'Smaller maps reduce bots. Joining friends replace bots when full. Changes reset readiness.'

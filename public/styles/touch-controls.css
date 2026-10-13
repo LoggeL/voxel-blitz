@@ -295,7 +295,7 @@
 .vb-touch-mode .vb-run-toast { margin-top: 4px; font-size: 9px; letter-spacing: 0; }
 
 @media (max-width: 640px) {
-  .vb-touch-mode #match-header:is([data-mode="tdm"], [data-mode="snd"]) {
+  .vb-touch-mode #match-header:is([data-mode="tdm"], [data-mode="snd"], [data-mode="titanfall"]) {
     left: auto;
     right: max(12px, env(safe-area-inset-right));
     max-width: calc(100vw - 80px - env(safe-area-inset-left) - env(safe-area-inset-right));

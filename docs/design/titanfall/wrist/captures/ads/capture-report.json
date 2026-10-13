@@ -1,0 +1,476 @@
+{
+  "generated": "2026-10-13T19:43:13.359Z",
+  "page": "public/titanfall-wrist-capture.html",
+  "wrist": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/desktop-rifle-ads-grapple-1.png",
+      "live": false,
+      "draws": 62,
+      "wrist": {
+        "visible": true,
+        "live": false,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 2,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 846.9925110401413,
+        "top": 662.930732337679,
+        "width": 106.57638283391157,
+        "height": 75.60141823861954
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "shotgun",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/desktop-shotgun-ads-grapple-1.png",
+      "live": false,
+      "draws": 61,
+      "wrist": {
+        "visible": true,
+        "live": false,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 2,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 845.296613644455,
+        "top": 657.6732731461294,
+        "width": 107.97874070798639,
+        "height": 76.4500329559072
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "smg",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/desktop-smg-ads-grapple-1.png",
+      "live": true,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 3,
+        "offHand": true,
+        "scale": 1
+      },
+      "box": {
+        "left": 500.47108422603276,
+        "top": 650.0763506291146,
+        "width": 192.40689675218118,
+        "height": 125.5956573619734
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "archer",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/desktop-archer-ads-grapple-1.png",
+      "live": false,
+      "draws": 98,
+      "wrist": {
+        "visible": true,
+        "live": false,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 805.2039343442802,
+        "top": 747.2457958968353,
+        "width": 135.41766182751576,
+        "height": 100.32937957883405
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/portrait-rifle-ads-grapple-1.png",
+      "live": false,
+      "draws": 55,
+      "wrist": {
+        "visible": true,
+        "live": false,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 128.46432521624251,
+        "top": 498.8684408868125,
+        "width": 60.65990218368117,
+        "height": 42.68319429734635
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "shotgun",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/portrait-shotgun-ads-grapple-1.png",
+      "live": false,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": false,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 127.67241435037016,
+        "top": 494.3918746914524,
+        "width": 61.35929197958899,
+        "height": 43.101528809430704
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "smg",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/portrait-smg-ads-grapple-1.png",
+      "live": true,
+      "draws": 45,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": true,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 26.1328045273428,
+        "top": 431.4605540534348,
+        "width": 105.64533326605972,
+        "height": 70.51527682160122
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "archer",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/portrait-archer-ads-grapple-1.png",
+      "live": false,
+      "draws": 94,
+      "wrist": {
+        "visible": true,
+        "live": false,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 61.16689721418329,
+        "top": 560.9445683430165,
+        "width": 76.79871209650375,
+        "height": 55.90164284862226
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/landscape-rifle-ads-grapple-1.png",
+      "live": false,
+      "draws": 62,
+      "wrist": {
+        "visible": true,
+        "live": false,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 363.9454428178871,
+        "top": 232.26609581120857,
+        "width": 58.358529130835336,
+        "height": 41.2767452152209
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "shotgun",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/landscape-shotgun-ads-grapple-1.png",
+      "live": false,
+      "draws": 61,
+      "wrist": {
+        "visible": true,
+        "live": false,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 363.06240147485516,
+        "top": 230.28515765589327,
+        "width": 59.17193604132797,
+        "height": 41.766399047804384
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "smg",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/landscape-smg-ads-grapple-1.png",
+      "live": true,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": true,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 237.2909910878933,
+        "top": 223.65147085096757,
+        "width": 105.72123472506672,
+        "height": 68.15470517632136
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "archer",
+      "fov": 75,
+      "ads": 1,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/ads/landscape-archer-ads-grapple-1.png",
+      "live": false,
+      "draws": 98,
+      "wrist": {
+        "visible": true,
+        "live": false,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 343.539901423193,
+        "top": 260.78337836516994,
+        "width": 74.75532599594356,
+        "height": 55.36144717539338
+      }
+    }
+  ],
+  "errors": []
+}

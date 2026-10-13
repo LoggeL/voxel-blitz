@@ -4,6 +4,7 @@ import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleHasF
 import { isBotId } from '../../../shared/conquest.js';
 import { isTypingTarget, matchesBinding } from '../keybindings.js';
 import { VehicleCamera, VEHICLE_CAMERA } from './vehicle-camera.js';
+import { isTitanType } from '../../../shared/titan-contract.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
@@ -71,6 +72,13 @@ const MAX_QUEUED_ACTIONS = 4;
 const seatTakeable = (row, seatId) => { const occupant = vehicleSeatOccupantId(row, seatId); return occupant == null || isBotId(occupant); };
 const hullTakeable = row => vehicleHasFreeSeat(row) || vehicleSeats(row.type ?? row.kind).some(seat => isBotId(vehicleSeatOccupantId(row, seat.id)));
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+/**
+ * Titanfall walkers (docs/titanfall.md §3.6, §8.2): embark is a held interact
+ * (tap still disembarks), the driver pitch is the mount's limit, and seated
+ * titan keys belong to the titan controller (public/js/titanfall/titan-controller.js).
+ */
+export const WALKER_CONTROLS = Object.freeze({ embarkHoldMs: 300, pitch: Object.freeze([-1.15, 0.7]) });
+const VEHICLE_CONTEXT_ACTIONS = Object.freeze(['vehicleCamera', 'vehicleView', 'vehicleCountermeasure', 'vehicleWeaponNext']);
 
 /**
  * Authoritative seating, device-independent vehicle commands and the per-seat
@@ -98,6 +106,11 @@ export class VehicleController {
     this._opticListeners = new Set();
     this._interactDownAt = null;
     this._padInteractAt = null;
+    /** Titanfall: a T press another handler owns (battery insert, rodeo) returns true here. */
+    this.interactClaim = null;
+    /** Walker controls of the last controls() sample: { fwd, side, aimYaw, aimPitch, sprint, reload }. */
+    this.walker = null;
+    this._embarkQueuedFor = null;
     this._key = event => this._keyDown(event);
     this._keyUp = event => this._keyRelease(event);
     this._mouseDown = event => { if (event.button === 2) this._setOptic(true); };
@@ -142,6 +155,8 @@ export class VehicleController {
   get role() { return this.seat?.role ?? null; }
   get isDriver() { return !!this.seat?.drives; }
   get type() { return this.vehicle ? this.vehicle.type ?? this.vehicle.kind : null; }
+  /** True while seated in a titanfall walker. */
+  get titan() { return isTitanType(this.type); }
   /**
    * True while the seat looks through a mount sight (the chin gunner's gimbal
    * sensor, a held tank sight): the HUD draws the sensor overlay and
@@ -199,11 +214,14 @@ export class VehicleController {
       return;
     }
     if (matchesBinding(event, 'interact')) {
-      if (!event.repeat && this._interactDownAt == null) this._interactDownAt = this.now();
+      if (!this.vehicle && this.interactClaim?.(event) === true) return;
+      if (!event.repeat && this._interactDownAt == null) { this._interactDownAt = this.now(); this._embarkQueuedFor = null; }
       if (this.vehicle || this.nearest) event.preventDefault();
       return;
     }
     if (!this.vehicle) return;
+    // A titan's Q/E/G/V/C/X/F/H are titan-context keys (titan-controller.js).
+    if (this.titan && VEHICLE_CONTEXT_ACTIONS.some(action => matchesBinding(event, action))) return;
     if (matchesBinding(event, 'vehicleCamera')) { this.freeLook = true; event.preventDefault(); return; }
     // V (on foot the quick melee key, which a seat never uses) cycles the seat's camera views.
     if (matchesBinding(event, 'vehicleView')) { if (!event.repeat) this.cycleView(); event.preventDefault(); return; }
@@ -229,7 +247,8 @@ export class VehicleController {
       const held = this.now() - this._interactDownAt;
       this._interactDownAt = null;
       // A tap enters or leaves; a longer hold was a repair/revive and never exits.
-      if (this.enabled && held < INTERACT_TAP_MS && this.queueInteract()) event.preventDefault?.();
+      // A titan is entered by holding (holdInteract), never by a tap.
+      if (this.enabled && held < INTERACT_TAP_MS && !this._walkerEmbark() && this.queueInteract()) event.preventDefault?.();
     }
   }
 
@@ -245,7 +264,27 @@ export class VehicleController {
     if (held || this._padInteractAt == null) return false;
     const heldMs = this.now() - this._padInteractAt;
     this._padInteractAt = null;
-    return heldMs < INTERACT_TAP_MS && this.queueInteract();
+    return heldMs < INTERACT_TAP_MS && !this._walkerEmbark() && this.queueInteract();
+  }
+
+  /** True while the nearest enterable hull is a titan (held interact enters it). */
+  _walkerEmbark() { return !this.vehicle && isTitanType(this.nearest?.type ?? this.nearest?.kind); }
+
+  /**
+   * Titanfall embark (§8.2): once T (or the pad's interact) has been held for
+   * WALKER_CONTROLS.embarkHoldMs next to the own titan, queue the enter once.
+   * Called per frame by the titanfall UI. Returns the hold progress 0..1 (0 when idle).
+   */
+  holdInteract() {
+    if (!this.enabled || !this._walkerEmbark()) return 0;
+    const since = this._interactDownAt ?? this._padInteractAt;
+    if (since == null) return 0;
+    const progress = Math.min(1, (this.now() - since) / WALKER_CONTROLS.embarkHoldMs);
+    if (progress >= 1 && this._embarkQueuedFor !== this.nearest.id) {
+      this._embarkQueuedFor = this.nearest.id;
+      this._queue({ type: 'enter', vehicleId: this.nearest.id });
+    }
+    return progress;
   }
 
   _queue(action) {
@@ -278,6 +317,9 @@ export class VehicleController {
     let distance = Infinity;
     if (this.enabled && !this.vehicle) for (const row of this.rows) {
       if (row.hp <= 0 || row.wreck || !hullTakeable(row) || (row.team && row.team !== self.team)) continue;
+      // Titanfall: only the own titan, and not while it falls or is doomed (tw[5] phase 1 / 6).
+      if (isTitanType(row.type ?? row.kind)
+        && (String(row.own) !== String(self.id) || [1, 6].includes(Array.isArray(row.tw) ? row.tw[5] | 0 : 0))) continue;
       const d = Math.hypot(row.x - self.x, row.y - self.y, row.z - self.z);
       if (d <= vehicleEnterDistance(row.type ?? row.kind) && d < distance) { distance = d; this.nearest = row; }
     }
@@ -288,6 +330,7 @@ export class VehicleController {
       this._stick.x = this._stick.y = 0;
       this._aim = null;
       this._rideYaw = NaN;
+      this.walker = null;
       if (this.vehicle) {
         this.view.begin();
         this._seedAim();
@@ -308,7 +351,7 @@ export class VehicleController {
   /** Seed the look from the seat's mount aim, or the hull for drivers and passengers. */
   _seedAim() {
     const row = this.vehicle, type = this.type;
-    const hullLook = aircraft(type) && this.isDriver;
+    const hullLook = (aircraft(type) || isTitanType(type)) && this.isDriver;
     if (hullLook) { this.yaw = wrap(finite(row.yaw)); this.pitch = finite(row.pitch); return; }
     const mountId = this.seat?.mounts?.[0];
     const aim = mountId && Array.isArray(row.mounts) ? this._mountAim(mountId) : null;
@@ -401,6 +444,20 @@ export class VehicleController {
     }
     const steer = Number(!!(keys.right ?? keys.r)) - Number(!!(keys.left ?? keys.l));
     const drive = Number(!!(keys.forward ?? keys.f)) - Number(!!(keys.back ?? keys.b));
+    if (isTitanType(type)) {
+      // Walker (§3.6): throttle = forward/back, steer = strafe, yaw/pitch = aim; the hull
+      // turns 1:1 with the aim on the server. Sprint and reload ride titanHold (titan-ui).
+      this.yaw = wrap(finite(this.yaw) - dx);
+      this.pitch = clamp(finite(this.pitch) - dy, WALKER_CONTROLS.pitch[0], WALKER_CONTROLS.pitch[1]);
+      // The crosshair ray as last rendered (cockpit or chase camera): the server converges the arm gun on
+      // what it hits. Free look keeps the gun's aim, so it sends none (the server uses the cockpit eye).
+      const m = !this.freeLook && this.view?.seated ? this.camera?.matrixWorld?.elements : null;
+      const titanSight = m && [m[12], m[13], m[14], -m[8], -m[9], -m[10]].every(Number.isFinite)
+        ? [m[12], m[13], m[14], Math.atan2(m[8], m[10]), Math.asin(clamp(-m[9], -1, 1))] : undefined;
+      this.walker = { fwd: drive, side: steer, aimYaw: this.yaw, aimPitch: this.pitch, sprint: !!keys.sprint, reload: !!keys.reload, titanSight };
+      return { vehicleThrottle: drive, vehicleSteer: steer, vehicleBrake: 0, vehicleLift: 0, yaw: this.yaw, pitch: this.pitch, wantFire: wantsFire,
+        ...(titanSight ? { titanSight } : {}) };
+    }
     const mouseFlight = flying && this.mouseFlight;
     const aimFlight = flying && this.aimFlight;
     const rotor = ROTORCRAFT.has(type);

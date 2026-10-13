@@ -17,6 +17,7 @@ import { AimSway } from './aim-sway.js';
 import { WeaponAimMotion } from '../guns/weapon-aim.js';
 import { resetFirstPersonBody, updateFirstPersonBody } from './first-person-body.js';
 import { DeathHeadCam } from './death-head-cam.js';
+import { decodeTitanfallPlayer, decodeTitanfallSelf } from '../../../shared/titan-contract.js';
 
 const NO_LEAN = Object.freeze({ x: 0, y: 0, z: 0 });
 
@@ -56,6 +57,13 @@ const RECONCILE_CORRECTION = 0.28;
 const RECONCILE_OFFSET_CLAMP = 1.6;
 const RECONCILE_OFFSET_DECAY = 13;   // 1/s (~75 ms to settle a small correction)
 const RECONCILE_SNAP_DECAY = 7;      // 1/s for a hard snap (~140 ms)
+// Titanfall: above this position error the hidden pilot state is adopted from `tfs`.
+const PILOT_ADOPT_ERROR = 0.25;
+// Titanfall rodeo: a predicted grab waits this long for the authority's mount, and the
+// camera glides onto the back at this rate (1/s; ~200 ms) instead of popping.
+const RODEO_PENDING_MS = 600;
+const RODEO_GLIDE_DECAY = 10;
+const NO_PILOT_LERP = Object.freeze({ x: 0, y: 0, z: 0 });
 
 /** Camera FOV that presents `zoom` magnification against `baseFov` (degrees). */
 export function fovForZoom(zoom, baseFov = DEFAULT_FOV) {
@@ -186,6 +194,23 @@ export class LocalPlayer {
     this._lastReconciledSnapSeq = null;
     this._gameplayInputEnabled = false;
     this._disposed = false;
+    // Titanfall pilot (docs/titanfall.md §4): only read while physics.pilotRules.
+    // pilotCamera/pilotAnim/pilotSelfFrameFor/pilotSnapNow are installed by
+    // public/js/titanfall/pilot-client.js for the match.
+    this._jumpSeq = 0;            // uint8 press counter sent as `jumpSeq` (§3.6)
+    this._pilotStim = false;      // tf[3] stimmed, for the predicted speed
+    this._pilotRodeo = false;     // tf[5]: prediction off, the body rides the titan
+    this._pilotRodeoId = null;    // tf[5] vehicle id
+    this._rodeoPending = null;    // { id, until }: a predicted contact grab held until the authority confirms it
+    this._rodeoPosed = false;     // the body is on a titan's back (riding or pending): the mount glide is done
+    this.rodeoContactFor = null;  // (feet) -> enemy titan id an airborne body grabs (titan-ui.js)
+    this.rodeoPoseFor = null;     // (id) -> rider feet on the drawn hull, or null (titan-ui.js)
+    this._pilotJumpHeld = false;  // jump key state at the last frame (jumpSeq press edge)
+    this._pilotAdoptPending = false;
+    this.pilotCamera = null;      // { update(dt, player) -> { roll, fov } }
+    this.pilotAnim = null;        // { updateBody(body, dt, player) }
+    this.pilotSelfFrameFor = null; // serverNow -> raw `tfs` frame or null
+    this.pilotSnapNow = null;     // serverNow of the snapshot being reconciled
 
     // Reused frame records avoid adding hot-path garbage beyond the objects
     // already produced by Input and the wire payload.
@@ -221,6 +246,8 @@ export class LocalPlayer {
   }
 
   get alive() { return this._alive; }
+  /** Titanfall: on an enemy titan's back (tf[5]) or holding a predicted rodeo grab. */
+  get pilotRiding() { return this._pilotRodeo || !!this._rodeoPending; }
   get hp() { return this._hp; }
   get conditions() { return this._conditions; }
   get pos() { return this.physics.pos; }
@@ -310,6 +337,8 @@ export class LocalPlayer {
     this.physics.wantProne = false;
     this.physics.leanT = 0;
     this.physics.wantLean = 0;
+    this.physics.resetPilot?.();
+    this._pilotAdoptPending = false;
     return true;
   }
 
@@ -637,6 +666,29 @@ export class LocalPlayer {
     this._reconcileOffset.decay = RECONCILE_OFFSET_DECAY;
   }
 
+  /**
+   * Titanfall rodeo: puts the body on the titan's back (riding: tf[5]; else the
+   * predicted grab) on the drawn hull when titan-ui offers that pose, else at
+   * `fallback` (the authority's row). The first pose of a ride glides the camera
+   * over from where the body was instead of popping.
+   */
+  _poseRodeo(fallback = null) {
+    const id = this._pilotRodeo ? this._pilotRodeoId : this._rodeoPending?.id;
+    const at = (id != null && typeof this.rodeoPoseFor === 'function' ? this.rodeoPoseFor(id) : null) ?? fallback;
+    if (!at || ![at.x, at.y, at.z].every(Number.isFinite)) return false;
+    const pos = this.physics.pos, offset = this._reconcileOffset;
+    if (!this._rodeoPosed) {
+      offset.x -= at.x - pos.x;
+      offset.y -= at.y - pos.y;
+      offset.z -= at.z - pos.z;
+      offset.decay = Math.min(offset.decay, RODEO_GLIDE_DECAY);
+      this._rodeoPosed = true;
+    }
+    pos.x = at.x; pos.y = at.y; pos.z = at.z;
+    this.physics.vel.x = this.physics.vel.y = this.physics.vel.z = 0;
+    return true;
+  }
+
   _readLook() {
     const delta = this.input.consumeDelta();
     if (!this._alive) return;
@@ -768,12 +820,48 @@ export class LocalPlayer {
     this._concussedS = Math.max(this._concussedS, ms / 1000);
   }
 
-  _stepPrediction(dt) {
+  _stepPrediction(dt, now = nowMs()) {
     const climbAxis = this.keys.forward && !this.keys.back
       ? 1
       : (this.keys.back && !this.keys.forward ? -1 : 0);
     this._concussedS = Math.max(0, this._concussedS - dt);
     this.physics.speedScale = this._concussedS > 0 ? MOVEMENT_RULES.concussedSpeedMult : 1;
+    if (this.physics.pilotRules) {
+      // Titanfall: the server's sprint gate and stim feed pilotSpeedFor (physics.step
+      // adds the post-stance prone gate); every jump press bumps jumpSeq so a tap
+      // between two sends still reaches the authority.
+      const keys = this.keys, physics = this.physics;
+      const ads = !!this._movementAds;
+      physics.pilotInput = { sprint: !!keys.sprint && !!keys.forward && !keys.back && !keys.crouch && !ads,
+        crouch: !!keys.crouch, ads, stim: this._pilotStim };
+      const press = !!keys.jump && !this._pilotJumpHeld;
+      this._pilotJumpHeld = !!keys.jump;
+      if (this._alive && press) this._jumpSeq = (this._jumpSeq + 1) & 255;
+      if (this._rodeoPending && !(this._alive && !this._pilotRodeo && now < this._rodeoPending.until)) this._rodeoPending = null;
+      if (this._pilotRodeo || this._rodeoPending || !this._alive) {
+        // On a titan's back (or a predicted grab waiting for it) the body rides the drawn
+        // hull; the press that jumps off is the authority's, never a predicted double jump.
+        physics.jumpWasHeld = !!keys.jump;
+        physics.resetPilotStep?.();
+        this.currentSpeedXZ = 0;
+        if (this._alive) this._poseRodeo();
+        return false;
+      }
+      this._rodeoPosed = false;
+      // The authority's fixed 60 Hz step, whatever the display rate.
+      if (press) physics.notePilotJumpPress?.();
+      const jumped = physics.stepPilotFixed(dt, this.wishDir, moveSpeedFor(keys, this._movementAds), keys.jump,
+        climbAxis, this.view.yaw);
+      this.currentSpeedXZ = Math.hypot(physics.vel.x, physics.vel.z);
+      // Rodeo: an airborne contact with an enemy titan's upper hull is grabbed at once (the
+      // authority's rule); the body holds there until the mount arrives, so it never falls past first.
+      const grab = !physics.grounded && typeof this.rodeoContactFor === 'function' ? this.rodeoContactFor(physics.pos) : null;
+      if (grab != null) {
+        this._rodeoPending = { id: grab, until: now + RODEO_PENDING_MS };
+        this._poseRodeo();
+      }
+      return jumped;
+    }
     const jumped = this._alive
       ? this.physics.step(
         dt,
@@ -829,6 +917,7 @@ export class LocalPlayer {
     this._cameraCrouch = 0;
     this.physics.wantProne = false;
     this.physics.wantLean = 0;
+    if (this.physics.pilotRules) this.physics.clearPilotMotion?.();
   }
 
   _updateConditionEstimates(dt, jumped) {
@@ -916,6 +1005,7 @@ export class LocalPlayer {
       grenadeCook: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.cookMs ?? 0) : 0,
     };
     if (payload.throwGrenade) payload.grenadeAim = this.grenadeThrowLatched.grenadeAim;
+    if (this.physics.pilotRules) payload.jumpSeq = this._jumpSeq;
     const sent = typeof intents.sendInput === 'function'
       ? !!intents.sendInput(payload)
       : false;
@@ -962,7 +1052,7 @@ export class LocalPlayer {
     // it when handling is allowed, so sprint prediction reads the same gate.
     this._movementAds = this.wantAds && this._gameplayInputEnabled && isAllowed(intents.fireAllowed) &&
       !intents.weapon?.isDeploying && !intents.weapon?.quickMeleeActive;
-    const jumped = this._stepPrediction(dt);
+    const jumped = this._stepPrediction(dt, now);
     this._frame.jumped = jumped;
     this._aim = this.aimSway.update(dt, {
       alive: this._alive,
@@ -1075,6 +1165,13 @@ export class LocalPlayer {
     if (authoritativeAlive && me.impulse) this.physics.adoptImpulse(me.impulse);
     // Conquest parachute / ejection seat: cq[7] (absent while not under a canopy).
     if (authoritativeAlive) this.physics.adoptChute?.(Array.isArray(me.cq) ? me.cq[7] | 0 : 0);
+    // Titanfall pilot: stim and rodeo from tf, the grapple anchor tf[6] starts or ends the predicted pull.
+    const pilotTf = this.physics.pilotRules && authoritativeAlive ? decodeTitanfallPlayer(me) : null;
+    this._pilotStim = !!pilotTf?.stimmed;
+    this._pilotRodeo = !!pilotTf?.rodeoVehicleId;
+    this._pilotRodeoId = pilotTf?.rodeoVehicleId ?? null;
+    if (this._pilotRodeo) this._rodeoPending = null;
+    if (pilotTf) this.physics.adoptPilotGrapple?.(pilotTf.grappling ? pilotTf.grapple : null);
 
     // TTT teleporter returns and map portals both restart prediction at the
     // authoritative body; a portal arrival also adopts the authored heading.
@@ -1089,7 +1186,14 @@ export class LocalPlayer {
     }
     this._tttTeleportSeq = teleportSeq;
     this._portalSeq = portalSeq;
-    if ([me.x, me.y, me.z].every(Number.isFinite)) {
+    if (this._pilotRodeo && [me.x, me.y, me.z].every(Number.isFinite)) {
+      // Riding a titan: the body rides the drawn hull at the authority's offset (titan-ui's
+      // rodeoPoseFor, every frame), else the row itself; the mount glides the camera over.
+      this._poseRodeo(me);
+    } else if (this._rodeoPending && authoritativeAlive) {
+      // A predicted grab keeps the body on the back until the authority's mount arrives
+      // (or the hold lapses and the next row corrects it).
+    } else if ([me.x, me.y, me.z].every(Number.isFinite)) {
       const pos = this.physics.pos;
       const dx = me.x - pos.x;
       const dy = me.y - pos.y;
@@ -1125,8 +1229,33 @@ export class LocalPlayer {
           offset.decay = Math.min(offset.decay, decay);
         }
       }
+      // Titanfall: a diverged prediction also adopts the hidden pilot state (tfs) of this tick.
+      if (this.physics.pilotRules && this._alive && error > PILOT_ADOPT_ERROR) {
+        this._pilotAdoptPending = true;
+        this._tryAdoptPilot();
+      }
     }
     return this._reconcileResult;
+  }
+
+  /**
+   * The `tfs` frame of the reconciled tick arrived (it trails the tick on the
+   * socket): adopt it when that tick's position error asked for it.
+   */
+  adoptPilotFrame(raw) {
+    if (!this._pilotAdoptPending || !raw || raw.s !== this.pilotSnapNow) return false;
+    return this._tryAdoptPilot(raw);
+  }
+
+  _tryAdoptPilot(raw = null) {
+    if (!this._pilotAdoptPending || !this.physics.pilotRules) return false;
+    const frameRaw = raw ?? (typeof this.pilotSelfFrameFor === 'function' ? this.pilotSelfFrameFor(this.pilotSnapNow) : null);
+    if (!frameRaw) return false;
+    this._pilotAdoptPending = false;
+    const frame = decodeTitanfallSelf(frameRaw);
+    // A press the authority has not consumed yet is newer than the frame: keep the prediction.
+    if (!frame || frame.jumpSeqAck !== this._jumpSeq) return false;
+    return !!this.physics.adoptPilot?.(frame);
   }
 
   _stepReconcileOffset(dt) {
@@ -1156,8 +1285,16 @@ export class LocalPlayer {
     // Peek lean: the eye swings out with the upper body and the view cants slightly.
     const lean = this._leanEyeOffset();
     const leanRoll = this._alive ? -leanPose(this.physics.leanT) * LEAN.viewRoll : 0;
-    this.leanViewRoll = leanRoll;
-    camera.position.set(pos.x + lean.x + offset.x, cameraEyeY + offset.y, pos.z + lean.z + offset.z);
+    // Titanfall pilot camera (public/js/titanfall/pilot-camera.js): wallrun roll and FOV kicks.
+    const pilotView = this.physics.pilotRules && this.pilotCamera ? this.pilotCamera.update(dt, this) : null;
+    const pilotRoll = this._alive && Number.isFinite(pilotView?.roll) ? pilotView.roll : 0;
+    this.leanViewRoll = leanRoll + pilotRoll;
+    // Titanfall: the fixed-step pilot prediction presents between its last two steps.
+    const lerp = this.physics.pilotRules && this.physics.pilotLerp ? this.physics.pilotLerp : NO_PILOT_LERP;
+    // Titanfall: the pilot camera's offset off a wallrun wall / out of a rodeo host's mesh (0 otherwise).
+    const pov = this._alive && pilotView ? pilotView : NO_PILOT_LERP;
+    camera.position.set(pos.x + lean.x + offset.x + lerp.x + (pov.ox ?? 0), cameraEyeY + offset.y + lerp.y + (pov.oy ?? 0),
+      pos.z + lean.z + offset.z + lerp.z + (pov.oz ?? 0));
     if (this._alive) {
       this.deathElapsed = 0;
       this.deathRoll = 0;
@@ -1189,25 +1326,30 @@ export class LocalPlayer {
       camera.rotation.set(
         this.aimPitch + this.recoilPitch + this.deathPitch,
         this.aimYaw + this.recoilYaw,
-        this.deathRoll + this.recoilRoll + leanRoll,
+        this.deathRoll + this.recoilRoll + leanRoll + pilotRoll,
       );
     }
-    this._lookScale = adsLookScale(camera.fov, baseFov);
+    const bracedAim = weaponDef.id === 'minigun';
+    const adsBlend = easeOut(this.adsT);
+    // Bracing the minigun slows all look inputs while retaining immediate response.
+    this._lookScale = adsLookScale(camera.fov, baseFov) * (bracedAim ? 1 - 0.25 * adsBlend : 1);
     const scopeKey = `${weaponDef.id}/${weaponDef.attachments?.optic || 'standard'}/${weaponDef.zoom || 0}`;
     if (this._scopeKey !== scopeKey) { this._scopeKey = scopeKey; this._scopeZoom = 0; }
     if (isScopedWeapon(weaponDef)) {
       if (!(this._scopeZoom > 0)) this._scopeZoom = Number(weaponDef.zoom) || 1;
     } else this._scopeZoom = 0;
-    const adsFov = this._scopeZoom > 0 ? fovForZoom(this._scopeZoom, baseFov) : weaponDef.adsFov;
-    const targetFov = baseFov + (adsFov - baseFov) * easeOut(this.adsT) +
-      (!this.wantAds && this.keys && this.keys.sprint && this.currentSpeedXZ > 5 ? 4 : 0);
+    const adsFov = this._scopeZoom > 0 ? fovForZoom(this._scopeZoom, baseFov)
+      : bracedAim ? fovForZoom(weaponDef.zoom, baseFov) : weaponDef.adsFov;
+    const targetFov = baseFov + (adsFov - baseFov) * adsBlend +
+      (!this.wantAds && this.keys && this.keys.sprint && this.currentSpeedXZ > 5 ? 4 : 0) +
+      (this._alive && Number.isFinite(pilotView?.fov) ? pilotView.fov : 0);
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 14);
     camera.updateProjectionMatrix();
 
     updateFirstPersonBody(
       this.body,
       dt,
-      this.physics.pos,
+      lerp === NO_PILOT_LERP ? this.physics.pos : { x: pos.x + lerp.x, y: pos.y + lerp.y, z: pos.z + lerp.z },
       this.view.yaw,
       this.currentSpeedXZ,
       !!this.physics._crouching,
@@ -1221,6 +1363,7 @@ export class LocalPlayer {
         forwardSpeed: -(this.physics.vel.x * Math.sin(this.view.yaw) + this.physics.vel.z * Math.cos(this.view.yaw)),
         lateralSpeed: this.physics.vel.x * Math.cos(this.view.yaw) - this.physics.vel.z * Math.sin(this.view.yaw) },
     );
+    if (this.physics.pilotRules && this.pilotAnim) this.pilotAnim.updateBody(this.body, dt, this);
     return this.scopeActive;
   }
 

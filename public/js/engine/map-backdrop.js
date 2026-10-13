@@ -661,8 +661,17 @@ function shed(b, box, y0, h, color, glass) {
 // ----------------------------------------------------------------- styles
 
 const STYLES = {
-  /** Voxel landform ring (mesas, hills, peaks, islands, volcano). */
-  terrain(b, rng, frame, cfg, palette) { landforms(b, frame, cfg, palette); },
+  /**
+   * Voxel landform ring (mesas, hills, peaks, islands, volcano). Optional `stacks` and
+   * `towers` (industrial style) stand in front of it, coloured by `industry` (the
+   * industrial colour keys, kept apart from the strata `band`).
+   */
+  terrain(b, rng, frame, cfg, palette) {
+    landforms(b, frame, cfg, palette);
+    if (cfg.stacks?.length || cfg.towers?.length) {
+      STYLES.industrial(b, rng, frame, { ...cfg, ...cfg.industry, hills: null, shedCount: 0, gap: cfg.gap ?? [0, 0] }, palette);
+    }
+  },
 
   /** Legacy key: terraced desert mesas. */
   mesa(b, rng, frame, cfg, palette) {

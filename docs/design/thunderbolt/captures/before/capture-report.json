@@ -1,0 +1,23 @@
+{
+  "generated": "2026-10-13T20:46:20.535Z",
+  "fov": 75,
+  "ads": 0,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/thunderbolt/captures/before/desktop-thunderbolt-full.png"
+    },
+    {
+      "size": "portrait",
+      "weapon": "thunderbolt",
+      "state": "full",
+      "live": true,
+      "file": "docs/design/thunderbolt/captures/before/portrait-thunderbolt-full.png"
+    }
+  ],
+  "errors": []
+}

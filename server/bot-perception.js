@@ -2,6 +2,7 @@ import { playerCoreHitboxes } from '../shared/player-hitboxes.js';
 import { pronePose } from '../shared/player-stance.js';
 import { botDifficulty } from '../shared/bot-difficulty.js';
 import { raycastVoxels } from '../shared/raycast.js';
+import { perceptionAimMul } from './sim/titanfall/perception.js';
 
 const HALF_FOV = 55 * Math.PI / 180;
 const TRACK_HALF_FOV = 65 * Math.PI / 180;
@@ -12,6 +13,9 @@ const HALF_VERTICAL_FOV = 50 * Math.PI / 180;
  * `options.sightRange` replaces the difficulty's range (aircraft see farther),
  * and inside `options.omniRange` the field-of-view gate is skipped: a crew that
  * checks all around its hull (tank 360 degree check) still needs line of sight.
+ * `options.titanfall` adds the cloak gate (docs/titanfall.md §9): a cloaked pilot
+ * is seen only within the reveal range (or while exposed), and such a sighting
+ * carries `aimErrorMul` (×3) for the shooter's aim error.
  */
 export function observeBotTarget(observer, target, solidAt, smoke, now, tracking = false, difficulty = undefined, options = null) {
   const profile = botDifficulty(difficulty);
@@ -21,6 +25,8 @@ export function observeBotTarget(observer, target, solidAt, smoke, now, tracking
   const distance = Math.hypot(flat, target.eyeY - origin[1]);
   const maxRange = (options?.sightRange ?? profile.sightRange) + (tracking ? 12 : 0);
   if (distance > maxRange) return null;
+  const aimErrorMul = options?.titanfall ? perceptionAimMul(observer, target, now) : 1;
+  if (!(aimErrorMul > 0)) return null;
 
   const yaw = Math.atan2(-dx, -dz);
   const rawOffAxis = Math.abs(Math.atan2(Math.sin(yaw - observer.yaw), Math.cos(yaw - observer.yaw)));
@@ -75,8 +81,10 @@ export function observeBotTarget(observer, target, solidAt, smoke, now, tracking
   const detectionRate = Math.max(0.08, Math.min(5, 4 * Math.sqrt(angularArea / 0.001)))
     * peripheral * profile.recognition;
   const recognitionMs = profile.reactionMs + 1000 / detectionRate;
-  return { aimPoint, exposure, distance, visibleArea, angularArea, detectionRate,
+  const sighting = { aimPoint, exposure, distance, visibleArea, angularArea, detectionRate,
     reactionMs: profile.reactionMs, recognitionMs };
+  if (options?.titanfall) sighting.aimErrorMul = aimErrorMul;
+  return sighting;
 }
 
 /** One exponential evidence threshold per sighting, independent of tick rate. */

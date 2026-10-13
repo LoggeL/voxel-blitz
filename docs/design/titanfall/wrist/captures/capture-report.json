@@ -1,0 +1,821 @@
+{
+  "generated": "2026-10-13T19:42:31.389Z",
+  "page": "public/titanfall-wrist-capture.html",
+  "wrist": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-2",
+      "file": "docs/design/titanfall/wrist/captures/desktop-rifle-grapple-2.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            1,
+            1
+          ],
+          "drain": false,
+          "timer": null,
+          "status": "READY",
+          "inRange": false
+        },
+        "redraws": 1,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 991.6289548839384,
+        "top": 784.695967713413,
+        "width": 153.56314643902056,
+        "height": 115.0188916832193
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/desktop-rifle-grapple-1.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 2,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 991.6289548839384,
+        "top": 784.695967713413,
+        "width": 153.56314643902056,
+        "height": 115.0188916832193
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-0",
+      "file": "docs/design/titanfall/wrist/captures/desktop-rifle-grapple-0.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "cool",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            0.2,
+            0
+          ],
+          "drain": false,
+          "timer": "4.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 3,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 991.6289548839384,
+        "top": 784.695967713413,
+        "width": 153.56314643902056,
+        "height": 115.0188916832193
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-reel",
+      "file": "docs/design/titanfall/wrist/captures/desktop-rifle-grapple-reel.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "reel",
+          "glyph": "grapple",
+          "label": "REELING",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            1,
+            0.075
+          ],
+          "drain": false,
+          "timer": null,
+          "status": "REEL",
+          "inRange": false
+        },
+        "redraws": 4,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 991.6289548839384,
+        "top": 784.695967713413,
+        "width": 153.56314643902056,
+        "height": 115.0188916832193
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-range",
+      "file": "docs/design/titanfall/wrist/captures/desktop-rifle-grapple-range.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            1,
+            1
+          ],
+          "drain": false,
+          "timer": null,
+          "status": "READY",
+          "inRange": true
+        },
+        "redraws": 5,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 991.6289548839384,
+        "top": 784.695967713413,
+        "width": 153.56314643902056,
+        "height": 115.0188916832193
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/wrist/captures/desktop-rifle-stim-active.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 6,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 991.6289548839384,
+        "top": 784.695967713413,
+        "width": 153.56314643902056,
+        "height": 115.0188916832193
+      }
+    },
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "cloak-cooldown",
+      "file": "docs/design/titanfall/wrist/captures/desktop-rifle-cloak-cooldown.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": false,
+        "face": {
+          "tone": "cool",
+          "glyph": "cloak",
+          "label": "CLOAK",
+          "key": "Q",
+          "compact": false,
+          "cells": [
+            0.55
+          ],
+          "drain": false,
+          "timer": "6.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 7,
+        "offHand": false,
+        "scale": 1
+      },
+      "box": {
+        "left": 991.6289548839384,
+        "top": 784.695967713413,
+        "width": 153.56314643902056,
+        "height": 115.0188916832193
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-2",
+      "file": "docs/design/titanfall/wrist/captures/portrait-rifle-grapple-2.png",
+      "live": true,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            1
+          ],
+          "drain": false,
+          "timer": null,
+          "status": "READY",
+          "inRange": false
+        },
+        "redraws": 9,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 253.38325249850917,
+        "top": 584.3061002073453,
+        "width": 84.21270980302202,
+        "height": 61.48843006259585
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/portrait-rifle-grapple-1.png",
+      "live": true,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 10,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 253.38325249850917,
+        "top": 584.3061002073453,
+        "width": 84.21270980302202,
+        "height": 61.48843006259585
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-0",
+      "file": "docs/design/titanfall/wrist/captures/portrait-rifle-grapple-0.png",
+      "live": true,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "cool",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.2,
+            0
+          ],
+          "drain": false,
+          "timer": "4.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 11,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 253.38325249850917,
+        "top": 584.3061002073453,
+        "width": 84.21270980302202,
+        "height": 61.48843006259585
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-reel",
+      "file": "docs/design/titanfall/wrist/captures/portrait-rifle-grapple-reel.png",
+      "live": true,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "reel",
+          "glyph": "grapple",
+          "label": "REELING",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.075
+          ],
+          "drain": false,
+          "timer": null,
+          "status": "REEL",
+          "inRange": false
+        },
+        "redraws": 12,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 253.38325249850917,
+        "top": 584.3061002073453,
+        "width": 84.21270980302202,
+        "height": 61.48843006259585
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-range",
+      "file": "docs/design/titanfall/wrist/captures/portrait-rifle-grapple-range.png",
+      "live": true,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            1
+          ],
+          "drain": false,
+          "timer": null,
+          "status": "READY",
+          "inRange": true
+        },
+        "redraws": 13,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 253.38325249850917,
+        "top": 584.3061002073453,
+        "width": 84.21270980302202,
+        "height": 61.48843006259585
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/wrist/captures/portrait-rifle-stim-active.png",
+      "live": true,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 14,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 253.38325249850917,
+        "top": 584.3061002073453,
+        "width": 84.21270980302202,
+        "height": 61.48843006259585
+      }
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "cloak-cooldown",
+      "file": "docs/design/titanfall/wrist/captures/portrait-rifle-cloak-cooldown.png",
+      "live": true,
+      "draws": 48,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "cool",
+          "glyph": "cloak",
+          "label": "CLOAK",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.55
+          ],
+          "drain": false,
+          "timer": "6.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 15,
+        "offHand": false,
+        "scale": 0.8524170616113744
+      },
+      "box": {
+        "left": 253.38325249850917,
+        "top": 584.3061002073453,
+        "width": 84.21270980302202,
+        "height": 61.48843006259585
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-2",
+      "file": "docs/design/titanfall/wrist/captures/landscape-rifle-grapple-2.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            1
+          ],
+          "drain": false,
+          "timer": null,
+          "status": "READY",
+          "inRange": false
+        },
+        "redraws": 16,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 410.04521003528606,
+        "top": 273.46319434703025,
+        "width": 83.61765027651631,
+        "height": 63.14689971963645
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/captures/landscape-rifle-grapple-1.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.45
+          ],
+          "drain": false,
+          "timer": "3.3",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 17,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 410.04521003528606,
+        "top": 273.46319434703025,
+        "width": 83.61765027651631,
+        "height": 63.14689971963645
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-0",
+      "file": "docs/design/titanfall/wrist/captures/landscape-rifle-grapple-0.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "cool",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.2,
+            0
+          ],
+          "drain": false,
+          "timer": "4.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 18,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 410.04521003528606,
+        "top": 273.46319434703025,
+        "width": 83.61765027651631,
+        "height": 63.14689971963645
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-reel",
+      "file": "docs/design/titanfall/wrist/captures/landscape-rifle-grapple-reel.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "reel",
+          "glyph": "grapple",
+          "label": "REELING",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            0.075
+          ],
+          "drain": false,
+          "timer": null,
+          "status": "REEL",
+          "inRange": false
+        },
+        "redraws": 19,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 410.04521003528606,
+        "top": 273.46319434703025,
+        "width": 83.61765027651631,
+        "height": 63.14689971963645
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "grapple-range",
+      "file": "docs/design/titanfall/wrist/captures/landscape-rifle-grapple-range.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "ready",
+          "glyph": "grapple",
+          "label": "GRAPPLE",
+          "key": "",
+          "compact": true,
+          "cells": [
+            1,
+            1
+          ],
+          "drain": false,
+          "timer": null,
+          "status": "READY",
+          "inRange": true
+        },
+        "redraws": 20,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 410.04521003528606,
+        "top": 273.46319434703025,
+        "width": 83.61765027651631,
+        "height": 63.14689971963645
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "stim-active",
+      "file": "docs/design/titanfall/wrist/captures/landscape-rifle-stim-active.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "stim",
+          "glyph": "stim",
+          "label": "STIM",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.7
+          ],
+          "drain": true,
+          "timer": "2.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 21,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 410.04521003528606,
+        "top": 273.46319434703025,
+        "width": 83.61765027651631,
+        "height": 63.14689971963645
+      }
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "ads": 0,
+      "state": "cloak-cooldown",
+      "file": "docs/design/titanfall/wrist/captures/landscape-rifle-cloak-cooldown.png",
+      "live": true,
+      "draws": 53,
+      "wrist": {
+        "visible": true,
+        "live": true,
+        "compact": true,
+        "face": {
+          "tone": "cool",
+          "glyph": "cloak",
+          "label": "CLOAK",
+          "key": "",
+          "compact": true,
+          "cells": [
+            0.55
+          ],
+          "drain": false,
+          "timer": "6.8",
+          "status": null,
+          "inRange": false
+        },
+        "redraws": 22,
+        "offHand": false,
+        "scale": 1.45
+      },
+      "box": {
+        "left": 410.04521003528606,
+        "top": 273.46319434703025,
+        "width": 83.61765027651631,
+        "height": 63.14689971963645
+      }
+    }
+  ],
+  "errors": []
+}

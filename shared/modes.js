@@ -6,10 +6,10 @@ import { CONQUEST_RULES } from './conquest-contract.js';
 export const DUEL_KILL_LIMITS = Object.freeze([5, 10, 15, 20, 30]);
 export const DEFAULT_DUEL_KILL_LIMIT = 5;
 
-export const MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training', 'conquest']);
+export const MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training', 'conquest', 'titanfall']);
 export const DUEL_WEAPONS = Object.freeze(['rifle', 'shotgun', 'sniper', 'revolver', 'knife']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'frontier']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'ashfall', 'frontier']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -105,17 +105,38 @@ export const MODE_RULES = Object.freeze({
     friendlyFire: false,
     respawnMs: 1500,
   }),
+  // Titanfall Attrition (docs/titanfall.md §2.1). No fall damage: the policy has no fallDamage.
+  titanfall: Object.freeze({
+    label: 'TITANFALL', title: 'ATTRITION', teams: true, friendlyFire: false,
+    // scoreLimit is the 8 v 8 value; a match plays to titanfallScoreLimit(largest team) (bot soak:
+    // the leading team reaches it after ~8.5 min at every team size).
+    respawnMs: 4000, scoreLimit: 750, timeLimitMs: 12 * 60_000, allowDraw: true,
+    scoreScale: Object.freeze({ base: 100, perPilot: 80, step: 25, min: 175 }),
+    vehicles: 'titans', points: Object.freeze({ pilot: 5, titan: 10, grunt: 1, spectre: 2 }),
+  }),
 });
+
+/**
+ * Titanfall score limit for the larger team's pilot count (humans and bots, not grunts):
+ * base + perPilot per pilot, rounded to `step`, between `min` and the rules' 8 v 8 scoreLimit.
+ */
+export function titanfallScoreLimit(teamSize, rules = MODE_RULES.titanfall) {
+  const scale = rules?.scoreScale, max = rules?.scoreLimit ?? 750;
+  if (!scale) return max;
+  const n = Math.max(1, Math.floor(Number.isFinite(teamSize) ? teamSize : 8));
+  const raw = Math.round((scale.base + scale.perPilot * n) / scale.step) * scale.step;
+  return Math.max(scale.min, Math.min(max, raw));
+}
 
 const COMBAT_MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame']);
 const NO_BOMB_SITE_MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame']);
 
 export const MAP_MODE_COMPATIBILITY = Object.freeze({
-  frontier: Object.freeze(['conquest']),
+  frontier: Object.freeze(['conquest', 'titanfall']),
   reactor: Object.freeze(['bastion']),
   foundry: COMBAT_MODE_IDS,
-  harbor: COMBAT_MODE_IDS,
-  canyon: COMBAT_MODE_IDS,
+  harbor: Object.freeze([...COMBAT_MODE_IDS, 'titanfall']),
+  canyon: Object.freeze([...COMBAT_MODE_IDS, 'titanfall']),
   depot: NO_BOMB_SITE_MODE_IDS,
   citadel: COMBAT_MODE_IDS,
   solstice: COMBAT_MODE_IDS,
@@ -131,6 +152,8 @@ export const MAP_MODE_COMPATIBILITY = Object.freeze({
   causeway: Object.freeze(['bastion']),
   // Bikini Bottom: Krusty Krab (A) vs Chum Bucket (B), every combat mode.
   bikini_bottom: COMBAT_MODE_IDS,
+  // Ashfall: the dedicated Titanfall Attrition arena (docs/titanfall.md §14).
+  ashfall: Object.freeze(['titanfall']),
 });
 
 export function isModeId(value) {
@@ -143,11 +166,18 @@ export function isTeamMode(value) {
 }
 
 /** Modes whose server-sent `owned` list is the authoritative weapon inventory. */
-export const OWNED_LOADOUT_MODES = Object.freeze(['ttt', 'bastion', 'snd', 'gungame', 'duel', 'conquest']);
+export const OWNED_LOADOUT_MODES = Object.freeze(['ttt', 'bastion', 'snd', 'gungame', 'duel', 'conquest', 'titanfall']);
 
 export function usesOwnedLoadout(mode) {
   return OWNED_LOADOUT_MODES.includes(mode);
 }
+
+/** Titanfall Attrition (docs/titanfall.md): every titanfall-only branch gates on this. */
+export const isTitanfall = mode => mode === 'titanfall';
+/** Modes whose VehicleSystem runs hulls (Conquest pads, Titanfall titans). */
+export const modeHasVehicles = mode => mode === 'conquest' || mode === 'titanfall';
+/** Bot brain widening (docs/titanfall.md §9): vehicle and kit branches, never flags. */
+export const isCombinedArms = modeHasVehicles;
 
 /** Training target identity is stable across authority and presentation. */
 export function isTrainingDummyId(value) {

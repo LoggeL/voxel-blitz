@@ -62,6 +62,12 @@ export const KILL_KEY_ICONS = Object.freeze({
   tankAP: 'shell', tankHE: 'shell', coaxMG: 'mg', hmg: 'mg', doorMinigun: 'mg', planeCannon: 'autocannon',
   chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', vehicle: 'roadkill', restricted: 'restricted',
   fall: 'fall', crash: 'crash', redeploy: 'redeploy', collapse: 'collapse',
+  // Titanfall kill keys (docs/titanfall.md §2.3) on existing glyphs; WP5 may add titan glyphs later.
+  splitter: 'mg', predatorClose: 'mg', predatorLong: 'mg', railgun: 'autocannon', t203: 'shell', leadwall: 'shell',
+  titanfall: 'crash', titanMelee: 'crash', titan_doom: 'crash', titan_crush: 'roadkill', rodeo: 'crash',
+  electricSmoke: 'rocket', laserShot: 'rocket', laserCore: 'rocket', tripwire: 'rocket', thermalShield: 'rocket',
+  incendiaryTrap: 'rocket', firewall: 'rocket', flameCore: 'rocket', tether: 'rocket', cluster: 'rocket',
+  flightCore: 'rocket', arcWave: 'rocket', powerShot: 'rocket', thermite: 'rocket',
 });
 
 /** A fresh inline SVG element for one glyph (DOM only). */

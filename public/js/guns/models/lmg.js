@@ -3,8 +3,13 @@ import { COL } from '../kit.js';
 import { BREACH_Z, BOLT_HOME, TRIGGER_Z } from './common.js';
 import { buildBison } from './bison.js';
 
+// Titanfall on-gun ammo counter seat (weapon-display.js): screen centre on the top rear of the receiver, facing back
+// toward the eye (Halo-style rear deck counter), size in m; `seat` names the surface it stands on.
+export const DISPLAY_MOUNT = Object.freeze({ x: -0.026, y: 0.123, z: 0.150, w: 0.045, h: 0.035, seat: 'rear' });
+
 /** Build the belt-fed heavy support gun shown by assets/weapons/hud/lmg.png. */
 export function build({ kit, T, groups }) {
+  groups.body.userData.displayMount = DISPLAY_MOUNT;
   if (buildBison({ groups })) return;
   const { mat, box, cylZ, brakeRings } = kit;
   const { body: b, mag: mg, bolt, trigger: tg, extra } = groups;

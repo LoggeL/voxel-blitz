@@ -1,0 +1,45 @@
+{
+  "thunderbolt": {
+    "peak": 0.4420609474182129,
+    "rms": 0.034506570866309504,
+    "clippedRatio": 0,
+    "onsetMs": 7.145833333333333,
+    "audibleTailMs": 436.9583333333333
+  },
+  "skipjack": {
+    "peak": 0.33023011684417725,
+    "rms": 0.025710878770008435,
+    "clippedRatio": 0,
+    "onsetMs": 7.083333333333333,
+    "audibleTailMs": 241.6875
+  },
+  "checks": [
+    {
+      "passed": true,
+      "message": "thunderbolt: audible and limiter-bounded peak"
+    },
+    {
+      "passed": true,
+      "message": "thunderbolt: useful RMS"
+    },
+    {
+      "passed": true,
+      "message": "thunderbolt: no sustained clipping"
+    },
+    {
+      "passed": true,
+      "message": "thunderbolt: onset within 20 ms"
+    }
+  ],
+  "failuresElsewhere": [
+    "metal: natural pitch and complete tails at sprint cadence",
+    "gravel: natural pitch and complete tails at sprint cadence",
+    "sand: natural pitch and complete tails at sprint cadence",
+    "cloth: natural pitch and complete tails at sprint cadence",
+    "Pickaxe wood break plays one full dig take and no debris layer",
+    "Pickaxe knockback hit plays one complete attack take at the victim",
+    "Mining hits sit pitched down, the break near recorded pitch, and every recorded tail finishes",
+    "Debris scenario exercises 33 positional acquisitions and 17 same-frame evictions within the cap",
+    "Rapid-fire voice recycling never cuts a recorded minigun tail (0 natural ends with native block timestamps, at most 2.6667 ms)"
+  ]
+}

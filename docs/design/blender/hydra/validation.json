@@ -1,57 +1,422 @@
 {
   "asset": "HYDRA",
-  "glb": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/hydra/hydra.glb",
   "passed": true,
   "failures": [],
-  "advisory": [],
   "measured": {
-    "imported_objects": [
-      "body",
-      "body | dark steel",
-      "body | gunmetal",
-      "body | ivory coating",
-      "body | olive drab",
-      "body | orange paint",
-      "body | rubber",
-      "bolt",
-      "bolt | gunmetal",
-      "extra",
-      "grip",
-      "mag",
-      "mag | dark steel",
-      "mag | olive drab",
-      "mag | orange paint",
-      "mag | tan webbing",
-      "muzzle",
-      "sight",
-      "support",
-      "trigger",
-      "trigger | gunmetal"
+    "portable_geometry_parity": "GLB geometry prefix is byte-identical to hydra.bin",
+    "portable_parity:nodes": "nodes match",
+    "portable_parity:meshes": "meshes match",
+    "portable_parity:accessors": "accessors match",
+    "portable_parity:scenes": "scenes match",
+    "portable_parity:materials": "materials match",
+    "images_embedded": 6,
+    "anchor:muzzle": [
+      0.0,
+      0.8799999952316284,
+      0.054999999701976776
     ],
-    "node:body": "present",
-    "node:mag": "present",
-    "node:bolt": "present",
-    "node:trigger": "present",
-    "node:extra": "present",
-    "marker:muzzle": "present",
-    "marker:grip": "present",
-    "marker:support": "present",
-    "marker:sight": "present",
-    "anchor:muzzle": "got (0.0, 0.88, 0.055) want (0.0, 0.88, 0.055)",
-    "anchor:grip": "got (0.05, 0.1, 0.0) want (0.05, 0.1, 0.0)",
-    "anchor:support": "got (-0.06, 0.47, -0.012) want (-0.06, 0.47, -0.012)",
-    "anchor:sight": "got (0.0, 0.2, 0.155) want (0.0, 0.2, 0.155)",
-    "identity:body": "translation (0.0, 0.0, 0.0)",
-    "identity:mag": "translation (0.0, 0.0, 0.0)",
-    "identity:bolt": "translation (0.0, 0.0, 0.0)",
-    "identity:trigger": "translation (0.0, 0.0, 0.0)",
-    "identity:extra": "translation (0.0, 0.0, 0.0)",
-    "primitive_budget": "12 mesh primitives (budget 24)",
-    "triangles": 15852,
-    "triangle_budget": "15852 tris (budget 10k-20k)",
-    "muzzle_tip": "forward-most bore vertex y=0.88000",
-    "heat_band_radius": "max radius in band 0.02900 over 2040 verts (contract 0.0290)",
-    "material_budget": "7 materials: ['HYDRA | dark steel', 'HYDRA | gunmetal', 'HYDRA | ivory coating', 'HYDRA | olive drab', 'HYDRA | orange paint', 'HYDRA | rubber', 'HYDRA | tan webbing']",
-    "images_embedded": "7 images: ['Render Result', 'Viewer Node', 'ivory-armor', 'orange-painted-metal', 'tan-webbing', 'worn-gunmetal', 'worn-rubber']"
+    "anchor:grip": [
+      0.05000000074505806,
+      0.10000000149011612,
+      0.0
+    ],
+    "anchor:support": [
+      -0.05999999865889549,
+      0.4699999988079071,
+      -0.012000000104308128
+    ],
+    "anchor:sight": [
+      0.0,
+      0.20000000298023224,
+      0.1550000011920929
+    ],
+    "contract_group:body": "present at identity",
+    "contract_group:mag": "present at identity",
+    "contract_group:bolt": "present at identity",
+    "contract_group:trigger": "present at identity",
+    "contract_group:extra": "present at identity",
+    "six_named_barrels": [
+      "minigun_barrel_0",
+      "minigun_barrel_1",
+      "minigun_barrel_2",
+      "minigun_barrel_3",
+      "minigun_barrel_4",
+      "minigun_barrel_5"
+    ],
+    "rotor_parent": {
+      "minigun_barrel_0": "extra",
+      "minigun_barrel_1": "extra",
+      "minigun_barrel_2": "extra",
+      "minigun_barrel_3": "extra",
+      "minigun_barrel_4": "extra",
+      "minigun_barrel_5": "extra",
+      "minigun_collar_front": "extra",
+      "minigun_collar_rear": "extra",
+      "minigun_collar_trim_front": "extra",
+      "minigun_collar_trim_rear": "extra",
+      "minigun_rotor_backplate": "extra",
+      "minigun_spindle": "extra"
+    },
+    "heat_indicators": {
+      "minigun_heat_0": 0.2,
+      "minigun_heat_1": 0.4,
+      "minigun_heat_2": 0.6,
+      "minigun_heat_3": 0.8,
+      "minigun_heat_4": 1.0
+    },
+    "moving_single_primitive": "each rotor/indicator is a direct one-material mesh",
+    "barrel_heat_isolation": [
+      "HYDRA | heated barrels"
+    ],
+    "triangle_budget": {
+      "actual": 9204,
+      "max": 12000
+    },
+    "draw_budget": {
+      "actual": 31,
+      "max": 32
+    },
+    "material_budget": 8,
+    "hollow:minigun_barrel_0": {
+      "muzzle_y": 0.8799999952316284,
+      "inner_radius": 0.013999686901200264,
+      "outer_radius": 0.022000386975724977
+    },
+    "rotation:minigun_barrel_0": {
+      "vertex_motion": 0.03023998712288563,
+      "bore_radius": 0.06794864363008567
+    },
+    "hollow:minigun_barrel_1": {
+      "muzzle_y": 0.8799999952316284,
+      "inner_radius": 0.013999691740458684,
+      "outer_radius": 0.0220003812050965
+    },
+    "rotation:minigun_barrel_1": {
+      "vertex_motion": 0.023498880705831757,
+      "bore_radius": 0.0528015151884762
+    },
+    "hollow:minigun_barrel_2": {
+      "muzzle_y": 0.8799999952316284,
+      "inner_radius": 0.013999686901200264,
+      "outer_radius": 0.022000386975724977
+    },
+    "rotation:minigun_barrel_2": {
+      "vertex_motion": 0.013781544477681394,
+      "bore_radius": 0.03096685235044704
+    },
+    "hollow:minigun_barrel_3": {
+      "muzzle_y": 0.8799999952316284,
+      "inner_radius": 0.013999691740458684,
+      "outer_radius": 0.022000383749510282
+    },
+    "rotation:minigun_barrel_3": {
+      "vertex_motion": 0.013781543817744676,
+      "bore_radius": 0.030966849925213084
+    },
+    "hollow:minigun_barrel_4": {
+      "muzzle_y": 0.8799999952316284,
+      "inner_radius": 0.013999691802858656,
+      "outer_radius": 0.022000382414927015
+    },
+    "rotation:minigun_barrel_4": {
+      "vertex_motion": 0.023498882718426446,
+      "bore_radius": 0.05280151488368847
+    },
+    "hollow:minigun_barrel_5": {
+      "muzzle_y": 0.8799999952316284,
+      "inner_radius": 0.013999691740458684,
+      "outer_radius": 0.022000383749510282
+    },
+    "rotation:minigun_barrel_5": {
+      "vertex_motion": 0.03023998706273384,
+      "bore_radius": 0.06794864252481181
+    },
+    "full_sweep:minigun_barrel_0": {
+      "node": "minigun_barrel_0",
+      "y_interval": [
+        0.41600000858306885,
+        0.8799999952316284
+      ],
+      "swept_radius": 0.07000019312722322,
+      "min_clearance": 0.007481338465919848,
+      "nearest_fixed": "body"
+    },
+    "full_sweep:minigun_barrel_1": {
+      "node": "minigun_barrel_1",
+      "y_interval": [
+        0.41600000858306885,
+        0.8799999952316284
+      ],
+      "swept_radius": 0.07,
+      "min_clearance": 0.007481531593143062,
+      "nearest_fixed": "body"
+    },
+    "full_sweep:minigun_barrel_2": {
+      "node": "minigun_barrel_2",
+      "y_interval": [
+        0.41600000858306885,
+        0.8799999952316284
+      ],
+      "swept_radius": 0.07000019312722322,
+      "min_clearance": 0.007481338465919848,
+      "nearest_fixed": "body"
+    },
+    "full_sweep:minigun_barrel_3": {
+      "node": "minigun_barrel_3",
+      "y_interval": [
+        0.41600000858306885,
+        0.8799999952316284
+      ],
+      "swept_radius": 0.07000019156260551,
+      "min_clearance": 0.007481340030537562,
+      "nearest_fixed": "body"
+    },
+    "full_sweep:minigun_barrel_4": {
+      "node": "minigun_barrel_4",
+      "y_interval": [
+        0.41600000858306885,
+        0.8799999952316284
+      ],
+      "swept_radius": 0.06999999966472387,
+      "min_clearance": 0.007481531928419202,
+      "nearest_fixed": "body"
+    },
+    "full_sweep:minigun_barrel_5": {
+      "node": "minigun_barrel_5",
+      "y_interval": [
+        0.41600000858306885,
+        0.8799999952316284
+      ],
+      "swept_radius": 0.07000019156260551,
+      "min_clearance": 0.007481340030537562,
+      "nearest_fixed": "body"
+    },
+    "full_sweep:minigun_collar_front": {
+      "node": "minigun_collar_front",
+      "y_interval": [
+        0.8125,
+        0.8374999761581421
+      ],
+      "swept_radius": 0.07600049700256294,
+      "min_clearance": null,
+      "nearest_fixed": null
+    },
+    "full_sweep:minigun_collar_rear": {
+      "node": "minigun_collar_rear",
+      "y_interval": [
+        0.4884999990463257,
+        0.5134999752044678
+      ],
+      "swept_radius": 0.07600049700256294,
+      "min_clearance": 0.12651274017598313,
+      "nearest_fixed": "body"
+    },
+    "full_sweep:minigun_collar_trim_front": {
+      "node": "minigun_collar_trim_front",
+      "y_interval": [
+        0.8059999942779541,
+        0.843999981880188
+      ],
+      "swept_radius": 0.08217110427577694,
+      "min_clearance": null,
+      "nearest_fixed": null
+    },
+    "full_sweep:minigun_collar_trim_rear": {
+      "node": "minigun_collar_trim_rear",
+      "y_interval": [
+        0.4819999933242798,
+        0.5199999809265137
+      ],
+      "swept_radius": 0.08217110427577694,
+      "min_clearance": 0.01912672374304826,
+      "nearest_fixed": "body"
+    },
+    "full_sweep:minigun_rotor_backplate": {
+      "node": "minigun_rotor_backplate",
+      "y_interval": [
+        0.40400001406669617,
+        0.4180000126361847
+      ],
+      "swept_radius": 0.07400022804487126,
+      "min_clearance": 0.0034813050507630228,
+      "nearest_fixed": "body"
+    },
+    "full_sweep:minigun_spindle": {
+      "node": "minigun_spindle",
+      "y_interval": [
+        0.41100001335144043,
+        0.8410000205039978
+      ],
+      "swept_radius": 0.017000001221895218,
+      "min_clearance": 0.06048153037124785,
+      "nearest_fixed": "body"
+    },
+    "full_rotor_sweep": [
+      {
+        "node": "minigun_barrel_0",
+        "y_interval": [
+          0.41600000858306885,
+          0.8799999952316284
+        ],
+        "swept_radius": 0.07000019312722322,
+        "min_clearance": 0.007481338465919848,
+        "nearest_fixed": "body"
+      },
+      {
+        "node": "minigun_barrel_1",
+        "y_interval": [
+          0.41600000858306885,
+          0.8799999952316284
+        ],
+        "swept_radius": 0.07,
+        "min_clearance": 0.007481531593143062,
+        "nearest_fixed": "body"
+      },
+      {
+        "node": "minigun_barrel_2",
+        "y_interval": [
+          0.41600000858306885,
+          0.8799999952316284
+        ],
+        "swept_radius": 0.07000019312722322,
+        "min_clearance": 0.007481338465919848,
+        "nearest_fixed": "body"
+      },
+      {
+        "node": "minigun_barrel_3",
+        "y_interval": [
+          0.41600000858306885,
+          0.8799999952316284
+        ],
+        "swept_radius": 0.07000019156260551,
+        "min_clearance": 0.007481340030537562,
+        "nearest_fixed": "body"
+      },
+      {
+        "node": "minigun_barrel_4",
+        "y_interval": [
+          0.41600000858306885,
+          0.8799999952316284
+        ],
+        "swept_radius": 0.06999999966472387,
+        "min_clearance": 0.007481531928419202,
+        "nearest_fixed": "body"
+      },
+      {
+        "node": "minigun_barrel_5",
+        "y_interval": [
+          0.41600000858306885,
+          0.8799999952316284
+        ],
+        "swept_radius": 0.07000019156260551,
+        "min_clearance": 0.007481340030537562,
+        "nearest_fixed": "body"
+      },
+      {
+        "node": "minigun_collar_front",
+        "y_interval": [
+          0.8125,
+          0.8374999761581421
+        ],
+        "swept_radius": 0.07600049700256294,
+        "min_clearance": null,
+        "nearest_fixed": null
+      },
+      {
+        "node": "minigun_collar_rear",
+        "y_interval": [
+          0.4884999990463257,
+          0.5134999752044678
+        ],
+        "swept_radius": 0.07600049700256294,
+        "min_clearance": 0.12651274017598313,
+        "nearest_fixed": "body"
+      },
+      {
+        "node": "minigun_collar_trim_front",
+        "y_interval": [
+          0.8059999942779541,
+          0.843999981880188
+        ],
+        "swept_radius": 0.08217110427577694,
+        "min_clearance": null,
+        "nearest_fixed": null
+      },
+      {
+        "node": "minigun_collar_trim_rear",
+        "y_interval": [
+          0.4819999933242798,
+          0.5199999809265137
+        ],
+        "swept_radius": 0.08217110427577694,
+        "min_clearance": 0.01912672374304826,
+        "nearest_fixed": "body"
+      },
+      {
+        "node": "minigun_rotor_backplate",
+        "y_interval": [
+          0.40400001406669617,
+          0.4180000126361847
+        ],
+        "swept_radius": 0.07400022804487126,
+        "min_clearance": 0.0034813050507630228,
+        "nearest_fixed": "body"
+      },
+      {
+        "node": "minigun_spindle",
+        "y_interval": [
+          0.41100001335144043,
+          0.8410000205039978
+        ],
+        "swept_radius": 0.017000001221895218,
+        "min_clearance": 0.06048153037124785,
+        "nearest_fixed": "body"
+      }
+    ],
+    "ads_sight_channel": {
+      "axis_z": 0.155,
+      "start_y": 0.337,
+      "hit": null
+    },
+    "heat_cell_visible:minigun_heat_0": {
+      "first_hit": "minigun_heat_0",
+      "eye": [
+        0.0,
+        -0.44999998807907104,
+        0.14000000059604645
+      ]
+    },
+    "heat_cell_visible:minigun_heat_1": {
+      "first_hit": "minigun_heat_1",
+      "eye": [
+        0.0,
+        -0.44999998807907104,
+        0.14000000059604645
+      ]
+    },
+    "heat_cell_visible:minigun_heat_2": {
+      "first_hit": "minigun_heat_2",
+      "eye": [
+        0.0,
+        -0.44999998807907104,
+        0.14000000059604645
+      ]
+    },
+    "heat_cell_visible:minigun_heat_3": {
+      "first_hit": "minigun_heat_3",
+      "eye": [
+        0.0,
+        -0.44999998807907104,
+        0.14000000059604645
+      ]
+    },
+    "heat_cell_visible:minigun_heat_4": {
+      "first_hit": "minigun_heat_4",
+      "eye": [
+        0.0,
+        -0.44999998807907104,
+        0.14000000059604645
+      ]
+    }
   }
 }

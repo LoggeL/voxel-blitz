@@ -1,7 +1,26 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
 import { AvatarWeaponModel } from '../public/js/avatar/avatar-weapon.js';
+
+// Node uses procedural models. Also guard the shipped Blender contract here
+// so CI cannot pass while the visible minigun is baked into a static body.
+const hydra = JSON.parse(readFileSync(new URL('../public/assets/blender/hydra.gltf', import.meta.url), 'utf8'));
+const extra = hydra.nodes.find(node => node.name === 'extra');
+const exportedParts = (extra?.children || []).map(index => hydra.nodes[index]);
+const barrels = exportedParts.filter(node => node.extras?.role === 'rotor' && node.extras.rotorKind === 'barrel');
+assert.equal(barrels.length, 6, 'shipped HYDRA exports six articulated barrels');
+assert.equal(exportedParts.filter(node => node.extras?.role === 'heatIndicator').length, 5,
+  'shipped HYDRA exports five independent heat cells');
+for (const barrel of barrels) {
+  const mesh = hydra.meshes[barrel.mesh];
+  assert.equal(mesh?.primitives.length, 1, 'barrel metadata must reach the flattened runtime mesh');
+  const primitive = mesh.primitives[0];
+  assert.ok(hydra.accessors[primitive.attributes.POSITION].count > 0, 'rotor contains visible geometry');
+  const material = hydra.materials[primitive.material];
+  assert.equal(material.extras?.paletteColor, 0x4c535a, 'barrel heat survives Foundry skin changes');
+}
 
 const rig = new ViewmodelRig(new THREE.PerspectiveCamera(75, 2, 0.01, 100));
 const remote = new AvatarWeaponModel();

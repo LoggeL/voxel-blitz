@@ -5,13 +5,18 @@ import { buildMapLights } from '../public/js/engine/map-lights.js';
 import { buildMapSigns } from '../public/js/engine/map-signs.js';
 import { VoxelLightVolume } from '../public/js/engine/voxel-light.js';
 
-for (const id of ['harbor', 'canyon']) {
+// Per map: lamps standing at load, instanced draw calls and the luminous face budget
+// (Ashfall: 58 lamps, raised work lamps on decks and wall tops among them).
+const LIGHT_BUDGET = { harbor: { visible: 8, drawCalls: 2, faces: 32 }, canyon: { visible: 6, drawCalls: 1, faces: 32 },
+  ashfall: { visible: 58, drawCalls: 3, faces: 200 } };
+for (const id of ['harbor', 'canyon', 'ashfall']) {
   const world = createMapState(id);
   const lights = buildMapLights(id, world.getBlock);
-  assert.ok(lights.stats.visible >= (id === 'harbor' ? 8 : 6), `${id} authored lamps have intact authoritative backing`);
-  assert.equal(lights.stats.drawCalls, id === 'harbor' ? 2 : 1);
+  const budget = LIGHT_BUDGET[id];
+  assert.ok(lights.stats.visible >= budget.visible, `${id} authored lamps have intact authoritative backing`);
+  assert.equal(lights.stats.drawCalls, budget.drawCalls);
   assert.equal(lights.stats.dynamicLights, 0);
-  assert.ok(lights.stats.faces <= 32);
+  assert.ok(lights.stats.faces <= budget.faces, `${id}: ${lights.stats.faces} luminous faces (budget ${budget.faces})`);
   let lightNodes = 0;
   lights.group.traverse(node => { if (node.isLight) lightNodes++; });
   assert.equal(lightNodes, 0);
@@ -88,7 +93,7 @@ try {
 // per-voxel arena volume and in a coarse large-world volume alike (cell 2):
 // a lamp lights the air in front of it, and switching it off (broken stem)
 // darkens that air again after the emitter neighbourhood is patched.
-for (const id of ['harbor', 'canyon']) {
+for (const id of ['harbor', 'canyon', 'ashfall']) {
   const world = createMapState(id);
   const lights = buildMapLights(id, world.getBlock);
   const cells = lights.emitters();

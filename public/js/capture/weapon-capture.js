@@ -24,7 +24,7 @@ const angle = params.get('angle');
 const shot = findWeaponCaptureShot(weapon, state);
 
 if (!shot) throw new Error(`unknown weapon capture: ${weapon}/${state}`);
-if (angle && (weapon !== 'mgl' || state !== 'held' ||
+if (angle && (!['mgl', 'stinger'].includes(weapon) || state !== 'held' ||
   !['hero', 'front', 'left', 'right', 'rear', 'top'].includes(angle))) {
   throw new Error(`unknown weapon inspection angle: ${weapon}/${state}/${angle}`);
 }
@@ -92,6 +92,11 @@ if (weapon === 'mgl') {
   rig.setSkipjack({ mag: previewMag,
     magSize: Math.max(WEAPONS.mgl.magSize, previewMag) });
 }
+if (weapon === 'stinger') {
+  rig.setStinger({ mag: state === 'empty' || state.startsWith('reload-') ? 0 : 1,
+    lockProgress: state === 'lock-acquire' ? 0.6 : state === 'lock-ready' || state === 'scoped' ? 1 : 0,
+    reloading: state.startsWith('reload-') });
+}
 
 const stablePose = Object.freeze({
   speed: 0,
@@ -119,6 +124,9 @@ switch (state) {
   case 'charge-high':
   case 'vaulting':
   case 'held':
+  case 'lock-acquire':
+  case 'lock-ready':
+  case 'empty':
     rig.ads(0);
     break;
   case 'scoped':
@@ -185,7 +193,9 @@ if (state.startsWith('reload-')) {
   // and the rocket's gate-swing and tube-mouth shove for the RX-8 rear load.
   const belt = weapon === 'lmg';
   rig.reload(1, belt ? 'magswap' : 'cylinder');
-  const fraction = weapon === 'rocket'
+  const fraction = weapon === 'stinger'
+    ? { 'reload-open': 0.2, 'reload-eject': 0.45, 'reload-load': 0.73, 'reload-charge': 0.90 }[state]
+    : weapon === 'rocket'
     ? { 'reload-open': 0.33, 'reload-load': 0.76, 'reload-charge': 0.90 }[state]
     : weapon === 'mgl'
       ? { 'reload-open': 0.25, 'reload-eject': 0.40, 'reload-load': 0.68,
@@ -277,10 +287,12 @@ if (angle) {
   // The same runtime model bundle as the match, shown without hands so the
   // stock, cassette and loose-looking fittings can be inspected on every side.
   rig.root.visible = false;
-  const model = buildGun('mgl', new MaterialCache());
-  presentSkipjackReserve(model.extra.userData.skipjack, previewMag - 1);
-  inspectionVisibleReserve = model.extra.userData.skipjack.rounds
-    .filter((round) => round.visible).length;
+  const model = buildGun(weapon, new MaterialCache());
+  if (weapon === 'mgl') {
+    presentSkipjackReserve(model.extra.userData.skipjack, previewMag - 1);
+    inspectionVisibleReserve = model.extra.userData.skipjack.rounds
+      .filter((round) => round.visible).length;
+  }
   model.root.traverse((part) => {
     if (part.name === 'hand_l' || part.name === 'hand_r') part.visible = false;
   });
@@ -296,7 +308,7 @@ if (angle) {
   const size = bounds.getSize(new THREE.Vector3());
   inspectionBounds = { center: center.toArray(), size: size.toArray() };
   const direction = {
-    hero: [-1, 0.6, -1], front: [0, 0.25, -1], left: [-1, 0.1, 0],
+    hero: weapon === 'stinger' ? [-1, 0.45, -0.55] : [-1, 0.6, -1], front: [0, 0.25, -1], left: [-1, 0.1, 0],
     right: [1, 0.1, 0], rear: [0, 0.15, 1], top: [0, 1, 0],
   }[angle];
   renderScene = new THREE.Scene();
@@ -316,7 +328,7 @@ if (angle) {
   camera.far = 100;
   camera.up.set(0, 0, angle === 'top' ? -1 : 0);
   if (angle !== 'top') camera.up.set(0, 1, 0);
-  const distance = Math.max(size.length() * 1.7, 0.8);
+  const distance = Math.max(size.length() * (weapon === 'stinger' ? 1.18 : 1.7), 0.8);
   camera.position.copy(center).add(new THREE.Vector3(...direction).normalize().multiplyScalar(distance));
   camera.lookAt(center);
   camera.updateProjectionMatrix();
@@ -329,11 +341,26 @@ document.documentElement.dataset.captureReady = 'true';
 document.documentElement.dataset.captureWeapon = weapon;
 document.documentElement.dataset.captureState = state;
 const skipjack = weapon === 'mgl' ? rig._models.mgl?.extra.userData.skipjack : null;
+const stinger = weapon === 'stinger' ? rig._models.stinger?.extra.userData.stinger : null;
 const mglBody = weapon === 'mgl' ? rig._models.mgl?.body : null;
 const originalOliveParts = mglBody?.children.filter((part) =>
   /olive[ _-]*drab/i.test(part.name)
     || /skipjack-olive-armor/i.test(part.material?.map?.name || '')) || [];
 window.__vbWeaponCapture = Object.freeze({ weapon, state,
+  renderInfo: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles },
+  stinger: stinger ? { canister: { position: stinger.canister.position.toArray(),
+    visible: stinger.canister.visible }, cover: stinger.frontCover.visible,
+    clamps: stinger.clamps.map(clamp => clamp.rotation.z),
+    lamps: stinger.lamps.map(lamp => lamp.material.emissiveIntensity),
+    surfaces: (() => { const maps = new Map(); rig._models.stinger.root.traverse(part => {
+      const material = part.material;
+      if (material?.map?.name?.startsWith('stinger/')) maps.set(material.map.name,
+        { name: material.map.name, width: material.map.image?.width || 0,
+          height: material.map.image?.height || 0, bump: material.bumpScale });
+    }); return [...maps.values()]; })(),
+    finite: (() => { let finite = true; rig._models.stinger.root.updateMatrixWorld(true);
+      rig._models.stinger.root.traverse(part => { if (!part.matrixWorld.elements.every(Number.isFinite)) finite = false; });
+      return finite; })() } : null,
   angle, inspectionBounds, inspectionVisibleReserve,
   ammo: weapon === 'mgl' && params.has('ammo') ? ammoPreview : null,
   modelAsset: mglBody?.userData.blenderAsset ?? null,

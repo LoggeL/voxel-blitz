@@ -1,0 +1,2183 @@
+{
+  "generated": "2026-10-13T21:02:57.391Z",
+  "shots": [
+    {
+      "weapon": "archer",
+      "state": "full",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 1,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": null,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 1
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-full.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "empty",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": null,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-empty.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "ads",
+      "live": false,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 1,
+        "reserve": 4,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 20,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": null,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 1
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-ads.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "fire",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": null,
+      "fired": true,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-fire.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "open",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 5,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.25,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.185300925925598
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            -0.38,
+            0.405,
+            -0.16
+          ],
+          "rotation": [
+            0,
+            1,
+            -0.1
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-open.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "incoming",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 9,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.45,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.9
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            -0.2068355555555976,
+            0.30604888888891296,
+            -0.16
+          ],
+          "rotation": [
+            0,
+            1,
+            -0.1
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-incoming.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "aligned",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 12,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.62,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.9
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            -0.06690962099131534,
+            0.28500000000000003,
+            -0.16
+          ],
+          "rotation": [
+            0,
+            0.3935860058312667,
+            -0.03935860058312667
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-aligned.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "seated",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 17,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.84,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.9
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-seated.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "latched",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 19,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.94,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-latched.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "complete",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 1,
+        "reserve": 2,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": 1,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 1
+      },
+      "size": "desktop",
+      "file": "docs/design/archer/after/desktop-complete.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "full",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 1,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": null,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 1
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-full.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "empty",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": null,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-empty.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "ads",
+      "live": false,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 1,
+        "reserve": 4,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 20,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": null,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 1
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-ads.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "fire",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": null,
+      "fired": true,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-fire.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "open",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 5,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.25,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.185300925925598
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            -0.38,
+            0.405,
+            -0.16
+          ],
+          "rotation": [
+            0,
+            1,
+            -0.1
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-open.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "incoming",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 9,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.45,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.9
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            -0.2068355555555976,
+            0.30604888888891296,
+            -0.16
+          ],
+          "rotation": [
+            0,
+            1,
+            -0.1
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-incoming.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "aligned",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 12,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.62,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.9
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            -0.06690962099131317,
+            0.28500000000000003,
+            -0.16
+          ],
+          "rotation": [
+            0,
+            0.3935860058312539,
+            -0.039358600583125396
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-aligned.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "seated",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 17,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.84,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.9
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-seated.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "latched",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 19,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.94,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-latched.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "complete",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 1,
+        "reserve": 2,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": 1,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 1
+      },
+      "size": "landscape",
+      "file": "docs/design/archer/after/landscape-complete.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "full",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 1,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": null,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 1
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-full.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "empty",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": null,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-empty.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "ads",
+      "live": false,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 1,
+        "reserve": 4,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 20,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": null,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 1
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-ads.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "fire",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": null,
+      "fired": true,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-fire.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "open",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 5,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.25,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.185300925925598
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            -0.38,
+            0.405,
+            -0.16
+          ],
+          "rotation": [
+            0,
+            1,
+            -0.1
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-open.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "incoming",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 9,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.45,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.9
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            -0.20683555555496733,
+            0.30604888888855275,
+            -0.16
+          ],
+          "rotation": [
+            0,
+            1,
+            -0.1
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-incoming.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "aligned",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 12,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.62,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.9
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            -0.06690962099038353,
+            0.28500000000000003,
+            -0.16
+          ],
+          "rotation": [
+            0,
+            0.3935860058257854,
+            -0.03935860058257854
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-aligned.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "seated",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 17,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.84,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            -1.9
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-seated.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "latched",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 0,
+        "reserve": 2,
+        "low": true,
+        "reload": 19,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.94,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 0
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-latched.jpg"
+    },
+    {
+      "weapon": "archer",
+      "state": "complete",
+      "live": true,
+      "display": {
+        "id": "archer",
+        "extra": "lock",
+        "magSize": 1,
+        "mag": 1,
+        "reserve": 2,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": 0,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": 1,
+      "fired": null,
+      "thunderbolt": null,
+      "archer": {
+        "gate": {
+          "visible": true,
+          "position": [
+            0.061,
+            0.075,
+            -0.19
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "incoming": {
+          "visible": false,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chambered": {
+          "visible": true,
+          "position": [
+            0,
+            0.075,
+            -0.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "seat": [
+          0,
+          0.075,
+          -0.26
+        ],
+        "authoritativeMag": 1
+      },
+      "size": "portrait",
+      "file": "docs/design/archer/after/portrait-complete.jpg"
+    }
+  ],
+  "errors": [],
+  "hero": {
+    "file": "docs/design/archer/after/hero.png",
+    "bounds": {
+      "min": [
+        -0.10979250818490982,
+        -0.09257398735909789,
+        -0.8999999761581421
+      ],
+      "max": [
+        0.07298648357391357,
+        0.2278903248911338,
+        0.2590000033378601
+      ]
+    },
+    "meshes": 76
+  },
+  "icon": "public/assets/weapons/hud/archer.png"
+}

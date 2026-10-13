@@ -13,6 +13,7 @@ export const WEP_TONE = {
   rocket: 0.66,
   glaive: 1.24,
   bubble: 1.35,
+  thunderbolt: 1.18,
 };
 
 // Cloth-rustle draw length per weapon.
@@ -28,6 +29,7 @@ export const DRAW_LEN = {
   // Long enough to hear the flywheel spin up under the 0.45s deploy.
   glaive: 0.45,
   bubble: 0.12,
+  thunderbolt: 0.25,
 };
 
 const CYCLE_TONE = Object.freeze({
@@ -45,6 +47,11 @@ const CYCLE_TONE = Object.freeze({
     bandHz: [1750, 980, 2900],
     thumpHz: [118, 70, 142],
     gain: [0.3, 0.4, 0.32],
+  }),
+  thunderbolt: Object.freeze({
+    bandHz: [2150, 1250, 3200],
+    thumpHz: [170, 112, 195],
+    gain: [0.16, 0.2, 0.17],
   }),
 });
 
@@ -149,6 +156,32 @@ export function reloadLongarc(out, primitives, step, t0, brightness) {
     primitives.tone(out, {
       t0: t0 + 0.12, type: 'sawtooth', f0: 640 * brightness,
       f1: 2200 * brightness, dec: 0.1, g: 0.13,
+    });
+  }
+}
+
+/** TB-4 capacitor drum: release the latch, seat the pack, then energize the cells. */
+export function reloadThunderbolt(out, primitives, step, t0, brightness) {
+  if (step === 1) {
+    cycleActionClick(out, primitives, 'thunderbolt', 1, t0);
+    primitives.hiss(out, {
+      t0: t0 + 0.035, filter: 'bandpass', f: 1700, sweepTo: 480,
+      sweepMs: 0.13, q: 1.6, dec: 0.15, g: 0.1,
+    });
+  } else if (step === 2) {
+    primitives.tone(out, {
+      t0, type: 'sine', f0: 128, f1: 66, att: 0.002, dec: 0.1, g: 0.28,
+    });
+    cycleActionClick(out, primitives, 'thunderbolt', 2, t0 + 0.05);
+  } else if (step === 3) {
+    cycleActionClick(out, primitives, 'thunderbolt', 3, t0);
+    primitives.tone(out, {
+      t0: t0 + 0.025, type: 'sine', f0: 420 * brightness, f1: 1560 * brightness,
+      att: 0.01, dec: 0.26, g: 0.1,
+    });
+    primitives.hiss(out, {
+      t0: t0 + 0.07, filter: 'bandpass', f: 1300, sweepTo: 3800,
+      sweepMs: 0.16, q: 3, dec: 0.18, g: 0.06,
     });
   }
 }

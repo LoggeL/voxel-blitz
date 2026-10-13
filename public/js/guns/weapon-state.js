@@ -8,6 +8,7 @@ import { chaosLevel, chaosWeaponDef } from '../../../shared/chaos.js';
 import { usesOwnedLoadout as usesAuthoritativeOwnedWeapons } from '../../../shared/modes.js';
 import { glaiveCanThrow } from '../../../shared/glaive-rules.js';
 import { kitDigitWeapon } from '../../../shared/conquest-kits.js';
+import { titanWeaponRole, TITANFALL_DIGIT_ROLES } from '../../../shared/titan-contract.js';
 // Client weapon state machine. The composition root owns frame order; this module owns
 // every weapon transition and receives only narrow adapters for its side effects.
 import {
@@ -20,6 +21,8 @@ import {
   samplePelletDirection,
   chargeProfile,
   chargeFromHold,
+  chargeAfterRelease,
+  chargeReleaseFires,
   chargeShotProfile,
 } from '../../../shared/combatmath.js';
 import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
@@ -150,10 +153,12 @@ export class WeaponState {
       !this._reloadState && this._pendingShotIntent?.held === true &&
       this._flameFrameAt >= this._deployUntil && this._flameFrameAt - this._flameLastShotAt <= 125;
   }
-  /** Live 0..1 capacitor charge of a `charge` weapon while the trigger is held. */
-  get charge01() {
-    if (this._chargeStart === null) return 0;
-    return chargeFromHold(this.def, this._now() - this._chargeStart);
+  /** Live capacitor energy, including a released bank's brief retention and decay. */
+  get charge01() { return this._chargeAt(this._now()); }
+  _chargeAt(now, def = this.def) {
+    if (this._chargeStart !== null) return chargeFromHold(def, now - this._chargeStart);
+    return this._chargeReleasedAt === null ? 0
+      : chargeAfterRelease(def, this._chargeStored, now - this._chargeReleasedAt);
   }
   get isCharging() { return this._chargeStart !== null; }
   get coneDeg() {
@@ -192,7 +197,7 @@ export class WeaponState {
       wname: def.name,
       wid: def.id,
       crosshairConeDeg: this.coneDeg,
-      crosshairHitRadius: chargeShotProfile(def, this._chargeStart === null ? 0 : chargeFromHold(def, now - this._chargeStart)).hitRadius,
+      crosshairHitRadius: chargeShotProfile(def, this._chargeAt(now, def)).hitRadius,
       reloading01: this._reloadProgress(now),
       reloadStaged: !!this._reloadState?.staged,
       adsT01: this._adsT,
@@ -211,7 +216,7 @@ export class WeaponState {
       fuelSeconds: def.flame ? ammo.mag * 60 / def.rpm : null,
       flameFiring: this.flameFiring,
       charge01: def.mode === 'charge'
-        ? (this._chargeStart === null ? 0 : chargeFromHold(def, now - this._chargeStart))
+        ? this._chargeAt(now, def)
         : null,
       melee01: this._meleeReady01(def, now),
       glaive: def.glaive ? {
@@ -222,6 +227,29 @@ export class WeaponState {
         returning: this._glaiveReturn !== null,
       } : null,
     };
+  }
+
+  /**
+   * Allocation-free subset of readModel for the titanfall on-gun display
+   * (weapon-display.js), refilled into `out` every frame: the drawn weapon's
+   * predicted magazine and reserve, reload progress (and whether it is a staged
+   * tube reload that seats rounds one at a time), capacitor charge and
+   * `ready01`, the fire cadence (bolt, pump, refire or vent) since the last shot.
+   */
+  readDisplay(out, now = this._now()) {
+    const def = this.def;
+    const ammo = this._ammo[def.id] || EMPTY_AMMO;
+    out.wid = def.id;
+    out.mag = ammo.mag;
+    out.reserve = ammo.reserve;
+    out.reloading01 = this._reloadProgress(now);
+    out.reloadStaged = !!this._reloadState?.staged;
+    out.charge01 = def.mode === 'charge' ? this._chargeAt(now, def) : 0;
+    // A draw pushes _nextFireAt up to _deployUntil; only a shot's cadence that outlasts the draw is a bolt,
+    // pump or vent (the draw itself shows the weapon ready).
+    const wait = this._nextFireAt > (this._deployUntil || 0) ? this._nextFireAt - now : 0;
+    out.ready01 = Math.max(0, Math.min(1, 1 - wait / (60000 / def.rpm)));
+    return out;
   }
 
   /**
@@ -277,8 +305,10 @@ export class WeaponState {
 
   /** Drop a capacitor charge without firing (switch, reload, death, blocked mode). */
   cancelCharge() {
-    if (this._chargeStart === null) return false;
+    if (this._chargeStart === null && this._chargeReleasedAt === null) return false;
     this._chargeStart = null;
+    this._chargeReleasedAt = null;
+    this._chargeStored = 0;
     this._rig.setCharge?.(0);
     this._audio.weaponCharge?.(0, false);
     return true;
@@ -294,6 +324,7 @@ export class WeaponState {
       const def = WEAPONS[weaponId];
       this._ammo[weaponId] = { mag: def.magSize, reserve: (def.spareRounds ?? def.spareMags) };
     }
+    this._rig.setArcher?.({ mag: this._ammo.archer.mag });
   }
 
   /** Apply authoritative ammo arrays in canonical WEAPON_IDS order. */
@@ -309,6 +340,8 @@ export class WeaponState {
       if (Number.isFinite(mag[index])) ammo.mag = mag[index];
       if (Number.isFinite(reserve[index])) ammo.reserve = reserve[index];
     }
+    this._rig.setArcher?.({ mag: this._ammo.archer.mag });
+    if (this.def.id === 'stinger') this._syncStinger();
   }
 
   _setAuthority(mode, owned) {
@@ -344,6 +377,8 @@ export class WeaponState {
     this._minigun.spin = 0;
     this._lastSlot = this._slot;
     this._slot = slot;
+    this._lockProgress = 0;
+    this._lockReady = false;
     this.cancelCharge();
     this._resetRecoilPattern();
     this.cancelReload();
@@ -358,6 +393,7 @@ export class WeaponState {
     this._nextFireAt = Math.max(this._nextFireAt, this._deployUntil);
     if (this._rig.equipWeapon) this._rig.equipWeapon(WEAPON_IDS[slot]);
     else this._rig.setWeapon(WEAPON_IDS[slot]);
+    this._syncStinger();
     this._audio.draw(WEAPON_IDS[slot]);
     return true;
   }
@@ -370,6 +406,13 @@ export class WeaponState {
    * keep the global WEAPON_IDS slot of the key.
    */
   _directSlot(slot) {
+    if (this._mode === 'titanfall') {
+      // Titanfall kit digits (docs/titanfall.md §6.2): 1 primary, 2 revolver, 3 AT, 4 knife.
+      const role = TITANFALL_DIGIT_ROLES[slot];
+      const id = role && Array.isArray(this._owned)
+        ? this._owned.find(owned => WEAPON_IDS.includes(owned) && titanWeaponRole(owned) === role) : null;
+      return id ? WEAPON_IDS.indexOf(id) : null;
+    }
     if (this._mode !== 'conquest') return slot;
     const id = kitDigitWeapon(this._owned, slot);
     return id ? WEAPON_IDS.indexOf(id) : null;
@@ -481,6 +524,9 @@ export class WeaponState {
   }
 
   clearIntents() {
+    this._lockProgress = 0;
+    this._lockReady = false;
+    this._syncStinger();
     this._quickMeleePending = false;
     this._glaiveReturn = null;
     this._quickMeleeRequest = null;
@@ -517,14 +563,18 @@ export class WeaponState {
       type, weapon: def.id, staged: plan.staged,
       simulation: plan, predictedAmmo, def,
     };
+    if (def.id === 'stinger') { this._lockProgress = 0; this._lockReady = false; }
     Object.assign(ammo, predictedAmmo);
     this.cancelCharge();
     this._resetRecoilPattern();
+    this._syncThunderbolt();
+    if (def.id === 'archer') this._rig.setArcher?.({ mag: ammo.mag });
     this._rig.reload(dur / 1000, type, plan.staged ? {
       startSeconds: plan.startSeconds,
       perRoundSeconds: plan.perRoundSeconds,
       rounds: plan.rounds,
     } : null);
+    if (def.id === 'stinger') this._syncStinger();
     return true;
   }
 
@@ -535,7 +585,14 @@ export class WeaponState {
     this._cancelledReloadId = this.reloadId;
     this._reloadState = null;
     this._completedReloadWeapon = null;
+    if (this.def.id === 'archer') this._rig.setArcher?.({ mag: this._ammo.archer?.mag ?? 0 });
     this._rig.cancelReload?.();
+    if (reload?.weapon === 'stinger') {
+      this._lockProgress = 0;
+      this._lockReady = false;
+      this._syncStinger();
+    }
+    this._syncThunderbolt();
     return true;
   }
 
@@ -560,6 +617,7 @@ export class WeaponState {
     if (now < reload.until) return advanced;
     this._reloadState = null;
     this._completedReloadWeapon = reload.weapon;
+    this._syncThunderbolt();
     return true;
   }
 
@@ -584,10 +642,33 @@ export class WeaponState {
   syncRigAds() {
     const def = this.def;
     this._rig.ads(this._adsT);
+    this._syncStinger();
     this._rig.setFlame?.(this.flameFiring, def.flame ? (this._ammo[def.id]?.mag ?? 0) / def.magSize : 0);
     if (def.id === 'mgl') {
       this._rig.setSkipjack?.({ mag: this._ammo.mgl?.mag ?? 0, magSize: def.magSize });
     }
+    if (def.id === 'archer') {
+      this._rig.setArcher?.({ mag: this._ammo.archer?.mag ?? 0 });
+    }
+    this._syncThunderbolt();
+  }
+
+  _syncThunderbolt() {
+    if (this.def.id !== 'thunderbolt') return;
+    this._rig.setThunderbolt?.({ mag: this._ammo.thunderbolt?.mag ?? 0,
+      magSize: this.def.magSize, reloading: this._reloadState?.weapon === 'thunderbolt' });
+  }
+
+  /** Lamp state and the launch gate share the current lock and loaded-tube gate. */
+  _syncStinger() {
+    const active = this.def.id === 'stinger';
+    const mag = this._ammo.stinger?.mag ?? 0;
+    const reloading = active && this.reloadRequested;
+    if (!active || !this._alive || mag <= 0 || reloading) {
+      this._lockProgress = 0;
+      this._lockReady = false;
+    }
+    this._rig.setStinger?.({ mag, lockProgress: active ? this._lockProgress : 0, reloading });
   }
 
   /** Direct fire transition for callers that keep the former split tick/fire frame order. */
@@ -643,7 +724,7 @@ export class WeaponState {
         canSpin, this._minigun.overheated);
     }
     // Authority is deliberately the first gate.
-    if (!this._allowFire || this._grenadeHandling) {
+    if (!this._allowFire || !this._alive || this._grenadeHandling) {
       this.cancelCharge();
       return false;
     }
@@ -705,9 +786,17 @@ export class WeaponState {
     this._chargeHeldPrev = !!input.held;
     const profile = chargeProfile(def);
     const ammo = this._ammo[weaponId];
+    if (this._reloadState || now < this._deployUntil || !ammo || ammo.mag <= 0) {
+      this.cancelCharge();
+    }
     if (this._chargeStart === null) {
+      const stored = this._chargeAt(now, def);
+      if (this._chargeReleasedAt !== null) {
+        if (stored <= 0) this.cancelCharge();
+        else this._rig.setCharge?.(stored);
+      }
       const pressed = input.tap || (input.held && !heldPrev);
-      if (!pressed) return false;
+      if (!pressed || (def.charge?.fullOnly && !input.held)) return false;
       if (now < this._nextFireAt || now < this._deployUntil) return false;
       if (!ammo || this._reloadState) return false;
       if (ammo.mag <= 0) {
@@ -716,9 +805,11 @@ export class WeaponState {
         this.startReload(now);
         return false;
       }
-      this._chargeStart = now;
-      this._rig.setCharge?.(0);
-      this._audio.weaponCharge?.(0, true, weaponId);
+      this._chargeStart = now - stored * profile.ms;
+      this._chargeReleasedAt = null;
+      this._chargeStored = 0;
+      this._rig.setCharge?.(stored);
+      this._audio.weaponCharge?.(stored, true, weaponId);
       return false;
     }
     const heldMs = now - this._chargeStart;
@@ -729,7 +820,17 @@ export class WeaponState {
       this._audio.weaponCharge?.(charge, true, weaponId);
       return false;
     }
+    if (!input.held && !chargeReleaseFires(def, charge) && profile.decayMs > 0) {
+      this._chargeStart = null;
+      this._chargeStored = charge;
+      this._chargeReleasedAt = now;
+      this._rig.setCharge?.(charge);
+      this._audio.weaponCharge?.(charge, false, weaponId);
+      return false;
+    }
     this.cancelCharge();
+    // Mirrors the authority: the CR-6 never shoots at a partial charge.
+    if (!chargeReleaseFires(def, charge)) return false;
     if (!ammo || ammo.mag <= 0 || this._reloadState) return false;
     return this._commitShot(now, def, weaponId, ammo, charge);
   }
@@ -755,10 +856,14 @@ export class WeaponState {
   /** The accepted local shot: ammo, prediction, tracer/rocket FX, report, and recoil. */
   _commitShot(now, def, weaponId, ammo, charge = 1) {
     const mode = def.mode;
+    this._syncThunderbolt();
     if (!this._rig.fire(def)) return false;
 
     if (weaponId === 'minigun') heatMinigun(this._minigun);
     ammo.mag -= 1;
+    if (weaponId === 'stinger') this._syncStinger();
+    if (weaponId === 'archer') this._rig.setArcher?.({ mag: ammo.mag });
+    this._syncThunderbolt();
     const period = 60000 / def.rpm;
     // Preserve continuous fuel/rotary cadence across frame boundaries without catching up
     // missed shots after a pause or a stalled frame.
@@ -957,6 +1062,8 @@ export class WeaponState {
 
   /** Full state reset, used by the constructor (and tests); not tied to any menu. */
   menuReset() {
+    this._lockProgress = 0;
+    this._lockReady = false;
     this._definitionCache = null;
     this._definitionContext = { chaosUpgrades: null, bastionUpgrades: null };
     this._weaponLoadout = {};
@@ -985,6 +1092,8 @@ export class WeaponState {
     this._scopeActive = false;
     this._pendingShotIntent = null;
     this._chargeStart = null;
+    this._chargeReleasedAt = null;
+    this._chargeStored = 0;
     this._chargeHeldPrev = false;
     this._allowFire = false;
     this._grenadeHandling = false;
@@ -1034,9 +1143,11 @@ export class WeaponState {
     cameraZ = 0,
     generation = this._generation,
     lockReady = false,
+    lockProgress = lockReady ? 1 : 0,
   } = {}) {
     this._allowFire = !!allowFire;
-    this._lockReady = !!lockReady;
+    this._lockProgress = clamp01(lockProgress);
+    this._lockReady = this._lockProgress >= 1;
     this._allowMelee = !!allowMelee;
     this._grenadeHandling = !!grenadeHandling;
     this._alive = !!alive;
@@ -1052,6 +1163,7 @@ export class WeaponState {
     this._cameraY = Number.isFinite(cameraY) ? cameraY : 0;
     this._cameraZ = Number.isFinite(cameraZ) ? cameraZ : 0;
     this._generation = generation;
+    this._syncStinger();
   }
 
   _cancelEmptyReload() {

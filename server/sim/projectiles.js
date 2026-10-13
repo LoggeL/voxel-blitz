@@ -65,6 +65,7 @@ import { BUBBLE_RULES, bubbleBlastRules, bubbleLaunch, bubbleMix, bubbleProfile,
 import { sweepPlayers } from './projectile-contact.js';
 import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
+import { TitanfallProjectiles } from './titanfall/index.js';
 import { CLAYMORE_RULES, rayClaymore, placeClaymore, claymoreProfile, claymoreBeam, crossesClaymore } from '../../shared/claymore-rules.js';
 
 /** Live projectiles per room; launches beyond it are refused. */
@@ -221,6 +222,8 @@ export class ProjectileSystem {
     /** Embedded RIPTIDE discs keyed by the disc id that embedded: owner-only pickups. */
     this.glaivePickups = new Map();
     this._glaiveFlying = new Map();
+    /** Titanfall router (inert unless a projectile carries `tf`). */
+    this.titanfall = new TitanfallProjectiles(this);
   }
 
   _hasRoom(secondary = false) {
@@ -274,6 +277,7 @@ export class ProjectileSystem {
     for (const projectile of this.active.values()) stepping.push(projectile);
     for (const projectile of stepping) {
       if (!this.active.has(projectile.id)) continue;
+      if (projectile.tf) { this.titanfall.step(projectile, stepSeconds, substeps, ctx); continue; }
       if (projectile.type === 'limpet') {
         this._stepClaymore(projectile, ctx);
         continue;
@@ -1077,7 +1081,7 @@ export class ProjectileSystem {
     if (weaponKey) projectile.weaponKey = weaponKey;
     // Conquest: the RX-8 is the Engineer's dumb-fire AT weapon (hull numbers at
     // the AT class, softer infantry splash). Locks belong to the AX-9 STINGER.
-    if (ctx.vehicles?.combatProfile === 'conquest') {
+    if (ctx.vehicles?.combatProfile === 'conquest' || ctx.vehicles?.combatProfile === 'titanfall') {
       Object.assign(projectile, { hullDirect: CONQUEST_ROCKET_PROFILE.hullDirect, hullSplash: CONQUEST_ROCKET_PROFILE.hullSplash,
         hullCls: CONQUEST_ROCKET_PROFILE.cls, infantrySplashScale: CONQUEST_ROCKET_PROFILE.infantrySplashScale });
       projectile.chaosLevel = 0;

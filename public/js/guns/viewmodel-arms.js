@@ -51,6 +51,19 @@ const _z = new THREE.Vector3();
 const _basis = new THREE.Matrix4();
 const _up = new THREE.Vector3();
 
+const _wristB = new THREE.Vector3();
+const _backB = new THREE.Vector3();
+/** Stand-in <-> own left hand blend rate (1/s): ~0.15 s across. */
+const OFFHAND_RATE = 18;
+
+/** The wrist joint and back-of-hand direction of a glove anchor, in arms-root space (`_inverse` set by update). */
+function handFrame(hand, wrist, back) {
+  hand.updateWorldMatrix(true, false);
+  _handToRoot.multiplyMatrices(_inverse, hand.matrixWorld);
+  wrist.set(0, 0, ARM.wristZ).applyMatrix4(_handToRoot);
+  back.set(0, 1, 0).transformDirection(_handToRoot);
+}
+
 /**
  * Static analytic pose of one arm, in camera/root-local metres. Fills `out`
  * with the elbow, the shoulder the arm actually hangs from and both segment
@@ -156,6 +169,15 @@ export class ViewmodelArms {
     this._blenderReady = false;
     /** Elbow hint (`ARM.pole` layout); a pose that raises the forearm sets its own. */
     this.pole = ARM.pole;
+    /** Stand-in left hand, set by arm-worn gear while it is worn: the left wrist of a weapon built without a
+     *  support glove (no hand_l, or only the hidden reload glove on `extra`). */
+    this.offHand = null;
+    /** Share (0..1) of the left wrist taken from `offHand`: 1 on the stand-in, easing to 0 while such a weapon's
+     *  own left hand shows (its reload hand) and back, so the forearm and its gear never jump. */
+    this.offHandShare = 0;
+    /** True when the stand-in fist is the drawn left hand this frame (the weapon's own left hand is hidden). */
+    this.offHandUsed = false;
+    this._offHandSnap = true;
     this.arms = [-1, 1].map(side => this._buildArm(side));
   }
 
@@ -231,30 +253,47 @@ export class ViewmodelArms {
    * World matrices along the hand chain are refreshed here, so this runs
    * after the rig composed its transforms.
    */
-  update(model, pitch = 0, visible = true) {
+  update(model, pitch = 0, visible = true, dt = 1 / 60) {
     this._ensureBlenderArms();
-    if (!model?.root || !visible) { this.root.visible = false; return false; }
+    this.offHandUsed = false;
+    if (!model?.root || !visible) { this.root.visible = false; this._offHandSnap = true; return false; }
     const hands = model.root.userData.armAnchors
       ||= { l: model.root.getObjectByName('hand_l') || null, r: model.root.getObjectByName('hand_r') || null };
+    // Chosen per built weapon, not per frame: a two-handed gun hiding its support hand mid-reload keeps that arm off.
+    const standIn = this.offHand && (!hands.l || hands.l.parent === model.extra) ? this.offHand : null;
+    if (model !== this._offHandModel) { this._offHandModel = model; this._offHandSnap = true; }
     this.root.updateWorldMatrix(true, false);
     _inverse.copy(this.root.matrixWorld).invert();
     const spine = -pitch * (1 - ARM.pitchFollow);
     const cos = Math.cos(spine), sin = Math.sin(spine);
     let shown = 0;
     for (const arm of this.arms) {
-      const hand = arm.side < 0 ? hands.l : hands.r;
+      let hand = arm.side < 0 ? hands.l : hands.r;
       let handVisible = !!hand;
       for (let node = hand; handVisible && node && node !== model.root.parent; node = node.parent) {
         if (!node.visible) handVisible = false;
+      }
+      let share = 0;
+      if (arm.side < 0) {
+        const target = standIn && !handVisible ? 1 : 0;
+        share = this.offHandShare = !standIn || this._offHandSnap ? target
+          : this.offHandShare + (target - this.offHandShare) * Math.min(1, OFFHAND_RATE * dt);
+        this.offHandUsed = target === 1 && this.offHandShare >= 0.5;
+        this._offHandSnap = false;
+        if (share > 0.999 || (!hand && share > 0)) { hand = standIn; handVisible = true; share = 0; }
+        else if (share > 0.001) handVisible = true;
       }
       if (!handVisible) {
         for (const name of SEGMENTS) arm.segments[name].visible = false;
         continue;
       }
-      hand.updateWorldMatrix(true, false);
-      _handToRoot.multiplyMatrices(_inverse, hand.matrixWorld);
-      _wrist.set(0, 0, ARM.wristZ).applyMatrix4(_handToRoot);
-      _back.set(0, 1, 0).transformDirection(_handToRoot);
+      handFrame(hand, _wrist, _back);
+      // Between the stand-in and the weapon's own left hand: the wrist eases from one to the other.
+      if (share > 0) {
+        handFrame(standIn, _wristB, _backB);
+        _wrist.lerp(_wristB, share);
+        _back.lerp(_backB, share).normalize();
+      }
       const [sx, sy, sz] = ARM.shoulder;
       _shoulder.set(arm.side * sx, sy * cos - sz * sin, sy * sin + sz * cos);
       const solved = solveArm(arm.side, _wrist, _shoulder, arm.solved ||= {}, this.pole);

@@ -23,12 +23,42 @@ import { vehicleSeatOccupantId, vehicleSeatDefinition, vehicleSeats } from '../s
 import { botDifficulty } from '../shared/bot-difficulty.js';
 import { mountSystem, seatWeapons } from './bot-vehicle-combat.js';
 import { kitOfPlayer } from './bot-commander.js';
+import { isCombinedArms } from '../shared/modes.js';
+import { navigationWaypoint } from './bot-navigation.js';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
 const bearing = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
 const GROUND = new Set(['jeep', 'tank']);
+/**
+ * Titanfall walkers (docs/titanfall.md §9): titan hulls walk like ground
+ * vehicles but strafe, and the hull yaw follows the aim. `near`/`far` is the
+ * engagement band of each titan's primary (server/bot-titanfall.js).
+ */
+export const WALKER = Object.freeze({
+  titan_ion: Object.freeze({ near: 18, far: 55 }),
+  titan_scorch: Object.freeze({ near: 12, far: 36 }),
+  titan_northstar: Object.freeze({ near: 30, far: 90 }),
+  titan_ronin: Object.freeze({ near: 5, far: 20 }),
+  titan_legion: Object.freeze({ near: 14, far: 45 }),
+});
+export const isWalker = v => !!v && Object.hasOwn(WALKER, v.type);
+/**
+ * Walker legs: a world-space wish (unit or shorter) as throttle (forward) and
+ * steer (strafe) relative to `yaw`, the aim the piloted hull turns to 1:1.
+ */
+export function walkerControls(inp, yaw, wishX, wishZ) {
+  const sin = Math.sin(yaw), cos = Math.cos(yaw);
+  const forward = -sin * wishX - cos * wishZ, side = cos * wishX - sin * wishZ;
+  inp.vehicleThrottle = Math.abs(forward) < 0.15 ? 0 : clamp(forward * 1.4, -1, 1);
+  inp.vehicleSteer = Math.abs(side) < 0.15 ? 0 : clamp(side * 1.4, -1, 1);
+  inp.vehicleBrake = 0;
+}
+/** Next route point for a walker toward `target` on the infantry ground graph (its own route cache in `nav`). */
+export function walkerWaypoint(game, v, target, nav, now) {
+  return navigationWaypoint(game.world, { x: v.x, y: v.y, z: v.z }, target, nav, now);
+}
 export const TANK_RETREAT_HP = 0.4;
 export const BAIL_ENGINEER_RADIUS = 20;
 const OVERWATCH_MOVE_MS = [6000, 10000];
@@ -220,7 +250,7 @@ export class ConquestVehicleDriving {
   benched(vehicleId, now = this.game.now) { return (this.abandoned.get(vehicleId) ?? 0) > now; }
   release(id) { this.drivers.delete(id); this.boarding.delete(id); this.reflex.delete(id); }
   clear() { this.drivers.clear(); this.boarding.clear(); this.reflex.clear(); this.abandoned.clear(); }
-  active() { return this.game.mode.mode === 'conquest' && this.game.mode.phase === 'live' && !!this.game.vehicles; }
+  active() { return isCombinedArms(this.game.mode.mode) && this.game.mode.phase === 'live' && !!this.game.vehicles; }
 
   update(brains, now) {
     if (!this.active()) { this.clear(); return; }

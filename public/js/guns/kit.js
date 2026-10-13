@@ -1,7 +1,7 @@
 // Shared procedural gun-building resources. Kept independent of defs.js so its fixed export
 // surface remains private to the viewmodel facade.
 import * as THREE from '../vendor/three.module.js';
-import { createBlenderParts } from '../engine/blender-assets.js';
+import { createBlenderParts, imagegenMap } from '../engine/blender-assets.js';
 
 // Per-silhouette identity palette. These values are part of the visual contract.
 export const COL = {
@@ -17,6 +17,7 @@ export const GLOW_ACCENT = {
   minigun: 0xff9f32, lmg: 0xffb02e, revolver: 0xff6f45, longarc: 0x35e0ff, rocket: 0xff7a1c,
   lance: 0xc9a2ff, knife: 0xb8c4d4, flamethrower: 0xff7518, glaive: 0xff3fd0,
   bubble: 0x9fe9ff, mgl: 0xffa63a, stinger: 0x9cff6b,
+  chargerifle: 0xff5a3c, archer: 0x4ee6ff, thunderbolt: 0x7aa8ff, kraber: 0xffc04a,
 };
 
 // Materials are shared across every rig, while each MaterialCache instance represents one rig's
@@ -137,6 +138,24 @@ export class MaterialCache {
 /** Create the procedural primitives bound to one rig's material owner. */
 export function makeKit(cache) {
   const mat = (hex, rough = 0.78, metal = 0.22) => cache.mat(hex, rough, metal);
+
+  /** One rig owns the mutable material; the decoded ImageGen map belongs to the page. */
+  function imagegenMat(name, color, rough = 0.78, metal = 0.22) {
+    const map = imagegenMap(name);
+    const material = new THREE.MeshStandardMaterial({
+      color: map ? 0xffffff : color,
+      flatShading: true,
+      roughness: rough,
+      metalness: metal,
+      map,
+      bumpMap: map,
+      bumpScale: map ? 0.00005 : 0,
+    });
+    material.name = name;
+    material.userData.paletteColor = color;
+    material.userData.imagegenTexture = name;
+    return material;
+  }
 
   function box(parent, w, h, d, x, y, z, color, options = EMPTY_OPTIONS) {
     const mesh = new THREE.Mesh(
@@ -277,7 +296,7 @@ export function makeKit(cache) {
   }
 
   // mat is exposed to builders that need a cached material for a custom THREE primitive.
-  return { mat, box, cylZ, brakeRings, glove, ironSights };
+  return { mat, imagegenMat, box, cylZ, brakeRings, glove, ironSights };
 }
 
 const FX_VERTEX_SHADER = `varying vec3 vN; varying vec3 vW;

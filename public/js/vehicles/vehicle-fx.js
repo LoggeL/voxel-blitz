@@ -8,14 +8,15 @@
 // scorch marks (1) and the nav/head/tail light sprites (1). One of the two
 // muzzle point lights is borrowed for a tank main-gun flash.
 import * as THREE from '../vendor/three.module.js';
-import { VEHICLE_WEAPON_META, vehicleStatus } from '../../../shared/conquest-contract.js';
-import { vehicleDef, vehicleMaxHp } from '../../../shared/vehicle-defs.js';
+import { vehicleWeaponMeta, vehicleStatus } from '../../../shared/conquest-contract.js';
+import { VEHICLE_WEAPONS, vehicleDef, vehicleMaxHp } from '../../../shared/vehicle-defs.js';
 import { vehicleOccupiedSeats } from '../../../shared/vehicle-seats.js';
 import { AIR, FLUID_BLOCKS } from '../../../shared/worlddata.js';
 import { TILE_PAINTERS, TILE_PX, faceTile } from '../engine/atlas.js';
 import { DUST_TINTS } from '../fx/presets.js';
 import { canonicalMountKey, isAircraftType, rowMaxHp } from './voxel-model/anchors.js';
 import { ParachuteFx } from './parachute-fx.js';
+import { TITAN_WEAPON_META } from '../../../shared/titan-contract.js';
 
 /** Presentation tuning (no gameplay values). */
 export const VEHICLE_FX = Object.freeze({
@@ -38,11 +39,37 @@ const TRACERS = Object.freeze({
   hmg: Object.freeze({ tracer: Object.freeze({ len: 34, width: 1.8, color: '#ff8a3a' }) }),
   doorMinigun: Object.freeze({ tracer: Object.freeze({ len: 30, width: 1.5, color: '#ffb05a' }) }),
   planeCannon: Object.freeze({ tracer: Object.freeze({ len: 42, width: 2.1, color: '#ffd27a' }) }),
+  // Titanfall (docs/titanfall.md §7.3): splitter bolts, the railgun beam, predator rounds.
+  splitter: Object.freeze({ tracer: Object.freeze({ len: 30, width: 2.4, color: '#6fd2ff' }) }),
+  railgun: Object.freeze({ tracer: Object.freeze({ len: 120, width: 4.2, color: '#9fe8ff' }) }),
+  predatorClose: Object.freeze({ tracer: Object.freeze({ len: 28, width: 1.9, color: '#ffbf5a' }) }),
+  predatorLong: Object.freeze({ tracer: Object.freeze({ len: 40, width: 2.3, color: '#ffd77a' }) }),
 });
 /** Muzzle flash scale per vehicle weapon. */
 const MUZZLE_SCALE = Object.freeze({
   tankAP: 2.4, tankHE: 2.4, coaxMG: 0.55, hmg: 0.75, helicopterRocket: 1.1, chinCannon: 0.9,
   doorMinigun: 0.6, planeCannon: 0.85, aaMissile: 1.2,
+  splitter: 1.1, t203: 1.6, railgun: 2.2, leadwall: 2.0, predatorClose: 1.0, predatorLong: 1.1, titanMelee: 0,
+});
+/** Energy and fire tints of the titan muzzles, impacts and light flashes (linear RGB, HDR). */
+const ION_TINT = Object.freeze({ muzzle0: [1.4, 3.4, 5.4], muzzle1: [0.3, 1.1, 3.2], spark0: [0.9, 2.2, 3.6], spark1: [0.25, 0.8, 2.2], light: [0.45, 0.85, 1] });
+const RAIL_TINT = Object.freeze({ muzzle0: [3.4, 4.6, 5.6], muzzle1: [0.8, 2.2, 3.8], spark0: [1.6, 3, 4.2], spark1: [0.4, 1.2, 2.6], light: [0.6, 0.9, 1] });
+const BRASS = Object.freeze([0.95, 0.68, 0.3]);
+/**
+ * Titan primary shots (visual only; the shake, FOV punch and cockpit kick are titan-weapon-feel.js, the
+ * audio VehicleAudio.titanShot, both via titan-presentation.js): arm kick (VehicleView recoil travel,
+ * × 0.6 m), light flash (strength, tint), muzzle particle count, impact burst size. `shake` is only
+ * used by the ability shots that borrow a primary's look (Laser Shot, Power Shot, Vortex throw-back).
+ */
+const TITAN_SHOT_LOOK = Object.freeze({
+  splitter: Object.freeze({ kick: 0.3, shake: 0.025, flash: 0.35, tint: ION_TINT, muzzles: 1, impact: 1 }),
+  t203: Object.freeze({ kick: 0.75, shake: 0.08, flash: 0.9, muzzles: 3, impact: 0 }),
+  // Railgun: kick, flash and impact grow with the shot's charge (event.charge) from `min`.
+  railgun: Object.freeze({ kick: 1, shake: 0.14, flash: 1.3, tint: RAIL_TINT, muzzles: 4, impact: 2.6, min: 0.35 }),
+  leadwall: Object.freeze({ kick: 0.8, shake: 0.1, flash: 1, muzzles: 4, impact: 0 }),
+  predatorClose: Object.freeze({ kick: 0.18, shake: 0.012, flash: 0.28, muzzles: 1, impact: 0.8, casings: 1 }),
+  predatorLong: Object.freeze({ kick: 0.22, shake: 0.018, flash: 0.32, muzzles: 1, impact: 0.9, casings: 1 }),
+  titanMelee: Object.freeze({ kick: 0, shake: 0, flash: 0 }),
 });
 const LIGHT_LOOK = Object.freeze({
   head: Object.freeze({ color: [2.4, 2.2, 1.8], size: 0.55 }),
@@ -50,6 +77,11 @@ const LIGHT_LOOK = Object.freeze({
   navRed: Object.freeze({ color: [3.2, 0.3, 0.2], size: 0.42 }),
   navGreen: Object.freeze({ color: [0.3, 3.2, 0.6], size: 0.42 }),
   strobe: Object.freeze({ color: [4, 4, 4], size: 0.75 }),
+  // Titan battery cell (titan-common.js): a slow green pulse, dark once the battery is ripped.
+  battery: Object.freeze({ color: [0.45, 3.1, 1.1], size: 0.42 }),
+  // Titan flood and tail lenses (titan-common.js TITAN_LIGHT_KINDS): a small warm glint, no glare ball.
+  titanLamp: Object.freeze({ color: [1.4, 0.9, 0.4], size: 0.18 }),
+  titanTail: Object.freeze({ color: [1.6, 0.18, 0.1], size: 0.14 }),
 });
 
 const finite = value => Number.isFinite(value) ? value : 0;
@@ -379,7 +411,7 @@ export class VehicleFx {
   }
 
   _shoot(ev) {
-    const weapon = ev.vehicleWeapon, meta = VEHICLE_WEAPON_META[weapon];
+    const weapon = ev.vehicleWeapon, meta = vehicleWeaponMeta(weapon);
     if (!meta) return false;
     const item = this.view?.item(ev.vehicleId);
     const self = item ? this._rowIsSelf(item.row) : String(ev.id) === this.selfId;
@@ -388,6 +420,7 @@ export class VehicleFx {
     const dir = pose?.dir ?? vec(ev.d);
     if (!origin || !origin.every(Number.isFinite)) return false;
     this._count('shoot');
+    if (Object.hasOwn(TITAN_WEAPON_META, weapon)) return this._titanShot(ev, weapon, meta, item, self, origin, dir);
     const scale = MUZZLE_SCALE[weapon] ?? 0.8;
     const inherit = item?.row && isAircraftType(item.kind) ? [finite(item.row.vx), finite(item.row.vy), finite(item.row.vz)] : null;
     this.fx?.emit('muzzle', origin, { count: weapon.startsWith('tank') ? 3 : 1, dir, scale, near: false, velocity: inherit });
@@ -440,6 +473,109 @@ export class VehicleFx {
     return true;
   }
 
+  /**
+   * Titan mount shots: splitter bolts (a tracer on every bolt, one per split path) with ion sparks,
+   * the railgun crack (tracer, ionised wake, a flash and impact scaled by the event's charge; the
+   * beam itself is titan-ability-events.js), Predator rounds with brass, the Leadwall / T-203 muzzle
+   * blast (ProjectileFX draws the pellets and the thermite shell through titan-projectile-views.js).
+   */
+  _titanShot(ev, weapon, meta, item, self, origin, dir) {
+    const look = TITAN_SHOT_LOOK[weapon];
+    if (weapon === 'titanMelee') return true;
+    // Hitscan abilities (Laser Shot, Power Shot, Vortex throw-back) leave from their anchor
+    // (`ev.o`); titan-ability-events.js draws their rays, so only the impacts and the light stay.
+    if (ev.ability) return this._titanAbilityShot(ev, look, self);
+    const charge = weapon === 'railgun' ? look.min + (1 - look.min) * Math.max(0, Math.min(1, Number.isFinite(ev.charge) ? ev.charge : 1)) : 1;
+    const tint = look?.tint ?? null, scale = (MUZZLE_SCALE[weapon] ?? 1) * (weapon === 'railgun' ? 0.6 + 0.4 * charge : 1);
+    this.fx?.emit('muzzle', origin, { count: look?.muzzles ?? 1, dir, scale, near: false, spread: weapon === 'leadwall' ? 0.45 : 0.2,
+      ...(tint ? { color0: tint.muzzle0, color1: tint.muzzle1 } : {}) });
+    if (meta.kind === 'hitscan') {
+      const paths = Array.isArray(ev.paths) && ev.paths.length ? ev.paths : [null];
+      const range = VEHICLE_WEAPONS[weapon]?.range ?? 300;
+      for (const path of paths) {
+        const segment = Array.isArray(path) ? path[0] : null;
+        const end = vec(segment?.end);
+        let d = dir, length = range;
+        if (end && end.every(Number.isFinite)) {
+          const dx = end[0] - origin[0], dy = end[1] - origin[1], dz = end[2] - origin[2];
+          length = Math.hypot(dx, dy, dz);
+          if (length > 0.5) d = [dx / length, dy / length, dz / length];
+        }
+        // Every ION bolt and every rail shot draws; the Predator keeps the server's tracer cadence.
+        if (ev.tracer !== false || weapon === 'railgun' || weapon === 'splitter') this._tracer(origin, d, end, weapon);
+        if (segment?.hit) this._impact(segment.hit, end);
+        // A round that stopped short of its range met a voxel, a hull or a pilot: the weapon's own burst there.
+        if (end && (segment?.hit || length < range - 0.5)) this._titanImpact(weapon, end, d, look.impact * charge, !!segment?.hit);
+        if (weapon === 'railgun') this._railWake(origin, d, end, charge);
+      }
+      if (weapon === 'splitter') this.fx?.emit('spark', origin, { count: paths.length > 1 ? 7 : 4, dir, speed: 2.4, spread: 0.45, color0: tint.spark0, color1: tint.spark1 });
+      if (weapon === 'railgun') {
+        this.fx?.emit('spark', origin, { count: Math.round(10 + 14 * charge), dir, speed: 3, spread: 0.6, color0: tint.spark0, color1: tint.spark1 });
+        this.fx?.emit('smoke', origin, { count: 3, dir, speed: 1.6, scale: 0.7, alpha: 0.45, color0: [0.5, 0.6, 0.7], color1: [0.42, 0.46, 0.5] });
+      }
+      if (look?.casings) this._casing(origin, dir);
+    } else {
+      // Leadwall / T-203: a smoke blast and sparks off the muzzle; the T-203 belches flame.
+      this.fx?.emit('smoke', origin, { count: weapon === 'leadwall' ? 10 : 9, dir, speed: 2.8, scale: weapon === 'leadwall' ? 1 : 1.2, spread: 0.7 });
+      this.fx?.emit('spark', origin, { count: weapon === 'leadwall' ? 18 : 6, dir, speed: 4.5, spread: weapon === 'leadwall' ? 0.55 : 0.3 });
+      if (weapon === 't203') {
+        this.fx?.emit('fire', origin, { count: 5, dir, speed: 2.4, scale: 1.4, spread: 0.35, life: 0.6 });
+        this.fx?.emit('ember', origin, { count: 10, dir, speed: 2.8, spread: 0.5 });
+      }
+    }
+    if (look?.kick) this.view?.kick(ev.vehicleId, ev.mount, look.kick * charge);
+    if (look?.flash) this._flashLight(origin, look.flash * charge, tint?.light ?? null);
+    return true;
+  }
+
+  /** A titan round's own burst where it stopped (`strength` 0 none; `voxel`: it hit the world, so dust and chips too). */
+  _titanImpact(weapon, at, dir, strength, voxel) {
+    if (!(strength > 0)) return;
+    const back = [-dir[0], -dir[1], -dir[2]], tint = TITAN_SHOT_LOOK[weapon]?.tint ?? null;
+    const n = s => Math.max(1, Math.round(s * strength));
+    this._count('titanImpact');
+    if (tint) {
+      this.fx?.emit('spark', at, { count: n(8), dir: back, speed: 1.4, spread: 1.1, color0: tint.spark0, color1: tint.spark1 });
+      this.fx?.emit('muzzle', at, { count: 1, scale: 0.5 * strength, near: false, color0: tint.muzzle0, color1: tint.muzzle1 });
+    } else {
+      this.fx?.emit('spark', at, { count: n(5), dir: back, speed: 1, spread: 0.9 });
+    }
+    if (!voxel) return;
+    this.fx?.emit('dust', at, { count: n(3), dir: back, speed: 1, scale: 0.45 + 0.2 * strength, spread: 0.8 });
+    if (strength > 1.5) {
+      this.fx?.emit('debris', at, { count: n(2), dir: back, speed: 0.8 });
+      this.fx?.emit('smoke', at, { count: n(1.5), dir: back, speed: 0.7, scale: 0.8, alpha: 0.5 });
+    }
+  }
+
+  /** A Predator casing: brass flung out of the right side of the receiver, a little behind the muzzle. */
+  _casing(origin, dir) {
+    const side = Math.hypot(dir[0], dir[2]) > 1e-3 ? [-dir[2] / Math.hypot(dir[0], dir[2]), 0, dir[0] / Math.hypot(dir[0], dir[2])] : [1, 0, 0];
+    const at = [origin[0] - dir[0] * 1.6 + side[0] * 0.5, origin[1] - dir[1] * 1.6 + 0.2, origin[2] - dir[2] * 1.6 + side[2] * 0.5];
+    this.fx?.emit('debris', at, { count: 1, dir: [side[0], 0.7, side[2]], speed: 0.7, spread: 0.35, scale: 1.1, color0: BRASS, color1: BRASS.map(c => c * 0.7) });
+  }
+
+  /** A titan ability shot (`ev.ability`): the impact of every ray and the anchor's light flash. */
+  _titanAbilityShot(ev, look, self) {
+    for (const path of Array.isArray(ev.paths) ? ev.paths : []) {
+      const segment = Array.isArray(path) ? path[0] : null;
+      if (segment?.hit) this._impact(segment.hit, vec(segment.end));
+    }
+    const o = vec(ev.o);
+    if (o && look?.flash) this._flashLight(o, look.flash);
+    if (self && look?.shake) this.shake?.add(look.shake);
+    return true;
+  }
+
+  /** The railgun's ionised wake: blue flecks lingering along the beam, denser with the charge. */
+  _railWake(origin, dir, end, charge = 1) {
+    const length = Math.min(90, end ? Math.hypot(end[0] - origin[0], end[1] - origin[1], end[2] - origin[2]) : 90);
+    for (let t = 2; t < length; t += 3.6 - 1.8 * charge) {
+      this.fx?.emit('spark', [origin[0] + dir[0] * t, origin[1] + dir[1] * t, origin[2] + dir[2] * t],
+        { count: 1, dir, speed: 0.4, spread: Math.PI, life: 0.35, color0: [0.6, 1.4, 2.4], color1: [0.2, 0.5, 1.4] });
+    }
+  }
+
   _mountIndex(item, mount) {
     const key = canonicalMountKey(item.kind, mount);
     return key ? vehicleDef(item.kind).mountOrder.indexOf(key) : -1;
@@ -472,7 +608,7 @@ export class VehicleFx {
   _launch(ev) {
     const o = vec(ev.o), v = vec(ev.v);
     if (!o || !v || !o.every(Number.isFinite) || !v.every(Number.isFinite)) return false;
-    const weapon = ev.vehicleWeapon, meta = VEHICLE_WEAPON_META[weapon];
+    const weapon = ev.vehicleWeapon, meta = vehicleWeaponMeta(weapon);
     if (!meta) return false;
     this._count('launch');
     if (weapon === 'tankAP' || weapon === 'tankHE') this._shellPass(ev, o, v, weapon);
@@ -538,7 +674,7 @@ export class VehicleFx {
     const time = -((o[0] - listener[0]) * v[0] + (o[1] - listener[1]) * v[1] + (o[2] - listener[2]) * v[2]) / vv;
     if (!(time > 0.05) || time > VEHICLE_FX.shellPassSeconds) return false;
     // Ballistic drop until the pass (gravity from the event, else the shell's own).
-    const g = finite(ev.g) || VEHICLE_WEAPON_META[weapon]?.gravity || 0;
+    const g = finite(ev.g) || vehicleWeaponMeta(weapon)?.gravity || 0;
     const point = [o[0] + v[0] * time, o[1] + v[1] * time - 0.5 * g * time * time, o[2] + v[2] * time];
     const miss = Math.hypot(point[0] - listener[0], point[1] - listener[1], point[2] - listener[2]);
     if (miss > VEHICLE_FX.shellPassRadius) return false;
@@ -655,8 +791,8 @@ export class VehicleFx {
     (this._timers ||= []).push({ at: this.time + delay, run });
   }
 
-  _flashLight(origin, strength) {
-    this.flash = { pos: [...origin], strength, age: 0 };
+  _flashLight(origin, strength, color = null) {
+    this.flash = { pos: [...origin], strength, age: 0, color };
   }
 
   /**
@@ -914,8 +1050,11 @@ export class VehicleFx {
       const look = LIGHT_LOOK[light.kind];
       if (!look) continue;
       let gain = 1;
-      if (light.kind === 'head' || light.kind === 'tail') { if (!engine) continue; gain = lamps; }
-      else if (light.kind === 'strobe') {
+      if (light.kind === 'head' || light.kind === 'tail' || light.kind === 'titanLamp' || light.kind === 'titanTail') { if (!engine) continue; gain = lamps; }
+      else if (light.kind === 'battery') {
+        if (item.wreck || (finite(item.row?.tw?.[4]) & 16)) continue;    // TITAN_ABILITY_BITS.batteryOut
+        gain = 0.7 + 0.3 * Math.sin(this.time * 2.6 + hashId(item.id) * 6.28);
+      } else if (light.kind === 'strobe') {
         const phase = (this.time + hashId(item.id)) % 1.1;
         if (phase > 0.07) continue;
       }
@@ -985,7 +1124,8 @@ export class VehicleFx {
     if (!light || !this.flash) return false;
     const left = Math.max(0, 1 - this.flash.age / VEHICLE_FX.flashSeconds);
     light.position.fromArray(this.flash.pos);
-    light.color.setRGB(1, 0.78, 0.45);
+    const tint = this.flash.color;
+    if (tint) light.color.setRGB(tint[0], tint[1], tint[2]); else light.color.setRGB(1, 0.78, 0.45);
     light.distance = 22;
     light.intensity = 60 * this.flash.strength * left;
     return left > 0;

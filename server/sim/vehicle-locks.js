@@ -1,12 +1,15 @@
 /**
- * Lock-on and countermeasures. Two lockers exist: an Engineer aiming down the
+ * Lock-on and countermeasures. Three lockers exist: an Engineer aiming down the
  * sights of the AX-9 STINGER at an airborne enemy aircraft (the RX-8 AT rocket
- * is dumb-fire), and a jet pilot with the AA missile rails selected. Line of sight is re-checked at 10 Hz
+ * is dumb-fire), a jet pilot with the AA missile rails selected, and (titanfall only)
+ * a pilot aiming down the sights of the AT-12 ARCHER at an enemy titan. Line of sight is re-checked at 10 Hz
  * per locker and smoke blocks it. Locked launches home by proportional
  * navigation on a vehicle id (never Chaos homing). Flares decoy and reset
  * locks; tank smoke lays three SmokeSystem fields and breaks locks.
  */
 import { LOCK_RULES, COUNTERMEASURE_RULES, vehicleDef, isAircraftType, vehicleDirection, vehicleLocalPoint } from '../../shared/vehicle-defs.js';
+import { isTitanType } from '../../shared/titan-contract.js';
+import { isPerceivable } from './titanfall/perception.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evCountermeasure } from '../protocol/events.js';
 
@@ -44,13 +47,23 @@ export class VehicleLocks {
       if (!this.system.seatAllowsPersonalWeapons(p)) return null;
       rideId = v.id;
     }
-    if (p.def?.projectile !== 'stinger' || !p.ads || !this.system.canOperate(p)) return null;
-    return { source: 'stinger', eye: [p.eyeX ?? p.x, p.eyeY ?? p.y + 1.6, p.eyeZ ?? p.z], aim: fwd(p.yaw, p.pitch), vehicleId: rideId };
+    // Titanfall: the AT-12 ARCHER locks enemy titans (LOCK_RULES.archer); `titans` exists only there.
+    const source = p.def?.projectile === 'archer' && this.system.titans ? 'archer' : 'stinger';
+    if (p.def?.projectile !== source || !p.ads || !this.system.canOperate(p)) return null;
+    return { source, eye: [p.eyeX ?? p.x, p.eyeY ?? p.y + 1.6, p.eyeZ ?? p.z], aim: fwd(p.yaw, p.pitch), vehicleId: rideId };
   }
 
-  /** A hull a source may lock: hostile, alive, airborne aircraft without active flares. */
+  /**
+   * A hull a source may lock: hostile, alive, airborne aircraft without active flares;
+   * for the ARCHER (titanfall) an enemy titan that is landed, not phased, not in its
+   * electric smoke and perceivable.
+   */
   candidate(p, v, info, rules, now) {
-    if (!v || !(v.hp > 0) || v.padInactive || v.id === info.vehicleId || !isAircraftType(v) || v.grounded) return null;
+    if (info.source === 'archer') {
+      if (!v || !(v.hp > 0) || !isTitanType(v.type) || v.dropping || v.id === info.vehicleId) return null;
+      if (v.team == null || v.team === this.system.teamOf(p)) return null;
+      if ((v.tfMove?.phasedUntil ?? 0) > now || (v.tfAbility?.smokeUntil ?? 0) > now || !isPerceivable(p, v, now)) return null;
+    } else if (!v || !(v.hp > 0) || v.padInactive || v.id === info.vehicleId || !isAircraftType(v) || v.grounded) return null;
     if (v.team == null || v.team === this.system.teamOf(p) || v.flaresUntil > now) return null;
     const center = this.system.hullCenter(v), delta = center.map((n, i) => n - info.eye[i]), distance = Math.hypot(...delta);
     if (!(distance > 0.5) || distance > rules.range) return null;

@@ -4,6 +4,7 @@
 // mountPose/vehicleSeatPose can never drift apart.
 import { VEHICLE_TOPOLOGY, vehicleMountOrder } from '../../../../shared/conquest-contract.js';
 import { VEHICLE_DEFS, vehicleDef, vehicleMaxHp } from '../../../../shared/vehicle-defs.js';
+import { TITAN_TYPE_IDS } from '../../../../shared/titan-contract.js';
 
 /** Tank turret ring: yaw pivot at the shared turretForward, ring height of the model. */
 export const TANK_TURRET_PIVOT = Object.freeze([0, 1.66, -(VEHICLE_DEFS.tank.rules.turretForward ?? 0.19)]);
@@ -54,6 +55,9 @@ export function rowMaxHp(row) {
 }
 
 export const VEHICLE_TYPES = Object.freeze(Object.keys(VEHICLE_TOPOLOGY));
+/** Titanfall walkers (shared/titan-contract.js); kept apart so VEHICLE_TYPES stays the conquest roster. */
+export const TITAN_TYPES = Object.freeze([...TITAN_TYPE_IDS]);
+export const isWalkerType = type => vehicleDef(type)?.handling === 'walker';
 export const isAircraftType = type => ['rotor', 'fixedwing'].includes(vehicleDef(type)?.handling);
 export const isRotorType = type => vehicleDef(type)?.handling === 'rotor';
 export const isGroundType = type => ['wheeled', 'tracked'].includes(vehicleDef(type)?.handling);

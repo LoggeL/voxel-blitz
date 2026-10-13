@@ -54,7 +54,7 @@ export function groundSegmentClear(world, from, to) {
     if (occupied && intersectsExpandedVoxel(from, to, x, z)) return false;
   }
   const steps = Math.max(1, Math.ceil(distance(from, to) / 0.25));
-  const solid = (x, y, z) => world.getBlock(x, y, z) !== 0;
+  const solid = (x, y, z) => { const block = world.getBlock(x, y, z); return block !== 0 && !FLUID_BLOCKS.has(block); };
   for (let step = 0; step <= steps; step++) {
     const t = step / steps;
     if (!solidBelow(solid, from.x + (to.x - from.x) * t, floor, from.z + (to.z - from.z) * t)) return false;
@@ -65,7 +65,8 @@ export function groundSegmentClear(world, from, to) {
 function refreshNode(graph, node) {
   const point = pointAt(graph, node), x = node % graph.width, z = Math.floor(node / graph.width);
   const wx = Math.floor(point.x), wz = Math.floor(point.z);
-  const wet = [0, 1, 2].some(dy => FLUID_BLOCKS.has(graph.world.getBlock(wx, graph.floor + dy, wz)));
+  // Fluid in the floor cell too: a sunk lava runner (Ashfall's Pour) is no floor to route over.
+  const wet = [-1, 0, 1, 2].some(dy => FLUID_BLOCKS.has(graph.world.getBlock(wx, graph.floor + dy, wz)));
   graph.walk[node] = x >= 1 && z >= 1 && x < graph.width - 1 && z < graph.depth - 1
     && !wet
     && !boxCollides(graph.solid, point.x, graph.floor, point.z)
@@ -121,7 +122,9 @@ export function groundNavigation(world) {
   return graph;
 }
 
-function closest(graph, point) {
+/** Nearest walkable node in a straight, clear line from `point`; `loose` falls back to the
+ * nearest walkable node when none is in line. */
+function closest(graph, point, loose = false) {
   const x = Math.round((point.x - 0.5) / graph.cell), z = Math.round((point.z - 0.5) / graph.cell);
   const candidates = [];
   for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) {
@@ -130,7 +133,8 @@ function closest(graph, point) {
       candidates.push({ node, distance: distance(point, pointAt(graph, node)) });
   }
   candidates.sort((a, b) => a.distance - b.distance || a.node - b.node);
-  return candidates.find(candidate => groundSegmentClear(graph.world, point, pointAt(graph, candidate.node)))?.node ?? -1;
+  const clear = candidates.find(candidate => groundSegmentClear(graph.world, point, pointAt(graph, candidate.node)))?.node;
+  return clear ?? (loose ? candidates[0]?.node ?? -1 : -1);
 }
 
 /** Breadth-first route with valid swept edges and visible endpoint connectors. */
@@ -144,7 +148,9 @@ export function groundRoute(world, from, to) {
   const graph = groundNavigation(world);
   if (!graph || !from || !to) return [];
   if (distance(from, to) <= 48 && groundSegmentClear(world, from, to)) return [{ x: to.x, y: graph.floor + 0.02, z: to.z }];
-  const start = closest(graph, from), end = closest(graph, to);
+  // Maps with raised pilot levels (mapMeta.climbs: Ashfall's docks, ramps and perches) route a goal
+  // standing up there to the nearest floor node instead of giving up.
+  const start = closest(graph, from), end = closest(graph, to, Array.isArray(world.meta?.climbs));
   if (start < 0 || end < 0) return [];
   const parent = new Int32Array(graph.walk.length).fill(-1), queue = new Int32Array(parent.length);
   let read = 0, write = 1;
@@ -167,11 +173,72 @@ export function groundRoute(world, from, to) {
   return route.reverse();
 }
 
+// Authored climbs (mapMeta.climbs, Ashfall's rodeo perches): a polyline of world
+// points from a ground foot up a stair to an upper deck. The flat graph knows only
+// the floor, so a target on a climb's deck routes to its foot and then walks the
+// points; a body standing on a climb walks it down before routing anywhere else.
+const CLIMB_ABOVE = 2.5;   // m above the floor: a target on an upper level
+const CLIMB_DECK = 4;      // m flat from a climb's last point: the target is that deck
+const CLIMB_REACH = 1.3;   // m flat from a climb segment: the body is on it
+const CLIMB_NEXT = 0.7;    // m: a reached climb point hands on to the next one
+
+function nearestSegment(points, p) {
+  let best = null;
+  for (let i = 0; i + 1 < points.length; i++) {
+    const a = points[i], b = points[i + 1], dx = b.x - a.x, dz = b.z - a.z, len2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / len2));
+    const d = Math.hypot(a.x + dx * t - p.x, a.z + dz * t - p.z), y = a.y + (b.y - a.y) * t;
+    if (Math.abs(p.y - y) <= 2.5 && (!best || d < best.d)) best = { i, t, d };
+  }
+  return best;
+}
+
+/**
+ * Next point along an authored climb, or null when no climb is involved.
+ * `{ point }` is a straight steering target; `{ ground }` replaces the
+ * route target by the climb's foot.
+ */
+export function climbStep(world, from, to, floor) {
+  const climbs = world.meta?.climbs;
+  if (!Array.isArray(climbs) || !climbs.length || !from || !to) return null;
+  const goal = to.y > floor + CLIMB_ABOVE
+    ? climbs.find(c => distance(c.points[c.points.length - 1], to) <= CLIMB_DECK) : null;
+  const raised = from.y > floor + 0.5;
+  let on = null;
+  for (const climb of climbs) {
+    if (!raised && climb !== goal) continue;
+    const seg = nearestSegment(climb.points, from);
+    if (seg && seg.d <= CLIMB_REACH && (raised || seg.t > 0) && (!on || seg.d < on.seg.d)) on = { climb, seg };
+  }
+  if (on && on.climb === goal) {
+    const pts = goal.points;
+    let next = on.seg.i + 1;
+    if (next < pts.length - 1 && distance(from, pts[next]) < CLIMB_NEXT) next++;
+    return { point: next === pts.length - 1 ? to : pts[next], climbing: true };
+  }
+  if (on) {
+    const pts = on.climb.points;
+    let next = on.seg.i;
+    if (next > 0 && distance(from, pts[next]) < CLIMB_NEXT) next--;
+    if (next === 0 && distance(from, pts[0]) < CLIMB_NEXT) return null;
+    return { point: pts[next], climbing: true };
+  }
+  if (goal) {
+    if (distance(from, goal.points[0]) < 1) return { point: goal.points[1], climbing: true };
+    return { ground: goal.points[0], climbing: false };
+  }
+  return null;
+}
+
 export function navigationWaypoint(world, from, to, brain, now) {
   const surface = surfaceNavigation(world);
   if (surface) return surface.waypoint(from, to, brain, now);
   if (!Number.isFinite(world.meta?.navigationFloor) || !to) return to;
   const graph = groundNavigation(world);
+  const climb = world.meta?.climbs ? climbStep(world, from, to, graph.floor) : null;
+  brain.climbing = !!climb?.climbing;
+  if (climb?.point) return climb.point;
+  if (climb?.ground) to = climb.ground;
   let route = brain.groundRoute;
   if (!route || now >= route.until || distance(to, route.target) > 2
     || distance(from, route.last) > 12 || route.revision !== graph.revision) {

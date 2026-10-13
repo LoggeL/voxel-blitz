@@ -11,6 +11,7 @@ import { BASTION_LAYOUTS } from './bastion-layouts.js';
 import { MINECRAFT_B5_ANCHORS } from './minecraft-b5-data.js';
 import { WATERWORLD_ANCHORS } from './waterworld-data.js';
 import { BIKINI_BOTTOM_FLUME } from './bikini-bottom-data.js';
+import { ASHFALL_SPAWN_ANCHORS, ASHFALL_LANDMARKS, ASHFALL_LADDERS, ASHFALL_PERCHES, ASHFALL_BATTERY_CACHES } from './ashfall-layout.js';
 import {
   DUST2_NAV_FLOORS, DUST2_SPAWN_ANCHORS, DUST2_SITES, DUST2_LANDMARKS,
   dust2FloorsAt,
@@ -32,6 +33,7 @@ const MAP_NAMES = Object.freeze({
   waterworld: 'Waterworld',
   causeway: 'Causeway',
   bikini_bottom: 'Bikini Bottom',
+  ashfall: 'Ashfall',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
@@ -123,6 +125,8 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
     snd: { attackers: [], defenders: [] },
     ttt: WATERWORLD_ANCHORS.spawns.ttt,
   },
+  // Point-symmetric about (223 - x, 175 - z): MILITIA (alpha) west, IMC (bravo) east.
+  ashfall: ASHFALL_SPAWN_ANCHORS,
   causeway: { fun: CAUSEWAY_LAYOUT.defenders.map(p => [p.x, p.z]),
     tdm: { alpha: [], bravo: [] }, snd: { attackers: [], defenders: [] } },
   // Point-symmetric about (127 - x, 95 - z): bravo/defenders north, alpha/
@@ -170,6 +174,7 @@ const MAP_SITE_LAYOUTS = Object.freeze({
   minecraft_b5: [],
   waterworld: [],
   causeway: [],
+  ashfall: [],
   bikini_bottom: [
     { id: 'A', minX: 20, maxX: 31, minZ: 42, maxZ: 53, y: GROUND + 1.02 },   // Krusty Krab dining floor (skylit roof)
     { id: 'B', minX: 96, maxX: 107, minZ: 42, maxZ: 53, y: GROUND + 4.02 },  // Chum Bucket deck (top y17) inside the ring
@@ -187,6 +192,7 @@ export const MAP_LANDMARKS = Object.freeze({
     { id: 'tower', name: 'Control Tower', x: 42, z: 72, floorY: GROUND },
     { id: 'pad', name: 'Extraction Pad', x: 16, z: 72, floorY: GROUND } ],
   dust2: DUST2_LANDMARKS,
+  ashfall: ASHFALL_LANDMARKS,
   nuketown: [
     { id: 'yellow-house', name: 'Yellow House', x: 59, z: 67 },
     { id: 'school-bus', name: 'School Bus', x: 57, z: 46 },
@@ -372,6 +378,13 @@ export function createMapMetadata(id, world) {
     ...(['harbor', 'canyon'].includes(id) ? { navigationFloor: GROUND, spawnBounds: {
       minX: 4, maxX: 187, minZ: 4, maxZ: 139, minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
+    // Ashfall: street-level route graph (titans and pilots), spawns on the street only;
+    // bot pilots climb to the rodeo perches by their authored stairs (climbs), and the
+    // battery caches restock (docs/titanfall.md §14).
+    ...(id === 'ashfall' ? { navigationFloor: GROUND, spawnBounds: {
+      minX: 4, maxX: 219, minZ: 4, maxZ: 171, minY: GROUND + 1, maxY: GROUND + 1.1,
+    }, climbs: ASHFALL_PERCHES.map(({ id: perch, climb, look }) => ({ id: perch, points: climb.map(p => ({ ...p })), look })),
+    batteryCaches: ASHFALL_BATTERY_CACHES.map(p => ({ ...p })) } : {}),
     ...(id === 'depot' ? { navigationFloor: GROUND, spawnBounds: {
       minX: 4, maxX: 123, minZ: 4, maxZ: 91, minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
@@ -434,7 +447,8 @@ export function createMapMetadata(id, world) {
       ...(Array.isArray(anchors.ttt) ? { ttt: resolveSpawnPool(world, anchors.ttt, floorY) } : {}),
     },
     ladders: id === 'foundry' ? foundryLadderVolumes()
-      : id === 'minecraft_b5' ? MINECRAFT_B5_ANCHORS.ladders.map((ladder) => ({ ...ladder })) : [],
+      : id === 'minecraft_b5' ? MINECRAFT_B5_ANCHORS.ladders.map((ladder) => ({ ...ladder }))
+        : id === 'ashfall' ? ASHFALL_LADDERS.map((ladder) => ({ ...ladder })) : [],
     sites: MAP_SITE_LAYOUTS[id].map((site) => ({ ...site })),
     // Traitor-trap buttons (TTT only); authored in shared/world/traps.js.
     traps: structuredClone(trapsFor(id)),

@@ -13,6 +13,7 @@ import {
   isVehicleKillKey,
 } from './hud-support.js';
 import { KILL_KEY_ICONS, svgIcon } from './conquest/icons.js';
+import { TITAN_LABELS } from '../../../shared/titan-contract.js';
 import { DamageNumberPool } from './damage-numbers.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import { DeathTreatment } from './death-treatment.js';
@@ -25,6 +26,7 @@ const KILLMARK_MS = 520;
 
 const EMPTY = Object.freeze({});
 const VEHICLE_TYPE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET' });
+const TITANFALL_MINION_ID = /^tfg\d+$/;
 /** Armour hit confirmations: yellow when the hit did damage, a white spark when the armour shrugged it off. */
 const ARMOR_MARKS = Object.freeze({ armor: 'vb-armor-hit', spark: 'vb-armor-spark' });
 
@@ -135,6 +137,8 @@ export class CombatHudController {
   killfeed(ev) {
     const kf = this.dom.kf;
     if (!kf || !ev || this._disposed) return;
+    // Titanfall attrition minions (ids `tfg<n>`): minion-on-minion kills stay out of the feed.
+    if (TITANFALL_MINION_ID.test(String(ev.killer)) && TITANFALL_MINION_ID.test(String(ev.victim))) return;
 
     const classes = ['kf-row'];
     if (ev.hs) classes.push('kf-hs');
@@ -188,7 +192,9 @@ export class CombatHudController {
   vehicleDestroyed(ev) {
     if (!this.dom.kf || !ev || this._disposed) return;
     const type = typeof ev.type === 'string' ? ev.type : 'vehicle';
-    const typeLabel = VEHICLE_TYPE_LABELS[type] || 'VEHICLE';
+    // Titanfall: a titan that died with its pilot already has the crew kill row (TITAN DESTROYED).
+    if (TITAN_LABELS[type] && (Number(ev.crewKilled) | 0) > 0) return;
+    const typeLabel = VEHICLE_TYPE_LABELS[type] || TITAN_LABELS[type] || 'VEHICLE';
     const row = el('div', `kf-row kf-vehicle-destroyed kf-vehicle-${type}`);
     if (ev.attacker != null) el('b', '', row).textContent = this.nameFor(ev.attacker);
     const weapon = el('span', 'kf-weapon kf-weapon-vehicle', row);

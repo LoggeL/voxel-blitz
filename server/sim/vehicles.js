@@ -21,6 +21,10 @@ import { stepHelicopterFlight } from '../../shared/vehicle-handling/helicopter.j
 import { stepPlaneFlight } from '../../shared/vehicle-handling/plane.js';
 import { CHUTE, EJECTION } from '../../shared/parachute.js';
 import { markLaunched } from './player.js';
+import { TitanSystem } from './titans.js';
+import { isTitanfall } from '../../shared/modes.js';
+import { isTitanType } from '../../shared/titan-contract.js';
+import { isWalkerType } from '../../shared/vehicle-defs.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(n) ? n : 0));
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
@@ -171,7 +175,10 @@ export class VehicleSystem {
     this.lastDrivers = new Map();
     this.destructionQueue = [];
     this.detonating = false;
-    this.combatProfile = this.engine.mode?.mode === 'conquest' || spawns.length ? 'conquest' : null;
+    this.combatProfile = isTitanfall(this.engine.mode?.mode) ? 'titanfall'
+      : (this.engine.mode?.mode === 'conquest' || spawns.length ? 'conquest' : null);
+    this.titans = this.combatProfile === 'titanfall' ? (this.titans ?? new TitanSystem(this)) : null;
+    this.titans?.reset();
     this.ramGuards = this.ramGuardZones();
     for (const p of this.engine.entities.values()) if (p.vehicleId || p.vehicleSeatId) this.release(p);
     this.lastDrivers.clear();
@@ -359,6 +366,7 @@ export class VehicleSystem {
       || this.teamOf(p) !== v.team || Math.hypot(p.x-v.x,p.y-v.y,p.z-v.z) > vehicleEnterDistance(v.type)) return false;
     if (p.chute) { p.chute = CHUTE.none; p.chuteT = 0; }
     if (this.engine.mode?.canFire && !this.engine.mode.canFire(p)) return false;
+    if (this.titans && !this.titans.canEnter(v, p)) return false;
     this.cleanCrew(v);
     const free = seat => vehicleSeatOccupantId(v, seat.id) == null;
     // A human takes a seat a bot holds (the requested one, else a free seat
@@ -419,6 +427,7 @@ export class VehicleSystem {
   exit(p) {
     const v = this.vehicles.get(p?.vehicleId), seat = this.seatFor(p, v);
     if (!seat) return false;
+    if (this.titans && isTitanType(v.type)) return this.titans.onExit(v, p);
     if (isAircraft(v.type) && (!v.grounded || v.speed > 4)) return this.eject(p, v);
     const spot = this.exitSpot(p, v, seat, false);
     const velocity = this.exitVelocity(v);
@@ -430,6 +439,7 @@ export class VehicleSystem {
   eject(p, v = this.vehicles.get(p?.vehicleId)) {
     const seat = this.seatFor(p, v);
     if (!seat) return false;
+    if (this.titans && isTitanType(v.type)) return this.titans.eject(v, p);
     if (seat.drives && EJECTION_TYPES.has(v.type) && !v.grounded) return this.ejectionSeat(p, v, seat);
     const spot = this.exitSpot(p, v, seat, true);
     this.release(p);
@@ -681,6 +691,7 @@ export class VehicleSystem {
   }
   /** Try the pad and its alternates; after a long block, nudge infantry off the pad. */
   tryRespawn(v, dt) {
+    if (isTitanType(v.type)) return false;
     const team = this.padTeam(v);
     if (team == null) return false;
     const pad = this.padPosition(v, team);
@@ -1571,11 +1582,13 @@ export class VehicleSystem {
     for(let i=0;i<steps;i++) this.advance(h);
     for (const v of this.vehicles.values()) {
       if (!(v.hp > 0)) continue;
-      this.updateAttitude(v, duration);
+      const walker = isWalkerType(v.type);
+      if (!walker) this.updateAttitude(v, duration);
       this.mounts.step(v, duration);
-      this.checkAbandoned(v, duration);
+      if (!walker) this.checkAbandoned(v, duration);
       if (v.hp > 0) this.syncCrew(v);
     }
+    this.titans?.step(duration);
     this.locks.step(duration);
     this.damageModel.flush();
     for (const p of this.engine.entities.values()) if (p.ghostVehicleId != null && !(p.ghostUntil > this.contactClock)) { p.ghostVehicleId = null; p.ghostUntil = 0; }
@@ -1670,7 +1683,9 @@ export class VehicleSystem {
     for(const v of this.vehicles.values()) {
       if(!(v.hp>0)) {
         if (v.padInactive) continue;
-        this.advanceWreck(v,dt);v.respawnIn=Math.max(0,v.respawnIn-dt);
+        this.advanceWreck(v,dt);
+        if (this.titans?.wreckDone(v)) { this.vehicles.delete(v.id); continue; }
+        v.respawnIn=Math.max(0,v.respawnIn-dt);
         if(v.respawnIn===0) this.tryRespawn(v, dt);
         continue;
       }
@@ -1681,6 +1696,7 @@ export class VehicleSystem {
       // A fresh human pilot of an airborne hull holds the stick neutral until
       // their client's first mounted packet (vehicleControlId) arrives.
       if (p && p.seatGraceUntil > this.contactClock && p.seatGraceVehicleId === v.id && input.vehicleControlId !== v.id) input = TAKEOVER_HOLD_INPUT;
+      if (this.titans && vehicleDef(v).handling === 'walker') { this.titans.advance(v, p, input, dt); if (v.hp > 0) this.syncCrew(v); continue; }
       const k=input.keys || {};
       const allowed = this.canOperate(p);
       v.engineOn=allowed;
@@ -1752,6 +1768,7 @@ export class VehicleSystem {
     Object.assign(v, { disabled: false, burning: false, disabledBy: null, lk: 0 });
     v.damageLog.clear();
     this.locks.breakLocks(v);
+    this.titans?.onDestroyed(v, killer);
     this.destructionQueue.push({vehicle:v,attacker:killer,sourceTeam:sourceTeam ?? v.team});
     // Marking every hull dead before adding it to this queue prevents both
     // recursive call stacks and a chain returning to the original chassis.
@@ -1904,6 +1921,7 @@ export class VehicleSystem {
     const cmr = this.locks.readiness(v); if (cmr != null) row.cmr = cmr;
     if (v.spawn.flag) row.flag = v.spawn.flag;
     if (!(v.hp > 0)) row.wreckAge = Number.isFinite(v.wreckAge) ? q(v.wreckAge, 10) : 0;
+    this.titans?.rowExtras(v, row);
     return row;
   }
   snapshot() {

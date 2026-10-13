@@ -1,0 +1,118 @@
+{
+  "passed": true,
+  "asset": "hydra",
+  "source_parts": 91,
+  "draws": 31,
+  "triangles": 9204,
+  "geometry_bytes": 698352,
+  "triangles_per_primitive": {
+    "body | machined steel": 1352,
+    "body | orange paint": 144,
+    "body | dark steel": 968,
+    "body | rubber": 324,
+    "body | gunmetal": 364,
+    "mag | machined steel": 732,
+    "mag | brass": 812,
+    "mag | orange paint": 644,
+    "mag | dark steel": 664,
+    "mag | gunmetal": 156,
+    "bolt | machined steel": 44,
+    "bolt | dark steel": 44,
+    "bolt | rubber": 116,
+    "trigger | machined steel": 44,
+    "minigun_barrel_0 | heated barrels": 96,
+    "minigun_barrel_1 | heated barrels": 96,
+    "minigun_barrel_2 | heated barrels": 96,
+    "minigun_barrel_3 | heated barrels": 96,
+    "minigun_barrel_4 | heated barrels": 96,
+    "minigun_barrel_5 | heated barrels": 96,
+    "minigun_collar_front | orange paint": 288,
+    "minigun_collar_rear | orange paint": 288,
+    "minigun_collar_trim_front | machined steel": 620,
+    "minigun_collar_trim_rear | machined steel": 620,
+    "minigun_heat_0 | heat indicator": 44,
+    "minigun_heat_1 | heat indicator": 44,
+    "minigun_heat_2 | heat indicator": 44,
+    "minigun_heat_3 | heat indicator": 44,
+    "minigun_heat_4 | heat indicator": 44,
+    "minigun_rotor_backplate | dark steel": 140,
+    "minigun_spindle | dark steel": 44
+  },
+  "portable_geometry_matches_runtime": true,
+  "moving_nodes": {
+    "minigun_barrel_0": {
+      "role": "rotor",
+      "rotorKind": "barrel",
+      "barrelIndex": 0
+    },
+    "minigun_barrel_1": {
+      "role": "rotor",
+      "rotorKind": "barrel",
+      "barrelIndex": 1
+    },
+    "minigun_barrel_2": {
+      "role": "rotor",
+      "rotorKind": "barrel",
+      "barrelIndex": 2
+    },
+    "minigun_barrel_3": {
+      "role": "rotor",
+      "rotorKind": "barrel",
+      "barrelIndex": 3
+    },
+    "minigun_barrel_4": {
+      "role": "rotor",
+      "rotorKind": "barrel",
+      "barrelIndex": 4
+    },
+    "minigun_barrel_5": {
+      "role": "rotor",
+      "rotorKind": "barrel",
+      "barrelIndex": 5
+    },
+    "minigun_collar_front": {
+      "role": "rotor",
+      "rotorKind": "collar"
+    },
+    "minigun_collar_rear": {
+      "role": "rotor",
+      "rotorKind": "collar"
+    },
+    "minigun_collar_trim_front": {
+      "role": "rotor",
+      "rotorKind": "collarTrim"
+    },
+    "minigun_collar_trim_rear": {
+      "role": "rotor",
+      "rotorKind": "collarTrim"
+    },
+    "minigun_heat_0": {
+      "role": "heatIndicator",
+      "heatThreshold": 0.2
+    },
+    "minigun_heat_1": {
+      "role": "heatIndicator",
+      "heatThreshold": 0.4
+    },
+    "minigun_heat_2": {
+      "role": "heatIndicator",
+      "heatThreshold": 0.6
+    },
+    "minigun_heat_3": {
+      "role": "heatIndicator",
+      "heatThreshold": 0.8
+    },
+    "minigun_heat_4": {
+      "role": "heatIndicator",
+      "heatThreshold": 1.0
+    },
+    "minigun_rotor_backplate": {
+      "role": "rotor",
+      "rotorKind": "backplate"
+    },
+    "minigun_spindle": {
+      "role": "rotor",
+      "rotorKind": "spindle"
+    }
+  }
+}

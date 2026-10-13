@@ -1,0 +1,19 @@
+VARIANT A (selected)
+Built-in image_gen tool. Screenshot input: before/desktop-chargerifle-charge.jpg
+
+Use case: stylized-concept
+Asset type: design reference for implementing an existing Three.js voxel FPS charge rifle, CR-6 LONGBOW.
+Input images: Image 1 is the current game screenshot, reference for exact angular silhouette, three cylindrical cells per side (six total), gunmetal receiver, red accents, long open-fork barrel, small rear ammunition display, first-person camera and game style.
+Primary request: create a clean weapon design study showing the same rifle at idle, mid-charge and full charge, stacked in three horizontal rows on a dark neutral background. Three-quarter rear-left perspective so the visible bank of three cells reads clearly. Retain silhouette, iron sights, stock, cell locations and rear ammo display. The key change is readable animated energy stored inside the six cells: paired cells charge from rear to front, dark uncharged cells, red-orange charged cells, brightest front pair only near full charge. Mid-charge has the back pair bright, middle pair partial and front pair dark. Full charge all six bands hot red-orange with pale cores, restrained glow. Small existing rear display retains ammo digit 3. No new HUD panels, no scope, no oversized energy ball, no extra cells.
+Style/medium: blocky low-poly game render, practical code-implementable hard surface geometry, not photorealistic.
+Variant A: retain compact cylindrical cans with widened luminous central collars and narrow luminous strips along the top outer surfaces. Subtle axial collar travel as each stage charges. Preserve compact proportions. Label rows only IDLE, CHARGING, READY.
+
+VARIANT B
+Built-in image_gen tool. Screenshot input: before/desktop-chargerifle-charge.jpg
+
+Use case: stylized-concept
+Asset type: design reference for implementing an existing Three.js voxel FPS charge rifle, CR-6 LONGBOW.
+Input images: Image 1 is the current game screenshot, reference for exact angular silhouette, three cylindrical cells per side (six total), gunmetal receiver, red accents, long open-fork barrel, small rear ammunition display, first-person camera and game style.
+Primary request: create a clean weapon design study showing the same rifle at idle, mid-charge and full charge, stacked in three horizontal rows on a dark neutral background. Three-quarter rear-left perspective so the visible bank of three cells reads clearly. Retain silhouette, iron sights, stock, cell locations and rear ammo display. The key change is readable animated energy stored inside the six cells: paired cells charge from rear to front, dark uncharged cells, red-orange charged cells, brightest front pair only near full charge. Mid-charge has the back pair bright, middle pair partial and front pair dark. Full charge all six bands hot red-orange with pale cores, restrained glow. Small existing rear display retains ammo digit 3. No new HUD panels, no scope, no oversized energy ball, no extra cells.
+Style/medium: blocky low-poly game render, practical code-implementable hard surface geometry, not photorealistic.
+Variant B: emphasize recessed luminous rectangular windows on the top and outer face of each existing cylindrical cell, with a small red energy conductor strip between pairs and the emitter. Keep the black end caps fixed, use restrained staged illumination. Preserve compact proportions. Label rows only IDLE, CHARGING, READY.

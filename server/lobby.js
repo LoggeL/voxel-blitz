@@ -18,6 +18,7 @@ import {
 } from './protocol/admission.js';
 import { makeLobbyState, makeWelcome } from './protocol/welcome.js';
 import { CONQUEST_CONTRACT_VERSION } from '../shared/conquest-contract.js';
+import { TITANFALL_CONTRACT_VERSION } from '../shared/titan-contract.js';
 import {
   DUEL_KILL_LIMITS,
   DEFAULT_DUEL_KILL_LIMIT,
@@ -44,6 +45,8 @@ const CLOSE_FULL = 4005;
 const CLOSE_STALE_CLIENT = 4010;
 const STALE_CONQUEST_MESSAGE = 'Voxel Blitz was updated. Reload the page to play Conquest.';
 const STALE_CONQUEST_GUEST_MESSAGE = 'The host wants to play Conquest, but Voxel Blitz was updated. Reload the page and rejoin.';
+const STALE_TITANFALL_MESSAGE = 'Voxel Blitz was updated. Reload the page to play Titanfall.';
+const STALE_TITANFALL_GUEST_MESSAGE = 'The host wants to play Titanfall, but Voxel Blitz was updated. Reload the page and rejoin.';
 
 // Lobby passwords share libuv's small thread pool with account hashing and
 // static compression, so only a few derivations run or wait at once.
@@ -137,6 +140,16 @@ export function stampCareerLevel(engine, id, meta) {
 export function staleConquestClient(meta) {
   return !!meta && Object.prototype.hasOwnProperty.call(meta, 'clientContract')
     && meta.clientContract !== CONQUEST_CONTRACT_VERSION;
+}
+
+/**
+ * The Titanfall equivalent: transport-admitted sockets carry `clientTitanfall`
+ * (server/index.js; 0 when the admission frame had no `titanfall`). A tab
+ * older than TITANFALL_CONTRACT_VERSION is kept out of Titanfall rooms.
+ */
+export function staleTitanfallClient(meta) {
+  return !!meta && Object.prototype.hasOwnProperty.call(meta, 'clientTitanfall')
+    && !(meta.clientTitanfall >= TITANFALL_CONTRACT_VERSION);
 }
 
 /** Owns authoritative rooms and keeps every transport fan-out room-scoped. */
@@ -396,6 +409,13 @@ export class LobbyManager {
         return this._error(meta, `Conquest needs a page reload first (game updated): ${stale.map(human => human.name).join(', ')}`);
       }
     }
+    if (gameMode === 'titanfall' && room.gameMode !== 'titanfall') {
+      const stale = [...room.members.values()].filter(human => staleTitanfallClient(human.meta));
+      if (stale.length) {
+        for (const human of stale) this._error(human.meta, STALE_TITANFALL_GUEST_MESSAGE);
+        return this._error(meta, `Titanfall needs a page reload first (game updated): ${stale.map(human => human.name).join(', ')}`);
+      }
+    }
     traitorPercent ??= room.traitorPercent;
     if (!TTT_TRAITOR_PERCENTS.includes(traitorPercent)) return this._error(meta, 'Invalid traitor percentage');
     duelKillLimit ??= room.duelKillLimit;
@@ -431,7 +451,7 @@ export class LobbyManager {
           engine.mode.policy.gateDeploy?.(human.id);
           this._bindKarma(engine, human.meta, human.id);
         }
-        const preserveTeams = ['tdm', 'snd', 'conquest'].includes(room.gameMode) && ['tdm', 'snd', 'conquest'].includes(gameMode);
+        const preserveTeams = ['tdm', 'snd', 'conquest', 'titanfall'].includes(room.gameMode) && ['tdm', 'snd', 'conquest', 'titanfall'].includes(gameMode);
         for (const human of room.members.values()) {
           const team = room.engine.mode.teamFor(human.id);
           if (preserveTeams && isTeamId(team)) engine.mode.setLobbyTeam(human.id, team);
@@ -498,6 +518,27 @@ export class LobbyManager {
     member.conquestIntentAt[intent.type] = now;
     try {
       return found.room.engine.conquestIntent(member.id, intent) === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Titanfall intent (parseTitanfallIntent) with the same per-type rate gaps as
+   * conquest(). A loadout choice is also taken outside the live phase.
+   */
+  titanfall(meta, intent) {
+    const found = this._memberFor(meta);
+    if (!found || !intent || typeof intent.type !== 'string') return false;
+    if (found.room.phase !== 'live' && intent.type !== 'loadout') return false;
+    const member = found.member;
+    const now = performance.now();
+    const minGap = (intent.type === 'loadout' || intent.type === 'deploy' ? 250 : intent.type === 'call' ? 500 : intent.type === 'eject' ? 250 : 100) * 0.75;
+    member.titanfallIntentAt ??= {};
+    if (now - (member.titanfallIntentAt[intent.type] ?? -Infinity) < minGap) return false;
+    member.titanfallIntentAt[intent.type] = now;
+    try {
+      return found.room.engine?.titanfallIntent?.(member.id, intent) === true;
     } catch {
       return false;
     }
@@ -635,6 +676,9 @@ export class LobbyManager {
     }
     if (room.gameMode === 'conquest' && staleConquestClient(meta)) {
       return this._reject(meta, STALE_CONQUEST_MESSAGE, CLOSE_STALE_CLIENT, 'stale client');
+    }
+    if (room.gameMode === 'titanfall' && staleTitanfallClient(meta)) {
+      return this._reject(meta, STALE_TITANFALL_MESSAGE, CLOSE_STALE_CLIENT, 'stale client');
     }
     const id = memberId(meta);
     if (!id || room.destroyed || room.members.has(id) || room.members.size >= capacity(room)) {
@@ -871,6 +915,9 @@ export class LobbyManager {
         // observe the authoritative tick passed alongside it.
         const view = obj.t === 'tick' ? room.engine?.mode.policy.viewFor?.(member.id, obj) : null;
         this.sendJson(member.meta, view ?? obj, obj);
+        // Titanfall: a small self-only frame after each tick (§3.2); other modes return nothing.
+        const self = obj.t === 'tick' ? room.engine?.mode.policy.selfFrame?.(member.id, obj) : null;
+        if (self) this.sendJson(member.meta, self);
       } catch { /* socket cleanup owns failures */ }
     }
   }

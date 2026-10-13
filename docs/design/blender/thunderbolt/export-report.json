@@ -1,0 +1,1129 @@
+{
+  "passed": true,
+  "asset": "thunderbolt",
+  "source_parts": 181,
+  "draws": 24,
+  "triangles": 39976,
+  "geometry_bytes": 1981984,
+  "source_blend": "docs/design/blender/thunderbolt/thunderbolt.blend",
+  "runtime": "public/assets/blender/thunderbolt.gltf",
+  "portable": "docs/design/blender/thunderbolt/thunderbolt.glb",
+  "portable_geometry_matches_runtime": true,
+  "geometry_sha256": "41d8fbf94a69bc859ef571c9571ce5a08e4162724f3f5accea77cef3860c8079",
+  "zero_area_source_triangles_omitted": 12,
+  "uv_transform": "Blender (u, v) -> glTF (u, 1-v)",
+  "source_parts_per_group": {
+    "body": 124,
+    "bolt": 2,
+    "trigger": 1,
+    "rotor": 38,
+    "orb0": 1,
+    "orb1": 1,
+    "orb2": 1,
+    "orb3": 1,
+    "energy": 1,
+    "arcs": 3,
+    "optic": 8
+  },
+  "part_bounds": {
+    "body": {
+      "min": [
+        -0.1205,
+        -0.1065,
+        -0.74000001
+      ],
+      "max": [
+        0.081,
+        0.15099999,
+        0.25075001
+      ]
+    },
+    "bolt": {
+      "min": [
+        0.0545,
+        0.0385,
+        -0.16
+      ],
+      "max": [
+        0.087,
+        0.0615,
+        -0.116
+      ]
+    },
+    "trigger": {
+      "min": [
+        0.0007,
+        -0.01690556,
+        -0.13164718
+      ],
+      "max": [
+        0.0073,
+        0.00280037,
+        -0.11491011
+      ]
+    },
+    "rotor": {
+      "min": [
+        -0.20287058,
+        -0.09087059,
+        -0.27399999
+      ],
+      "max": [
+        -0.00312941,
+        0.10887059,
+        -0.15099999
+      ]
+    },
+    "orb0": {
+      "min": [
+        -0.08723044,
+        0.02476955,
+        -0.182
+      ],
+      "max": [
+        -0.04523045,
+        0.06676956,
+        -0.14
+      ]
+    },
+    "orb1": {
+      "min": [
+        -0.08723044,
+        -0.04876955,
+        -0.182
+      ],
+      "max": [
+        -0.04523045,
+        -0.00676955,
+        -0.14
+      ]
+    },
+    "orb2": {
+      "min": [
+        -0.16076955,
+        -0.04876955,
+        -0.182
+      ],
+      "max": [
+        -0.11876956,
+        -0.00676955,
+        -0.14
+      ]
+    },
+    "orb3": {
+      "min": [
+        -0.16076955,
+        0.02476955,
+        -0.182
+      ],
+      "max": [
+        -0.11876956,
+        0.06676956,
+        -0.14
+      ]
+    },
+    "energy": {
+      "min": [
+        -0.022,
+        0.048,
+        -0.662
+      ],
+      "max": [
+        0.022,
+        0.092,
+        -0.61799997
+      ]
+    },
+    "arcs": {
+      "min": [
+        -0.04377664,
+        0.02120839,
+        -0.69940156
+      ],
+      "max": [
+        0.04436865,
+        0.09821912,
+        -0.43363905
+      ]
+    },
+    "optic": {
+      "min": [
+        -0.022,
+        0.1185,
+        -0.57249999
+      ],
+      "max": [
+        0.022,
+        0.17,
+        0.001
+      ]
+    }
+  },
+  "orb_source_meshes": [
+    {
+      "name": "Accelerator confined core",
+      "part": "energy"
+    },
+    {
+      "name": "Charged orb 0",
+      "part": "orb0"
+    },
+    {
+      "name": "Charged orb 1",
+      "part": "orb1"
+    },
+    {
+      "name": "Charged orb 2",
+      "part": "orb2"
+    },
+    {
+      "name": "Charged orb 3",
+      "part": "orb3"
+    }
+  ],
+  "bounds": {
+    "min": [
+      -0.20287058,
+      -0.1065,
+      -0.74000001
+    ],
+    "max": [
+      0.087,
+      0.17,
+      0.25075001
+    ]
+  },
+  "contract": {
+    "muzzle": [
+      0.0,
+      0.07,
+      -0.74000001
+    ],
+    "sightHeight": 0.17,
+    "rotorPivot": [
+      -0.103,
+      0.009,
+      -0.22
+    ],
+    "energyPivot": [
+      0.0,
+      0.07,
+      -0.63999999
+    ],
+    "grip": [
+      0.004,
+      -0.04,
+      -0.07
+    ],
+    "support": [
+      -0.004,
+      -0.02,
+      -0.43000001
+    ],
+    "sight": [
+      0.0,
+      0.17,
+      -0.1
+    ]
+  },
+  "materials": 9,
+  "textures": [
+    "textures/thunderbolt-ceramic.png",
+    "textures/palette/machined-steel.jpg",
+    "textures/palette/phosphated-steel.jpg",
+    "textures/palette/aged-copper.jpg",
+    "textures/palette/pebbled-rubber.jpg",
+    "textures/palette/molded-polymer.jpg"
+  ],
+  "material_surfaces": {
+    "TB4 | ceramic": {
+      "baseColorFactor": [
+        0.94,
+        0.97,
+        1.0,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "TB4 | ceramic",
+        "textureLibrary": "thunderbolt-ceramic",
+        "textureBumpScale": 0.0003
+      }
+    },
+    "TB4 | orb": {
+      "baseColorFactor": [
+        0.003000000026077032,
+        0.012000000104308128,
+        0.054999999701976776,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "TB4 | orb",
+        "tbOrb": true
+      }
+    },
+    "TB4 | arc": {
+      "baseColorFactor": [
+        0.3199999928474426,
+        0.7300000190734863,
+        1.0,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "TB4 | arc",
+        "tbArc": true
+      }
+    },
+    "TB4 | steel": {
+      "baseColorFactor": [
+        0.75,
+        0.8,
+        0.88,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "TB4 | steel",
+        "textureLibrary": "machined-steel",
+        "textureBumpScale": 0.00018
+      }
+    },
+    "TB4 | phosphate": {
+      "baseColorFactor": [
+        0.2,
+        0.23,
+        0.29,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "TB4 | phosphate",
+        "textureLibrary": "phosphated-steel",
+        "textureBumpScale": 0.0003
+      }
+    },
+    "TB4 | copper": {
+      "baseColorFactor": [
+        0.8,
+        0.7,
+        0.62,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "TB4 | copper",
+        "textureLibrary": "aged-copper",
+        "textureBumpScale": 0.0002
+      }
+    },
+    "TB4 | rubber": {
+      "baseColorFactor": [
+        0.085,
+        0.095,
+        0.115,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "TB4 | rubber",
+        "textureLibrary": "pebbled-rubber",
+        "textureBumpScale": 0.0008
+      }
+    },
+    "TB4 | polymer": {
+      "baseColorFactor": [
+        0.12,
+        0.14,
+        0.18,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "TB4 | polymer",
+        "textureLibrary": "molded-polymer",
+        "textureBumpScale": 0.00055
+      }
+    },
+    "TB4 | energy": {
+      "baseColorFactor": [
+        0.012000000104308128,
+        0.18000000715255737,
+        1.0,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "TB4 | energy",
+        "tbEnergy": true
+      }
+    }
+  },
+  "primitives": {
+    "body | TB4 | ceramic": {
+      "triangles": 4476,
+      "vertices": 6300,
+      "bounds": {
+        "min": [
+          -0.1205,
+          -0.1065,
+          -0.72750002
+        ],
+        "max": [
+          0.081,
+          0.15099999,
+          0.20999999
+        ]
+      },
+      "uv_triangles": 4476,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.31597525,
+          0.28000003
+        ]
+      },
+      "uv_min": [
+        -0.83999997,
+        -1.91000032
+      ],
+      "uv_max": [
+        2.91000032,
+        1.84000003
+      ]
+    },
+    "body | TB4 | copper": {
+      "triangles": 3576,
+      "vertices": 3656,
+      "bounds": {
+        "min": [
+          -0.07273281,
+          -0.0124024,
+          -0.74000001
+        ],
+        "max": [
+          0.07273281,
+          0.12040526,
+          0.215
+        ]
+      },
+      "uv_triangles": 3576,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.25600001,
+          0.12800001
+        ]
+      },
+      "uv_min": [
+        -0.86000001,
+        -1.96000004
+      ],
+      "uv_max": [
+        2.96000004,
+        1.86000001
+      ]
+    },
+    "body | TB4 | energy": {
+      "triangles": 264,
+      "vertices": 408,
+      "bounds": {
+        "min": [
+          -0.0561,
+          0.01576,
+          -0.68900001
+        ],
+        "max": [
+          0.0561,
+          0.14480001,
+          -0.0555
+        ]
+      },
+      "uv_triangles": 264,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.226,
+          0.57279998
+        ]
+      },
+      "uv_min": [
+        -0.2244,
+        -1.75600004
+      ],
+      "uv_max": [
+        2.75600004,
+        0.93696
+      ]
+    },
+    "body | TB4 | phosphate": {
+      "triangles": 6768,
+      "vertices": 9177,
+      "bounds": {
+        "min": [
+          -0.0975,
+          -0.04194975,
+          -0.72649997
+        ],
+        "max": [
+          0.077,
+          0.147,
+          0.25075001
+        ]
+      },
+      "uv_triangles": 6528,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.29598764,
+          0.28
+        ]
+      },
+      "uv_min": [
+        -1.00300002,
+        -1.9059999
+      ],
+      "uv_max": [
+        2.90279984,
+        2.00300002
+      ]
+    },
+    "body | TB4 | polymer": {
+      "triangles": 1004,
+      "vertices": 1726,
+      "bounds": {
+        "min": [
+          -0.056,
+          -0.10445651,
+          -0.45486063
+        ],
+        "max": [
+          0.033,
+          0.1445,
+          0.18799999
+        ]
+      },
+      "uv_triangles": 1004,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.05510125,
+          0.674447
+        ]
+      },
+      "uv_min": [
+        -0.93999994,
+        -1.2750001
+      ],
+      "uv_max": [
+        2.27470636,
+        1.93999994
+      ]
+    },
+    "body | TB4 | rubber": {
+      "triangles": 612,
+      "vertices": 948,
+      "bounds": {
+        "min": [
+          -0.0395,
+          -0.09083435,
+          -0.44018131
+        ],
+        "max": [
+          0.0395,
+          0.102,
+          0.249
+        ]
+      },
+      "uv_triangles": 612,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          2.10500002,
+          -0.05
+        ]
+      },
+      "uv_min": [
+        -1.245,
+        -1.20090652
+      ],
+      "uv_max": [
+        2.20090652,
+        2.245
+      ]
+    },
+    "body | TB4 | steel": {
+      "triangles": 4312,
+      "vertices": 5072,
+      "bounds": {
+        "min": [
+          -0.078,
+          -0.008,
+          -0.73049998
+        ],
+        "max": [
+          0.078,
+          0.148,
+          0.19124824
+        ]
+      },
+      "uv_triangles": 4312,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.23359257,
+          0.28
+        ]
+      },
+      "uv_min": [
+        -0.76437187,
+        -1.92199993
+      ],
+      "uv_max": [
+        2.9203999,
+        1.76328003
+      ]
+    },
+    "bolt | TB4 | copper": {
+      "triangles": 316,
+      "vertices": 608,
+      "bounds": {
+        "min": [
+          0.0545,
+          0.0385,
+          -0.16
+        ],
+        "max": [
+          0.0715,
+          0.0615,
+          -0.12
+        ]
+      },
+      "uv_triangles": 316,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.48680171,
+          0.23192944
+        ]
+      },
+      "uv_min": [
+        0.21799998,
+        0.37199998
+      ],
+      "uv_max": [
+        0.63998008,
+        0.84598005
+      ]
+    },
+    "bolt | TB4 | rubber": {
+      "triangles": 188,
+      "vertices": 216,
+      "bounds": {
+        "min": [
+          0.067,
+          0.04,
+          -0.13600001
+        ],
+        "max": [
+          0.087,
+          0.06,
+          -0.116
+        ]
+      },
+      "uv_triangles": 188,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.33899999,
+          0.25
+        ]
+      },
+      "uv_min": [
+        0.33499998,
+        0.33464468
+      ],
+      "uv_max": [
+        0.67596549,
+        0.79596551
+      ]
+    },
+    "trigger | TB4 | copper": {
+      "triangles": 60,
+      "vertices": 73,
+      "bounds": {
+        "min": [
+          0.0007,
+          -0.01690556,
+          -0.13164718
+        ],
+        "max": [
+          0.0073,
+          0.00280037,
+          -0.11491011
+        ]
+      },
+      "uv_triangles": 60,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.016,
+          0.01120147
+        ]
+      },
+      "uv_min": [
+        0.0028,
+        0.47341126
+      ],
+      "uv_max": [
+        0.52583051,
+        1.06762222
+      ]
+    },
+    "rotor | TB4 | ceramic": {
+      "triangles": 640,
+      "vertices": 672,
+      "bounds": {
+        "min": [
+          -0.199,
+          -0.087,
+          -0.1855
+        ],
+        "max": [
+          -0.007,
+          0.105,
+          -0.16850001
+        ]
+      },
+      "uv_triangles": 640,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.03201237,
+          0.036
+        ]
+      },
+      "uv_min": [
+        -0.796,
+        0.25800002
+      ],
+      "uv_max": [
+        0.73799998,
+        1.34398761
+      ]
+    },
+    "rotor | TB4 | copper": {
+      "triangles": 3656,
+      "vertices": 4228,
+      "bounds": {
+        "min": [
+          -0.20287058,
+          -0.09087059,
+          -0.2665
+        ],
+        "max": [
+          -0.00312941,
+          0.10887059,
+          -0.153
+        ]
+      },
+      "uv_triangles": 3656,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.17052951,
+          0.18307821
+        ]
+      },
+      "uv_min": [
+        -0.80992949,
+        -0.06599998
+      ],
+      "uv_max": [
+        1.06480002,
+        1.36192957
+      ]
+    },
+    "rotor | TB4 | phosphate": {
+      "triangles": 1648,
+      "vertices": 1800,
+      "bounds": {
+        "min": [
+          -0.19400001,
+          -0.082,
+          -0.271
+        ],
+        "max": [
+          -0.012,
+          0.1,
+          -0.15099999
+        ]
+      },
+      "uv_triangles": 1648,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.90600002,
+          0.18307821
+        ]
+      },
+      "uv_min": [
+        -0.77600002,
+        -0.08399999
+      ],
+      "uv_max": [
+        1.08400011,
+        1.32398763
+      ]
+    },
+    "rotor | TB4 | polymer": {
+      "triangles": 2048,
+      "vertices": 2176,
+      "bounds": {
+        "min": [
+          -0.16876955,
+          -0.05676955,
+          -0.22499999
+        ],
+        "max": [
+          -0.03723045,
+          0.07476955,
+          -0.167
+        ]
+      },
+      "uv_triangles": 2048,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.18966916,
+          0.22884777
+        ]
+      },
+      "uv_min": [
+        -0.84384775,
+        -0.125
+      ],
+      "uv_max": [
+        1.12150002,
+        1.28033084
+      ]
+    },
+    "rotor | TB4 | steel": {
+      "triangles": 4076,
+      "vertices": 4392,
+      "bounds": {
+        "min": [
+          -0.197,
+          -0.085,
+          -0.27399999
+        ],
+        "max": [
+          -0.009,
+          0.103,
+          -0.16249999
+        ]
+      },
+      "uv_triangles": 4076,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.14733341,
+          0.18307821
+        ]
+      },
+      "uv_min": [
+        -0.78799999,
+        -0.09599996
+      ],
+      "uv_max": [
+        1.09599996,
+        1.33719134
+      ]
+    },
+    "orb0 | TB4 | orb": {
+      "triangles": 960,
+      "vertices": 590,
+      "bounds": {
+        "min": [
+          -0.08723044,
+          0.02476955,
+          -0.182
+        ],
+        "max": [
+          -0.04523045,
+          0.06676956,
+          -0.14
+        ]
+      },
+      "uv_triangles": 960,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.26492178,
+          0.18307821
+        ]
+      },
+      "uv_min": [
+        -0.32431877,
+        0.29660302
+      ],
+      "uv_max": [
+        0.70339698,
+        0.87631876
+      ]
+    },
+    "orb1 | TB4 | orb": {
+      "triangles": 960,
+      "vertices": 590,
+      "bounds": {
+        "min": [
+          -0.08723044,
+          -0.04876955,
+          -0.182
+        ],
+        "max": [
+          -0.04523045,
+          -0.00676955,
+          -0.14
+        ]
+      },
+      "uv_triangles": 960,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.26492178,
+          -0.11107821
+        ]
+      },
+      "uv_min": [
+        -0.32431877,
+        0.29660302
+      ],
+      "uv_max": [
+        0.70339698,
+        1.17047518
+      ]
+    },
+    "orb2 | TB4 | orb": {
+      "triangles": 960,
+      "vertices": 590,
+      "bounds": {
+        "min": [
+          -0.16076955,
+          -0.04876955,
+          -0.182
+        ],
+        "max": [
+          -0.11876956,
+          -0.00676955,
+          -0.14
+        ]
+      },
+      "uv_triangles": 960,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.55907822,
+          -0.11107821
+        ]
+      },
+      "uv_min": [
+        -0.6184752,
+        0.29660302
+      ],
+      "uv_max": [
+        0.70339698,
+        1.17047518
+      ]
+    },
+    "orb3 | TB4 | orb": {
+      "triangles": 960,
+      "vertices": 590,
+      "bounds": {
+        "min": [
+          -0.16076955,
+          0.02476955,
+          -0.182
+        ],
+        "max": [
+          -0.11876956,
+          0.06676956,
+          -0.14
+        ]
+      },
+      "uv_triangles": 960,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.55907822,
+          0.18307821
+        ]
+      },
+      "uv_min": [
+        -0.6184752,
+        0.29660302
+      ],
+      "uv_max": [
+        0.70339698,
+        0.87631876
+      ]
+    },
+    "energy | TB4 | orb": {
+      "triangles": 960,
+      "vertices": 590,
+      "bounds": {
+        "min": [
+          -0.022,
+          0.048,
+          -0.662
+        ],
+        "max": [
+          0.022,
+          0.092,
+          -0.61799997
+        ]
+      },
+      "uv_triangles": 960,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.0,
+          0.28
+        ]
+      },
+      "uv_min": [
+        -0.0622254,
+        -1.62222528
+      ],
+      "uv_max": [
+        2.62222528,
+        0.7822254
+      ]
+    },
+    "arcs | TB4 | arc": {
+      "triangles": 408,
+      "vertices": 408,
+      "bounds": {
+        "min": [
+          -0.04377664,
+          0.02120839,
+          -0.69940156
+        ],
+        "max": [
+          0.04436865,
+          0.09821912,
+          -0.43363905
+        ]
+      },
+      "uv_triangles": 408,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          1.73606062,
+          0.36560771
+        ]
+      },
+      "uv_min": [
+        -0.17510656,
+        -1.79760623
+      ],
+      "uv_max": [
+        2.79760623,
+        0.91516646
+      ]
+    },
+    "optic | TB4 | energy": {
+      "triangles": 180,
+      "vertices": 288,
+      "bounds": {
+        "min": [
+          -0.017,
+          0.152,
+          -0.55250001
+        ],
+        "max": [
+          0.017,
+          0.1675,
+          -0.00225
+        ]
+      },
+      "uv_triangles": 180,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          2.21000004,
+          0.66680002
+        ]
+      },
+      "uv_min": [
+        -0.068,
+        -1.21000004
+      ],
+      "uv_max": [
+        2.21000004,
+        0.991
+      ]
+    },
+    "optic | TB4 | phosphate": {
+      "triangles": 628,
+      "vertices": 1240,
+      "bounds": {
+        "min": [
+          -0.0195,
+          0.1185,
+          -0.57249999
+        ],
+        "max": [
+          0.0195,
+          0.17,
+          -0.00407142
+        ]
+      },
+      "uv_triangles": 628,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.03960771,
+          0.56639236
+        ]
+      },
+      "uv_min": [
+        -0.078,
+        -1.28999996
+      ],
+      "uv_max": [
+        2.28999996,
+        0.984
+      ]
+    },
+    "optic | TB4 | steel": {
+      "triangles": 316,
+      "vertices": 608,
+      "bounds": {
+        "min": [
+          -0.022,
+          0.1305,
+          -0.029
+        ],
+        "max": [
+          0.022,
+          0.13950001,
+          0.001
+        ]
+      },
+      "uv_triangles": 316,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.08334599,
+          0.00544939
+        ]
+      },
+      "uv_min": [
+        -0.08798603,
+        0.44199991
+      ],
+      "uv_max": [
+        0.10800001,
+        1.00398603
+      ]
+    }
+  },
+  "budgets": {
+    "triangles": 40000,
+    "draws": 35,
+    "within_target": true
+  }
+}

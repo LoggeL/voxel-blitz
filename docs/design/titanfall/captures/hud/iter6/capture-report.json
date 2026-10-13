@@ -1,0 +1,152 @@
+{
+  "generated": "2026-10-13T05:23:19.255Z",
+  "page": "public/titanfall-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter6/desktop-rodeo-rip.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-doomed",
+        "title": "Pilot · riding a doomed titan · no rip",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter6/desktop-rodeo-doomed.png",
+        "overlaps": []
+      },
+      {
+        "id": "battery-far",
+        "title": "Pilot · battery · friendly titan just out of reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter6/desktop-battery-far.png",
+        "overlaps": []
+      },
+      {
+        "id": "loadout-live",
+        "title": "Pilot · loadout while alive · applies next deploy",
+        "layout": "pilot",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter6/desktop-loadout-live.png",
+        "overlaps": []
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter6/desktop-dead.png",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter6/portrait-rodeo-rip.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-doomed",
+        "title": "Pilot · riding a doomed titan · no rip",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter6/portrait-rodeo-doomed.png",
+        "overlaps": []
+      },
+      {
+        "id": "battery-far",
+        "title": "Pilot · battery · friendly titan just out of reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter6/portrait-battery-far.png",
+        "overlaps": []
+      },
+      {
+        "id": "loadout-live",
+        "title": "Pilot · loadout while alive · applies next deploy",
+        "layout": "pilot",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter6/portrait-loadout-live.png",
+        "overlaps": []
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter6/portrait-dead.png",
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "rodeo-rip",
+        "title": "Pilot · riding · ripping battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter6/landscape-rodeo-rip.png",
+        "overlaps": []
+      },
+      {
+        "id": "rodeo-doomed",
+        "title": "Pilot · riding a doomed titan · no rip",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter6/landscape-rodeo-doomed.png",
+        "overlaps": []
+      },
+      {
+        "id": "battery-far",
+        "title": "Pilot · battery · friendly titan just out of reach",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter6/landscape-battery-far.png",
+        "overlaps": []
+      },
+      {
+        "id": "loadout-live",
+        "title": "Pilot · loadout while alive · applies next deploy",
+        "layout": "pilot",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter6/landscape-loadout-live.png",
+        "overlaps": []
+      },
+      {
+        "id": "dead",
+        "title": "Dead · loadout · respawn 3.0",
+        "layout": "dead",
+        "portraits": 5,
+        "file": "docs/design/titanfall/captures/hud/iter6/landscape-dead.png",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": [],
+  "warnings": [],
+  "backdrop": {
+    "mode": "live",
+    "scenes": {
+      "titan": {
+        "type": "titan_ion",
+        "team": "alpha",
+        "view": "cockpit",
+        "pose": "idle"
+      },
+      "pilot": {
+        "type": "titan_legion",
+        "team": "bravo",
+        "view": "range",
+        "pose": "idle"
+      }
+    }
+  }
+}

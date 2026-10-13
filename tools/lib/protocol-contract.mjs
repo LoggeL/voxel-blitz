@@ -28,6 +28,25 @@ export const CONQUEST_KIT_IDS = 'assault,engineer,support,recon,medic,pyro,grena
 /** Event kinds added by the classes update: the Medic aura `heal {id, by, hp}` and `kit_unlocks {id, level, unlocked, newly}`. */
 export const CONQUEST_CLASS_EVENT_KINDS = 'heal,kit_unlocks';
 
+/** Titanfall (docs/titanfall.md §3): player rows add `tf`; the self-only `{t:'tfs', s, d}` frame; matches add `titanfall`. */
+export const TITANFALL_PLAYER_EXTRA_KEYS = 'tf';
+export const TITANFALL_PLAYER_KEYS = [...PLAYER_KEYS.split(','), ...TITANFALL_PLAYER_EXTRA_KEYS.split(',')].sort().join(',');
+export const TITANFALL_SELF_KEYS = 'd,s,t';
+export const TITANFALL_MATCH_KEYS = [...MATCH_KEYS.split(','), 'titanfall'].sort().join(',');
+/** Live `match.titanfall` = {v, endsAt, scoreLimit, sc: [alpha, bravo], bat: [[id, x10, y10, z10]], bay: [alpha, bravo, cap],
+ *  npc: [[serial, kind, team, x, y, z, yaw, hp100, flags]] (WP8 minions)}. */
+export const TITANFALL_STATE_KEYS = 'bat,bay,endsAt,npc,sc,scoreLimit,v';
+/** Titan vehicle rows add `tw`, `own`, `ab`. */
+export const TITAN_ROW_EXTRA_KEYS = 'ab,own,tw';
+/** `tf` 8, `tfs.d` 12, `tw` 6, `ab` 4; titan mount rows are 6-tuples (conquest stays 5). */
+export const TITANFALL_TF_LENGTH = 8;
+export const TITANFALL_TFS_LENGTH = 13;
+export const TITAN_TW_LENGTH = 6;
+export const TITAN_AB_LENGTH = 4;
+export const TITAN_MOUNT_TUPLE_LENGTH = 6;
+export const TITANFALL_MATCH_BUDGET_BYTES = 400;
+export const TITANFALL_CONTRACT = Object.freeze({ version: 1 });
+
 /** Structural integrity events (docs/structural-physics.md): sorted keys per kind. */
 export const STRUCTURE_EVENT_KEYS = Object.freeze({
   creak: 'at,b,fall,id,kind,n,o,t',

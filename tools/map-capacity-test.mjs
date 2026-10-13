@@ -22,10 +22,12 @@ try {
       if (mode !== 'training') assert.equal(manager.list().find(room => room.code === host.room.code).capacity, capacity);
       if (mode === 'duel') assert.equal(capacity, 2);
       if (mode === 'bastion') assert.equal(capacity, 4);
+      if (mode === 'titanfall') assert.equal(capacity, 16, `${map}/titanfall caps at 8v8`);
       manager.leave(host);
     }
   }
   assert.ok(counts.size >= 5, 'maps have distinct population tiers');
+  assert.deepEqual(MAP_IDS.filter(map => isModeMapCompatible('titanfall', map)).sort(), ['ashfall', 'canyon', 'frontier', 'harbor'], 'titanfall maps');
   // Menu quick-create, host controls and the server share one no-bot rule.
   for (const file of ['server/lobby.js', 'public/js/ui/lobby-settings.js', 'public/js/ui/menu-lobby.js']) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');

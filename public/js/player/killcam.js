@@ -187,7 +187,7 @@ export class Killcam {
       reloading:target.reloading, deploying:target.deploying, grenadeHandling:target.grenadeHandling});
     const zoom = Math.abs(target.scopeZoom - Math.max(1.5, def.zoom / 2)) < 1e-6
       ? Math.max(1.5, def.zoom / 2) : def.zoom;
-    const adsFov = isScopedWeapon(def) ? fovForZoom(zoom, fov) : def.adsFov;
+    const adsFov = isScopedWeapon(def) || weaponId === 'minigun' ? fovForZoom(zoom, fov) : def.adsFov;
     const replayFov = fov + (adsFov - fov) * (1 - (1 - ads) ** 3);
     if (this.camera.aspect !== aspect || this.camera.fov !== replayFov) {
       this.camera.aspect = aspect; this.camera.fov = replayFov; this.camera.updateProjectionMatrix();

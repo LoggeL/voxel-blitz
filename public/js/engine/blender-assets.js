@@ -2,7 +2,8 @@ import * as THREE from '../vendor/three.module.js';
 import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
 import { loadingScreen } from '../ui/loading-screen.js';
 
-const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'hands', 'grenades']);
+const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'thunderbolt', 'hands', 'grenades']);
+const STANDALONE_MAPS = Object.freeze(['archer-olive', 'archer-tan']);
 
 // Geometry and decoded ImageGen maps belong to the page, not to a player or a
 // preview. Only materials are cloned, so one skin/fade cannot affect another rig.
@@ -26,8 +27,21 @@ export function loadBlenderAssets() {
     manager.onStart = (url, loaded, total) => { items = Math.max(items, total); report(loaded, total); };
     manager.onProgress = (url, loaded, total) => { items = Math.max(items, total); report(loaded, total); };
     const loader = new GLTFLoader(manager);
+    const textureLoader = new THREE.TextureLoader(manager);
     loadingScreen?.step('models', { status: 'active', done: 0, total: 1, detail: 'REQUESTING MODEL LIBRARY' });
-    const results = await Promise.allSettled(ASSET_IDS.map(async id => {
+    // Procedural articulated models can use the same page-owned image library
+    // without a glTF wrapper. Missing images retain their flat-color fallback.
+    const mapLoads = Promise.allSettled(STANDALONE_MAPS.map(async name => {
+      const key = `textures/${name}.jpg`;
+      const map = await textureLoader.loadAsync(new URL(`../../assets/blender/${key}`, import.meta.url).href);
+      map.name = key;
+      map.colorSpace = THREE.SRGBColorSpace;
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.anisotropy = 4;
+      map.userData.pageOwned = true;
+      textures.set(key, map);
+    }));
+    const modelLoads = Promise.allSettled(ASSET_IDS.map(async id => {
       const gltf = await loader.loadAsync(new URL(`../../assets/blender/${id}.gltf`, import.meta.url).href);
       gltf.scene.traverse(object => {
         if (object.geometry) object.geometry.userData.pageOwned = true;
@@ -53,9 +67,13 @@ export function loadBlenderAssets() {
       });
       templates.set(id, gltf.scene);
     }));
+    const [results, mapResults] = await Promise.all([modelLoads, mapLoads]);
     let missing = 0;
     for (const result of results) {
       if (result.status === 'rejected') { missing++; console.warn('[vb] Blender asset unavailable; using procedural model', result.reason); }
+    }
+    for (const result of mapResults) {
+      if (result.status === 'rejected') console.warn('[vb] ImageGen texture unavailable; using solid material', result.reason);
     }
     loadingScreen?.step('models', { status: missing === results.length ? 'failed' : 'done',
       detail: `${results.length - missing} / ${results.length} MODELS` });

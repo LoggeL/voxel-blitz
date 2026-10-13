@@ -37,10 +37,10 @@
     },
     {
       "asset": "hydra",
-      "source_parts": 87,
-      "draws": 12,
-      "triangles": 15852,
-      "geometry_bytes": 1049456
+      "source_parts": 91,
+      "draws": 31,
+      "triangles": 9204,
+      "geometry_bytes": 698352
     },
     {
       "asset": "ifrit",
@@ -104,6 +104,13 @@
       "draws": 8,
       "triangles": 4472,
       "geometry_bytes": 324576
+    },
+    {
+      "asset": "thunderbolt",
+      "source_parts": 181,
+      "draws": 24,
+      "triangles": 39976,
+      "geometry_bytes": 1981984
     },
     {
       "asset": "torch",

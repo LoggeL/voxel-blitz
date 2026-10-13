@@ -50,7 +50,17 @@ const BLAST_PARTICLES = Object.freeze({
   glaive: Object.freeze({ count: 8, tint: 0xff3fd0, speed: 3.2, size: 0.9, life: 0.35, shake: 0, reach: 1 }),
   // SUDSBLASTER pop: a soft droplet spray, barely a nudge of shake.
   bubble: Object.freeze({ count: 12, tint: 0xe6f9ff, speed: 3.2, size: 0.8, life: 0.45, shake: 0.05, reach: 10 }),
+  // Titanfall AT rounds (WP4): the ARCHER missile and the THUNDERBOLT arc orb.
+  archer: Object.freeze({ count: 48, tint: 0x9ef3ff, speed: 10.5, size: 1.7, life: 0.8, shake: 1.1, reach: 30 }),
+  arcball: Object.freeze({ count: 30, tint: 0xa8c4ff, speed: 9, size: 1.1, life: 0.5, shake: 0.6, reach: 22 }),
+  // Titan ordnance (WP5 views): blasts and pellet pops.
+  t203: Object.freeze({ count: 40, tint: 0xff8a2a, speed: 7.5, size: 1.6, life: 0.85, shake: 0.9, reach: 30 }),
+  cluster: Object.freeze({ count: 30, tint: 0xffb347, speed: 9, size: 1.4, life: 0.6, shake: 0.7, reach: 26 }),
+  flightRocket: Object.freeze({ count: 24, tint: 0x9fdcff, speed: 9, size: 1.2, life: 0.5, shake: 0.6, reach: 24 }),
+  leadwall: Object.freeze({ count: 5, tint: 0xffd27a, speed: 5, size: 0.8, life: 0.3, shake: 0, reach: 1 }),
 });
+/** CR-6 LONGBOW beam layers (core, sheath, veil) as [hex, linear HDR gain]. */
+const LONGBOW_LAYERS = Object.freeze([[0xfff1e8, 3.2], [0xff5a3c, 1.7], [0xb3200f, 1]]);
 /** Bubble trails only within this range of the camera (metres). */
 const BUBBLE_TRAIL_RANGE = 30;
 
@@ -86,6 +96,8 @@ export class Effects {
     this.flames = new FlameFX(scene, this.getBlockFn);
     this.fireFields = new FireFieldFX(scene);
     this.railBeams = new RailBeamFX(scene, this.getBlockFn);
+    /** CR-6 LONGBOW beams, built on the first charge-rifle shot (Titanfall only). */
+    this.longbowBeams = null;
     this.goreFx = new GoreFX(scene, camera, this.getBlockFn);
     this.brass = new BrassPool(scene, this.getBlockFn);
     this.projectiles = new ProjectileFX(scene, this.getBlockFn, {
@@ -130,6 +142,7 @@ export class Effects {
     if (event.w === 'flamethrower') { this.flames.shoot(event, options); return; }
     this.tracers.shoot(event, options);
     if (event.w === 'lance') this.railBeams.shoot(event, options);
+    else if (event.w === 'chargerifle') this._longbowShoot(event, options);
     // A rocket shot spawns the predicted projectile locally; remote rockets arrive as
     // authoritative `projectileLaunch` events and only get the muzzle flash here.
     const definition = WEAPONS[event?.w];
@@ -300,6 +313,38 @@ export class Effects {
       // Replace the short-lived predicted rail with its authoritative terrain path.
       for (const beam of this.railBeams.pool) if (beam.local) beam.group.visible = false;
       this.railBeams.shoot(event);
+    } else if (event.w === 'chargerifle') {
+      for (const beam of this.longbowBeams?.pool || []) if (beam.local) beam.group.visible = false;
+      this._longbowShoot(event);
+    }
+  }
+
+  /**
+   * CR-6 LONGBOW (Titanfall charge rifle): the rail beam pool, built on first use,
+   * recoloured red and narrowed to the rifle's own hit and core radii. The muzzle
+   * anchors follow whatever the rail beams are bridged to.
+   */
+  _longbowShoot(event, options = {}) {
+    if (!this.longbowBeams) {
+      const beams = new RailBeamFX(this.scene, this.getBlockFn);
+      for (const beam of beams.pool) {
+        beam.layers.forEach((mesh, i) => mesh.material.color.setHex(LONGBOW_LAYERS[i][0]).multiplyScalar(LONGBOW_LAYERS[i][1]));
+        for (const ring of beam.rings) ring.material.color.setHex(0xffb08a).multiplyScalar(1.8);
+        for (const glow of beam.glows) glow.material.color.setRGB(3.2, 0.9, 0.5);
+      }
+      beams.muzzleProvider = (out) => this.railBeams.muzzleProvider?.(out);
+      beams.remoteMuzzleProvider = (id, out) => this.railBeams.remoteMuzzleProvider?.(id, out) ?? null;
+      this.longbowBeams = beams;
+    }
+    const beams = this.longbowBeams;
+    const first = beams.cursor;
+    beams.shoot(event, options);
+    const { hitRadius, coreRadius } = WEAPONS.chargerifle;
+    for (let i = first; i < beams.cursor; i++) {
+      const beam = beams.pool[i % beams.pool.length];
+      beam.hitRadius = hitRadius;
+      beam.coreRadius = coreRadius;
+      beams._render(beam);
     }
   }
 
@@ -341,12 +386,12 @@ export class Effects {
     // A Foam-party mini pops at half scale (read before the record is released).
     const mini = event?.type === 'bubble' && !!this.projectiles.projectiles?.get(String(event.pid || ''))?.child;
     this.projectiles.explode(event);
-    if (event?.type === 'smoke') return;
+    if (event?.type === 'smoke' || (event?.type === 'leadwall' && !(Number(event.radius) > 0))) return;
     const style = BLAST_PARTICLES[event?.type] || BLAST_PARTICLES.frag;
     this.impacts.spawnParticles(
       Number(event.x), Number(event.y), Number(event.z),
       mini ? Math.ceil(style.count / 2) : style.count, style.tint,
-      { speed: style.speed, gravity: event?.type === 'pulse' ? 2 : event?.type === 'bubble' ? 9 : 15,
+      { speed: style.speed, gravity: event?.type === 'pulse' || event?.type === 'arcball' ? 2 : event?.type === 'bubble' ? 9 : 15,
         size: style.size, life: style.life, sparks: true },
     );
     if (event?.type === 'bubble') {
@@ -355,7 +400,8 @@ export class Effects {
         { speed: 0.8, gravity: -1.2, size: mini ? 0.8 : 1.6, life: 0.9, softness: true });
       // The flash, film ring and cartoon pop strokes come from ProjectileFX.explode.
     }
-    if (event?.type === 'frag' || event?.type === 'limpet' || event?.type === 'rocket' || event?.type === 'shell') {
+    if (event?.type === 'frag' || event?.type === 'limpet' || event?.type === 'rocket' || event?.type === 'shell'
+      || event?.type === 'archer') {
       // Dirt burst: the blast throws soil up around the sparks — slower,
       // longer-lived and soft. Energy blasts (pulse/bolt) throw none.
       this.impacts.spawnParticles(
@@ -421,6 +467,7 @@ export class Effects {
     this._trauma = Math.max(0, this._trauma - dt * 1.8);
     this.tracers.update(dt);
     this.railBeams.update(dt);
+    this.longbowBeams?.update(dt);
     this.flames.update(elapsed);
     this.fireFields.update(elapsed);
     this.impacts.update(dt);
@@ -455,6 +502,7 @@ export class Effects {
     this._disposed = true;
     this.tracers.dispose();
     this.railBeams.dispose();
+    this.longbowBeams?.dispose();
     this.flames.dispose();
     this.fireFields.dispose();
     this.impacts.dispose();

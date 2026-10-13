@@ -18,7 +18,7 @@
 #match-header .vb-team-score { font-size: 26px; line-height: 1; text-shadow: none; }
 #match-header .vb-team-role { font-size: 8px; letter-spacing: .08em; }
 #match-header:is([data-mode="fun"], [data-mode="gungame"]) .vb-match-center { flex-direction: row; gap: 16px; }
-#match-header:is([data-mode="tdm"], [data-mode="snd"]) .vb-match-meta-bar { display: none; }
+#match-header:is([data-mode="tdm"], [data-mode="snd"], [data-mode="titanfall"]) .vb-match-meta-bar { display: none; }
 #match-header .vb-match-bomb-banner { padding: 0; margin: 0; border: 0; background: none; font-size: 9px; letter-spacing: .04em; animation: none; color: var(--danger); }
 #player-status-strip { top: 72px; width: max-content; min-width: 0; max-width: calc(100vw - 24px); gap: 16px; }
 #player-status-strip .vb-player-status-group { flex: 0 1 auto; gap: 5px; }
@@ -109,7 +109,7 @@
 }
 #match-result-scoreboard .vb-scoreboard-heading { display: none; }
 #match-result-scores { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-#match-result-scoreboard:is([data-mode="tdm"], [data-mode="snd"]) #match-result-scores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#match-result-scoreboard:is([data-mode="tdm"], [data-mode="snd"], [data-mode="titanfall"]) #match-result-scores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #match-result-scoreboard .vb-scoreboard-team { min-width: 0; margin: 0; padding: 12px; border: 1px solid #28bcee80; border-radius: 5px; }
 #match-result-scoreboard .vb-sb-bravo { border-color: #ff944d80; }
 #match-result-scoreboard .vb-sb-team-heading { color: #28bcee; background: none; padding: 2px 6px 12px; margin: 0; font-size: 24px; border-bottom: 1px solid #71838d30; border-radius: 0; }
@@ -172,7 +172,7 @@
   .vb-match-result-score { font-size: 13px; margin: 10px 0; }
   .vb-match-result-score.is-team-score { font-size: 38px; gap: 5px; }
   .vb-match-result-mode, .vb-match-result-map { font-size: 9px; letter-spacing: .04em; }
-  #match-result-scoreboard:is([data-mode="tdm"], [data-mode="snd"]) #match-result-scores { grid-template-columns: minmax(0, 1fr); }
+  #match-result-scoreboard:is([data-mode="tdm"], [data-mode="snd"], [data-mode="titanfall"]) #match-result-scores { grid-template-columns: minmax(0, 1fr); }
   #match-result-scoreboard .vb-scoreboard-team { padding: 8px; }
   #match-result-scoreboard .vb-sb-team-heading { font-size: 18px; padding-bottom: 8px; }
   #match-result-scoreboard :is(th, td) { padding: 8px 6px; }

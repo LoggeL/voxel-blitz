@@ -1,0 +1,88 @@
+{
+  "source": "thunderbolt",
+  "draws": 24,
+  "triangles": 39976,
+  "mappedTriangles": 34324,
+  "mapDetails": [
+    {
+      "name": "textures/thunderbolt-ceramic.png",
+      "width": 1254,
+      "height": 1254,
+      "pageOwned": true
+    },
+    {
+      "name": "textures/palette/aged-copper.jpg",
+      "width": 1024,
+      "height": 1024,
+      "pageOwned": true
+    },
+    {
+      "name": "textures/palette/phosphated-steel.jpg",
+      "width": 1024,
+      "height": 1024,
+      "pageOwned": true
+    },
+    {
+      "name": "textures/palette/molded-polymer.jpg",
+      "width": 1024,
+      "height": 1024,
+      "pageOwned": true
+    },
+    {
+      "name": "textures/palette/pebbled-rubber.jpg",
+      "width": 1024,
+      "height": 1024,
+      "pageOwned": true
+    },
+    {
+      "name": "textures/palette/machined-steel.jpg",
+      "width": 1024,
+      "height": 1024,
+      "pageOwned": true
+    }
+  ],
+  "invalidNormals": 0,
+  "smoothNormals": 35097,
+  "invalidUVs": 0,
+  "bounds": {
+    "min": [
+      -0.20287057757377625,
+      -0.10649999976158142,
+      -0.7400000095367432
+    ],
+    "max": [
+      0.08699999749660492,
+      0.17000000178813934,
+      0.25075000524520874
+    ]
+  },
+  "sightHits": 0,
+  "centers": [
+    [
+      -0.066230445,
+      0.045769555,
+      -0.161
+    ],
+    [
+      -0.06623044999999998,
+      0.045769554999999976,
+      -0.161
+    ],
+    [
+      -0.06623044499999999,
+      0.04576954999999999,
+      -0.161
+    ],
+    [
+      -0.06623044499999997,
+      0.04576955499999998,
+      -0.161
+    ]
+  ],
+  "lifecycle": {
+    "disposedMaps": 0,
+    "disposedMaterials": 13,
+    "disposedSecond": 0,
+    "materialsIndependent": true
+  }
+}

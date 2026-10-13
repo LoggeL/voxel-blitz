@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="./assets/brand/favicon-32.png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>VOXEL BLITZ Titanfall Weapon Capture</title>
+  <!-- The in-match HUD sheets index.html loads, in the same order, plus the lazily injected titanfall sheet. -->
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./styles/grenade-pouch.css">
+  <link rel="stylesheet" href="./styles/touch-controls.css">
+  <link rel="stylesheet" href="./styles/mode-hud.css">
+  <link rel="stylesheet" href="./styles/melee-hud.css">
+  <link rel="stylesheet" href="./styles/medkit.css">
+  <link rel="stylesheet" href="./styles/career.css">
+  <link rel="stylesheet" href="./styles/titanfall.css">
+  <style>
+    /* A real map still behind a transparent WebGL canvas: the first-person gun is judged over what a player sees. */
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { background: #1d2a30 url('./assets/maps/frontier.jpg') center / cover no-repeat; }
+    #capture { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; pointer-events: none; }
+    #capture-label { position: fixed; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 400; font: 600 10px var(--font-ui, sans-serif); color: #ffffff70; letter-spacing: 1px; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <canvas id="capture" aria-label="VOXEL BLITZ titanfall weapon capture"></canvas>
+  <div id="capture-label"></div>
+  <script type="module" src="./js/capture/titanfall-weapon-capture.js"></script>
+</body>
+</html>

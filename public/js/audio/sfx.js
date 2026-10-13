@@ -33,6 +33,7 @@ import {
   reloadLongarc,
   reloadRevolver,
   reloadRocket,
+  reloadThunderbolt,
 } from './mechanics.js';
 import {
   GLAIVE_CUES,
@@ -46,7 +47,11 @@ import {
 } from './reports.js';
 
 /** Weapons that borrow another weapon's sound bank (no recorded assets of their own). */
-const SFX_ALIAS = Object.freeze({ stinger: 'rocket' });
+const SFX_ALIAS = Object.freeze({ stinger: 'rocket',
+  // Titanfall AT weapons without a dedicated report borrow the nearest bank.
+  chargerifle: 'lance', archer: 'rocket', kraber: 'sniper' });
+/** Titanfall AT blasts reuse a stock blast profile (the THUNDERBOLT orb also crackles). */
+const BLAST_ALIAS = Object.freeze({ archer: 'rocket', arcball: 'pulse' });
 const engine = new AudioEngine();
 const cosmeticAudio = new CosmeticAudio(engine);
 let pool = null;
@@ -1669,6 +1674,7 @@ export const sfx = {
       if (weapon === 'lmg') reloadLmg(output, primitives, step, at, brightness);
       else if (weapon === 'longarc') reloadLongarc(output, primitives, step, at, brightness);
       else if (weapon === 'rocket') reloadRocket(output, primitives, step, at, brightness);
+      else if (weapon === 'thunderbolt') reloadThunderbolt(output, primitives, step, at, brightness);
       else if (weapon === 'glaive') reloadGlaive(output, primitives, step, at, brightness);
       else if (weapon === 'revolver') {
         reloadRevolver(output, primitives, step, at, brightness);
@@ -2061,6 +2067,11 @@ export const sfx = {
    */
   explosion(pos, type = 'frag', detail = null) {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
+    // Titan primaries play their own impacts (VehicleAudio.titanImpact via titan-projectile-views.js):
+    // a Leadwall shot ends in ten pellet events, which must never be ten frag blasts.
+    if (type === 't203' || type === 'leadwall') return;
+    if (type === 'arcball') this.arcZap(deferredPos);
+    type = BLAST_ALIAS[type] ?? type;
     // Conquest bank (when decoded): per-weapon blast takes, near/distant by range.
     const conquestGroup = conquestBlastGroup(type, detail);
     // A Conquest tank shell bursts with the rocket's heavy blast bank.

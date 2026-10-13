@@ -4,7 +4,9 @@ import { TEAM_DISPLAY } from '../../../shared/conquest-contract.js';
 import { el, loadPref, savePref } from './hud-support.js';
 
 /** Conquest shows its teams as WEST/EAST so flag letters never read as teams. */
-const teamName = (team, gameMode) => (gameMode === 'conquest' && TEAM_DISPLAY[team]) || String(team).toUpperCase();
+const TITANFALL_TEAMS = Object.freeze({ alpha: 'MILITIA', bravo: 'IMC' });
+const teamName = (team, gameMode) => (gameMode === 'conquest' && TEAM_DISPLAY[team])
+  || (gameMode === 'titanfall' && TITANFALL_TEAMS[team]) || String(team).toUpperCase();
 
 /** Three presentations of the same authoritative roster; filters never affect the game. */
 export class LobbyRoster {

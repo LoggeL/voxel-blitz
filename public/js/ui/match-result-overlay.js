@@ -111,7 +111,8 @@ export class MatchResultOverlay {
     const results = (Array.isArray(match.results) ? match.results : players || []).filter(p => p && !p.npcRole);
     this.dom.root.dataset.largeRoster = String(results.length > 12);
     this.dom.rosterCount.textContent = this.scoreboard.playerCounts(results);
-    const winnerName = mode === 'conquest' ? (TEAM_DISPLAY[winner] || 'NOBODY') : teamMode
+    const winnerName = mode === 'conquest' ? (TEAM_DISPLAY[winner] || 'NOBODY')
+      : mode === 'titanfall' ? ({ alpha: 'MILITIA', bravo: 'IMC' }[winner] || 'NOBODY') : teamMode
       ? upper(winner, 'TEAM')
       : this._nameFor(winner, results);
 
@@ -140,6 +141,11 @@ export class MatchResultOverlay {
       this.dom.traitors.textContent = `TRAITORS: ${roster.filter(p=>p.role==='traitor').map(p=>p.name).join(', ') || 'Keine'}`;
     }
     this.dom.traitors.hidden = mode !== 'ttt';
+    // Titanfall Attrition (docs/titanfall.md §1): a tie at the time limit is a draw.
+    if (mode === 'titanfall' && winner == null && !roundOnly) {
+      this.dom.title.textContent = 'DRAW';
+      this.dom.detail.textContent = 'ATTRITION SCORES EVEN';
+    }
     this._conquest(mode === 'conquest' ? match : null, selfRow, results);
     if (mode === 'conquest') {
       const selfTeam = selfRow?.team;

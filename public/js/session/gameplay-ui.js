@@ -40,10 +40,22 @@ export class GameplayUiFlow {
     this._lookEnabled = false;
     this._pendingPurchase = null;
     this._postRound = false;
+    // Mode overlays that own the cursor (Titanfall loadout): gameplay input and look stay off while any is open.
+    this._overlayBlocks = new Set();
     this._hud.setupMatchContinuation?.((roundId) => this._getNet()?.approveContinuation(roundId));
   }
 
   get inputEnabled() { return this._inputEnabled; }
+  get overlayBlocked() { return this._overlayBlocks.size > 0; }
+
+  /** A mode overlay takes (on) or hands back (off) the cursor; input resyncs either way. */
+  setOverlayBlock(key, on) {
+    const had = this._overlayBlocks.has(key);
+    if (!!on === had) return;
+    if (on) this._overlayBlocks.add(key); else this._overlayBlocks.delete(key);
+    this.syncInput();
+    if (on) this._input.exit();
+  }
 
   resetPendingPurchase() {
     this._pendingPurchase = null;
@@ -115,7 +127,8 @@ export class GameplayUiFlow {
       (this._gameplay.alive || this._gameplay.spectating) &&
       !this._lifecycle.disconnected &&
       this._gameplay.matchState?.phase !== 'post' &&
-      !this._hud.isBuyMenuOpen()
+      !this._hud.isBuyMenuOpen() &&
+      !this.overlayBlocked
     ) {
       this._hud.openSettings();
     }
@@ -135,7 +148,8 @@ export class GameplayUiFlow {
       !this._lifecycle.tornDown &&
       this._gameplay.matchState?.phase !== 'post' &&
       !this._hud.settingsOpen &&
-      !this._hud.isBuyMenuOpen()
+      !this._hud.isBuyMenuOpen() &&
+      !this.overlayBlocked
     );
   }
 

@@ -1,0 +1,35 @@
+{
+  "generated": "2026-10-13T04:22:28.433Z",
+  "page": "public/titanfall-hud-capture.html",
+  "sizes": {
+    "landscape": [
+      {
+        "id": "pilot",
+        "title": "Pilot · meter 72 % · grapple 1/2 · battery",
+        "layout": "pilot",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter3/landscape-pilot.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan",
+        "title": "Titan · ION · core 86 %",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter3/landscape-titan.png",
+        "overlaps": []
+      },
+      {
+        "id": "titan-doomed",
+        "title": "Titan · DOOMED · eject",
+        "layout": "titan",
+        "portraits": null,
+        "file": "docs/design/titanfall/captures/hud/iter3/landscape-titan-doomed.png",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": [],
+  "warnings": []
+}

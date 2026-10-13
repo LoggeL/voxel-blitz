@@ -16,6 +16,18 @@ export const ARMOR_MATRIX = Object.freeze({
   fire:       Object.freeze({ light: 0.3, heavy: 0,    air: 0 }),
 });
 
+/**
+ * Titanfall titan armour (docs/titanfall.md §2.4). A separate table so the
+ * conquest ARMOR_MATRIX rows stay exact. Titan weapons and abilities deal cls
+ * 'titan' (1.0); the titan-only classes (titan, melee, titanfall, rodeo) never
+ * reach isDamageClass or the conquest matrix.
+ */
+export const TITAN_ARMOR = Object.freeze({
+  small: 0.06, mg: 0.08, hmg: 0.2, autocannon: 0.5, explosive: 0.35, he: 0.6, at: 1.0, aa: 0.3, fire: 0.6,
+  titan: 1.0, melee: 1.0, titanfall: 1.0, rodeo: 1.0,
+});
+export const TITAN_ZONES = Object.freeze({ rear: 1.3, top: 1.15, front: 1.0, side: 1.0 });
+
 /** Heavy-armour facing multipliers. Only the AT cell of the heavy column uses them. */
 export const HEAVY_ZONE_MULTIPLIERS = Object.freeze({ front: 0.75, side: 1, rear: 1.5, top: 1.3, bottom: 1.5 });
 /** Damage classes whose heavy-armour multiplier is scaled by the facing zone. */
@@ -36,7 +48,7 @@ export const INFANTRY_DAMAGE_CLASSES = Object.freeze({
 });
 
 export const isDamageClass = cls => DAMAGE_CLASSES.includes(cls);
-export const isArmorClass = armor => ARMOR_CLASSES.includes(armor);
+export const isArmorClass = armor => ARMOR_CLASSES.includes(armor) || armor === 'titan';
 
 /** The class an infantry weapon or blast deals: explicit def class, table, then small arms. */
 export function infantryDamageClass(defOrId) {
@@ -48,6 +60,7 @@ export function infantryDamageClass(defOrId) {
 
 /** Final multiplier for one hit. Unknown classes deal nothing; physical damage passes. */
 export function armorMultiplier(cls, armor, zone = 'side') {
+  if (armor === 'titan') return (TITAN_ARMOR[cls] ?? 0) * (TITAN_ZONES[zone] ?? 1);
   if (PHYSICAL_DAMAGE_CLASSES.includes(cls)) return 1;
   const row = ARMOR_MATRIX[cls];
   if (!row || !isArmorClass(armor)) return 0;

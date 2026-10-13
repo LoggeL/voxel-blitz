@@ -20,7 +20,7 @@ import { PICKAXE_TILT } from '../public/js/guns/models/iron-pickaxe.js';
 import { renderBlenderHud } from './blender/render-hud.mjs';
 
 // SKIPJACK is named for its left-flank cassette; show that side (mirrored, muzzle right).
-const HUD_SIDE = Object.freeze({ mgl: 'left' });
+const HUD_SIDE = Object.freeze({ mgl: 'left', stinger: 'left', thunderbolt: 'left' });
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, 'public', 'assets', 'weapons', 'hud');
@@ -29,7 +29,7 @@ const BLENDER_HUD_ASSETS = Object.freeze({
   rifle: 'kestrel', smg: 'wasp', shotgun: 'mastiff', sniper: 'peregrine',
   lmg: 'bison', revolver: 'fang', rocket: 'torch', longarc: 'halo',
   lance: 'pike', flamethrower: 'ifrit', minigun: 'hydra', glaive: 'skua',
-  mgl: 'skipjack',
+  mgl: 'skipjack', thunderbolt: 'thunderbolt',
 });
 const SUPERSAMPLE = 3;
 const MARGIN = 1.06;
@@ -259,7 +259,7 @@ async function main() {
   await mkdir(options.outDir, { recursive: true });
   for (const weapon of weapons) {
     const asset = BLENDER_HUD_ASSETS[weapon];
-    const { png, triangles } = asset
+    const { png, triangles } = asset || weapon === 'stinger'
       ? await renderBlenderHud({ asset, weapon, width: options.width, height: options.height,
         side: HUD_SIDE[weapon] })
       : renderHudIcon(weapon, options);

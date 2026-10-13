@@ -31,8 +31,13 @@ function cylX(parent, radius, length, x, y, z, material, segments = 10) {
   return mesh;
 }
 
+// Titanfall on-gun ammo counter seat (weapon-display.js): screen centre on the top rear of the receiver, facing back
+// toward the eye (Halo-style rear deck counter), size in m; `seat` names the surface it stands on.
+export const DISPLAY_MOUNT = Object.freeze({ x: 0.000, y: 0.058, z: 0.050, w: 0.040, h: 0.031, seat: 'rear', pod: 0.04 });
+
 /** Build the IRONCLAD .44 as a six-shot, swing-out-cylinder revolver. */
 export function build({ kit, T, groups }) {
+  groups.body.userData.displayMount = DISPLAY_MOUNT;
   if (buildFang({ groups })) return;
   const { box, cylZ, ironSights, mat } = kit;
   const { body, mag, bolt, trigger, extra } = groups;

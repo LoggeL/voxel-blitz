@@ -27,8 +27,10 @@ import {
   computeSpreadConeDeg,
   chargeProfile,
   chargeFromHold,
+  chargeAfterRelease,
   chargeDamageMult,
   chargeShotProfile,
+  chargeReleaseFires,
   railDamageMult,
 } from '../../shared/combatmath.js';
 import { clearReload, reloadIdentified, reloadRequestEdge } from './movement.js';
@@ -38,6 +40,7 @@ import { evShoot, evHit, evBlock, evBullet } from '../protocol/events.js';
 import { BALLISTIC_STEP_S, ballisticLaunch, ballisticProfile } from '../../shared/bullet-ballistics.js';
 import { occupantShielded, occupantHitPose, occupantDamageScale } from './vehicle-damage.js';
 import { infantryDamageClass } from '../../shared/vehicle-armor.js';
+import { TF_PILOT_PROJECTILES, firePilotProjectile } from './titanfall/pilot-projectiles.js';
 import {
   clamp01,
   clampWeaponSlot,
@@ -66,6 +69,7 @@ export function cancelCharge(p) {
   p.charging = false;
   p.chargeT = 0;
   p.charge = 0;
+  p.chargeReleasedT = 0;
 }
 
 export function switchWeapon(p, slot) {
@@ -139,7 +143,7 @@ export function resolveWeaponIntent(p, dt, ctx) {
   const minigunReady = stepMinigun(p.minigun, dt,
     !!(minigunEnabled && (inp.wantFire || p.fireEdgeQueued)), !!(minigunEnabled && inp.wantAds));
   if (!inp?.wantFire && !p.fireEdgeQueued) p.mining = null;
-  if (!inp) { p.triggerPrev = false; p.reloadPrev = false; return; }
+  if (!inp) { cancelCharge(p); p.triggerPrev = false; p.reloadPrev = false; return; }
   const identifiedReload = reloadIdentified(inp);
   const reloadEdge = reloadRequestEdge(p, inp);
   p.reloadPrev = !!inp.reload;
@@ -207,19 +211,30 @@ export function resolveWeaponIntent(p, dt, ctx) {
 }
 
 /**
- * Charge weapons (VOLTLANCE): the trigger press starts the capacitor bank, the hold time
+ * Charge weapons: the trigger press starts the capacitor bank, the hold time
  * becomes the shot's charge, and the slug leaves on release (or when the bank vents at
  * `holdMaxMs`). A hold that started while the weapon could not fire never charges.
  */
 function resolveChargeIntent(p, dt, inp, fireEdge, ctx) {
   const profile = chargeProfile(p.def);
   const held = inp.wantFire;
+  if (!ctx.canFire(p) || p.reloading || p.deployT > 0 || p.mag[p.weapon] <= 0) {
+    cancelCharge(p);
+    return;
+  }
   if (!p.charging) {
+    if (p.chargeT > 0) {
+      p.chargeReleasedT = (p.chargeReleasedT || 0) + Math.max(0, dt) * 1000;
+      p.charge = chargeAfterRelease(p.def, chargeFromHold(p.def, p.chargeT), p.chargeReleasedT);
+      if (p.charge <= 0) cancelCharge(p);
+    }
     const pressed = fireEdge || (held && !p.triggerPrev);
-    if (pressed && canFire(p, true, ctx)) {
+    // A queued tap can already be released by this tick. It must not charge a
+    // full-only bank while the trigger is up, even after a stalled frame.
+    if (pressed && (!p.def.charge?.fullOnly || held) && canFire(p, true, ctx)) {
       p.charging = true;
-      p.chargeT = 0;
-      p.charge = 0;
+      p.chargeT = p.charge * profile.ms;
+      p.chargeReleasedT = 0;
     }
     return;
   }
@@ -228,7 +243,14 @@ function resolveChargeIntent(p, dt, inp, fireEdge, ctx) {
   const vent = p.chargeT >= profile.holdMaxMs;
   if (held && !vent) return;
   const charge = p.charge;
+  if (!held && !chargeReleaseFires(p.def, charge) && profile.decayMs > 0) {
+    p.charging = false;
+    p.chargeReleasedT = 0;
+    return;
+  }
   cancelCharge(p);
+  // A full-charge-only capacitor never fires or spends ammunition below full charge.
+  if (!chargeReleaseFires(p.def, charge)) return;
   if (!ctx.canFire(p) || p.reloading || p.deployT > 0 || p.mag[p.weapon] <= 0) return;
   fireOneShot(p, ctx, charge);
 }
@@ -522,6 +544,7 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
   if (charged) shootEvent.charge = Math.round(charge01 * 1000) / 1000;
   ctx.pushEvent(shootEvent);
   chaosShot(p, ctx, fwd);
+  if (ctx.vehicles?.titans && TF_PILOT_PROJECTILES.includes(def.id) && firePilotProjectile(p, def, firstDir, ctx)) return;
   if (def.projectile === 'rocket') {
     // The rocket is its own authoritative entity from here on.
     if (typeof ctx.launchRocket === 'function') ctx.launchRocket(p, firstDir);
@@ -675,8 +698,11 @@ function walkRoundLeg(p, def, round, legLength, ctx) {
     }
     if (hull) {
       const point = along(origin, d, hull.distance);
-      ctx.vehicles.damage(hull.id, damageAtDistance(def, round.traveled + hull.distance) * round.damageScale, p,
-        { cls: infantryDamageClass(def), point });
+      // A def hullDamage (CR-6 LONGBOW) replaces the body damage curve against hulls.
+      const raw = (Number.isFinite(def.hullDamage) ? def.hullDamage : damageAtDistance(def, round.traveled + hull.distance)) * round.damageScale,
+        cls = infantryDamageClass(def);
+      if (!ctx.vehicles.titans?.riderHit(p, hull.vehicle, { point, raw, cls }, def.id)) ctx.vehicles.damage(hull.id, raw, p,
+        { cls, point });
       path.push({ o: round.segStart, end: point });
       collectNearMisses(p, origin, point, ctx, nearMisses);
       return true;
@@ -851,7 +877,7 @@ export function fireMountedRay(owner, origin, dir, weapon, ctx, { vehicleId = ow
   if (target) {
     end = at(target.t);
     const headshot = !!target.coreHit && target.zone === 'head';
-    const damage = combatDamage(Math.round(weapon.damage * (headshot ? weapon.headMult ?? 1 : 1) * occupantDamageScale(target.victim) * 10) / 10);
+    const damage = combatDamage(Math.round((weapon.infantryDamage ?? weapon.damage) * (headshot ? weapon.headMult ?? 1 : 1) * occupantDamageScale(target.victim) * 10) / 10);
     const lethal = target.victim.takeDamage(damage, headshot, owner, weapon.key);
     ctx.pushEvent(evHit(owner.id, target.victim.id, damage, headshot, end, target.victim.lastDamage));
     if (lethal) ctx.killPlayer(target.victim, owner, weapon.key, headshot, { longRange: target.t >= LONG_RANGE_KILL_DISTANCE, noScope: false, dist: target.t });

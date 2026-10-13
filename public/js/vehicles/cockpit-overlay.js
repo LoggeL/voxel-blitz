@@ -7,6 +7,7 @@
 // docs/design/conquest/views/cockpit-reference.jpg.
 import * as THREE from '../vendor/three.module.js';
 import { mergeGeometries } from '../vendor/utils/BufferGeometryUtils.js';
+import { isTitanType } from '../../../shared/titan-contract.js';
 
 const FRAME = 0x1b1f22, PANEL = 0x24282b, COAMING = 0x141618, GRIP = 0x101112, CONSOLE = 0x2c3134;
 /** Display atlas tiles (4 x 2 grid of 128 px squares). */
@@ -146,6 +147,24 @@ const BUILDERS = {
   },
 };
 
+/** The hull frame of a titan model (its group), the overlay's reference instead of the swaying torso. */
+export function titanHullFrame(group) {
+  const ancestor = () => { let node = group.parent; while (node && !node.userData?.titanHull) node = node.parent; return node; };
+  const pin = () => {
+    const hull = ancestor();
+    if (!hull) return false;
+    group.matrixWorld.copy(hull.matrixWorld);
+    group.matrixWorldNeedsUpdate = false;
+    for (const child of group.children) child.updateMatrixWorld(true);
+    return true;
+  };
+  group.updateMatrixWorld = function updateMatrixWorld(force) { if (!pin()) THREE.Group.prototype.updateMatrixWorld.call(this, force); };
+  group.updateWorldMatrix = function updateWorldMatrix(parents, children) {
+    if (parents) group.parent?.updateWorldMatrix(true, false);
+    if (!pin()) THREE.Group.prototype.updateWorldMatrix.call(this, false, children);
+  };
+}
+
 let atlas = null;
 /** The display atlas (canvas texture), drawn once; null without a DOM (Node tests). */
 function displayAtlas() {
@@ -209,13 +228,26 @@ function displayAtlas() {
 }
 
 /** True when a hull type has first-person cockpit dressing. */
-export const hasCockpitOverlay = type => Object.hasOwn(BUILDERS, type);
+export const hasCockpitOverlay = type => Object.hasOwn(BUILDERS, type) || isTitanType(type);
+
+/**
+ * The titan cockpit (public/js/titanfall/titan-cockpit.js, installed by the lazily loaded
+ * titanfall client): `build(type)` -> { group, update(row), dispose } or null. Without it a titan
+ * has no overlay. Returns the previous builder.
+ */
+let titanCockpitBuilder = null;
+export function setTitanCockpitBuilder(build) {
+  const previous = titanCockpitBuilder;
+  titanCockpitBuilder = typeof build === 'function' ? build : null;
+  return previous;
+}
 
 /**
  * Build the dressing for one hull type: { group, dispose } or null. The group
  * is in hull metres: parent it to the model body (whose pivot is the origin).
  */
 export function makeCockpitOverlay(type) {
+  if (!Object.hasOwn(BUILDERS, type) && isTitanType(type)) return titanCockpitBuilder?.(type) ?? null;
   const build = BUILDERS[type];
   if (!build) return null;
   const builder = new OverlayBuilder();

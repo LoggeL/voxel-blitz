@@ -1,0 +1,9 @@
+Use case: stylized-concept
+Asset type: first-person aim-view study for an existing low-poly browser game weapon.
+Input images: Image 1 is the current M-6 FURNACE aimed view to correct. Image 2 is the existing weapon design reference; preserve its cylindrical receiver, skeletal stock, six-barrel rotor, orange collars, left carry handle and five amber temperature cells.
+Primary request: a comparison sheet of THREE believable first-person ADS camera compositions of this SAME minigun, labeled A, B, C, on a neutral blue-grey background. Fix the current awkward view which looks at the full shoulder butt and round receiver from far behind. The player's eye should be properly over and close to the receiver's existing iron sights, with a crisp rear notch framing a single small front orange post on the central aim line. Keep the central upper half clear for targets.
+A: close natural iron-sight view, stock entirely below/outside the frame, visible edges of the six-barrel cluster under the front sight, forearms low.
+B: slightly more distant iron-sight view with narrow rear notch and smaller receiver footprint, only the top of the stock below the aim channel.
+C: braced minigun aiming stance slightly low/right, enough barrel bundle visible and clear screen center.
+Style: actual achievable faceted Three.js/Blender game geometry matching the supplied reference, restrained worn steel and orange paint. Camera/composition corrections, not a weapon redesign.
+Constraints: existing open iron sights only, no scope, glass, red-dot optic, UI overlay, new lettering, new gameplay values or decorative attachments. Show complete camera-frame rectangles for A/B/C. Avoid huge stock butt rectangle in screen center, handle crossing aim line, oversized rings, photoreal rendering. Text only A B C.

@@ -1,0 +1,114 @@
+import assert from 'node:assert/strict';
+import * as THREE from '../public/js/vendor/three.module.js';
+import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
+import { AvatarWeaponModel } from '../public/js/avatar/avatar-weapon.js';
+import { animateChargeRifle } from '../public/js/guns/chargerifle-animation.js';
+import { MuzzleLights } from '../public/js/engine/muzzle-lights.js';
+
+const rig = new ViewmodelRig(new THREE.PerspectiveCamera(75, 2, 0.01, 100));
+const remote = new AvatarWeaponModel();
+const cells = body => ['left', 'right'].flatMap(side => Array.from({ length: 3 }, (_, i) =>
+  body.getObjectByName(`chargerifle_cell_${side}_${i}`)));
+const intensity = cell => cell.children[0].material.emissiveIntensity;
+const charge = level => { rig.setCharge(level); rig.update(1 / 60); };
+let materials;
+let disposed = 0;
+let haloMapDisposed = 0;
+let bandMapDisposed = 0;
+let ribbonMapDisposed = 0;
+const lightPool = new MuzzleLights(new THREE.Scene());
+try {
+  rig.setWeapon('chargerifle');
+  const bank = cells(rig._cur.body);
+  const halos = [];
+  const heat = new Set();
+  const ribbons = [];
+  rig._cur.body.traverse(object => {
+    if (object.userData.chargeHalo) halos.push(object);
+    if (object.material?.userData.chargeHeat) heat.add(object.material);
+    if (object.userData.chargeRibbon) ribbons.push(object);
+  });
+  assert.ok(halos.length >= 7 && heat.size >= 3, 'cells, channels and emitter have local glow');
+  const haloMap = halos[0].material.map;
+  const bandMap = bank[0].children[0].material.emissiveMap;
+  const ribbonMap = ribbons[0].material.map;
+  haloMap.addEventListener('dispose', () => haloMapDisposed++);
+  bandMap.addEventListener('dispose', () => bandMapDisposed++);
+  ribbonMap.addEventListener('dispose', () => ribbonMapDisposed++);
+  assert.ok(bank.every(cell => cell.children[0].material.emissiveMap === bandMap), 'one thermal gradient per gun');
+  assert.ok(ribbons.every(mesh => mesh.material.map === ribbonMap && mesh.material.depthTest && !mesh.material.depthWrite),
+    'surface glow shares one map and respects scene occlusion');
+  assert.ok(halos.every(sprite => sprite.material.map === haloMap), 'one aura map per gun');
+  assert.ok(halos.every(sprite => sprite.material.depthTest && !sprite.material.depthWrite),
+    'remote auras remain occluded by walls and do not hide other transparent effects');
+  assert.ok(bank.length === 6 && bank.every(Boolean), 'all six cells are animated');
+  materials = new Set(bank.map(cell => cell.children[0].material));
+  assert.equal(materials.size, 3, 'each mirrored pair shares one gun-owned material');
+  for (const material of materials) material.addEventListener('dispose', () => disposed++);
+  const muzzle = rig._cur.muzzleMarker.position.clone();
+  charge(0);
+  assert.ok(bank.every(cell => intensity(cell) < 0.1), 'idle bank stays cold');
+  charge(0.5);
+  for (const offset of [0, 3]) {
+    assert.ok(intensity(bank[offset]) > intensity(bank[offset + 1]), 'rear pair fills first');
+    assert.ok(intensity(bank[offset + 1]) > intensity(bank[offset + 2]), 'middle pair is partial');
+    assert.ok(intensity(bank[offset + 2]) < 0.1, 'front pair waits for the last third');
+    assert.ok(bank[offset].position.z < bank[offset].userData.chargeCell.homeZ, 'charged collar travels');
+    assert.equal(bank[offset + 2].position.z, bank[offset + 2].userData.chargeCell.homeZ);
+  }
+  charge(1);
+  const chargeLight = rig._cur.body.getObjectByName('chargerifle_charge_light');
+  assert.equal(chargeLight.visible, false, 'source never adds a renderer light variant');
+  assert.equal(rig.flashLight, chargeLight, 'charge reaches the production light pool getter');
+  lightPool.update(rig.flashLight, new Map(), new THREE.PerspectiveCamera());
+  assert.equal(lightPool.lights[0].intensity, chargeLight.intensity);
+  assert.ok(lightPool.lights[0].intensity > 0, 'charge lights nearby casing and hands');
+  rig._cur.flash.light.intensity = 1;
+  assert.equal(rig.flashLight, rig._cur.flash.light, 'actual shot flash takes priority');
+  rig._cur.flash.light.intensity = 0;
+  assert.ok(bank.every(cell => intensity(cell) > 8), 'full charge drives cells far above the bloom threshold');
+  assert.ok(halos.every(sprite => sprite.visible && sprite.material.opacity > 0.5), 'hot bank has visible auras without postprocessing');
+  animateChargeRifle(rig._cur.body, 1, 0);
+  const peakA = intensity(bank[0]);
+  animateChargeRifle(rig._cur.body, 1, 0.05);
+  assert.ok(Math.abs(intensity(bank[0]) - peakA) > 0.3, 'near-full charge visibly pulses');
+  animateChargeRifle(rig._cur.body, 1, 0, true);
+  const steady = intensity(bank[0]);
+  animateChargeRifle(rig._cur.body, 1, 0.05, true);
+  assert.equal(intensity(bank[0]), steady, 'reduced motion retains the glow without pulse');
+  remote.update({ weapon: 'chargerifle', charge: 0, dt: 1 / 60 });
+  const remoteBank = cells(remote.modelRoot);
+  assert.ok(remoteBank.every(cell => intensity(cell) < 0.1), 'another gun cannot inherit local charge');
+  assert.ok(remoteBank.every(cell => !materials.has(cell.children[0].material)));
+  remote.update({ weapon: 'chargerifle', charge: 0.5, dt: 1 / 60 });
+  assert.equal(remote.flashLight.name, 'chargerifle_charge_light', 'third-person charge also supplies light');
+  remote._model.flash.light.intensity = 1;
+  assert.equal(remote.flashLight, remote._model.flash.light, 'remote shot flash takes priority');
+  remote._model.flash.light.intensity = 0;
+  charge(0.5);
+  assert.deepEqual(remoteBank.map(intensity), bank.map(intensity), 'snapshot charge matches first-person stages');
+  charge(0.1);
+  assert.ok(bank[0].position.z > bank[0].userData.chargeCell.homeZ - 0.007, 'decay retracts collars');
+  assert.ok(bank.slice(1, 3).every(cell => intensity(cell) < 0.1), 'decay drains later pairs first');
+  charge(0);
+  assert.equal(chargeLight.intensity, 0, 'discharge extinguishes spill');
+  assert.equal(rig.flashLight, rig._cur.flash.light, 'idle returns the original flash source');
+  assert.ok(ribbons.every(mesh => !mesh.visible && mesh.material.opacity === 0), 'discharge hides all surface glow');
+  assert.ok(halos.every(sprite => !sprite.visible && sprite.material.opacity === 0), 'discharge hides every aura');
+  assert.ok([...heat].every(material => material.emissiveIntensity < 0.1), 'channels and hot casing cool on discharge');
+  assert.ok(bank.every(cell => cell.position.z === cell.userData.chargeCell.homeZ), 'shot/cancel resets every collar');
+  assert.deepEqual(rig._cur.muzzleMarker.position, muzzle, 'charge never moves the ballistic muzzle anchor');
+  charge(1);
+  rig.setWeapon('rifle');
+  rig.setWeapon('chargerifle');
+  assert.ok(bank.every(cell => intensity(cell) < 0.1), 're-equip clears stale charge before its first frame');
+} finally {
+  rig.dispose();
+  remote.dispose();
+  lightPool.dispose();
+}
+assert.equal(disposed, materials.size, 'gun-owned charge materials dispose exactly once');
+assert.equal(haloMapDisposed, 1, 'shared gun-owned aura texture disposes once');
+assert.equal(bandMapDisposed, 1, 'shared gun-owned thermal gradient disposes once');
+assert.equal(ribbonMapDisposed, 1, 'shared gun-owned surface glow texture disposes once');
+console.log('CR-6 model: staged thermal cells, layered glow, charge/shot light routing, local/remote isolation, reset and disposal passed.');

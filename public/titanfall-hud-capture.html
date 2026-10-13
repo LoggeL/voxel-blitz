@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="./assets/brand/favicon-32.png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>VOXEL BLITZ Titanfall HUD Capture</title>
+  <!-- The in-match HUD sheets index.html loads, in the same order, plus the lazily injected titanfall sheet. -->
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./styles/grenade-pouch.css">
+  <link rel="stylesheet" href="./styles/touch-controls.css">
+  <link rel="stylesheet" href="./styles/mode-hud.css">
+  <link rel="stylesheet" href="./styles/conquest.css">
+  <link rel="stylesheet" href="./styles/melee-hud.css">
+  <link rel="stylesheet" href="./styles/medkit.css">
+  <link rel="stylesheet" href="./styles/bubble-hud.css">
+  <link rel="stylesheet" href="./styles/career.css">
+  <link rel="stylesheet" href="./styles/titanfall.css">
+  <style>
+    /* Fallback backdrop (--backdrop map): no audio, no network beyond the page's own files. The default run passes
+       live WebGL backdrops (WP5's cockpit / a titan on a field) through window.__tf.setBackdrop. */
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { background: #1d2a30 url('./assets/maps/frontier.jpg') center / cover no-repeat; }
+    body:not(.has-live-backdrop)::before { content: ''; position: fixed; inset: 0; background: linear-gradient(180deg, #0b131a40, #0b131a10 40%, #0b131a66); pointer-events: none; }
+    #capture-label { position: fixed; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 400; font: 600 10px var(--font-ui, sans-serif); color: #ffffff70; letter-spacing: 1px; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="capture-label"></div>
+  <script type="module" src="./js/capture/titanfall-hud-capture.js"></script>
+</body>
+</html>

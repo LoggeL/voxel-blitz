@@ -1,0 +1,38 @@
+{
+  "generated": "2026-10-13T18:51:43.418Z",
+  "page": "public/titanfall-wrist-capture.html",
+  "wrist": false,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "rifle",
+      "fov": 75,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/baseline/desktop-rifle-baseline-grapple-1.png",
+      "live": false,
+      "draws": 51,
+      "wrist": null
+    },
+    {
+      "size": "portrait",
+      "weapon": "rifle",
+      "fov": 75,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/baseline/portrait-rifle-baseline-grapple-1.png",
+      "live": false,
+      "draws": 46,
+      "wrist": null
+    },
+    {
+      "size": "landscape",
+      "weapon": "rifle",
+      "fov": 75,
+      "state": "grapple-1",
+      "file": "docs/design/titanfall/wrist/baseline/landscape-rifle-baseline-grapple-1.png",
+      "live": false,
+      "draws": 51,
+      "wrist": null
+    }
+  ],
+  "errors": []
+}

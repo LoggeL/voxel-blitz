@@ -207,8 +207,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
 // ---------------------------------------------- mode + map foundation contract
 {
-  ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training', 'conquest'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'frontier'])
+  ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training', 'conquest', 'titanfall'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'ashfall', 'frontier'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -275,6 +275,13 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       friendlyFire: false,
       respawnMs: 1500,
     },
+    // Titanfall Attrition (docs/titanfall.md §2.1).
+    titanfall: {
+      label: 'TITANFALL', title: 'ATTRITION', teams: true, friendlyFire: false,
+      respawnMs: 4000, scoreLimit: 750, timeLimitMs: 12 * 60_000, allowDraw: true,
+      scoreScale: { base: 100, perPilot: 80, step: 25, min: 175 },
+      vehicles: 'titans', points: { pilot: 5, titan: 10, grunt: 1, spectre: 2 },
+    },
   };
   ok(sameValue(MODE_RULES, expectedRules) && deeplyFrozen(MODE_RULES),
     'mode rules are exact and recursively immutable');
@@ -316,9 +323,10 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'Search and Destroy prices and credit economy are exact immutable values');
 
   const expectedCompatibility = {
-    frontier: ['conquest'],
-    harbor: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
-    canyon: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    frontier: ['conquest', 'titanfall'],
+    ashfall: ['titanfall'],
+    harbor: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'titanfall'],
+    canyon: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'titanfall'],
     reactor: ['bastion'],
     foundry: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     depot: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame'],
@@ -358,6 +366,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
   const expectedMapNames = {
     frontier: 'Frontier',
+    ashfall: 'Ashfall',
     harbor: 'Harbor', canyon: 'Canyon',
     reactor: 'Reactor 9',
     foundry: 'Foundry',
@@ -375,6 +384,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   };
   const expectedMapHashes = {
     frontier: '557723ca',
+    ashfall: 'a63d23e4',
     harbor: 'eeb64538', canyon: 'b8e254a7',
     reactor: 'b1104db3',
     foundry: 'db04cb71',
@@ -392,6 +402,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   };
   const expectedSpawnCounts = {
     frontier: { fun: 16, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 8, sndDefenders: 8 },
+    ashfall: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 0, sndDefenders: 0 },
     harbor: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
     canyon: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
     reactor: { fun: 4, tdmAlpha: 0, tdmBravo: 0, sndAttackers: 0, sndDefenders: 0 },

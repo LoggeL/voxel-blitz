@@ -28,6 +28,10 @@ import { build as buildGlaive } from './models/glaive.js';
 import { build as buildBubble } from './models/bubble.js';
 import { buildSkipjack } from './models/skipjack.js';
 import { build as buildStinger } from './models/stinger.js';
+import { build as buildChargerifle } from './models/chargerifle.js';
+import { build as buildArcher } from './models/archer.js';
+import { build as buildThunderbolt } from './models/thunderbolt.js';
+import { build as buildKraber } from './models/kraber.js';
 
 const MODELS = Object.freeze({
   rifle: buildRifle,
@@ -46,6 +50,10 @@ const MODELS = Object.freeze({
   bubble: buildBubble,
   mgl: buildSkipjack,
   stinger: buildStinger,
+  chargerifle: buildChargerifle,
+  archer: buildArcher,
+  thunderbolt: buildThunderbolt,
+  kraber: buildKraber,
 });
 
 /**
@@ -100,7 +108,8 @@ export function buildGun(id, cache) {
   muzzleMarker.position.set(T.muzzle[0], T.muzzle[1], T.muzzle[2]);
   body.add(muzzleMarker);
 
-  const flash = melee ? makeMeleeFlash() : makeFlash();
+  // TB-4 discharges through its arc cage; a powder-flash sprite hides the orb.
+  const flash = melee || id === 'thunderbolt' ? makeMeleeFlash() : makeFlash();
   flash.grp.position.copy(muzzleMarker.position).add(new THREE.Vector3(0, 0, -0.01));
   body.add(flash.grp);
 
@@ -110,15 +119,18 @@ export function buildGun(id, cache) {
   // The glaive's bolt is the open flywheel drum and the bubble's plunger sits outside
   // any receiver: nothing would hide the cap there. SKIPJACK's closed chamber has only
   // the external charging pawl; its rounded stock would leave the cap in plain view.
-  if (!melee && id !== 'revolver' && id !== 'glaive' && id !== 'bubble' && id !== 'mgl') {
+  // ARCHER opens the receiver during loading; a generic cap would fill its trough.
+  // FURNACE's open stock likewise exposes it; heat belongs to its six barrels.
+  if (!melee && id !== 'revolver' && id !== 'glaive' && id !== 'bubble' && id !== 'mgl' && id !== 'thunderbolt' && id !== 'archer' && id !== 'stinger' && id !== 'minigun') {
     const capZ = BOLT_HOME[id];
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), glow);
     cap.position.set(-0.02, 0.07, capZ + 0.052);
     bolt.add(cap);
   }
 
-  // Melee has no barrel: a heat sleeve would float as a glowing rod beside the pick.
-  if (!melee) {
+  // The minigun heats its rotating barrels, and TB-4 pulses its open arc cage.
+  // A central sleeve would fill either open mechanism with a glowing rod.
+  if (!melee && id !== 'minigun' && id !== 'thunderbolt') {
     const span = (T.heatLen[1] - T.heatLen[0]) * T.barrelLen;
     const startZ = BREACH_Z[id] - T.heatLen[0] * T.barrelLen;
     const heatGeometry = new THREE.CylinderGeometry(
@@ -127,7 +139,8 @@ export function buildGun(id, cache) {
     heatGeometry.rotateX(Math.PI / 2);
     const heat = new THREE.Mesh(heatGeometry, glow);
     heat.position.set(T.muzzle[0], T.muzzle[1], startZ - span / 2);
-    body.add(heat);
+    // The AX-9 exchanges the whole launch tube, including its scorched mouth.
+    (id === 'stinger' ? mag : body).add(heat);
   }
 
   const rightHand = kit.glove(

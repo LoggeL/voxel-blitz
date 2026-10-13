@@ -241,6 +241,8 @@ export class CareerService {
       if (event.kind === 'kill' && event.killer === client.id && event.victim !== client.id) {
         const victim = client.room.engine.entities.get(event.victim) || client.room.engine.combatants?.get(event.victim);
         if (!victim || (side && sideOf(event.victim, victim.team) === side)) continue;
+        // Titanfall minions (grunts, spectres) are tracked apart from kills (docs/titanfall.md §10).
+        if (victim.tfNpc) continue;
         addReward(victim.bot ? CAREER_REWARDS.botKill : CAREER_REWARDS.kill);
         reward.kills++;
         if (!victim.bot) {

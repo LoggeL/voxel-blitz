@@ -53,6 +53,36 @@ export const VOXEL_MATERIALS = Object.freeze({
   // Radome, sensor glass housings and similar light-grey composites.
   radome: Object.freeze({ color: 0x9c9f9a, rough: 0.6, metal: 0.08 }),
   glass: Object.freeze({ glass: true, color: 0x7fb8cf, rough: 0.08, metal: 0.4 }),
+  // Titanfall (docs/titanfall.md §7, docs/design/titanfall/README.md). Titans only; no other vehicle
+  // uses these. Their own lighter camo (`titanBody`/`titanPanel`, big blots on 7 m bodies), a plain
+  // team ground coat, matt team accent bands (no glow: optics own the glow), a mid-grey titan frame,
+  // optics and energy cells (negative emissive: constant glow), amber/red lamp lenses (lamp-gated)
+  // and kit colours. No paint sits within ΔE 15 of an emissive on the same titan.
+  titanCamo: Object.freeze({ camo: 'titanBody', rough: 0.74, metal: 0.08 }),
+  titanPlate: Object.freeze({ camo: 'titanPanel', rough: 0.7, metal: 0.1 }),
+  titanDrab: Object.freeze({ team: 'titanDrab', rough: 0.74, metal: 0.08 }),
+  accent: Object.freeze({ team: 'accent', rough: 0.62, metal: 0.05 }),
+  // Titan team stripe edge: dark round the pale WEST stripe, pale round the black EAST stripe.
+  stripeEdge: Object.freeze({ team: 'stripeEdge', rough: 0.7, metal: 0.05 }),
+  // Its front-face rim: the same dark edge on WEST; EAST drops the pale edge on front faces
+  // (it reads as a second stripe) and rims the black stripe in the sand ground coat.
+  stripeRim: Object.freeze({ team: 'stripeRim', rough: 0.7, metal: 0.05 }),
+  titanFrame: Object.freeze({ color: 0x68717b, rough: 0.65, metal: 0.1 }),
+  titanLamp: Object.freeze({ color: 0xffb24a, rough: 0.3, metal: 0, emissive: 1.2 }),
+  titanTail: Object.freeze({ color: 0xff3a24, rough: 0.35, metal: 0, emissive: 1.2 }),
+  opticIon: Object.freeze({ color: 0x40c8ff, rough: 0.3, metal: 0, emissive: -1.6 }),
+  opticIonCore: Object.freeze({ color: 0xe8fbff, rough: 0.3, metal: 0, emissive: -2.2 }),
+  energyBlue: Object.freeze({ color: 0x3a8cff, rough: 0.3, metal: 0, emissive: -1.8 }),
+  opticCyan: Object.freeze({ color: 0x48e8ff, rough: 0.3, metal: 0, emissive: -2.0 }),
+  opticOrange: Object.freeze({ color: 0xffa23a, rough: 0.3, metal: 0, emissive: -1.6 }),
+  opticRed: Object.freeze({ color: 0xff2414, rough: 0.3, metal: 0, emissive: -1.6 }),
+  fuel: Object.freeze({ color: 0xc8402a, rough: 0.55, metal: 0.2 }),
+  fuelCap: Object.freeze({ color: 0xe0603a, rough: 0.5, metal: 0.2 }),
+  clothRed: Object.freeze({ color: 0x8f2a22, rough: 0.95, metal: 0 }),
+  clothDark: Object.freeze({ color: 0x5a1a16, rough: 0.95, metal: 0 }),
+  blade: Object.freeze({ color: 0xd2d8dc, rough: 0.4, metal: 0.25 }),
+  bladeEdge: Object.freeze({ color: 0xf4f6f8, rough: 0.3, metal: 0.1 }),
+  thermite: Object.freeze({ color: 0xffa23a, rough: 0.6, metal: 0.05 }),
 });
 
 /**
@@ -72,6 +102,10 @@ export const TEAM_SCHEMES = Object.freeze({
     panel: Object.freeze([[0x717c47, 1], [0x4c6132, 0.4], [0x635134, 0.15], [0x2e3b23, 0.25]]),
     canvas: Object.freeze([[0x5e6442, 1], [0x4b5236, 0.4]]),
     stripe: 0xefeee6, roundel: 0x2d5ad8, ring: 0xf2f0e8, drab: 0x5b6136,
+    // Titans: a lighter woodland with 1.5-2.5 m blots (titan-common.js samples it coarser).
+    titanBody: Object.freeze([[0x7a8650, 1], [0x56703c, 0.3], [0x6b5a3a, 0.15], [0x34422a, 0.15]]),
+    titanPanel: Object.freeze([[0x86925a, 1], [0x5f7a43, 0.3], [0x766443, 0.15], [0x3b4a2f, 0.15]]),
+    titanDrab: 0x7a8650, accent: 0x4a8cc8, stripeEdge: 0x2a2e26, stripeRim: 0x2a2e26,
   }),
   bravo: Object.freeze({
     name: 'desert',
@@ -80,6 +114,9 @@ export const TEAM_SCHEMES = Object.freeze({
     panel: Object.freeze([[0xd1a96f, 1], [0xae8250, 0.4], [0xe2c799, 0.14], [0x725839, 0.22]]),
     canvas: Object.freeze([[0xb59a6e, 1], [0x977c55, 0.4]]),
     stripe: 0x1b1b19, roundel: 0xec6a22, ring: 0x1b1b19, drab: 0xa98a5b,
+    titanBody: Object.freeze([[0xc9a066, 1], [0xa57a49, 0.3], [0xdcbf90, 0.14], [0x6b5235, 0.15]]),
+    titanPanel: Object.freeze([[0xd1a96f, 1], [0xae8250, 0.3], [0xe2c799, 0.14], [0x725839, 0.15]]),
+    titanDrab: 0xc9a066, accent: 0xc8501e, stripeEdge: 0xd9c49a, stripeRim: 0xc9a066,
   }),
   neutral: Object.freeze({
     name: 'grey',
@@ -87,6 +124,7 @@ export const TEAM_SCHEMES = Object.freeze({
     panel: Object.freeze([[0x858a83, 1]]),
     canvas: Object.freeze([[0x77786a, 1]]),
     stripe: 0xd8d8d8, roundel: 0xd8d8d8, ring: 0x4a4a4a, drab: 0x6f736d,
+    titanDrab: 0x7b8079, accent: 0xb8bcb6, stripeEdge: 0x4a4a4a, stripeRim: 0x4a4a4a,
   }),
 });
 
@@ -121,13 +159,13 @@ const noiseRank = n => Math.max(0, Math.min(1, (n - 0.27) / 0.46));
  * patches read as the long brush blots of the reference, about 0.5-1.2 m
  * across. Voxel centres sample it, so the edges step per voxel.
  */
-export function camoIndex(weights, x, y, z, seed = 7) {
+export function camoIndex(weights, x, y, z, seed = 7, detail = 0.28) {
   const sx = x * 1.1, sy = y * 1.25, sz = z * 0.72;
   const warp = (valueNoise(sx * 0.7 + 11, sy * 0.7, sz * 0.7, seed + 3) - 0.5) * 1.1;
   for (let i = weights.length - 1; i >= 1; i--) {
     const o = i * 17.31;
-    const n = valueNoise(sx + warp + o, sy - warp * 0.6 + o * 0.37, sz + warp * 0.8 - o * 0.53, seed + i * 13) * 0.72
-      + valueNoise(sx * 2.3 + o, sy * 2.3, sz * 2.3 - o, seed + i * 29) * 0.28;
+    const n = valueNoise(sx + warp + o, sy - warp * 0.6 + o * 0.37, sz + warp * 0.8 - o * 0.53, seed + i * 13) * (1 - detail)
+      + valueNoise(sx * 2.3 + o, sy * 2.3, sz * 2.3 - o, seed + i * 29) * detail;
     if (noiseRank(n) > 1 - weights[i][1]) return i;
   }
   return 0;
@@ -136,8 +174,9 @@ export function camoIndex(weights, x, y, z, seed = 7) {
 /**
  * Resolve a palette entry for one voxel: [r, g, b] linear, roughness,
  * metalness, emissive gain and whether it is glass. Cached per scheme.
+ * `detail` is the camo's second-octave weight (titans use 0.1: big plate blots, no flecks).
  */
-export function createPaletteResolver(team, seed = 7) {
+export function createPaletteResolver(team, seed = 7, { detail = 0.28 } = {}) {
   const scheme = teamScheme(team);
   const resolved = new Map();
   const entry = (name, color) => {
@@ -155,7 +194,7 @@ export function createPaletteResolver(team, seed = 7) {
     const spec = VOXEL_MATERIALS[name] || VOXEL_MATERIALS.dark;
     if (spec.camo) {
       const weights = scheme[spec.camo] || scheme.body;
-      return entry(name, weights[camoIndex(weights, x, y, z, seed)][0]);
+      return entry(name, weights[camoIndex(weights, x, y, z, seed, detail)][0]);
     }
     if (spec.team) return entry(name, scheme[spec.team]);
     return entry(name, spec.color);

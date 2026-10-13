@@ -1,6 +1,9 @@
 import { vehicleOccupiedSeats } from '../../../shared/vehicle-seats.js';
-import { vehicleDef, vehicleMaxHp, mountAim } from '../../../shared/vehicle-defs.js';
+import { VEHICLE_WEAPONS, vehicleDef, vehicleMaxHp, mountAim } from '../../../shared/vehicle-defs.js';
 import { vehicleStatus, vehicleMountOrder, decodeConquestPlayer } from '../../../shared/conquest-contract.js';
+import { isTitanType, decodeTitanRow } from '../../../shared/titan-contract.js';
+import { createVoices } from '../audio/primitives.js';
+import { LocalSampleBank } from '../audio/samples.js';
 
 /** Presentation limits for the state-driven vehicle sounds (metres, counts). */
 export const VEHICLE_AUDIO = Object.freeze({
@@ -70,7 +73,25 @@ export class VehicleAudio {
     this.turrets = new Set();
     this.wading = new Set();
     this._cues = false;
+    this.titan = new TitanSynth(sfx);   // titanfall walkers: synthesized loops and one-shots (docs/titanfall.md §7.4)
   }
+
+  // Titan one-shots (titan-presentation.js calls these from rig events and authoritative events).
+  titanFootfall(pos, strength = 1, { self = false, chassis = null, skid = false } = {}) { this.titan.footfall(pos, strength, { self, chassis, skid }); }
+  titanLanding(pos, strength = 1, { self = false, titanfall = false } = {}) { this.titan.landing(pos, strength, { self, titanfall }); }
+  titanDash(pos, { self = false } = {}) { this.titan.dash(pos, { self }); }
+  titanShot(weapon, pos, { self = false, charge = 0, split = false, ability = false, vehicleId = null } = {}) {
+    this.titan.shot(weapon, pos, { self, charge, split, ability, vehicleId });
+  }
+  titanCue(kind, pos, { self = false } = {}) { this.titan.cue(kind, pos, { self }); }
+  /** Where a titan primary round, a T-203 shell or a Leadwall pellet hit. */
+  titanImpact(weapon, pos) { this.titan.impact(weapon, pos); }
+  titanRicochet(pos) { this.titan.ricochet(pos); }
+  /** Own rounds landing on armour ('hit') or dooming a titan ('doom'), heard in the head. */
+  titanConfirm(kind = 'hit') { this.titan.confirm(kind); }
+  /** The titan weapon bank (audio/titan-bank.js), decoded in the background; the synth stands in until then. */
+  loadTitanBank(manifest, fetchImpl) { return this.titan.loadBank(manifest, fetchImpl); }
+  unloadTitanBank() { this.titan.unloadBank(); }
 
   /**
    * rows: snapshot vehicle rows; listenerPosition: camera position;
@@ -81,7 +102,7 @@ export class VehicleAudio {
     const audible = listener.every(Number.isFinite);
     const list = Array.isArray(rows) ? rows : [];
     const selfId = self?.id != null ? String(self.id) : null;
-    const candidates = [], fires = [];
+    const candidates = [], fires = [], titans = [];
     let ownHull = null, ownSeat = null;
     const presentSeats = new Map();
     for (const row of list) {
@@ -107,6 +128,8 @@ export class VehicleAudio {
         if (distance <= VEHICLE_AUDIO.burnRange) fires.push({ id, pos, distance, intensity: alive ? 0.8 : 1 - wreckAge / VEHICLE_AUDIO.wreckBurnSeconds });
       }
       if (!alive) continue;
+      // Titans: their own reactor and servo loops instead of a vehicle engine loop.
+      if (isTitanType(row.type)) { if (distance <= TITAN_AUDIO.loopRange) titans.push({ row, id, pos, distance, self: seats.some(seat => String(seat.occupantId) === selfId) }); continue; }
       const speed = Math.abs(finite(row.speed));
       const trackSpeed = Math.max(Math.abs(finite(row.leftTrackSpeed)), Math.abs(finite(row.rightTrackSpeed)));
       const occupied = seats.length > 0;
@@ -133,6 +156,7 @@ export class VehicleAudio {
         { speed, trackSpeed, occupied, rotorSpeed, enginePower, engineOn: row.engineOn !== false, self: row === ownHull, velocity });
     }
     this.active = next;
+    if (titans.length || this.titan.loops.size || this.titan.weapon.size || this.titan.bursts.size) this.titan.update(titans, listener, now);
 
     fires.sort((a, b) => a.distance - b.distance || a.id.localeCompare(b.id));
     const burning = new Set();
@@ -306,7 +330,655 @@ export class VehicleAudio {
     this.burning.clear();
     this.sfx.vehicleAlarm?.(false);
     this.sfx.vehicleLockTone?.(null);
+    this.titan.dispose();
     this.seats.clear();
     this.reloads.clear();
+  }
+}
+
+/** Titan audio tuning (metres, gains, counts; presentation only). */
+export const TITAN_AUDIO = Object.freeze({
+  loopRange: 110, maxLoops: 2, oneShotRange: 170, maxOneShots: 14, selfGain: 0.55,
+  // Weapon bank voices have their own budget, so a Predator burst never starves the footfalls.
+  weaponRange: 280, maxWeaponVoices: 20, maxRounds: 5, selfWeaponGain: 0.8,
+  // Others' shots lose their top end with distance: low-pass from `lowpassFrom` m down to `lowpassFar` Hz at weaponRange.
+  lowpassFrom: 60, lowpassFar: 2400,
+  impactRange: 90, impactWindow: 0.12, impactBudget: 3, ricochetRange: 60, ricochetWindow: 0.15, ricochetBudget: 2,
+  // Charge whine and barrel spin of other titans within this range (the own titan always).
+  windRange: 55, confirmGap: 0.07, predatorTailAfter: 0.16, casingEvery: 4, bankRetries: Object.freeze([5, 20]),
+});
+/**
+ * Levels of the titan bank groups: the bank's suggested relative gains (docs/audio/titan-sfx.md; each
+ * group is levelled to within 1 LU) scaled to fire 0.85. The railgun crack is mastered quieter (~-19 LUFS),
+ * a Leadwall pellet hit is one of up to ten per shot. Own shots are in the head at TITAN_AUDIO.selfWeaponGain.
+ */
+export const TITAN_WEAPON_MIX = Object.freeze({
+  fire: 0.85, railFire: 1.02, split: 0.77, tail: 0.55, mech: 0.51, pump: 0.51, impact: 0.68, pellet: 0.3, burn: 0.42, ricochet: 0.42, reload: 0.51,
+  charge: 0.6, hold: 0.38, ready: 0.6, rounds: 0.6, casings: 0.34, spinUp: 0.51, spin: 0.43, spinDown: 0.51,
+  confirm: 0.51, doom: 0.77,
+});
+const WEAPON_VOICE = Object.freeze({
+  splitter: 'splitter', t203: 't203', railgun: 'railgun', leadwall: 'leadwall', predatorClose: 'predator', predatorLong: 'predator', titanMelee: 'melee',
+});
+
+/**
+ * Synthesized titan sounds on the shared audio engine (no samples): a reactor hum and a
+ * servo whine per nearby hull, and one-shots for footfalls, landings, dashes, the mount
+ * weapons and the titan cues (titanfall incoming, core, eject, embark, battery rip/insert).
+ * Silent until the engine context runs; every voice ends by itself.
+ */
+export class TitanSynth {
+  constructor(sfx) {
+    this.sfx = sfx;
+    this.loops = new Map();     // vehicle id -> { nodes, gain, panner, whine }
+    this.oneShots = [];         // end times of live one-shots (budget)
+    this.listener = null;
+    this._voices = null; this._ctx = null;
+    // Weapon bank (audio/titan-bank.js) and its voices.
+    this.bank = null; this._bankGeneration = 0; this._bankTimer = 0; this.bankSlots = [];
+    this.lastTake = new Map();  // group -> previous take
+    this.weaponVoices = [];     // end times of live weapon voices (budget)
+    this.rounds = [];           // end times of live Predator rounds
+    this.bursts = new Map();    // vehicle id -> Predator burst { count, at, pos, self }
+    this.weapon = new Map();    // vehicle id -> charge / spin / reload state
+    this.budgets = new Map();   // impact and ricochet windows
+    this.confirmAt = -Infinity;
+  }
+
+  _engine() {
+    const engine = this.sfx?.objectiveAudio?.()?.engine;
+    const ctx = engine?.ctx;
+    if (!ctx || ctx.state !== 'running' || !engine.bus || !engine.noiseBuffer) return null;
+    if (this._ctx !== ctx) {
+      try { this._voices = createVoices(engine); this._ctx = ctx; } catch { return null; }
+    }
+    return { engine, ctx, v: this._voices };
+  }
+
+  _panner(ctx, pos, far = false) {
+    const panner = ctx.createPanner();
+    panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse';
+    panner.refDistance = far ? 14 : 8; panner.maxDistance = far ? 400 : 170; panner.rolloffFactor = far ? 0.9 : 1.05;
+    this._place(panner, pos, ctx);
+    return panner;
+  }
+
+  _place(panner, pos, ctx) {
+    if (panner.positionX) {
+      panner.positionX.setTargetAtTime(pos[0], ctx.currentTime, 0.03);
+      panner.positionY.setTargetAtTime(pos[1], ctx.currentTime, 0.03);
+      panner.positionZ.setTargetAtTime(pos[2], ctx.currentTime, 0.03);
+    } else panner.setPosition?.(pos[0], pos[1], pos[2]);
+  }
+
+  /** A one-shot destination at `pos` (dry for the own hull), or null when culled or over budget. */
+  _out(pos, { self = false, life = 1, far = false, gain = 1 } = {}) {
+    const audio = this._engine();
+    if (!audio || !Array.isArray(pos) || !pos.every(Number.isFinite)) return null;
+    const { engine, ctx } = audio, now = ctx.currentTime;
+    if (!self && this.listener && distanceTo(pos, this.listener) > (far ? 400 : TITAN_AUDIO.oneShotRange)) return null;
+    this.oneShots = this.oneShots.filter(end => end > now);
+    if (this.oneShots.length >= TITAN_AUDIO.maxOneShots) return null;
+    this.oneShots.push(now + life);
+    const out = ctx.createGain();
+    out.gain.value = gain * (self ? TITAN_AUDIO.selfGain : 1);
+    if (self) out.connect(engine.bus);
+    else { const panner = this._panner(ctx, pos, far); out.connect(panner).connect(engine.bus); }
+    setTimeout(() => { try { out.disconnect(); } catch { /* gone */ } }, (life + 0.6) * 1000);
+    return { out, v: audio.v, t: audio.v.nowT() };
+  }
+
+  footfall(pos, strength = 1, { self = false, chassis = null, skid = false } = {}) {
+    const s = Math.max(0.3, Math.min(2, strength)), heavy = chassis === 'ogre' ? 0.8 : chassis === 'stryder' ? 1.2 : 1;
+    const o = this._out(pos, { self, life: 0.6, gain: 0.85 * (self ? 0.7 : 1) });
+    if (!o) return;
+    const { out, v, t } = o;
+    if (skid) { v.hiss(out, { t0: t, filter: 'bandpass', f: 900, q: 0.8, sweepTo: 420, g: 0.22 * s, att: 0.02, dec: 0.35 }); return; }
+    v.tone(out, { t0: t, type: 'sine', f0: 74 * heavy, f1: 36 * heavy, g: 0.55 * s, att: 0.004, dec: 0.28 });
+    v.hiss(out, { t0: t, filter: 'lowpass', f: 420, q: 0.7, g: 0.32 * s, att: 0.002, dec: 0.2 });
+    v.tone(out, { t0: t + 0.012, type: 'square', f0: 190 * heavy, f1: 120 * heavy, g: 0.035 * s, att: 0.002, dec: 0.07 });
+    v.hiss(out, { t0: t + 0.03, filter: 'bandpass', f: 2600, q: 3, g: 0.05 * s, att: 0.002, dec: 0.06 });
+  }
+
+  landing(pos, strength = 1, { self = false, titanfall = false } = {}) {
+    const s = Math.max(0.4, Math.min(2.5, strength));
+    const o = this._out(pos, { self, life: 1.6, far: titanfall, gain: titanfall ? 1.2 : 0.9 });
+    if (!o) return;
+    const { out, v, t } = o;
+    v.tone(out, { t0: t, type: 'sine', f0: 60, f1: 26, g: 0.5 * Math.min(1.4, s), att: 0.004, dec: titanfall ? 1.1 : 0.55 });
+    v.hiss(out, { t0: t, filter: 'lowpass', f: 520, sweepTo: 160, q: 0.6, g: 0.4 * Math.min(1.4, s), att: 0.003, dec: titanfall ? 1.3 : 0.5 });
+    v.tone(out, { t0: t + 0.02, type: 'triangle', f0: 150, f1: 92, g: 0.08, att: 0.003, dec: 0.3 });
+    if (titanfall) v.hiss(out, { t0: t + 0.05, filter: 'bandpass', f: 1800, q: 1.4, sweepTo: 600, g: 0.12, att: 0.01, dec: 0.9 });
+  }
+
+  dash(pos, { self = false } = {}) {
+    const o = this._out(pos, { self, life: 0.7, gain: 0.8 });
+    if (!o) return;
+    const { out, v, t } = o;
+    v.hiss(out, { t0: t, filter: 'highpass', f: 1400, sweepTo: 420, q: 0.7, g: 0.3, att: 0.01, dec: 0.45 });
+    v.tone(out, { t0: t, type: 'sawtooth', f0: 85, f1: 150, g: 0.06, att: 0.02, dec: 0.32 });
+  }
+
+  // ---- titan weapon bank (audio/titan-bank.js) -------------------------------------------------
+
+  /** Decode the titan weapon bank in the background; failed slots are retried (TITAN_AUDIO.bankRetries). */
+  loadBank(manifest, fetchImpl = globalThis.fetch) {
+    const engine = this.sfx?.objectiveAudio?.()?.engine;
+    if (!manifest || typeof manifest !== 'object' || !engine?.ensure?.() || !engine.ctx) return Promise.resolve(Object.freeze({ loaded: 0, failed: 0 }));
+    this.bank ??= new LocalSampleBank({ getContext: () => this.sfx?.objectiveAudio?.()?.engine?.ctx ?? null });
+    this.bankSlots = Object.keys(manifest);
+    const generation = ++this._bankGeneration, bank = this.bank;
+    const attempt = (slots, retry) => bank.load(slots, fetchImpl).then(result => {
+      const missing = Object.fromEntries(Object.entries(slots).filter(([slot]) => !bank.getBuffer(slot)));
+      const wait = TITAN_AUDIO.bankRetries[retry];
+      if (Object.keys(missing).length && Number.isFinite(wait) && generation === this._bankGeneration) {
+        this._bankTimer = setTimeout(() => { if (generation === this._bankGeneration) attempt(missing, retry + 1); }, wait * 1000);
+      }
+      return result;
+    }).catch(() => Object.freeze({ loaded: 0, failed: Object.keys(slots).length }));
+    return attempt(manifest, 0);
+  }
+
+  unloadBank() {
+    this._bankGeneration++;
+    clearTimeout(this._bankTimer);
+    this.bank?.clear();
+    this.bank = null;
+    this.bankSlots = [];
+    this.lastTake.clear();
+    for (const id of [...this.weapon.keys()]) this._forgetWeapon(id);
+    this.bursts.clear();
+  }
+
+  /** Decoded takes of a bank group, in slot order. */
+  _takes(group) {
+    return this.bankSlots.filter(slot => slot.startsWith(`${group}.`) && this.bank?.getBuffer(slot));
+  }
+  has(group) { return this._takes(group).length > 0; }
+
+  /** A random take of `group` that never repeats the previous one. */
+  pick(group, random = Math.random) {
+    const takes = this._takes(group);
+    if (takes.length <= 1) return takes[0] ?? null;
+    let index = Math.floor(random() * takes.length) % takes.length;
+    if (takes[index] === this.lastTake.get(group)) index = (index + 1) % takes.length;
+    this.lastTake.set(group, takes[index]);
+    return takes[index];
+  }
+
+  /**
+   * A weapon voice at `pos` (in the head for the own titan): its own budget, a distance low-pass for
+   * others' shots. Returns { out, ctx, t } or null when culled, silent or over budget.
+   */
+  _weaponOut(pos, { self = false, life = 1, gain = 1, range = TITAN_AUDIO.weaponRange } = {}) {
+    const audio = this._engine();
+    if (!audio || !Array.isArray(pos) || !pos.every(Number.isFinite)) return null;
+    const { engine, ctx } = audio, now = ctx.currentTime;
+    const distance = !self && this.listener ? distanceTo(pos, this.listener) : 0;
+    if (distance > range) return null;
+    this.weaponVoices = this.weaponVoices.filter(end => end > now);
+    if (this.weaponVoices.length >= TITAN_AUDIO.maxWeaponVoices) return null;
+    this.weaponVoices.push(now + life);
+    const out = ctx.createGain();
+    out.gain.value = gain * (self ? TITAN_AUDIO.selfWeaponGain : 1);
+    const nodes = [out];
+    if (self) out.connect(engine.bus);
+    else {
+      let last = out;
+      if (distance > TITAN_AUDIO.lowpassFrom) {
+        const k = Math.min(1, (distance - TITAN_AUDIO.lowpassFrom) / (TITAN_AUDIO.weaponRange - TITAN_AUDIO.lowpassFrom));
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 16000 * (TITAN_AUDIO.lowpassFar / 16000) ** k; filter.Q.value = 0.5;
+        last = last.connect(filter); nodes.push(filter);
+      }
+      const panner = this._panner(ctx, pos, true);
+      last.connect(panner).connect(engine.bus); nodes.push(panner);
+    }
+    setTimeout(() => { for (const node of nodes) try { node.disconnect(); } catch { /* gone */ } }, (life + 0.6) * 1000);
+    return { out, ctx, v: audio.v, t: audio.v.nowT(), distance };
+  }
+
+  /** Play a take of `group` into `out`: { gain, rate, delay (s), offset (s) }. False when nothing has decoded. */
+  _take(group, out, { gain = 1, rate = 1, delay = 0, offset = 0, slot = null } = {}) {
+    const take = slot ?? this.pick(group);
+    return !!take && !!this.bank?.play(take, out, { gain, rate, delay, offset });
+  }
+
+  /** Seconds of the first take of `group` (0 when not decoded). */
+  _duration(group) { return this.bank?.getBuffer(this._takes(group)[0])?.duration ?? 0; }
+
+  /**
+   * A titan primary report. `charge`: the railgun's event charge; `split`: an ION split shot;
+   * `ability`: an ability ray borrowing the weapon's look (no mechanics, no burst bookkeeping).
+   */
+  shot(weapon, pos, { self = false, charge = 0, split = false, ability = false, vehicleId = null } = {}) {
+    const voice = WEAPON_VOICE[weapon];
+    if (!voice) return;
+    // Firing consumes the charge even if a sample is missing or the report budget is full.
+    if (voice === 'railgun' && vehicleId != null && !ability) this._stopWind(String(vehicleId));
+    if (voice !== 'melee' && this.has(`tf.${voice}.fire`)) { this._sampledShot(voice, pos, { self, charge, split, ability, vehicleId }); return; }
+    this._synthShot(voice, pos, { self, charge });
+  }
+
+  _sampledShot(voice, pos, { self, charge, split, ability, vehicleId }) {
+    const M = TITAN_WEAPON_MIX, jitter = () => 0.97 + Math.random() * 0.06;
+    const id = vehicleId != null ? String(vehicleId) : null;
+    if (voice === 'predator') {
+      // One heavy round per shot (at most maxRounds overlapping), brass every few rounds, the tail when the burst ends.
+      const now = this._engine()?.ctx.currentTime ?? 0;
+      this.rounds = this.rounds.filter(end => end > now);
+      if (this.rounds.length < TITAN_AUDIO.maxRounds) {
+        const o = this._weaponOut(pos, { self, life: 0.45, gain: M.rounds });
+        const rate = jitter();
+        if (o && this._take('tf.predator.fire', o.out, { rate })) this.rounds.push(now + this._duration('tf.predator.fire') / rate);
+      }
+      if (id && !ability) {
+        const burst = this.bursts.get(id) ?? { count: 0 };
+        burst.count++; burst.at = now; burst.pos = pos; burst.self = self;
+        this.bursts.set(id, burst);
+        if (burst.count % TITAN_AUDIO.casingEvery === 1 && (self || (this.listener && distanceTo(pos, this.listener) < 40))) {
+          const o = this._weaponOut(pos, { self, life: 1.2, gain: M.casings });
+          if (o) this._take('tf.predator.casings', o.out, { delay: 0.18 + Math.random() * 0.12, rate: jitter() });
+        }
+      }
+      return;
+    }
+    const k = voice === 'railgun' ? 0.45 + 0.55 * Math.max(0, Math.min(1, Number.isFinite(charge) ? charge : 1)) : 1;
+    const life = Math.max(this._duration(`tf.${voice}.fire`), 0.03 + this._duration(`tf.${voice}.tail`),
+      voice === 't203' ? 0.58 + this._duration('tf.t203.mech') : voice === 'leadwall' ? 0.32 + this._duration('tf.leadwall.pump') : 0,
+      split ? this._duration('tf.splitter.split') : 0) / 0.94 + 0.05;
+    const o = this._weaponOut(pos, { self, life, gain: 1 });
+    if (!o) return;
+    const near = self || o.distance < 45;
+    // Close up the dry report leads; far away the tail carries the shot.
+    const tail = M.tail * (self ? 0.7 : 0.8 + Math.min(1, o.distance / 120) * 0.6);
+    this._take(`tf.${voice}.fire`, o.out, { gain: (voice === 'railgun' ? M.railFire : M.fire) * k, rate: voice === 'railgun' ? 0.94 + 0.06 * k : jitter() });
+    this._take(`tf.${voice}.tail`, o.out, { gain: tail * k, rate: jitter(), delay: 0.03 });
+    if (voice === 'splitter' && split) this._take('tf.splitter.split', o.out, { gain: M.split, rate: jitter() });
+    if (ability || !near) return;
+    if (voice === 't203') this._take('tf.t203.mech', o.out, { gain: M.mech, delay: 0.5 + Math.random() * 0.08 });
+    if (voice === 'leadwall') this._take('tf.leadwall.pump', o.out, { gain: M.pump, delay: 0.1 + Math.random() * 0.01 });
+  }
+
+  /** The synthesized report (the bank has not decoded): the previous voices, kept as the fallback. */
+  _synthShot(voice, pos, { self = false, charge = 0 } = {}) {
+    const o = this._out(pos, { self, life: voice === 'railgun' ? 1 : 0.6, gain: voice === 'predator' ? 0.55 : 0.9 });
+    if (!o) return;
+    const { out, v, t } = o;
+    switch (voice) {
+      case 'splitter':
+        v.tone(out, { t0: t, type: 'square', f0: 940, f1: 420, g: 0.1, att: 0.001, dec: 0.08 });
+        v.hiss(out, { t0: t, filter: 'bandpass', f: 3200, q: 1.2, g: 0.16, att: 0.001, dec: 0.06 });
+        v.tone(out, { t0: t, type: 'sine', f0: 160, f1: 80, g: 0.18, att: 0.001, dec: 0.09 });
+        break;
+      case 't203':
+        v.tone(out, { t0: t, type: 'sine', f0: 130, f1: 55, g: 0.42, att: 0.002, dec: 0.2 });
+        v.hiss(out, { t0: t, filter: 'lowpass', f: 1600, sweepTo: 500, g: 0.3, att: 0.002, dec: 0.32 });
+        break;
+      case 'railgun': {
+        const c = Math.max(0.3, Math.min(1, charge || 1));
+        v.tone(out, { t0: t, type: 'sawtooth', f0: 1900 * c, f1: 180, g: 0.14, att: 0.002, dec: 0.38 });
+        v.hiss(out, { t0: t, filter: 'bandpass', f: 5200, q: 0.9, sweepTo: 1400, g: 0.26 * c, att: 0.001, dec: 0.45 });
+        v.tone(out, { t0: t, type: 'sine', f0: 70, f1: 40, g: 0.4 * c, att: 0.003, dec: 0.5 });
+        break;
+      }
+      case 'leadwall':
+        v.hiss(out, { t0: t, filter: 'lowpass', f: 2400, q: 0.6, g: 0.55, att: 0.001, dec: 0.24 });
+        v.tone(out, { t0: t, type: 'sine', f0: 96, f1: 48, g: 0.45, att: 0.002, dec: 0.22 });
+        v.hiss(out, { t0: t + 0.03, filter: 'bandpass', f: 4200, q: 2, g: 0.08, att: 0.001, dec: 0.12 });
+        break;
+      case 'predator':
+        v.tone(out, { t0: t, type: 'square', f0: 230, f1: 110, g: 0.12, att: 0.001, dec: 0.05 });
+        v.hiss(out, { t0: t, filter: 'bandpass', f: 1900, q: 1.1, g: 0.2, att: 0.001, dec: 0.045 });
+        break;
+      default:   // melee swing
+        v.hiss(out, { t0: t, filter: 'bandpass', f: 700, q: 0.8, sweepTo: 300, g: 0.18, att: 0.03, dec: 0.25 });
+    }
+  }
+
+  /** Where a titan round, a T-203 shell or a Leadwall pellet hit (budgeted; the T-203 adds its thermite sizzle). */
+  impact(weapon, pos) {
+    const voice = WEAPON_VOICE[weapon];
+    if (!voice || voice === 'melee' || !Array.isArray(pos)) return;
+    const shell = voice === 't203';
+    if (!this._budget('impact', TITAN_AUDIO.impactWindow, shell ? Infinity : TITAN_AUDIO.impactBudget)) return;
+    const group = `tf.${voice}.impact`;
+    if (this.has(group)) {
+      const o = this._weaponOut(pos, { life: shell ? 3.6 : 1.2, gain: voice === 'leadwall' ? TITAN_WEAPON_MIX.pellet : TITAN_WEAPON_MIX.impact, range: shell ? TITAN_AUDIO.weaponRange : TITAN_AUDIO.impactRange });
+      if (!o) return;
+      this._take(group, o.out, { rate: 0.95 + Math.random() * 0.1 });
+      if (shell) this._take('tf.t203.burn', o.out, { gain: TITAN_WEAPON_MIX.burn / TITAN_WEAPON_MIX.impact, delay: 0.12 });
+      return;
+    }
+    const o = this._out(pos, { life: shell ? 1.4 : 0.4, far: shell, gain: shell ? 1 : 0.5 });
+    if (!o) return;
+    const { out, v, t } = o;
+    if (shell) {
+      v.tone(out, { t0: t, type: 'sine', f0: 90, f1: 34, g: 0.5, att: 0.003, dec: 0.5 });
+      v.hiss(out, { t0: t, filter: 'lowpass', f: 2200, sweepTo: 500, q: 0.6, g: 0.45, att: 0.002, dec: 0.6 });
+      v.hiss(out, { t0: t + 0.1, filter: 'highpass', f: 3000, q: 0.7, g: 0.12, att: 0.05, dec: 1.1, rate: 1.4 });
+    } else {
+      v.hiss(out, { t0: t, filter: 'bandpass', f: voice === 'splitter' || voice === 'railgun' ? 3600 : 1500, q: 1, g: 0.25, att: 0.001, dec: 0.09 });
+      v.tone(out, { t0: t, type: 'sine', f0: 140, f1: 70, g: 0.15, att: 0.002, dec: 0.08 });
+    }
+  }
+
+  /** A Leadwall pellet off a voxel: a ricochet whine (budgeted). */
+  ricochet(pos) {
+    if (!this._budget('ricochet', TITAN_AUDIO.ricochetWindow, TITAN_AUDIO.ricochetBudget)) return;
+    if (this.has('tf.leadwall.ricochet')) {
+      const o = this._weaponOut(pos, { life: 1, gain: TITAN_WEAPON_MIX.ricochet, range: TITAN_AUDIO.ricochetRange });
+      if (o) this._take('tf.leadwall.ricochet', o.out, { rate: 0.9 + Math.random() * 0.25 });
+      return;
+    }
+    const o = this._out(pos, { life: 0.5, gain: 0.4 });
+    if (!o) return;
+    const f = 2400 + Math.random() * 1800;
+    o.v.tone(o.out, { t0: o.t, type: 'sine', f0: f, f1: f * 0.55, g: 0.06, att: 0.004, dec: 0.32 });
+    o.v.hiss(o.out, { t0: o.t, filter: 'bandpass', f: 3200, q: 2, g: 0.08, att: 0.001, dec: 0.06 });
+  }
+
+  /** Own hits, enemy doom and confirmed destruction. Heavy confirms bypass the hit cooldown. */
+  confirm(kind = 'hit') {
+    const doom = kind === 'doom' || kind === 'kill';
+    const now = this._engine()?.ctx.currentTime ?? 0;
+    if (!doom && now - this.confirmAt < TITAN_AUDIO.confirmGap) return;
+    this.confirmAt = now;
+    const group = kind === 'kill' ? 'tf.hit.kill' : doom ? 'tf.hit.doom' : 'tf.hit.confirm';
+    if (this.has(group)) {
+      const o = this._weaponOut([0, 0, 0], { self: true, life: doom ? 1.4 : 0.4, gain: doom ? TITAN_WEAPON_MIX.doom : TITAN_WEAPON_MIX.confirm });
+      if (o) this._take(group, o.out, { rate: doom ? 1 : 0.96 + Math.random() * 0.08 });
+      return;
+    }
+    const o = this._out([0, 0, 0], { self: true, life: 0.6, gain: doom ? 0.9 : 0.5 });
+    if (!o) return;
+    o.v.tone(o.out, { t0: o.t, type: 'square', f0: doom ? 520 : 1900, f1: doom ? 260 : 1500, g: doom ? 0.12 : 0.05, att: 0.001, dec: doom ? 0.4 : 0.05 });
+    if (doom) o.v.tone(o.out, { t0: o.t, type: 'sine', f0: 110, f1: 55, g: 0.4, att: 0.002, dec: 0.5 });
+  }
+
+  /** Sliding budget per sound family. */
+  _budget(name, window, budget) {
+    const now = this._engine()?.ctx.currentTime;
+    if (!Number.isFinite(now)) return false;
+    const list = (this.budgets.get(name) || []).filter(at => now - at <= window);
+    if (list.length >= budget) { this.budgets.set(name, list); return false; }
+    list.push(now);
+    this.budgets.set(name, list);
+    return true;
+  }
+
+  /**
+   * Charge whine (railgun) and barrel spin (Predator) from mount field 6 of a presented row, plus
+   * the own magazine reload and the end of a Predator burst. `entry`: { row, id, pos, distance, self }.
+   */
+  _weaponState(entry, now) {
+    const { row, id, pos, self } = entry;
+    const mount = Array.isArray(row.mounts?.[0]) ? row.mounts[0] : null;
+    const kind = row.type === 'titan_northstar' ? 'charge' : row.type === 'titan_legion' ? 'spin' : null;
+    let state = this.weapon.get(id);
+    if (!state) { state = { value: 0, reload: 0, wind: null, hold: null, ready: false }; this.weapon.set(id, state); }
+    const value = mount ? Math.max(0, Math.min(1, finite(mount[5]) / 100)) : 0;
+    const audible = self || entry.distance <= TITAN_AUDIO.windRange;
+    if (kind && audible) this._wind(kind, id, state, value, pos, self);
+    else if (state.wind || state.hold) this._stopWind(id);
+    state.value = value;
+    // Own magazine reload starting (not the one-round T-203, its breech is in the shot).
+    const reload = mount ? finite(mount[4]) : 0;
+    if (self && reload > 0 && !(state.reload > 0) && row.type !== 'titan_scorch') {
+      const voice = { titan_ion: 'splitter', titan_ronin: 'leadwall', titan_legion: 'predator' }[row.type];
+      const key = voice === 'predator' ? 'predatorClose' : voice;
+      const seconds = VEHICLE_WEAPONS[key]?.reloadSeconds ?? 0;
+      const duration = voice ? this._duration(`tf.${voice}.reload`) : 0;
+      const remaining = Math.max(0, Math.min(1, reload / 100));
+      const o = duration > 0 ? this._weaponOut(pos, { self: true, life: seconds * remaining + 0.2, gain: TITAN_WEAPON_MIX.reload }) : null;
+      if (o) this._take(`tf.${voice}.reload`, o.out, { rate: duration / seconds, offset: duration * (1 - remaining) });
+    }
+    state.reload = reload;
+    void now;
+  }
+
+  _wind(kind, id, state, value, pos, self) {
+    const audio = this._engine();
+    if (!audio) return;
+    const { ctx } = audio, M = TITAN_WEAPON_MIX, prev = state.value;
+    const rising = value > prev + 1e-3, falling = value < prev - 1e-3;
+    if (state.panner) this._place(state.panner, pos, ctx);
+    if (kind === 'charge') {
+      if (value <= 0.02) { if (state.wind || state.hold) this._stopWind(id, 0.03); state.ready = false; return; }
+      if (!state.wind && rising) {
+        const seconds = VEHICLE_WEAPONS.railgun?.chargeSeconds ?? 1.6, dur = this._duration('tf.railgun.charge');
+        state.wind = dur > 0
+          ? this._windVoice(ctx, pos, self, 'tf.railgun.charge', { gain: M.charge, rate: dur / seconds, offset: value * dur, loop: false }, state)
+          : this._windSynth(ctx, pos, self, 'charge', state);
+      }
+      if (state.wind?.synth) this._tuneSynthWind(state.wind, ctx, kind, value);
+      if (value >= 1 && !state.ready) {
+        state.ready = true;
+        const o = this._weaponOut(pos, { self, life: 1, gain: M.ready * (self ? 1 : 0.6) });
+        if (o && !this._take('tf.railgun.ready', o.out)) this._readySynth(o);
+      }
+      if (value >= 1 && !state.hold) {
+        if (this.has('tf.railgun.hold')) {
+          this._stopWind(id, 0.012);
+          state.hold = this._windVoice(ctx, pos, self, 'tf.railgun.hold', { gain: M.hold, rate: 1, offset: 0, loop: true }, state);
+        } else if (!state.wind?.synth) {
+          this._stopWind(id, 0.012);
+          state.wind = this._windSynth(ctx, pos, self, 'charge', state);
+          this._tuneSynthWind(state.wind, ctx, kind, value);
+        }
+      }
+      return;
+    }
+    // Spin: the spin-up take follows a rising spin, the loop holds full spin, the spin-down follows the barrels down.
+    if (rising && !state.wind && value < 0.98) {
+      const seconds = VEHICLE_WEAPONS.predatorClose?.spinUpSeconds ?? 0.6, dur = this._duration('tf.predator.spinUp');
+      state.wind = dur > 0
+        ? this._windVoice(ctx, pos, self, 'tf.predator.spinUp', { gain: M.spinUp, rate: dur / seconds, offset: value * dur, loop: false }, state)
+        : this._windSynth(ctx, pos, self, 'spin', state);
+    }
+    if (state.wind?.synth) this._tuneSynthWind(state.wind, ctx, kind, value);
+    if (value >= 0.98 && !state.hold && this.has('tf.predator.spin')) {
+      this._stopWind(id, 0.012);
+      state.hold = this._windVoice(ctx, pos, self, 'tf.predator.spin', { gain: M.spin, rate: 1, offset: Math.random(), loop: true }, state);
+    } else if (value >= 0.98 && !state.hold && !state.wind?.synth) {
+      this._stopWind(id, 0.012);
+      state.wind = this._windSynth(ctx, pos, self, 'spin', state);
+      this._tuneSynthWind(state.wind, ctx, kind, value);
+    }
+    if (falling && (state.hold || (state.wind && !state.wind.synth))) {
+      const from = value;
+      this._stopWind(id, 0.06);
+      const o = this._weaponOut(pos, { self, life: 1.8, gain: M.spinDown * from });
+      if (o) this._take('tf.predator.spinDown', o.out, { offset: (1 - from) * this._duration('tf.predator.spinDown') * 0.5 });
+    }
+    if (value <= 0.01 && state.wind?.synth) this._stopWind(id, 0.1);
+  }
+
+  /** A take as a held voice (a loop or a one-shot that can be cut): { source, gain, nodes }. */
+  _windVoice(ctx, pos, self, group, { gain, rate, offset, loop }, state) {
+    const buffer = this.bank?.getBuffer(this._takes(group)[0]);
+    if (!buffer) return null;
+    const engine = this._engine()?.engine;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer; source.loop = loop;
+    source.playbackRate.value = Math.max(0.25, Math.min(4, rate));
+    const level = ctx.createGain();
+    level.gain.value = gain * (self ? TITAN_AUDIO.selfWeaponGain : 1);
+    // Joining a charge or a spinning loop can start in the middle of a waveform.
+    level.gain.setValueAtTime(0.0001, ctx.currentTime);
+    level.gain.linearRampToValueAtTime(gain * (self ? TITAN_AUDIO.selfWeaponGain : 1), ctx.currentTime + 0.012);
+    source.connect(level);
+    const nodes = [source, level];
+    if (self) level.connect(engine.bus);
+    else { state.panner ??= this._panner(ctx, pos, false); level.connect(state.panner); if (!state.pannerLive) { state.panner.connect(engine.bus); state.pannerLive = true; } }
+    source.start(ctx.currentTime, Math.max(0, Math.min(buffer.duration - 0.01, offset % buffer.duration)));
+    return { source, level, nodes };
+  }
+
+  /** Synthesized wind (no bank): a filtered saw whose pitch and level follow the charge or spin. */
+  _windSynth(ctx, pos, self, kind, state) {
+    const engine = this._engine()?.engine;
+    const osc = ctx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = kind === 'charge' ? 220 : 60;
+    const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = kind === 'charge' ? 1400 : 500; filter.Q.value = 3;
+    const level = ctx.createGain(); level.gain.value = 0.0001;
+    osc.connect(filter).connect(level);
+    if (self) level.connect(engine.bus);
+    else { state.panner ??= this._panner(ctx, pos, false); level.connect(state.panner); if (!state.pannerLive) { state.panner.connect(engine.bus); state.pannerLive = true; } }
+    osc.start();
+    return { synth: true, source: osc, osc, filter, level, nodes: [osc, filter, level] };
+  }
+
+  _tuneSynthWind(wind, ctx, kind, value) {
+    const t = ctx.currentTime;
+    wind.osc.frequency.setTargetAtTime(kind === 'charge' ? 220 + 1500 * value : 60 + 320 * value, t, 0.04);
+    wind.filter.frequency.setTargetAtTime(kind === 'charge' ? 1400 + 2600 * value : 500 + 900 * value, t, 0.04);
+    wind.level.gain.setTargetAtTime((kind === 'charge' ? 0.03 + 0.06 * value : 0.02 + 0.05 * value), t, 0.05);
+  }
+
+  _readySynth(o) {
+    o.v.tone(o.out, { t0: o.t, type: 'sine', f0: 1760, f1: 2640, g: 0.07, att: 0.002, dec: 0.18 });
+  }
+
+  /** Cut the charge / spin voices of hull `id` with a short fade. */
+  _stopWind(id, fade = 0.04) {
+    const state = this.weapon.get(id);
+    if (!state) return;
+    const ctx = this._ctx;
+    for (const key of ['wind', 'hold']) {
+      const voice = state[key];
+      if (!voice) continue;
+      state[key] = null;
+      try {
+        if (ctx && ctx.state !== 'closed') {
+          voice.level.gain.setTargetAtTime(0.0001, ctx.currentTime, fade);
+          voice.source.stop(ctx.currentTime + fade * 6);
+        }
+      } catch { /* context gone */ }
+      setTimeout(() => { for (const node of voice.nodes) try { node.disconnect(); } catch { /* gone */ } }, fade * 6000 + 200);
+    }
+  }
+
+  /** Hull `id` left: its wind voices and its panner. */
+  _forgetWeapon(id) {
+    this._stopWind(id, 0.02);
+    const state = this.weapon.get(id);
+    if (state?.panner) setTimeout(() => { try { state.panner.disconnect(); } catch { /* gone */ } }, 400);
+    this.weapon.delete(id);
+    this.bursts.delete(id);
+  }
+
+  /** A Predator burst that stopped: the tail of the last rounds. */
+  _burstTails(now) {
+    for (const [id, burst] of [...this.bursts]) {
+      if (now - burst.at < TITAN_AUDIO.predatorTailAfter) continue;
+      this.bursts.delete(id);
+      if (burst.count < 3 || !this.has('tf.predator.tail')) continue;
+      const o = this._weaponOut(burst.pos, { self: burst.self, life: 1.8, gain: TITAN_WEAPON_MIX.tail * Math.min(1, burst.count / 12) });
+      if (o) this._take('tf.predator.tail', o.out);
+    }
+  }
+
+  cue(kind, pos, { self = false } = {}) {
+    const far = kind === 'drop';
+    const o = this._out(pos, { self, life: kind === 'drop' ? 3 : 1.2, far, gain: 0.9 });
+    if (!o) return;
+    const { out, v, t } = o;
+    switch (kind) {
+      case 'drop':      // re-entry whistle over the marker
+        v.tone(out, { t0: t, type: 'sine', f0: 1500, f1: 260, g: 0.08, att: 0.3, dec: 2.4 });
+        v.hiss(out, { t0: t, filter: 'bandpass', f: 2600, q: 0.8, sweepTo: 500, sweepMs: 2.6, g: 0.12, att: 0.6, dec: 2.2 });
+        break;
+      case 'core':      // reactor surge
+        v.tone(out, { t0: t, type: 'sawtooth', f0: 180, f1: 760, g: 0.1, att: 0.05, dec: 0.8 });
+        v.tone(out, { t0: t, type: 'sine', f0: 60, f1: 120, g: 0.3, att: 0.05, dec: 0.9 });
+        break;
+      case 'eject':     // hatch charge and launch
+        v.hiss(out, { t0: t, filter: 'lowpass', f: 3000, sweepTo: 400, g: 0.5, att: 0.001, dec: 0.6 });
+        v.tone(out, { t0: t, type: 'sine', f0: 110, f1: 40, g: 0.5, att: 0.002, dec: 0.4 });
+        v.hiss(out, { t0: t + 0.08, filter: 'highpass', f: 2000, sweepTo: 800, g: 0.18, att: 0.02, dec: 0.9 });
+        break;
+      case 'embark':    // hydraulics and the hatch closing
+        v.hiss(out, { t0: t, filter: 'bandpass', f: 1200, q: 0.9, sweepTo: 500, g: 0.14, att: 0.05, dec: 0.6 });
+        v.tone(out, { t0: t + 0.9, type: 'square', f0: 140, f1: 90, g: 0.06, att: 0.002, dec: 0.12 });
+        break;
+      case 'rip':       // battery torn out: crackle
+        v.hiss(out, { t0: t, filter: 'highpass', f: 3000, q: 0.8, g: 0.3, att: 0.001, dec: 0.35, rate: 1.6 });
+        v.tone(out, { t0: t, type: 'square', f0: 420, f1: 90, g: 0.06, att: 0.001, dec: 0.25 });
+        break;
+      case 'insert':    // battery seated: clunk and a rising tone
+        v.tone(out, { t0: t, type: 'square', f0: 160, f1: 110, g: 0.08, att: 0.002, dec: 0.08 });
+        v.tone(out, { t0: t + 0.1, type: 'sine', f0: 420, f1: 840, g: 0.07, att: 0.02, dec: 0.4 });
+        break;
+      default:
+    }
+  }
+
+  /** Reactor hum and servo whine for the closest titans (`rows`: [{ row, id, pos, distance, self }]). */
+  update(rows, listener, now) {
+    this.listener = listener;
+    const audio = this._engine();
+    const pick = rows.slice().sort((a, b) => (b.self - a.self) || a.distance - b.distance || a.id.localeCompare(b.id)).slice(0, TITAN_AUDIO.maxLoops);
+    const keep = new Set(pick.map(entry => entry.id));
+    for (const id of [...this.loops.keys()]) if (!audio || !keep.has(id)) this._stopLoop(id);
+    // Weapon state of every titan in range (charge whine, barrel spin, own reloads, burst tails).
+    const present = new Set(audio ? rows.map(entry => entry.id) : []);
+    for (const id of [...this.weapon.keys()]) if (!present.has(id)) this._forgetWeapon(id);
+    if (!audio) return;
+    for (const entry of rows) this._weaponState(entry, now);
+    this._burstTails(audio.ctx.currentTime);
+    const { engine, ctx } = audio;
+    for (const { row, id, pos, self } of pick) {
+      let loop = this.loops.get(id);
+      if (!loop || loop.self !== self) {
+        if (loop) this._stopLoop(id);
+        const gain = ctx.createGain(); gain.gain.value = 0.0001;
+        const hum = [ctx.createOscillator(), ctx.createOscillator()];
+        hum[0].type = 'sine'; hum[0].frequency.value = 52;
+        hum[1].type = 'triangle'; hum[1].frequency.value = 78; hum[1].detune.value = 7;
+        const humGain = ctx.createGain(); humGain.gain.value = 0.16;
+        const whine = ctx.createOscillator(); whine.type = 'sawtooth'; whine.frequency.value = 300;
+        const whineFilter = ctx.createBiquadFilter(); whineFilter.type = 'bandpass'; whineFilter.frequency.value = 900; whineFilter.Q.value = 4;
+        const whineGain = ctx.createGain(); whineGain.gain.value = 0;
+        for (const osc of hum) osc.connect(humGain);
+        humGain.connect(gain);
+        whine.connect(whineFilter).connect(whineGain).connect(gain);
+        const panner = self ? null : this._panner(ctx, pos);
+        if (panner) gain.connect(panner).connect(engine.bus); else gain.connect(engine.bus);
+        for (const osc of [...hum, whine]) osc.start();
+        loop = { self, gain, panner, hum, whine, whineGain, oscillators: [...hum, whine], nodes: [gain, humGain, whineFilter, whineGain, panner] };
+        this.loops.set(id, loop);
+      }
+      const t = ctx.currentTime, titan = decodeTitanRow(row);
+      const speed = Math.abs(finite(row.speed)), move = Math.min(1, speed / 8);
+      const doomed = !!titan?.doomed, core = !!titan?.coreActive;
+      loop.gain.gain.setTargetAtTime((self ? 0.22 : 0.3) * (titan?.phase === 7 ? 0.2 : 1), t, 0.2);
+      loop.hum[0].frequency.setTargetAtTime((doomed ? 44 : 52) + (core ? 10 : 0), t, 0.3);
+      loop.hum[1].frequency.setTargetAtTime((doomed ? 66 : 78) + move * 6 + (core ? 18 : 0), t, 0.3);
+      loop.whine.frequency.setTargetAtTime(240 + move * 380, t, 0.15);
+      loop.whineGain.gain.setTargetAtTime(0.012 + move * 0.05, t, 0.15);
+      if (loop.panner) this._place(loop.panner, pos, ctx);
+    }
+  }
+
+  _stopLoop(id) {
+    const loop = this.loops.get(id);
+    if (!loop) return;
+    this.loops.delete(id);
+    const ctx = this._ctx;
+    try {
+      if (ctx && ctx.state !== 'closed') loop.gain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.08);
+      for (const osc of loop.oscillators) osc.stop(ctx ? ctx.currentTime + 0.4 : 0);
+    } catch { /* context gone */ }
+    setTimeout(() => { for (const node of loop.nodes) try { node?.disconnect(); } catch { /* gone */ } }, 600);
+  }
+
+  dispose() {
+    for (const id of [...this.loops.keys()]) this._stopLoop(id);
+    for (const id of [...this.weapon.keys()]) this._forgetWeapon(id);
+    this.oneShots.length = 0;
+    this.weaponVoices.length = 0;
+    this.rounds.length = 0;
+    this.bursts.clear();
+    this.budgets.clear();
   }
 }

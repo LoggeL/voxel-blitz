@@ -64,7 +64,7 @@ globalThis.document = {
   getElementById(id) { return [...this.body.walk()].find(node => node.id === id) || null; },
   querySelector() { return null; },
   querySelectorAll() { return []; },
-  documentElement: { style: { setProperty() {} } },
+  documentElement: { style: { setProperty() {} }, setAttribute() {} },
 };
 document.activeElement = document.body;
 globalThis.window = {

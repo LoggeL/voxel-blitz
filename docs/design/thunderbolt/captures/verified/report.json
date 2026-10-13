@@ -1,0 +1,3291 @@
+{
+  "shots": [
+    {
+      "size": "desktop",
+      "width": 1920,
+      "height": 1080,
+      "state": "full",
+      "file": "desktop-full.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 4,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 4,
+      "hudAmmo": 4,
+      "reloadProgress": null,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 4,
+        "rounds": [
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 4,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "desktop",
+      "width": 1920,
+      "height": 1080,
+      "state": "fire",
+      "file": "desktop-after-1-shot.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 3,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 3,
+      "hudAmmo": 3,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 3,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            1.5707963267948966
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 3,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "desktop",
+      "width": 1920,
+      "height": 1080,
+      "state": "fire",
+      "file": "desktop-after-2-shots.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 2,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 2,
+      "hudAmmo": 2,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 2,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            3.141592653589793
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 2,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "desktop",
+      "width": 1920,
+      "height": 1080,
+      "state": "fire",
+      "file": "desktop-after-3-shots.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 1,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 1,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            4.71238898038469
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 1,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "desktop",
+      "width": 1920,
+      "height": 1080,
+      "state": "fire",
+      "file": "desktop-after-4-shots.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 0,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            6.283185307179586
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": false,
+        "arcsVisible": false,
+        "authoritativeMag": 0,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "desktop",
+      "width": 1920,
+      "height": 1080,
+      "state": "fire",
+      "file": "desktop-mid-index.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 3,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 3
+      },
+      "ammo": 3,
+      "hudAmmo": 3,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 3,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0.6257443012004369
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": true,
+        "authoritativeMag": 3,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "desktop",
+      "width": 1920,
+      "height": 1080,
+      "state": "reload",
+      "file": "desktop-reload.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": 8,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.42,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 0,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "drum": {
+          "visible": false,
+          "position": [
+            -0.24,
+            -1.3,
+            0.72
+          ],
+          "rotation": [
+            0.32,
+            0,
+            -0.18
+          ]
+        },
+        "energyVisible": false,
+        "arcsVisible": false,
+        "authoritativeMag": 0,
+        "reloading": true
+      },
+      "archer": null
+    },
+    {
+      "size": "desktop",
+      "width": 1920,
+      "height": 1080,
+      "state": "reload",
+      "file": "desktop-reload-unconfirmed.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 1,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 0,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            6.283185307179586
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": false,
+        "arcsVisible": false,
+        "authoritativeMag": 0,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "desktop",
+      "width": 1920,
+      "height": 1080,
+      "state": "reload",
+      "file": "desktop-refilled.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 4,
+        "reserve": 2,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 4,
+      "hudAmmo": 4,
+      "reloadProgress": 1,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 4,
+        "rounds": [
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 4,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "portrait",
+      "width": 390,
+      "height": 844,
+      "state": "full",
+      "file": "portrait-full.png",
+      "weapon": "thunderbolt",
+      "live": false,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 4,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 4,
+      "hudAmmo": 4,
+      "reloadProgress": null,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 4,
+        "rounds": [
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 4,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "portrait",
+      "width": 390,
+      "height": 844,
+      "state": "fire",
+      "file": "portrait-after-1-shot.png",
+      "weapon": "thunderbolt",
+      "live": false,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 3,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 3,
+      "hudAmmo": 3,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 3,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            1.5707963267948966
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 3,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "portrait",
+      "width": 390,
+      "height": 844,
+      "state": "fire",
+      "file": "portrait-after-2-shots.png",
+      "weapon": "thunderbolt",
+      "live": false,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 2,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 2,
+      "hudAmmo": 2,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 2,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            3.141592653589793
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 2,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "portrait",
+      "width": 390,
+      "height": 844,
+      "state": "fire",
+      "file": "portrait-after-3-shots.png",
+      "weapon": "thunderbolt",
+      "live": false,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 1,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 1,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            4.71238898038469
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 1,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "portrait",
+      "width": 390,
+      "height": 844,
+      "state": "fire",
+      "file": "portrait-after-4-shots.png",
+      "weapon": "thunderbolt",
+      "live": false,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 0,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            6.283185307179586
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": false,
+        "arcsVisible": false,
+        "authoritativeMag": 0,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "portrait",
+      "width": 390,
+      "height": 844,
+      "state": "fire",
+      "file": "portrait-mid-index.png",
+      "weapon": "thunderbolt",
+      "live": false,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 3,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 3
+      },
+      "ammo": 3,
+      "hudAmmo": 3,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 3,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0.6257443012004369
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": true,
+        "authoritativeMag": 3,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "portrait",
+      "width": 390,
+      "height": 844,
+      "state": "reload",
+      "file": "portrait-reload.png",
+      "weapon": "thunderbolt",
+      "live": false,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": 8,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.42,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 0,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "drum": {
+          "visible": false,
+          "position": [
+            -0.24,
+            -1.3,
+            0.72
+          ],
+          "rotation": [
+            0.32,
+            0,
+            -0.18
+          ]
+        },
+        "energyVisible": false,
+        "arcsVisible": false,
+        "authoritativeMag": 0,
+        "reloading": true
+      },
+      "archer": null
+    },
+    {
+      "size": "portrait",
+      "width": 390,
+      "height": 844,
+      "state": "reload",
+      "file": "portrait-reload-unconfirmed.png",
+      "weapon": "thunderbolt",
+      "live": false,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 1,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 0,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            6.283185307179586
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": false,
+        "arcsVisible": false,
+        "authoritativeMag": 0,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "portrait",
+      "width": 390,
+      "height": 844,
+      "state": "reload",
+      "file": "portrait-refilled.png",
+      "weapon": "thunderbolt",
+      "live": false,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 4,
+        "reserve": 2,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 4,
+      "hudAmmo": 4,
+      "reloadProgress": 1,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 4,
+        "rounds": [
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 4,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "landscape",
+      "width": 844,
+      "height": 390,
+      "state": "full",
+      "file": "landscape-full.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 4,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 4,
+      "hudAmmo": 4,
+      "reloadProgress": null,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 4,
+        "rounds": [
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 4,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "landscape",
+      "width": 844,
+      "height": 390,
+      "state": "fire",
+      "file": "landscape-after-1-shot.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 3,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 3,
+      "hudAmmo": 3,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 3,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            1.5707963267948966
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 3,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "landscape",
+      "width": 844,
+      "height": 390,
+      "state": "fire",
+      "file": "landscape-after-2-shots.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 2,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 2,
+      "hudAmmo": 2,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 2,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            3.141592653589793
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 2,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "landscape",
+      "width": 844,
+      "height": 390,
+      "state": "fire",
+      "file": "landscape-after-3-shots.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 1,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 1,
+      "hudAmmo": 1,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 1,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            4.71238898038469
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 1,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "landscape",
+      "width": 844,
+      "height": 390,
+      "state": "fire",
+      "file": "landscape-after-4-shots.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 0,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            6.283185307179586
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": false,
+        "arcsVisible": false,
+        "authoritativeMag": 0,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "landscape",
+      "width": 844,
+      "height": 390,
+      "state": "fire",
+      "file": "landscape-mid-index.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 3,
+        "reserve": 3,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 3
+      },
+      "ammo": 3,
+      "hudAmmo": 3,
+      "reloadProgress": null,
+      "fired": true,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 3,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0.6257443012004369
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": true,
+        "authoritativeMag": 3,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "landscape",
+      "width": 844,
+      "height": 390,
+      "state": "reload",
+      "file": "landscape-reload.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": 8,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 0.42,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 0,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "drum": {
+          "visible": false,
+          "position": [
+            -0.24,
+            -1.3,
+            0.72
+          ],
+          "rotation": [
+            0.32,
+            0,
+            -0.18
+          ]
+        },
+        "energyVisible": false,
+        "arcsVisible": false,
+        "authoritativeMag": 0,
+        "reloading": true
+      },
+      "archer": null
+    },
+    {
+      "size": "landscape",
+      "width": 844,
+      "height": 390,
+      "state": "reload",
+      "file": "landscape-reload-unconfirmed.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 0,
+        "reserve": 3,
+        "low": true,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 0,
+      "hudAmmo": 0,
+      "reloadProgress": 1,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 0,
+        "rounds": [
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": false,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            6.283185307179586
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": false,
+        "arcsVisible": false,
+        "authoritativeMag": 0,
+        "reloading": false
+      },
+      "archer": null
+    },
+    {
+      "size": "landscape",
+      "width": 844,
+      "height": 390,
+      "state": "reload",
+      "file": "landscape-refilled.png",
+      "weapon": "thunderbolt",
+      "live": true,
+      "display": {
+        "id": "thunderbolt",
+        "extra": "arc",
+        "magSize": 4,
+        "mag": 4,
+        "reserve": 2,
+        "low": false,
+        "reload": -1,
+        "staged": false,
+        "charge": -1,
+        "lock": -1,
+        "ready": 20
+      },
+      "ammo": 4,
+      "hudAmmo": 4,
+      "reloadProgress": 1,
+      "fired": null,
+      "displayMounted": true,
+      "thunderbolt": {
+        "source": "thunderbolt",
+        "plasmaTime": 0,
+        "visibleRounds": 4,
+        "rounds": [
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              0.03676955262170047,
+              -0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.036769552621700466,
+              -0.03676955262170047,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "visible": true,
+            "position": [
+              -0.03676955262170048,
+              0.036769552621700466,
+              0.059
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "rotor": {
+          "visible": true,
+          "position": [
+            -0.103,
+            0.009,
+            -0.22
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "drum": {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "energyVisible": true,
+        "arcsVisible": false,
+        "authoritativeMag": 4,
+        "reloading": false
+      },
+      "archer": null
+    }
+  ],
+  "errors": [],
+  "hero": {
+    "file": "hero.png",
+    "weapon": "thunderbolt",
+    "state": "full",
+    "live": true,
+    "display": {
+      "id": "thunderbolt",
+      "extra": "arc",
+      "magSize": 4,
+      "mag": 4,
+      "reserve": 3,
+      "low": false,
+      "reload": -1,
+      "staged": false,
+      "charge": -1,
+      "lock": -1,
+      "ready": 20
+    },
+    "ammo": 4,
+    "hudAmmo": 4,
+    "reloadProgress": null,
+    "fired": null,
+    "displayMounted": true,
+    "thunderbolt": {
+      "source": "thunderbolt",
+      "plasmaTime": 0,
+      "visibleRounds": 4,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0.03676955262170047,
+            0.036769552621700466,
+            0.059
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0.03676955262170047,
+            -0.036769552621700466,
+            0.059
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            -0.036769552621700466,
+            -0.03676955262170047,
+            0.059
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            -0.03676955262170048,
+            0.036769552621700466,
+            0.059
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "rotor": {
+        "visible": true,
+        "position": [
+          -0.103,
+          0.009,
+          -0.22
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ]
+      },
+      "drum": {
+        "visible": true,
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ]
+      },
+      "energyVisible": true,
+      "arcsVisible": false,
+      "authoritativeMag": 4,
+      "reloading": false
+    },
+    "archer": null,
+    "inspection": true,
+    "bounds": {
+      "center": [
+        -0.05793529003858566,
+        0.038253241558698525,
+        -0.2446250021457672
+      ],
+      "size": [
+        0.28987057507038116,
+        0.2895064826405599,
+        0.9907500147819519
+      ]
+    }
+  }
+}
