@@ -1,4 +1,4 @@
-import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
+import { pointPlayerDistance, rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 
 /** First body touched by a swept projectile, independent of entity insertion order. */
 export function sweepPlayers(from, to, radius, entities, canHit) {
@@ -27,4 +27,23 @@ export function sweepPlayers(from, to, radius, entities, canHit) {
     };
   }
   return nearest;
+}
+
+/** Sphere contact against the same body zones used by hitscan and bolts. */
+export function touchesPlayer(point, radius, victim) {
+  // Proximity bubbles ask this for every living player on every tick. Reject
+  // distant bodies before constructing their articulated boxes. The 3 m feet
+  // envelope is conservative across poses; scaled bodies scale it as well.
+  // Static objectives use their explicit box, whose centre is above the feet.
+  const scale = Number.isFinite(victim.bodyScale) && victim.bodyScale > 0 ? victim.bodyScale : 1;
+  const box = victim.combatBox;
+  // Leave tangencies to the exact test despite floating-point reassociation.
+  const reach = radius + 1e-9;
+  const x = (box ? box[0] : 3 * scale) + reach;
+  const y = (box ? box[1] : 3 * scale) + reach;
+  const z = (box ? box[2] : 3 * scale) + reach;
+  if (Math.abs(point.x - victim.x) > x
+    || Math.abs(point.y - (victim.y + (box ? box[1] : 0))) > y
+    || Math.abs(point.z - victim.z) > z) return false;
+  return pointPlayerDistance([point.x, point.y, point.z], victim) <= radius;
 }

@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { ProjectileSystem } from '../server/sim/projectiles.js';
 import { PlayerEntity, fwdFromYawPitch } from '../server/sim/player.js';
-import { sweepPlayers } from '../server/sim/projectile-contact.js';
-import { playerHitboxes, rayPlayerHitboxes } from '../shared/player-hitboxes.js';
+import { sweepPlayers, touchesPlayer } from '../server/sim/projectile-contact.js';
+import { playerHitboxes, pointPlayerDistance, rayPlayerHitboxes } from '../shared/player-hitboxes.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { evProjectileUpdate } from '../server/protocol/events.js';
 import { raycastVoxels } from '../shared/raycast.js';
+import { occupantHitPose } from '../server/sim/vehicle-damage.js';
 
 // Frozen reference algorithms keep equivalence and cost comparisons useful after commits.
 function visibleTo(ctx, origin, target, endMargin = 0.18) {
@@ -77,6 +78,60 @@ for (const yaw of [0, Math.PI / 4, Math.PI / 2, Math.PI]) {
 }
 let seed = 781;
 const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+const randomStateBeforePoints = seed;
+// Point contacts use the same exact zones after a conservative broad phase.
+// Exercise prone transitions, lean, scaled bodies, exposed crew and objectives,
+// including tangencies where a strict envelope boundary must not discard a hit.
+let pointChecks = 0, pointHits = 0;
+function comparePoint(point, radius, victim) {
+  const expected = pointPlayerDistance(point, victim) <= radius;
+  assert.equal(touchesPlayer({ x: point[0], y: point[1], z: point[2] }, radius, victim), expected,
+    `point contact radius ${radius}, scale ${victim.bodyScale}, combatBox ${victim.combatBox}`);
+  pointChecks++;
+  if (expected) pointHits++;
+}
+for (let i = 0; i < WEAPON_IDS.length * 12; i++) {
+  const p = {
+    x: 15.25, y: 9.75, z: -12.5, weapon: i % WEAPON_IDS.length,
+    crouch: i % 2 === 0, ads: i % 3 === 0, reloading: i % 5 === 0,
+    pitch: (i % 3 - 1) * Math.PI / 2, yaw: random() * Math.PI * 2,
+    proneT: [0, 0.25, 0.5, 0.75, 1][i % 5], leanT: i % 3 - 1,
+    moveSpeed: i % 2 ? 0 : 6, bodyScale: [0.25, 1, 1.4, 2.5][i % 4],
+  };
+  const poses = [p, occupantHitPose({ ...p, vehicleId: 'jeep', vehicleSeatExposed: true })];
+  for (const pose of poses) {
+    const boxes = playerHitboxes(pose);
+    for (const box of boxes) for (let axis = 0; axis < 3; axis++) {
+      const extent = box.half.reduce((sum, h, j) => sum + h * Math.abs(box.basis[j][axis]), 0);
+      const feet = [pose.x, pose.y, pose.z];
+      assert(Math.abs(box.center[axis] - feet[axis]) + extent < 3 * pose.bodyScale,
+        'point envelope contains every zone through lean, prone and scale');
+    }
+    const box = boxes[i % boxes.length], radius = [0, 0.04, 0.18, 0.5, 1.8][i % 5];
+    comparePoint(box.center, 0, pose);
+    // Just inside, tangent and just outside one oriented box face. Other zones
+    // may still overlap, so compare with the full original narrow phase.
+    for (const epsilon of [-1e-9, 0, 1e-9]) {
+      comparePoint(box.center.map((v, axis) => v + box.basis[0][axis] * (box.half[0] + radius + epsilon)), radius, pose);
+    }
+    comparePoint([pose.x + (random() * 10 - 5) * pose.bodyScale,
+      pose.y + (random() * 10 - 5) * pose.bodyScale,
+      pose.z + (random() * 10 - 5) * pose.bodyScale], radius, pose);
+  }
+}
+for (const half of [[0.5, 1, 0.5], [7, 5, 4]]) {
+  const objective = { x: 15.25, y: 9.75, z: -12.5, combatBox: half, bodyScale: 0.25 };
+  const center = [objective.x, objective.y + half[1], objective.z];
+  for (const radius of [0, 0.04, 0.18, 0.5, 1.8]) for (let axis = 0; axis < 3; axis++) {
+    for (const sign of [-1, 1]) for (const epsilon of [-1e-9, 0, 1e-9]) {
+      const point = [...center];
+      point[axis] += sign * (half[axis] + radius + epsilon);
+      comparePoint(point, radius, objective);
+    }
+  }
+}
+assert(pointHits > 0 && pointHits < pointChecks, 'point fixture exercises contacts and misses');
+seed = randomStateBeforePoints;
 const entities = new Map(Array.from({ length: 24 }, (_, i) => [String(i), {
   id: String(i), state: 'alive', x: random() * 40, y: random() * 3, z: random() * 40,
   yaw: random() * Math.PI * 2, pitch: random() * 3 - 1.5, weapon: i % WEAPON_IDS.length,
@@ -239,4 +294,4 @@ const rawBytes = JSON.stringify({t:'ev',kind:'projectileUpdate',pid:'r123',o,v,b
 const wireBytes = JSON.stringify(event).length;
 assert(wireBytes < rawBytes * 0.75);
 console.log(JSON.stringify({collisionMedianMs192x24: collision, homingVoxelReads: homing,
-  updateBytes: { before: rawBytes, after: wireBytes }, matchingContacts: contacts, glaiveBurst, bubbleStorm}));
+  updateBytes: { before: rawBytes, after: wireBytes }, matchingContacts: contacts, pointChecks, pointHits, glaiveBurst, bubbleStorm}));

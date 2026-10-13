@@ -1,6 +1,6 @@
 import { combatDamage } from '../../shared/combat-balance.js';
 import { collectNearMisses, applyNearMisses, suppressExplosion } from './suppression.js';
-import { pointPlayerDistance, rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
+import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { chaosLevel, chaosWeaponDef } from '../../shared/chaos.js';
 import { chaosGlaiveContact } from './chaos-combat.js';
 // Room-scoped authoritative projectile simulation: five throwable types, the
@@ -62,7 +62,7 @@ import {
   trimGlaiveAmmo,
 } from '../../shared/glaive-rules.js';
 import { BUBBLE_RULES, bubbleBlastRules, bubbleLaunch, bubbleMix, bubbleProfile, stepBubble } from '../../shared/bubble-rules.js';
-import { sweepPlayers } from './projectile-contact.js';
+import { sweepPlayers, touchesPlayer } from './projectile-contact.js';
 import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
 import { TitanfallProjectiles } from './titanfall/index.js';
@@ -202,11 +202,6 @@ function outsideWorld(p, ctx) {
   const { sx: SX, sz: SZ } = worldDimensions(ctx), edge = 2 + (ctx.airLimit || 0);
   return !finitePoint(p.x, p.y, p.z) ||
     p.y < -2 || p.x < -edge || p.z < -edge || p.x > SX + edge || p.z > SZ + edge;
-}
-
-/** Sphere contact against the same body zones used by hitscan and bolts. */
-function touchesPlayer(p, radius, victim) {
-  return pointPlayerDistance([p.x, p.y, p.z], victim) <= radius;
 }
 
 export class ProjectileSystem {
