@@ -55,9 +55,37 @@ assert(right.vx > 0 && left.vx < 0, 'Velocity follows the bank into the turn');
 assert(Math.abs(right.roll + rules.maxBank) < 0.01);
 assert(Math.abs(left.roll - rules.maxBank) < 0.01);
 assert(Math.abs(right.yawRate) <= rules.turn && right.vy > -2, 'Bank turn remains bounded and loses only modest height');
-const aimed = run(3, { active: true, grounded: false, throttle: 1, yaw: 0.6, pitch: 0.12 }, { speed: 50, throttle: 1, enginePower: 1 });
-assert(aimed.yaw > 0.3 && aimed.yaw < 0.7, 'Mouse heading turns the aircraft gradually');
+const aimed = run(1, { active: true, grounded: false, throttle: 1, yaw: 0.6, pitch: 0.12 }, { speed: 50, throttle: 1, enginePower: 1 });
+assert(aimed.yaw > 0.05 && aimed.yaw < 0.4, 'Mouse heading turns the aircraft gradually');
+run(3, { active: true, grounded: false, throttle: 1, yaw: 0.6, pitch: 0.12 }, aimed);
+assert(Math.abs(aimed.yaw - 0.6) < 0.01 && Math.abs(aimed.roll) < 0.02, 'The nose settles on the aim with the wings level');
 assert(Math.abs(aimed.pitch - 0.12) < 0.001 && aimed.vy > 3);
+// Mouse-aim responsiveness from a trimmed cruise: a 10° correction settles
+// within a second, a 30° turn within 2.6 s, and the roll-out stops on the aim
+// with a small counter-bank; a held turn neither sinks nor balloons.
+{
+  const cruise = (speed, power) => run(20, { active: true, grounded: false, yaw: 0, pitch: 0 }, { speed, vz: -speed, throttle: power, enginePower: power }, 60);
+  for (const [degrees, limit] of [[10, 1], [30, 2.6]]) {
+    const s = cruise(72, 1), target = degrees * Math.PI / 180;
+    let settled = null, counter = 0;
+    for (let i = 0; i < 6 * 60; i++) {
+      stepPlaneFlight(s, { active: true, grounded: false, yaw: target, pitch: 0 }, 1 / 60);
+      counter = Math.max(counter, -s.roll);
+      if (Math.abs(target - s.yaw) < 3 * Math.PI / 180) settled ??= (i + 1) / 60; else settled = null;
+    }
+    assert(settled !== null && settled < limit, `a ${degrees}° aim change settles in ${settled?.toFixed(2)} s`);
+    assert(counter < 0.08, `roll-out counter-bank ${counter.toFixed(3)} rad`);
+  }
+  const s = cruise(50, 0.55);
+  let climb = 0, turned = 0;
+  for (let i = 0; i < 12 * 60; i++) {
+    const before = s.yaw;
+    stepPlaneFlight(s, { active: true, grounded: false, yaw: s.yaw - 2, pitch: 0 }, 1 / 60);
+    climb += s.vy / 60; turned += Math.abs(Math.atan2(Math.sin(s.yaw - before), Math.cos(s.yaw - before)));
+  }
+  assert(turned > 2 * Math.PI * 0.95, `a held turn at 50 m/s comes round in 12 s (${turned.toFixed(2)} rad)`);
+  assert(Math.abs(climb) < 25, `a held turn keeps its height (${climb.toFixed(1)} m)`);
+}
 const down = run(2, { active: true, grounded: false, throttle: 1, pitch: 0, lift: -1 }, { speed: 50, throttle: 1, enginePower: 1 });
 assert(Math.abs(down.pitch + 0.28) < 0.001);
 assert(down.vy < -8, 'Negative lift noses down rather than applying a helicopter descent force');
@@ -97,7 +125,7 @@ assert.equal(emptyGround.roll, 0);
 const pulse = run(0.5, { ...manual, pitchControl: 0.3, rollControl: 0.4 }, { speed: 50, throttle: 1, enginePower: 1 });
 assert(pulse.pitch > 0 && pulse.pitch < 0.1 && pulse.roll < -0.1, 'Signed elevator and aileron input moves attitude gradually');
 assert(pulse.pitchRate > 0 && pulse.pitchRate <= rules.pitchRate && pulse.rollRate < 0 && Math.abs(pulse.rollRate) <= rules.bankRate);
-const released = run(1, manual, { ...pulse });
+const released = run(1.5, manual, { ...pulse });
 assert(released.pitch > pulse.pitch && released.roll < pulse.roll, 'Angular inertia continues briefly after control release');
 assert(Math.abs(released.pitchRate) < 0.002 && Math.abs(released.rollRate) < 0.005, 'Released control surfaces damp angular velocity');
 const held = run(2, { ...manual, yaw: 2, pitch: -0.5, steer: -1 }, { ...released });

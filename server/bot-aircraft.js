@@ -559,15 +559,16 @@ export class ConquestAircraftDriving {
     } else if (air?.fire && air.weapon?.key === 'aaMissile') {
       inp.yaw = air.yaw; inp.pitch = Math.max(-0.3, air.pitch); inp.wantFire = true;
     }
-    // Pull out before a nose-down pass can reach the terrain.
-    if (v.y < ground + 28 && state.phase !== 'dive') { inp.pitch = 0.3; inp.wantFire = false; }
-    if (v.y < ground + JET_RUN.pullUpAgl - 15) { inp.pitch = 0.3; inp.wantFire = false; }
+    // Pull out before a nose-down pass can reach the terrain, wings near
+    // level: a steep bank this low and slow sinks faster than it climbs.
+    const low = v.y < ground + 28 && state.phase !== 'dive' || v.y < ground + JET_RUN.pullUpAgl - 15;
+    if (low) { inp.pitch = 0.3; inp.wantFire = false; }
     // Turn inward before the track reaches the boundary box edge.
     if (this.boundaryGuard(v, box, inp) && state.phase !== 'dive') {
       // (A dive points inward at its target anyway; it ends by its own rules.)
       inp.pitch = Math.max(0.08, inp.pitch); inp.wantFire = false;
     }
-    this.planeAxes(v, inp);
+    this.planeAxes(v, inp, low ? 0.45 : 1);
   }
 
   /**
@@ -616,9 +617,9 @@ export class ConquestAircraftDriving {
     state.selectAt = now + 500;
   }
 
-  planeAxes(v, inp) {
+  planeAxes(v, inp, maxBank = 1) {
     const def = rulesOf(v), error = wrap(inp.yaw - v.yaw), speed = Math.max(def.takeoffSpeed, horizontalSpeed(v));
-    const bank = v.grounded ? 0 : clamp(Math.atan2(error * 0.9 * speed, def.gravity), -1, 1);
+    const bank = v.grounded ? 0 : clamp(Math.atan2(error * 0.9 * speed, def.gravity), -maxBank, maxBank);
     const pitchRate = clamp((inp.pitch - (v.pitch || 0)) * 3 - (v.pitchRate || 0) * 0.45, -def.pitchRate, def.pitchRate);
     const rollRate = clamp((bank - (v.roll || 0)) * 3 - (v.rollRate || 0) * 0.4, -def.bankRate, def.bankRate);
     inp.vehiclePitchControl = pitchRate / def.pitchRate;

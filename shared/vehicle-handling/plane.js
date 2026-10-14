@@ -3,10 +3,10 @@ export const PLANE_RULES = Object.freeze({
   hp: 450, width: 9, length: 10, height: 2.8, radius: 6.75, seatHeight: 1.55,
   speed: 72, maxSpeed: 72, reverse: 0, acceleration: 14, brake: 24,
   takeoffSpeed: 24, stallSpeed: 20, ceiling: 180,
-  minPitch: -0.55, maxPitch: 0.65, maxBank: 1.1,
-  rudderRate: 0.16, rateResponse: 5,
+  minPitch: -0.55, maxPitch: 0.65, maxBank: 1.25,
+  rudderRate: 0.25, rateResponse: 5,
   liftSlope: 4.5, liftIncidence: 0.28, stallAngle: 0.3, maxLiftLoad: 3.2,
-  pitchRate: 0.6, bankRate: 1.5, turn: 0.58, turnAcceleration: 1.4,
+  pitchRate: 0.6, bankRate: 2.4, turn: 0.58, turnAcceleration: 1.4,
   taxiTurn: 0.65, throttleRate: 0.75, throttleDownRate: 1.1, spoolRate: 1.2,
   gravity: 9.8, maxFallSpeed: 45, maxClimbSpeed: 32,
   maxStep: 0.25, maxSlope: 0.08, respawnSeconds: 30, fireSeconds: 0.2,
@@ -18,10 +18,14 @@ export const PLANE_RULES = Object.freeze({
  * subtracts the turn already under way; rudder trims errors below
  * rudderWindow; below guardHigh x stall speed the stall guard limits the nose
  * to the flight path plus a shrinking angle of attack, guardDive (nose below
- * the path) at guardLow x stall speed.
+ * the path) at guardLow x stall speed. In a bank the nose trims the flight
+ * path toward the aim pitch (turnPathGain x the error, at most turnPathMax);
+ * rolling out counter-banks at most counterBank; rollDamping damps the roll
+ * rate in the bank loop.
  */
-export const AIM_INSTRUCTOR = Object.freeze({ turnGain: 1, turnDamping: 0.5, rudderWindow: 0.12, rudderGain: 8,
-  guardLow: 1.05, guardHigh: 1.6, guardDive: -0.08, guardLead: 1.5 });
+export const AIM_INSTRUCTOR = Object.freeze({ turnGain: 2, turnDamping: 0.8, rudderWindow: 0.2, rudderGain: 8,
+  guardLow: 1.05, guardHigh: 1.6, guardDive: -0.08, guardLead: 1.5,
+  turnPathGain: 4, turnPathMax: 0.25, counterBank: 0.05, rollDamping: 1.3 });
 
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, finite(n)));
@@ -80,8 +84,11 @@ function stepFlightDynamics(state, input, dt) {
       const yawError = wrap(targetYaw - state.yaw), steer = clamp(input?.steer, -1, 1);
       const pathSpeed = Math.max(r.takeoffSpeed, forwardSpeed);
       const turnRate = yawError * AIM_INSTRUCTOR.turnGain - state.yawRate * AIM_INSTRUCTOR.turnDamping;
+      // Rolling out, the wings brake the turn by levelling; only a shallow
+      // counter-bank helps, so the nose stops on the aim without a wobble.
+      const braking = turnRate * yawError < 0 ? AIM_INSTRUCTOR.counterBank : r.maxBank;
       const bankTarget = Math.abs(steer) > 0.01 ? -steer * r.maxBank
-        : clamp(Math.atan(turnRate * pathSpeed / r.gravity), -r.maxBank, r.maxBank);
+        : clamp(Math.atan(turnRate * pathSpeed / r.gravity), -braking, braking);
       // Stall guard: close to the stall speed the nose may rise less and less
       // above the flight path, so a held climb trades height for speed
       // instead of stalling (full freedom from guardHigh x stall speed).
@@ -93,6 +100,14 @@ function stepFlightDynamics(state, input, dt) {
       // nose for the takeoff instead of rolling off the end of the runway.
       if (grounded && forwardSpeed >= r.takeoffSpeed && targetPitch > -0.05) pitchTarget = Math.max(pitchTarget, 0.12);
       const path = Math.atan2(state.vy, Math.max(1, Math.hypot(state.vx, state.vz)));
+      // Turn compensation: a steep bank tilts the lift away from the
+      // vertical, so in a turn the nose trims toward holding the flight path
+      // on the aim pitch (it would sink or balloon otherwise). Straight
+      // flight keeps the nose on the aim.
+      if (!grounded) {
+        const bankWeight = clamp((1 - Math.cos(state.roll)) / (1 - Math.cos(r.maxBank)), 0, 1);
+        pitchTarget += clamp((targetPitch - path) * AIM_INSTRUCTOR.turnPathGain, -AIM_INSTRUCTOR.turnPathMax, AIM_INSTRUCTOR.turnPathMax) * bankWeight;
+      }
       const trend = r.acceleration * state.enginePower - r.gravity * Math.sin(path) - (0.6 + forwardSpeed * forwardSpeed * 0.0025);
       const heading = forwardSpeed + Math.min(0, trend) * AIM_INSTRUCTOR.guardLead;
       if (!grounded && forwardSpeed > r.stallSpeed * 0.5 && heading < r.stallSpeed * AIM_INSTRUCTOR.guardHigh) {
@@ -101,7 +116,7 @@ function stepFlightDynamics(state, input, dt) {
         pitchTarget = Math.min(pitchTarget, path + AIM_INSTRUCTOR.guardDive + (r.stallAngle * 0.8 - AIM_INSTRUCTOR.guardDive) * margin);
       }
       pitchControl = clamp(((pitchTarget - state.pitch) * 5 - state.pitchRate * 0.7) / r.pitchRate, -1, 1);
-      rollControl = grounded ? steer : clamp(-((bankTarget - state.roll) * 4 - state.rollRate * 0.7) / r.bankRate, -1, 1);
+      rollControl = grounded ? steer : clamp(-((bankTarget - state.roll) * 4 - state.rollRate * AIM_INSTRUCTOR.rollDamping) / r.bankRate, -1, 1);
       yawControl = grounded ? (Math.abs(steer) <= 0.01 ? clamp(-yawError * 1.3 / r.taxiTurn, -1, 1) : 0)
         : Math.abs(yawError) < AIM_INSTRUCTOR.rudderWindow && Math.abs(steer) <= 0.01 ? clamp(-yawError * AIM_INSTRUCTOR.rudderGain, -1, 1) : 0;
     }
