@@ -90,7 +90,7 @@ export class VehicleController {
     cameraShake = null, getBaseFov = null, now = nowMs } = {}) {
     this.camera = camera; this.raycast = raycast || (() => null); this.eventTarget = eventTarget;
     this.onPresent = onPresent; this.enabled = false; this.self = null; this.rows = [];
-    this.vehicle = null; this.seat = null; this.nearest = null; this._actions = [];
+    this.vehicle = null; this.seat = null; this.nearest = null; this.renderRow = null; this._actions = [];
     this.yaw = 0; this.pitch = -0.2; this._seeded = false;
     this.now = now;
     this.view = new VehicleCamera({ camera, raycast: (origin, direction, distance) => this.raycast(origin, direction, distance),
@@ -560,6 +560,8 @@ export class VehicleController {
   updateCamera(dt = 0, renderVehicle = null) {
     if (!this.active || !this.camera) return false;
     const row = renderVehicle ? { ...this.vehicle, ...renderVehicle } : this.vehicle;
+    // The hull as drawn this frame: the HUD's tank hull indicator turns with it.
+    this.renderRow = renderVehicle ?? null;
     const posed = this.view.update(dt, { row, seatId: this.seatId, aimYaw: this.yaw, aimPitch: this.pitch,
       freeLook: this.freeLook, optic: this.opticHeld, flightAim: this.flightAim ?? null });
     this._seeded = true;

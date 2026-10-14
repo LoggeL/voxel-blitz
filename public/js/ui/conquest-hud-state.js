@@ -429,14 +429,70 @@ export function mountPoseOf(row, seatId, mountId, registry = vehicleDefs) {
 }
 
 /**
+ * Tank hull indicator (design docs/design/conquest/tank-hud/, variant A): the
+ * hull and the turret as seen from the view, so screen up is where the camera
+ * looks. `hull` and `turret` are yaw offsets from `viewYaw` (rad, +left, like
+ * every yaw here), `offset` the hull's offset in whole degrees, `heading` the
+ * hull's compass heading (0 = north, clockwise) and `travel` the sign of the
+ * track speed (+1 forward, -1 reversing, 0 at rest). `hullYaw` is the hull as
+ * presented this frame (VehicleView eases the snapshot rows); without one the
+ * row's yaw is used, without a view the turret's.
+ */
+export function hullIndicatorModel(row, { viewYaw = null, hullYaw = null } = {}) {
+  if (row?.type !== 'tank' || !Number.isFinite(row.yaw)) return null;
+  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+  const yaw = finite(hullYaw, row.yaw), turretYaw = finite(row.turretYaw, yaw);
+  const view = Number.isFinite(viewYaw) ? viewYaw : turretYaw;
+  const hull = wrap(yaw - view), speed = finite(row.speed);
+  return { hull, turret: wrap(turretYaw - view), offset: Math.round(hull * 180 / Math.PI),
+    heading: Math.round(((-yaw * 180 / Math.PI) % 360 + 360) % 360) % 360,
+    travel: speed > 0.3 ? 1 : speed < -0.3 ? -1 : 0 };
+}
+
+/**
+ * Tank driver's periscope instruments (the DRIVER view; design
+ * docs/design/conquest/tank-hud/driver-view/, variant B), all from the
+ * authoritative row: track speed (km/h) and the gear it implies (D forward,
+ * R reversing, N at rest), the hull heading (compass degrees, `headingDeg`
+ * unrounded for the tape), the turret's offset from the hull (`turret` rad
+ * +left, `gunOffset` whole degrees: here the hull is screen up), the selected
+ * main weapon with its reload, hull integrity, smoke readiness and the
+ * danger badges. `hullYaw` is the presented hull yaw (else the row's).
+ */
+export function driverHudModel(row, seatId = 'driver', { hullYaw = null } = {}) {
+  if (row?.type !== 'tank') return null;
+  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+  const yaw = finite(hullYaw, finite(row.yaw)), turret = wrap(finite(row.turretYaw, yaw) - yaw);
+  const speed = finite(row.speed), maxHp = vehicleMaxHp(row), hp = Math.max(0, finite(row.hp));
+  const status = vehicleStatus(row);
+  const weapons = seatWeapons(row, seatId), selected = weapons.find(w => w.selected) || weapons[0] || null;
+  const cm = COUNTERMEASURES[row.type] ?? null;
+  const headingDeg = ((-yaw * 180 / Math.PI) % 360 + 360) % 360;
+  return {
+    speedKmh: Math.round(Math.abs(speed) * 3.6), gear: speed > 0.3 ? 'D' : speed < -0.3 ? 'R' : 'N',
+    headingDeg, heading: Math.round(headingDeg) % 360, turret, gunOffset: Math.round(turret * 180 / Math.PI),
+    weapon: selected ? { label: selected.label, ready: selected.ready, reload: selected.reload, ammo: selected.ammo, count: weapons.length } : null,
+    hp, maxHp, fraction: maxHp ? clamp01(hp / maxHp) : null,
+    smoke: cm ? { kind: cm, ready: clamp01(finite(row.cmr) / 100), available: finite(row.cmr) >= 100, active: status[cm] === true } : null,
+    badges: STATUS_BADGES.filter(([key, , tone]) => tone !== 'info' && status[key]).map(([key, label, tone]) => ({ key, label, tone })),
+  };
+}
+
+/**
  * Reticle description for the seat in screen space. `projector` maps world
  * points to CSS pixels; `aimDistance` is the camera-ray distance to the aimed
  * surface (defaults to 150 m without a surface). `sight` ({ x, y, z, yaw,
  * pitch, zoom }: the camera eye, look and optic zoom) is set while the seat
- * looks through its mount sight (the chin gimbal sensor).
+ * looks through its mount sight (the chin gimbal sensor). Every tank seat also
+ * gets `hull` (hullIndicatorModel from `viewYaw`, the camera yaw, and
+ * `hullYaw`, the presented hull yaw). In the tank driver's DRIVER view
+ * (`view` 'driver') the camera looks along the hull, so the model carries
+ * `periscope`, the instruments (`driver`, driverHudModel) instead of the hull
+ * indicator, `impactRaw` (the unclamped projection, for an edge arrow) and
+ * `aimMark`, the projection of the mouse aim (`driverAim` { yaw, pitch }).
  */
 export function reticleModel(seated, { projector = null, players = [], vehicles = [], selfTeam = null, aimDistance = 150, registry = vehicleDefs, raycast = null,
-  flightAim = false, sight = null } = {}) {
+  flightAim = false, sight = null, viewYaw = null, hullYaw = null, view = null, driverAim = null } = {}) {
   if (!seated?.row || !projector) return null;
   const { row, seat } = seated;
   const weapons = seatWeapons(row, seat.id);
@@ -445,8 +501,10 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
   const pilot = seat.drives && isAircraftType(row.type);
   // Pilots get the flight instruments; a mouse-aim pilot also the aim circle
   // (screen centre, where the camera looks) apart from the nose marker.
+  const periscope = view === 'driver' && row.type === 'tank' && seat.id === 'driver';
+  const hull = periscope ? null : hullIndicatorModel(row, { viewYaw, hullYaw });
   const base = { type: row.type, seatId: seat.id, center, weapon: selected?.weapon ?? null,
-    ...(pilot ? { flight: flightInstruments(row, { raycast }), aim: flightAim === true } : {}) };
+    ...(pilot ? { flight: flightInstruments(row, { raycast }), aim: flightAim === true } : {}), ...(hull ? { hull } : {}) };
   const project = p => { const s = projector.project(p[0], p[1], p[2]); return s.behind ? null : s; };
   if (!selected) {
     if (pilot) {
@@ -484,9 +542,21 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
       const tick = at ? project(at) : null;
       if (tick && Number.isFinite(tick.x) && Number.isFinite(tick.y)) ladder.push({ x: tick.x, y: tick.y, range });
     }
-    return { ...base, kind: 'tank', impact: point ? { x: point.x, y: point.y } : null, reload: selected.reload,
+    const model = { ...base, kind: 'tank', impact: point ? { x: point.x, y: point.y } : null, reload: selected.reload,
       range: reach ? Math.round(reach.range) : null, airburst, ladder,
       ready: selected.ready, label: selected.label, aligned: point ? Math.hypot(point.x - center.x, point.y - center.y) < 6 : false };
+    if (!periscope) return model;
+    // Periscope: the screen centre is the hull's nose, so "aligned" means the shell marker on the aim mark.
+    const raw = impact ? projector.project(impact[0], impact[1], impact[2]) : null;
+    let aimMark = null;
+    if (driverAim && Number.isFinite(driverAim.yaw) && pose) {
+      const dir = forwardFromAngles(driverAim.yaw, finite(driverAim.pitch)), far = 150;
+      const mark = projector.project(pose.origin[0] + dir[0] * far, pose.origin[1] + dir[1] * far, pose.origin[2] + dir[2] * far);
+      aimMark = { x: mark.x, y: mark.y, inside: mark.inside };
+    }
+    return { ...model, periscope: true, driver: driverHudModel(row, seat.id, { hullYaw }),
+      impactRaw: raw ? { x: raw.x, y: raw.y, inside: raw.inside, behind: raw.behind } : null, aimMark,
+      aligned: point && aimMark?.inside ? Math.hypot(point.x - aimMark.x, point.y - aimMark.y) < 6 : false };
   }
   if (row.type === 'helicopter' && seat.drives) {
     const convergence = finite(registry?.vehicleWeapon?.(selected.weapon)?.convergence, 120);
@@ -1133,7 +1203,7 @@ export function chutePromptModel(state) {
  */
 export const CONQUEST_TOUCH_DEFAULTS = Object.freeze({
   conquest: false, deployOpen: false, deployValid: true, deployLabel: 'DEPLOY',
-  vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false,
+  vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false, vehicleViewCount: 0,
 });
 
 /**
@@ -1157,6 +1227,9 @@ export function conquestTouchFields({ active = false, dead = false, deployOpen =
     fields.vehicleSeatCount = topology(row.type).length;
     fields.vehicleCountermeasure = drives ? cm : null;
     fields.vehicleCountermeasureReady = drives && cm ? finite(row.cmr) >= 100 : false;
+    // Camera views of the seat (the VIEW button), as authored on the shared seat camera.
+    const views = vehicleDefs.vehicleDef?.(row)?.seats?.find(entry => entry.id === seated.seat?.id)?.camera?.views;
+    fields.vehicleViewCount = Array.isArray(views) ? views.length : 0;
   }
   return fields;
 }

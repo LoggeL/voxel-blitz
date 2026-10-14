@@ -344,7 +344,7 @@ function keyTarget() {
 // --- VehicleCamera -------------------------------------------------------------------------
 {
   check(() => assert.deepEqual(seatCameraProfile('tank', 'driver'), { mode: 'chase', distance: 9.5, height: 3.4, optic: 3,
-    views: ['cockpit', 'chase', 'action'], eye: [0, 3.35, 0.3], eyeFrame: 'turret', sight: [0, 0.3, 0] }));
+    views: ['cockpit', 'chase', 'action', 'driver'], eye: [0, 3.35, 0.3], eyeFrame: 'turret', sight: [0, 0.3, 0], periscope: [-0.6, 1.5, -2.55] }));
   check(() => assert.equal(seatCameraProfile('helicopter', 'gunner').optic, 4, 'chin gunner 4x'));
   check(() => assert.equal(seatCameraProfile('transport', 'door-left').optic, 1.5, 'door gun 1.5x'));
   check(() => assert.equal(seatCameraProfile('jeep', 'rear-left').mode, 'passenger'));
@@ -443,7 +443,32 @@ function keyTarget() {
   check(() => assert.deepEqual(seatViews('helicopter', 'driver'), ['cockpit', 'chase', 'action', 'flyby']));
   check(() => assert.deepEqual(seatViews('transport', 'driver'), ['cockpit', 'chase', 'action', 'flyby']));
   check(() => assert.deepEqual(seatViews('jeep', 'driver'), ['cockpit', 'chase', 'action']));
-  check(() => assert.deepEqual(seatViews('tank', 'driver'), ['cockpit', 'chase', 'action']));
+  // Only the tank driver gets the DRIVER periscope; the jeep driver and the tank commander do not.
+  check(() => assert.deepEqual(seatViews('tank', 'driver'), ['cockpit', 'chase', 'action', 'driver']));
+  check(() => assert.equal(vehicleViewLabel('tank', 'driver', 'driver'), 'DRIVER'));
+  for (const type of ['jeep', 'tank', 'helicopter', 'transport', 'plane']) for (const seat of vehicleSeats(type)) {
+    if (type !== 'tank' || seat.id !== 'driver') check(() => assert.ok(!seatViews(type, seat.id).includes('driver'), `${type} ${seat.id}: no periscope`));
+  }
+  {
+    // The periscope looks along the hull (with its pitch and roll), never along the gun.
+    const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.05, 400);
+    const periscope = new VehicleCamera({ camera, raycast: () => null, getBaseFov: () => 70, storage: memory() });
+    const row = tankRow({ yaw: 0.4, pitch: 0.1, roll: -0.05, turretYaw: 0.4 + 1.6, turretPitch: 0.2 });
+    periscope.begin();
+    check(() => assert.equal(periscope.setView('tank', 'driver', 'driver'), 'driver'));
+    periscope.update(1 / 60, { row, seatId: 'driver', aimYaw: row.turretYaw, aimPitch: 0.2 });
+    const look = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const hullForward = new THREE.Vector3(...vehicleDirection(0.4, 0.1));
+    check(() => assert.ok(look.angleTo(hullForward) < 1e-6, `the periscope looks along the hull (${look.angleTo(hullForward)})`));
+    const eye = vehicleWorldToLocal(row, camera.position.toArray());
+    check(() => assert.ok(eye.every((v, i) => Math.abs(v - [-0.6, 1.5, -2.55][i]) < 1e-6), `the eye sits at the periscope (${eye.map(v => v.toFixed(2))})`));
+    check(() => assert.equal(periscope.firstPerson, true, 'first person: the local head hides'));
+    check(() => assert.equal(periscope.hullLook, false, 'the gun aim stays world-fixed while the hull turns'));
+    periscope.addFreeLook(-0.5, 0);
+    periscope.update(1 / 60, { row, seatId: 'driver', aimYaw: row.turretYaw, aimPitch: 0.2, freeLook: true });
+    const turned = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    check(() => assert.ok(turned.angleTo(hullForward) > 0.4, 'free look turns the head'));
+  }
   check(() => assert.deepEqual(seatViews('helicopter', 'gunner'), ['gimbal', 'cockpit']));
   check(() => assert.deepEqual(seatViews('tank', 'commander'), ['cockpit', 'mount']));
   check(() => assert.deepEqual(seatViews('transport', 'door-right'), ['cockpit', 'mount']));
@@ -727,6 +752,45 @@ function keyTarget() {
       check(() => assert.equal(blocked, 0, `${label}: ${blocked} of 135 rays hit the vehicle in the face`));
       view.dispose();
     }
+  }
+  // Tank DRIVER periscope: the eye at the front of the hull stays clear of the hull, the
+  // turret sweeping over it (bustle aft, cheeks forward, the gun at full depression)
+  // and the crew, on level ground and with the hull pitched and rolled.
+  const def = vehicleDef('tank'), order = vehicleMountOrder('tank');
+  const yaws = [0, 0.8, -0.8, Math.PI / 2, -Math.PI / 2, 2.4, -2.4, Math.PI];
+  for (const turret of yaws) for (const [pitch, hullPitch, hullRoll] of [[0, 0, 0], [def.mounts.main.pitchLimit[0], 0, 0], [0.4, 0, 0], [0, 0.25, -0.15], [0, -0.2, 0.15]]) {
+    const view = new VehicleView();
+    const seatOccupants = Object.fromEntries(def.seats.map(entry => [entry.id, `p-${entry.id}`]));
+    const players = def.seats.map(entry => ({ id: `p-${entry.id}`, team: 'alpha', state: 'alive', hp: 100, vehicleId: 'v', vehicleSeatId: entry.id }));
+    const mounts = order.map(() => [turret, pitch, 100, 0, 0]);
+    const row = { id: 'v', type: 'tank', team: 'alpha', x: 0, y: 30, z: 0, yaw: 0, pitch: hullPitch, roll: hullRoll, hp: 9999,
+      turretYaw: turret, turretPitch: pitch, mounts, seatOccupants, occupantId: seatOccupants.driver };
+    view.sync([row], players, { id: 'x', team: 'alpha' });
+    const seatCamera = new VehicleCamera({ camera, storage: null, getBaseFov: () => 75 });
+    seatCamera.begin();
+    seatCamera.setView('tank', 'driver', 'driver', { remember: false });
+    view.setLocalView({ id: 'v', seatId: 'driver', sight: false });
+    for (let i = 0; i < 60; i++) {
+      view.update(1 / 30, camera);
+      seatCamera.update(1 / 30, { row: view.presentedRow('v'), seatId: 'driver', aimYaw: turret, aimPitch: pitch });
+    }
+    const item = view.item('v');
+    item.root.updateMatrixWorld(true); camera.updateMatrixWorld(true);
+    const meshes = [];
+    item.root.traverse(object => {
+      if ((object.isMesh || object.isInstancedMesh) && visible(object) && !/glass|hp-bar|blur/.test(object.name)
+        && !(object.material?.transparent && (object.material.opacity ?? 1) < 0.5)) meshes.push(object);
+    });
+    ray.near = 0.05; ray.far = 0.2;
+    let blocked = 0;
+    for (let iy = 0; iy < 9; iy++) for (let ix = 0; ix < 15; ix++) {
+      ray.setFromCamera(new THREE.Vector2(-1 + (2 * ix + 1) / 15, -1 + (2 * iy + 1) / 9), camera);
+      if (ray.intersectObjects(meshes, false).length) blocked++;
+    }
+    const label = `tank driver periscope, turret ${turret.toFixed(2)} gun ${pitch} hull ${hullPitch}/${hullRoll}`;
+    check(() => assert.equal(seatCamera.mode, 'driver', `${label}: posed as the periscope`));
+    check(() => assert.equal(blocked, 0, `${label}: ${blocked} of 135 rays hit the vehicle in the face`));
+    view.dispose();
   }
 }
 

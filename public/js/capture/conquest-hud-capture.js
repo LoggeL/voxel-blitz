@@ -104,7 +104,9 @@ async function render(id, { touch: touchMode = false } = {}) {
   const args = { match: state.match, mapMeta, self: state.self, players: state.players, vehicles: state.vehicles, camera,
     nearbyVehicle: state.nearbyVehicle, nowMs: FIXTURE_NOW, interactHeld: state.interactHeld, viewport: { width, height },
     // A fixture's camera view strip shows as if V was just pressed.
-    ...(state.viewStrip ? { vehicleController: { viewState: () => ({ ...state.viewStrip, changedAt: performance.now() }) } } : {}),
+    // (A tank periscope fixture also carries the gun's aim, as VehicleController.yaw / pitch.)
+    ...(state.viewStrip ? { vehicleController: { viewState: () => ({ ...state.viewStrip, changedAt: performance.now() }),
+      ...(state.aim ? { yaw: state.aim.yaw, pitch: state.aim.pitch } : {}) } } : {}),
     ...(flight ? { vehicleController: { aimFlight: flight.aim === true, flight: { mode: flight.mode }, viewState: () => null } } : {}) };
   lastArgs = args;
   conquest.update(args);
@@ -172,6 +174,9 @@ function boxes() {
   return {
     top: one('.cq-top'), view: one('.cq-view'), banner: one('.cq-banner'), ring: one('.cq-ring'), ticker: one('.cq-ticker'), minimap: one('.cq-minimap'), squad: one('.cq-squad'),
     'map-hint': one('.cq-map-hint'), vehicle: one('.cq-vehicle'), interact: one('.cq-interact'), lock: one('.cq-lock'), restricted: one('.cq-restricted'),
+    // Drawn on the reticle canvas: the tank hull indicator.
+    hull: conquest?.reticles?.hullBox ?? null,
+    'driver-bar': conquest?.reticles?.driverBoxes?.bar ?? null, 'driver-tape': conquest?.reticles?.driverBoxes?.tape ?? null,
     healthbar: one('#healthbar'), ammo: one('#ammo'), grenades: one('#grenade-count'), 'reload-hint': one('#reload-hint'), killfeed: one('#killfeed'),
     // The result panel fills phone screens: its header texts are what must clear the pause button.
     scoreboard: one('#scoreboard.is-open'),

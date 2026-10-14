@@ -217,6 +217,8 @@ export class ConquestHud {
         return index >= 0 ? !!this.vehicleController?.requestSeat?.(index) : false;
       }
       case 'countermeasure': return !!this.vehicleController?.queueCountermeasure?.();
+      // VIEW: the seat's next camera view, like V and the pad's D-pad down.
+      case 'vehicleView': return this.seated ? !!this.vehicleController?.cycleView?.() : false;
       default: return false;
     }
   }
@@ -393,8 +395,17 @@ export class ConquestHud {
     // A mount sight (the chin gunner's gimbal sensor) reads range, heading and zoom from this camera.
     const sight = seated && eye && angles && this.vehicleController?.sightActive === true
       ? { ...eye, yaw: angles.yaw, pitch: angles.pitch, zoom: this.vehicleController?.view?.zoom ?? 1 } : null;
+    // The tank hull indicator turns the hull as presented this frame (VehicleView eases the rows) against the view.
+    const presented = seated ? this.vehicleController?.renderRow : null;
+    // The tank driver's DRIVER periscope swaps the hull indicator and the vehicle card for its own instruments.
+    const view = seated ? this.vehicleController?.viewState?.()?.view ?? null : null;
+    const periscope = view === 'driver' && seated.row.type === 'tank' && seated.seat?.id === 'driver' && !sight;
+    this.root.dataset.vehicleView = periscope ? 'driver' : '';
+    const aim = periscope && Number.isFinite(this.vehicleController?.yaw) ? { yaw: this.vehicleController.yaw, pitch: this.vehicleController.pitch } : null;
     const reticle = seated && projector ? reticleModel(seated, { projector, players, vehicles, selfTeam,
-      raycast: this.shellRaycast, flightAim: this.vehicleController?.aimFlight === true, sight }) : null;
+      raycast: this.shellRaycast, flightAim: this.vehicleController?.aimFlight === true, sight,
+      viewYaw: angles?.yaw ?? null, hullYaw: presented?.id === seated.row.id ? presented.yaw : null,
+      view: periscope ? 'driver' : null, driverAim: aim }) : null;
     this._setSensor(!!reticle?.sensor);
     const locker = projector ? lockerModel(self, { projector, vehicles, selfTeam, seated,
       camera: angles && eye ? { ...eye, yaw: angles.yaw, pitch: angles.pitch } : null }) : null;

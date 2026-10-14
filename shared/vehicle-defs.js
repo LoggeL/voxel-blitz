@@ -187,7 +187,9 @@ const seatNames = { commander: 'COMMANDER', 'door-left': 'LEFT DOOR', 'door-righ
  * frame, so the gun keeps its place on screen); without it the eye sits above
  * the seat hip. `sight` places a mount sight (the chin gimbal, the tank's RMB
  * gunner sight): right, up, forward of the first mount's pivot in the gun
- * frame. The local hull is hidden while a sight is up.
+ * frame. The local hull is hidden while a sight is up. `periscope` is the tank
+ * driver's own eye (the DRIVER view): the driver's vision blocks at the front
+ * of the hull, in the hull frame, below the turret's sweep.
  */
 const DRIVE_VIEWS = ['cockpit', 'chase', 'action'], FLY_VIEWS = ['cockpit', 'chase', 'action', 'flyby'];
 const seatCameras = {
@@ -195,7 +197,8 @@ const seatCameras = {
     gunner: { mode: 'mount', distance: 4.5, height: 1.6, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.74, 0.6], eyeFrame: 'mount' },
     'front-passenger': { mode: 'passenger', distance: 6, height: 2.2, views: ['cockpit', 'passenger'], eye: [0.4, 1.78, 0.12] },
     'rear-left': { mode: 'passenger', distance: 6, height: 2.2, views: ['cockpit', 'passenger'], eye: [-0.76, 1.95, 1.1] } },
-  tank: { driver: { mode: 'chase', distance: 9.5, height: 3.4, optic: 3, views: DRIVE_VIEWS, eye: [0, 3.35, 0.3], eyeFrame: 'turret', sight: [0, 0.3, 0] },
+  tank: { driver: { mode: 'chase', distance: 9.5, height: 3.4, optic: 3, views: [...DRIVE_VIEWS, 'driver'], eye: [0, 3.35, 0.3], eyeFrame: 'turret',
+    sight: [0, 0.3, 0], periscope: [-0.6, 1.5, -2.55] },
     commander: { mode: 'mount', distance: 5, height: 1.4, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.3, 0.6, 0.55], eyeFrame: 'mount' } },
   helicopter: { driver: { mode: 'chase', distance: 13, height: 3.6, views: FLY_VIEWS },
     gunner: { mode: 'gimbal', distance: 0, height: 0, optic: 4, views: ['gimbal', 'cockpit'], sight: [0, 0.22, 0.25] } },

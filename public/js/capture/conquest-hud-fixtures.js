@@ -76,9 +76,9 @@ function roster(self, more = []) {
 /** A state: everything ConquestHud.update needs plus events to replay and capture hints. */
 function state(id, title, { selfTeam = 'alpha', self, players, vehicles = [], match, camera, events = [], dead = false, killer = null,
   bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null, career = null, viewStrip = null,
-  flight = null } = {}) {
+  flight = null, aim = null } = {}) {
   return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch, career, viewStrip,
-    flight };
+    flight, aim };
 }
 
 /** Every HUD state the acceptance list names, in capture order. */
@@ -163,10 +163,11 @@ export function conquestHudFixtures() {
       interactHeld: 900 }));
   }
   // 9. Tank driver: main gun AP selected, reloading 40 %, hull hit flash, disabled + burning, lock 0.
+  // The hull is turned 50° left of the gun and crawls forward (hull indicator: ◀ 50°).
   const tankAt = { x: C.x - 70, z: C.z + 20 };
   {
     const self = meAt(tankAt.x, tankAt.z, { vehicleId: 'alpha-tank', vehicleSeatId: 'driver' });
-    const tank = vehicle('alpha-tank', 'tank', 'alpha', tankAt.x, tankAt.z, { hp: 230, yaw: yawTo(tankAt, C), turretYaw: yawTo(tankAt, C) + 0.12,
+    const tank = vehicle('alpha-tank', 'tank', 'alpha', tankAt.x, tankAt.z, { hp: 230, yaw: yawTo(tankAt, C) + 50 * Math.PI / 180, turretYaw: yawTo(tankAt, C) + 0.12,
       seatOccupants: { driver: 'me', commander: 'sq2' }, st: VEHICLE_STATUS.engine | VEHICLE_STATUS.disabled | VEHICLE_STATUS.burning,
       mounts: [[yawTo(tankAt, C) + 0.06, 0.02, 4, 0, 40], [yawTo(tankAt, C) + 0.06, 0.02, -1, 22, 0], [yawTo(tankAt, C) - 0.4, 0.1, -1, 0, 0]],
       sel: { driver: 0 }, cmr: 46, speed: 3.2 });
@@ -188,6 +189,22 @@ export function conquestHudFixtures() {
       seatOccupants: { driver: 'sq2', commander: 'me' }, mounts: [[yaw, 0, 6, 0, 0], [yaw, 0, -1, 0, 0], [yaw + 0.3, 0.05, -1, 81, 0]], sel: { driver: 1 }, cmr: 100 });
     out.push(state('tank-commander', 'Tank commander · RWS hot', { self, players: roster(self), vehicles: [tank, spottedTank], match: baseMatch(),
       camera: cam(tankAt.x + 0.6, GROUND + 3.4, tankAt.z + 0.4, yaw + 0.3, -0.02) }));
+  }
+  // 10b. Tank driver in the DRIVER periscope, a moment after V: the camera looks along the hull,
+  // the gun is turned 30° right and reloading HE, the hull rolls forward at 23 km/h.
+  {
+    const yaw = yawTo(tankAt, C), gunYaw = yaw - 30 * Math.PI / 180;
+    const self = meAt(tankAt.x, tankAt.z, { vehicleId: 'alpha-tank', vehicleSeatId: 'driver' });
+    const tank = vehicle('alpha-tank', 'tank', 'alpha', tankAt.x, tankAt.z, { hp: 640, yaw, turretYaw: gunYaw, turretPitch: 0.03,
+      seatOccupants: { driver: 'me', commander: 'sq2' }, mounts: [[gunYaw, 0.03, 3, 0, 55], [gunYaw, 0.03, -1, 10, 0], [yaw, 0, -1, 0, 0]],
+      sel: { driver: 1 }, cmr: 100, speed: 6.4 });
+    const crew = roster(self).map(p => p.id === 'sq2' ? { ...p, x: tankAt.x, z: tankAt.z, vehicleId: 'alpha-tank', vehicleSeatId: 'commander' } : p);
+    // The periscope eye (shared seat camera `periscope`, hull frame [-0.6, 1.5, -2.55]) looking along the hull.
+    const c = Math.cos(yaw), s = Math.sin(yaw), [ex, ey, ez] = [-0.6, 1.5, -2.55];
+    const views = [['cockpit', 'HATCH'], ['chase', 'CHASE'], ['action', 'ACTION'], ['driver', 'DRIVER']].map(([id, label]) => ({ id, label }));
+    out.push(state('tank-periscope', 'Tank driver · DRIVER periscope · HE loading · gun 30° right', { self, players: crew, vehicles: [tank, spottedTank],
+      match: baseMatch(), camera: cam(tankAt.x + ex * c + ez * s, GROUND + ey, tankAt.z - ex * s + ez * c, yaw, 0),
+      viewStrip: { type: 'tank', seatId: 'driver', view: 'driver', views }, aim: { yaw: gunYaw, pitch: 0.03 } }));
   }
   // 11. Attack helicopter pilot: rocket pods 9 left, flares ready, lock state 1 (locking).
   const heliAt = { x: C.x - 120, z: C.z - 40 };

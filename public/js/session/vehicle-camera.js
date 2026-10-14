@@ -13,6 +13,11 @@
 //            hatch and follows the gun aim. Aircraft keep the boresight.
 //   flyby    aircraft only: a fixed point ahead of the flight path that the
 //            aircraft zooms past, then a new point further on.
+//   driver   the tank driver's periscope: the seat's `periscope` eye at the
+//            front of the hull, looking along the hull and riding its pitch
+//            and roll. The turret turns on its own; the mouse still aims the
+//            gun and the HUD projects the shell marker where it points. Free
+//            look (C) turns the head.
 //   mount    exposed gunners (pintle, RWS, door guns): over the gun's shoulder.
 //   gimbal   the attack helicopter's chin gunner: a stabilised sensor sight in
 //            the chin turret (the seat's default view). The local hull is
@@ -53,7 +58,7 @@ export const VEHICLE_CAMERA = Object.freeze({
 
 /** HUD names of the views (VEHICLE_VIEW_LABELS[view]; the first-person name depends on the seat). */
 export const VEHICLE_VIEW_LABELS = Object.freeze({
-  chase: 'CHASE', action: 'ACTION', cockpit: 'COCKPIT', flyby: 'FLYBY', mount: 'GUN', gimbal: 'SIGHT', passenger: 'ORBIT',
+  chase: 'CHASE', action: 'ACTION', cockpit: 'COCKPIT', flyby: 'FLYBY', mount: 'GUN', gimbal: 'SIGHT', passenger: 'ORBIT', driver: 'DRIVER',
 });
 /** localStorage key: { [hullType]: { [seatId]: view } }. */
 export const VEHICLE_VIEW_PREF_KEY = 'vb-vehicle-view-v1';
@@ -73,9 +78,12 @@ export function seatCameraProfile(type, seatId) {
   const fallbackDistance = def ? Math.max(6, (def.collider?.halfLength ?? 3) * 2.6) : DEFAULT_PROFILE.distance;
   const mode = camera.mode || 'passenger';
   const aircraft = AIRCRAFT.has(def?.handling);
-  // Views a hull can actually show: flyby is for aircraft, action for drivers.
+  // Views a hull can actually show: flyby is for aircraft, action for drivers,
+  // the driver's periscope for a tracked driver with a periscope eye.
+  const periscope = seat?.drives && def?.handling === 'tracked' && Array.isArray(camera.periscope) ? Object.freeze([...camera.periscope]) : null;
   const views = (Array.isArray(camera.views) ? camera.views : [mode])
-    .filter(view => VIEW_IDS.has(view) && (view !== 'flyby' || (aircraft && seat?.drives)) && (view !== 'action' || seat?.drives));
+    .filter(view => VIEW_IDS.has(view) && (view !== 'flyby' || (aircraft && seat?.drives)) && (view !== 'action' || seat?.drives)
+      && (view !== 'driver' || !!periscope));
   if (!views.includes(mode)) views.unshift(mode);
   return Object.freeze({
     mode,
@@ -86,6 +94,7 @@ export function seatCameraProfile(type, seatId) {
     eye: Object.freeze(Array.isArray(camera.eye) ? [...camera.eye] : seatEyeDefault(seat)),
     eyeFrame: camera.eyeFrame ?? (seat?.mount === 'turret' ? 'turret' : 'hull'),
     sight: Object.freeze(Array.isArray(camera.sight) ? [...camera.sight] : [0, 0.25, 0]),
+    ...(periscope ? { periscope } : {}),
   });
 }
 
@@ -310,8 +319,8 @@ export class VehicleCamera {
     return this.setView(type, seatId, views[(index + 1) % views.length], options);
   }
 
-  /** True while the view is first person from the seat's eye. */
-  get firstPerson() { return this.seated && this.view === 'cockpit'; }
+  /** True while the view is first person from the seat's eye (or the tank driver's periscope). */
+  get firstPerson() { return this.seated && (this.view === 'cockpit' || this.view === 'driver'); }
 
   /**
    * True when the seat looks through a mount sight: the chin gimbal (its
@@ -404,6 +413,7 @@ export class VehicleCamera {
     this.mode = view;
     if (view === 'cockpit') return this._cockpit(step, { row, seatId, aircraft, aimYaw, aimPitch, flightAim, freeLook });
     if (view === 'flyby' && aircraft) return this._flyby(step, { row, def, wide });
+    if (view === 'driver' && profile.periscope) return this._periscope(step, { row, eye: profile.periscope });
 
     const action = view === 'action';
     let focus, lookYaw, lookPitch, distance = profile.distance, height = profile.height, aimLook = false;
@@ -526,6 +536,24 @@ export class VehicleCamera {
     }
     headYaw = clamp(headYaw, -VEHICLE_CAMERA.cockpitYaw, VEHICLE_CAMERA.cockpitYaw);
     headPitch = clamp(headPitch, VEHICLE_CAMERA.cockpitPitch[0], VEHICLE_CAMERA.cockpitPitch[1]);
+    camera.quaternion.copy(hull).multiply(this._head.setFromEuler(this._euler.set(headPitch, headYaw, 0, 'YXZ')));
+    return this._finish(step);
+  }
+
+  /**
+   * Tank driver's periscope: the eye at the front of the hull, looking along
+   * the presented hull (pitch and roll included). The gun aim never moves it;
+   * free look (C) turns the head within the cockpit limits.
+   */
+  _periscope(step, { row, eye }) {
+    const camera = this.camera;
+    const point = vehicleLocalPoint(row, eye[0], eye[1], eye[2]);
+    camera.position.set(point[0], point[1], point[2]);
+    camera.up.set(0, 1, 0);
+    this._seeded = true;
+    const hull = this._quaternion.setFromEuler(this._euler.set(finite(row.pitch), finite(row.yaw), finite(row.roll), 'YXZ'));
+    const headYaw = clamp(this._freeYaw, -VEHICLE_CAMERA.cockpitYaw, VEHICLE_CAMERA.cockpitYaw);
+    const headPitch = clamp(this._freePitch, VEHICLE_CAMERA.cockpitPitch[0], VEHICLE_CAMERA.cockpitPitch[1]);
     camera.quaternion.copy(hull).multiply(this._head.setFromEuler(this._euler.set(headPitch, headYaw, 0, 'YXZ')));
     return this._finish(step);
   }

@@ -100,7 +100,7 @@ function rowFor(id, rowTeam, x, z, yaw) {
     vx: -Math.sin(yaw) * speed, vy: 0, vz: -Math.cos(yaw) * speed, speed,
     hp: hpByState[state] ?? maxHp, st: (stByState[state] ?? VEHICLE_STATUS.engine) | (flying ? 0 : VEHICLE_STATUS.grounded),
     turretYaw: yaw + (aimOffset ?? 0.35), turretPitch: aimOffset !== null ? aimPitch : 0.06, mounts, seatOccupants: occupants, occupantId: occupants.driver,
-    speed: 0, rotorSpeed: rotor, grounded: !flying, enginePower: state === 'wreck' ? 0 : 0.6, wreck: state === 'wreck',
+    speed: num('rowSpeed', 0), cmr: num('cmr', 100), rotorSpeed: rotor, grounded: !flying, enginePower: state === 'wreck' ? 0 : 0.6, wreck: state === 'wreck',
   };
 }
 
@@ -124,7 +124,7 @@ if (seatShot) {
   seatCamera.begin();
   // As main.js: first person drops the own head, a mount sight hides the own hull.
   const sight = seatCamera.sightFor(type, seatId, optic);
-  view.setLocalView((seatCamera.view === 'cockpit' || sight) && params.get('head') !== '1' ? { id: rows[0].id, seatId, sight } : null);
+  view.setLocalView((seatCamera.firstPerson || sight) && params.get('head') !== '1' ? { id: rows[0].id, seatId, sight } : null);
 }
 const poseSeat = (step, move = false) => {
   if (!seatCamera) return;
@@ -232,7 +232,11 @@ if (seatShot && hud) {
   const angles = cameraAngles(camera);
   const sight = seatCamera.sight ? { x: camera.position.x, y: camera.position.y, z: camera.position.z, ...angles, zoom: seatCamera.zoom } : null;
   const raycast = (o, d, max) => raycastVoxels((x, y, z) => getBlock(x, y, z) === 1, o.x, o.y, o.z, d.x, d.y, d.z, max);
-  const model = reticleModel({ row, seat }, { projector: createProjector(camera, innerWidth, innerHeight), raycast, sight });
+  // The tank driver's DRIVER periscope: the gun keeps aiming at the turret's aim while the camera looks along the hull.
+  const periscope = seatCamera.view === 'driver' && !seatCamera.sight;
+  const model = reticleModel({ row, seat }, { projector: createProjector(camera, innerWidth, innerHeight), raycast, sight,
+    viewYaw: angles.yaw, hullYaw: row.yaw, view: periscope ? 'driver' : null,
+    driverAim: periscope ? { yaw: rows[0].turretYaw, pitch: rows[0].turretPitch } : null });
   sensor.hidden = !model?.sensor;
   document.body.dataset.vehicleSight = model?.sensor ? 'sensor' : '';
   reticles.draw(model, null, innerWidth, innerHeight, { touch: params.get('touch') === '1' });

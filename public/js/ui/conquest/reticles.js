@@ -4,12 +4,14 @@
  * reload arc, helicopter rocket pip at convergence,
  * chin-gun gimbal box (and, through the gimbal sensor sight, its optic:
  * bracket frame, bar reticle, barrel pip, range / heading / zoom readouts),
- * door-gun arc limits, hitscan mount crosshair, jet gun
+ * door-gun arc limits, hitscan mount crosshair, the tank hull indicator
+ * (top-down hull and turret, turned as seen from the view), jet gun
  * funnel with lead pipper, the pilot instruments (speed / AGL tapes, climb,
  * throttle, stall) with the mouse-aim circle, and the locker box for our own
  * lock attempt. Models come from reticleModel / lockerModel.
  */
 import { el } from '../hud-support.js';
+import { clampToEdge } from './projection.js';
 
 const AMBER = '#ffcf5c', WHITE = '#f4f7f9', RED = '#ff4b4b', GREEN = '#7ef29a', CYAN = '#4cc3ff';
 /** Gimbal sensor symbology: pale phosphor green-white over the monochrome world. */
@@ -33,6 +35,10 @@ export class Reticles {
     this._w = 0; this._h = 0; this._dpr = 1;
     this._blank = true;
     this.reserved = [];
+    /** Screen rect of the tank hull indicator after the last draw, else null. */
+    this.hullBox = null;
+    /** Screen rects of the tank driver's periscope instruments ({ bar, tape }) after the last draw, else null. */
+    this.driverBoxes = null;
   }
 
   _resize(width, height) {
@@ -47,6 +53,8 @@ export class Reticles {
 
   clear() {
     this.reserved = [];
+    this.hullBox = null;
+    this.driverBoxes = null;
     if (this._blank || !this.context) return;
     this.context.setTransform(1, 0, 0, 1, 0, 0);
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -61,6 +69,8 @@ export class Reticles {
    */
   draw(model, locker, width, height, { touch = false } = {}) {
     this.reserved = [];
+    this.hullBox = null;
+    this.driverBoxes = null;
     const ctx = this.context;
     if (!ctx) return;
     if (!model && !locker) { this.clear(); return; }
@@ -76,7 +86,7 @@ export class Reticles {
       // Pilot instruments first, so projected symbology stays on top.
       if (model.flight) this._instruments(ctx, model.flight, width, height);
       switch (model.kind) {
-        case 'tank': this._tank(ctx, model); break;
+        case 'tank': if (model.periscope) this._periscope(ctx, model, width, height, touch); else this._tank(ctx, model); break;
         case 'pods': this._pods(ctx, model); break;
         case 'gimbal': this._gimbal(ctx, model, width, height, touch); break;
         case 'door': this._door(ctx, model, width, height); break;
@@ -85,6 +95,7 @@ export class Reticles {
         case 'mg': this._mg(ctx, model); break;
         default: break;
       }
+      if (model.hull) this._hull(ctx, model.hull, width, height, touch);
       if (model.aim) this._aimCircle(ctx, model.center, model.kind === 'jet' ? model.boresight : model.kind === 'pods' ? model.pip : model.nose);
     }
     if (locker) this._locker(ctx, locker, width, height);
@@ -101,15 +112,24 @@ export class Reticles {
 
   _tank(ctx, m) {
     const { x, y } = m.center;
-    // Desired aim: dashed circle on the camera ray.
+    this._aimRing(ctx, x, y, m);
+    this._shellMarks(ctx, m);
+    this._text(ctx, m.ready ? `${m.label} · READY` : `${m.label} · LOADING`, x, y + 46, m.ready ? GREEN : AMBER);
+  }
+
+  /** Desired aim: a dashed circle with the reload arc around it (clockwise as the breech reloads). */
+  _aimRing(ctx, x, y, m) {
     ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffffb0';
     ctx.setLineDash([4, 4]);
     shadowed(ctx, () => { ctx.beginPath(); ctx.arc(x, y, 20, 0, TAU); ctx.stroke(); });
     ctx.setLineDash([]);
-    // Reload arc around the aim circle (clockwise as the breech reloads).
     const progress = 1 - Math.max(0, Math.min(1, m.reload));
     ctx.lineWidth = 3; ctx.strokeStyle = m.ready ? GREEN : AMBER;
     shadowed(ctx, () => { ctx.beginPath(); ctx.arc(x, y, 26, -Math.PI / 2, -Math.PI / 2 + TAU * progress); ctx.stroke(); });
+  }
+
+  /** The shell's range ladder and the impact marker with its range readout. */
+  _shellMarks(ctx, m) {
     // Range ladder: the shell's arc at 100 m steps below the bore (labels in hundreds of metres).
     let lastY = -Infinity;
     for (const tick of m.ladder ?? []) {
@@ -142,7 +162,316 @@ export class Reticles {
         ctx.restore();
       }
     }
-    this._text(ctx, m.ready ? `${m.label} · READY` : `${m.label} · LOADING`, x, y + 46, m.ready ? GREEN : AMBER);
+  }
+
+  /**
+   * Top-down tank at (cx, cy): the white hull (track strips, front chevron,
+   * amber once it faces away) turned by `hull`, the green turret ring and
+   * barrel turned by `turret` (rad, +left = counter-clockwise), and a faint
+   * wedge on the side the tracks drive (`travel` +1 / -1 / 0).
+   */
+  _silhouette(ctx, cx, cy, scale, hull, turret, travel) {
+    const halfW = 15 * scale, halfL = 23 * scale, track = 5 * scale;
+    // The view looks up the screen; +yaw is left, so a hull offset turns the drawing counter-clockwise.
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.save();
+    ctx.rotate(-hull);
+    if (travel) {
+      // Faint wedge on the side the tracks are driving (behind the hull while reversing).
+      const dir = travel, r0 = halfL + 3 * scale, r1 = halfL + 22 * scale;
+      const grad = ctx.createLinearGradient?.(0, -dir * r0, 0, -dir * r1);
+      grad?.addColorStop(0, '#ffffff38'); grad?.addColorStop(1, '#ffffff00');
+      ctx.fillStyle = grad ?? '#ffffff22';
+      ctx.beginPath();
+      ctx.moveTo(-halfW * 0.7, -dir * r0); ctx.lineTo(halfW * 0.7, -dir * r0);
+      ctx.lineTo(halfW * 1.25, -dir * r1); ctx.lineTo(-halfW * 1.25, -dir * r1);
+      ctx.closePath(); ctx.fill();
+    }
+    // Hull with a bevelled glacis and the two track strips, on a dark fill so it reads over bright ground.
+    const bevel = 5 * scale;
+    const outline = () => {
+      ctx.beginPath();
+      ctx.moveTo(-halfW + bevel, -halfL); ctx.lineTo(halfW - bevel, -halfL); ctx.lineTo(halfW, -halfL + bevel);
+      ctx.lineTo(halfW, halfL); ctx.lineTo(-halfW, halfL); ctx.lineTo(-halfW, -halfL + bevel); ctx.closePath();
+    };
+    outline(); ctx.fillStyle = '#05090ca8'; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = WHITE; ctx.lineJoin = 'round';
+    shadowed(ctx, () => {
+      outline();
+      ctx.moveTo(-halfW + track, -halfL + bevel); ctx.lineTo(-halfW + track, halfL);
+      ctx.moveTo(halfW - track, -halfL + bevel); ctx.lineTo(halfW - track, halfL);
+      ctx.stroke();
+    });
+    const tip = -halfL - 12 * scale, base = -halfL - 3 * scale;
+    ctx.fillStyle = Math.abs(hull) > Math.PI / 2 ? AMBER : WHITE;
+    ctx.beginPath(); ctx.moveTo(0, tip); ctx.lineTo(8 * scale, base); ctx.lineTo(-8 * scale, base); ctx.closePath();
+    ctx.lineWidth = 3; ctx.strokeStyle = '#000000a0'; ctx.stroke(); ctx.fill();
+    ctx.restore();
+    // Turret ring and barrel.
+    ctx.save();
+    ctx.rotate(-turret);
+    ctx.lineWidth = 2; ctx.strokeStyle = GREEN;
+    shadowed(ctx, () => {
+      ctx.beginPath(); ctx.arc(0, 0, 8.5 * scale, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -8.5 * scale); ctx.lineTo(0, -31 * scale); ctx.stroke();
+    });
+    ctx.restore();
+    ctx.restore();
+  }
+
+  /**
+   * Tank hull indicator (docs/design/conquest/tank-hud/, variant A): a top-down
+   * tank whose turret and barrel point where the gun points and whose hull is
+   * turned by the hull's offset from the view, so the front chevron shows
+   * where W drives. Desktop: centred above the exit prompt, readouts beside
+   * it. Phones: smaller, readouts under it, below the prompt (portrait) or
+   * left of it (landscape).
+   */
+  _hull(ctx, h, width, height, touch = false) {
+    const landscape = touch && width > height;
+    const scale = touch ? (landscape ? 0.72 : 0.86) : 1.2;
+    const cx = landscape ? width / 2 - 128 : width / 2;
+    const cy = !touch ? height - 242 : landscape ? height - 92 : Math.min(height / 2 + 206, height - 150);
+    const halfL = 23 * scale;
+    this._silhouette(ctx, cx, cy, scale, h.hull, h.turret, h.travel);
+    // Readouts: how far the hull is turned from the view (arrow to its side) and the hull heading.
+    const offset = Math.abs(h.offset) < 3 ? 'HULL AHEAD' : `${h.offset > 0 ? '\u25C0' : '\u25B6'} ${Math.abs(h.offset)}\u00B0`;
+    const heading = `HULL ${String(h.heading).padStart(3, '0')}\u00B0`;
+    const reach = halfL + 22 * scale;
+    let box;
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    if (!touch) {
+      ctx.textAlign = 'left';
+      ctx.font = '700 12px "Rajdhani", "Barlow Condensed", system-ui, sans-serif';
+      this._text(ctx, heading, cx + reach + 8, cy - 9, WHITE);
+      ctx.font = '700 14px "Rajdhani", "Barlow Condensed", system-ui, sans-serif';
+      this._text(ctx, offset, cx + reach + 8, cy + 9, GREEN);
+      box = { left: cx - reach, top: cy - reach, right: cx + reach + 86, bottom: cy + reach };
+    } else {
+      ctx.textAlign = 'center';
+      ctx.font = '700 11px "Rajdhani", "Barlow Condensed", system-ui, sans-serif';
+      const line = Math.abs(h.offset) < 3 ? `HULL AHEAD \u00B7 ${String(h.heading).padStart(3, '0')}\u00B0` : `${offset} \u00B7 ${heading}`;
+      this._text(ctx, line, cx, cy + reach + 8, GREEN);
+      box = { left: cx - Math.max(reach, 56), top: cy - reach, right: cx + Math.max(reach, 56), bottom: cy + reach + 15 };
+    }
+    ctx.restore();
+    this.hullBox = box;
+    this.reserved.push(box);
+  }
+
+  /**
+   * Tank driver's periscope (DRIVER view; docs/design/conquest/tank-hud/driver-view/,
+   * variant B): the screen centre is the hull's nose, so the gun's marks are
+   * wherever the gun points. The aim ring sits on the mouse aim, the ladder and
+   * impact marker where the shell lands; an impact outside the periscope window
+   * slides to its edge as a GUN arrow. The instruments come from `m.driver`.
+   */
+  _periscope(ctx, m, width, height, touch = false) {
+    const frame = this._driverHud(ctx, m.driver, width, height, touch);
+    const a = m.aimMark;
+    if (a?.inside) this._aimRing(ctx, a.x, a.y, m);
+    const raw = m.impactRaw;
+    const within = raw && raw.inside && raw.x >= frame.left && raw.x <= width - frame.right && raw.y >= frame.top && raw.y <= height - frame.bottom;
+    if (within) { this._shellMarks(ctx, m); return; }
+    if (!raw) return;
+    // Off the window: an arrow on its edge toward where the gun points.
+    const edge = clampToEdge({ x: raw.x, y: raw.y, inside: false }, width, height, frame);
+    ctx.save();
+    ctx.translate(edge.x, edge.y);
+    ctx.rotate(edge.angle);
+    ctx.fillStyle = m.ready ? GREEN : AMBER; ctx.lineWidth = 3; ctx.strokeStyle = '#000000a0';
+    ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(9, 4); ctx.lineTo(0, -1); ctx.lineTo(-9, 4); ctx.closePath();
+    ctx.stroke(); ctx.fill();
+    ctx.restore();
+    const dx = Math.sin(edge.angle), dy = -Math.cos(edge.angle);
+    this._text(ctx, 'GUN', edge.x - dx * 22, edge.y - dy * 22 + 4, m.ready ? GREEN : AMBER);
+  }
+
+  /**
+   * The periscope instruments: corner brackets, the hull heading tape (with
+   * the gun's bearing on it) and the instrument bar (speed and gear, the
+   * turret over the fixed hull, the main gun's load, hull integrity and
+   * smoke). Phones get one compact panel in the vehicle card's place (which
+   * hides in this view) and, in landscape, a shorter tape. Returns the
+   * periscope window insets the gun marks keep inside.
+   */
+  _driverHud(ctx, d, width, height, touch = false) {
+    const landscape = touch && width > height;
+    const MINT = '#c9f7d6', PANEL = '#0a0e16d0', EDGE = '#ffffff2e';
+    const font = (size, weight = 700) => `${weight} ${size}px "Rajdhani", "Barlow Condensed", system-ui, sans-serif`;
+    const pad = n => String(n).padStart(3, '0');
+    const gun = !d ? '' : Math.abs(d.gunOffset) < 3 ? 'GUN AHEAD' : `GUN ${d.gunOffset > 0 ? '\u25C0' : '\u25B6'} ${Math.abs(d.gunOffset)}\u00B0`;
+    const boxes = {};
+    // Corner brackets of the periscope window (desktop; a phone screen is all window).
+    const inset = 18, arm = 30;
+    ctx.save();
+    if (!touch) {
+    ctx.lineWidth = 2; ctx.strokeStyle = '#ffffffb0';
+    shadowed(ctx, () => {
+      ctx.beginPath();
+      for (const [sx, sy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+        const x = sx ? width - inset : inset, y = sy ? height - inset : inset, hx = sx ? -arm : arm, vy = sy ? -arm : arm;
+        ctx.moveTo(x + hx, y); ctx.lineTo(x, y); ctx.lineTo(x, y + vy);
+      }
+      ctx.stroke();
+    });
+    }
+    ctx.restore();
+    if (!d) return { top: 80, bottom: 96, left: 40, right: 40 };
+    // Heading tape under the ticket bar and the V view strip (not on portrait
+    // phones: the panel carries the heading).
+    let tapeBottom = touch ? 64 : 96;
+    if (!touch || landscape) {
+      const tw = touch ? Math.min(250, width * 0.3) : Math.min(440, width * 0.32), th = touch ? 20 : 26;
+      const tx = width / 2 - tw / 2, ty = touch ? 94 : 136, span = touch ? 70 : 90, pxPer = tw / span;
+      ctx.save();
+      ctx.fillStyle = PANEL; ctx.fillRect(tx, ty, tw, th);
+      ctx.strokeStyle = EDGE; ctx.lineWidth = 1; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+      ctx.beginPath(); ctx.rect(tx, ty, tw, th); ctx.clip();
+      ctx.strokeStyle = '#ffffff90'; ctx.fillStyle = MINT; ctx.font = font(touch ? 9 : 10, 600); ctx.textAlign = 'center';
+      const from = Math.floor((d.headingDeg - span / 2) / 5) * 5;
+      for (let deg = from; deg <= d.headingDeg + span / 2 + 5; deg += 5) {
+        const x = width / 2 + (deg - d.headingDeg) * pxPer, major = deg % 15 === 0;
+        ctx.beginPath(); ctx.moveTo(x, ty + th); ctx.lineTo(x, ty + th - (major ? 7 : 4)); ctx.stroke();
+        const norm = ((deg % 360) + 360) % 360;
+        if (major) ctx.fillText(norm === 0 ? 'N' : norm === 90 ? 'E' : norm === 180 ? 'S' : norm === 270 ? 'W' : pad(norm), x, ty + (touch ? 10 : 12));
+      }
+      // The gun's bearing on the tape (it turns with the turret, the tape with the hull).
+      const gx = width / 2 - (d.turret * 180 / Math.PI) * pxPer;
+      if (gx > tx + 4 && gx < tx + tw - 4) {
+        ctx.fillStyle = GREEN;
+        ctx.beginPath(); ctx.moveTo(gx, ty + th - 1); ctx.lineTo(gx - 5, ty + th - 8); ctx.lineTo(gx + 5, ty + th - 8); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+      // Centre caret and the boxed hull heading.
+      ctx.save();
+      ctx.fillStyle = WHITE;
+      ctx.beginPath(); ctx.moveTo(width / 2, ty + 7); ctx.lineTo(width / 2 - 5, ty); ctx.lineTo(width / 2 + 5, ty); ctx.closePath(); ctx.fill();
+      const bw = touch ? 34 : 44, bh = touch ? 15 : 19, by = ty + th + 3;
+      ctx.fillStyle = '#0b1218'; ctx.strokeStyle = '#ffffffa0'; ctx.lineWidth = 1;
+      ctx.fillRect(width / 2 - bw / 2, by, bw, bh); ctx.strokeRect(width / 2 - bw / 2 + 0.5, by + 0.5, bw - 1, bh - 1);
+      ctx.fillStyle = WHITE; ctx.font = font(touch ? 11 : 14); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(pad(d.heading), width / 2, by + bh / 2 + 1);
+      ctx.restore();
+      boxes.tape = { left: tx, top: ty, right: tx + tw, bottom: by + bh };
+      tapeBottom = by + bh;
+    }
+    // Instrument cells.
+    const cell = (x, y, w, h) => {
+      ctx.fillStyle = PANEL; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = EDGE; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    };
+    const speedCell = (x, y, w, h, big) => {
+      ctx.save();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = GREEN; ctx.font = font(big ? 40 : 20, 800);
+      ctx.fillText(String(d.speedKmh), x + w / 2, y + (big ? 44 : 21));
+      ctx.fillStyle = MINT; ctx.font = font(big ? 12 : 8);
+      ctx.fillText('KM/H', x + w / 2, y + (big ? 59 : 31));
+      // Gear row R N D with the active one boxed.
+      const gw = big ? 24 : 15, gy = y + h - (big ? 30 : 16), gh = big ? 21 : 12;
+      ['R', 'N', 'D'].forEach((g, i) => {
+        const gx = x + w / 2 + (i - 1) * (gw + (big ? 6 : 3)) - gw / 2, on = g === d.gear;
+        if (on) { ctx.strokeStyle = g === 'R' ? AMBER : GREEN; ctx.lineWidth = 1.5; ctx.strokeRect(gx + 0.5, gy + 0.5, gw - 1, gh - 1); }
+        ctx.fillStyle = on ? (g === 'R' ? AMBER : GREEN) : '#ffffff55'; ctx.font = font(big ? 14 : 10, 800);
+        ctx.fillText(g, gx + gw / 2, gy + gh - (big ? 5 : 3));
+      });
+      ctx.restore();
+    };
+    const gunCell = (x, y, w, h, big) => {
+      this._silhouette(ctx, x + w / 2, y + h / 2 - (big ? 6 : 5), big ? 0.95 : 0.5, 0, d.turret, d.gear === 'D' ? 1 : d.gear === 'R' ? -1 : 0);
+      ctx.save(); ctx.textAlign = 'center'; ctx.font = font(big ? 15 : 10);
+      this._text(ctx, gun, x + w / 2, y + h - (big ? 8 : 5), GREEN);
+      ctx.restore();
+    };
+    const weaponCell = (x, y, w, h, big) => {
+      const wpn = d.weapon;
+      ctx.save(); ctx.textAlign = 'center';
+      ctx.font = font(big ? 15 : 10, 800);
+      this._text(ctx, wpn?.label ?? '--', x + w / 2, y + (big ? 20 : 12), AMBER);
+      const ready = !!wpn?.ready, fill = 1 - Math.max(0, Math.min(1, wpn?.reload ?? 0));
+      if (big) {
+        const r = 21, cx = x + w / 2, cy = y + 53;
+        ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff1e'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = ready ? GREEN : AMBER; ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + TAU * fill); ctx.stroke();
+        // Inside the ring: the rounds left once loaded, else the load progress.
+        ctx.font = font(13, 800); ctx.textBaseline = 'middle'; ctx.fillStyle = ready ? GREEN : AMBER;
+        ctx.fillText(ready ? (Number.isFinite(wpn?.ammo) && wpn.ammo >= 0 ? String(wpn.ammo) : 'RDY') : `${Math.round(fill * 100)}%`, cx, cy + 1);
+        ctx.textBaseline = 'alphabetic'; ctx.font = font(12);
+        this._text(ctx, ready ? 'READY' : 'LOADING', cx, y + h - 7, ready ? GREEN : AMBER);
+      } else {
+        const bx = x + 8, bw = w - 16, by = y + 20;
+        ctx.fillStyle = '#ffffff1e'; ctx.fillRect(bx, by, bw, 5);
+        ctx.fillStyle = ready ? GREEN : AMBER; ctx.fillRect(bx, by, bw * fill, 5);
+        ctx.font = font(9);
+        this._text(ctx, ready ? 'READY' : 'LOADING', x + w / 2, y + h - 6, ready ? GREEN : AMBER);
+      }
+      ctx.restore();
+    };
+    const hullCell = (x, y, w, h, big) => {
+      ctx.save();
+      const fraction = d.fraction ?? 1, tone = fraction < 0.3 ? RED : fraction < 0.6 ? AMBER : GREEN;
+      ctx.font = font(big ? 14 : 9, 800); ctx.textAlign = 'left';
+      this._text(ctx, 'HULL', x + 10, y + (big ? 21 : 12), MINT);
+      ctx.textAlign = 'right';
+      this._text(ctx, big ? `${Math.ceil(d.hp)} / ${Math.ceil(d.maxHp)}` : `${Math.ceil(d.hp)}`, x + w - 10, y + (big ? 21 : 12), tone);
+      const bx = x + 10, bw = w - 20, by = y + (big ? 29 : 16);
+      ctx.fillStyle = '#ffffff1e'; ctx.fillRect(bx, by, bw, big ? 7 : 4);
+      ctx.fillStyle = tone; ctx.fillRect(bx, by, bw * fraction, big ? 7 : 4);
+      // Danger badges (disabled, burning) under the bar, else the smoke readiness.
+      const badge = d.badges[0];
+      const smoke = d.smoke;
+      const sy = y + (big ? 60 : 33);
+      ctx.textAlign = 'left'; ctx.font = font(big ? 14 : 9, 800);
+      if (smoke) {
+        const label = smoke.active ? 'SMOKE ACTIVE' : smoke.available ? 'SMOKE READY' : `SMOKE ${Math.round(smoke.ready * 100)}%`;
+        ctx.fillStyle = smoke.available ? GREEN : '#ffffff55';
+        ctx.beginPath(); ctx.arc(x + 14, sy - (big ? 4 : 3), big ? 4 : 3, 0, TAU); ctx.fill();
+        this._text(ctx, label, x + (big ? 24 : 20), sy, smoke.available ? GREEN : MINT);
+      }
+      if (badge) {
+        ctx.font = font(big ? 12 : 8, 800);
+        this._text(ctx, d.badges.map(b => b.label).join(' \u00B7 '), x + 10, y + h - (big ? 10 : 5), badge.tone === 'danger' ? RED : AMBER);
+      }
+      ctx.restore();
+    };
+    let bar;
+    if (!touch) {
+      // Desktop: the instrument bar at the bottom centre, under the exit prompt,
+      // kept right of the squad list (minimap 22 + 184 + 18, list up to 190 wide).
+      const SQUAD_RIGHT = 424;
+      const bw = Math.min(780, Math.max(560, width - 2 * SQUAD_RIGHT - 12)), bh = 108;
+      const bx = Math.max(width / 2 - bw / 2, SQUAD_RIGHT + 6), by = height - 18 - bh;
+      const widths = [0.2, 0.24, 0.24, 0.32].map(f => Math.round(bw * f));
+      let x = bx;
+      const draws = [speedCell, gunCell, weaponCell, hullCell];
+      widths.forEach((w, i) => { const cw = i === widths.length - 1 ? bx + bw - x : w; cell(x, by, cw, bh); draws[i](x, by, cw, bh, true); x += cw; });
+      bar = { left: bx, top: by, right: bx + bw, bottom: by + bh };
+    } else {
+      // Phones: a 2 x 2 panel in the vehicle card's slot (top right), headed by the hull heading on portrait.
+      const pw = Math.min(196, width * 0.5), header = landscape ? 0 : 16, ph = header + 2 * 54;
+      const px = width - 12 - pw, py = landscape ? 8 : 64;
+      if (header) {
+        cell(px, py, pw, header);
+        ctx.save(); ctx.font = font(10, 800); ctx.textAlign = 'left';
+        this._text(ctx, 'DRIVER', px + 8, py + 12, MINT);
+        ctx.textAlign = 'right';
+        this._text(ctx, `HDG ${pad(d.heading)}`, px + pw - 8, py + 12, WHITE);
+        ctx.restore();
+      }
+      const cw = pw / 2, ch = 54, y0 = py + header;
+      [[speedCell, 0, 0], [gunCell, 1, 0], [weaponCell, 0, 1], [hullCell, 1, 1]].forEach(([draw, cx, cy]) => {
+        cell(px + cx * cw, y0 + cy * ch, cw, ch); draw(px + cx * cw, y0 + cy * ch, cw, ch, false);
+      });
+      bar = { left: px, top: py, right: px + pw, bottom: py + ph };
+    }
+    boxes.bar = bar;
+    this.driverBoxes = boxes;
+    for (const box of Object.values(boxes)) this.reserved.push({ left: box.left - 4, top: box.top - 4, right: box.right + 4, bottom: box.bottom + 4 });
+    // The gun marks stay inside the brackets, below the tape and above the bar (desktop).
+    return { top: tapeBottom + 16, bottom: touch ? 110 : height - bar.top + 16, left: 44, right: 44 };
   }
 
   _pods(ctx, m) {

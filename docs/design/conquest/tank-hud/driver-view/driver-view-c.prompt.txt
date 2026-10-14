@@ -1,0 +1,9 @@
+Game UI design mockup, 1536x1024 first-person screenshot of a browser voxel shooter (Minecraft-like blocky world at golden hour: green voxel fields, a gravel road running straight ahead, voxel pine trees, small blocky houses, warm sky). NEW CAMERA VIEW: the DRIVER of a main battle tank looking out of the driver periscope at the very front of the hull, low (about 1.7 m above the ground), straight along the hull. At the bottom edge of the screen the front of the dark green voxel hull (glacis plate and the tops of the two tracks) is visible; the tank gun barrel crosses the upper part of the view diagonally because the turret is turned about 35 degrees to the right.
+Existing HUD style to keep: dark translucent navy panels rgba(10,14,22,0.82) with 1px light borders, condensed uppercase sans-serif labels like Rajdhani, cyan #39a9e6 friendly, amber #ffcf5c weapons, mint green #7ef29a ready/instruments, red #ff4b4b danger. Top centre ticket bar "WEST 214 [A][B][C][D][E] 187 EAST", bottom left a round minimap.
+INTEGRATED DRIVER HUD (variant C, driver's vision TV): the view is a slightly desaturated driver camera feed with faint scanlines and a soft dark vignette; symbology is drawn in pale mint #c9f7d6 lines directly over it:
+1) Top: a curved HEADING ARC with ticks every 10 degrees and "024" in a box.
+2) Left: a vertical SPEED bar "KM/H 23" and beside it a gear indicator "D" in a box (R and N dim).
+3) Right: a vertical HULL INTEGRITY bar "760", under it "SMOKE RDY".
+4) Bottom centre: a top-down tank icon, hull fixed up, turret+barrel rotated 35 degrees right, labelled "GUN 35° R", and next to it "120MM AP · LOADING" with an amber progress bar.
+5) Where the gun points (upper right) a small shell-impact cross "240 M".
+Crisp flat game HUD, no extra decorations, no watermark.

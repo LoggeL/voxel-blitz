@@ -1,5 +1,5 @@
 // Conquest touch controls (WP7): per-seat button sets (drive, fly, fire, seat
-// cycle, countermeasure, map, spot), Conquest button routing through the HUD
+// cycle, camera view, countermeasure, map, spot), Conquest button routing through the HUD
 // to the vehicle controller, the seat-change release and the seated HUD flag.
 import assert from 'node:assert/strict';
 import { installFakeDom } from './lib/conquest-ui-dom.mjs';
@@ -38,16 +38,16 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
   for (const action of CONQUEST_TOUCH_ACTIONS) assert.ok(TOUCH_ACTIONS.includes(action));
 
   const expected = {
-    'tank:driver': ['bigMap', 'countermeasure', 'fire', 'jump', 'spot', 'vehicleSeat'],
-    'tank:commander': ['bigMap', 'fire', 'spot', 'vehicleSeat'],
-    'helicopter:driver': ['bigMap', 'countermeasure', 'fire', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleSeat'],
-    'helicopter:gunner': ['bigMap', 'fire', 'spot', 'vehicleSeat'],
-    'transport:driver': ['bigMap', 'countermeasure', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleSeat'],
-    'transport:door-left': ['bigMap', 'fire', 'spot', 'vehicleSeat'],
-    'transport:rear-right': ['bigMap', 'spot', 'vehicleSeat'],
-    'plane:driver': ['bigMap', 'countermeasure', 'fire', 'flightBrake', 'flightDown', 'flightUp', 'spot'],
-    'jeep:driver': ['bigMap', 'jump', 'spot', 'vehicleSeat'],
-    'jeep:gunner': ['bigMap', 'fire', 'spot', 'vehicleSeat'],
+    'tank:driver': ['bigMap', 'countermeasure', 'fire', 'jump', 'spot', 'vehicleSeat', 'vehicleView'],
+    'tank:commander': ['bigMap', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
+    'helicopter:driver': ['bigMap', 'countermeasure', 'fire', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleSeat', 'vehicleView'],
+    'helicopter:gunner': ['bigMap', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
+    'transport:driver': ['bigMap', 'countermeasure', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleSeat', 'vehicleView'],
+    'transport:door-left': ['bigMap', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
+    'transport:rear-right': ['bigMap', 'spot', 'vehicleSeat', 'vehicleView'],
+    'plane:driver': ['bigMap', 'countermeasure', 'fire', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleView'],
+    'jeep:driver': ['bigMap', 'jump', 'spot', 'vehicleSeat', 'vehicleView'],
+    'jeep:gunner': ['bigMap', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
   };
   for (const [key, list] of Object.entries(expected)) {
     const [type, seatId] = key.split(':');
@@ -58,6 +58,12 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
     assert.equal(seatContext(type, 'driver').vehicleCountermeasure, cm, `${type} countermeasure kind`);
   }
   assert.equal(seatContext('tank', 'driver', { cmr: 40 }).vehicleCountermeasureReady, false);
+  // VIEW cycles the seat's camera views (V): every seat has two or more; the
+  // tank driver's include the DRIVER periscope.
+  assert.equal(seatContext('tank', 'driver').vehicleViewCount, 4);
+  assert.equal(seatContext('tank', 'commander').vehicleViewCount, 2);
+  assert.equal(visibleTouchActions({ ...seatContext('jeep', 'gunner'), vehicleViewCount: 1 }).has('vehicleView'), false, 'a single view needs no VIEW');
+  assert.equal(visibleTouchActions({ ...infantry, conquest: true, vehicleViewCount: 4 }).has('vehicleView'), false, 'on foot: no VIEW');
   // On foot in Conquest: infantry set plus MAP and SPOT; elsewhere no Conquest buttons.
   assert.deepEqual(actions({ ...infantry, conquest: true }).filter(a => CONQUEST_TOUCH_ACTIONS.includes(a)), ['bigMap', 'spot']);
   assert.deepEqual(actions(infantry).filter(a => CONQUEST_TOUCH_ACTIONS.includes(a)), []);
@@ -101,6 +107,7 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
     requestSeat: index => { calls.push(['seat', index]); return true; },
     queueCountermeasure: () => { calls.push(['cm']); return true; },
     interactHeldMs: () => 0,
+    cycleView: () => { calls.push(['view']); return 'chase'; },
   };
   const spots = [];
   const hud = new ConquestHud(document.body, { onSpot: () => spots.push(1), eventTarget: dom.window });
@@ -110,7 +117,7 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
   hud.update(args);
   assert.equal(document.body.dataset.vehicleSeated, 'true');
   const fields = hud.touchContextFields();
-  assert.deepEqual(fields, { ...state.CONQUEST_TOUCH_DEFAULTS, conquest: true, deployOpen: false, vehicleSeatCount: 5, vehicleCountermeasure: null, vehicleCountermeasureReady: false });
+  assert.deepEqual(fields, { ...state.CONQUEST_TOUCH_DEFAULTS, conquest: true, deployOpen: false, vehicleSeatCount: 5, vehicleCountermeasure: null, vehicleCountermeasureReady: false, vehicleViewCount: 2 });
   assert.deepEqual(state.conquestTouchFields({ active: false }), state.CONQUEST_TOUCH_DEFAULTS, 'outside Conquest every key resets');
 
   const touch = new TouchControls({ documentRef: document });
@@ -128,6 +135,10 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
   assert.equal(hud.bigMap.open, true, 'MAP opens the full map');
   press('bigMap', 4);
   assert.equal(hud.bigMap.open, false);
+  // VIEW cycles the seat's camera through the vehicle controller (V).
+  press('vehicleView', 8);
+  assert.deepEqual(calls, [['seat', 2], ['view']], 'VIEW cycles the camera view');
+  calls.pop();
   // Hidden buttons never fire (countermeasure belongs to the pilot).
   press('countermeasure', 5);
   assert.deepEqual(calls, [['seat', 2]]);
@@ -152,4 +163,4 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
 }
 
 dom.restore();
-console.log('Conquest vehicle touch: per-seat buttons, seat cycle, countermeasure, map and spot routing, seat-change release passed');
+console.log('Conquest vehicle touch: per-seat buttons, seat cycle, view cycle, countermeasure, map and spot routing, seat-change release passed');

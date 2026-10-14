@@ -337,6 +337,8 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-flight-hint-item:first-child .cq-flight-hint-text { color: #fff; }
 .vb-touch-mode .cq-flight-hint { display: none; }
 .cq-vehicle-telemetry[data-stall="true"] { color: #ff4b4b; }
+/* The tank driver's DRIVER periscope draws its own instrument bar (reticles.js) in the card's place. */
+.vb-conquest-hud[data-vehicle-view="driver"] .cq-vehicle { display: none; }
 .cq-interact.is-active { border-color: #7ef29a; box-shadow: 0 0 14px #7ef29a55; }
 
 /* --------------------------------------------------------- reticles */
@@ -502,6 +504,11 @@ body[data-vehicle-sight="sensor"] #crosshair { display: none !important; }
 .vb-touch-controls.is-aircraft .vb-touch-move-zone.is-sprinting .vb-touch-stick-knob { border-color: #ffffff80; background: #ffffff55; }
 .vb-touch-vehicleSeat { --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); width: 64px; border-radius: 8px; font-size: 10px; }
 .vb-touch-countermeasure { --touch-column: 76px; --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); border-color: #ffcf5caa; color: #ffe6a8; font-size: 9px; }
+/* VIEW (seated): the seat's next camera view, under MAP and SPOT. */
+.vb-touch-vehicleView {
+  right: auto; bottom: auto; left: calc(max(12px, env(safe-area-inset-left)) + 112px); top: calc(max(10px, env(safe-area-inset-top)) + 218px);
+  width: 44px; height: 44px; border-radius: 8px; font-size: 10px; border-color: #7ef29aaa; color: #d9ffe3;
+}
 .vb-touch-bigMap, .vb-touch-spot {
   right: auto; bottom: auto; left: calc(max(12px, env(safe-area-inset-left)) + 112px); top: calc(max(10px, env(safe-area-inset-top)) + 114px);
   width: 44px; height: 44px; border-radius: 8px; font-size: 10px;

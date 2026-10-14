@@ -42,7 +42,7 @@ const ok = () => { checks++; };
 /* ------------------------------------------------------------ fixtures */
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
-  'tank-driver', 'tank-commander', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
+  'tank-driver', 'tank-commander', 'tank-periscope', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
   'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'scoreboard', 'result'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
@@ -227,6 +227,85 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
   assert.equal(tank.kind, 'tank'); assert.equal(tank.ready, false); assert.equal(tank.reload, 0.4);
   assert.ok(tank.impact && Number.isFinite(tank.impact.x), 'barrel impact projected from the mount pose');
   assert.equal(reticle('tank-commander').kind, 'mg');
+  // Hull indicator: hull and turret against the view (camera yaw), +left; every tank seat gets it.
+  {
+    const deg = Math.PI / 180;
+    const withView = id => { const f = byId(id); return state.reticleModel(seatedOf(f), { projector: projectorFor(f), players: f.players,
+      vehicles: f.vehicles, selfTeam: f.selfTeam, viewYaw: f.camera.yaw }); };
+    const driver = withView('tank-driver').hull, commander = withView('tank-commander').hull;
+    assert.ok(Math.abs(driver.hull - 50 * deg) < 1e-3 && driver.offset === 50, `driver hull 50° left of the view (${driver.offset}°)`);
+    assert.ok(Math.abs(driver.turret - 0.12) < 1e-3, 'the turret trails the view by its own offset');
+    assert.equal(driver.travel, 1, 'positive track speed drives forward');
+    assert.equal(commander.offset, -17, 'the commander looks 0.3 rad left of the hull: the hull sits 17° right');
+    assert.equal(state.hullIndicatorModel({ ...seatedOf(byId('tank-driver')).row, speed: -2 }, { viewYaw: 0 }).travel, -1, 'reversing');
+    // Screen up follows the view; the hull offset is hull minus view, wrapped, and follows the presented hull yaw.
+    const row = { type: 'tank', yaw: 3.0, turretYaw: -3.0 };
+    const wrapped = state.hullIndicatorModel(row, { viewYaw: -3.0 });
+    assert.ok(Math.abs(wrapped.hull - (6.0 - 2 * Math.PI)) < 1e-9 && Math.abs(wrapped.turret) < 1e-9, 'offsets wrap across ±π');
+    assert.ok(Math.abs(state.hullIndicatorModel(row, { viewYaw: -3.0, hullYaw: -2.5 }).hull - 0.5) < 1e-9, 'the presented hull yaw wins over the row');
+    assert.equal(state.hullIndicatorModel(row).hull, wrapped.hull, 'without a view the turret is screen up');
+    assert.equal(state.hullIndicatorModel({ type: 'tank', yaw: 0 }, { viewYaw: Math.PI / 2 }).heading, 0, 'hull heading 0 is north');
+    assert.equal(state.hullIndicatorModel({ type: 'tank', yaw: -Math.PI / 2 }).heading, 90, 'yaw -π/2 heads east');
+    assert.equal(state.hullIndicatorModel({ type: 'jeep', yaw: 0 }), null);
+    assert.equal(withView('heli-pilot').hull, undefined, 'only tanks draw the hull indicator');
+    const { Reticles } = await import('../public/js/ui/conquest/reticles.js');
+    const drawn = new Reticles(document.body);
+    drawn.draw(withView('tank-driver'), null, VIEW.width, VIEW.height, {});
+    assert.ok(textsDrawn(drawn.context).includes('\u25C0 50\u00B0'), 'the offset readout points to the hull side');
+    assert.ok(drawn.hullBox && drawn.reserved.includes(drawn.hullBox), 'flag markers keep clear of the indicator');
+    drawn.draw(withView('tank-commander'), null, 390, 844, { touch: true });
+    assert.ok(textsDrawn(drawn.context).some(t => t.startsWith('\u25B6 17\u00B0 \u00B7 HULL')), 'phones draw one line under the silhouette');
+    drawn.clear();
+    assert.equal(drawn.hullBox, null);
+    ok();
+  }
+  // DRIVER periscope (tank driver, view 'driver'): instruments from the row, the gun marks against the mouse aim.
+  {
+    const f = byId('tank-periscope'), seated = seatedOf(f), row = seated.row;
+    const model = (opts = {}) => state.reticleModel(seated, { projector: projectorFor(f), players: f.players, vehicles: f.vehicles,
+      selfTeam: f.selfTeam, viewYaw: f.camera.yaw, view: 'driver', driverAim: f.aim, ...opts });
+    const scope = model();
+    assert.equal(scope.kind, 'tank'); assert.equal(scope.periscope, true);
+    assert.equal(scope.hull, undefined, 'the periscope looks along the hull: no hull indicator');
+    const d = scope.driver;
+    assert.equal(d.speedKmh, 23, '6.4 m/s'); assert.equal(d.gear, 'D');
+    assert.equal(d.gunOffset, -30, 'gun 30° right of the hull (+left)');
+    assert.equal(d.weapon.label, scope.label); assert.equal(d.weapon.ready, false); assert.ok(Math.abs(d.weapon.reload - 0.55) < 1e-9);
+    assert.equal(d.hp, 640); assert.ok(d.maxHp > 640 && Math.abs(d.fraction - 640 / d.maxHp) < 1e-9);
+    assert.deepEqual(d.smoke, { kind: 'smoke', ready: 1, available: true, active: false });
+    assert.equal(d.heading, state.hullIndicatorModel(row).heading, 'the boxed heading is the hull heading');
+    assert.ok(scope.aimMark && scope.aimMark.x > VIEW.width / 2, 'the aim mark sits right of the nose');
+    assert.ok(scope.impactRaw, 'unclamped shell projection for the edge arrow');
+    assert.equal(model({ view: 'chase' }).periscope, undefined, 'other views keep the hull indicator');
+    assert.ok(model({ view: 'chase' }).hull);
+    assert.equal(state.reticleModel(seatedOf(byId('tank-commander')), { projector: projectorFor(f), view: 'driver' }).periscope, undefined, 'only the driver seat');
+    // Gear and smoke follow the row.
+    assert.equal(state.driverHudModel({ ...row, speed: -1 }).gear, 'R');
+    assert.equal(state.driverHudModel({ ...row, speed: 0.1 }).gear, 'N');
+    assert.deepEqual(state.driverHudModel({ ...row, cmr: 40 }).smoke, { kind: 'smoke', ready: 0.4, available: false, active: false });
+    assert.equal(state.driverHudModel({ type: 'jeep' }), null);
+    const { Reticles } = await import('../public/js/ui/conquest/reticles.js');
+    const drawn = new Reticles(document.body);
+    drawn.draw(scope, null, VIEW.width, VIEW.height, {});
+    const texts = textsDrawn(drawn.context);
+    for (const text of ['23', 'KM/H', 'GUN \u25B6 30\u00B0', 'LOADING', 'SMOKE READY', `640 / ${Math.ceil(d.maxHp)}`]) assert.ok(texts.includes(text), `desktop bar draws ${text}`);
+    assert.ok(drawn.driverBoxes.bar && drawn.driverBoxes.tape, 'desktop: instrument bar and heading tape');
+    assert.ok(drawn.driverBoxes.bar.left >= 424, 'the bar keeps right of the squad list');
+    assert.ok(Object.values(drawn.driverBoxes).every(b => drawn.reserved.some(r => r.left <= b.left && r.right >= b.right)), 'markers keep clear');
+    assert.ok(!texts.some(t => t.includes('HULL AHEAD') || /^HULL \d{3}/.test(t)), 'no hull indicator readout');
+    // A gun turned out of the window gets an edge arrow instead of the shell marks.
+    const behind = model({ driverAim: { yaw: row.yaw + Math.PI, pitch: 0 } });
+    drawn.draw({ ...behind, impact: null, impactRaw: { x: -400, y: VIEW.height / 2, inside: false, behind: false } }, null, VIEW.width, VIEW.height, {});
+    assert.ok(textsDrawn(drawn.context).includes('GUN'), 'edge arrow labelled GUN');
+    drawn.draw(scope, null, 390, 844, { touch: true });
+    assert.equal(drawn.driverBoxes.tape, undefined, 'portrait: the panel header carries the heading');
+    assert.ok(textsDrawn(drawn.context).includes(`HDG ${String(d.heading).padStart(3, '0')}`));
+    drawn.draw(scope, null, 844, 390, { touch: true });
+    assert.ok(drawn.driverBoxes.tape && drawn.driverBoxes.bar.right <= 844 - 12 + 1e-9);
+    drawn.clear();
+    assert.equal(drawn.driverBoxes, null);
+    ok();
+  }
   const pods = reticle('heli-pilot');
   assert.equal(pods.kind, 'pods'); assert.equal(pods.convergence, 120); assert.ok(pods.pip, 'pod pip at convergence');
   const gimbal = reticle('heli-gunner');
