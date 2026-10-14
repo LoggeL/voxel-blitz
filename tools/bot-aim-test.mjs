@@ -123,3 +123,32 @@ console.log('ok: bot aim steering eases in/out, tracks, resets on snaps and wand
 }
 
 console.log('ok: bot view kick is applied and recovered by skill');
+
+// Burst bias (Conquest): one offset held through a burst, a fresh one per
+// burst with the spread of one gaussish draw; the clocked variant re-rolls
+// only once its hold has run out. Flinch rides on the recoverable kick.
+{
+  const rng = mulberry32(0xB1A5);
+  const aim = new AimSteering();
+  assert.equal(aim.biasYaw, 0, 'no bias before the first roll');
+  const draws = [];
+  for (let i = 0; i < 20_000; i++) { aim.rollBurst(rng); draws.push(aim.biasYaw); }
+  const sd = Math.sqrt(draws.reduce((a, b) => a + b * b, 0) / draws.length);
+  assert.ok(Math.abs(sd - 1 / 3) < 0.02, `burst bias has the unit gaussish spread (${sd})`);
+  assert.ok(new Set(draws.slice(0, 50)).size === 50, 'every burst draws its own offset');
+  const clocked = new AimSteering();
+  clocked.rollBurstEvery(0, 900, 1800, rng);
+  const held = clocked.biasYaw;
+  clocked.rollBurstEvery(800, 900, 1800, rng);
+  assert.equal(clocked.biasYaw, held, 'the clocked bias is held inside its window');
+  clocked.rollBurstEvery(1801, 900, 1800, rng);
+  assert.notEqual(clocked.biasYaw, held, 'and re-rolled after it');
+  const flinch = new AimSteering();
+  flinch.flinch(2, rng);
+  const jolt = Math.hypot(flinch.kickYaw, flinch.kickPitch) * 180 / Math.PI;
+  assert.ok(jolt > 0.5 && jolt <= 2 + 1e-9, `a flinch jolts the view by up to its size (${jolt})`);
+  for (let tick = 0; tick < 60; tick++) flinch.recoil(DT, 0.5);
+  assert.ok(Math.hypot(flinch.kickYaw, flinch.kickPitch) * 180 / Math.PI < jolt * 0.2, 'and is recovered like recoil');
+}
+
+console.log('ok: bot burst bias is held per burst and flinch recovers like recoil');

@@ -153,6 +153,17 @@ A bot that drives or pilots a hull on an order (a crew, or a squad ride's driver
 - **End**: the human boards (the hull leaves at once: `holdFor` lets go on the next tick, without waiting for the plan), dies or goes down, gets into another hull, walks away (1 m/s or faster away from the hull, outside 8 m), drifts beyond 60 m, or stops closing in for 1.5 s while outside 8 m (standing within 8 m counts as boarding). Otherwise the wait ends after 8 s, or 12 s for the driver's squad mate. A human given up on (timed out, turned away, took another hull) is not waited for again for 30 s, so nobody can park a bot by standing next to it.
 - A squad ride no longer waits for a booked rider whose seat someone else (the human) took, so the ride leaves as soon as the human is aboard. If the human takes the driver seat instead, seat takeover applies and the bots aboard ride with the human (above).
 
+### Bot marksmanship
+
+Conquest bots miss more, and less evenly, than in the other modes (playtest 2026-10-14: on Frontier's long sightlines a bot that had fought for a few seconds landed nearly every round). On top of the shared aim model (`server/bot-aim.js`: eased steering, correlated wander, simulated recoil) Conquest infantry (`CQ_AIM` in `server/bots.js`; not Titanfall) gets:
+
+- **An error floor**: the aim error still shrinks as a fight wears on, but only to 0.8 of its opening size (0.55 elsewhere).
+- **Burst bias**: one offset (1.0 × the current aim error, unit `gaussish` spread) is drawn when a contact is recognised and after every burst, and held through the next burst, so whole bursts can sail past while the next one connects.
+- **Lead slip**: each burst misjudges a moving target's lead by a held 0.3 s × `gaussish` of its motion, at full size from 40 m and scaled down linearly inside it.
+- **Flinch**: every hit taken jolts the view by up to 2.2° in a random direction, recovered by skill like recoil.
+
+Crew gunners and bot pilots (`CQ_MOUNT_AIM` in `server/bot-vehicle-combat.js`, used by `server/bot-aircraft.js`) add 0.35° to their skill-scaled error and hold a burst bias (1.2 × that error) re-rolled every 0.9–1.8 s; the trigger waits for the mount (or the airframe) to sit on the biased point, so the bias lands as a miss. The STINGER and the jet's AA missile keep their seeker on the hull centre. Measured with a pinned rifle bot against an idle enemy on Frontier (8 seeds; first 2.5 s after the first shot → after 7 s): Normal at 40 m 0.50 → 0.32 and 0.87 → 0.66 hits per shot, at 70 m 0.14 → 0.02 and 0.51 → 0.28, at 15 m 0.79 → 0.84 and 0.93 → 0.82. In the action gate (seeds 1–6) the infantry hit rate fell from about 0.37 to 0.24 per shot.
+
 ### Falling, parachutes and the ejection seat
 
 All values live in `shared/parachute.js`; the server (`server/sim/movement.js`) and the client prediction (`public/js/player-physics.js`) run the same state machine.

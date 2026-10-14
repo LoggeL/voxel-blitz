@@ -22,7 +22,7 @@ import { vehicleSeatOccupantId, vehicleSeats } from '../shared/vehicle-seats.js'
 import { VEHICLE_WEAPON_META, seatWeaponList } from '../shared/conquest-contract.js';
 import { botVehicleSeat, botVehicleDriver, botPassengerInput, boardingGoal, countermeasureReady, maxHullHp, transitRidersMissing } from './bot-vehicle-driving.js';
 import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
-import { observeBotVehicle, hullTarget, hullCrew, seatedExposed, mountSystem, seatWeapons } from './bot-vehicle-combat.js';
+import { observeBotVehicle, hullTarget, hullCrew, seatedExposed, mountSystem, seatWeapons, CQ_MOUNT_AIM } from './bot-vehicle-combat.js';
 import { AimSteering } from './bot-aim.js';
 import { botDifficulty, BOT_AIRCRAFT_SIGHT_RANGE } from '../shared/bot-difficulty.js';
 import { ROCKET_RULES } from '../shared/rocket-rules.js';
@@ -188,10 +188,19 @@ export function aircraftCombatIntent(game, br, p, v, state, now, dt, { airOnly =
   const flightTime = sighting.distance / weapon.speed, skill = br.skill ?? 0.5;
   const point = sighting.aimPoint.map((n, i) => n + (i === 0 ? target.vx || 0 : i === 1 ? target.vy || 0 : target.vz || 0) * flightTime * (0.85 + skill * 0.15));
   const dx = point[0] - origin[0], dy = point[1] - origin[1], dz = point[2] - origin[2], flat = Math.hypot(dx, dz);
-  const yaw = bearing({ x: origin[0], z: origin[2] }, { x: point[0], z: point[2] });
-  const pitch = Math.atan2(dy + weapon.gravity * flightTime * flightTime / 2, flat);
+  let yaw = bearing({ x: origin[0], z: origin[2] }, { x: point[0], z: point[2] });
+  let pitch = Math.atan2(dy + weapon.gravity * flightTime * flightTime / 2, flat);
   const profile = botDifficulty(br.difficulty), def = rulesOf(v);
-  const wander = combat.aim.wander(dt, (1.1 - 0.7 * skill) * profile.aimError * Math.PI / 180, 0.6, br.rng);
+  // Conquest: the crews' error floor and held per-burst offset (bot-vehicle-combat.js),
+  // folded into the attitude the guns wait for, so the offset lands as a miss.
+  const cqCrew = game.mode.mode === 'conquest';
+  const sigma = (1.1 - 0.7 * skill + (cqCrew ? CQ_MOUNT_AIM.floorDeg : 0)) * profile.aimError * Math.PI / 180;
+  const wander = combat.aim.wander(dt, sigma, 0.6, br.rng);
+  if (cqCrew && weapon.key !== 'aaMissile') {
+    combat.aim.rollBurstEvery(now, CQ_MOUNT_AIM.rollMinMs, CQ_MOUNT_AIM.rollMaxMs, br.rng);
+    yaw = wrap(yaw + combat.aim.biasYaw * sigma * CQ_MOUNT_AIM.burstBias);
+    pitch += combat.aim.biasPitch * sigma * CQ_MOUNT_AIM.burstBias * 0.6;
+  }
   const reachable = pitch >= (def.minPitch ?? (ROTOR.has(v.type) ? -0.45 : -0.55)) && pitch <= (def.maxPitch ?? 0.4);
   // Guns are walked onto the target in a burst (a few metres of spray is a
   // strafing run); rockets and missiles need the tight alignment.

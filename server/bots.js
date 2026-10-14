@@ -88,6 +88,17 @@ const HOLD_STANCES = new Set(['defend', 'overwatch', 'stage']);
 const goalStance = goal => goal?.role ?? goal?.stance ?? null;
 const TRAVEL_LOOK_RANGE = 60;     // m: known contacts nearer than this turn a travelling bot's eyes
 const ADS_RANGE = 18;             // m: Conquest bots aim down sights beyond this
+// Conquest infantry aim (bot-aim.js burst bias): the long open sightlines made a
+// bot that had fought for a few seconds land nearly every round, so Conquest
+// keeps a floor under the aim error, holds a fresh offset per burst (whole
+// bursts miss), misjudges a moving target's lead per burst and flinches when hit.
+const CQ_AIM = Object.freeze({
+  errFloor: 0.8,      // errFactor never tightens below this (other modes: 0.55)
+  burstBias: 1.0,     // per-burst held offset, in units of the current aim error
+  leadSigmaS: 0.3,    // per-burst lead misjudgement (s of target motion, unit gaussish)
+  leadFullM: 40,      // ... at full size from this range, scaled down linearly inside it
+  flinchDeg: 2.2,     // view jolt per hit taken
+});
 const STOP_AND_POP_RANGE = 30;    // m: ranged bursts are fired standing
 const ZONE_EDGE = 0.72;           // fraction of the flag radius where zone strafing turns inward
 const LOOK_SWEEP = 70 * Math.PI / 180; // idle look-around half-width
@@ -1130,6 +1141,7 @@ class BotManager {
         br.noticeThreshold = recognitionThreshold(br.rng());
         br.engagedMs = 0;
         br.inBurst = false;
+        if (cq && !tf) br.aim.rollBurst(br.rng);
       }
       const previousElapsed = br.noticeElapsed;
       br.noticeElapsed += dtS * 1000;
@@ -1463,7 +1475,13 @@ class BotManager {
     inp.keys.sprint = !!sprint;
 
     // Aim error shrinks as the fight wears on.
-    const errFactor = Math.max(0.55, 1 - br.engagedMs / 4000);
+    const cqAim = cq && !tf;
+    const errFactor = Math.max(cqAim ? CQ_AIM.errFloor : 0.55, 1 - br.engagedMs / 4000);
+    // Conquest: a hit taken jolts the view (recovered like recoil, by skill).
+    if (cqAim) {
+      if (p.hp < (br.flinchHp ?? p.hp)) br.aim.flinch(CQ_AIM.flinchDeg, br.rng);
+      br.flinchHp = p.hp;
+    }
 
     // Every accepted shot kicks the view the way the client kicks a human's.
     if (p.shotSeq !== br.lastShotSeq) {
@@ -1545,7 +1563,13 @@ class BotManager {
               : p.def.flame ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), FLAME_RULES.speed, br.skill)
                 : orb ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), PILOT_AT_RULES.thunderbolt.speed, br.skill)
                   : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
-      const aim = [aimX + lead[0], (rocketAim ? rocketAim.point[1] : aimY) - (flight ? (flight.rise - BUBBLE_RULES.muzzleDrop) * br.skill : 0), aimZ + lead[1]];
+      // Conquest: this burst's lead is off by a held fraction of the target's motion
+      // (less up close, where a strafe is easy to read and the slip would be wide).
+      const leadSlip = cqAim && !stingerAim
+        ? br.aim.biasLead * CQ_AIM.leadSigmaS * Math.min(1, enemyFlat / CQ_AIM.leadFullM) : 0;
+      const aim = [aimX + lead[0] + (enemy.vx || 0) * leadSlip,
+        (rocketAim ? rocketAim.point[1] : aimY) - (flight ? (flight.rise - BUBBLE_RULES.muzzleDrop) * br.skill : 0),
+        aimZ + lead[1] + (enemy.vz || 0) * leadSlip];
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
       const mglPitch = mgl ? mglAimPitch(Math.max(0.35, flat - MGL_RULES.muzzleForward),
@@ -1560,8 +1584,10 @@ class BotManager {
       // The view kick rides on top: strip last tick's residual, steer the
       // clean aim, add this tick's residual back.
       const wander = br.aim.wander(dtS, sigmaRad, 0.6, br.rng);
-      const intendedYaw = wrapAngle(yawT + wander.yaw);
-      const intendedPitch = Math.max(-1.4, Math.min(1.4, pitchT + wander.pitch));
+      // Conquest: plus the offset held for this burst (stingers keep the seeker on the hull).
+      const bias = cqAim && !stingerAim ? sigmaRad * CQ_AIM.burstBias : 0;
+      const intendedYaw = wrapAngle(yawT + wander.yaw + br.aim.biasYaw * bias);
+      const intendedPitch = Math.max(-1.4, Math.min(1.4, pitchT + wander.pitch + br.aim.biasPitch * bias * 0.6));
       const baseYaw = br.aim.steer('yaw', wrapAngle(p.yaw - recoil.prev.yaw), intendedYaw, turnRate, dtS);
       const basePitch = br.aim.steer('pitch', p.pitch - recoil.prev.pitch, intendedPitch, pitchTurnRate, dtS);
       inp.yaw = wrapAngle(baseYaw + recoil.yaw);
@@ -1690,7 +1716,10 @@ class BotManager {
               inp.wantFire = p.def.mode === 'auto' || !p.triggerPrev;
             }
           }
-          else { br.inBurst = false; br.pauseUntil = now + profile.burstPauseMs * pers.burstPause; }
+          else {
+            br.inBurst = false; br.pauseUntil = now + profile.burstPauseMs * pers.burstPause;
+            if (cqAim) br.aim.rollBurst(br.rng);
+          }
         }
       }
       // Stop and pop: a ranged burst is fired standing still (movement spread

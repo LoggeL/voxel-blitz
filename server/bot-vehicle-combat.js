@@ -26,6 +26,13 @@ import { cancelCharge } from './sim/combat.js';
 import { armorMultiplier as sharedArmorMultiplier, infantryDamageClass } from '../shared/vehicle-armor.js';
 import { VEHICLE_DEFS, LOCK_RULES, VEHICLE_WEAPONS } from '../shared/vehicle-defs.js';
 
+/**
+ * Conquest crews (not titans): an error floor under the skill-scaled sigma (a
+ * fully skilled gunner otherwise held ~0.1 degrees) and a held per-burst offset
+ * re-rolled every 0.9-1.8 s, so a burst or a shell can go wide (bot-aim.js).
+ */
+export const CQ_MOUNT_AIM = Object.freeze({ floorDeg: 0.35, burstBias: 1.2, rollMinMs: 900, rollMaxMs: 1800 });
+
 const wrap = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const HALF_FOV = 55 * Math.PI / 180;
 const TRACK_FOV = 65 * Math.PI / 180;
@@ -532,8 +539,16 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   const aim = ballisticAim(origin, sighting.aimPoint, target, { speed: meta?.speed ?? 0, gravity: meta?.gravity ?? 0,
     maxSeconds: 6, leadSkill: 0.8 + 0.2 * skill });
   // A cloaked pilot seen only up close is aimed at with a multiplied error (Titanfall, bot-perception.js).
-  const sigma = (0.9 - 0.6 * skill) * profile.aimError * pers.aimError * Math.PI / 180 * (sighting.aimErrorMul ?? 1);
+  const cqCrew = game.mode.mode === 'conquest';
+  const sigma = (0.9 - 0.6 * skill + (cqCrew ? CQ_MOUNT_AIM.floorDeg : 0)) * profile.aimError * pers.aimError * Math.PI / 180 * (sighting.aimErrorMul ?? 1);
   const wander = state.aim.wander(dtS, sigma, 0.6, br.rng);
+  // Conquest: the trigger waits for the mount to sit on the biased point, so the bias lands as a miss.
+  if (cqCrew) {
+    state.aim.rollBurstEvery(now, CQ_MOUNT_AIM.rollMinMs, CQ_MOUNT_AIM.rollMaxMs, br.rng);
+    const bias = sigma * CQ_MOUNT_AIM.burstBias;
+    aim.yaw = wrap(aim.yaw + state.aim.biasYaw * bias);
+    aim.pitch += state.aim.biasPitch * bias * 0.6;
+  }
   inp.yaw = wrap(aim.yaw + wander.yaw);
   inp.pitch = Math.max(-1.4, Math.min(1.4, aim.pitch + wander.pitch));
   if (titan) titanSightAim(v, aim, meta, wander, inp);

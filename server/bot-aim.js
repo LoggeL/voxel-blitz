@@ -15,6 +15,11 @@
 //     Bots get the same kick applied on top of their steered aim and bleed
 //     it off at a skill-dependent rate, so low-skill bots climb during a
 //     spray and high-skill bots hold the pattern down.
+//  4. Burst bias (opt-in, Conquest). A human re-acquires between bursts and
+//     lands somewhere near the target, not on the same pixel every time. The
+//     bias is one offset drawn per burst and held through it, so a whole
+//     burst can sail past while the next one connects: hits come in clumps,
+//     not as an even trickle. A hit taken flinches the view through the kick.
 //
 // No renderer, network or engine dependency; pure state + math.
 
@@ -49,6 +54,8 @@ export class AimSteering {
     this.driftYaw = 0; this.driftPitch = 0;
     this.tremorYaw = 0; this.tremorPitch = 0;
     this.kickYaw = 0; this.kickPitch = 0;
+    this.biasYaw = 0; this.biasPitch = 0; this.biasLead = 0;
+    this.biasUntil = -Infinity;
   }
 
   /** Drop momentum and kick, e.g. on respawn. Wander state is harmless to keep. */
@@ -61,6 +68,34 @@ export class AimSteering {
   /** Forget any uncorrected kick, e.g. when the fight ends. */
   dropKick() {
     this.kickYaw = 0; this.kickPitch = 0;
+  }
+
+  /**
+   * Draw the next burst's held aim offset as unit draws (the spread of one
+   * `gaussish`): the caller scales `biasYaw`/`biasPitch` by its current aim
+   * error and `biasLead` by the seconds of target motion it may misjudge, so
+   * the bias follows skill and range changes inside the burst.
+   */
+  rollBurst(rng) {
+    this.biasYaw = gaussish(rng);
+    this.biasPitch = gaussish(rng);
+    this.biasLead = gaussish(rng);
+  }
+
+  /**
+   * Re-roll the burst bias on a clock, for gunners and pilots whose mounts
+   * keep no burst count of their own (a held tank-shell bias lasts a shot).
+   */
+  rollBurstEvery(now, minMs, maxMs, rng) {
+    if (now < this.biasUntil) return;
+    this.rollBurst(rng);
+    this.biasUntil = now + minMs + rng() * (maxMs - minMs);
+  }
+
+  /** Being hit jolts the view by about `deg` in a random direction (recovered like recoil). */
+  flinch(deg, rng) {
+    const a = rng() * Math.PI * 2, m = (0.6 + 0.4 * rng()) * deg;
+    this.kick(Math.cos(a) * m, Math.sin(a) * m * 0.7);
   }
 
   /** One shot's view kick in degrees, as the client would apply it. */
