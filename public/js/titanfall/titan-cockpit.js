@@ -497,6 +497,9 @@ void main() {
 // Damage (titan-cockpit-fx.js): up to 6 star cracks (uv centre, radius in glass heights, seed) with
 // radial rays, branch rays, broken ring fractures and a frosted impact; `open` fades the glass
 // (the hatch swings away on exit); `boot` (0..1, < 0 off) sweeps a scan band down on embark.
+// `screen` (0..1, < 0 off) is the closed hatch's screen powering on (titan-embark-boot.js): black, a
+// bright line across the middle draws out, opens into the outside feed, tinted with scanlines and
+// rolling bands that settle into the plain glass. `dim` (0..1) darkens it (reduced motion).
 const GLASS_FRAGMENT = /* glsl */ `
 uniform float doom;
 uniform float time;
@@ -505,6 +508,8 @@ uniform int crackCount;
 uniform float aspect;
 uniform float open;
 uniform float boot;
+uniform float screen;
+uniform float dim;
 varying vec2 vUv;
 float h1(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
 float rays(vec2 d, float r, float radius, float seed, float n, float reach, float width) {
@@ -558,6 +563,27 @@ void main() {
     color = mix(color, vec3(0.3, 0.85, 1.0), band);
     alpha = max(alpha, band * 0.55);
   }
+  if (screen >= 0.0) {
+    float wide = smoothstep(0.0, 0.18, screen), tall = smoothstep(0.14, 0.58, screen), settle = smoothstep(0.5, 1.0, screen);
+    float dx = abs(vUv.x - 0.5), dy = abs(vUv.y - 0.5);
+    float halfH = mix(0.004, 0.56, tall * tall);
+    float across = 1.0 - smoothstep(wide * 0.52 - 0.02, wide * 0.52, dx);
+    float lit = across * (1.0 - smoothstep(halfH - 0.01, halfH, dy));
+    float rim = across * exp(-abs(dy - halfH) * 140.0) * (1.0 - 0.75 * tall);
+    float scan = 0.5 + 0.5 * sin(vUv.y * 420.0);
+    float roll = step(0.8, h1(floor(vUv.y * 40.0 - time * 9.0) + floor(time * 20.0) * 3.1));
+    vec3 tint = vec3(0.32, 0.86, 1.0);
+    float feed = (0.5 + 0.2 * scan + 0.2 * roll) * (1.0 - settle);
+    vec3 sc = tint * lit;
+    float sa = mix(1.0, feed, lit);
+    sc = mix(sc, vec3(0.85, 0.97, 1.0), clamp(rim, 0.0, 1.0));
+    sa = max(sa, clamp(rim, 0.0, 1.0));
+    float k = settle * lit;
+    color = mix(sc, color, k);
+    alpha = mix(sa, alpha, k);
+  }
+  color = mix(color, vec3(0.0), dim);
+  alpha = mix(alpha, 1.0, dim);
   gl_FragColor = vec4(color, alpha * open);
 }`;
 
@@ -571,7 +597,7 @@ function makeMaterials(type, map) {
     screens: nearDepth(new THREE.MeshBasicMaterial({ name: 'titan-cockpit-screens', color: map ? 0xffffff : 0x2a8a52, map, toneMapped: false })),
     glass: new THREE.ShaderMaterial({ name: 'titan-cockpit-glass', vertexShader: GLASS_VERTEX, fragmentShader: GLASS_FRAGMENT,
       uniforms: { doom: { value: 0 }, time: { value: 0 }, cracks: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) },
-        crackCount: { value: 0 }, aspect: { value: 2.4 }, open: { value: 1 }, boot: { value: -1 } },
+        crackCount: { value: 0 }, aspect: { value: 2.4 }, open: { value: 1 }, boot: { value: -1 }, screen: { value: -1 }, dim: { value: 0 } },
       transparent: true, depthWrite: false, side: THREE.DoubleSide }),
     sparks: nearDepth(new THREE.MeshBasicMaterial({ name: 'titan-cockpit-sparks', vertexColors: true, transparent: true, depthWrite: false,
       blending: THREE.AdditiveBlending, toneMapped: false })),

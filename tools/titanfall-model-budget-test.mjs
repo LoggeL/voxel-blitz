@@ -52,6 +52,8 @@ import { TITAN_RULES } from '../shared/vehicle-handling/titan.js';
 import { titanFrame } from '../shared/vehicle-handling/titan.js';
 import { vehicleLocalPoint } from '../shared/vehicle-defs.js';
 import * as titanPresentation from '../public/js/titanfall/titan-presentation.js';
+import { pinTransit } from '../public/js/titanfall/titan-transit.js';
+import { EMBARK_BOOT } from '../public/js/titanfall/titan-embark-boot.js';
 import * as abilityEvents from '../public/js/titanfall/titan-ability-events.js';
 import * as dropFx from '../public/js/titanfall/titanfall-drop-fx.js';
 import { GameEngine } from '../server/game.js';
@@ -306,7 +308,7 @@ for (const type of types) {
     check(() => assert.deepEqual(overlay.group.children.filter(c => !c.userData.cockpitFx).map(c => c.name.replace(/^.*?-(hud-)?(?=[a-z]+$)/, (m, hud) => hud ?? '')).sort(),
       ['accent', 'glass', 'hud-brow', 'hud-feed', 'hud-glass', 'hud-pods', 'keys', 'screens', 'shell', 'sparks', 'warn'], `${type}: overlay meshes (cabin + diegetic HUD)`));
     check(() => assert.deepEqual(overlay.group.children.filter(c => c.userData.cockpitFx).map(c => c.name.replace(/^.*-fx-/, '')).sort(),
-      ['banner', 'breach', 'cablesL', 'cablesR', 'fires', 'holeL', 'holeR', 'plateL', 'plateR', 'shutterBottom', 'shutterTop', 'smoke'], `${type}: cockpit damage and transit meshes`));
+      ['banner', 'breach', 'cablesL', 'cablesR', 'fires', 'hatchLower', 'hatchRight', 'hatchSeams', 'hatchUpper', 'holeL', 'holeR', 'plateL', 'plateR', 'smoke'], `${type}: cockpit damage and transit meshes`));
     overlay.dispose();
   }
   check(() => assert.ok(!hasCockpitOverlay('tank') && hasCockpitOverlay('plane'), 'cockpit overlays of other hulls unchanged'));
@@ -999,7 +1001,9 @@ function cockpitChecks() {
       meshes.push(o); triangles += o.geometry.attributes.position.count / 3;
     });
     check(() => assert.ok(meshes.length <= 11 && triangles <= 14000, `${type} cockpit budget: ${meshes.length} draws, ${triangles} triangles`));
-    check(() => assert.ok(fxMeshes <= 12 && fxTriangles <= 6000, `${type} cockpit fx budget: ${fxMeshes} draws, ${fxTriangles} triangles`));
+    // 14 draws: the damage parts plus the three hatch plates and their seams (titan-embark-boot.js), which only
+    // show for the fraction of a second the hatch closes or parts.
+    check(() => assert.ok(fxMeshes <= 14 && fxTriangles <= 6000, `${type} cockpit fx budget: ${fxMeshes} draws, ${fxTriangles} triangles`));
     check(() => assert.deepEqual([...materials].sort(), [...TITAN_COCKPIT_WARMUP_MATERIALS].sort(), `${type} cockpit programs are the warmed ones`));
     const shared = a.group.children.filter(o => o.name.endsWith('-shell'))[0].geometry === b.group.children.filter(o => o.name.endsWith('-shell'))[0].geometry;
     check(() => assert.ok(shared, `${type} cockpit geometry is cached and shared`));
@@ -1044,6 +1048,39 @@ function cockpitChecks() {
     check(() => assert.ok(Math.max(...ready) > base * 1.3, 'a ready core glows the accent strips'));
     cockpit.dispose();
     disposePresentation?.();
+  }
+  // Hatch and boot through a live cockpit (titan-embark-boot.js): the plates close left, left, right, the seams
+  // flash and spark on the lock, the glass screen powers on over hidden plates; on exit they part; idle is clean.
+  for (const type of ['titan_ion', 'titan_northstar']) {
+    const cockpit = makeTitanCockpit(type);
+    const row = { id: `hatch-${type}`, type, hp: 2500, yaw: 0, tw: [500, 20, 40, 0, 0, TITAN_PHASE.idle], mounts: [[0, 0, 20, 0, 0, 0]], ab: [100, 50, 100, 2] };
+    const fx = name => cockpit.group.children.find(o => o.name.endsWith(`-fx-${name}`));
+    const glass = cockpit.group.children.find(o => o.name.endsWith('-glass')).material.uniforms;
+    const sparksLit = () => cockpit.group.children.find(o => o.name.endsWith('-sparks')).geometry.attributes.color.array.some(v => v > 0);
+    const at = (mode, t, ms) => { pinTransit(row.id, { mode, t }); cockpit.update(row, ms); };
+    const shown = () => ['hatchUpper', 'hatchLower', 'hatchRight'].map(name => fx(name).visible);
+    const B = EMBARK_BOOT;
+    at('embark', B.plates[1][0] - 0.01, 1000);
+    check(() => assert.deepEqual(shown(), [true, false, false], `${type}: the upper left plate comes first`));
+    check(() => assert.ok(fx('hatchUpper').userData.local.elements[12] < 0, `${type}: it slides in from the left`));
+    at('embark', (B.plates[2][0] + B.plates[2][1]) / 2, 1100);
+    check(() => assert.deepEqual(shown(), [true, true, true], `${type}: then the lower left and the right plate`));
+    check(() => assert.ok(fx('hatchRight').userData.local.elements[12] > 0, `${type}: the right plate slides in from the right`));
+    check(() => assert.ok(!sparksLit(), `${type}: no sparks before the lock`));
+    at('embark', B.lock + 0.01, 1200);
+    at('embark', B.lock + 0.02, 1210);   // sparks emitted in a frame draw from the next one
+    check(() => assert.ok(shown().every(Boolean) && fx('hatchSeams').visible && sparksLit(), `${type}: locked, the seams flash and spark`));
+    check(() => assert.ok(['hatchUpper', 'hatchLower', 'hatchRight'].every(n => Math.abs(fx(n).userData.local.elements[12]) < 0.02), `${type}: all plates home`));
+    check(() => assert.equal(glass.screen.value, -1, `${type}: plain glass while the plates show`));
+    at('embark', (B.screen[0] + B.screen[1]) / 2, 1300);
+    check(() => assert.ok(glass.screen.value > 0 && glass.screen.value < 1 && !shown().some(Boolean) && !fx('hatchSeams').visible, `${type}: the screen powers on, the plates are hidden`));
+    at('exit', 0.02, 1400);
+    check(() => assert.ok(shown().every(Boolean) && glass.screen.value === 0, `${type}: exit cuts the screen over the closed plates`));
+    at('exit', Math.max(...B.exit.plates.map(w => w[1])) + 0.01, 1500);
+    check(() => assert.ok(!shown().some(Boolean) && glass.open.value < 1, `${type}: the plates have parted, the glass fades`));
+    pinTransit(null); cockpit.update(row, 1600);
+    check(() => assert.ok(!shown().some(Boolean) && glass.screen.value === -1 && glass.dim.value === 0 && glass.open.value === 1, `${type}: idle cockpit untouched`));
+    cockpit.dispose();
   }
   // Diegetic HUD (titan-cockpit-hud.js): every HUD field drawn on the cockpit's pods, brow, feed screen and glass, from
   // the model titan-ui publishes (the capture states stage it), the row as fallback; rate caps; glass placement; dispose.

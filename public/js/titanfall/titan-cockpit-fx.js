@@ -13,14 +13,18 @@
 //   4  the radar screen dies (NO SIGNAL), small fires at the side consoles, thick smoke, both sides torn
 // Every hull hit sparks on its side, swings the loose parts and may crack the glass again.
 //
-// Transit: on embark the armour shutters are shut when the pilot drops in; they lock, the cabin
-// powers up (keys, screens, pods, glass), the shutters slide open and the glass reads
-// LINK ESTABLISHED / PILOT ONLINE. On exit the screens die, the glass reads HATCH OPEN and fades
-// (the hatch swings away) while the anchored cabin falls behind the camera.
+// Transit (timeline in titan-embark-boot.js, references docs/design/titanfall/embark/): on embark three
+// armour plates close the viewport (two from the left, one from the right), lock with a seam flash and
+// sparks, the cabin goes dark, then the hatch's inside powers on as a screen showing the outside and the
+// MFDs, pods and glass HUD come up in turn while the glass reads NEURAL LINK, LINK ESTABLISHED / PILOT
+// ONLINE. On exit the screen cuts, the plates part, the glass reads HATCH OPEN and fades while the
+// anchored cabin falls behind the camera.
 //
 // Also a titanfall client module: it keeps the own titans' recent `vehicle_hit` events.
 import * as THREE from '../vendor/three.module.js';
 import { mergeGeometries } from '../vendor/utils/BufferGeometryUtils.js';
+import { displaySettings } from '../ui/display-settings.js';
+import { EMBARK_BOOT, embarkBoot, exitHatch } from './titan-embark-boot.js';
 
 /** Tuning (presentation only). */
 export const COCKPIT_FX = Object.freeze({
@@ -34,17 +38,16 @@ export const COCKPIT_FX = Object.freeze({
   emergency: 0.35,                               // hull fraction where the cabin light turns red
   sputter: Object.freeze([[1.6, 3.2], [0.5, 1.2]]),  // s between spark spurts at stage 2-3 and stage 4
   swing: Object.freeze({ k: 26, damping: 3.2, hit: 2.6 }),
-  // Embark boot (s since the embark started; the camera reaches the seat at ~0.98 s).
-  boot: Object.freeze({ lock: 1.0, open: Object.freeze([1.05, 1.35]), keys: 1.0, screens: Object.freeze([1.08, 1.3]),
-    pods: Object.freeze([1.1, 1.35]), glass: Object.freeze([1.25, 1.55]), banner: Object.freeze([1.0, 1.28, 2.0, 2.3]) }),
-  // Exit (s since the disembark).
-  exit: Object.freeze({ dark: 0.12, glass: Object.freeze([0.04, 0.24]), banner: 0.38 }),
+  lockSparks: 14,                                // sparks along the seams when the hatch locks
   hitLog: 8,
 });
 
+/** The hatch plate meshes in the order of titan-embark-boot.js (upper left, lower left, right). */
+export const HATCH_PLATES = Object.freeze(['hatchUpper', 'hatchLower', 'hatchRight']);
+
 /** Materials this module adds to the cockpit (titan-cockpit.js warms them). */
 export const COCKPIT_FX_WARMUP_MATERIALS = Object.freeze(['titan-cockpit-fx-solid', 'titan-cockpit-fx-glow', 'titan-cockpit-fx-smoke',
-  'titan-cockpit-fx-flame', 'titan-cockpit-fx-banner']);
+  'titan-cockpit-fx-flame', 'titan-cockpit-fx-banner', 'titan-cockpit-fx-seam']);
 
 // ------------------------------------------------------------------------------------- hit log
 
@@ -123,6 +126,28 @@ class Parts {
       this.list.push(shade(g, k % 2 ? COL.hazK : COL.hazY));
     }
   }
+  /** A flat plate over a polygon [[x, y], ...] from depth z0 (outside) to z1 (its face toward the eye). */
+  prism(points, z0, z1, hex) {
+    const shape = new THREE.Shape(points.map(([x, y]) => new THREE.Vector2(x, y)));
+    const g = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false });
+    g.translate(0, 0, z0);
+    this.list.push(shade(g, hex));
+  }
+  /** Hazard stripes along the edge a -> b ([x, y]) on a +z face at depth z, `width` toward the side `inward` (+1 left of a -> b). */
+  stripe(a, b, width, z, inward, pitch = 0.06) {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]), dx = (b[0] - a[0]) / len, dy = (b[1] - a[1]) / len;
+    const nx = -dy * inward * width, ny = dx * inward * width, skew = width * 0.6;
+    const count = Math.max(1, Math.round(len / pitch)), step = len / count;
+    for (let k = 0; k < count; k++) {
+      const s0 = k * step, s1 = Math.min(len, s0 + step), s2 = Math.min(len, s1 + skew), s3 = Math.min(len, s0 + skew);
+      const at = (s, n) => [a[0] + dx * s + nx * n, a[1] + dy * s + ny * n, z];
+      const q = [at(s0, 0), at(s1, 0), at(s2, 1), at(s0, 0), at(s2, 1), at(s3, 1)];
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(q.flat(), 3));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(18).fill(0).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));
+      this.list.push(shade(g, k % 2 ? COL.hazK : COL.hazY));
+    }
+  }
   finish() {
     const merged = mergeGeometries(this.list);
     for (const g of this.list) g.dispose();
@@ -147,27 +172,54 @@ function quadGeometry(quads, extra = 'aSide') {
 }
 
 /**
- * Geometry of the fx parts in eye metres for one cabin: shutters, per side the torn ring trim
+ * Geometry of the fx parts in eye metres for one cabin: the hatch plates and seams, per side the torn ring trim
  * (with its hinge), the hole and wires behind it, the dangling cable bundle (with its pivot), the
  * breach rim, the smoke sheets, the console fires and the glass banner plane.
  */
 function buildParts(cabin, win) {
   const { W, R, F } = cabin, { front, top, bot, half, strut, ringDepth, skin } = win;
   const out = {};
-  // Shutters: two armour plates behind the glass, meeting at the viewport's middle.
-  const mid = (top + bot) / 2, z0 = front - skin - 0.06, z1 = front - skin - 0.025, x = half + 0.12;
-  for (const [name, y0, y1, edge] of [['shutterTop', mid, top + 0.2, mid], ['shutterBottom', bot - 0.2, mid, mid]]) {
+  // Hatch plates (titan-embark-boot.js) behind the glass: the upper and lower left plates slide in from
+  // the left, the right plate from the right; its pointed edge meets them in a Y seam just right of the
+  // viewport's middle. Open, each sits in the hull beside the viewport (`hatchTravel`, x metres).
+  const mid = (top + bot) / 2, X = half * 1.1 + 0.12, Y1 = top + 0.2, Y0 = bot - 0.2;
+  const xa = half * 0.3, xp = half * 0.04, z0 = front - skin - 0.065, z1 = front - skin - 0.025;
+  const seamX = (y, toward) => xp + (xa - xp) * (y - mid) / (toward - mid);
+  const plates = {
+    hatchUpper: { poly: [[-X, mid], [xp, mid], [xa, Y1], [-X, Y1]], lo: mid, hi: Y1, side: -1 },
+    hatchLower: { poly: [[-X, Y0], [xa, Y0], [xp, mid], [-X, mid]], lo: Y0, hi: mid, side: -1 },
+    hatchRight: { poly: [[xp, mid], [xa, Y0], [X, Y0], [X, Y1], [xa, Y1]], lo: Y0, hi: Y1, side: 1 },
+  };
+  for (const [name, { poly, lo, hi, side }] of Object.entries(plates)) {
     const p = new Parts();
-    p.box([-x, y0, z0], [x, y1, z1], COL.plate);
-    for (let k = 1; k < 4; k++) { const y = y0 + (y1 - y0) * k / 4; p.box([-x, y - 0.008, z1], [x, y + 0.008, z1 + 0.012], COL.rib); }
-    // The meeting edge: hazard band and a rubber seal; bolts along the plate.
-    const up = name === 'shutterTop';
-    p.hazard(-x, x, up ? edge + 0.006 : edge - 0.05, up ? edge + 0.05 : edge - 0.006, z1 + 0.004);
-    p.box([-x, edge - 0.006, z0 - 0.005], [x, edge + 0.006, z1 + 0.006], COL.char);
-    for (let k = -4; k <= 4; k++) p.bolt([k * x / 4.6, up ? edge + 0.085 : edge - 0.085, z1], 0.012);
+    p.prism(poly, z0, z1, COL.dark);
+    // Ribs across the face, clear of the seam; a row of bolts between them.
+    const edgeX = y => (y >= mid ? seamX(y, Y1) : seamX(y, Y0));
+    for (let k = 1; k < 5; k++) {
+      const y = lo + (hi - lo) * k / 5;
+      if (side < 0) p.box([-X + 0.05, y - 0.009, z1], [edgeX(y) - 0.09, y + 0.009, z1 + 0.012], COL.plate);
+      else p.box([edgeX(y) + 0.09, y - 0.009, z1], [X - 0.05, y + 0.009, z1 + 0.012], COL.plate);
+      if (k % 2) for (let j = 0; j < 4; j++) {
+        const x = side < 0 ? -X + 0.16 + j * 0.3 : X - 0.16 - j * 0.3;
+        if (side < 0 ? x < edgeX(y) - 0.12 : x > edgeX(y) + 0.12) p.bolt([x, y + (hi - lo) / 10, z1], 0.012);
+      }
+    }
+    // The leading (slanted) edges carry a hazard band; the left plates meet each other on a rubber seal.
+    const edges = name === 'hatchRight' ? [[[xa, Y1], [xp, mid]], [[xp, mid], [xa, Y0]]]
+      : name === 'hatchUpper' ? [[[xp, mid], [xa, Y1]]] : [[[xa, Y0], [xp, mid]]];
+    // Every edge runs with its plate on the left.
+    for (const [a, b] of edges) p.stripe(a, b, 0.05, z1 + 0.004, 1);
+    if (side < 0) p.box([-X, name === 'hatchUpper' ? mid : mid - 0.008, z0 - 0.004], [xp, name === 'hatchUpper' ? mid + 0.008 : mid, z1 + 0.005], COL.char);
     out[name] = p.finish();
   }
-  out.shutterTravel = [top + 0.24 - mid, mid - bot + 0.24];
+  out.hatchTravel = { hatchUpper: -(xa + half * 1.1 + 0.08), hatchLower: -(xa + half * 1.1 + 0.08), hatchRight: half * 1.1 - xp + 0.08 };
+  // The seams light up as the plates lock: the horizontal left seam and the two arms of the point.
+  const sw = 0.05, sz = z1 + 0.006, band = (a, b) => {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]), nx = -(b[1] - a[1]) / len * sw, ny = (b[0] - a[0]) / len * sw;
+    return { corners: [[a[0] - nx, a[1] - ny, sz], [b[0] - nx, b[1] - ny, sz], [b[0] + nx, b[1] + ny, sz], [a[0] + nx, a[1] + ny, sz]] };
+  };
+  out.hatchSeams = quadGeometry([band([-X, mid], [xp, mid]), band([xp, mid], [xa, Y1]), band([xp, mid], [xa, Y0])]);
+  out.hatchSeamAt = [[xp, mid, z1 + 0.02], [(xp + xa) / 2, (mid + Y1) / 2, z1 + 0.02], [(xp + xa) / 2, (mid + Y0) / 2, z1 + 0.02], [-half * 0.5, mid, z1 + 0.02]];
   // Per side (s = -1 left, +1 right).
   for (const s of [-1, 1]) {
     const key = s < 0 ? 'L' : 'R';
@@ -318,6 +370,21 @@ void main() {
 }`,
 });
 
+// The hatch seams: a cyan line hot at the seam (uv.y 0.5) fading across the band; `flash` 0..1.
+const seamShader = depthGlsl => ({
+  vertexShader: /* glsl */ `
+varying vec2 vUv;
+void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); ${depthGlsl} }`,
+  fragmentShader: /* glsl */ `
+uniform float flash;
+varying vec2 vUv;
+void main() {
+  float d = abs(vUv.y - 0.5) * 2.0;
+  float core = exp(-d * 9.0), halo = exp(-d * 2.6) * 0.45;
+  gl_FragColor = vec4(mix(vec3(0.25, 0.8, 1.0), vec3(0.9, 1.0, 1.0), core) * (core + halo) * flash * 2.2, 1.0);
+}`,
+});
+
 // ------------------------------------------------------------------------------------ banner
 
 const BANNER = Object.freeze({ width: 512, height: 128 });
@@ -354,7 +421,6 @@ function drawBanner(b, lines, ink) {
 // --------------------------------------------------------------------------------- the fx unit
 
 const smooth = k => { const t = Math.max(0, Math.min(1, k)); return t * t * (3 - 2 * t); };
-const ramp = (t, [a, b]) => smooth((t - a) / (b - a));
 const hash = (seed, k) => { const s = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453; return s - Math.floor(s); };
 
 /** A pendulum about one axis (radians), driven by hits. */
@@ -386,6 +452,8 @@ export function createCockpitFx({ type, cabin, win, depthGlsl, nearDepth, materi
   const banner = bannerCanvas();
   const bannerMat = nearDepth(new THREE.MeshBasicMaterial({ name: 'titan-cockpit-fx-banner', map: banner?.texture ?? null, transparent: true,
     depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, opacity: 0 }));
+  const seamMat = new THREE.ShaderMaterial({ name: 'titan-cockpit-fx-seam', ...seamShader(depthGlsl), transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, toneMapped: false, uniforms: { flash: { value: 0 } } });
   const meshes = {};
   const add = (name, geometry, material, renderOrder = 0, local = null) => {
     const mesh = new THREE.Mesh(geometry, material);
@@ -397,8 +465,8 @@ export function createCockpitFx({ type, cabin, win, depthGlsl, nearDepth, materi
     meshes[name] = mesh;
     return mesh;
   };
-  add('shutterTop', parts.shutterTop, solid, 1, new THREE.Matrix4());
-  add('shutterBottom', parts.shutterBottom, solid, 1, new THREE.Matrix4());
+  for (const name of HATCH_PLATES) add(name, parts[name], solid, 1, new THREE.Matrix4());
+  add('hatchSeams', parts.hatchSeams, seamMat, 2, new THREE.Matrix4());
   for (const key of ['L', 'R']) {
     add(`plate${key}`, parts[`plate${key}`], solid, 0, new THREE.Matrix4());
     add(`hole${key}`, parts[`hole${key}`], solid, 0, null);
@@ -417,7 +485,7 @@ export function createCockpitFx({ type, cabin, win, depthGlsl, nearDepth, materi
     stage: 0, frac: 1, hp: null, weight: { L: 0, R: 0 }, cracks: [], seed: 0, sputterAt: 0,
     swing: { L: new Swing(0), R: new Swing(0) }, cable: { L: new Swing(0), R: new Swing(0) },
     shown: { L: { plate: false, cables: false }, R: { plate: false, cables: false } },
-    screens: { status: 0, weapon: 0, radar: 0, caution: 0, aux: 0 }, lastT: null, mode: null,
+    screens: { status: 0, weapon: 0, radar: 0, caution: 0, aux: 0 }, lastT: null, mode: null, transitT: null,
   };
   const dominant = () => (S.weight.R > S.weight.L ? 'R' : 'L');
   const other = key => (key === 'L' ? 'R' : 'L');
@@ -558,50 +626,45 @@ export function createCockpitFx({ type, cabin, win, depthGlsl, nearDepth, materi
         if (Math.floor(now * 1.2) % 2 === 0) materials.warn.color.setScalar(1.2);
       }
 
-      // Transit: shutters, power, banner, glass.
-      let power = { shell: 1, keys: 1, screens: 1, pods: 1, glassHud: 1, accent: 1 }, lines = [], bannerAlpha = 0, open = 1, boot = -1, shutter = -1;
-      S.mode = transit?.mode ?? null;
-      if (transit?.mode === 'embark') {
-        const t = transit.t, B = COCKPIT_FX.boot;
-        const flick = (a, b) => (t < a ? 0.05 : t < b ? (Math.random() < 0.45 ? 0.15 : 0.6 + 0.4 * Math.random()) : 1);
-        power = { shell: t < B.lock ? 0.42 : t < B.lock + 0.08 ? (Math.random() < 0.5 ? 0.5 : 1) : 1, keys: flick(B.keys, B.keys + 0.2),
-          screens: flick(...B.screens), pods: flick(...B.pods), glassHud: ramp(t, B.glass), accent: flick(B.keys + 0.1, B.keys + 0.3) };
-        shutter = 1 - ramp(t, B.open);
-        boot = t >= B.glass[0] - 0.15 && t <= B.glass[1] + 0.2 ? ramp(t, [B.glass[0] - 0.15, B.glass[1] + 0.2]) : -1;
-        const [b0, b1, b2, b3] = B.banner;
-        if (t >= b0 && t < b3) {
-          lines = t < b1 ? ['NEURAL LINK'] : ['LINK ESTABLISHED', 'PILOT ONLINE'];
-          bannerAlpha = (t < b0 + 0.06 ? (Math.random() < 0.5 ? 0.3 : 1) : 1) * (1 - ramp(t, [b2, b3]));
-        }
-        if (t < B.lock) materials.warn.color.setRGB(Math.floor(t * 8) % 2 ? 1.5 : 0.25, 0.12, 0.08);
-      } else if (transit?.mode === 'exit') {
-        const t = transit.t, X = COCKPIT_FX.exit;
-        const dark = t < X.dark ? (Math.random() < 0.5 ? 0.2 : 0.7) : 0.03;
-        power = { shell: 0.75, keys: 0.12, screens: dark, pods: dark, glassHud: 0, accent: 0.3 };
-        open = 1 - ramp(t, X.glass);
-        if (t < X.banner) { lines = ['HATCH OPEN']; bannerAlpha = 1 - smooth((t - X.banner + 0.12) / 0.12); }
-        materials.warn.color.setRGB(Math.floor(t * 10) % 2 ? 1.5 : 0.3, 0.8, 0.1);
+      // Transit: hatch plates, seams, power, banner, glass (titan-embark-boot.js).
+      const reduced = displaySettings().reducedMotion === true;
+      const mode = transit?.mode ?? null, t = transit?.t ?? 0;
+      const lastT = S.mode === mode ? S.transitT : null;
+      S.mode = mode; S.transitT = mode ? t : null;
+      const beat = mode === 'embark' ? embarkBoot(t, { reduced }) : mode === 'exit' ? exitHatch(t, { reduced }) : null;
+      const power = beat?.power ?? { shell: 1, keys: 1, screens: 1, pods: 1, glassHud: 1, accent: 1 };
+      const lines = beat?.banner.lines ?? [], bannerAlpha = beat?.banner.alpha ?? 0;
+      if (beat?.warn) materials.warn.color.setRGB(...beat.warn);
+      else if (mode === 'exit') materials.warn.color.setRGB(Math.floor(t * 10) % 2 ? 1.5 : 0.3, 0.8, 0.1);
+      // The hatch locks: sparks spray from the seams (once per embark; a pinned capture holds it).
+      if (mode === 'embark' && !reduced && lastT !== null && lastT < EMBARK_BOOT.lock && t >= EMBARK_BOOT.lock) {
+        for (const at of parts.hatchSeamAt) sparks(Math.ceil(COCKPIT_FX.lockSparks / parts.hatchSeamAt.length), now, at);
+        jolt(0.012);
       }
       materials.shell.color.multiplyScalar(power.shell);
       materials.keys.color.multiplyScalar(power.keys);
       materials.accent.color.multiplyScalar(power.accent);
       materials.screens.color.multiplyScalar(power.screens);
+      // The hatch plates (and the loose damage parts) sit in the cabin light.
+      solid.color.setScalar(mode ? power.shell : 1);
       if (hud?.materials) {
         hud.materials.pods.color.setScalar(power.pods);
         hud.materials.panels.color.setScalar(power.pods);
         hud.materials.glass.color.setScalar(power.glassHud);
         hud.materials.glass.opacity = hud.materials.glass.map ? power.glassHud : 0;
       }
-      glassU.open.value = open;
-      glassU.boot.value = boot;
-      meshes.shutterTop.visible = meshes.shutterBottom.visible = shutter > 0.001;
-      if (shutter > 0.001) {
-        const [up, down] = parts.shutterTravel;
-        // A locking shudder just before they part.
-        const shudder = transit?.mode === 'embark' && Math.abs(transit.t - COCKPIT_FX.boot.lock) < 0.06 ? (Math.random() - 0.5) * 0.008 : 0;
-        meshes.shutterTop.userData.local.makeTranslation(0, (1 - shutter) * up + shudder, 0);
-        meshes.shutterBottom.userData.local.makeTranslation(0, -(1 - shutter) * down - shudder, 0);
-      }
+      glassU.open.value = beat?.open ?? 1;
+      glassU.boot.value = beat?.band ?? -1;
+      glassU.screen.value = beat?.screen ?? -1;
+      glassU.dim.value = beat?.dim ?? 0;
+      const plates = beat?.plates;
+      HATCH_PLATES.forEach((name, i) => {
+        const mesh = meshes[name], closed = plates?.closed[i] ?? 0;
+        mesh.visible = !!plates?.visible && closed > 0.001;
+        if (mesh.visible) mesh.userData.local.makeTranslation(parts.hatchTravel[name] * (1 - closed) + Math.sign(parts.hatchTravel[name]) * (plates.rock[i] ?? 0), 0, 0);
+      });
+      seamMat.uniforms.flash.value = beat?.seams ?? 0;
+      meshes.hatchSeams.visible = !!plates?.visible && (beat?.seams ?? 0) > 0.01;
       drawBanner(banner, lines, ink);
       bannerMat.opacity = bannerAlpha;
       meshes.banner.visible = bannerAlpha > 0.01 && !!banner;
@@ -653,7 +716,7 @@ export function createCockpitFx({ type, cabin, win, depthGlsl, nearDepth, materi
 
     dispose() {
       for (const mesh of Object.values(meshes)) { mesh.removeFromParent(); mesh.geometry.dispose(); }
-      for (const m of [solid, glow, smokeMat, flameMat, bannerMat]) m.dispose();
+      for (const m of [solid, glow, smokeMat, flameMat, bannerMat, seamMat]) m.dispose();
       banner?.texture.dispose();
     },
   };

@@ -2,12 +2,14 @@
 /**
  * Muted CDP captures of the titan cockpit damage and transit dressing (public/js/titanfall/titan-cockpit-fx.js;
  * docs/titanfall.md §7.2; references docs/design/titanfall/cockpit/damage/ and docs/design/titanfall/transit/)
- * through the titan capture page's cockpit view: hull stages and the embark boot / exit beats (held with
- * titan-transit.js pinTransit). Chromium runs with --mute-audio; the page creates no AudioContext. Holds one
+ * through the titan capture page's cockpit view: hull stages and the embark hatch / boot and exit beats
+ * (titan-embark-boot.js, held with titan-transit.js pinTransit; references docs/design/titanfall/embark/). Chromium runs with --mute-audio; the page creates no AudioContext. Holds one
  * of the three .titan-capture.lock slots unless --no-lock. A page error fails the run (exit 1).
  *
  *   node tools/titanfall-cockpit-fx-capture.mjs [--out <dir>] [--titans ion,legion,northstar] [--sizes desktop,landscape,portrait]
- *        [--states hull75,hull55,hull35,hull15,doom,boot-dark,boot-open,boot-glass,exit] [--no-lock]
+ *        [--states hull75,...,doom,hatch-closing,...,boot-hud,exit,exit-plates] [--no-lock]
+ *   Embark sequence only: --states hatch-closing,hatch-right,hatch-lock,screen-line,screen-open,screen-settle,boot-hud,exit-plates
+ *        --out docs/design/titanfall/embark/captures
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { mkdirSync, rmSync } from 'node:fs';
@@ -32,10 +34,17 @@ export const FX_CAPTURE_SIZES = Object.freeze({
 /** States: capture page params (hp, pose) and an optional held transit. */
 export const FX_STATES = Object.freeze({
   hull75: { hp: 0.75 }, hull55: { hp: 0.55 }, hull35: { hp: 0.35 }, hull15: { hp: 0.15 }, doom: { pose: 'doom' },
-  'boot-dark': { transit: { mode: 'embark', t: 0.97 } },
-  'boot-open': { transit: { mode: 'embark', t: 1.2 } },
-  'boot-glass': { transit: { mode: 'embark', t: 1.42 } },
-  exit: { transit: { mode: 'exit', t: 0.1 } },
+  // Embark (s since the event, EMBARK_BOOT): left plates in, the right plate closing, locked (seam flash),
+  // the screen's line, the feed opening, settling, the HUD up; on exit the screen cut and the plates parting.
+  'hatch-closing': { transit: { mode: 'embark', t: 1.1 } },
+  'hatch-right': { transit: { mode: 'embark', t: 1.21 } },
+  'hatch-lock': { transit: { mode: 'embark', t: 1.3 } },
+  'screen-line': { transit: { mode: 'embark', t: 1.45 } },
+  'screen-open': { transit: { mode: 'embark', t: 1.56 } },
+  'screen-settle': { transit: { mode: 'embark', t: 1.7 } },
+  'boot-hud': { transit: { mode: 'embark', t: 1.95 } },
+  exit: { transit: { mode: 'exit', t: 0.03 } },
+  'exit-plates': { transit: { mode: 'exit', t: 0.1 } },
 });
 const titans = list('--titans', 'ion,legion,northstar').map(t => (t.startsWith('titan_') ? t : `titan_${t}`));
 const sizes = list('--sizes', 'desktop,landscape,portrait').filter(s => FX_CAPTURE_SIZES[s]);

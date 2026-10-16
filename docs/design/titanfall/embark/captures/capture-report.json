@@ -1,0 +1,492 @@
+{
+  "generated": "2026-10-16T00:11:59.139Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "hatch-closing",
+      "file": "docs/design/titanfall/embark/captures/desktop-ion-hatch-closing.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "hatch-right",
+      "file": "docs/design/titanfall/embark/captures/desktop-ion-hatch-right.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "hatch-lock",
+      "file": "docs/design/titanfall/embark/captures/desktop-ion-hatch-lock.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "screen-line",
+      "file": "docs/design/titanfall/embark/captures/desktop-ion-screen-line.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "screen-open",
+      "file": "docs/design/titanfall/embark/captures/desktop-ion-screen-open.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "screen-settle",
+      "file": "docs/design/titanfall/embark/captures/desktop-ion-screen-settle.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "boot-hud",
+      "file": "docs/design/titanfall/embark/captures/desktop-ion-boot-hud.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "exit",
+      "file": "docs/design/titanfall/embark/captures/desktop-ion-exit.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_ion",
+      "state": "exit-plates",
+      "file": "docs/design/titanfall/embark/captures/desktop-ion-exit-plates.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "hatch-closing",
+      "file": "docs/design/titanfall/embark/captures/desktop-legion-hatch-closing.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "hatch-right",
+      "file": "docs/design/titanfall/embark/captures/desktop-legion-hatch-right.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "hatch-lock",
+      "file": "docs/design/titanfall/embark/captures/desktop-legion-hatch-lock.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "screen-line",
+      "file": "docs/design/titanfall/embark/captures/desktop-legion-screen-line.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "screen-open",
+      "file": "docs/design/titanfall/embark/captures/desktop-legion-screen-open.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "screen-settle",
+      "file": "docs/design/titanfall/embark/captures/desktop-legion-screen-settle.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "boot-hud",
+      "file": "docs/design/titanfall/embark/captures/desktop-legion-boot-hud.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "exit",
+      "file": "docs/design/titanfall/embark/captures/desktop-legion-exit.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_legion",
+      "state": "exit-plates",
+      "file": "docs/design/titanfall/embark/captures/desktop-legion-exit-plates.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "hatch-closing",
+      "file": "docs/design/titanfall/embark/captures/desktop-northstar-hatch-closing.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "hatch-right",
+      "file": "docs/design/titanfall/embark/captures/desktop-northstar-hatch-right.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "hatch-lock",
+      "file": "docs/design/titanfall/embark/captures/desktop-northstar-hatch-lock.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "screen-line",
+      "file": "docs/design/titanfall/embark/captures/desktop-northstar-screen-line.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "screen-open",
+      "file": "docs/design/titanfall/embark/captures/desktop-northstar-screen-open.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "screen-settle",
+      "file": "docs/design/titanfall/embark/captures/desktop-northstar-screen-settle.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "boot-hud",
+      "file": "docs/design/titanfall/embark/captures/desktop-northstar-boot-hud.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "exit",
+      "file": "docs/design/titanfall/embark/captures/desktop-northstar-exit.png"
+    },
+    {
+      "size": "desktop",
+      "type": "titan_northstar",
+      "state": "exit-plates",
+      "file": "docs/design/titanfall/embark/captures/desktop-northstar-exit-plates.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "hatch-closing",
+      "file": "docs/design/titanfall/embark/captures/landscape-ion-hatch-closing.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "hatch-right",
+      "file": "docs/design/titanfall/embark/captures/landscape-ion-hatch-right.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "hatch-lock",
+      "file": "docs/design/titanfall/embark/captures/landscape-ion-hatch-lock.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "screen-line",
+      "file": "docs/design/titanfall/embark/captures/landscape-ion-screen-line.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "screen-open",
+      "file": "docs/design/titanfall/embark/captures/landscape-ion-screen-open.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "screen-settle",
+      "file": "docs/design/titanfall/embark/captures/landscape-ion-screen-settle.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "boot-hud",
+      "file": "docs/design/titanfall/embark/captures/landscape-ion-boot-hud.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "exit",
+      "file": "docs/design/titanfall/embark/captures/landscape-ion-exit.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_ion",
+      "state": "exit-plates",
+      "file": "docs/design/titanfall/embark/captures/landscape-ion-exit-plates.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "hatch-closing",
+      "file": "docs/design/titanfall/embark/captures/landscape-legion-hatch-closing.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "hatch-right",
+      "file": "docs/design/titanfall/embark/captures/landscape-legion-hatch-right.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "hatch-lock",
+      "file": "docs/design/titanfall/embark/captures/landscape-legion-hatch-lock.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "screen-line",
+      "file": "docs/design/titanfall/embark/captures/landscape-legion-screen-line.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "screen-open",
+      "file": "docs/design/titanfall/embark/captures/landscape-legion-screen-open.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "screen-settle",
+      "file": "docs/design/titanfall/embark/captures/landscape-legion-screen-settle.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "boot-hud",
+      "file": "docs/design/titanfall/embark/captures/landscape-legion-boot-hud.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "exit",
+      "file": "docs/design/titanfall/embark/captures/landscape-legion-exit.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_legion",
+      "state": "exit-plates",
+      "file": "docs/design/titanfall/embark/captures/landscape-legion-exit-plates.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "hatch-closing",
+      "file": "docs/design/titanfall/embark/captures/landscape-northstar-hatch-closing.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "hatch-right",
+      "file": "docs/design/titanfall/embark/captures/landscape-northstar-hatch-right.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "hatch-lock",
+      "file": "docs/design/titanfall/embark/captures/landscape-northstar-hatch-lock.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "screen-line",
+      "file": "docs/design/titanfall/embark/captures/landscape-northstar-screen-line.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "screen-open",
+      "file": "docs/design/titanfall/embark/captures/landscape-northstar-screen-open.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "screen-settle",
+      "file": "docs/design/titanfall/embark/captures/landscape-northstar-screen-settle.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "boot-hud",
+      "file": "docs/design/titanfall/embark/captures/landscape-northstar-boot-hud.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "exit",
+      "file": "docs/design/titanfall/embark/captures/landscape-northstar-exit.png"
+    },
+    {
+      "size": "landscape",
+      "type": "titan_northstar",
+      "state": "exit-plates",
+      "file": "docs/design/titanfall/embark/captures/landscape-northstar-exit-plates.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "hatch-closing",
+      "file": "docs/design/titanfall/embark/captures/portrait-ion-hatch-closing.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "hatch-right",
+      "file": "docs/design/titanfall/embark/captures/portrait-ion-hatch-right.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "hatch-lock",
+      "file": "docs/design/titanfall/embark/captures/portrait-ion-hatch-lock.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "screen-line",
+      "file": "docs/design/titanfall/embark/captures/portrait-ion-screen-line.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "screen-open",
+      "file": "docs/design/titanfall/embark/captures/portrait-ion-screen-open.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "screen-settle",
+      "file": "docs/design/titanfall/embark/captures/portrait-ion-screen-settle.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "boot-hud",
+      "file": "docs/design/titanfall/embark/captures/portrait-ion-boot-hud.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "exit",
+      "file": "docs/design/titanfall/embark/captures/portrait-ion-exit.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_ion",
+      "state": "exit-plates",
+      "file": "docs/design/titanfall/embark/captures/portrait-ion-exit-plates.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "hatch-closing",
+      "file": "docs/design/titanfall/embark/captures/portrait-legion-hatch-closing.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "hatch-right",
+      "file": "docs/design/titanfall/embark/captures/portrait-legion-hatch-right.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "hatch-lock",
+      "file": "docs/design/titanfall/embark/captures/portrait-legion-hatch-lock.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "screen-line",
+      "file": "docs/design/titanfall/embark/captures/portrait-legion-screen-line.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "screen-open",
+      "file": "docs/design/titanfall/embark/captures/portrait-legion-screen-open.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "screen-settle",
+      "file": "docs/design/titanfall/embark/captures/portrait-legion-screen-settle.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "boot-hud",
+      "file": "docs/design/titanfall/embark/captures/portrait-legion-boot-hud.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "exit",
+      "file": "docs/design/titanfall/embark/captures/portrait-legion-exit.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_legion",
+      "state": "exit-plates",
+      "file": "docs/design/titanfall/embark/captures/portrait-legion-exit-plates.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "hatch-closing",
+      "file": "docs/design/titanfall/embark/captures/portrait-northstar-hatch-closing.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "hatch-right",
+      "file": "docs/design/titanfall/embark/captures/portrait-northstar-hatch-right.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "hatch-lock",
+      "file": "docs/design/titanfall/embark/captures/portrait-northstar-hatch-lock.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "screen-line",
+      "file": "docs/design/titanfall/embark/captures/portrait-northstar-screen-line.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "screen-open",
+      "file": "docs/design/titanfall/embark/captures/portrait-northstar-screen-open.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "screen-settle",
+      "file": "docs/design/titanfall/embark/captures/portrait-northstar-screen-settle.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "boot-hud",
+      "file": "docs/design/titanfall/embark/captures/portrait-northstar-boot-hud.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "exit",
+      "file": "docs/design/titanfall/embark/captures/portrait-northstar-exit.png"
+    },
+    {
+      "size": "portrait",
+      "type": "titan_northstar",
+      "state": "exit-plates",
+      "file": "docs/design/titanfall/embark/captures/portrait-northstar-exit-plates.png"
+    }
+  ],
+  "errors": []
+}

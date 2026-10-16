@@ -5,7 +5,9 @@
 //  - Embark (own pilot): from the last on-foot view the camera follows the walk-in the others see
 //    (titan-embark-path.js): run to the lowered palm, hop on, ride it up to the open chest and drop
 //    into the seat, then hands over to the cockpit view. While the camera is outside, the own hull
-//    is drawn whole (no cockpit overlay). The cockpit then plays its boot (titan-cockpit-fx.js).
+//    is drawn whole (no cockpit overlay). The cockpit then closes its hatch and boots
+//    (titan-embark-boot.js, drawn by titan-cockpit-fx.js); this module plays the plate clunks, the
+//    lock (hatch slam and one shake) and the power-on tone on the boot's beats.
 //  - Disembark (own pilot): the cockpit stays where it was (anchored to the last cockpit view), the
 //    hatch opens, and the camera leaves through the viewport and drops in an arc to the pilot's own
 //    eye; a landing bump at the end. From the chase view it is a short blend.
@@ -18,12 +20,14 @@ import * as THREE from '../vendor/three.module.js';
 import { isTitanType } from '../../../shared/titan-contract.js';
 import { TITAN_RULES } from '../../../shared/vehicle-handling/titan.js';
 import { embarkPath, EMBARK_PATH } from './titan-embark-path.js';
+import { EMBARK_BOOT, embarkBeats } from './titan-embark-boot.js';
+import { displaySettings } from '../ui/display-settings.js';
 
 /** Tuning (seconds, metres, shake trauma). */
 export const TITAN_TRANSIT = Object.freeze({
   embarkSeconds: TITAN_RULES.embark.animMs / 1000,
   embarkWait: 0.5,      // s the start pose holds while the embark phase has not reached the presented row yet
-  bootSeconds: 2.3,     // s from the embark start until the cockpit boot is over (titan-cockpit-fx.js)
+  bootSeconds: EMBARK_BOOT.end,   // s from the embark start until the cockpit boot is over (titan-embark-boot.js)
   handoff: 0.82,        // share of the embark lock where the camera reaches the seat eye
   cockpitFrom: 0.74,    // ... and from where the cockpit overlay is drawn again
   eyeHeight: 1.6, crouchDrop: 0.32,
@@ -39,7 +43,7 @@ let app = null;
 const state = {
   foot: null,          // { pos, quat } last on-foot camera pose
   seat: null,          // { vehicleId, pos, quat, firstPerson } last seated camera pose in the own titan
-  embark: null,        // { vehicleId, at, from, rigSeen, locked }
+  embark: null,        // { vehicleId, at, from, rigSeen, beatT (s of the last boot beat check) }
   exit: null,          // { vehicleId, at, from, firstPerson, anchor, landed }
   remote: new Map(),   // pilot id -> { vehicleId, at, from: [x, y, z] }
   view: null,          // VehicleView whose cockpitOverride we set
@@ -68,7 +72,7 @@ export function onEvent(event) {
   if (!id || !vehicleId) return;
   const self = id === selfId(), at = nowS();
   if (event.kind === 'titan_embark') {
-    if (self) state.embark = { vehicleId, at, from: state.foot, rigSeen: false, locked: false };
+    if (self) state.embark = { vehicleId, at, from: state.foot, rigSeen: false, beatT: -1 };
     return;
   }
   if (self) {
@@ -179,6 +183,16 @@ function embarkCamera(camera, vc) {
   return true;
 }
 
+/** One embark boot beat: a plate home, the hatch locked (slam and shake), the screen powering on. */
+function bootBeat(beat, camera) {
+  const audio = app?.vehicleAudio;
+  if (beat === 'plate') audio?.sfx?.vehicleReload?.(null, { self: true, heavy: true });
+  else if (beat === 'lock') {
+    audio?.sfx?.vehicleHatch?.(null, { enter: true, self: true }, 'tank');
+    app?.cameraShake?.add?.(TITAN_TRANSIT.lockShake);
+  } else if (beat === 'screen') audio?.titanCue?.('insert', camera.position.toArray(), { self: true });
+}
+
 /** Own exit: through the open viewport and down in an arc to the pilot's eye (already posed). */
 function exitCamera(camera, t) {
   const x = state.exit, T = TITAN_TRANSIT;
@@ -227,12 +241,12 @@ export function frame(dt, ctx = {}) {
   if (state.embark && now - state.embark.at > TITAN_TRANSIT.bootSeconds) state.embark = null;
   if (state.exit && now - state.exit.at > TITAN_TRANSIT.exitSeconds) state.exit = null;
   for (const [id, entry] of state.remote) if (now - entry.at > TITAN_TRANSIT.remoteSeconds) state.remote.delete(id);
-  // Embark: ride the walk-in (and the hatch lock bump once seated).
-  if (state.embark && ownTitan && embarkActive()) {
-    if (!embarkCamera(camera, vc) && !state.embark.locked && state.embark.rigSeen) {
-      state.embark.locked = true;
-      app?.cameraShake?.add?.(TITAN_TRANSIT.lockShake);
-    }
+  // Embark: ride the walk-in; the hatch beats while seated in that titan (none after an abort).
+  if (state.embark && ownTitan && String(row.id) === state.embark.vehicleId) {
+    if (embarkActive()) embarkCamera(camera, vc);
+    const t = now - state.embark.at;
+    for (const beat of embarkBeats(state.embark.beatT, t, { reduced: displaySettings().reducedMotion === true })) bootBeat(beat, camera);
+    state.embark.beatT = t;
   }
   // Exit: from the cockpit to the pilot's eye.
   let exiting = false;

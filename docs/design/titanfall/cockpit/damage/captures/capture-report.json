@@ -34,24 +34,6 @@
     {
       "size": "desktop",
       "type": "titan_ion",
-      "state": "boot-dark",
-      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-boot-dark.png"
-    },
-    {
-      "size": "desktop",
-      "type": "titan_ion",
-      "state": "boot-open",
-      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-boot-open.png"
-    },
-    {
-      "size": "desktop",
-      "type": "titan_ion",
-      "state": "boot-glass",
-      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-boot-glass.png"
-    },
-    {
-      "size": "desktop",
-      "type": "titan_ion",
       "state": "exit",
       "file": "docs/design/titanfall/cockpit/damage/captures/desktop-ion-exit.png"
     },
@@ -84,24 +66,6 @@
       "type": "titan_legion",
       "state": "doom",
       "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-doom.png"
-    },
-    {
-      "size": "desktop",
-      "type": "titan_legion",
-      "state": "boot-dark",
-      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-boot-dark.png"
-    },
-    {
-      "size": "desktop",
-      "type": "titan_legion",
-      "state": "boot-open",
-      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-boot-open.png"
-    },
-    {
-      "size": "desktop",
-      "type": "titan_legion",
-      "state": "boot-glass",
-      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-legion-boot-glass.png"
     },
     {
       "size": "desktop",
@@ -142,24 +106,6 @@
     {
       "size": "desktop",
       "type": "titan_northstar",
-      "state": "boot-dark",
-      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-boot-dark.png"
-    },
-    {
-      "size": "desktop",
-      "type": "titan_northstar",
-      "state": "boot-open",
-      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-boot-open.png"
-    },
-    {
-      "size": "desktop",
-      "type": "titan_northstar",
-      "state": "boot-glass",
-      "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-boot-glass.png"
-    },
-    {
-      "size": "desktop",
-      "type": "titan_northstar",
       "state": "exit",
       "file": "docs/design/titanfall/cockpit/damage/captures/desktop-northstar-exit.png"
     },
@@ -192,24 +138,6 @@
       "type": "titan_ion",
       "state": "doom",
       "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-doom.png"
-    },
-    {
-      "size": "landscape",
-      "type": "titan_ion",
-      "state": "boot-dark",
-      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-boot-dark.png"
-    },
-    {
-      "size": "landscape",
-      "type": "titan_ion",
-      "state": "boot-open",
-      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-boot-open.png"
-    },
-    {
-      "size": "landscape",
-      "type": "titan_ion",
-      "state": "boot-glass",
-      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-ion-boot-glass.png"
     },
     {
       "size": "landscape",
@@ -250,24 +178,6 @@
     {
       "size": "landscape",
       "type": "titan_legion",
-      "state": "boot-dark",
-      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-boot-dark.png"
-    },
-    {
-      "size": "landscape",
-      "type": "titan_legion",
-      "state": "boot-open",
-      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-boot-open.png"
-    },
-    {
-      "size": "landscape",
-      "type": "titan_legion",
-      "state": "boot-glass",
-      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-boot-glass.png"
-    },
-    {
-      "size": "landscape",
-      "type": "titan_legion",
       "state": "exit",
       "file": "docs/design/titanfall/cockpit/damage/captures/landscape-legion-exit.png"
     },
@@ -300,24 +210,6 @@
       "type": "titan_northstar",
       "state": "doom",
       "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-doom.png"
-    },
-    {
-      "size": "landscape",
-      "type": "titan_northstar",
-      "state": "boot-dark",
-      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-boot-dark.png"
-    },
-    {
-      "size": "landscape",
-      "type": "titan_northstar",
-      "state": "boot-open",
-      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-boot-open.png"
-    },
-    {
-      "size": "landscape",
-      "type": "titan_northstar",
-      "state": "boot-glass",
-      "file": "docs/design/titanfall/cockpit/damage/captures/landscape-northstar-boot-glass.png"
     },
     {
       "size": "landscape",
@@ -358,24 +250,6 @@
     {
       "size": "portrait",
       "type": "titan_ion",
-      "state": "boot-dark",
-      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-boot-dark.png"
-    },
-    {
-      "size": "portrait",
-      "type": "titan_ion",
-      "state": "boot-open",
-      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-boot-open.png"
-    },
-    {
-      "size": "portrait",
-      "type": "titan_ion",
-      "state": "boot-glass",
-      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-boot-glass.png"
-    },
-    {
-      "size": "portrait",
-      "type": "titan_ion",
       "state": "exit",
       "file": "docs/design/titanfall/cockpit/damage/captures/portrait-ion-exit.png"
     },
@@ -412,24 +286,6 @@
     {
       "size": "portrait",
       "type": "titan_legion",
-      "state": "boot-dark",
-      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-boot-dark.png"
-    },
-    {
-      "size": "portrait",
-      "type": "titan_legion",
-      "state": "boot-open",
-      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-boot-open.png"
-    },
-    {
-      "size": "portrait",
-      "type": "titan_legion",
-      "state": "boot-glass",
-      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-boot-glass.png"
-    },
-    {
-      "size": "portrait",
-      "type": "titan_legion",
       "state": "exit",
       "file": "docs/design/titanfall/cockpit/damage/captures/portrait-legion-exit.png"
     },
@@ -462,24 +318,6 @@
       "type": "titan_northstar",
       "state": "doom",
       "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-doom.png"
-    },
-    {
-      "size": "portrait",
-      "type": "titan_northstar",
-      "state": "boot-dark",
-      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-boot-dark.png"
-    },
-    {
-      "size": "portrait",
-      "type": "titan_northstar",
-      "state": "boot-open",
-      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-boot-open.png"
-    },
-    {
-      "size": "portrait",
-      "type": "titan_northstar",
-      "state": "boot-glass",
-      "file": "docs/design/titanfall/cockpit/damage/captures/portrait-northstar-boot-glass.png"
     },
     {
       "size": "portrait",

@@ -2,7 +2,12 @@
 // Embark and disembark) on a fake app, a fake titan rig and a stepped clock:
 //   - embark: the camera starts at the last on-foot view, rides the walk-in (titan-embark-path.js) with
 //     the eyes on the chest, has no jump on the way and lands exactly on the seat view at the handoff;
-//     the cockpit overlay is off while the camera is outside; one hatch-lock shake once seated
+//     the cockpit overlay is off while the camera is outside
+//   - hatch and boot (titan-embark-boot.js): two plate clunks, the hatch lock (slam, one shake) and the
+//     power-on tone on the timeline's beats; nothing more after a disembark or a lost seat mid-hatch;
+//     reduced motion keeps only the lock and the power-on; the timeline itself (plate order, the lock on
+//     the server's embark lock, the screen and HUD stages, length, determinism, reduced motion, exit
+//     plates clear before the camera leaves)
 //   - cockpit transit view (transitFor): embark t/u, the exit with the anchored cabin
 //   - first-person exit: leaves forward through the viewport, arcs above both ends, ends on the pilot
 //     eye with one landing shake; the cabin stays drawn for the first part only
@@ -12,6 +17,9 @@ import * as THREE from '../public/js/vendor/three.module.js';
 import * as transit from '../public/js/titanfall/titan-transit.js';
 import { TITAN_TRANSIT } from '../public/js/titanfall/titan-transit.js';
 import { embarkPath, EMBARK_PATH } from '../public/js/titanfall/titan-embark-path.js';
+import { EMBARK_BOOT, embarkBoot, exitHatch, embarkBeats } from '../public/js/titanfall/titan-embark-boot.js';
+import { setDisplaySetting } from '../public/js/ui/display-settings.js';
+import { TITAN_RULES } from '../shared/vehicle-handling/titan.js';
 
 const checks = [];
 const check = (name, fn) => { fn(); checks.push(name); };
@@ -39,7 +47,10 @@ const shakes = [];
 const camera = new THREE.PerspectiveCamera(75, 16 / 9, 0.05, 900);
 const vc = { active: false, vehicle: null, view: { firstPerson: true }, sightActive: false };
 const vehicleView = { cockpitOverride: null, item: id => (String(id) === 't1' ? item : null) };
-const app = { myId: 'me', camera, vehicleController: vc, vehicleView, player: { alive: true }, cameraShake: { add: k => shakes.push(k) } };
+const sounds = [];
+const vehicleAudio = { sfx: { vehicleReload: (pos, o) => sounds.push(o?.heavy ? 'plate' : 'reload'), vehicleHatch: (pos, o, type) => sounds.push(`hatch:${type}`) },
+  titanCue: kind => sounds.push(`cue:${kind}`) };
+const app = { myId: 'me', camera, vehicleController: vc, vehicleView, vehicleAudio, player: { alive: true }, cameraShake: { add: k => shakes.push(k) } };
 
 // Within the embark reach (TITAN_RULES.embark.distance 6 m) of the hull.
 const footPose = { pos: new THREE.Vector3(16, 1.6, 6), quat: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.6, 0)) };
@@ -104,12 +115,16 @@ check('embark: rides the walk-in without a jump, eyes on the chest, onto the sea
   assert.equal(shakes.length, 0);
 });
 
-check('embark: past the handoff the seat camera is untouched and the hatch lock shakes once', () => {
+check('embark: past the handoff the seat camera is untouched; two plates clunk, the hatch locks (one shake), the screen powers on', () => {
   item.model.rig.embark = 0.9;
   const at = frame(seatPose);
   assert.ok(at.distanceTo(seatPose.pos) < 1e-9);
   assert.ok(camera.quaternion.angleTo(seatPose.quat) < 1e-9);
-  frame(seatPose); frame(seatPose);
+  assert.ok(transit.transitFor('t1').t < EMBARK_BOOT.plates[0][1], 'seated before the first plate is home');
+  assert.deepEqual(shakes, []);
+  assert.deepEqual(sounds, []);
+  while (transit.transitFor('t1').t < EMBARK_BOOT.screen[0] + 0.05) frame(seatPose);
+  assert.deepEqual(sounds, ['plate', 'plate', 'hatch:tank', 'cue:insert']);
   assert.deepEqual(shakes, [TITAN_TRANSIT.lockShake]);
   // The rig rewinds when the phase ends: the walk-in counts as done.
   item.model.rig.embark = 0;
@@ -133,6 +148,127 @@ check('embark without the rig ever moving gives the seat view back after the wai
   advance(TITAN_TRANSIT.embarkSeconds + TITAN_TRANSIT.embarkWait + 0.05);
   assert.ok(frame(seatPose).distanceTo(seatPose.pos) < 1e-9);
   advance(TITAN_TRANSIT.bootSeconds); frame(seatPose);
+});
+
+check('embark cut short by a disembark mid-hatch: no lock and no power-on, the exit takes over', () => {
+  sounds.length = 0; shakes.length = 0;
+  transit.onEvent({ kind: 'titan_embark', id: 'me', vehicleId: 't1' });
+  advance(EMBARK_BOOT.plates[1][1] + 0.01); frame(seatPose);
+  assert.deepEqual(sounds, ['plate', 'plate']);
+  transit.onEvent({ kind: 'titan_disembark', id: 'me', vehicleId: 't1' });
+  assert.equal(transit.transitState().embark, null);
+  assert.equal(transit.transitFor('t1').mode, 'exit');
+  for (let i = 0; i < 40; i++) frame(seatPose);
+  assert.deepEqual(sounds, ['plate', 'plate']);
+  assert.deepEqual(shakes, []);
+  advance(1); frame(seatPose);
+});
+
+check('embark cut short by death (the seat is gone) mid-hatch: no further beats', () => {
+  sounds.length = 0; shakes.length = 0;
+  transit.onEvent({ kind: 'titan_embark', id: 'me', vehicleId: 't1' });
+  advance(EMBARK_BOOT.plates[0][1] + 0.01); frame(seatPose);
+  assert.deepEqual(sounds, ['plate']);
+  seatOut(); app.player.alive = false;
+  for (let i = 0; i < 40; i++) frame(footPose, 0.02);
+  assert.deepEqual(sounds, ['plate']);
+  assert.deepEqual(shakes, []);
+  app.player.alive = true;
+  advance(TITAN_TRANSIT.bootSeconds); frame(footPose);
+  assert.equal(transit.transitState().embark, null);
+  seatIn();
+});
+
+check('reduced motion: no plate clunks; the lock and the power-on still sound', () => {
+  setDisplaySetting('reducedMotion', true);
+  try {
+    sounds.length = 0; shakes.length = 0;
+    transit.onEvent({ kind: 'titan_embark', id: 'me', vehicleId: 't1' });
+    for (let t = 0; t < EMBARK_BOOT.screen[0] + 0.05; t += 1 / 30) frame(seatPose, 1 / 30);
+    assert.deepEqual(sounds, ['hatch:tank', 'cue:insert']);
+    assert.deepEqual(shakes, [TITAN_TRANSIT.lockShake]);
+  } finally { setDisplaySetting('reducedMotion', false); }
+  advance(TITAN_TRANSIT.bootSeconds); frame(seatPose);
+});
+
+// ---- hatch and boot timeline (titan-embark-boot.js) ----------------------------------------------
+check('boot timeline: left plates first, the right plate last, locked on the server embark lock', () => {
+  const B = EMBARK_BOOT, embark = TITAN_RULES.embark.animMs / 1000;
+  assert.ok(Math.abs(B.lock - embark - 0.06) < 1e-9, `lock ${B.lock} = embark lock + presentation delay`);
+  assert.ok(B.plates[0][0] >= TITAN_TRANSIT.cockpitFrom * embark, 'the first plate moves once the cockpit is drawn');
+  for (let i = 1; i < 3; i++) assert.ok(B.plates[i][0] > B.plates[i - 1][0] && B.plates[i][1] > B.plates[i - 1][1], `plate ${i} after plate ${i - 1}`);
+  assert.equal(B.plates[2][1], B.lock, 'the last plate home is the lock');
+  assert.ok(B.screen[0] > B.lock && B.keys[0] >= B.screen[0], 'dark for a moment, then power with the screen');
+  assert.ok(B.keys[0] < B.screens[0] && B.screens[0] < B.pods[0] && B.pods[0] < B.glassHud[0], 'MFDs, pods, glass HUD one after another');
+  assert.ok(B.glassHud[1] < B.end && B.screen[1] < B.end && B.banner[3] <= B.end);
+  const length = B.end - B.plates[0][0];
+  assert.ok(length >= 1.2 && length <= 1.8, `sequence ${length.toFixed(2)} s`);
+  assert.equal(TITAN_TRANSIT.bootSeconds, B.end);
+});
+
+check('boot timeline: plates, seams, screen and power at each beat; deterministic', () => {
+  const B = EMBARK_BOOT;
+  const before = embarkBoot(B.plates[0][0] - 0.01);
+  assert.equal(before.plates.visible, false);
+  assert.deepEqual(before.plates.closed, [0, 0, 0]);
+  const first = embarkBoot((B.plates[0][0] + B.plates[0][1]) / 2);
+  assert.ok(first.plates.visible && first.plates.closed[0] > 0 && first.plates.closed[0] < 1 && first.plates.closed[2] === 0);
+  const locked = embarkBoot(B.lock);
+  assert.deepEqual(locked.plates.closed, [1, 1, 1]);
+  assert.ok(locked.plates.visible && locked.seams > 0.99 && locked.screen === -1);
+  assert.ok(embarkBoot(B.lock + 0.04).power.shell < 0.42, 'dark once locked');
+  const line = embarkBoot(B.screen[0] + 0.01);
+  assert.ok(line.screen >= 0 && line.screen < 0.1 && !line.plates.visible, 'the screen takes the viewport from black');
+  assert.equal(embarkBoot(B.screen[1] + 0.01).screen, -1, 'plain glass after the power-on');
+  const done = embarkBoot(B.end);
+  assert.deepEqual(Object.values(done.power), [1, 1, 1, 1, 1, 1]);
+  assert.equal(done.banner.alpha, 0);
+  assert.ok(embarkBoot(B.banner[0] + 0.1).banner.lines.includes('NEURAL LINK'));
+  assert.ok(embarkBoot(B.banner[1] + 0.1).banner.lines.includes('PILOT ONLINE'));
+  for (let t = 0; t < B.end; t += 0.013) {
+    assert.equal(JSON.stringify(embarkBoot(t)), JSON.stringify(embarkBoot(t)), `deterministic at ${t}`);
+    assert.equal(embarkBoot(t).dim, 0);
+  }
+});
+
+check('boot timeline under reduced motion: no plates, no line, no band, a steady dim and fade', () => {
+  const B = EMBARK_BOOT;
+  let last = null, peak = 0;
+  for (let t = 0; t <= B.end + 0.01; t += 0.01) {
+    const b = embarkBoot(t, { reduced: true });
+    assert.equal(b.plates.visible, false);
+    assert.equal(b.screen, -1);
+    assert.equal(b.band, -1);
+    peak = Math.max(peak, b.dim);
+    if (last && t > B.lock) for (const key of ['keys', 'screens', 'pods', 'glassHud']) assert.ok(b.power[key] >= last.power[key] - 1e-9, `${key} rises steadily at ${t.toFixed(2)}`);
+    last = b;
+  }
+  assert.ok(peak > 0.99 && embarkBoot(B.end, { reduced: true }).dim === 0, 'dims and fades back');
+});
+
+check('exit: the screen cuts, the plates part right first and clear the viewport before the camera gets there', () => {
+  const X = EMBARK_BOOT.exit;
+  assert.deepEqual(exitHatch(0).plates.closed, [1, 1, 1]);
+  assert.equal(exitHatch(0).screen, 0);
+  assert.equal(exitHatch(X.cut + 0.01).screen, -1);
+  assert.ok(X.plates[2][0] < X.plates[1][0] && X.plates[1][0] < X.plates[0][0], 'right, lower left, upper left');
+  const clear = Math.max(...X.plates.map(w => w[1]));
+  assert.deepEqual(exitHatch(clear).plates.closed, [0, 0, 0]);
+  assert.equal(exitHatch(clear).plates.visible, false);
+  // The camera leaves easing in over exitOut of the exit (titan-transit.js); the shallowest cabin's glass is 1 m ahead.
+  const T = TITAN_TRANSIT, reach = (clear / (T.exitSeconds * T.exitOut)) ** 2 * T.exitForward;
+  assert.ok(reach < 0.95, `the camera is ${reach.toFixed(2)} m out when the plates are clear`);
+  assert.equal(exitHatch(0, { reduced: true }).plates.visible, false);
+});
+
+check('boot beats: plate, plate, lock, screen once each however the frames fall', () => {
+  assert.deepEqual(embarkBeats(-1, 10), ['plate', 'plate', 'lock', 'screen']);
+  assert.deepEqual(embarkBeats(-1, 10, { reduced: true }), ['lock', 'screen']);
+  for (const step of [1 / 144, 1 / 30, 0.25]) {
+    const all = [];
+    for (let t = 0; t < 3; t += step) all.push(...embarkBeats(t - step, t));
+    assert.deepEqual(all, ['plate', 'plate', 'lock', 'screen'], `frame step ${step}`);
+  }
 });
 
 // ---- first-person exit --------------------------------------------------------------------------
