@@ -1399,6 +1399,7 @@ merges last among WP1–7 and re-runs the test after WP2, WP3 and WP4 are merged
 - They walk navmesh lanes toward the midfield (`groundNavigation`) and fire at the nearest enemy within 40 m.
 - Titans crush them on contact.
 - Meter: +0.02 per grunt kill.
+- Fire upkeep (2026-10-16 stare-down fix): a minion presses reload when its magazine is empty, and below 40 % (`reloadIdleBelow`) when it has no target. `infiniteMagazines` only refills the reserve. Before this fix the magazine was never reloaded, so after one magazine (30 rifle / 36 smg rounds) a minion stood facing its target without firing until something killed it. Sight, aim and cover are judged from the standing eye. A grunt crouches only between bursts and stands `standLeadMs` (150 ms) before the next one. Cover spots must give the standing eye a line to the target. A target seen again within `recallMs` (1.5 s) of losing sight of it is the same engagement and gets no new reaction delay. Before, a crouched eye behind a waist-high wall lost the target, so every crouch dropped it and re-rolled the reaction delay. `titanfall-grunts-test` checks that minions fire past one magazine, that no minion holds a target longer than reload + pause without a shot, and that a grunt behind waist-high cover keeps its target. The canyon/harbor wave runs hold no target longer than 5 s without a shot (old code: 10-16 s, all with an empty magazine).
 - Wire: `match.titanfall.npc = [[id, kind, team, x, y, z, yaw, hp100]]`. Budget 12 B/npc.
 - **Not started until WP1–WP7 are merged.**
 

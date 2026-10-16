@@ -9,6 +9,10 @@
 //    drop crush; the auto-titan picks a minion as a target;
 //  - minions fight: a grunt hits a pilot standing in the open within 40 m; a cloaked pilot
 //    beyond reveal range is ignored;
+//  - no stare-downs: a grunt and a spectre keep firing past one magazine (they reload) and never
+//    hold a target longer than reload + pause without a shot; a grunt behind a waist-high wall
+//    crouches between bursts without dropping its target; the canyon/harbor wave runs hold no
+//    target > 5 s without a shot;
 //  - wire: match.titanfall.npc rows (9-tuples) and no minion in the player rows, avg row bytes;
 //  - a 16-bot frontier match with grunts at the cap: no NaN, no errors, minions advance on
 //    the midfield, few watchdog removals, and the tick cost stays within budget;
@@ -23,6 +27,7 @@ import { AIR, STONE } from '../shared/world/blocks.js';
 import { TITAN_RULES, titanFrame } from '../shared/vehicle-handling/titan.js';
 import { vehicleDef } from '../shared/vehicle-defs.js';
 import { aimAngles } from '../server/sim/player.js';
+import { WEAPONS } from '../shared/combatmath.js';
 import { attachBots } from '../server/bots.js';
 import { titanCockpitEye } from '../server/sim/titanfall/titan-mounts.js';
 import { GRUNT_RULES, decodeGruntRow } from '../server/sim/titanfall/grunts.js';
@@ -326,6 +331,62 @@ const lastKill = (f, victim) => f.kinds('kill').filter(e => e.victim === victim)
   f.engine.stop();
 }
 
+/* ================================================================ no stare-downs: sustained fire, reloads, waist-high cover */
+/**
+ * One minion against an exposed pilot that cannot die, `seconds` long. Returns its shots,
+ * reloads, the longest stretch holding a target without a shot, and how often the target
+ * dropped and came back (a crouched eye behind a waist-high wall lost it on every crouch).
+ */
+function sustainedFire(kind, { wall = 0, seconds = 26 } = {}) {
+  const f = arena();
+  const [a1, a2, b1, b2] = ['a1', 'a2', 'b1', 'b2'].map(f.p);
+  park(f, a2); park(f, b1); park(f, b2);
+  if (wall) {
+    for (let x = 50; x < 72; x++) for (let h = 0; h < wall; h++) f.engine.world.setBlock(x, G + h, 82, STONE);
+    f.engine.blockRevision++;
+  }
+  const g = f.npc(kind, 'bravo', 60.5, 83.5, { hold: false });
+  g.tfNpc.squad.goal = { x: g.x, y: g.y, z: g.z };   // stay put: this is about fire, not routing
+  const st = { shots: 0, reloads: 0, maxDry: 0, drops: 0, targetMs: 0, crouchMs: 0 };
+  let last = g.shotSeq, dryFrom = null, had = false, reloading = false;
+  for (let i = 0; i < ticks(seconds) && g.state === 'alive'; i++) {
+    place(a1, 60, 62);
+    a1.input = { keys: {}, yaw: 0, pitch: 0, wantFire: false };
+    a1.hp = 100;
+    f.step(1);
+    const now = f.engine.now, ai = g.tfNpc;
+    if (g.reloading && !reloading) st.reloads++;
+    reloading = !!g.reloading;
+    if (g.shotSeq !== last) { st.shots += g.shotSeq - last; last = g.shotSeq; dryFrom = null; }
+    else if (ai.target) { dryFrom ??= now; st.maxDry = Math.max(st.maxDry, now - dryFrom); }
+    if (had && !ai.target) st.drops++;
+    had = !!ai.target;
+    if (ai.target) st.targetMs += TICK_MS;
+    if (g.crouch) st.crouchMs += TICK_MS;
+  }
+  f.engine.stop();
+  return st;
+}
+{
+  // A burst never outlasts the magazine forever: an empty mag is reloaded (before, the
+  // minion fired exactly one magazine, then held its target with mag 0 for good).
+  const longest = kind => (WEAPONS[GRUNT_RULES.kinds[kind].weapon].reloadTime * 1000) + GRUNT_RULES.kinds[kind].pauseMs[1] + 600;
+  for (const kind of ['grunt', 'spectre']) {
+    const magSize = WEAPONS[GRUNT_RULES.kinds[kind].weapon].magSize;
+    const st = sustainedFire(kind);
+    notes.push(`${kind} vs an exposed pilot 26 s: ${st.shots} shots, ${st.reloads} reloads, longest dry stretch with a target ${(st.maxDry / 1000).toFixed(2)} s`);
+    ok(st.reloads >= 1 && st.shots > magSize + 5, `${kind}: keeps firing past one magazine (${st.shots} shots, ${st.reloads} reloads, mag ${magSize})`);
+    ok(st.maxDry <= longest(kind), `${kind}: never holds a target longer than reload + pause without a shot (${(st.maxDry / 1000).toFixed(2)} s ≤ ${(longest(kind) / 1000).toFixed(2)} s)`);
+  }
+  // Waist-high wall in front of a grunt: it crouches behind it between bursts and keeps the
+  // engagement (sight is judged from the standing eye it fires from).
+  const st = sustainedFire('grunt', { wall: 1 });
+  notes.push(`grunt behind a waist-high wall 26 s: ${st.shots} shots, target held ${(st.targetMs / 1000).toFixed(1)} s, dropped ${st.drops}×, crouched ${(st.crouchMs / 1000).toFixed(1)} s`);
+  eq(st.drops, 0, `grunt behind waist-high cover never drops its target (${st.drops} drops)`);
+  ok(st.crouchMs > 2000 && st.shots > 40, `grunt behind waist-high cover crouches between bursts and still fires (${(st.crouchMs / 1000).toFixed(1)} s crouched, ${st.shots} shots)`);
+  ok(st.maxDry <= longest('grunt'), `grunt behind waist-high cover: no stare-down (${(st.maxDry / 1000).toFixed(2)} s)`);
+}
+
 /* ================================================================ waves, cap, reset */
 {
   const f = arena();
@@ -417,7 +478,8 @@ function frontierRun(withGrunts, seconds, seed) {
 /* ================================================================ canyon / harbor waves: squads leave their drop point */
 function wavesRun(map, seconds, seed) {
   Math.random = seeded(seed);
-  const st = { pilotKills: new Map(), nan: 0 };
+  const st = { pilotKills: new Map(), nan: 0, maxDry: 0, dryId: null, mag0Dry: 0 };
+  const dry = new Map();   // minion id -> { shot, from } while it holds a target without a shot
   const engine = new GameEngine({ mode: 'titanfall', mapMeta: getMapMeta(map), world: createMapState(map),
     broadcast: s => {
       for (const e of s.events ?? []) {
@@ -431,6 +493,15 @@ function wavesRun(map, seconds, seed) {
     for (let i = 0; i < seconds * TICKS_PER_S; i++) {
       engine.step(TICK_MS);
       if (i % 30 === 0) for (const p of g.list()) if (p.state === 'alive' && ![p.x, p.y, p.z, p.yaw, p.pitch].every(Number.isFinite)) st.nan++;
+      // Stare-down watch: a living minion holding a target without firing (reloads included).
+      for (const p of g.list()) {
+        let d = dry.get(p.id);
+        if (!d) dry.set(p.id, d = { shot: p.shotSeq, from: null });
+        if (p.state !== 'alive' || !p.tfNpc.target || p.shotSeq !== d.shot) { d.shot = p.shotSeq; d.from = null; continue; }
+        d.from ??= engine.now;
+        const ms = engine.now - d.from;
+        if (ms > st.maxDry) { st.maxDry = ms; st.dryId = p.id; st.mag0Dry = p.mag[p.weapon] <= 0 && !p.reloading ? ms : st.mag0Dry; }
+      }
     }
     st.stats = { ...g.stats };
     st.errors = g.errors;
@@ -444,12 +515,13 @@ function wavesRun(map, seconds, seed) {
 for (const map of ['canyon', 'harbor']) {
   const SECONDS = Math.max(40, Number(process.env.TITANFALL_GRUNT_WAVE_SECONDS) || 90);
   const run = wavesRun(map, SECONDS, 0x2b);
-  notes.push(`${map} 6 bots ${SECONDS} s: minions spawned ${run.stats.spawned}, killed ${run.stats.killed}, removed by the watchdog ${run.stats.removed}`);
+  notes.push(`${map} 6 bots ${SECONDS} s: minions spawned ${run.stats.spawned}, killed ${run.stats.killed}, removed by the watchdog ${run.stats.removed}; longest target hold without a shot ${(run.maxDry / 1000).toFixed(1)} s`);
   eq(run.errors, 0, `${map}: no errors in the minion tick${run.lastError ? `: ${run.lastError.stack}` : ''}`);
   eq(run.nan, 0, `${map}: no non-finite minion pose`);
   ok(run.stats.spawned >= 16, `${map}: waves spawn (${run.stats.spawned})`);
   ok(run.stats.removed <= Math.max(2, run.stats.spawned * 0.1), `${map}: squads route off their drop point (${run.stats.removed} of ${run.stats.spawned} removed)`);
   eq(run.kd, [], `${map}: pilot kills equal pilot-on-pilot kill events (minion kills stay apart)`);
+  ok(run.maxDry <= 5000, `${map}: no minion stare-down (longest target hold without a shot ${(run.maxDry / 1000).toFixed(1)} s ≤ 5 s, ${run.dryId}${run.mag0Dry ? `, empty mag ${(run.mag0Dry / 1000).toFixed(1)} s` : ''})`);
 }
 
 /* ================================================================ other modes: untouched */
@@ -478,4 +550,4 @@ for (const map of ['canyon', 'harbor']) {
 
 Math.random = realRandom;
 console.log(notes.map(line => `  ${line}`).join('\n'));
-console.log(`Titanfall grunts: ${checks} checks passed (bodies, scoring 1/2 + meter + feed, wire rows, killable by pilot fire/titan primary/blast/leg crush/drop crush, auto-titan target and K/D, stand-in hurt aim, minion fire and cloak, waves and cap, reset, 16-bot frontier health and tick cost, canyon/harbor squads routing off their drop point, other modes untouched).`);
+console.log(`Titanfall grunts: ${checks} checks passed (bodies, scoring 1/2 + meter + feed, wire rows, killable by pilot fire/titan primary/blast/leg crush/drop crush, auto-titan target and K/D, stand-in hurt aim, minion fire and cloak, no stare-downs (reload, waist-high cover), waves and cap, reset, 16-bot frontier health and tick cost, canyon/harbor squads routing off their drop point, other modes untouched).`);

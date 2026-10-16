@@ -56,6 +56,12 @@ export const GRUNT_RULES = Object.freeze({
   thinkMs: 200,
   /** Range at which an engaged minion stops advancing on its target. */
   holdRange: 24,
+  /** With no target, a magazine below this fraction is reloaded (an empty one always is). */
+  reloadIdleBelow: 0.4,
+  /** A target lost from sight this recently and seen again is the same engagement (no new reaction delay). */
+  recallMs: 1500,
+  /** A crouched minion stands this long before its next burst. */
+  standLeadMs: 150,
   /** Points of the titan meter a pilot gains per minion kill. */
   meterPerKill: 0.02,
   /** A dead minion's row stays this long (the client plays the death), then the body is removed. */
@@ -285,7 +291,7 @@ export class GruntSystem {
         target: null, targetKind: null, aimPoint: null, seenAt: 0, fireAt: 0, burstLeft: 0, pauseUntil: 0,
         thinkAt: engine.now + (serial % 12) * (GRUNT_RULES.thinkMs / 12), errYaw: 0, errPitch: 0,
         waypoint: null, wpHeld: null, moveGoal: null, blocked: false, unstickUntil: 0, unstickX: 0, unstickZ: 0, nav: {}, watchX: at.x, watchZ: at.z, watchAt: engine.now, progressAt: engine.now,
-        cover: null, coverAt: 0, crouch: false, hold: false, strafe: 0, strafeUntil: 0, hurtBy: null, hurtAt: 0, firing: false },
+        cover: null, coverAt: 0, crouch: false, hold: false, strafe: 0, strafeUntil: 0, hurtBy: null, hurtAt: 0, firing: false, lost: null, lostAt: 0 },
     });
     if (p.medkit) p.medkit.remaining = 0;
     // Minion weapons: the stock weapon with minion damage, cadence and spread.
@@ -362,6 +368,17 @@ export class GruntSystem {
     p.input.wantFire = false;
   }
 
+  /**
+   * The minion's shooting eye: always the standing one. A minion crouches only
+   * between bursts and stands to fire, so sight, aim and cover are judged from
+   * where the shot will leave, not from the crouched eye (which a waist-high
+   * wall hides: the target was dropped and re-acquired with a fresh reaction
+   * delay on every crouch).
+   */
+  _eye(p) {
+    return [p.x, p.y + PHYSICS.eye * (p.bodyScale || 1), p.z];
+  }
+
   /** Eye point of a body (or a hull's centre) to aim and look at. */
   _point(target, kind) {
     if (kind === 'titan') return [target.x, target.y + finite(titanFrame(target)?.height, 6) * 0.55, target.z];
@@ -376,7 +393,7 @@ export class GruntSystem {
 
   /** Nearest visible enemy: pilots and minions within sightRange, titans within titanRange (weighted farther). */
   _acquire(p, now) {
-    const team = p.team, eye = [p.x, p.eyeY, p.z], observer = { x: eye[0], y: eye[1], z: eye[2] };
+    const team = p.team, eye = this._eye(p), observer = { x: eye[0], y: eye[1], z: eye[2] };
     const candidates = [];
     for (const o of this.engine.combatants.values()) {
       if (o === p || o.state !== 'alive' || o.vehicleId || o.objective) continue;
@@ -413,14 +430,14 @@ export class GruntSystem {
     if (ai.targetKind === 'titan') {
       if (!(t.hp > 0) || t.dropping || !this.engine.vehicles?.vehicles?.has?.(t.id)) return false;
     } else if (t.state !== 'alive' || t.vehicleId || (ai.targetKind === 'npc' && !this.engine.npcs.has(t.id))) return false;
-    const eye = [p.x, p.eyeY, p.z], point = this._point(t, ai.targetKind);
+    const eye = this._eye(p), point = this._point(t, ai.targetKind);
     const range = ai.targetKind === 'titan' ? GRUNT_RULES.titanRange : GRUNT_RULES.sightRange + 6;
     if (Math.hypot(point[0] - eye[0], point[2] - eye[2]) > range) return false;
     if (ai.targetKind === 'pilot' && !isPerceivable({ x: eye[0], y: eye[1], z: eye[2] }, t, now)) return false;
     return this._clear(eye, point);
   }
 
-  /** A crouch-cover spot within 4 m: the target sees standing eyes there but not a crouched body. */
+  /** A crouch-cover spot within 4 m: the target sees standing eyes there (to fire from) but not a crouched body. */
   _findCover(p, point) {
     const solidAt = this.engine.solidAt;
     let best = null, bestD = Infinity;
@@ -431,6 +448,7 @@ export class GruntSystem {
       if (y == null || Math.abs(y - p.y) > 1.1 || boxCollides(solidAt, x, y + 0.02, z, PHYSICS.height, PHYSICS.halfW)) continue;
       const low = [x, y + 0.75, z];
       if (this._clear(point, low)) continue;           // a crouched body is still exposed
+      if (!this._clear([x, y + PHYSICS.eye, z], point)) continue;   // blind there: no shot from this cover
       const d = Math.hypot(x - p.x, z - p.z);
       if (d < bestD) { best = { x, y, z }; bestD = d; }
     }
@@ -441,8 +459,10 @@ export class GruntSystem {
     const ai = p.tfNpc, profile = GRUNT_RULES.kinds[ai.kind];
     ai.thinkAt = now + GRUNT_RULES.thinkMs;
     if (!this._keep(p, now)) {
+      if (ai.target) { ai.lost = ai.target; ai.lostAt = now; }
       const found = this._acquire(p, now);
-      const fresh = found && found.o !== ai.target;
+      // A target that was out of sight for a moment is not a new one: no new reaction delay.
+      const fresh = found && found.o !== ai.target && !(found.o === ai.lost && now - ai.lostAt < GRUNT_RULES.recallMs);
       ai.target = found?.o ?? null;
       ai.targetKind = found?.kind ?? null;
       if (fresh) {
@@ -529,7 +549,7 @@ export class GruntSystem {
     input.reload = false;
     // Look: at the target (with this burst's error), along the walk, or toward the midfield.
     let wantYaw = p.yaw, wantPitch = 0;
-    const eye = [p.x, p.eyeY, p.z];
+    const eye = this._eye(p);
     if (ai.aimPoint) {
       const a = aimAngles(eye, ai.aimPoint);
       wantYaw = a.yaw + (ai.target ? ai.errYaw : 0);
@@ -569,7 +589,8 @@ export class GruntSystem {
       input.keys[ai.strafe > 0 ? 'r' : 'l'] = true;
       moving = true;
     } else input.viewYaw = p.yaw;
-    input.keys.crouch = !!(ai.target && ai.crouch && !moving);
+    // Crouch between bursts only; stand up just before the next one to fire.
+    input.keys.crouch = !!(ai.target && ai.crouch && !moving && ai.burstLeft <= 0 && now < ai.fireAt - GRUNT_RULES.standLeadMs);
     // Swimming: keep the head above water (a submerged head drowns) and wade on.
     if (p.swimming) { input.keys.jump = true; input.keys.crouch = false; }
     // Watchdog: wanting to move without progress → hop, then re-route; at giveUpMs → removed.
@@ -606,6 +627,14 @@ export class GruntSystem {
           ai.fireAt = now + between(this.rng, profile.pauseMs);
         } else input.wantFire = true;
       }
+    }
+    // Reload: an empty magazine (infiniteMagazines only refills the reserve;
+    // without a reload press the mag stays at 0 and the minion stares at its
+    // target for good), or a low one with nothing to shoot at.
+    const mag = p.mag?.[p.weapon], magSize = p.def?.magSize;
+    if (!p.reloading && Number.isFinite(mag) && (mag <= 0 || (!ai.target && mag < magSize * GRUNT_RULES.reloadIdleBelow))) {
+      input.reload = true;
+      input.wantFire = false;
     }
     ai.firing = input.wantFire;
   }

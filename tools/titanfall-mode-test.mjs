@@ -236,6 +236,9 @@ function teamEngine(map = 'harbor') {
 /* ------------------------------------------------------------------ scoring, respawn, match end */
 {
   const f = teamEngine();
+  // Exact pilot/titan scores: no minion waves (minion-on-minion kills score for their team too;
+  // the grunt suite covers minion scoring).
+  f.policy.grunts.enabled = false;
   const [a1, a2, b1, b2] = ['a1', 'a2', 'b1', 'b2'].map(f.p);
   // Pilot kill: 5 to the killer's team; a team kill scores nothing.
   f.engine.killPlayer(b1, a1, 'rifle', false);
