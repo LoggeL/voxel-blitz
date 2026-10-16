@@ -51,14 +51,14 @@ const sizes = list('--sizes', 'desktop,landscape').filter(s => SIZES[s]);
 
 async function acquireSlot() {
   for (;;) {
-  for (const suffix of ['', '2', '3']) {
-    const dir = path.join(root, `.titan-capture.lock${suffix}`);
-    try { mkdirSync(dir); } catch { continue; }
-    const release = () => rmSync(dir, { recursive: true, force: true });
-    process.once('exit', release);
-    for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { release(); process.exit(130); });
-    return release;
-  }
+    for (const suffix of ['', '2', '3']) {
+      const dir = path.join(root, `.titan-capture.lock${suffix}`);
+      try { mkdirSync(dir); } catch { continue; }
+      const release = () => rmSync(dir, { recursive: true, force: true });
+      process.once('exit', release);
+      for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { release(); process.exit(130); });
+      return release;
+    }
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
 }

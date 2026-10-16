@@ -1,5 +1,5 @@
 """Model judging of one sound (docs/audio/titan-weapons-judging.md) with Google Gemini, which listens to the audio:
-the audio file inline, plus a spectrogram PNG (ffmpeg showspectrumpic) and the numbers (duration, peak, integrated
+the audio file inline through the user-provided helper, plus text measurements (duration, peak, integrated
 loudness, loudness range, crest factor, spectral centroid), the intended role and the source description.
 The API key is read from the macOS keychain (service `google-api-key`) and never printed or stored.
 Usage: python3 -I judge.py <audio> <out-prefix> "<role>" "<source description>" [extra context]
@@ -16,12 +16,13 @@ def metrics(path):
     peak = float(np.abs(x).max()); rms = float(np.sqrt(np.mean(x ** 2)) + 1e-12)
     spec = np.abs(np.fft.rfft(x * np.hanning(len(x)))); f = np.fft.rfftfreq(len(x), 1 / SR)
     centroid = float((spec * f).sum() / (spec.sum() + 1e-12))
-    lo = float((spec[f < 200] ** 2).sum() / ((spec ** 2).sum() + 1e-12))
+    power = np.abs(np.fft.rfft(x)) ** 2
+    lo = float(power[f < 200].sum() / (power.sum() + 1e-12))
     r = subprocess.run(['ffmpeg', '-nostdin', '-v', 'info', '-i', str(path), '-af', 'ebur128=peak=true', '-f', 'null', '-'],
                        capture_output=True, text=True).stderr
     tail = r[r.rfind('Summary'):]
     num = lambda k: float((re.search(k + r':\s+(-?[\d.]+|-inf)', tail) or [None, 'nan'])[1].replace('-inf', '-70'))
-    env = np.sqrt(np.convolve(x ** 2, np.ones(240) / 240, 'same'))
+    env = np.sqrt(np.convolve(x ** 2, np.ones(480) / 480, 'same'))
     t_peak = float(np.argmax(env) / SR)
     head = float(np.abs(x[:96]).max()); end = float(np.abs(x[-96:]).max())
     return dict(duration_s=round(len(x) / SR, 3), peak_dbfs=round(20 * np.log10(peak + 1e-12), 2),

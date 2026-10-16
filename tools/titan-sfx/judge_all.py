@@ -7,7 +7,7 @@ from common import ROOT, sha
 from judge import judge
 ROLES = {
  'tf.splitter.fire': 'ION Splitter Rifle primary fire: snappy precise energy rifle crack, bright transient, solid low body, 0.25-0.5 s, fires every 0.15 s',
- 'tf.splitter.split': 'ION Splitter Rifle split shot (three beams at once): heavier, wider version of the energy rifle crack, 0.5-0.8 s',
+ 'tf.splitter.split': 'ION Splitter Rifle ADDITIVE three-beam split layer, 0.5-0.8 s: a thicker plasma/body surge mixed concurrently with the separate dry fire report and outdoor tail. This file is only the extra energy layer, not the complete shot. Mono for the positional muzzle; beam impacts are separately spatialized. Judge its ability to thicken the existing electric rifle crack.',
  'tf.splitter.tail': 'ION Splitter Rifle outdoor tail layered after the shot: 0.8-1.4 s, no transient of its own, smooth decay',
  'tf.splitter.impact': 'ION Splitter Rifle round hitting a titan/wall: energy hit + sparks, 0.3-0.6 s',
  'tf.splitter.reload': 'ION Splitter Rifle reload: energy cell swap, clunk + whine + lock, 1-1.5 s',
@@ -34,7 +34,7 @@ ROLES = {
  'tf.predator.spinDown': 'Legion Predator Cannon barrel spin-down: 1.2 s falling whir with mechanical rattle',
  'tf.predator.casings': 'Legion Predator Cannon big brass casings hitting the ground: 0.3-0.8 s metallic tinkle/clank',
  'tf.predator.impact': 'Legion Predator Cannon heavy autocannon round impacting armour: short kinetic crack and dense metallic crunch, 0.15-0.3 s; repeated often, no explosion or electric zap',
- 'tf.predator.tail': 'Legion Predator Cannon burst tail after the last round: 1-1.5 s outdoor decay, no transient',
+ 'tf.predator.tail': 'Legion Predator Cannon outdoor reflection after the last round only: 1-1.5 s smooth decay, no fresh shot. The barrel motor and its spin-down are separate voices driven by authoritative spin state, so this tail must not imply barrels slowing.',
  'tf.predator.reload': 'Legion Predator Cannon drum reload: heavy clunks and latches, 1.5-2.5 s',
  'tf.hit.confirm': 'Hit confirm when your round hits an enemy titan: very short metallic tick <= 0.15 s, plays often',
  'tf.hit.doom': 'Doom confirm (enemy titan crippled): deep metal clang + crunch, 0.4-0.8 s',

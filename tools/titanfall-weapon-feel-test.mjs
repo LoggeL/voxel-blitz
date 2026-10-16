@@ -12,6 +12,7 @@
 //     in the air (radius 0) end silently, and their impacts / ricochets reach the titan voices
 import assert from 'node:assert/strict';
 import { readFileSync, statSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { TITAN_WEAPON_FEEL, TITAN_FEEL_NEAR, TITAN_FEEL_VIEW, shotFeel, holdShake, applyShotFeel } from '../public/js/titanfall/titan-weapon-feel.js';
 import { TITAN_COCKPIT, stepRecoil, makeTitanCockpit } from '../public/js/titanfall/titan-cockpit.js';
 import { TitanSynth, TITAN_AUDIO, TITAN_WEAPON_MIX } from '../public/js/vehicles/vehicle-audio.js';
@@ -139,8 +140,10 @@ for (const url of TITAN_AUDIO_URLS) {
   decoded += info.seconds * info.channels * 48000 * 4;
   const entry = entryFor(url);
   check(() => assert.ok(entry, `${url} in sources.json`));
+  check(() => assert.equal(createHash('sha256').update(data).digest('hex'), entry.output_sha256, `${url}: provenance matches shipped bytes`));
   check(() => assert.match(String(entry.license), ALLOWED, `${url}: licence ${entry.license}`));
   for (const source of [entry.sources ?? entry.source ?? []].flat()) {
+    check(() => assert.equal(typeof source.layer, 'string', `${url}: source layer note is text (tail filter argument order)`));
     const license = String(source.license ?? entry.license);
     check(() => assert.match(license, ALLOWED, `${url} source licence ${license}`));
     if (/^CC BY/.test(license)) {
@@ -335,6 +338,12 @@ const at = (row, id, self = true, pos = [0, 0, 0], distance = 0) => [{ row, id, 
   check(() => assert.ok(spin?.loop, 'spin loop at full spin'));
   nodes = fresh(() => synth.update(at(titanRow('titan_legion', 0, 70), 'lg'), [0, 0, 0], 0));
   check(() => assert.ok(spin.stoppedAt != null && sourcesOf(nodes, 'tf.predator.spinDown').length === 1, 'spin-down as the barrels slow'));
+  const down = sourcesOf(nodes, 'tf.predator.spinDown')[0];
+  check(() => assert.ok(Math.abs(down.playbackRate.value - seconds('tf.predator.spinDown') / VEHICLE_WEAPONS.predatorClose.spinDownSeconds) < 1e-9,
+    'spin-down follows the authoritative duration'));
+  check(() => assert.ok(Math.abs(down.starts[0][1] - seconds('tf.predator.spinDown') * 0.3) < 1e-9, 'joined at 70% remaining spin'));
+  synth.update(at(titanRow('titan_legion', 0, 80), 'lg'), [0, 0, 0], 0);
+  check(() => assert.ok(down.stoppedAt != null, 're-press cancels the old spin-down and brake cue'));
   // Own magazine reload starting.
   nodes = fresh(() => synth.update(at(titanRow('titan_legion', 10, 0), 'lg'), [0, 0, 0], 0));
   check(() => assert.equal(sourcesOf(nodes, 'tf.predator.reload').length, 1));

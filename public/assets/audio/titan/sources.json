@@ -1,43 +1,43 @@
 {
  "bank": "titan",
  "title": "Titan primary weapon sounds (Splitter, T-203, Railgun, Leadwall, Predator, hit confirms)",
- "retrieved": "2026-10-13",
- "integrated": "2026-10-13",
+ "retrieved": "2026-10-14",
+ "integrated": "2026-10-14",
  "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, -fflags +bitexact)",
  "licensePolicy": "CC0 1.0 and CC BY 4.0 recordings from individually checked Freesound or OpenGameArt pages, plus original synthesis from the build script (listed under synthLayers, no third-party audio). Entry \"license\" is the most restrictive licence among its sources. CC BY credits: CREDITS.txt, LICENSES.md, docs/audio/titan-sfx.md.",
  "notes": "Freesound items are the public HQ previews (Ogg Vorbis) because original downloads need a login; download_sha256 is the hash of that retrieved file. Build: tools/titan-sfx/ (recipes.py lists every cut). Gemini receives and listens to the audio (docs/audio/titan-weapons-judging.md); no human audition or audible in-game playback was performed.",
  "budget": {
-  "files": 68,
-  "bytes": 717877,
-  "decodedBytesFloat32": 10696320
+  "files": 58,
+  "bytes": 627351,
+  "decodedBytesFloat32": 9616704
  },
  "files": [
   {
    "file": "splitter/fire-1.ogg",
    "group": "tf.splitter.fire",
    "license": "CC0 1.0",
-   "durationS": 0.262,
+   "durationS": 0.279,
    "loop": false,
-   "loudnessLUFS": -15.54,
-   "peakDb": -2.08,
+   "loudnessLUFS": -15.91,
+   "peakDb": -2.21,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 3749,
-   "output_sha256": "1b5bf48313b15b108792d97f6fdc123d243f1378b0ea8b26c73e4ffe7da2950b",
-   "variant": "punchy automatic rifle + plasma rifle shot 2 + electric zap",
-   "processing": "declip (cubic spline); HP 30 Hz; onset trimmed to 1.5 ms pre-roll; plasma rifle shot up front (+3 dB at 300 Hz, soft saturation) + synthesized ion chirp (3 kHz -> 750 Hz in ~40 ms) + real rifle crack under it (LP 3 kHz) + electric zap + plasma peak aligned within 4 ms; low-mid pulse 210->95 Hz; high shelf -5 dB at 8 kHz; decay from 80 ms; 0.28 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.9 dB above the peak cap)",
+   "sizeBytes": 3994,
+   "output_sha256": "96dad400ad09c009e72791cb880de3abc66c698f1052f7bbd4e17999bb15cfa9",
+   "variant": "M2010 crack + plasma shot 8 + alternate ion chirp",
+   "processing": "declip (cubic spline); HP 30 Hz; onset trimmed to 1.5 ms pre-roll; plasma rifle shot up front (+3 dB at 300 Hz, soft saturation) + synthesized ion chirp (3 kHz -> 750 Hz in ~40 ms) + real rifle crack under it (LP 3 kHz) + electric zap + plasma peak aligned within 4 ms; low-mid pulse 210->95 Hz; high shelf -5 dB at 8 kHz; decay from 80 ms; 0.28 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.6 dB above the peak cap)",
    "sources": [
     {
-     "url": "https://freesound.org/people/ser%C3%B8ut%C5%8Dnin--depriv%C9%99d/sounds/855654/",
-     "title": "An automatic rifle being shot once // punchy sounding",
-     "author": "serøutōnin--deprivəd",
+     "url": "https://freesound.org/people/qubodup/sounds/855608/",
+     "title": "Sniper Shot in Field 3 (M2010 Enhanced Sniper Rifle ESR)",
+     "author": "qubodup",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "0.036-0.540 s",
-     "layer": "rifle crack and body",
-     "download_sha256": "492d1c155aec9a92a80b7e645fc5f788a63c30e43f5324eb1d74928418bbb148",
-     "download": "fs-855654/source.ogg",
+     "cut": "0.011-0.215 s",
+     "layer": "sniper crack, cut before echo",
+     "download_sha256": "88505bab0adb28b3a3009b15a59af2c58d4bf22e19f85ec5383d371f692ec08b",
+     "download": "fs-855608/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/855/855654_7157894-hq.ogg"
+     "file_url": "https://cdn.freesound.org/previews/855/855608_71257-hq.ogg"
     },
     {
      "url": "https://freesound.org/people/synthy95/sounds/331240/",
@@ -45,8 +45,8 @@
      "author": "synthy95",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "1.606-1.960 s",
-     "layer": "plasma shot 2",
+     "cut": "11.206-11.560 s",
+     "layer": "plasma shot 8",
      "download_sha256": "2c142adba15be25b712c7227b9458ef69124fe7e27235da47e9c332c2912d5fe",
      "download": "fs-331240/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -78,9 +78,9 @@
     "limiter_max_gr_db": 4
    },
    "notes": {
-    "trimmed_tail_s": 0.018,
-    "group_matched_lufs_target": -14.97,
-    "limiter_gain_reduction_db": 3.87
+    "trimmed_tail_s": 0.001,
+    "group_matched_lufs_target": -14.9,
+    "limiter_gain_reduction_db": 3.61
    }
   },
   {
@@ -90,10 +90,10 @@
    "durationS": 0.279,
    "loop": false,
    "loudnessLUFS": -15.41,
-   "peakDb": -2.17,
+   "peakDb": -2.21,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
    "sizeBytes": 4067,
-   "output_sha256": "936ba95f4a04176bdcde96bf18920690a6a27b0380806ffa1cb3784c94892d7e",
+   "output_sha256": "913a06eec2f83fdcd48ebab50edccf0d3689b90ced6a2a48fe9fa1f669d73c0b",
    "variant": "rifle shot 01 + plasma rifle shot 4 + electric zap 001",
    "processing": "declip (cubic spline); HP 30 Hz; onset trimmed to 1.5 ms pre-roll; plasma rifle shot up front (+3 dB at 300 Hz, soft saturation) + synthesized ion chirp (3 kHz -> 750 Hz in ~40 ms) + real rifle crack under it (LP 3 kHz) + electric zap + plasma peak aligned within 4 ms; low-mid pulse 210->95 Hz; high shelf -5 dB at 8 kHz; decay from 80 ms; 0.28 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.4 dB above the peak cap)",
    "sources": [
@@ -137,12 +137,6 @@
      "file_url": "https://cdn.freesound.org/previews/136/136542_1206321-hq.ogg"
     }
    ],
-   "synthLayers": [
-    {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); synthesized ion chirp (sine sweep with 3rd harmonic)",
-     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
-    }
-   ],
    "normalization": {
     "lufs_target": -14,
     "peak_cap_db": -2.0,
@@ -150,8 +144,8 @@
    },
    "notes": {
     "trimmed_tail_s": 0.001,
-    "group_matched_lufs_target": -14.97,
-    "limiter_gain_reduction_db": 2.42
+    "group_matched_lufs_target": -14.99,
+    "limiter_gain_reduction_db": 2.41
    }
   },
   {
@@ -160,13 +154,13 @@
    "license": "CC0 1.0",
    "durationS": 0.27,
    "loop": false,
-   "loudnessLUFS": -15.53,
-   "peakDb": -1.99,
+   "loudnessLUFS": -15.45,
+   "peakDb": -1.97,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 3553,
-   "output_sha256": "29ea4929d4e65c9cd0b4ce42c5feb09bc17a8dcb93b6cfb022792d7a0dbd96f9",
+   "sizeBytes": 3554,
+   "output_sha256": "4c7997d898a632db730f45a521604da0552f869a03704405bcb4f57127ca2f11",
    "variant": "rifle shot 02 + plasma rifle shot 6 + tesla zap",
-   "processing": "declip (cubic spline); HP 30 Hz; onset trimmed to 1.5 ms pre-roll; plasma rifle shot up front (+3 dB at 300 Hz, soft saturation) + synthesized ion chirp (3 kHz -> 750 Hz in ~40 ms) + real rifle crack under it (LP 3 kHz) + electric zap + plasma peak aligned within 4 ms; low-mid pulse 210->95 Hz; high shelf -5 dB at 8 kHz; decay from 80 ms; 0.28 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.8 dB above the peak cap)",
+   "processing": "declip (cubic spline); HP 30 Hz; onset trimmed to 1.5 ms pre-roll; plasma rifle shot up front (+3 dB at 300 Hz, soft saturation) + synthesized ion chirp (3 kHz -> 750 Hz in ~40 ms) + real rifle crack under it (LP 3 kHz) + electric zap + plasma peak aligned within 4 ms; low-mid pulse 210->95 Hz; high shelf -5 dB at 8 kHz; decay from 80 ms; 0.28 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.9 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/LilMati/sounds/484036/",
@@ -221,8 +215,8 @@
    },
    "notes": {
     "trimmed_tail_s": 0.01,
-    "group_matched_lufs_target": -14.97,
-    "limiter_gain_reduction_db": 3.78
+    "group_matched_lufs_target": -14.9,
+    "limiter_gain_reduction_db": 3.86
    }
   },
   {
@@ -231,13 +225,13 @@
    "license": "CC0 1.0",
    "durationS": 0.279,
    "loop": false,
-   "loudnessLUFS": -15.46,
-   "peakDb": -2.0,
+   "loudnessLUFS": -15.42,
+   "peakDb": -1.82,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
    "sizeBytes": 3990,
-   "output_sha256": "f14a5ae38a96aaba34ebdf01a94a173dd357b3360912826c160eaa778f462330",
+   "output_sha256": "87cff59960ce1f4168a495546a5fb4523c6d62e0b41c8be6ec91b86ff62aadbf",
    "variant": "M2010 sniper crack (DVIDS) + plasma rifle shot 8 + electric zap",
-   "processing": "declip (cubic spline); HP 30 Hz; onset trimmed to 1.5 ms pre-roll; plasma rifle shot up front (+3 dB at 300 Hz, soft saturation) + synthesized ion chirp (3 kHz -> 750 Hz in ~40 ms) + real rifle crack under it (LP 3 kHz) + electric zap + plasma peak aligned within 4 ms; low-mid pulse 210->95 Hz; high shelf -5 dB at 8 kHz; decay from 80 ms; 0.28 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.3 dB above the peak cap)",
+   "processing": "declip (cubic spline); HP 30 Hz; onset trimmed to 1.5 ms pre-roll; plasma rifle shot up front (+3 dB at 300 Hz, soft saturation) + synthesized ion chirp (3 kHz -> 750 Hz in ~40 ms) + real rifle crack under it (LP 3 kHz) + electric zap + plasma peak aligned within 4 ms; low-mid pulse 210->95 Hz; high shelf -5 dB at 8 kHz; decay from 80 ms; 0.28 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.4 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/qubodup/sounds/855608/",
@@ -292,62 +286,36 @@
    },
    "notes": {
     "trimmed_tail_s": 0.001,
-    "group_matched_lufs_target": -14.97,
-    "limiter_gain_reduction_db": 3.35
+    "group_matched_lufs_target": -14.9,
+    "limiter_gain_reduction_db": 3.43
    }
   },
   {
    "file": "splitter/split-1.ogg",
    "group": "tf.splitter.split",
    "license": "CC0 1.0",
-   "durationS": 0.506,
+   "durationS": 0.558,
    "loop": false,
-   "loudnessLUFS": -15.41,
-   "peakDb": -2.16,
+   "loudnessLUFS": -18.77,
+   "peakDb": -1.71,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 6030,
-   "output_sha256": "3b01454326edbf88fe85585798c886aa29a34735a7618e1d564a1f600b4c4175",
-   "variant": "heavy blaster + LASR blast 2 + rifle pitched down + triple ion chirp",
-   "processing": "declip; onset trimmed; heavy blaster / laser blast up front (+3 dB at 300 Hz) + three staggered synthesized ion chirps (2.4 kHz -> 500 Hz, 0/12/24 ms: the three beams) + rifle pitched down ~0.72x under them (LP 3 kHz) + saturated sub thump; three frontloaded plasma discharges staggered 0/12/24 ms lead; HP 65 Hz; high shelf -4 dB at 8 kHz; decay from 0.2 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.7 dB above the peak cap)",
+   "sizeBytes": 7072,
+   "output_sha256": "e43d9f952f5b213f292f7accd71efec98b8b573572276bae07120d691ba56d77",
+   "variant": "three ION spine pulses, heavier split take",
+   "processing": "three ION report spines aligned within 2 ms, copies pitched 0.94x/1.06x; saturated 120-800 Hz plasma body, heavy breech snap, 160->45 Hz body pulse; +4 dB at 330 Hz, -2 dB at 2.6 kHz; short diffuse reflections; 0.65 s; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (4.0 dB above the peak cap)",
    "sources": [
     {
-     "url": "https://freesound.org/people/xkeril/sounds/702000/",
-     "title": "Heavy blaster shot 05",
-     "author": "xkeril",
+     "url": "https://freesound.org/people/qubodup/sounds/855608/",
+     "title": "Sniper Shot in Field 3 (M2010 Enhanced Sniper Rifle ESR)",
+     "author": "qubodup",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "0.011-0.615 s",
-     "layer": "heavy blaster shot",
-     "download_sha256": "7199b6de26db0085ba2c5fd5756fc712f8fa9d452d4f7025c74a36903da1e7a9",
-     "download": "fs-702000/source.ogg",
+     "cut": "0.011-0.215 s",
+     "layer": "split shot ballistic spine",
+     "download_sha256": "88505bab0adb28b3a3009b15a59af2c58d4bf22e19f85ec5383d371f692ec08b",
+     "download": "fs-855608/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/702/702000_13504080-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/InMotionAudio/sounds/660270/",
-     "title": "LASRGun_Blast01-10_InMotionAudio_FREESampleSunday.wav",
-     "author": "InMotionAudio",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.996-1.500 s",
-     "layer": "laser blast 2, HP 400 Hz",
-     "download_sha256": "270b8cda77b391d18c24596e45ce06102e34eb24459347947158f05b99424f14",
-     "download": "fs-660270/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/660/660270_14083205-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/felix.blume/sounds/710084/",
-     "title": "Rifle gunshot, one shot",
-     "author": "felix.blume",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.831-1.335 s",
-     "layer": "rifle crack pitched down 0.72x, LP 3 kHz",
-     "download_sha256": "4dc147340d76493a9e394f95d1dfb2d6feaed74c8ef7f9e02ec76fcca574293b",
-     "download": "fs-710084/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/710/710084_1661766-hq.ogg"
+     "file_url": "https://cdn.freesound.org/previews/855/855608_71257-hq.ogg"
     },
     {
      "url": "https://freesound.org/people/synthy95/sounds/331240/",
@@ -355,17 +323,43 @@
      "author": "synthy95",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "1.606-1.960 s",
-     "layer": "triple ION plasma discharge identity",
+     "cut": "11.206-11.560 s",
+     "layer": "split shot plasma spine",
      "download_sha256": "2c142adba15be25b712c7227b9458ef69124fe7e27235da47e9c332c2912d5fe",
      "download": "fs-331240/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/331/331240_5789802-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/michael_grinnell/sounds/512471/",
+     "title": "Electric zap.wav",
+     "author": "michael_grinnell",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.200 s",
+     "layer": "split shot electric snap",
+     "download_sha256": "cca8d4161c5cf2daca229b571c7d0566953b59f8b84746f7155fc99fdb685fce",
+     "download": "fs-512471/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/512/512471_7372230-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
+     "title": "Heavy Metal Impact",
+     "author": "magnuswaker",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.350 s",
+     "layer": "split shot breech snap",
+     "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
+     "download": "fs-614062/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
     }
    ],
    "synthLayers": [
     {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); three synthesized ion chirps (sine sweeps with 3rd harmonic)",
+     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); synthesized ion chirp (sine sweep with 3rd harmonic); heavy split-shot sub pulse; short diffuse reflections",
      "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
     }
    ],
@@ -375,63 +369,37 @@
     "limiter_max_gr_db": 4
    },
    "notes": {
-    "trimmed_tail_s": 0.114,
-    "group_matched_lufs_target": -14.64,
-    "limiter_gain_reduction_db": 2.75
+    "trimmed_tail_s": 0.092,
+    "group_matched_lufs_target": -18.27,
+    "limiter_gain_reduction_db": 3.99
    }
   },
   {
    "file": "splitter/split-2.ogg",
    "group": "tf.splitter.split",
    "license": "CC0 1.0",
-   "durationS": 0.525,
+   "durationS": 0.558,
    "loop": false,
-   "loudnessLUFS": -15.15,
-   "peakDb": -1.91,
+   "loudnessLUFS": -18.77,
+   "peakDb": -2.12,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 6177,
-   "output_sha256": "4af90126fee4220547b7f9a24df74999f9712e36bcc618317b0178142bd7e18e",
-   "variant": "LASR blast 5 + warp rifle blast + rifle pitched down + triple ion chirp",
-   "processing": "declip; onset trimmed; heavy blaster / laser blast up front (+3 dB at 300 Hz) + three staggered synthesized ion chirps (2.4 kHz -> 500 Hz, 0/12/24 ms: the three beams) + rifle pitched down ~0.72x under them (LP 3 kHz) + saturated sub thump; three frontloaded plasma discharges staggered 0/12/24 ms lead; HP 65 Hz; high shelf -4 dB at 8 kHz; decay from 0.2 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.9 dB above the peak cap)",
+   "sizeBytes": 7085,
+   "output_sha256": "2c0db3cd313ba572560032c804f997d4a147505ffd7b12e2179702071356da57",
+   "variant": "three ION spine pulses, lower-pitch split take",
+   "processing": "three ION report spines aligned within 2 ms, copies pitched 0.94x/1.06x; saturated 120-800 Hz plasma body, heavy breech snap, 160->45 Hz body pulse; +4 dB at 330 Hz, -2 dB at 2.6 kHz; short diffuse reflections; 0.65 s; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.4 dB above the peak cap)",
    "sources": [
     {
-     "url": "https://freesound.org/people/InMotionAudio/sounds/660270/",
-     "title": "LASRGun_Blast01-10_InMotionAudio_FREESampleSunday.wav",
-     "author": "InMotionAudio",
+     "url": "https://freesound.org/people/qubodup/sounds/855608/",
+     "title": "Sniper Shot in Field 3 (M2010 Enhanced Sniper Rifle ESR)",
+     "author": "qubodup",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "5.686-6.190 s",
-     "layer": "laser blast 5",
-     "download_sha256": "270b8cda77b391d18c24596e45ce06102e34eb24459347947158f05b99424f14",
-     "download": "fs-660270/source.ogg",
+     "cut": "0.011-0.215 s",
+     "layer": "split shot ballistic spine",
+     "download_sha256": "88505bab0adb28b3a3009b15a59af2c58d4bf22e19f85ec5383d371f692ec08b",
+     "download": "fs-855608/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/660/660270_14083205-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/Funky_Audio/sounds/705494/",
-     "title": "LASRGun_Warp Rifle Energy Blast_Funky Audio_Sonic Spices",
-     "author": "Funky_Audio",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.186-0.690 s",
-     "layer": "warp rifle blast, HP 400 Hz",
-     "download_sha256": "f408fd844832423b2be9831269eeae528696d7ac58f4829349b6a56ed12dbfaa",
-     "download": "fs-705494/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/705/705494_14953219-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/LilMati/sounds/484036/",
-     "title": "Rifle Gun Shot 02.wav",
-     "author": "LilMati",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.011-0.515 s",
-     "layer": "rifle crack pitched down 0.72x, LP 3 kHz",
-     "download_sha256": "143cf4eceeab7ca6c98f2b0005d402f9bc0edc7564fa307b9ddfca03def44b5b",
-     "download": "fs-484036/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/484/484036_6142149-hq.ogg"
+     "file_url": "https://cdn.freesound.org/previews/855/855608_71257-hq.ogg"
     },
     {
      "url": "https://freesound.org/people/synthy95/sounds/331240/",
@@ -439,17 +407,43 @@
      "author": "synthy95",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "1.606-1.960 s",
-     "layer": "triple ION plasma discharge identity",
+     "cut": "11.206-11.560 s",
+     "layer": "split shot plasma spine",
      "download_sha256": "2c142adba15be25b712c7227b9458ef69124fe7e27235da47e9c332c2912d5fe",
      "download": "fs-331240/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/331/331240_5789802-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/michael_grinnell/sounds/512471/",
+     "title": "Electric zap.wav",
+     "author": "michael_grinnell",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.200 s",
+     "layer": "split shot electric snap",
+     "download_sha256": "cca8d4161c5cf2daca229b571c7d0566953b59f8b84746f7155fc99fdb685fce",
+     "download": "fs-512471/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/512/512471_7372230-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
+     "title": "Heavy Metal Impact",
+     "author": "magnuswaker",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.350 s",
+     "layer": "split shot breech snap",
+     "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
+     "download": "fs-614062/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
     }
    ],
    "synthLayers": [
     {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); three synthesized ion chirps (sine sweeps with 3rd harmonic)",
+     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); synthesized ion chirp (sine sweep with 3rd harmonic); heavy split-shot sub pulse; short diffuse reflections",
      "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
     }
    ],
@@ -459,9 +453,9 @@
     "limiter_max_gr_db": 4
    },
    "notes": {
-    "trimmed_tail_s": 0.095,
-    "group_matched_lufs_target": -14.64,
-    "limiter_gain_reduction_db": 3.93
+    "trimmed_tail_s": 0.092,
+    "group_matched_lufs_target": -18.27,
+    "limiter_gain_reduction_db": 3.44
    }
   },
   {
@@ -527,70 +521,6 @@
     "trimmed_tail_s": 0.044,
     "group_matched_lufs_target": -23.51,
     "limiter_gain_reduction_db": 2.74
-   }
-  },
-  {
-   "file": "splitter/tail-2.ogg",
-   "group": "tf.splitter.tail",
-   "license": "CC0 1.0",
-   "durationS": 1.152,
-   "loop": false,
-   "loudnessLUFS": -23.72,
-   "peakDb": -4.65,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 14089,
-   "output_sha256": "fc6b9c548f31f80e785eca9fcbadaa38557a1fb18cbec5cd024d34f2f3dc5f2c",
-   "variant": "rifle forest reverb tail (later shot) pitched down + plasma decay + thunder rumble, flanged",
-   "processing": "cut after the transient (no attack): rifle forest-reverb tail pitched down 0.6x (LP 4.5 kHz) + plasma shot decay (HP 450 Hz) + thunder rumble LP 180 Hz; mono flanger (1-3.5 ms sweep) for an ionized shimmer; bell -3 dB at 3 kHz; 30 ms fade-in, long cosine fade-out",
-   "sources": [
-    {
-     "url": "https://freesound.org/people/ser%C3%B8ut%C5%8Dnin--depriv%C9%99d/sounds/723532/",
-     "title": "A ruger 10/22LR rifle being shot further away w/ forest reverb",
-     "author": "serøutōnin--deprivəd",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "9.530-10.280 s",
-     "layer": "forest reverb tail after shot 8",
-     "download_sha256": "fdead7398ac1409577b73b80890f0a41a53100278a1970ccd9a1137a885d60cb",
-     "download": "fs-723532/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/723/723532_7157894-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/synthy95/sounds/331240/",
-     "title": "Plasma Rifle Gun Shots - Various",
-     "author": "synthy95",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "8.150-8.750 s",
-     "layer": "plasma shot 6 decay",
-     "download_sha256": "2c142adba15be25b712c7227b9458ef69124fe7e27235da47e9c332c2912d5fe",
-     "download": "fs-331240/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/331/331240_5789802-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/loganzsound/sounds/840628/",
-     "title": "Closeup Thunder Strike 01",
-     "author": "loganzsound",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "2.000-3.300 s",
-     "layer": "thunder rumble, LP 180 Hz",
-     "download_sha256": "4bed0569715ac2e982ef3724c0bfb55ba1aa45a8c1d28179f98aa0c990f30893",
-     "download": "fs-840628/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/840/840628_16682330-hq.ogg"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -22,
-    "peak_cap_db": -3.0,
-    "limiter_max_gr_db": 3.0
-   },
-   "notes": {
-    "trimmed_tail_s": 0.098,
-    "group_matched_lufs_target": -23.73
    }
   },
   {
@@ -1504,15 +1434,15 @@
    "file": "t203/impact-1.ogg",
    "group": "tf.t203.impact",
    "license": "CC0 1.0",
-   "durationS": 1.349,
+   "durationS": 1.426,
    "loop": false,
-   "loudnessLUFS": -22.02,
-   "peakDb": -4.46,
+   "loudnessLUFS": -20.14,
+   "peakDb": -1.83,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 14625,
-   "output_sha256": "88582b0766134aaa3d2961ee990588dfd11ac45412ec5716bd7c8c5726c5e197",
+   "sizeBytes": 15189,
+   "output_sha256": "8bd108bb5801a14133c5e9c138d4a909382560c1a9c502f5216868a701a96250",
    "variant": "medium blast + flare crack + firecracker fizzle + fire crackle + road flare burn",
-   "processing": "declip; onset trimmed; explosion body HP 70 Hz + flare crack slap at 0 ms (HP 2 kHz) + spattering fizzle/pops and fire crackle + road-flare sizzle forward (high shelf -3 dB at 8 kHz, exponential decay from 0.3 s) + saturated sub thump (0.12 s decay); bell -3.5 dB at 250 Hz; exponential decay from 0.4 s; soft clipper",
+   "processing": "frontloaded blast pitched 0.85x, HP 40 Hz; flare crack aligned at 0 ms; pitched-down fizzle and crackle under fuel-jet roar and road-flare sizzle (shelf -3 dB at 5 kHz); 130->48 Hz tight body pulse; +3 dB at 190 Hz and light saturation glue; decay from 0.4 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (1.7 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/Kinoton/sounds/516914/",
@@ -1534,7 +1464,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "0.051-0.305 s",
-     "layer": "flare crack slap, HP 2 kHz",
+     "layer": "aligned flare crack slap, HP 2 kHz",
      "download_sha256": "85b453ae56fd47197d2fb8e29c7c7d432ec6e96c8ff2e41a2b80eff604560e90",
      "download": "fs-450837/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -1578,12 +1508,32 @@
      "download": "fs-348767/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/348/348767_299928-hq.ogg"
-    }
-   ],
-   "synthLayers": [
+    },
     {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay)",
-     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
+     "url": "https://freesound.org/people/LookIMadeAThing/sounds/260555/",
+     "title": "Basic Fire Whoosh 2",
+     "author": "LookIMadeAThing",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.300-1.500 s",
+     "layer": "pressurized combustion roar",
+     "download_sha256": "1606590a751692584abd85022eebb61912b1cf9c750edcd7f1959e5f2b8201ef",
+     "download": "fs-260555/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/260/260555_3968707-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/Hugofski/sounds/177556/",
+     "title": "massive explosion",
+     "author": "Hugofski",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "7.541-8.445 s",
+     "layer": "large explosive pressure body",
+     "download_sha256": "2dc819131226d0a398fc8c148108da9433714a0dd8993e85d083f5e278c652c9",
+     "download": "fs-177556/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/177/177556_1423336-hq.ogg"
     }
    ],
    "normalization": {
@@ -1592,23 +1542,24 @@
     "limiter_max_gr_db": 3
    },
    "notes": {
-    "trimmed_tail_s": 0.251,
-    "group_matched_lufs_target": -21.98
+    "trimmed_tail_s": 0.174,
+    "group_matched_lufs_target": -20.05,
+    "limiter_gain_reduction_db": 1.67
    }
   },
   {
    "file": "t203/impact-2.ogg",
    "group": "tf.t203.impact",
    "license": "CC0 1.0",
-   "durationS": 1.314,
+   "durationS": 1.435,
    "loop": false,
-   "loudnessLUFS": -22.5,
-   "peakDb": -1.86,
+   "loudnessLUFS": -20.67,
+   "peakDb": -1.87,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 17402,
-   "output_sha256": "ba0066c30fbb7d46b37e20a5cb2c904cb5ce53dd73a48ad83d4d3d320940568b",
+   "sizeBytes": 17877,
+   "output_sha256": "cc036c26131bfa7ec947e6ff58c7fc872321c6511a2252dcc840171375c419ac",
    "variant": "DoD explosive (U.S. gov.) + flare crack + firecracker pops + fire crackle + sizzle",
-   "processing": "declip; onset trimmed; explosion body HP 70 Hz + flare crack slap at 0 ms (HP 2 kHz) + spattering fizzle/pops and fire crackle + road-flare sizzle forward (high shelf -3 dB at 8 kHz, exponential decay from 0.3 s) + saturated sub thump (0.12 s decay); bell -3.5 dB at 250 Hz; exponential decay from 0.4 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.0 dB above the peak cap)",
+   "processing": "frontloaded blast pitched 0.85x, HP 40 Hz; flare crack aligned at 0 ms; pitched-down fizzle and crackle under fuel-jet roar and road-flare sizzle (shelf -3 dB at 5 kHz); 130->48 Hz tight body pulse; +3 dB at 190 Hz and light saturation glue; decay from 0.4 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.6 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/qubodup/sounds/182432/",
@@ -1630,7 +1581,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "0.051-0.305 s",
-     "layer": "flare crack slap, HP 2 kHz",
+     "layer": "aligned flare crack slap, HP 2 kHz",
      "download_sha256": "85b453ae56fd47197d2fb8e29c7c7d432ec6e96c8ff2e41a2b80eff604560e90",
      "download": "fs-450837/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -1674,6 +1625,32 @@
      "download": "fs-569609/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/569/569609_12648757-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/LookIMadeAThing/sounds/260555/",
+     "title": "Basic Fire Whoosh 2",
+     "author": "LookIMadeAThing",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.300-1.500 s",
+     "layer": "pressurized combustion roar",
+     "download_sha256": "1606590a751692584abd85022eebb61912b1cf9c750edcd7f1959e5f2b8201ef",
+     "download": "fs-260555/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/260/260555_3968707-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/Hugofski/sounds/177556/",
+     "title": "massive explosion",
+     "author": "Hugofski",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "7.541-8.445 s",
+     "layer": "large explosive pressure body",
+     "download_sha256": "2dc819131226d0a398fc8c148108da9433714a0dd8993e85d083f5e278c652c9",
+     "download": "fs-177556/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/177/177556_1423336-hq.ogg"
     }
    ],
    "synthLayers": [
@@ -1688,24 +1665,24 @@
     "limiter_max_gr_db": 3
    },
    "notes": {
-    "trimmed_tail_s": 0.286,
-    "group_matched_lufs_target": -21.98,
-    "limiter_gain_reduction_db": 3.0
+    "trimmed_tail_s": 0.165,
+    "group_matched_lufs_target": -19.91,
+    "limiter_gain_reduction_db": 2.64
    }
   },
   {
    "file": "t203/impact-3.ogg",
    "group": "tf.t203.impact",
    "license": "CC0 1.0",
-   "durationS": 1.445,
+   "durationS": 1.469,
    "loop": false,
-   "loudnessLUFS": -22.01,
-   "peakDb": -2.38,
+   "loudnessLUFS": -20.21,
+   "peakDb": -2.51,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 17453,
-   "output_sha256": "f85f6c02793f7b327069236017917a8c3a6fb12363158999825150aeb1a2caee",
+   "sizeBytes": 16074,
+   "output_sha256": "2010abdf560cd65b1ea8847742b27373a93ba4287d5eed43f1caa903def5ba35",
    "variant": "explosion + M406 HE on gravel + flare crack + pops + crackle + road flare ignite",
-   "processing": "declip; onset trimmed; explosion body HP 70 Hz + flare crack slap at 0 ms (HP 2 kHz) + spattering fizzle/pops and fire crackle + road-flare sizzle forward (high shelf -3 dB at 8 kHz, exponential decay from 0.3 s) + saturated sub thump (0.12 s decay); bell -3.5 dB at 250 Hz; exponential decay from 0.4 s; soft clipper",
+   "processing": "frontloaded blast pitched 0.85x, HP 40 Hz; flare crack aligned at 0 ms; pitched-down fizzle and crackle under fuel-jet roar and road-flare sizzle (shelf -3 dB at 5 kHz); 130->48 Hz tight body pulse; +3 dB at 190 Hz and light saturation glue; decay from 0.4 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (0.8 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/vabadus/sounds/151076/",
@@ -1740,7 +1717,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "0.051-0.305 s",
-     "layer": "flare crack slap, HP 2 kHz",
+     "layer": "aligned flare crack slap, HP 2 kHz",
      "download_sha256": "85b453ae56fd47197d2fb8e29c7c7d432ec6e96c8ff2e41a2b80eff604560e90",
      "download": "fs-450837/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -1784,6 +1761,32 @@
      "download": "fs-348767/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/348/348767_299928-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/LookIMadeAThing/sounds/260555/",
+     "title": "Basic Fire Whoosh 2",
+     "author": "LookIMadeAThing",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.300-1.500 s",
+     "layer": "pressurized combustion roar",
+     "download_sha256": "1606590a751692584abd85022eebb61912b1cf9c750edcd7f1959e5f2b8201ef",
+     "download": "fs-260555/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/260/260555_3968707-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/Hugofski/sounds/177556/",
+     "title": "massive explosion",
+     "author": "Hugofski",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "7.541-8.445 s",
+     "layer": "large explosive pressure body",
+     "download_sha256": "2dc819131226d0a398fc8c148108da9433714a0dd8993e85d083f5e278c652c9",
+     "download": "fs-177556/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/177/177556_1423336-hq.ogg"
     }
    ],
    "normalization": {
@@ -1792,23 +1795,24 @@
     "limiter_max_gr_db": 3
    },
    "notes": {
-    "trimmed_tail_s": 0.155,
-    "group_matched_lufs_target": -22.0
+    "trimmed_tail_s": 0.131,
+    "group_matched_lufs_target": -20.15,
+    "limiter_gain_reduction_db": 0.77
    }
   },
   {
    "file": "t203/burn-1.ogg",
    "group": "tf.t203.burn",
    "license": "CC0 1.0",
-   "durationS": 2.834,
+   "durationS": 2.795,
    "loop": false,
-   "loudnessLUFS": -21.99,
-   "peakDb": -3.61,
+   "loudnessLUFS": -22.03,
+   "peakDb": -4.06,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 31807,
-   "output_sha256": "519cfb3845ab5193d96f56f1a8d716c58a60dbf9130f10ef3ed780ea44b50bd1",
+   "sizeBytes": 31214,
+   "output_sha256": "247aaf27b080c08a44c078728dcbc271f196475a66e675b8cf857e1fc3635607",
    "variant": "road flare + low fire roar + crackle and pops + sizzle",
-   "processing": "road flare burn (HP 1.5 kHz, -5 dB) + fire roar pitched 0.6x (LP 900 Hz: combustion body) + fire crackle and firecracker pops (spitting) + sizzle; 150 ms fade-in, exponential decay from 0.8 s, cosine fade-out",
+   "processing": "dense 150-1100 Hz combustion roar at 0.6x leads over quieter flare/sizzle; crackle at 0.65x and spatter at 0.5x; 95 Hz ground rumble; shelf -6 dB at 4.5 kHz; 250 ms fade-in, smooth decay from 0.8 s",
    "sources": [
     {
      "url": "https://freesound.org/people/frankelmedico/sounds/348767/",
@@ -1830,7 +1834,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "0.300-2.100 s",
-     "layer": "fire whoosh roar, pitched 0.6x, LP 900 Hz",
+     "layer": "dense fire roar, pitched 0.6x",
      "download_sha256": "1606590a751692584abd85022eebb61912b1cf9c750edcd7f1959e5f2b8201ef",
      "download": "fs-260555/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -1843,7 +1847,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "7.000-9.900 s",
-     "layer": "fire crackle, HP 800 Hz",
+     "layer": "slowed molten crackle",
      "download_sha256": "c4ed578302d433be5176b580a32373c3ef7c42ef37ae0f2ba4e956a32bf5c3b5",
      "download": "fs-363093/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -1856,7 +1860,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "19.400-22.300 s",
-     "layer": "firecracker fizzle and pops = spitting, HP 1.2 kHz",
+     "layer": "slowed spattering texture",
      "download_sha256": "66c701fc0b7649ceb83f7e4e78ae090c20d729580a435b924e2ddc0a1f6061f5",
      "download": "fs-404999/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -1876,13 +1880,19 @@
      "file_url": "https://cdn.freesound.org/previews/569/569609_12648757-hq.ogg"
     }
    ],
+   "synthLayers": [
+    {
+     "description": "synthesized 95 Hz radiant ground rumble, 1.5 s decay",
+     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
+    }
+   ],
    "normalization": {
     "lufs_target": -22,
     "peak_cap_db": -3.0,
     "limiter_max_gr_db": 3.0
    },
    "notes": {
-    "trimmed_tail_s": 0.066
+    "trimmed_tail_s": 0.105
    }
   },
   {
@@ -2088,15 +2098,15 @@
    "file": "railgun/fire-1.ogg",
    "group": "tf.railgun.fire",
    "license": "CC BY 4.0",
-   "durationS": 1.3,
+   "durationS": 1.206,
    "loop": false,
-   "loudnessLUFS": -19.92,
-   "peakDb": -1.37,
+   "loudnessLUFS": -19.88,
+   "peakDb": -1.45,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 13851,
-   "output_sha256": "297c3a0ffb7a56bcb0b2ea4089f70084f6e12e2a563a988697cce5a7e1e82394",
+   "sizeBytes": 13031,
+   "output_sha256": "f10a09637fbf9034d5b8df6b2752840cbedce25300923e4fa2f0a2e1f8b5e04b",
    "variant": "Navy railgun shot 1 (U.S. gov.) + .50 BMG crack + Jacob's ladder arc + HV crackle + plasma zap + close thunder",
-   "processing": "declip; HP 45 Hz; frontloaded CC0 Doomsday plasma cannon discharge + real railgun/cannon blast body + supersonic crack (rifle, HP) + high-voltage arc + crackle tail + synthesized plasma zap + close thunder crack shaped to a fast attack (exp decay from 30 ms, 0.4 s) + saturated sub thump; plasma/crack/arc up front, blast -7 dB and thunder -12 dB under them; crack +3 dB at 4.5 kHz; bell -4 dB at 330 Hz; exponential decay from 0.6 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (4.7 dB above the peak cap)",
+   "processing": "frontloaded plasma discharge pitched 0.65x + real railgun/cannon rupture + immediate supersonic crack; heavy plate chest body at 100-650 Hz, 170->65 Hz saturated pulse; pitch-down 0.7x thunder rolls under electric crackle; arc shelf -3 dB at 7 kHz, -3 dB at 4.3 kHz, +2 dB at 190 Hz; 1.3 s smooth decay, no synthetic laser zap; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (4.4 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/qubodup/sounds/162260/",
@@ -2118,7 +2128,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "2.001-3.105 s",
-     "layer": "CC0 plasma cannon discharge (after the charge)",
+     "layer": "CC0 plasma rupture, pitched 0.65x",
      "download_sha256": "434b3a06d91260e61452b5cde8ff71ab8306cf0ad4551af6fd2a11b674937ba6",
      "download": "oga-doomsday/source.wav",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -2175,11 +2185,24 @@
      "download": "fs-840628/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/840/840628_16682330-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
+     "title": "Heavy Metal Impact",
+     "author": "magnuswaker",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.400 s",
+     "layer": "dense railgun chest impulse",
+     "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
+     "download": "fs-614062/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
     }
    ],
    "synthLayers": [
     {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); synthesized plasma zap (sine sweep 6 kHz -> 200 Hz in ~35 ms, with 3rd harmonic)",
+     "description": "synthesized sub thump (pitch-dropping sine, exponential decay)",
      "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
     }
    ],
@@ -2189,23 +2212,24 @@
     "limiter_max_gr_db": 5
    },
    "notes": {
-    "group_matched_lufs_target": -19.43,
-    "limiter_gain_reduction_db": 4.67
+    "trimmed_tail_s": 0.094,
+    "group_matched_lufs_target": -18.96,
+    "limiter_gain_reduction_db": 4.38
    }
   },
   {
    "file": "railgun/fire-2.ogg",
    "group": "tf.railgun.fire",
    "license": "CC0 1.0",
-   "durationS": 1.3,
+   "durationS": 1.259,
    "loop": false,
-   "loudnessLUFS": -19.65,
-   "peakDb": -1.88,
+   "loudnessLUFS": -19.79,
+   "peakDb": -1.64,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 14026,
-   "output_sha256": "f9afa9b432027d5d11f3e5db5f8fa9351813ef70366ab7ed2255c12ef5311e7a",
+   "sizeBytes": 14111,
+   "output_sha256": "190a724a33d79d58a3da37a3505fa8b14657f87f3d5df085491321d0c5dcd41d",
    "variant": "Navy railgun shot 2 (U.S. gov.) + sniper crack + HV discharge + crackle + plasma zap + thunder crack",
-   "processing": "declip; HP 45 Hz; frontloaded CC0 Doomsday plasma cannon discharge + real railgun/cannon blast body + supersonic crack (rifle, HP) + high-voltage arc + crackle tail + synthesized plasma zap + close thunder crack shaped to a fast attack (exp decay from 30 ms, 0.4 s) + saturated sub thump; plasma/crack/arc up front, blast -7 dB and thunder -12 dB under them; crack +3 dB at 4.5 kHz; bell -4 dB at 330 Hz; exponential decay from 0.6 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.9 dB above the peak cap)",
+   "processing": "frontloaded plasma discharge pitched 0.65x + real railgun/cannon rupture + immediate supersonic crack; heavy plate chest body at 100-650 Hz, 170->65 Hz saturated pulse; pitch-down 0.7x thunder rolls under electric crackle; arc shelf -3 dB at 7 kHz, -3 dB at 4.3 kHz, +2 dB at 190 Hz; 1.3 s smooth decay, no synthetic laser zap; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (1.7 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/qubodup/sounds/162260/",
@@ -2227,7 +2251,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "2.001-3.105 s",
-     "layer": "CC0 plasma cannon discharge (after the charge)",
+     "layer": "CC0 plasma rupture, pitched 0.65x",
      "download_sha256": "434b3a06d91260e61452b5cde8ff71ab8306cf0ad4551af6fd2a11b674937ba6",
      "download": "oga-doomsday/source.wav",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -2284,12 +2308,19 @@
      "download": "fs-567945/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/567/567945_97550-hq.ogg"
-    }
-   ],
-   "synthLayers": [
+    },
     {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); synthesized plasma zap (sine sweep 6 kHz -> 200 Hz in ~35 ms, with 3rd harmonic)",
-     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
+     "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
+     "title": "Heavy Metal Impact",
+     "author": "magnuswaker",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.400 s",
+     "layer": "dense railgun chest impulse",
+     "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
+     "download": "fs-614062/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
     }
    ],
    "normalization": {
@@ -2298,8 +2329,9 @@
     "limiter_max_gr_db": 5
    },
    "notes": {
-    "group_matched_lufs_target": -19.43,
-    "limiter_gain_reduction_db": 2.88
+    "trimmed_tail_s": 0.041,
+    "group_matched_lufs_target": -19.03,
+    "limiter_gain_reduction_db": 1.66
    }
   },
   {
@@ -2308,13 +2340,13 @@
    "license": "CC BY 4.0",
    "durationS": 1.3,
    "loop": false,
-   "loudnessLUFS": -20.13,
-   "peakDb": -1.26,
+   "loudnessLUFS": -20.24,
+   "peakDb": -1.25,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 14681,
-   "output_sha256": "7e54be93ef731be27278e7f85601002cbb34bc54aadb5c9f08a3938e24c62978",
+   "sizeBytes": 14442,
+   "output_sha256": "435f4e7e1ec385f22b36fa176179a1e11ce4d53169c89630a30579f78ab27e34",
    "variant": "ultra-heavy cannon + .50 BMG crack + HV discharge + crackle + plasma zap + very close thunder",
-   "processing": "declip; HP 45 Hz; frontloaded CC0 Doomsday plasma cannon discharge + real railgun/cannon blast body + supersonic crack (rifle, HP) + high-voltage arc + crackle tail + synthesized plasma zap + close thunder crack shaped to a fast attack (exp decay from 30 ms, 0.4 s) + saturated sub thump; plasma/crack/arc up front, blast -7 dB and thunder -12 dB under them; crack +3 dB at 4.5 kHz; bell -4 dB at 330 Hz; exponential decay from 0.6 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (4.7 dB above the peak cap)",
+   "processing": "frontloaded plasma discharge pitched 0.65x + real railgun/cannon rupture + immediate supersonic crack; heavy plate chest body at 100-650 Hz, 170->65 Hz saturated pulse; pitch-down 0.7x thunder rolls under electric crackle; arc shelf -3 dB at 7 kHz, -3 dB at 4.3 kHz, +2 dB at 190 Hz; 1.3 s smooth decay, no synthetic laser zap; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (4.0 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/Snoops_Audio1/sounds/807664/",
@@ -2336,7 +2368,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "2.001-3.105 s",
-     "layer": "CC0 plasma cannon discharge (after the charge)",
+     "layer": "CC0 plasma rupture, pitched 0.65x",
      "download_sha256": "434b3a06d91260e61452b5cde8ff71ab8306cf0ad4551af6fd2a11b674937ba6",
      "download": "oga-doomsday/source.wav",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -2393,11 +2425,24 @@
      "download": "fs-321654/source.ogg",
      "license_url": "https://creativecommons.org/licenses/by/4.0/",
      "file_url": "https://cdn.freesound.org/previews/321/321654_5121236-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
+     "title": "Heavy Metal Impact",
+     "author": "magnuswaker",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.400 s",
+     "layer": "dense railgun chest impulse",
+     "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
+     "download": "fs-614062/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
     }
    ],
    "synthLayers": [
     {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); synthesized plasma zap (sine sweep 6 kHz -> 200 Hz in ~35 ms, with 3rd harmonic)",
+     "description": "synthesized sub thump (pitch-dropping sine, exponential decay)",
      "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
     }
    ],
@@ -2407,105 +2452,23 @@
     "limiter_max_gr_db": 5
    },
    "notes": {
-    "group_matched_lufs_target": -19.43,
-    "limiter_gain_reduction_db": 4.72
-   }
-  },
-  {
-   "file": "railgun/tail-1.ogg",
-   "group": "tf.railgun.tail",
-   "license": "CC0 1.0",
-   "durationS": 1.534,
-   "loop": false,
-   "loudnessLUFS": -21.0,
-   "peakDb": -9.17,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 20724,
-   "output_sha256": "996f703f17e07a6a50df72c1ee5a72a5da2856ce385788bf543551a2f5f16732",
-   "variant": "close thunder roll + railgun test tail + crackle",
-   "processing": "plasma-cannon decay cut after the discharge (HP 350 Hz, LP 8 kHz) leads; thunder and acoustic tail HP 90/120 Hz at -9/-12 dB, welding crackle at -5 dB and descending 1.8 kHz->550 Hz resonance at -12 dB; 60 ms fade-in, no fresh transient; bell -3.5 dB at 250 Hz; long cosine fade-out",
-   "sources": [
-    {
-     "url": "https://opengameart.org/content/doomsday-laser-cannon-sound-effect",
-     "title": "Doomsday Laser Cannon Sound Effect (short)",
-     "author": "TAD",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "2.250-3.400 s",
-     "layer": "plasma-cannon decay, no discharge attack",
-     "download_sha256": "434b3a06d91260e61452b5cde8ff71ab8306cf0ad4551af6fd2a11b674937ba6",
-     "download": "oga-doomsday/source.wav",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://opengameart.org/sites/default/files/doomsday_laser_cannon_short.wav"
-    },
-    {
-     "url": "https://freesound.org/people/loganzsound/sounds/840628/",
-     "title": "Closeup Thunder Strike 01",
-     "author": "loganzsound",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "1.000-3.700 s",
-     "layer": 5000,
-     "download_sha256": "4bed0569715ac2e982ef3724c0bfb55ba1aa45a8c1d28179f98aa0c990f30893",
-     "download": "fs-840628/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/840/840628_16682330-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/qubodup/sounds/162260/",
-     "title": "Railgun - Extremely LOUD Cannon",
-     "author": "qubodup",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.550-2.950 s",
-     "layer": 4000,
-     "download_sha256": "0b433555fc84707f96863de314f975ea5558acc846c47610fe95a7adae660848",
-     "download": "fs-162260/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/162/162260_71257-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/weaveofkev/sounds/396240/",
-     "title": "Welding_Electric Sparks.wav",
-     "author": "weaveofkev",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "1.650-3.050 s",
-     "layer": "welding spark crackle, HP 3 kHz",
-     "download_sha256": "64a0a06d8a6bb148f968f7bee61a2d736d286909f35375264e31796734e8a171",
-     "download": "fs-396240/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/396/396240_453602-hq.ogg"
-    }
-   ],
-   "synthLayers": [
-    {
-     "description": "synthesized falling plasma resonance (1.8 kHz->550 Hz, sine and 3rd harmonic)",
-     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -21,
-    "peak_cap_db": -3.0,
-    "limiter_max_gr_db": 3.0
-   },
-   "notes": {
-    "trimmed_tail_s": 1.166
+    "group_matched_lufs_target": -18.96,
+    "limiter_gain_reduction_db": 4.03
    }
   },
   {
    "file": "railgun/tail-2.ogg",
    "group": "tf.railgun.tail",
    "license": "CC BY 4.0",
-   "durationS": 2.429,
+   "durationS": 2.669,
    "loop": false,
-   "loudnessLUFS": -20.58,
-   "peakDb": -9.29,
+   "loudnessLUFS": -21.02,
+   "peakDb": -3.96,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 35814,
-   "output_sha256": "cf68949c9ed35e481ec329a27caa8fdd6eb0a0587c9d524693b877f183a0558d",
+   "sizeBytes": 30401,
+   "output_sha256": "2807c8278be49c87965155325bb7951d09cb001de2dc1e6ba87fcf3ad4586c57",
    "variant": "very close thunder roll + thunder rumble + crackle",
-   "processing": "plasma-cannon decay cut after the discharge (HP 350 Hz, LP 8 kHz) leads; thunder and acoustic tail HP 90/120 Hz at -9/-12 dB, welding crackle at -5 dB and descending 1.8 kHz->550 Hz resonance at -12 dB; 60 ms fade-in, no fresh transient; bell -3.5 dB at 250 Hz; long cosine fade-out",
+   "processing": "rolling thunder and acoustic tail HP 40/45 Hz at -2/-8 dB; plasma-cannon decay (HP 350 Hz, LP 8 kHz) at -7 dB, welding crackle at -10 dB and falling 1.8 kHz->550 Hz resonance at -16 dB; 60 ms fade-in, no fresh transient; +3 dB at 100 Hz; long cosine fade-out",
    "sources": [
     {
      "url": "https://opengameart.org/content/doomsday-laser-cannon-sound-effect",
@@ -2527,7 +2490,7 @@
      "license": "CC BY 4.0",
      "retrieved": "2026-10-13",
      "cut": "1.050-3.850 s",
-     "layer": 5000,
+     "layer": "thunder roll after the crack",
      "download_sha256": "a4ac7bed02fdcd74428786c97b108225c27362ac159b6921cf2e5ee78b2f9861",
      "download": "fs-321654/source.ogg",
      "license_url": "https://creativecommons.org/licenses/by/4.0/",
@@ -2540,7 +2503,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "2.350-4.950 s",
-     "layer": 4000,
+     "layer": "thunder rumble",
      "download_sha256": "8a387473c520f235ac1e60057155590b4dc3d65f2ed263641bdb4e7c101ce581",
      "download": "fs-567945/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -2572,84 +2535,7 @@
     "limiter_max_gr_db": 3.0
    },
    "notes": {
-    "trimmed_tail_s": 0.371
-   }
-  },
-  {
-   "file": "railgun/impact-1.ogg",
-   "group": "tf.railgun.impact",
-   "license": "CC0 1.0",
-   "durationS": 0.9,
-   "loop": false,
-   "loudnessLUFS": -14.88,
-   "peakDb": -2.17,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 11068,
-   "output_sha256": "fed69487071b33b6f4a24eaada6c84734ea3f383ebe08c2049c0c0ec4b63a80f",
-   "variant": "heavy metal impact + bullet hit metal + HV discharge + plasma sizzle",
-   "processing": "onset trimmed; heavy metal hit pitched down ~0.7x (notches on its ring) + supersonic crack + short pitched-down discharge + plasma sizzle tail (HP 2 kHz, 0.4 s) + mid crunch (band 300-800 Hz) + sub thump; layers glued by a soft saturation; exponential decay, cosine fade-out",
-   "sources": [
-    {
-     "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
-     "title": "Heavy Metal Impact",
-     "author": "magnuswaker",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.000-0.900 s",
-     "layer": "heavy metal impact, pitched 0.7x, notched at 1.05/2.6 kHz",
-     "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
-     "download": "fs-614062/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/martian/sounds/182263/",
-     "title": "Foley bullet hit metal 02.wav",
-     "author": "martian",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.101-0.605 s",
-     "layer": "bullet hit metal (kinetic crack)",
-     "download_sha256": "e6688754feb1b04e244acf5c4734a63426448bf67b759904c15bc36a879b9eb9",
-     "download": "fs-182263/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/182/182263_84709-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/follytowers/sounds/415962/",
-     "title": "high-voltage-discharge-2.wav",
-     "author": "follytowers",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "10.691-10.995 s",
-     "layer": "HV discharge, pitched 0.8x, HP 1 kHz",
-     "download_sha256": "070f283b7c29f64ec7644b564c6cfd9dde85fad822f7ab730a317e0884750d64",
-     "download": "fs-415962/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/415/415962_6668765-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/jbdelgado/sounds/569609/",
-     "title": "sizzle",
-     "author": "jbdelgado",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "2.560-3.200 s",
-     "layer": "sizzle = plasma dispersion, HP 2 kHz",
-     "download_sha256": "c229d1a5225fb0df3a4520d6b860e62a27b65fc932af6941740ebdbc0ad30855",
-     "download": "fs-569609/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/569/569609_12648757-hq.ogg"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -14,
-    "peak_cap_db": -2.0,
-    "limiter_max_gr_db": 4
-   },
-   "notes": {
-    "limiter_gain_reduction_db": 0.1,
-    "group_matched_lufs_target": -14.88
+    "trimmed_tail_s": 0.131
    }
   },
   {
@@ -2849,13 +2735,13 @@
    "license": "CC0 1.0",
    "durationS": 0.78,
    "loop": false,
-   "loudnessLUFS": -16.88,
-   "peakDb": -1.71,
+   "loudnessLUFS": -16.09,
+   "peakDb": -1.42,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 8808,
-   "output_sha256": "92c0bafabf6bd0f098d944a1775592f6194a094d15e586a54df0814f610a3934",
-   "variant": "UTS-15 take 2 + LilMati shotgun 01 + dynamite blast body + heavy metal strike + HV crack",
-   "processing": "declip; HP 45 Hz; onset trimmed; 12-gauge shot pitched down ~0.72x + second shotgun layer + frontloaded heavy blast body (LP 900 Hz) + metal strike at 0-10 ms + faint HV crack (HP 2.5 kHz) + saturated sub thump 110->38 Hz; body peak aligned within 4 ms; EQ -3 dB at 260 Hz, -3.5 dB at 500 Hz, +2 dB at 3.2 kHz; decay from 0.45 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (4.5 dB above the peak cap)",
+   "sizeBytes": 8861,
+   "output_sha256": "b160870fdcdd23accdfdf04004f06a937a3b037d5832ab9cba0fe1e408836ccc",
+   "variant": "frontloaded UTS-15 take 2 + shotgun 01 + tank blast body + heavy bolt strike; no electric layer",
+   "processing": "declip; HP 45 Hz; onset trimmed; 12-gauge shot pitched down ~0.72x + second shotgun layer + frontloaded heavy blast body (LP 900 Hz) + metal strike at 0-10 ms + faint HV crack (HP 2.5 kHz) + saturated sub thump 110->38 Hz; body peak aligned within 4 ms; EQ -3 dB at 260 Hz, -3.5 dB at 500 Hz, +2 dB at 3.2 kHz; decay from 0.45 s; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.0 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/klangfabrik/sounds/233044/",
@@ -2884,17 +2770,17 @@
      "file_url": "https://cdn.freesound.org/previews/405/405504_6142149-hq.ogg"
     },
     {
-     "url": "https://freesound.org/people/felix.blume/sounds/475780/",
-     "title": "Big dynamite explosion in an open mine (Chile)",
-     "author": "felix.blume",
+     "url": "https://freesound.org/people/GaryQ/sounds/127845/",
+     "title": "Tank fire Mixed.wav",
+     "author": "GaryQ",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "0.151-1.055 s",
-     "layer": "open-mine dynamite blast, pitched 0.65x, LP 900 Hz (body)",
-     "download_sha256": "ecf70db04d90bfcb35e07a17efaa7f7a38339772914a5685073172d6876cb2cf",
-     "download": "fs-475780/source.ogg",
+     "cut": "0.011-0.915 s",
+     "layer": "tank cannon body instead of delayed dynamite",
+     "download_sha256": "51862dfc882fea9aee139ac59c2f3d57c3d2e09d984f6ce8fd8f47de3c89e96f",
+     "download": "fs-127845/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/475/475780_1661766-hq.ogg"
+     "file_url": "https://cdn.freesound.org/previews/127/127845_1931452-hq.ogg"
     },
     {
      "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
@@ -2903,24 +2789,11 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "0.000-0.150 s",
-     "layer": "heavy metal impact, pitched 0.6x, HP 250 Hz (strike)",
+     "layer": "heavy metal bolt strike",
      "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
      "download": "fs-614062/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/follytowers/sounds/415962/",
-     "title": "high-voltage-discharge-2.wav",
-     "author": "follytowers",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "7.346-7.430 s",
-     "layer": "HV discharge crack, HP 2.5 kHz",
-     "download_sha256": "070f283b7c29f64ec7644b564c6cfd9dde85fad822f7ab730a317e0884750d64",
-     "download": "fs-415962/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/415/415962_6668765-hq.ogg"
     }
    ],
    "normalization": {
@@ -2929,8 +2802,8 @@
     "limiter_max_gr_db": 6
    },
    "notes": {
-    "group_matched_lufs_target": -15.75,
-    "limiter_gain_reduction_db": 4.46
+    "group_matched_lufs_target": -15.95,
+    "limiter_gain_reduction_db": 2.0
    }
   },
   {
@@ -3293,15 +3166,15 @@
    "file": "leadwall/ricochet-1.ogg",
    "group": "tf.leadwall.ricochet",
    "license": "CC0 1.0",
-   "durationS": 0.463,
+   "durationS": 0.451,
    "loop": false,
-   "loudnessLUFS": -23.11,
-   "peakDb": -3.21,
+   "loudnessLUFS": -21.06,
+   "peakDb": -2.88,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 6306,
-   "output_sha256": "461299b7274115ca826742910017b8071440e90be52b740b3115cfeb40aac5f7",
+   "sizeBytes": 5569,
+   "output_sha256": "9b42b91c0c769c3d307744959cfda50e4a358c81aa63beb6f28a0d32b0762401",
    "variant": "clean ricochet variation 1 + armour clank",
-   "processing": "clean CC0 ricochet variation pitched down 0.55-0.62x; HP 100 Hz; heavy armour clank at 0 ms (pitched 0.55x, LP 2 kHz) followed by the deflection whizz at 5 ms; bell -3 dB at 950 Hz; cosine fade-out; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.2 dB above the peak cap)",
+   "processing": "clean CC0 ricochet variation pitched down 0.55-0.62x, softly saturated; heavy plate slap at 0 ms, metal-spall burst at 8 ms and tight ground pulse; deflection whizz at -6 dB, notch -3 dB at 2.2 kHz; cosine fade-out; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (4.3 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/aust_paul/sounds/30932/",
@@ -3328,6 +3201,25 @@
      "download": "fs-492177/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/492/492177_10473513-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/gristi/sounds/562198/",
+     "title": "snd_metal_smash.wav",
+     "author": "gristi",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.071-0.325 s",
+     "layer": "metal spall and shearing grit",
+     "download_sha256": "99f39cab3e99979479d45c2b5075b57075a32da7a444e8304853637769288018",
+     "download": "fs-562198/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/562/562198_12618935-hq.ogg"
+    }
+   ],
+   "synthLayers": [
+    {
+     "description": "synthesized sub thump (pitch-dropping sine, exponential decay)",
+     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
     }
    ],
    "normalization": {
@@ -3336,24 +3228,24 @@
     "limiter_max_gr_db": 6
    },
    "notes": {
-    "trimmed_tail_s": 0.017,
-    "group_matched_lufs_target": -22.58,
-    "limiter_gain_reduction_db": 2.16
+    "trimmed_tail_s": 0.029,
+    "group_matched_lufs_target": -19.51,
+    "limiter_gain_reduction_db": 4.29
    }
   },
   {
    "file": "leadwall/ricochet-2.ogg",
    "group": "tf.leadwall.ricochet",
    "license": "CC0 1.0",
-   "durationS": 0.528,
+   "durationS": 0.503,
    "loop": false,
-   "loudnessLUFS": -23.7,
-   "peakDb": -2.75,
+   "loudnessLUFS": -20.62,
+   "peakDb": -3.06,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 7057,
-   "output_sha256": "84b54970364daca4117203fc2ff23bd111d615994b5b8538258f0d5492a664f5",
+   "sizeBytes": 6284,
+   "output_sha256": "3d922e901e7636b3b8f7f4161336d1c7dea81980f637accba464ae992de4aac0",
    "variant": "clean ricochet variation 2 + armour clank",
-   "processing": "clean CC0 ricochet variation pitched down 0.55-0.62x; HP 100 Hz; heavy armour clank at 0 ms (pitched 0.55x, LP 2 kHz) followed by the deflection whizz at 5 ms; bell -3 dB at 950 Hz; cosine fade-out; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (4.4 dB above the peak cap)",
+   "processing": "clean CC0 ricochet variation pitched down 0.55-0.62x, softly saturated; heavy plate slap at 0 ms, metal-spall burst at 8 ms and tight ground pulse; deflection whizz at -6 dB, notch -3 dB at 2.2 kHz; cosine fade-out; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (3.2 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/aust_paul/sounds/30932/",
@@ -3380,6 +3272,25 @@
      "download": "fs-386798/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/386/386798_7236624-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/gristi/sounds/562198/",
+     "title": "snd_metal_smash.wav",
+     "author": "gristi",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.071-0.325 s",
+     "layer": "metal spall and shearing grit",
+     "download_sha256": "99f39cab3e99979479d45c2b5075b57075a32da7a444e8304853637769288018",
+     "download": "fs-562198/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/562/562198_12618935-hq.ogg"
+    }
+   ],
+   "synthLayers": [
+    {
+     "description": "synthesized sub thump (pitch-dropping sine, exponential decay)",
+     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
     }
    ],
    "normalization": {
@@ -3388,24 +3299,24 @@
     "limiter_max_gr_db": 6
    },
    "notes": {
-    "trimmed_tail_s": 0.022,
-    "group_matched_lufs_target": -22.19,
-    "limiter_gain_reduction_db": 4.41
+    "trimmed_tail_s": 0.047,
+    "group_matched_lufs_target": -19.51,
+    "limiter_gain_reduction_db": 3.25
    }
   },
   {
    "file": "leadwall/ricochet-3.ogg",
    "group": "tf.leadwall.ricochet",
    "license": "CC0 1.0",
-   "durationS": 0.547,
+   "durationS": 0.537,
    "loop": false,
-   "loudnessLUFS": -23.13,
-   "peakDb": -5.59,
+   "loudnessLUFS": -20.33,
+   "peakDb": -3.3,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 7282,
-   "output_sha256": "c04f4bd022459f3364a9415986219adb831e82eebe18e7a9a80f4c9c9d57a2f6",
+   "sizeBytes": 6958,
+   "output_sha256": "e26f88c5a2bb9039948c710775826f65451bf170dd218b81f6eb557d4e9ab8a5",
    "variant": "bullet ricochet variation 4 + metal clank",
-   "processing": "clean CC0 ricochet variation pitched down 0.55-0.62x; HP 100 Hz; heavy armour clank at 0 ms (pitched 0.55x, LP 2 kHz) followed by the deflection whizz at 5 ms; bell -3 dB at 950 Hz; cosine fade-out",
+   "processing": "clean CC0 ricochet variation pitched down 0.55-0.62x, softly saturated; heavy plate slap at 0 ms, metal-spall burst at 8 ms and tight ground pulse; deflection whizz at -6 dB, notch -3 dB at 2.2 kHz; cosine fade-out; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (0.7 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/aust_paul/sounds/30932/",
@@ -3432,57 +3343,19 @@
      "download": "fs-614062/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -19,
-    "peak_cap_db": -3.0,
-    "limiter_max_gr_db": 6
-   },
-   "notes": {
-    "trimmed_tail_s": 0.003,
-    "group_matched_lufs_target": -23.18
-   }
-  },
-  {
-   "file": "leadwall/ricochet-4.ogg",
-   "group": "tf.leadwall.ricochet",
-   "license": "CC0 1.0",
-   "durationS": 0.647,
-   "loop": false,
-   "loudnessLUFS": -23.22,
-   "peakDb": -5.24,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 8877,
-   "output_sha256": "a8a2e868431a2c6b0d0a5eb6ab95d5a007acc7615c1badf6ab3dd8b9b15e58dc",
-   "variant": "clean ricochet variation 3 + armour clank",
-   "processing": "clean CC0 ricochet variation pitched down 0.55-0.62x; HP 100 Hz; heavy armour clank at 0 ms (pitched 0.55x, LP 2 kHz) followed by the deflection whizz at 5 ms; bell -3 dB at 950 Hz; cosine fade-out",
-   "sources": [
-    {
-     "url": "https://freesound.org/people/aust_paul/sounds/30932/",
-     "title": "bullet ricochet.wav",
-     "author": "aust_paul",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.986-1.340 s",
-     "layer": "ricochet variation 3",
-     "download_sha256": "e4b0bbea8ad4f3c3c404e7410e1f12ddf373116c64707547592f51fec791d715",
-     "download": "fs-30932/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/30/30932_15696-hq.ogg"
     },
     {
-     "url": "https://freesound.org/people/trijohnstone/sounds/547979/",
-     "title": "sheet metal sound four: Bang.wav",
-     "author": "trijohnstone",
+     "url": "https://freesound.org/people/gristi/sounds/562198/",
+     "title": "snd_metal_smash.wav",
+     "author": "gristi",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "3.766-4.120 s",
-     "layer": "armour deflection clank",
-     "download_sha256": "67995f5ffd5279014ad7beebb4fb244b786ee4bdd82f64f50c9ac474e5104564",
-     "download": "fs-547979/source.ogg",
+     "cut": "0.071-0.325 s",
+     "layer": "metal spall and shearing grit",
+     "download_sha256": "99f39cab3e99979479d45c2b5075b57075a32da7a444e8304853637769288018",
+     "download": "fs-562198/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/547/547979_8838719-hq.ogg"
+     "file_url": "https://cdn.freesound.org/previews/562/562198_12618935-hq.ogg"
     }
    ],
    "normalization": {
@@ -3491,8 +3364,9 @@
     "limiter_max_gr_db": 6
    },
    "notes": {
-    "trimmed_tail_s": 0.003,
-    "group_matched_lufs_target": -23.22
+    "trimmed_tail_s": 0.013,
+    "group_matched_lufs_target": -20.27,
+    "limiter_gain_reduction_db": 0.72
    }
   },
   {
@@ -3667,15 +3541,15 @@
    "file": "leadwall/reload-1.ogg",
    "group": "tf.leadwall.reload",
    "license": "CC0 1.0",
-   "durationS": 2.15,
+   "durationS": 1.85,
    "loop": false,
-   "loudnessLUFS": -21.91,
-   "peakDb": -3.43,
+   "loudnessLUFS": -21.02,
+   "peakDb": -3.26,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 28503,
-   "output_sha256": "e85ebac17d5c84a7912f12d19bb5e81c8b40f0840163ff58e6191d5e4e4fa48f",
-   "variant": "shell load + 12-gauge chamber round slowly + servo whine + heavy lock clang",
-   "processing": "shell load and slow chambering pitched down 0.7-0.75x + servo whine under the chambering + pitched-down heavy metal clang and sub thump on the final lock; EQ +4 dB at 200 Hz, high shelf -6 dB at 6.5 kHz; cosine fades; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (4.0 dB above the peak cap)",
+   "sizeBytes": 24149,
+   "output_sha256": "3448c671b3bac40b42c102f5d9bd3b7b8f5b0fc2a6857dc97a56d67d5501cda5",
+   "variant": "heavy shell carrier release, powered slide and armour-grade final lock",
+   "processing": "shell insertion pitched 0.6x, chamber slide pitched 0.65x with atempo 1.3; heavy carrier release and lock clanks, clean motor band 120-420 Hz at -16 dB; 85->48 Hz lock pulse, +4 dB at 240 Hz, notch -4 dB at 1.1 kHz; 1.85 s with 18 ms plate reflection; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.9 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/CeebFrack/sounds/108793/",
@@ -3684,7 +3558,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "0.046-0.400 s",
-     "layer": "shell load",
+     "layer": "shell insertion",
      "download_sha256": "3c0a26c7ec8d73955210582ccf01e1e17287f667ccd58734bcfcbfce528c2086",
      "download": "fs-108793/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -3697,7 +3571,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "6.846-8.150 s",
-     "layer": "chambering a round slowly (last lock at 8.0 s)",
+     "layer": "powered chamber slide",
      "download_sha256": "d5051edfc1a102288b658c194502342ecd30c01c5f8d8a937c0d7dd96d7dc774",
      "download": "fs-513351/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -3710,7 +3584,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "12.000-14.000 s",
-     "layer": "electric motor whir = servo whine",
+     "layer": "motor torque, vocal-formant band removed",
      "download_sha256": "43ccdfe18c1111ab2744db96fc21fe5e7a227938dc10d09e3854e20586e8921e",
      "download": "fs-125401/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -3723,7 +3597,7 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "0.000-0.350 s",
-     "layer": "heavy metal impact = lock clang, pitched 0.55x",
+     "layer": "armour-grade lock clang",
      "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
      "download": "fs-614062/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -3750,122 +3624,13 @@
     }
    ],
    "normalization": {
-    "lufs_target": -20,
+    "lufs_target": -18.5,
     "peak_cap_db": -3.0,
-    "limiter_max_gr_db": 4
-   },
-   "notes": {
-    "group_matched_lufs_target": -20.59,
-    "limiter_gain_reduction_db": 4.0
-   }
-  },
-  {
-   "file": "predator/fire-1.ogg",
-   "group": "tf.predator.fire",
-   "license": "CC0 1.0",
-   "durationS": 0.151,
-   "loop": false,
-   "loudnessLUFS": -17.67,
-   "peakDb": -2.47,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 2776,
-   "output_sha256": "e381a4c6f89c064c03998132af56822e681dfa89ecb26c5c7536e43313bdfb4b",
-   "variant": "M242 autocannon round 1 (DVIDS)",
-   "processing": "declip; early 2 ms peak aligned at 4 ms; one autocannon round pitched down, HP 65 Hz; dense 180-600 Hz body copy, 25 ms body pulse and steel feeder tick at 4 ms; +4 dB at 260 Hz; 30 ms attack-body window then 22 ms decay, 0.16 s total; soft clipper",
-   "sources": [
-    {
-     "url": "https://freesound.org/people/qubodup/sounds/854186/",
-     "title": "Autocannon Three Shot Burst",
-     "author": "qubodup",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.276-0.540 s",
-     "layer": "autocannon round 1 (cut before round 2)",
-     "download_sha256": "e104f6ca3c3c496313f2f628dbf5407b2e964b87e54b03c82821ccb171987c57",
-     "download": "fs-854186/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/854/854186_71257-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/qubodup/sounds/812592/",
-     "title": "Clang",
-     "author": "qubodup",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.000-0.080 s",
-     "layer": "clang = bolt/breech tick",
-     "download_sha256": "35b15988c4d649d90b70cb6da0373ddc7e83d19dadde110fa12942515747f475",
-     "download": "fs-812592/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/812/812592_71257-hq.ogg"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -13,
-    "peak_cap_db": -2.0,
     "limiter_max_gr_db": 3
    },
    "notes": {
-    "trimmed_tail_s": 0.009,
-    "group_matched_lufs_target": -17.71
-   }
-  },
-  {
-   "file": "predator/fire-2.ogg",
-   "group": "tf.predator.fire",
-   "license": "CC0 1.0",
-   "durationS": 0.144,
-   "loop": false,
-   "loudnessLUFS": -18.0,
-   "peakDb": -2.28,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 2890,
-   "output_sha256": "711103e7fc24c58f6b75c821d01959c0d01136a1d916d2d61ab76fb1e2459fba",
-   "variant": "M242 autocannon round 2 (DVIDS)",
-   "processing": "declip; early 2 ms peak aligned at 4 ms; one autocannon round pitched down, HP 65 Hz; dense 180-600 Hz body copy, 25 ms body pulse and steel feeder tick at 4 ms; +4 dB at 260 Hz; 30 ms attack-body window then 22 ms decay, 0.16 s total; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.1 dB above the peak cap)",
-   "sources": [
-    {
-     "url": "https://freesound.org/people/qubodup/sounds/854186/",
-     "title": "Autocannon Three Shot Burst",
-     "author": "qubodup",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.551-0.855 s",
-     "layer": "autocannon round 2",
-     "download_sha256": "e104f6ca3c3c496313f2f628dbf5407b2e964b87e54b03c82821ccb171987c57",
-     "download": "fs-854186/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/854/854186_71257-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/qubodup/sounds/812592/",
-     "title": "Clang",
-     "author": "qubodup",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.000-0.080 s",
-     "layer": "clang = bolt/breech tick",
-     "download_sha256": "35b15988c4d649d90b70cb6da0373ddc7e83d19dadde110fa12942515747f475",
-     "download": "fs-812592/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/812/812592_71257-hq.ogg"
-    }
-   ],
-   "synthLayers": [
-    {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay)",
-     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -13,
-    "peak_cap_db": -2.0,
-    "limiter_max_gr_db": 3
-   },
-   "notes": {
-    "trimmed_tail_s": 0.016,
-    "group_matched_lufs_target": -17.41,
-    "limiter_gain_reduction_db": 2.06
+    "group_matched_lufs_target": -19.65,
+    "limiter_gain_reduction_db": 2.95
    }
   },
   {
@@ -3874,13 +3639,13 @@
    "license": "CC0 1.0",
    "durationS": 0.16,
    "loop": false,
-   "loudnessLUFS": -18.2,
-   "peakDb": -2.28,
+   "loudnessLUFS": -18.66,
+   "peakDb": -2.15,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 3017,
-   "output_sha256": "8867d1bf10732d579c96a8a5dc8a5638128ea689f612de3d7e949b4d19f831e9",
+   "sizeBytes": 3018,
+   "output_sha256": "dc382e7a6fbc2e41b7eb8a8b0761244bbb0db2d66b78a988e705ca83e9348b38",
    "variant": "M242 autocannon round 3 (CC0 DVIDS extract)",
-   "processing": "declip; early 2 ms peak aligned at 4 ms; one autocannon round pitched down, HP 65 Hz; dense 180-600 Hz body copy, 25 ms body pulse and steel feeder tick at 4 ms; +4 dB at 260 Hz; 30 ms attack-body window then 22 ms decay, 0.16 s total; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.6 dB above the peak cap)",
+   "processing": "declip; early 2 ms peak aligned at 4 ms; one autocannon round pitched down, HP 65 Hz; dense 180-600 Hz body copy, 25 ms body pulse and steel feeder tick at 4 ms; +4 dB at 260 Hz; 30 ms attack-body window then 22 ms decay, 0.16 s total; soft clipper; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.0 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/qubodup/sounds/854186/",
@@ -3921,88 +3686,23 @@
     "limiter_max_gr_db": 3
    },
    "notes": {
-    "group_matched_lufs_target": -17.41,
-    "limiter_gain_reduction_db": 2.58
-   }
-  },
-  {
-   "file": "predator/fire-4.ogg",
-   "group": "tf.predator.fire",
-   "license": "CC0 1.0",
-   "durationS": 0.143,
-   "loop": false,
-   "loudnessLUFS": -17.65,
-   "peakDb": -2.19,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 2851,
-   "output_sha256": "948408db030f3b3c87eaefd373115e30de2df1394ef9090991d88f4860bbff1e",
-   "variant": "M240 single shot (DVIDS) + DShK single",
-   "processing": "declip; early 2 ms peak aligned at 4 ms; one autocannon round pitched down, HP 65 Hz; dense 180-600 Hz body copy, 25 ms body pulse and steel feeder tick at 4 ms; +4 dB at 260 Hz; 30 ms attack-body window then 22 ms decay, 0.16 s total; soft clipper",
-   "sources": [
-    {
-     "url": "https://freesound.org/people/qubodup/sounds/854641/",
-     "title": "M240 Machine Gun Single Shot",
-     "author": "qubodup",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.071-0.375 s",
-     "layer": "M240 single shot",
-     "download_sha256": "4ec014c75dce234feb66778d20a5765d8af94a3f001926dbe74d127504f07280",
-     "download": "fs-854641/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/854/854641_71257-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/qubodup/sounds/812592/",
-     "title": "Clang",
-     "author": "qubodup",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.000-0.080 s",
-     "layer": "clang = bolt/breech tick",
-     "download_sha256": "35b15988c4d649d90b70cb6da0373ddc7e83d19dadde110fa12942515747f475",
-     "download": "fs-812592/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/812/812592_71257-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/greatmganga/sounds/122103/",
-     "title": "dshk_01.wav",
-     "author": "greatmganga",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.026-0.280 s",
-     "layer": "DShK single shot layer",
-     "download_sha256": "7f3280fd5a62b9111b784978fa813c679be1b75fa4806859beb47ec12644aa4d",
-     "download": "fs-122103/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/122/122103_1204841-hq.ogg"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -13,
-    "peak_cap_db": -2.0,
-    "limiter_max_gr_db": 3
-   },
-   "notes": {
-    "trimmed_tail_s": 0.017,
-    "group_matched_lufs_target": -17.68,
-    "limiter_gain_reduction_db": 0.04
+    "group_matched_lufs_target": -18.03,
+    "limiter_gain_reduction_db": 1.96
    }
   },
   {
    "file": "predator/spin-up-1.ogg",
    "group": "tf.predator.spinUp",
    "license": "CC0 1.0",
-   "durationS": 0.6,
+   "durationS": 0.65,
    "loop": false,
-   "loudnessLUFS": -18.16,
-   "peakDb": -3.33,
+   "loudnessLUFS": -18.36,
+   "peakDb": -3.23,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 10027,
-   "output_sha256": "3541451f033b6ae0f85e0d4adcb196d84b4720815704351b315faf51aafce311",
+   "sizeBytes": 8426,
+   "output_sha256": "520c3fdda9ffa801d48a077f2baa3a1e45cf6e937e8cf3c475ace880b4f49b09",
    "variant": "low motor torque + accelerating steel bearing ticks + rising hum",
-   "processing": "motor varispeed 0.08x->0.3x, band 100-950 Hz; steel bearing ticks accelerating 4->18 Hz + torque hum 35->65 Hz; rising envelope, 10 ms end fade; no fan or drill layer; look-ahead peak limiter (2 ms, 80 ms release, up to 0.9 dB GR)",
+   "processing": "motor varispeed 0.08x->0.3x, band 100 Hz-5.5 kHz; clutch snap and 85->45 Hz torque pulse; steel teeth 4->18 Hz boosted at 3.2 kHz; 35->65 Hz hum; terminal pitch held 50 ms then 10 ms end fade; look-ahead peak limiter (2 ms, 80 ms release, up to 1.9 dB GR)",
    "sources": [
     {
      "url": "https://freesound.org/people/jasonLON/sounds/125401/",
@@ -4016,6 +3716,19 @@
      "download": "fs-125401/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/125/125401_2279655-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
+     "title": "Heavy Metal Impact",
+     "author": "magnuswaker",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.350 s",
+     "layer": "heavy barrel clutch engagement",
+     "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
+     "download": "fs-614062/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
     },
     {
      "url": "https://freesound.org/people/RichieMcMullen/sounds/386798/",
@@ -4043,7 +3756,7 @@
     "limiter_max_gr_db": 3.0
    },
    "notes": {
-    "limiter_gain_reduction_db": 0.85
+    "limiter_gain_reduction_db": 1.9
    }
   },
   {
@@ -4114,15 +3827,15 @@
    "file": "predator/spin-down-1.ogg",
    "group": "tf.predator.spinDown",
    "license": "CC BY 4.0",
-   "durationS": 1.182,
+   "durationS": 1.2,
    "loop": false,
-   "loudnessLUFS": -19.1,
-   "peakDb": -3.4,
+   "loudnessLUFS": -19.0,
+   "peakDb": -5.84,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 13430,
-   "output_sha256": "bfdf8f617c82583f9c7d6de35902797bb2c8ba25b3236e3e0e332f37dc5c4959",
+   "sizeBytes": 13942,
+   "output_sha256": "7f839db8fd6da2fc400c389aeed58031bb5c439f7724f28118210940f9559e0d",
    "variant": "motor varispeed falling + falling hum + chain gun wind down",
-   "processing": "motor whir under varispeed 0.3x->0.08x, band 100-950 Hz; falling 65->20 Hz torque hum; steel bearing ticks slowing 18->3 Hz + chain-gun brake rattle pitched 0.7x; falling envelope; look-ahead peak limiter (2 ms, 80 ms release, up to 0.7 dB GR)",
+   "processing": "recorded chain-gun friction leads (band 250 Hz-6.5 kHz, pitched 0.7x); motor under varispeed 0.3x->0.08x (band 100 Hz-3.5 kHz, -4 dB at 350 Hz); quiet 65->20 Hz hum; bearing ticks 18->3 Hz; brake detent at 1.02 s at -6 dB; 1.2 s",
    "sources": [
     {
      "url": "https://freesound.org/people/jasonLON/sounds/125401/",
@@ -4151,6 +3864,19 @@
      "file_url": "https://cdn.freesound.org/previews/94/94101_1386366-hq.ogg"
     },
     {
+     "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
+     "title": "Heavy Metal Impact",
+     "author": "magnuswaker",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.350 s",
+     "layer": "barrel brake detent",
+     "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
+     "download": "fs-614062/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
+    },
+    {
      "url": "https://freesound.org/people/RichieMcMullen/sounds/386798/",
      "title": "metal_collision.wav",
      "author": "RichieMcMullen",
@@ -4174,77 +3900,21 @@
     "lufs_target": -19,
     "peak_cap_db": -3.0,
     "limiter_max_gr_db": 3.0
-   },
-   "notes": {
-    "trimmed_tail_s": 0.018,
-    "limiter_gain_reduction_db": 0.66
-   }
-  },
-  {
-   "file": "predator/casings-1.ogg",
-   "group": "tf.predator.casings",
-   "license": "CC0 1.0",
-   "durationS": 0.619,
-   "loop": false,
-   "loudnessLUFS": -28.34,
-   "peakDb": -4.64,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 10009,
-   "output_sha256": "8e11aff7783a2cb9bfa8fbfd01eedd5f390eb3f9e8b8bc1b809764cf8a20eab0",
-   "variant": "bouncing shell casings A + pipe clank",
-   "processing": "real brass bounce pitched 0.75x with quieter copies at 125/225/330 ms; HP 240 Hz; light metal body on first strike and +3 dB at 4.8 kHz; natural bright scatter over 0.65 s",
-   "sources": [
-    {
-     "url": "https://freesound.org/people/GryffDavid/sounds/318964/",
-     "title": "Bouncing Shell Casings (Various Sizes)",
-     "author": "GryffDavid",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "2.486-2.690 s",
-     "layer": "casing bounce (first two hits)",
-     "download_sha256": "138039765bf1fb45e8f24e3f6f6cbf898e710b0eca2f047372114e12d77380c5",
-     "download": "fs-318964/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/318/318964_5421667-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/RichieMcMullen/sounds/386798/",
-     "title": "metal_collision.wav",
-     "author": "RichieMcMullen",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.511-0.865 s",
-     "layer": "metal collision = casing body",
-     "download_sha256": "4d08e007cad48e5218e0efffdf2f4753f92f07f7eabf0f9acbbe4cc27d2125cc",
-     "download": "fs-386798/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/386/386798_7236624-hq.ogg"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -23,
-    "peak_cap_db": -4.0,
-    "limiter_max_gr_db": 6
-   },
-   "notes": {
-    "trimmed_tail_s": 0.031,
-    "group_matched_lufs_target": -28.37,
-    "limiter_gain_reduction_db": 0.05
    }
   },
   {
    "file": "predator/casings-2.ogg",
    "group": "tf.predator.casings",
    "license": "CC0 1.0",
-   "durationS": 0.616,
+   "durationS": 0.75,
    "loop": false,
-   "loudnessLUFS": -28.22,
-   "peakDb": -12.7,
+   "loudnessLUFS": -23.05,
+   "peakDb": -4.32,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 7889,
-   "output_sha256": "b2208612a8ef1e4e63260bf547023b306ccd12246b517694a54b4e9b5c9d78d3",
+   "sizeBytes": 10498,
+   "output_sha256": "c161d1f1d2891c3674ac7f0fca60a4795b70812c1ae4d6cd5675d31e14711e5b",
    "variant": "brass casing on concrete + sheet clank",
-   "processing": "real brass bounce pitched 0.75x with quieter copies at 125/225/330 ms; HP 240 Hz; light metal body on first strike and +3 dB at 4.8 kHz; natural bright scatter over 0.65 s",
+   "processing": "CC0 thick metal pipe on concrete pitched 0.6-0.67x leads; brass bounces pitched 0.65x at -8 dB with quieter copies at 125/225/330 ms; HP 75 Hz; short 150->95 Hz ground pulse; +3 dB at 550 Hz; 0.75 s; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (0.7 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/GrayJoy/sounds/210102/",
@@ -4260,17 +3930,23 @@
      "file_url": "https://cdn.freesound.org/previews/210/210102_3278936-hq.ogg"
     },
     {
-     "url": "https://freesound.org/people/dmitryleeo/sounds/492177/",
-     "title": "Metal Sheet Hit",
-     "author": "dmitryleeo",
+     "url": "https://freesound.org/people/deleted_user_2104797/sounds/164572/",
+     "title": "Metal pipe on concrete.wav",
+     "author": "deleted_user_2104797",
      "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "4.536-4.890 s",
-     "layer": "metal sheet hit = casing body",
-     "download_sha256": "566ea7332303afe86f8fc43af1c36e9928102439f2a63bf458680a46701ad06b",
-     "download": "fs-492177/source.ogg",
+     "retrieved": "2026-10-14",
+     "cut": "0.026-0.680 s",
+     "layer": "thick pipe on concrete = heavy hollow casing",
+     "download_sha256": "9e8fae7c887bb6027a67f852a8e058a56f3c8b90418626f81023576665464721",
+     "download": "fs-164572/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/492/492177_10473513-hq.ogg"
+     "file_url": "https://cdn.freesound.org/previews/164/164572_2104797-hq.ogg"
+    }
+   ],
+   "synthLayers": [
+    {
+     "description": "synthesized sub thump (pitch-dropping sine, exponential decay)",
+     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
     }
    ],
    "normalization": {
@@ -4279,23 +3955,22 @@
     "limiter_max_gr_db": 6
    },
    "notes": {
-    "trimmed_tail_s": 0.034,
-    "group_matched_lufs_target": -28.28
+    "limiter_gain_reduction_db": 0.72
    }
   },
   {
    "file": "predator/casings-3.ogg",
    "group": "tf.predator.casings",
    "license": "CC0 1.0",
-   "durationS": 0.47,
+   "durationS": 0.75,
    "loop": false,
-   "loudnessLUFS": -28.86,
-   "peakDb": -4.19,
+   "loudnessLUFS": -23.05,
+   "peakDb": -4.27,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 6938,
-   "output_sha256": "33c9005fe1a0d9c53335c7c5582d64bce48ffafb560850e1fe84f69eebd7d949",
+   "sizeBytes": 10456,
+   "output_sha256": "8b0c77846f5c848727daa2143bfb99eef005020cf8816c505280a689412727f8",
    "variant": ".30 shell bouncing + metal clank",
-   "processing": "real brass bounce pitched 0.75x with quieter copies at 125/225/330 ms; HP 240 Hz; light metal body on first strike and +3 dB at 4.8 kHz; natural bright scatter over 0.65 s; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (5.2 dB above the peak cap)",
+   "processing": "CC0 thick metal pipe on concrete pitched 0.6-0.67x leads; brass bounces pitched 0.65x at -8 dB with quieter copies at 125/225/330 ms; HP 75 Hz; short 150->95 Hz ground pulse; +3 dB at 550 Hz; 0.75 s; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (1.0 dB above the peak cap)",
    "sources": [
     {
      "url": "https://freesound.org/people/Danwardvs/sounds/205126/",
@@ -4311,69 +3986,17 @@
      "file_url": "https://cdn.freesound.org/previews/205/205126_3310361-hq.ogg"
     },
     {
-     "url": "https://freesound.org/people/trijohnstone/sounds/547979/",
-     "title": "sheet metal sound four: Bang.wav",
-     "author": "trijohnstone",
+     "url": "https://freesound.org/people/deleted_user_2104797/sounds/164572/",
+     "title": "Metal pipe on concrete.wav",
+     "author": "deleted_user_2104797",
      "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "5.586-5.940 s",
-     "layer": "sheet metal bang = casing body",
-     "download_sha256": "67995f5ffd5279014ad7beebb4fb244b786ee4bdd82f64f50c9ac474e5104564",
-     "download": "fs-547979/source.ogg",
+     "retrieved": "2026-10-14",
+     "cut": "0.026-0.680 s",
+     "layer": "thick pipe on concrete = heavy hollow casing",
+     "download_sha256": "9e8fae7c887bb6027a67f852a8e058a56f3c8b90418626f81023576665464721",
+     "download": "fs-164572/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/547/547979_8838719-hq.ogg"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -23,
-    "peak_cap_db": -4.0,
-    "limiter_max_gr_db": 6
-   },
-   "notes": {
-    "trimmed_tail_s": 0.18,
-    "group_matched_lufs_target": -27.68,
-    "limiter_gain_reduction_db": 5.18
-   }
-  },
-  {
-   "file": "predator/impact-1.ogg",
-   "group": "tf.predator.impact",
-   "license": "CC0 1.0",
-   "durationS": 0.23,
-   "loop": false,
-   "loudnessLUFS": -21.16,
-   "peakDb": -3.18,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 3743,
-   "output_sha256": "fb899e74951aa47ab4cb528a1a8bee41948b608ceb2a7c41a22860d9a58449d6",
-   "variant": "bullet on metal + armour sheet",
-   "processing": "onset-trimmed ballistic crack + armour clank pitched 0.6x, HP 110 Hz; short body pulse at 170->75 Hz; bell -5 dB at 1.1 kHz, high shelf -4 dB at 6 kHz; 45 ms exponential decay, 0.23 s total; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (2.0 dB above the peak cap)",
-   "sources": [
-    {
-     "url": "https://freesound.org/people/martian/sounds/182263/",
-     "title": "Foley bullet hit metal 02.wav",
-     "author": "martian",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.101-0.225 s",
-     "layer": "ballistic metal hit",
-     "download_sha256": "e6688754feb1b04e244acf5c4734a63426448bf67b759904c15bc36a879b9eb9",
-     "download": "fs-182263/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/182/182263_84709-hq.ogg"
-    },
-    {
-     "url": "https://freesound.org/people/dmitryleeo/sounds/492177/",
-     "title": "Metal Sheet Hit",
-     "author": "dmitryleeo",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "4.331-4.515 s",
-     "layer": "armour sheet body",
-     "download_sha256": "566ea7332303afe86f8fc43af1c36e9928102439f2a63bf458680a46701ad06b",
-     "download": "fs-492177/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/492/492177_10473513-hq.ogg"
+     "file_url": "https://cdn.freesound.org/previews/164/164572_2104797-hq.ogg"
     }
    ],
    "synthLayers": [
@@ -4383,13 +4006,12 @@
     }
    ],
    "normalization": {
-    "lufs_target": -17,
-    "peak_cap_db": -3,
-    "limiter_max_gr_db": 2
+    "lufs_target": -23,
+    "peak_cap_db": -4.0,
+    "limiter_max_gr_db": 6
    },
    "notes": {
-    "group_matched_lufs_target": -20.72,
-    "limiter_gain_reduction_db": 2.0
+    "limiter_gain_reduction_db": 0.96
    }
   },
   {
@@ -4398,13 +4020,13 @@
    "license": "CC0 1.0",
    "durationS": 0.23,
    "loop": false,
-   "loudnessLUFS": -20.86,
-   "peakDb": -3.06,
+   "loudnessLUFS": -20.59,
+   "peakDb": -3.11,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 4331,
-   "output_sha256": "c25cbcea759a19c2d72d4939eb2518604599a0744b2966c593a8f8a801b5f6c5",
+   "sizeBytes": 3956,
+   "output_sha256": "ee3a22d880fa559f078410d534c74147d425d6ed04b79bc61b461361ef64612e",
    "variant": "bullet hit + dense metal collision",
-   "processing": "onset-trimmed ballistic crack + armour clank pitched 0.6x, HP 110 Hz; short body pulse at 170->75 Hz; bell -5 dB at 1.1 kHz, high shelf -4 dB at 6 kHz; 45 ms exponential decay, 0.23 s total; soft clipper (knee at 0.6x) + fast look-ahead limiter (1 ms, 15 ms release) on the peaks (0.8 dB above the peak cap)",
+   "processing": "sharp ballistic metal crack + armour clank pitched 0.85x, LP 6 kHz; 220->65 Hz saturated body pulse; +3 dB at 3.2 kHz, HP 65 Hz; 60 ms body decay and short plate ring; 0.23 s total",
    "sources": [
     {
      "url": "https://freesound.org/people/pushkin/sounds/144444/",
@@ -4431,50 +4053,6 @@
      "download": "fs-386798/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/386/386798_7236624-hq.ogg"
-    }
-   ],
-   "synthLayers": [
-    {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay)",
-     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
-    }
-   ],
-   "normalization": {
-    "lufs_target": -17,
-    "peak_cap_db": -3,
-    "limiter_max_gr_db": 2
-   },
-   "notes": {
-    "group_matched_lufs_target": -20.72,
-    "limiter_gain_reduction_db": 0.83
-   }
-  },
-  {
-   "file": "predator/impact-3.ogg",
-   "group": "tf.predator.impact",
-   "license": "CC0 1.0",
-   "durationS": 0.23,
-   "loop": false,
-   "loudnessLUFS": -20.68,
-   "peakDb": -5.26,
-   "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 3368,
-   "output_sha256": "89ac05d8ed9496157c451d1b5e2d239db229b4dbd9034a292258a9682ab892f4",
-   "variant": "bullet on metal + heavy armour knock",
-   "processing": "onset-trimmed ballistic crack + armour clank pitched 0.6x, HP 110 Hz; short body pulse at 170->75 Hz; bell -5 dB at 1.1 kHz, high shelf -4 dB at 6 kHz; 45 ms exponential decay, 0.23 s total",
-   "sources": [
-    {
-     "url": "https://freesound.org/people/martian/sounds/182263/",
-     "title": "Foley bullet hit metal 02.wav",
-     "author": "martian",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.101-0.225 s",
-     "layer": "ballistic metal hit",
-     "download_sha256": "e6688754feb1b04e244acf5c4734a63426448bf67b759904c15bc36a879b9eb9",
-     "download": "fs-182263/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/182/182263_84709-hq.ogg"
     },
     {
      "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
@@ -4483,17 +4061,11 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "0.000-0.180 s",
-     "layer": "heavy armour knock",
+     "layer": "short dense steel plate ring",
      "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
      "download": "fs-614062/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
-    }
-   ],
-   "synthLayers": [
-    {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay)",
-     "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
     }
    ],
    "normalization": {
@@ -4502,35 +4074,35 @@
     "limiter_max_gr_db": 2
    },
    "notes": {
-    "group_matched_lufs_target": -20.72
+    "group_matched_lufs_target": -20.54
    }
   },
   {
    "file": "predator/tail-1.ogg",
    "group": "tf.predator.tail",
    "license": "CC0 1.0",
-   "durationS": 1.334,
+   "durationS": 1.097,
    "loop": false,
-   "loudnessLUFS": -23.31,
-   "peakDb": -4.22,
+   "loudnessLUFS": -21.02,
+   "peakDb": -3.99,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 15028,
-   "output_sha256": "a281e49577a37e6e018fccb8a3b65fae032337dd39ccf440a5e0c6bf3bc1efe1",
-   "variant": ".50 cal MG tail after burst 2",
-   "processing": "cut after the last round of a burst (no shots inside); pitched 0.9x; HP 60 Hz, LP 8 kHz, high shelf -4 dB at 4 kHz, bell -3.5 dB at 200 Hz; 20 ms fade-in, long cosine fade-out",
+   "sizeBytes": 13197,
+   "output_sha256": "e57a0391fed7f197383355892b1ceeec70b12ce4a036182611dfa2dd52dd6e4f",
+   "variant": "M242 burst decay, lower take",
+   "processing": "clean M242 autocannon decay after the third round; pitched 0.7-0.74x; HP 60 Hz, LP 8 kHz; +2.5 dB at 200 Hz, -3 dB at 2.8 kHz; 40 ms fade-in, smooth cosine fade-out; no motor state implied",
    "sources": [
     {
-     "url": "https://freesound.org/people/qubodup/sounds/183656/",
-     "title": "50 Caliber MG.flac",
+     "url": "https://freesound.org/people/qubodup/sounds/854186/",
+     "title": "Autocannon Three Shot Burst",
      "author": "qubodup",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "3.000-4.320 s",
-     "layer": ".50 cal tail after the second burst",
-     "download_sha256": "7b54fc6b566252a58c26e3146df752f20c250c1395c20ef8c2193fea3465bc1d",
-     "download": "fs-183656/source.ogg",
+     "cut": "1.040-1.840 s",
+     "layer": "M242 decay after the third report",
+     "download_sha256": "e104f6ca3c3c496313f2f628dbf5407b2e964b87e54b03c82821ccb171987c57",
+     "download": "fs-854186/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/183/183656_71257-hq.ogg"
+     "file_url": "https://cdn.freesound.org/previews/854/854186_71257-hq.ogg"
     }
    ],
    "normalization": {
@@ -4539,36 +4111,35 @@
     "limiter_max_gr_db": 3.0
    },
    "notes": {
-    "trimmed_tail_s": 0.133,
-    "group_matched_lufs_target": -23.32
+    "trimmed_tail_s": 0.046
    }
   },
   {
    "file": "predator/tail-2.ogg",
    "group": "tf.predator.tail",
    "license": "CC0 1.0",
-   "durationS": 1.158,
+   "durationS": 1.01,
    "loop": false,
-   "loudnessLUFS": -23.83,
-   "peakDb": -3.18,
+   "loudnessLUFS": -21.0,
+   "peakDb": -3.19,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 12811,
-   "output_sha256": "990954d36d26d085e3e147e4e2be0bfb0fa526154c4da0e69fd1e98db36a0583",
-   "variant": "heavy machine gun burst tail",
-   "processing": "cut after the last round of a burst (no shots inside); pitched 0.9x; HP 60 Hz, LP 8 kHz, high shelf -4 dB at 4 kHz, bell -3.5 dB at 200 Hz; 20 ms fade-in, long cosine fade-out; look-ahead peak limiter (2 ms, 80 ms release, up to 2.2 dB GR)",
+   "sizeBytes": 11736,
+   "output_sha256": "e8d96911ffd64ccdd1d4aa263e69c1c2ad21a2f806169c52542be17e01376eeb",
+   "variant": "M242 burst decay, later brighter take",
+   "processing": "clean M242 autocannon decay after the third round; pitched 0.7-0.74x; HP 60 Hz, LP 8 kHz; +2.5 dB at 200 Hz, -3 dB at 2.8 kHz; 40 ms fade-in, smooth cosine fade-out; no motor state implied",
    "sources": [
     {
-     "url": "https://freesound.org/people/ShawnyBoy/sounds/165394/",
-     "title": "Heavy Machine Gun",
-     "author": "ShawnyBoy",
+     "url": "https://freesound.org/people/qubodup/sounds/854186/",
+     "title": "Autocannon Three Shot Burst",
+     "author": "qubodup",
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
-     "cut": "1.700-2.950 s",
-     "layer": "heavy MG tail after the burst",
-     "download_sha256": "b462c8ba21a6e4cd460f7603e32a2bcc30cd7b6113547a44bf394e54190207b4",
-     "download": "fs-165394/source.ogg",
+     "cut": "1.080-1.860 s",
+     "layer": "M242 decay after the third report",
+     "download_sha256": "e104f6ca3c3c496313f2f628dbf5407b2e964b87e54b03c82821ccb171987c57",
+     "download": "fs-854186/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/165/165394_2989529-hq.ogg"
+     "file_url": "https://cdn.freesound.org/previews/854/854186_71257-hq.ogg"
     }
    ],
    "normalization": {
@@ -4577,9 +4148,7 @@
     "limiter_max_gr_db": 3.0
    },
    "notes": {
-    "trimmed_tail_s": 0.231,
-    "group_matched_lufs_target": -22.9,
-    "limiter_gain_reduction_db": 2.22
+    "trimmed_tail_s": 0.044
    }
   },
   {
@@ -4900,29 +4469,16 @@
    "file": "common/kill-confirm-1.ogg",
    "group": "tf.hit.kill",
    "license": "CC0 1.0",
-   "durationS": 0.592,
+   "durationS": 0.579,
    "loop": false,
-   "loudnessLUFS": -18.35,
-   "peakDb": -2.84,
+   "loudnessLUFS": -18.6,
+   "peakDb": -3.34,
    "format": "Ogg Opus mono 48 kHz 96 kbit/s (libopus, bitexact)",
-   "sizeBytes": 7794,
-   "output_sha256": "eabf288d759a4ef42874f00dbb2302708bf9e6eb63f61b89278cf69f2d578928",
-   "variant": "double armour strike and falling confirmation chime",
-   "processing": "two dry metal strikes 90 ms apart + falling 1100/825 Hz chime, HP 100 Hz; smooth 2 ms attacks and 130 ms decay; 0.65 s; look-ahead peak limiter (2 ms, 80 ms release, up to 0.3 dB GR)",
+   "sizeBytes": 7164,
+   "output_sha256": "fd7f0287108a594652981e09e891861288a661e564dd312f482078bb4fc6f947",
+   "variant": "double heavy armour strike, crunch and integrated falling confirmation chime",
+   "processing": "two heavy armour strikes 90 ms apart + robot crunch, gong partial and saturated falling 1100/825 Hz chime; short sub pulses; HP 40 Hz; 17/41 ms shared plate reflections at -18/-22 dB; 0.72 s; look-ahead peak limiter (2 ms, 80 ms release, up to 1.3 dB GR)",
    "sources": [
-    {
-     "url": "https://freesound.org/people/RichieMcMullen/sounds/386798/",
-     "title": "metal_collision.wav",
-     "author": "RichieMcMullen",
-     "license": "CC0 1.0",
-     "retrieved": "2026-10-13",
-     "cut": "0.511-0.865 s",
-     "layer": "first destruction strike",
-     "download_sha256": "4d08e007cad48e5218e0efffdf2f4753f92f07f7eabf0f9acbbe4cc27d2125cc",
-     "download": "fs-386798/source.ogg",
-     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-     "file_url": "https://cdn.freesound.org/previews/386/386798_7236624-hq.ogg"
-    },
     {
      "url": "https://freesound.org/people/magnuswaker/sounds/614062/",
      "title": "Heavy Metal Impact",
@@ -4930,16 +4486,55 @@
      "license": "CC0 1.0",
      "retrieved": "2026-10-13",
      "cut": "0.000-0.350 s",
-     "layer": "second destruction strike",
+     "layer": "first heavy armour strike",
      "download_sha256": "7a4a1d68b867eb90f7e4c918116200c0e1564c217edfef9725d750f834d3e61b",
      "download": "fs-614062/source.ogg",
      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
      "file_url": "https://cdn.freesound.org/previews/614/614062_11537497-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/kyles/sounds/406197/",
+     "title": "door metal big heavy close kinda slam thud echo offmic.wav",
+     "author": "kyles",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.306-0.660 s",
+     "layer": "second heavy armour strike",
+     "download_sha256": "6e47d7beb4b93ff3d8517ae30b21d2915f9d7f52d7f0bc917b66aa4996f625fc",
+     "download": "fs-406197/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/406/406197_612689-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/AudioPapkin/sounds/813054/",
+     "title": "Big robot footstep 003",
+     "author": "AudioPapkin",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.000-0.400 s",
+     "layer": "armour crush body",
+     "download_sha256": "c20267cdf802d508254f34dbde6935af1f29065fdaba8739e7da16f098baebec",
+     "download": "fs-813054/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/813/813054_8698658-hq.ogg"
+    },
+    {
+     "url": "https://freesound.org/people/Logicogonist/sounds/799184/",
+     "title": "gongcrash 1 short",
+     "author": "Logicogonist",
+     "license": "CC0 1.0",
+     "retrieved": "2026-10-13",
+     "cut": "0.011-0.415 s",
+     "layer": "organic confirmation gong partial",
+     "download_sha256": "ccbaf126a18d07fe6450eb5004ab9da47e33c6fe295fcf1bf10b72385e1ed0c0",
+     "download": "fs-799184/source.ogg",
+     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+     "file_url": "https://cdn.freesound.org/previews/799/799184_3797507-hq.ogg"
     }
    ],
    "synthLayers": [
     {
-     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); synthesized falling confirmation chime (1100/825 Hz sines)",
+     "description": "synthesized sub thump (pitch-dropping sine, exponential decay); synthesized saturated falling confirmation chime (1100/825 Hz sines)",
      "origin": "tools/titan-sfx/recipes.py (original code, no third-party audio)"
     }
    ],
@@ -4949,8 +4544,8 @@
     "limiter_max_gr_db": 2
    },
    "notes": {
-    "trimmed_tail_s": 0.058,
-    "limiter_gain_reduction_db": 0.32
+    "trimmed_tail_s": 0.141,
+    "limiter_gain_reduction_db": 1.32
    }
   }
  ]

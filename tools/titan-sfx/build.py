@@ -55,7 +55,7 @@ def finalize(file, spec, rendered=None, target=None):
     srcs = []
     for u in ctx.uses:
         m = meta(u['name'])
-        e = dict(url=m['url'], title=m['title'], author=m['author'], license=lic_of(m), retrieved=RETRIEVED, cut=u['cut'],
+        e = dict(url=m['url'], title=m['title'], author=m['author'], license=lic_of(m), retrieved=m.get('retrieved', RETRIEVED), cut=u['cut'],
                  layer=u['note'], download_sha256=sha(src(u['name'])), download=f"{u['name']}/{src(u['name']).name}")
         if m.get('source') == 'youtube':
             e['license_detail'] = ('YouTube license field "' + m['license'] + '" (yt-dlp, 2026-10-13); official U.S. military channel, '

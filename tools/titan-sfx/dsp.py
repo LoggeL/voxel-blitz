@@ -8,6 +8,7 @@ class Ctx:
     """Collects the source cuts used by one output file."""
     def __init__(self): self.uses = []
     def seg(self, name, start, end, note=''):
+        if not isinstance(note, str): raise TypeError(f'{name}: source layer note must be text, got {note!r}')
         x = decode(src(name), start, end - start)
         self.uses.append(dict(name=name, cut=f'{start:.3f}-{end:.3f} s', note=note))
         return x
@@ -16,6 +17,7 @@ def hp(x, f, order=4, zero=False):
     sos = signal.butter(order, f, 'highpass', fs=SR, output='sos')
     return signal.sosfiltfilt(sos, x) if zero else signal.sosfilt(sos, x)
 def lp(x, f, order=4, zero=False):
+    if not 10 <= f < SR/2: raise ValueError(f'audio low-pass cutoff outside audible range: {f} Hz')
     sos = signal.butter(order, f, 'lowpass', fs=SR, output='sos')
     return signal.sosfiltfilt(sos, x) if zero else signal.sosfilt(sos, x)
 def bp(x, lo, hi, order=2, zero=False):

@@ -25,14 +25,19 @@ or `downloads/oga-<name>/source.wav` + `meta.json`, `titan/<dir>/<name>.ogg` (bu
    matplotlib, so no `-I`); `python3 -I tools/titan-sfx/judge_all.py <out-dir> [file-prefix ...]` asks the
    model judge about each file, sequentially with a 2.5 s pause. `judge.py` invokes
    `/Users/logge/voxel-blitz-sfx-handoff/gemini-audio.py` (override `TITAN_GEMINI_AUDIO_HELPER`), which sends
-   the audio to `gemini-3.8-flash` and keeps the Keychain key process-local. Verdicts include output SHA-256.
+   the audio to `gemini-3.8-flash` and keeps the Keychain key process-local. Verdicts include output SHA-256. `TITAN_JUDGE_REUSE=<round-dir>` reuses only exact-byte verdicts.
    `render_synth_baseline.py` renders the old TitanSynth voices for a before/after comparison and
    `scan.py` lists the transients of downloaded sources.
    `node tools/titan-sfx/browser-decode.mjs <report.json>` verifies every shipped file with Chromium's
    real `OfflineAudioContext`. It uses the muted CDP helper and a capture slot, with no audio playback.
-4. Ship: `python3 -I tools/titan-sfx/integrate.py` checks the file list against `titan-bank.js`, copies the
+4. Ship: `python3 -I tools/titan-sfx/integrate.py` checks the selected file list against `titan-bank.js`, copies the
    bank, writes `sources.json` and `CREDITS.txt`, and rewrites the generated blocks in
    `public/assets/audio/LICENSES.md` and `docs/audio/titan-sfx.md`.
+   `python3 -I tools/titan-sfx/publish_judging.py <baseline-dir> <round-dir> ...` publishes the selected
+   exact-byte answers into `docs/audio/titan-weapons-verdicts.json` and regenerates the judging tables.
+   Rejected candidates stay outside the repository. Only selected takes ship; obsolete bank audio files
+   are removed after all selected hashes and licences pass. Predator fire and impacts use the strongest
+   recorded foundation with runtime pitch variation. The other fire banks retain several recorded takes.
 
 The sub thumps, ready and kill chime partials and the hold-loop hum are synthesized in `recipes.py` and
 need no download. All encoding uses ffmpeg with libopus (`-fflags +bitexact`). Nothing from a download

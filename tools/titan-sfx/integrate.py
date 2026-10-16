@@ -1,24 +1,30 @@
 """Ship the built titan bank: python3 -I integrate.py
-- checks that <work>/titan holds exactly the files of TITAN_SAMPLE_GROUPS (public/js/audio/titan-bank.js);
+- verifies every selected TITAN_SAMPLE_GROUPS file, allowing rejected candidates in the external work folder;
 - copies them to public/assets/audio/titan/<dir>/<name>.ogg;
 - writes public/assets/audio/titan/sources.json (per-file provenance from <work>/parts) and titan/CREDITS.txt;
 - rewrites the generated blocks in public/assets/audio/LICENSES.md and docs/audio/titan-sfx.md
   (between <!-- titan-sfx:...:begin --> and <!-- titan-sfx:...:end --> markers)."""
-import sys, re, json, shutil, pathlib, numpy as np
+import sys, re, json, shutil, pathlib, datetime, subprocess, numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from common import REPO, ROOT, decode, sha, SR
 BANK = REPO / 'public' / 'assets' / 'audio' / 'titan'
 LIC = REPO / 'public' / 'assets' / 'audio' / 'LICENSES.md'
 DOC = REPO / 'docs' / 'audio' / 'titan-sfx.md'
-TODAY = '2026-10-13'
-bank_js = (REPO / 'public' / 'js' / 'audio' / 'titan-bank.js').read_text()
-want = []
-for group, d, name, n in re.findall(r"'(tf\.[\w.]+)': takes\('(\w+)', '([\w-]+)', (\d+)\)", bank_js):
-    want += [(group, f'{d}/{name}-{i}.ogg') for i in range(1, int(n) + 1)]
+TODAY = datetime.date.today().isoformat()
+groups = json.loads(subprocess.run(['node', '--input-type=module', '-e',
+    "import { TITAN_SAMPLE_GROUPS } from './public/js/audio/titan-bank.js'; process.stdout.write(JSON.stringify(TITAN_SAMPLE_GROUPS))"],
+    cwd=REPO, capture_output=True, text=True, check=True).stdout)
+want = [(group, file) for group, files in groups.items() for file in files]
 parts = {json.loads(p.read_text())['file']: json.loads(p.read_text()) for p in (ROOT / 'parts').glob('*.json')}
 missing = [f for g, f in want if f not in parts or not (ROOT / 'titan' / f).exists()]
 extra = sorted(set(parts) - {f for g, f in want})
-if missing or extra: sys.exit(f'bank mismatch: missing {missing}, extra {extra}')
+if missing: sys.exit(f'bank mismatch: missing {missing}')
+if extra: print(f'{len(extra)} rejected candidate takes excluded by TITAN_SAMPLE_GROUPS')
+for group, file in want:
+    entry = parts[file]
+    assert entry['group'] == group and sha(ROOT / 'titan' / file) == entry['output_sha256'], file
+    for source in entry['sources']:
+        assert source['license'] in ('CC0 1.0', 'CC BY 4.0') and source['author'] and source['url'] and source.get('license_url'), file
 entries = []
 for group, f in want:
     e = dict(parts[f]); assert e['group'] == group, (f, e['group'], group)
@@ -28,6 +34,11 @@ for group, f in want:
         y = decode(dst); st = np.abs(np.diff(y))
         e['loopSeam'] = dict(boundary_step=round(float(abs(y[0] - y[-1])), 5), step_p99=round(float(np.percentile(st, 99)), 5))
     entries.append(e)
+# Only remove obsolete audio files in this bank, after every selected take has been verified.
+# Rejected candidates and their verdicts remain in the external work folder.
+selected = {file for group, file in want}
+for path in BANK.glob('*/*.ogg'):
+    if path.relative_to(BANK).as_posix() not in selected: path.unlink()
 size = sum(e['sizeBytes'] for e in entries); dec = sum(e['durationS'] for e in entries) * SR * 4
 doc = dict(bank='titan', title='Titan primary weapon sounds (Splitter, T-203, Railgun, Leadwall, Predator, hit confirms)',
            retrieved=TODAY, integrated=TODAY, format='Ogg Opus mono 48 kHz 96 kbit/s (libopus, -fflags +bitexact)',

@@ -770,6 +770,7 @@ export class TitanSynth {
       return;
     }
     // Spin: the spin-up take follows a rising spin, the loop holds full spin, the spin-down follows the barrels down.
+    if (rising && state.wind?.group === 'tf.predator.spinDown') this._stopWind(id, 0.02);
     if (rising && !state.wind && value < 0.98) {
       const seconds = VEHICLE_WEAPONS.predatorClose?.spinUpSeconds ?? 0.6, dur = this._duration('tf.predator.spinUp');
       state.wind = dur > 0
@@ -785,11 +786,13 @@ export class TitanSynth {
       state.wind = this._windSynth(ctx, pos, self, 'spin', state);
       this._tuneSynthWind(state.wind, ctx, kind, value);
     }
-    if (falling && (state.hold || (state.wind && !state.wind.synth))) {
+    if (falling && (state.hold || (state.wind && !state.wind.synth && state.wind.group !== 'tf.predator.spinDown'))) {
       const from = value;
       this._stopWind(id, 0.06);
-      const o = this._weaponOut(pos, { self, life: 1.8, gain: M.spinDown * from });
-      if (o) this._take('tf.predator.spinDown', o.out, { offset: (1 - from) * this._duration('tf.predator.spinDown') * 0.5 });
+      const duration = this._duration('tf.predator.spinDown'), seconds = VEHICLE_WEAPONS.predatorClose.spinDownSeconds;
+      state.wind = duration > 0
+        ? this._windVoice(ctx, pos, self, 'tf.predator.spinDown', { gain: M.spinDown * from, rate: duration / seconds, offset: (1 - from) * duration, loop: false }, state)
+        : this._windSynth(ctx, pos, self, 'spin', state);
     }
     if (value <= 0.01 && state.wind?.synth) this._stopWind(id, 0.1);
   }
@@ -812,7 +815,7 @@ export class TitanSynth {
     if (self) level.connect(engine.bus);
     else { state.panner ??= this._panner(ctx, pos, false); level.connect(state.panner); if (!state.pannerLive) { state.panner.connect(engine.bus); state.pannerLive = true; } }
     source.start(ctx.currentTime, Math.max(0, Math.min(buffer.duration - 0.01, offset % buffer.duration)));
-    return { source, level, nodes };
+    return { source, level, nodes, group };
   }
 
   /** Synthesized wind (no bank): a filtered saw whose pitch and level follow the charge or spin. */

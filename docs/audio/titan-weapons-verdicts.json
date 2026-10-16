@@ -1,0 +1,1927 @@
+{
+  "model": "gemini-3.8-flash",
+  "generated": "2026-10-13T22:52:36.490728+00:00",
+  "audio_input": true,
+  "human_audition": false,
+  "baseline": [
+    {
+      "file": "splitter.wav",
+      "group": "splitter",
+      "scores": {
+        "FIT": 2,
+        "PUNCH": 2,
+        "CLEANLINESS": 7,
+        "LENGTH_TAIL": 3,
+        "DISTINCTNESS": 2,
+        "OVERALL": 2
+      },
+      "metrics": {
+        "duration_s": 0.091,
+        "peak_dbfs": -10.43,
+        "integrated_lufs": -70.0,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -10.4,
+        "crest_factor_db": 17.6,
+        "spectral_centroid_hz": 5745,
+        "energy_below_200hz_pct": 64.5,
+        "loudest_10ms_at_s": 0.003,
+        "first_2ms_peak": 0.3008,
+        "last_2ms_peak": 0.0001,
+        "dc_offset": 0.00162
+      },
+      "sha256": "c033d5f1503011850a50d6a4e1288fb1fcfb27e486fa6629b1bc1b435310381d"
+    },
+    {
+      "file": "t203.wav",
+      "group": "t203",
+      "scores": {
+        "FIT": 2,
+        "PUNCH": 2,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 1,
+        "DISTINCTNESS": 2,
+        "OVERALL": 2
+      },
+      "metrics": {
+        "duration_s": 0.321,
+        "peak_dbfs": -6.61,
+        "integrated_lufs": -70.0,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -6.6,
+        "crest_factor_db": 18.64,
+        "spectral_centroid_hz": 1470,
+        "energy_below_200hz_pct": 83.3,
+        "loudest_10ms_at_s": 0.004,
+        "first_2ms_peak": 0.4246,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00098
+      },
+      "sha256": "0061193bdd3ef14bafd8816ca3fb2450b043f504b1e55b1d51f726ff9733be04"
+    },
+    {
+      "file": "railgun.wav",
+      "group": "railgun",
+      "scores": {
+        "FIT": 2,
+        "PUNCH": 3,
+        "CLEANLINESS": 7,
+        "LENGTH_TAIL": 1,
+        "DISTINCTNESS": 2,
+        "OVERALL": 2
+      },
+      "metrics": {
+        "duration_s": 0.503,
+        "peak_dbfs": -5.19,
+        "integrated_lufs": -24.2,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -4.9,
+        "crest_factor_db": 18.12,
+        "spectral_centroid_hz": 6086,
+        "energy_below_200hz_pct": 92.0,
+        "loudest_10ms_at_s": 0.004,
+        "first_2ms_peak": 0.3211,
+        "last_2ms_peak": 0.0001,
+        "dc_offset": 0.00124
+      },
+      "sha256": "435898eddc9efed377bd8db7c3971774d4c88c932baba12aff9f85a599d10959"
+    },
+    {
+      "file": "leadwall.wav",
+      "group": "leadwall",
+      "scores": {
+        "FIT": 2,
+        "PUNCH": 3,
+        "CLEANLINESS": 7,
+        "LENGTH_TAIL": 2,
+        "DISTINCTNESS": 2,
+        "OVERALL": 2
+      },
+      "metrics": {
+        "duration_s": 0.241,
+        "peak_dbfs": -4.69,
+        "integrated_lufs": -70.0,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -4.6,
+        "crest_factor_db": 17.4,
+        "spectral_centroid_hz": 2914,
+        "energy_below_200hz_pct": 83.4,
+        "loudest_10ms_at_s": 0.004,
+        "first_2ms_peak": 0.5227,
+        "last_2ms_peak": 0.0001,
+        "dc_offset": 0.00213
+      },
+      "sha256": "dd332142673a68165ccbcc68ac21fa6a68702adbe940391ff763d1a581620cc9"
+    },
+    {
+      "file": "predator.wav",
+      "group": "predator",
+      "scores": {
+        "FIT": 2,
+        "PUNCH": 2,
+        "CLEANLINESS": 6,
+        "LENGTH_TAIL": 3,
+        "DISTINCTNESS": 2,
+        "OVERALL": 2
+      },
+      "metrics": {
+        "duration_s": 0.051,
+        "peak_dbfs": -18.9,
+        "integrated_lufs": -70.0,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -18.8,
+        "crest_factor_db": 15.34,
+        "spectral_centroid_hz": 5020,
+        "energy_below_200hz_pct": 61.7,
+        "loudest_10ms_at_s": 0.003,
+        "first_2ms_peak": 0.1135,
+        "last_2ms_peak": 0.0001,
+        "dc_offset": 0.0009
+      },
+      "sha256": "874fd20b37e67d3d90e77877a30fc73d3a749fbc35b634d310909473fe5f576a"
+    }
+  ],
+  "files": [
+    {
+      "file": "splitter/fire-1.ogg",
+      "group": "tf.splitter.fire",
+      "sha256": "96dad400ad09c009e72791cb880de3abc66c698f1052f7bbd4e17999bb15cfa9",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 7,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.279,
+        "peak_dbfs": -2.21,
+        "integrated_lufs": -15.91,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.2,
+        "crest_factor_db": 14.41,
+        "spectral_centroid_hz": 3925,
+        "energy_below_200hz_pct": 33.5,
+        "loudest_10ms_at_s": 0.006,
+        "first_2ms_peak": 0.5217,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00021,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "rebuild",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 7\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The scale reads closer to an infantry-portable sci-fi carbine or laser blaster rather than a massive 7-meter Titan-mounted weapon.\n- With an intended cyclic rate of 0.15 s (150 ms), the 279 ms duration will overlap each subsequent shot by over 120 ms, causing rapid-fire buildup and masking.\n- The low-end sine thump and the high-frequency chirp feel slightly disjointed, leaving a thin/hollow pocket in the low-mids (300–600 Hz).\n- The high-pitch laser chirp transient (3–4.5 kHz) is quite synthetic and front-heavy, which will cause ear fatigue during sustained automatic fire.\n\nSUGGESTIONS:\n- Tighten the release envelope to taper down firmly around 130–140 ms, or design a shorter dedicated loop shot (120–140 ms) with this current asset reserved for single-shot / tap fire.\n- Layer a heavy mechanical titan breech/servo clank (LP filtered at 2 kHz, duration ~60 ms) to sell the scale of a 7m mech chassis.\n- Add body and glue the layers by boosting 220–400 Hz by +2.5 dB with gentle saturation to bridge the sub drop and the plasma snap.\n- Apply a dynamic EQ cut (-2.5 dB, Q 2.5) centered at 3.8 kHz to soften the laser chirp bite so repeated fire doesn't pierce the mix.\n- Pitch the synthesized ion chirp down by 3–4 semitones to give it heavier, more menacing plasma mass."
+    },
+    {
+      "file": "splitter/fire-2.ogg",
+      "group": "tf.splitter.fire",
+      "sha256": "913a06eec2f83fdcd48ebab50edccf0d3689b90ced6a2a48fe9fa1f669d73c0b",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.279,
+        "peak_dbfs": -2.21,
+        "integrated_lufs": -15.41,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.2,
+        "crest_factor_db": 13.72,
+        "spectral_centroid_hz": 3730,
+        "energy_below_200hz_pct": 38.5,
+        "loudest_10ms_at_s": 0.009,
+        "first_2ms_peak": 0.6792,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00016,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "rebuild",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The downward pitch sweep (\"chirp\") sounds more like a handheld sci-fi blaster than a weapon mounted on a heavy 7-meter combat chassis.\n- Sub-bass weight is disjointed from the transient; the low-mid thump (95–210 Hz) lacks the mechanical displacement and chest punch required for mech-scale firepower.\n- The high-frequency electric crack feels a bit thin and sterile, giving it an arcade aesthetic rather than an aggressive, military-grade plasma rupture.\n- With an intended 0.15 s refire rate, the lingering 200–500 Hz body in the tail (from 120 ms onwards) will build up into boxy clutter during sustained automatic fire.\n\nSUGGESTIONS:\n- Shorten the pitch sweep time from ~40 ms down to 10–15 ms or pitch it down 3–5 semitones so it reads as an aggressive snap rather than an audible tonal \"pew\".\n- Add a dedicated mechanical transient layer (heavy solenoid click or metallic breach snap, bandpassed 1.2 kHz – 4 kHz) in the first 5–15 ms to convey chassis scale.\n- Boost weight around 60–85 Hz (+3 dB) with a tight Q (1.8–2.2), while notching out 300–450 Hz (-2.5 dB) to clean up boxiness.\n- Compress the sub/low-mid layer with a fast attack (2 ms) and medium release (40 ms) keyed to the crack to glue the transient and weight together.\n- For a 0.15 s fire rate, tighten the decay starting at 120 ms with an exponential fade finishing around 200–220 ms to prevent low-end overlap and masking during full-auto fire."
+    },
+    {
+      "file": "splitter/fire-3.ogg",
+      "group": "tf.splitter.fire",
+      "sha256": "4c7997d898a632db730f45a521604da0552f869a03704405bcb4f57127ca2f11",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 9,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.27,
+        "peak_dbfs": -1.97,
+        "integrated_lufs": -15.45,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.0,
+        "crest_factor_db": 13.85,
+        "spectral_centroid_hz": 3604,
+        "energy_below_200hz_pct": 33.9,
+        "loudest_10ms_at_s": 0.009,
+        "first_2ms_peak": 0.6124,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00018,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "rebuild",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 9\nOVERALL: 8\n\nPROBLEMS:\n- The high-frequency electric zap and the low-end sub drop feel slightly detached, missing cohesive low-mid body (150–350 Hz) to bridge them into a single coherent blast.\n- The transient tilt skews slightly toward handheld infantry blaster rather than a massive 7-meter mech weapon; it needs a bit more heavy mechanical/solenoid mass.\n- At a 0.15 s refire rate, the low-end decay past 140 ms will stack up into muddy low-frequency build-up during sustained full-auto bursts.\n\nSUGGESTIONS:\n- Add a fast, punchy mechanical relay or heavy bolt-face impact layer in the first 15–30 ms to anchor the titan scale.\n- Boost or saturate the rifle body layer between 180 Hz and 320 Hz by +2.5 dB to glue the sub drop to the plasma transient.\n- Tighten the total duration to ~0.20 s with a steeper exponential fade starting at 110 ms, ensuring clean retriggering every 0.15 s without low-end wash.\n- Dip 1.5–2 dB around 3.2 kHz on the synthetic ion chirp to prevent harsh ear fatigue during continuous rapid fire."
+    },
+    {
+      "file": "splitter/fire-4.ogg",
+      "group": "tf.splitter.fire",
+      "sha256": "87cff59960ce1f4168a495546a5fb4523c6d62e0b41c8be6ec91b86ff62aadbf",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.279,
+        "peak_dbfs": -1.82,
+        "integrated_lufs": -15.42,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.8,
+        "crest_factor_db": 14.24,
+        "spectral_centroid_hz": 3901,
+        "energy_below_200hz_pct": 35.5,
+        "loudest_10ms_at_s": 0.006,
+        "first_2ms_peak": 0.648,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00026,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "rebuild",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- Scale reads closer to an infantry-tier plasma carbine than a primary weapon mounted on a 7-meter Titan; it lacks mechanical mass and sheer acoustic displacement.\n- Slight sonic dissociation between the high-pitched synthetic ion chirp/zap transient and the sub thump, leaving the 200–500 Hz region feeling hollow.\n- With a rapid 0.15 s refire rate, the sub-200 Hz energy extending out past 200 ms risks muddy low-end buildup during sustained full-auto fire.\n- The high shelf cut (-5 dB at 8 kHz) softens the initial electrical crack slightly too much, taking away some of Ion's characteristic razor-sharp plasma snap.\n\nSUGGESTIONS:\n- Tighten the sub thump decay envelope to ~100–120 ms using a steep exponential curve so repeated shots at 0.15 s do not mask each other's low end.\n- Layer a short mechanical bolt/receiver slam or heavy capacitor click (high-passed around 400 Hz, duration ~40 ms) to sell the scale of a giant mech mechanism.\n- Fill the hollow low-mid gap by boosting 140–220 Hz by 2 to 3 dB with a moderate Q (~1.2) to give the shot chest-thump authority.\n- Ease the 8 kHz high shelf reduction to -2 dB or add a narrow transient boost at 4.5–6 kHz on the initial 15 ms to restore plasma bite.\n- Glue the synth chirp and acoustic rifle transient using light bus saturation (tape or tube style) driven by 1–2 dB before the final peak limiter."
+    },
+    {
+      "file": "splitter/split-1.ogg",
+      "group": "tf.splitter.split",
+      "sha256": "e43d9f952f5b213f292f7accd71efec98b8b573572276bae07120d691ba56d77",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 7,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.558,
+        "peak_dbfs": -1.71,
+        "integrated_lufs": -18.77,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.7,
+        "crest_factor_db": 14.96,
+        "spectral_centroid_hz": 2509,
+        "energy_below_200hz_pct": 62.8,
+        "loudest_10ms_at_s": 0.017,
+        "first_2ms_peak": 0.5015,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00036,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "verified",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 7\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The \"split shot\" concept is not clearly communicated in the stereo field or transient structure; it reads as a single heavy energy blast rather than three concurrent diverging plasma beams.\n- The +4 dB boost at 330 Hz adds boxiness to the body thump, slightly muddying the transition between the mechanical breech crack and the sub drop.\n- The high-frequency electric sizzle falls off too rapidly around 250–350 ms, making the decay feel abrupt and dry rather than like dissipating ionizing energy.\n- The transient alignment (within 2 ms) is so tight that the layers fuse into one mono spike instead of giving a wider, phased multi-beam firing signature.\n\nSUGGESTIONS:\n- Pan the secondary pitch-shifted beam layers (0.94x and 1.06x) slightly outward (e.g., L30–40% and R30–40%) and offset them by 4–8 ms to sonically establish three discrete beam paths.\n- Cut 2.5–3.5 dB in the 300–420 Hz region with a moderate Q (1.2–1.5) to clear out boxy mud and restore punch definition.\n- Boost high-shelf air and electric snap (+2.5 dB above 6.5 kHz) on the electric zap layer to maintain ionizing sizzle across the mid-decay.\n- Extend a diffuse plasma dissipation tail by 100–150 ms (fading smoothly out to ~0.70 s) to let the high-energy discharge dissipate naturally."
+    },
+    {
+      "file": "splitter/split-2.ogg",
+      "group": "tf.splitter.split",
+      "sha256": "2c0db3cd313ba572560032c804f997d4a147505ffd7b12e2179702071356da57",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.558,
+        "peak_dbfs": -2.12,
+        "integrated_lufs": -18.77,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.1,
+        "crest_factor_db": 14.6,
+        "spectral_centroid_hz": 2631,
+        "energy_below_200hz_pct": 63.7,
+        "loudest_10ms_at_s": 0.036,
+        "first_2ms_peak": 0.4424,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -5e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "verified",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The +4 dB boost at 330 Hz imparts excessive boxiness and mud in the lower-mids, masking transient clarity.\n- It reads as a single heavy sci-fi cannon round rather than a three-beam \"split\" volley; there is minimal sense of acoustic spread or multi-beam discharge.\n- The image is essentially mono/centered, missing the lateral spatial width expected of three diverging energy beams.\n- The heavy ballistic sniper layer and sub drop dominate the mix, burying the crisp electric plasma signature that defines Ion against Ronin and Scorch.\n\nSUGGESTIONS:\n- Pull back 3–4 dB with a bell filter between 300 and 450 Hz (Q = 1.2) to eliminate the boxy buildup in the body.\n- Hard-pan or wide-pan the two detuned beam layers (0.94x and 1.06x) out to ±50% left and right to sell the wide tripartite spread.\n- Stagger the three beam transients with a subtle 4–8 ms micro-delay flam to clearly articulate multiple simultaneous beam discharges.\n- Boost the upper-mid electric crackle / zap layer between 4.5 kHz and 7 kHz by +2.5 dB so the Ion electric character cuts through the heavy sub.\n- Extend the stereo diffuse reflection tail out to 650–700 ms with an exponential fade to reinforce the 7 m titan scale in open combat space."
+    },
+    {
+      "file": "splitter/tail-1.ogg",
+      "group": "tf.splitter.tail",
+      "sha256": "3c02be6e3be3d8bc1c388176e75b5ff4f6190727bd26d76b207342e3b31ae195",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.206,
+        "peak_dbfs": -3.41,
+        "integrated_lufs": -24.2,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.4,
+        "crest_factor_db": 20.7,
+        "spectral_centroid_hz": 1115,
+        "energy_below_200hz_pct": 23.7,
+        "loudest_10ms_at_s": 0.027,
+        "first_2ms_peak": 0.0004,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 5e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 9\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The mono flanger introduces noticeable metallic comb-filtering and hollow phasing rather than an organic, ionized environmental reflection.\n- The thunder sub-bass layer (sub-180 Hz) feels slightly disconnected and boomy relative to the mid-frequency decay, threatening to clutter mech engine and footstep low-end.\n- A noticeable spectral dip around 600–1200 Hz creates a disjointed hollow gap between the deep rumble and the high-frequency sizzle.\n- Mono presentation limits the perceived scale of an outdoor titan-class acoustic reflection.\n\nSUGGESTIONS:\n- Reduce the flanger wet mix to 15–25% (or replace with a stereo micro-pitch detune of ±7 to 12 cents) to retain ionization flavor without hollow comb-filtering.\n- Add a high-pass filter at 45–55 Hz (18 dB/oct) on the thunder layer to remove unnecessary sub-rumble that competes with titan movement audio.\n- Broad boost of +2 to +3 dB around 700–900 Hz (Q 1.0) to bridge the low rumble and plasma top end for a fuller body decay.\n- Apply a stereo widening tool or short outdoor canyon convolution impulse response (100% wet, early reflections ducked) to spread the tail across the stereo field."
+    },
+    {
+      "file": "splitter/impact-1.ogg",
+      "group": "tf.splitter.impact",
+      "sha256": "99f3ff873688aa6b4ed95540b92f2b46496c8fefeb7b88b0c72f9ac47d97c95a",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.45,
+        "peak_dbfs": -2.13,
+        "integrated_lufs": -18.65,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.1,
+        "crest_factor_db": 16.9,
+        "spectral_centroid_hz": 2776,
+        "energy_below_200hz_pct": 40.0,
+        "loudest_10ms_at_s": 0.004,
+        "first_2ms_peak": 0.7827,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00018,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The synthesized pitch chirp (3.8 to 1.2 kHz) gives the transient a slight retro-arcade laser \"pew\" tonality rather than an ionized, high-tech plasma rupture.\n- Low-end weight (40% below 200 Hz) is quite massive for a semi-automatic / rapid-fire rifle round; chained hits will quickly clutter the low-frequency mix during heavy combat.\n- The welding sparks layer gets slightly swallowed behind the transient thump, reducing the sizzle tail that sells the electrical aftermath on titan armor.\n- Slight boxiness in the mid-range body where the pitched metal impact overlaps with the plasma crack.\n\nSUGGESTIONS:\n- Tighten the chirp envelope from 22 ms down to 8–12 ms, or add subtle white noise FM modulation to shift the attack from a tonal dive into an electrical crackle.\n- Apply a gentle low shelf (-3 dB below 120 Hz) or shorten the sub-thump decay by 30 ms to prevent low-end buildup during rapid fire.\n- Carve a narrow cut of 2 dB around 550–650 Hz on the metal impact layer to remove boxiness and clear space for the mid-range zap.\n- Boost the sparks layer by +2 dB using a high shelf above 5 kHz starting around 80 ms to make the electrical aftermath more pronounced."
+    },
+    {
+      "file": "splitter/impact-2.ogg",
+      "group": "tf.splitter.impact",
+      "sha256": "ae830b1690f6d1397c6ca81f37ba0cad70a75834b17e9840ed569187e949a662",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.45,
+        "peak_dbfs": -1.84,
+        "integrated_lufs": -18.58,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.8,
+        "crest_factor_db": 18.1,
+        "spectral_centroid_hz": 3870,
+        "energy_below_200hz_pct": 54.7,
+        "loudest_10ms_at_s": 0.003,
+        "first_2ms_peak": 0.7358,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.0001,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- Low-frequency energy (54.7% below 200 Hz) is overly dominant for a rapid-firing primary weapon round, threatening mix clutter during automatic/split fire.\n- The sheet-metal layer leaves a slightly hollow, boxy acoustic resonance around 450–700 Hz that clashes with the high-tech plasma aesthetic.\n- The electrical spark fizzle drops off slightly abruptly in the mid-highs between 120 ms and 250 ms, separating the transient snap from the sizzle tail.\n\nSUGGESTIONS:\n- High-pass or dynamic EQ the synthesized sub-thump below 65 Hz (18 dB/oct HPF) to leave headroom for titan footsteps and core abilities.\n- Dip 3 dB around 500–650 Hz with a medium Q (~1.8) on the pitched-down metal sheet layer to eliminate the hollow \"tin can\" tone.\n- Layer a continuous 4–8 kHz plasma sizzle tail starting at 30 ms and smoothly decaying to 350 ms to bridge the gap between the initial crack and the spark residue.\n- Shorten the sub dive envelope decay from its current length down to ~60–80 ms so consecutive impacts don't create low-end mud."
+    },
+    {
+      "file": "splitter/impact-3.ogg",
+      "group": "tf.splitter.impact",
+      "sha256": "d1e7bbdff717bc1e83a5f2fef2b399e83a143c97f840be0982b62e54c8616614",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.438,
+        "peak_dbfs": -2.32,
+        "integrated_lufs": -18.97,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.2,
+        "crest_factor_db": 17.34,
+        "spectral_centroid_hz": 4114,
+        "energy_below_200hz_pct": 45.5,
+        "loudest_10ms_at_s": 0.003,
+        "first_2ms_peak": 0.7653,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00044,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The synthesized 3.8 to 1.2 kHz pitch chirp is slightly too prominent and tonal, lending an arcade/retro laser flavor rather than a heavy industrial energy rupture.\n- There is a noticeable spectral scoop between the sub-bass thud and the sizzle (accentuated by the 270 Hz cut), leaving the armor impact feeling slightly thin in the lower-mids.\n- At -18.97 LUFS, the overall perceived loudness is somewhat low for a mech-scale weapon impact and risks getting masked in a chaotic combat mix.\n- The sub drop and the high-voltage crack feel slightly layered in parallel rather than physically bonded into a single unified shockwave.\n\nSUGGESTIONS:\n- Reduce the level of the synthetic ion chirp by 3–4 dB or shorten its decay from 22 ms to 10–12 ms so it functions as a transient click instead of a tonal chirp.\n- Undo or narrow the 270 Hz cut, and add a gentle broad bell boost (+2 to +3 dB) around 200–350 Hz to restore physical mass to the titan plating impact.\n- Pitch down the welding spark burst layer by 2–3 semitones to make the electrical debris sound more dangerous and heavy.\n- Apply mild saturation (soft-knee clipper or tape drive) across the combined transient bus to acoustically glue the high crack to the sub dive.\n- Increase master gain by 2.5 to 3.5 dB to push integrated loudness closer to -15 LUFS while keeping true peaks controlled."
+    },
+    {
+      "file": "splitter/reload-1.ogg",
+      "group": "tf.splitter.reload",
+      "sha256": "4c6dccbb9a044ed6c24f5f57db40dd4924c64dda5e87259efa08d3998941dc2e",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.5,
+        "peak_dbfs": -3.44,
+        "integrated_lufs": -20.0,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.4,
+        "crest_factor_db": 17.35,
+        "spectral_centroid_hz": 1634,
+        "energy_below_200hz_pct": 55.9,
+        "loudest_10ms_at_s": 1.064,
+        "first_2ms_peak": 0.2274,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.0
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The initial latch/eject (0.0–0.3 s) sounds like infantry-scale small-arms handling rather than a 7-meter Titan unlocking a massive energy core.\n- The charge-up whine is a generic, smooth tonal riser; it lacks the gritty electrical buzz, capacitor hum, or ionization crackle intrinsic to Ion’s high-voltage persona.\n- The final lock (1.06 s) has low-end weight, but the synthetic sub drop feels audibly detached from the acoustic clank instead of reading as one cohesive mechanical impact.\n- The -5 dB high shelf at 5 kHz neutered the bite of the mechanical latches, making the transient dull rather than crisp and cutting.\n\nSUGGESTIONS:\n- Layer a heavy pneumatic air hiss or pressurized clamp release (100–300 ms) on the initial eject, pitched down 5 semitones to establish massive chassis scale.\n- Thicken the charge whine by layering an electrical transformer hum (50/60 Hz fundamental with saturated odd harmonics at 150/250 Hz) and a light electrical buzz/arcing layer.\n- Glue the lock clank and sub drop together by sending both to a bus with fast tape saturation or punchy VCA compression (4:1 ratio, 15 ms attack, 40 ms release, 2–3 dB gain reduction).\n- Reduce the high-shelf attenuation at 5 kHz from -5 dB to -1.5 dB, and add a narrow +2.5 dB bell boost around 3.2 kHz on the final latch to give it a crisp, positive mechanical seating."
+    },
+    {
+      "file": "t203/fire-1.ogg",
+      "group": "tf.t203.fire",
+      "sha256": "8af6a6eae2cde57dcde65276eed15597e99c3120f37f3d46b49bc296913640b5",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.7,
+        "peak_dbfs": -2.15,
+        "integrated_lufs": -18.15,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.1,
+        "crest_factor_db": 13.62,
+        "spectral_centroid_hz": 2204,
+        "energy_below_200hz_pct": 59.8,
+        "loudest_10ms_at_s": 0.022,
+        "first_2ms_peak": 0.3857,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00059,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The initial transient is dominated by a sharp metallic clank rather than the pressurized pneumatic \"thump/bloof\" of an oversized heavy launcher barrel.\n- The 180 Hz cut removes some of the hollow chamber resonance needed to sell a massive 7-meter mech's launcher tube.\n- The thermite sizzle/fizzle layer decays concurrently with the sub thump, missing the opportunity to trail off as a distinct burning signature.\n- High-mid bite (2.5–4.5 kHz) from the breech impact and flare ignition makes the attack feel slightly small-arms scale rather than industrial artillery.\n\nSUGGESTIONS:\n- Restore or boost resonance around 180–240 Hz (+2 to +3 dB, Q ~ 1.5) on the mortar body to reinforce the hollow cylindrical bore tone.\n- Soften the initial breech clank transient with a fast attack compressor or dynamic EQ dipping 2.8–4 kHz by 3 dB during the first 15 ms.\n- Stagger the thermite hiss layer by delaying its onset 15–25 ms behind the main thump so it emerges cleanly from the blast pressure.\n- Let the thermite sizzle/fizzle decay out to ~0.75–0.80 s with a smooth tail, lingering slightly after the sub-bass completely dies down at 0.45 s.\n- Apply a rapid downward pitch envelope or low-pass sweep (e.g. 4 kHz down to 800 Hz over 80 ms) to the gas whoosh layer to enhance the heavy pneumatic muzzle expulsion."
+    },
+    {
+      "file": "t203/fire-2.ogg",
+      "group": "tf.t203.fire",
+      "sha256": "1f66ece23a6bd427746c74b87fc90165f5506826082e39450866d4b03806f0bd",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 7,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.696,
+        "peak_dbfs": -1.88,
+        "integrated_lufs": -17.76,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.9,
+        "crest_factor_db": 13.31,
+        "spectral_centroid_hz": 1851,
+        "energy_below_200hz_pct": 85.2,
+        "loudest_10ms_at_s": 0.01,
+        "first_2ms_peak": 0.5068,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -2e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 7\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The transient attack is muffled and lacks high-pressure mechanical snap; for a 7-meter mech, it reads more like a muffled distant mortar than an immediate cockpit/shoulder launch.\n- Extreme low-end concentration (over 85% below 200 Hz) creates a boomy, tubby resonance around 150–220 Hz that swallows transient punch.\n- The thermite hiss and crackle layer feels disconnected from the blast, entering as an isolated tail rather than an explosive ignition envelope.\n- The tail decay cuts off somewhat abruptly past 500 ms, leaving an unnatural drop into silence.\n\nSUGGESTIONS:\n- Layer or boost a sharp mechanical breech crack / gas-vent transient in the 2.5–4.5 kHz range over the first 15–25 ms to give the launch definition in a busy mix.\n- Apply a dynamic bell cut of -3 dB between 160–240 Hz to clear out tubby mud, allowing the sub thump (50–70 Hz) and mid-range clank to hit cleaner.\n- Bring the thermite crackle/fizzle forward by ducking it under the main thump transient for 30 ms, then boosting its level by +2 to +3 dB between 40 ms and 400 ms so the chemical burn feels violently ignited by the blast.\n- Lengthen the tail fade-out with a smoother exponential release out to ~750 ms to prevent the abrupt acoustic cutoff."
+    },
+    {
+      "file": "t203/fire-3.ogg",
+      "group": "tf.t203.fire",
+      "sha256": "de833e6bda62f9e60604792b9439eb518ccc5f983681be45fd0a794bf2d7929d",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.7,
+        "peak_dbfs": -2.02,
+        "integrated_lufs": -17.62,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.0,
+        "crest_factor_db": 13.91,
+        "spectral_centroid_hz": 3572,
+        "energy_below_200hz_pct": 68.2,
+        "loudest_10ms_at_s": 0.141,
+        "first_2ms_peak": 0.418,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00028,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The peak acoustic energy is delayed to ~140 ms, making the launch feel more like an ignition whoosh or slow mortar cough than an explosive mechanised launcher discharge.\n- The immediate onset (0–20 ms) is dominated by a thin, tinny clank that feels detached from the low-end weight.\n- Low-mid buildup around 250–450 Hz imparts a boxy, hollow resonance that softens transient punch.\n- The thermite fizzle/crackle sits on top as a separate texture rather than feeling ignited directly by the muzzle pressure.\n\nSUGGESTIONS:\n- Re-align the mortar body transient forward so its primary low-frequency peak aligns within 15–25 ms of the mechanical breech clank.\n- Add a dedicated sub-transient layer (sine sweep 140 Hz down to 50 Hz over 40–50 ms) to anchor immediate physical chest punch at 0 ms.\n- Apply a dynamic bell cut of -3 dB around 320 Hz (Q = 1.8) during the 50–250 ms window to clean out muddy boxiness.\n- High-pass the breech clank layer at 180 Hz and dip 1.2 kHz by -2 dB to remove the thin, tinny ring and keep it strictly mechanical.\n- Compress the thermite crackle layer with a fast sidechain keyed to the launch transient (ducking 3–4 dB for the first 30 ms) so it billows out naturally behind the blast."
+    },
+    {
+      "file": "t203/tail-1.ogg",
+      "group": "tf.t203.tail",
+      "sha256": "6536367c942c369462b823ba8abc8216379a6fbe83ea2eb34c905fbd7c07f55b",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 6,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.4,
+        "peak_dbfs": -6.68,
+        "integrated_lufs": -22.01,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -6.7,
+        "crest_factor_db": 14.31,
+        "spectral_centroid_hz": 808,
+        "energy_below_200hz_pct": 56.8,
+        "loudest_10ms_at_s": 0.285,
+        "first_2ms_peak": 0.0006,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00011,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 6\nOVERALL: 7\n\nPROBLEMS:\n- The incendiary signature is almost inaudible; the aggressive low-pass filter at 1.6–2 kHz strips away the thermite crackle and sizzle that separates Scorch from a standard ballistic cannon.\n- Mud build-up around 180–320 Hz gives the tail a boxy, muffled character rather than a massive, open-air low-frequency roll.\n- Lacks the metallic/hollow barrel reverberation unique to the T-203 canister launcher, leaving it sounding like a generic distant artillery reflection.\n- The 40 ms fade-in feels slightly sluggish to catch immediately behind the primary thump, creating a potential energy dip when layered.\n\nSUGGESTIONS:\n- Open up the top end: raise or remove the 1.6–2 kHz low-pass filter (or shelf up gently above 3 kHz) to allow genuine thermite hiss, spark pops, and gas venting to linger in the decay.\n- Apply a dynamic notch or bell cut of -3 to -4 dB around 220–280 Hz (Q = 1.8) to de-box the low-mid rumble and clarify the bottom octave.\n- Boost or saturate sub-weight between 55–85 Hz (+2 to +3 dB) using a subharmonic synth or saturation to give the tail real 7 m mech displacement pressure.\n- Shorten the fade-in to 10–15 ms so it binds seamlessly beneath the main transient layer without an audible volume drop.\n- Layer a resonant hollow pipe or metallic ringing impulse (tuned around 400–600 Hz with high damping) to reinforce the T-203 launcher's distinct barrel acoustics."
+    },
+    {
+      "file": "t203/mech-1.ogg",
+      "group": "tf.t203.mech",
+      "sha256": "e89545a9b3c0adbdc2fa8510dd521b55fdb2fbe0a107a46e2c58df4be8c82cc4",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.78,
+        "peak_dbfs": -3.36,
+        "integrated_lufs": -19.09,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.3,
+        "crest_factor_db": 14.6,
+        "spectral_centroid_hz": 1924,
+        "energy_below_200hz_pct": 69.2,
+        "loudest_10ms_at_s": 0.584,
+        "first_2ms_peak": 0.0141,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00018,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The initial prep/rack movement (0.0–0.5 s) sounds like a pitched-down handheld shotgun slide; it lacks the mass, friction, and hydraulic weight expected of a 7-meter mech breech mechanism.\n- The -5 dB high shelf at 5 kHz softens the initial impact transient of the slam at 0.58 s, giving the latch a slightly muffled character rather than a sharp, hardened-steel bite.\n- The electric servo layer is largely swallowed by the mechanical clatter and does not read clearly as an automated mech assist.\n- The synthesized sub thump decay is slightly loose, which could muddy up rapid combat sequences or overlap with thermite burning tails.\n\nSUGGESTIONS:\n- Ease or remove the 5 kHz high shelf specifically on the closing transient, adding a narrow +2 to +3 dB bell at 3.5–4.5 kHz to give the locking latch a crisp, authoritative metallic snap.\n- Layer a heavy hydraulic whine or pneumatic actuator stroke (pitch-swept down from 600 Hz to 250 Hz) during the first 400 ms to give the opening/sliding motion true mech-scale mass.\n- Add a brief pneumatic pressure release / gas seal hiss (50–80 ms, bandpassed between 2 kHz and 7 kHz) immediately following the slam at 0.58 s to sell an airtight thermite chamber lock.\n- Shorten the sub thump’s exponential decay time to roughly 120–150 ms to keep the low-end punch tight and preserve headroom for explosions and weapon fire.\n- Bring the servo layer up by +3 dB in the 800–2000 Hz range during the 0.1–0.4 s window to emphasize the automated loading sequence."
+    },
+    {
+      "file": "t203/mech-2.ogg",
+      "group": "tf.t203.mech",
+      "sha256": "43d743d5f597e79a455ed66f84dc3e037cd176d6e74de7a9babe3b3e7db0fd87",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.75,
+        "peak_dbfs": -3.25,
+        "integrated_lufs": -19.14,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.2,
+        "crest_factor_db": 18.41,
+        "spectral_centroid_hz": 1751,
+        "energy_below_200hz_pct": 42.1,
+        "loudest_10ms_at_s": 0.505,
+        "first_2ms_peak": 0.0004,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00013,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The opening shell slide and latch (0.0–0.45 s) sound like handheld infantry weapon handling (RPG/shotgun scale) rather than a 7-meter mech loading a massive 203 mm thermite canister.\n- The sub drop at 0.5 s sounds slightly detached from the metal clank rather than feeling like the natural low-frequency acoustic body resonance of the breech.\n- The high-shelf attenuation (-5 dB at 5 kHz) muffles the transient crack of the locking lugs, leaving the impact feeling somewhat dull and boxy.\n- Lacks Scorch-specific mechanical character—missing the pneumatic seal hiss, heavy hydraulic slide, or clunky industrial lockup expected of a thermite launcher.\n\nSUGGESTIONS:\n- Pitch down the pre-slam handling and latch sounds by an additional 4 to 6 semitones, or blend in a heavy mechanical servo/pneumatic ram to establish giant mech scale.\n- Saturate or soft-clip the synthesized sub layer so its upper harmonics glue into the 80–180 Hz region of the metal impact instead of sounding like an isolated sine tone.\n- Back off the high shelf at 5 kHz (change from -5 dB to -2 dB) and add a narrow +2 dB bell around 3.5 kHz on the final transient to give the locking teeth crisp mechanical definition.\n- Apply a gentle notch or bell cut of -2.5 dB around 450–600 Hz on the metal impact to reduce the hollow, boxy foley resonance.\n- Layer a short, gated pneumatic air puff/pressure release (50–80 ms decay) precisely when the breech locks home at ~0.5 s to sell an airtight, heavy-duty industrial seal."
+    },
+    {
+      "file": "t203/impact-1.ogg",
+      "group": "tf.t203.impact",
+      "sha256": "8bd108bb5801a14133c5e9c138d4a909382560c1a9c502f5216868a701a96250",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 1.426,
+        "peak_dbfs": -1.83,
+        "integrated_lufs": -20.14,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.8,
+        "crest_factor_db": 16.93,
+        "spectral_centroid_hz": 3917,
+        "energy_below_200hz_pct": 81.1,
+        "loudest_10ms_at_s": 0.006,
+        "first_2ms_peak": 0.4282,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00032,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The high-frequency fizzle sounds slightly like consumer sparklers or small firecrackers rather than heavy, violent, military-grade thermite burning on armor plate.\n- There is a slight disconnect between the sub-bass thump and the high sizzle due to a thin low-mid range (250–500 Hz), making the impact feel hollow rather than dense.\n- At -20.1 LUFS, the body and tail of the burn drop off quickly after the transient and will easily get buried under combat noise and engine rumbles.\n\nSUGGESTIONS:\n- Pitch down the firecracker/fizzle layer by 4 to 6 semitones to transform tiny pop transients into thick, bubbling, molten chemical slag.\n- Add a +2.5 dB broad bell boost around 280–400 Hz on the combustion roar layer to glue the sub boom to the top sizzle.\n- Layer in a gritty, pressurized air/blowtorch loop (bandpassed between 400 Hz and 3.5 kHz) under the tail to give continuous burning power rather than just crackles.\n- Apply light parallel saturation or gentle bus compression (2:1 ratio, 30 ms attack, 120 ms release) to lift the sizzle tail by +2 to +3 dB relative to the initial impact spike."
+    },
+    {
+      "file": "t203/impact-2.ogg",
+      "group": "tf.t203.impact",
+      "sha256": "cc036c26131bfa7ec947e6ff58c7fc872321c6511a2252dcc840171375c419ac",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.435,
+        "peak_dbfs": -1.87,
+        "integrated_lufs": -20.67,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.9,
+        "crest_factor_db": 16.29,
+        "spectral_centroid_hz": 3449,
+        "energy_below_200hz_pct": 83.9,
+        "loudest_10ms_at_s": 0.007,
+        "first_2ms_peak": 0.2722,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00029,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The overall loudness is significantly too low (-20.7 LUFS) with a high 16.3 dB crest factor; the body and thermite burn decay quickly into near-inaudibility behind the initial peak.\n- The mid-range (250–600 Hz) feels scooped, separating the sub-bass thump from the high crack and making the impact sound hollow rather than dense and heavy.\n- The fire tail reads more like domestic fireworks/frying sizzle than a violent, pressurized chemical thermite reaction melting mech armor.\n- The pitch-dropping sub synth feels slightly detached from the acoustic explosion layer rather than behaving as one cohesive acoustic pressure wave.\n\nSUGGESTIONS:\n- Bring integrated loudness up to around -15 to -16 LUFS using parallel compression (30 ms attack, 120 ms release) on the tail layers to bring out the fire and burn details.\n- Add +3 dB around 200–350 Hz (Q = 1.0) on the explosion body to fill the low-mid hollow and deliver physical weight appropriate for a 7 m titan weapon.\n- Layer a pressurized blowtorch or jet-engine combustion whoosh in the 600 Hz–2.5 kHz range to give the thermite an aggressive, roaring identity instead of small firecracker crackles.\n- Pull back the thin high-end hiss on the sizzle layer with a -3 dB high shelf above 7 kHz, and drive 1.5–4 kHz through mild tape saturation to create a hotter, molten texture.\n- Bus the sub-thump and main explosion blast together through subtle overdrive or soft clipping (drive by 1.5–2 dB) to bind the synthesized drop into the organic blast."
+    },
+    {
+      "file": "t203/impact-3.ogg",
+      "group": "tf.t203.impact",
+      "sha256": "2010abdf560cd65b1ea8847742b27373a93ba4287d5eed43f1caa903def5ba35",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 6,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 9,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 1.469,
+        "peak_dbfs": -2.51,
+        "integrated_lufs": -20.21,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.5,
+        "crest_factor_db": 16.93,
+        "spectral_centroid_hz": 1891,
+        "energy_below_200hz_pct": 72.8,
+        "loudest_10ms_at_s": 0.006,
+        "first_2ms_peak": 0.2353,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00028,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 6\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 9\nOVERALL: 8\n\nPROBLEMS:\n- The initial impact transient is soft and muffled; it delivers low-end weight, but lacks the sharp mechanical canister rupture or blast snap needed to convey an explosive impact against mech armor.\n- Muddy energy buildup between 160 Hz and 300 Hz clutters the transition from the explosive thump into the combustion whoosh.\n- At -20.2 LUFS, the overall loudness is conservative; the subtle crackles and sizzles in the tail risk being completely masked in a chaotic titan combat mix.\n- The chemical flare sizzle lacks presence in the top octave (6–10 kHz), making the thermite feel slightly damp rather than violently hot and searing.\n\nSUGGESTIONS:\n- Layer a sharp, high-pressure transient click/rupture (e.g. metal canister crack or sharp mortar report) in the first 10–25 ms to give the front edge immediate definition.\n- Apply a dynamic or bell EQ cut of -2.5 dB around 220 Hz (Q = 1.4) to clean out the muddy boxiness and separate the sub thud from the flame roar.\n- Boost a high shelf by +2 to +3 dB above 6.5 kHz specifically on the road flare and firecracker crackle layers to give the thermite sizzle more aggressive, searing bite.\n- Increase overall gain or adjust limiter threshold to push integrated loudness to around -17 to -18 LUFS so the tail details survive in-game ducking and mix competition."
+    },
+    {
+      "file": "t203/burn-1.ogg",
+      "group": "tf.t203.burn",
+      "sha256": "247aaf27b080c08a44c078728dcbc271f196475a66e675b8cf857e1fc3635607",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 2.795,
+        "peak_dbfs": -4.06,
+        "integrated_lufs": -22.03,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -4.1,
+        "crest_factor_db": 18.38,
+        "spectral_centroid_hz": 3909,
+        "energy_below_200hz_pct": 72.3,
+        "loudest_10ms_at_s": 0.252,
+        "first_2ms_peak": 0.0,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -8e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The upper-frequency texture leans noticeably toward domestic frying pan sizzle / campfire crackle rather than the violent, superheated chemical reaction of burning thermite.\n- Spectral separation between the low rumble (95 Hz) and the high sizzle (>2 kHz) creates a hollow midrange hole between 400 Hz and 1.5 kHz during the sustained decay.\n- The low-end weight decays too rapidly around 1.2–1.5 s, leaving the final 1.2 seconds sounding thin and detached from the 7-meter titan scale.\n- Lacks the pressurized jet hiss and metallic molten bubbling that make Scorch's thermite immediately identifiable in a busy mix.\n\nSUGGESTIONS:\n- Replace or reinforce the frying sizzle layer with a pressurized welding torch or magnesium road flare layer, focused between 1.5 kHz and 4 kHz, to impart aggressive chemical velocity.\n- Dip 3 kHz – 5 kHz with a gentle dynamic EQ (-3 dB) to tame the bacon-frying spatter character.\n- Fill the 300–800 Hz range with pitched-down (0.4x–0.6x) molten lava bubbles or wet mud spatter to evoke boiling liquid metal slag.\n- Extend the low-end body (100–220 Hz combustion bed) through to 2.2 s with a gentle exponential fade rather than cutting off the weight early.\n- Apply subtle pitch modulation (chorus or subtle phaser at low depth) across the sustained fire layer to simulate fluctuating convective heat distortion."
+    },
+    {
+      "file": "railgun/charge-1.ogg",
+      "group": "tf.railgun.charge",
+      "sha256": "ff562ff018ed356dc8eab9cd66d0257d026526bf1c3056ef21f19e5fa9e82653",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 10,
+        "DISTINCTNESS": 9,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 1.6,
+        "peak_dbfs": -2.44,
+        "integrated_lufs": -18.0,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.4,
+        "crest_factor_db": 14.07,
+        "spectral_centroid_hz": 3062,
+        "energy_below_200hz_pct": 78.9,
+        "loudest_10ms_at_s": 1.56,
+        "first_2ms_peak": 0.0021,
+        "last_2ms_peak": 0.0002,
+        "dc_offset": 0.00035
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 10\nDISTINCTNESS: 9\nOVERALL: 8\n\nPROBLEMS:\n- The midrange (350–800 Hz) feels scooped, leaving the sub sweep and upper electric whines sounding layered rather than fused into a single mechanical chassis.\n- The upper laser charge layer leans slightly arcade/sci-fi, lacking the gritty industrial weight of a 7-meter titan capacitor bank.\n- The sub sweep is too clean and pure, lacking harmonic saturation to bridge into the lower mids.\n- The 18 Hz tremolo in the final 300 ms feels like a static LFO modulation rather than violent, accelerating electrical instability.\n\nSUGGESTIONS:\n- Apply tape or tube saturation to the 40–120 Hz sub sweep so odd/even harmonics blossom into 150–300 Hz as charge accumulates.\n- Add a resonant mechanical layer or chassis hum around 450–650 Hz that swells alongside the whine to ground the weapon inside a heavy mech frame.\n- Accelerate the tremolo rate over the final 300 ms (e.g., ramping from 12 Hz up to 30 Hz) to convey critical capacitor overload.\n- Apply a dynamic EQ dip of 2 dB around 3.2 kHz to keep the peak laser whine from fatiguing the ear at combat playback volumes.\n- Drive the Tesla coil layer through mild soft-clipping or warm overdrive during the final 400 ms to give the arcing a nastier, unstable bite before the shot."
+    },
+    {
+      "file": "railgun/hold-1.ogg",
+      "group": "tf.railgun.hold",
+      "sha256": "f9e0df2ce18679ac9abcb3d02bb4c889fefb51b319475069492e1a82a557c3bf",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.6,
+        "peak_dbfs": -5.74,
+        "integrated_lufs": -18.0,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -5.7,
+        "crest_factor_db": 10.44,
+        "spectral_centroid_hz": 2206,
+        "energy_below_200hz_pct": 76.6,
+        "loudest_10ms_at_s": 0.245,
+        "first_2ms_peak": 0.2191,
+        "last_2ms_peak": 0.2811,
+        "dc_offset": 6e-05
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 9\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The Tesla buzz layer sounds like a tabletop coil or flickering neon transformer rather than a colossal mech capacitor bank holding megawatts of kinetic potential.\n- The synthesized 58 Hz / 160 Hz sine body and the high raspy buzz feel disconnected in timbre; they read as two parallel layers rather than one unified, vibrating weapon chassis.\n- The 5 Hz tremolo is too gentle and regular; a fully charged hold should sound dangerously unstable and straining against containment.\n- Lacks the high-frequency magnetic coil whine and localized air-ionization crackle characteristic of Northstar's hypervelocity railgun identity.\n\nSUGGESTIONS:\n- Add a high-stress magnetic coil whine layer centered between 3.5 kHz and 5.5 kHz with a subtle 6–8 Hz vibrato (pitch LFO) to sell immense voltage pressure.\n- Run the sub sines and the Tesla layer through a shared warm saturation/tape drive to glue the low-end weight to the midrange buzz.\n- Notch 2–3 dB around 1.8 kHz to soften the hollow \"bee buzz\" timbre, while boosting around 250–350 Hz to give the weapon housing acoustic bulk.\n- Layer subtle, randomized micro-arcs or spit/sizzle in the 8–12 kHz register to convey ionized air near the barrel rails.\n- Deepen the tremolo/pulsing modulation to 18–25% depth or add slight pitch flutter (±20 cents) to impart a tense, shivering instability while held."
+    },
+    {
+      "file": "railgun/ready-1.ogg",
+      "group": "tf.railgun.ready",
+      "sha256": "4ad0e5b17a1fd1275c603b178f62f4707b270f722ad64181cf3b6d0f26fdb94c",
+      "scores": {
+        "FIT": 6,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.42,
+        "peak_dbfs": -5.79,
+        "integrated_lufs": -20.0,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -5.8,
+        "crest_factor_db": 14.99,
+        "spectral_centroid_hz": 2191,
+        "energy_below_200hz_pct": 0.0,
+        "loudest_10ms_at_s": 0.038,
+        "first_2ms_peak": 0.0823,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.0
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 6\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The acoustic gong/bell layer dominates the texture, resulting in an organic temple-bell or metal pipe chime rather than a high-tech sci-fi HUD or capacitor lock cue.\n- The transient has a hollow physical clang around 1.5–2.5 kHz that clashes with the sleek, hypervelocity electronic identity of Northstar.\n- The two-step synthesized chime and rising chirp sit too far behind the gong crash, making them feel like an afterthought rather than the primary electronic carrier.\n- Lacks low-mid electric grounding or subtle sub-harmonic click to feel tied to a massive 7-meter titan chassis.\n\nSUGGESTIONS:\n- Attenuate or completely replace the acoustic gong crash with a pure synthesized FM tone (carrier:modulator ratio 1:2 or 1:3) or synthesized resonance ping to achieve a clean sci-fi charge lock.\n- Notch down the resonant acoustic ring at 1.8 kHz to 2.4 kHz by 4–6 dB with a narrow Q (3.0) to remove the \"brass bowl\" flavor.\n- Boost the level of the rising chirp and synthetic sines by +3 to +4 dB relative to the clang to shift the perceived source from mechanical striking to capacitor completion.\n- Add a tiny, subtle sub-transient click (sine sweep 120 Hz down to 50 Hz over 15 ms, low in the mix) to give tactile cockpit impact without muddying the high-frequency ping.\n- Apply subtle chorus, stereo widening, or flanging to the tail of the chime to give it a shimmering plasma/energy field character.\n- Shorten the overall tail slightly via an exponential fade starting at 200 ms down to zero at 320 ms so it resets crisply before the trigger is pulled."
+    },
+    {
+      "file": "railgun/fire-1.ogg",
+      "group": "tf.railgun.fire",
+      "sha256": "f10a09637fbf9034d5b8df6b2752840cbedce25300923e4fa2f0a2e1f8b5e04b",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.206,
+        "peak_dbfs": -1.45,
+        "integrated_lufs": -19.88,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.4,
+        "crest_factor_db": 17.0,
+        "spectral_centroid_hz": 3252,
+        "energy_below_200hz_pct": 43.4,
+        "loudest_10ms_at_s": 0.037,
+        "first_2ms_peak": 0.7838,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00089,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The spectral centroid (3252 Hz) is too high and thin for Northstar's primary cannon; excessive high-frequency sizzle overpowers the body, making it sound closer to Ion's electric kit than a devastating titan railgun.\n- Lacks low-mid concussive punch in the 90–200 Hz region; the crest factor is high (17 dB) and overall loudness (-19.9 LUFS) is too conservative, leaving the impact feeling hollow rather than chest-slamming.\n- The synthesized sub drop and the transient crack feel disconnected in timing and phase, failing to gel as a single hypervelocity slug impact.\n- The high-voltage arc/spark layer sits too wide and dry in the decay, masking the thunderous low-end tail roll.\n\nSUGGESTIONS:\n- Boost 110–180 Hz with a wide bell (+3 to +4 dB) and apply gentle saturation (tape or soft-clip) to glue the transient snap to the low-frequency body.\n- Shelf down frequencies above 5 kHz by -3 to -4 dB across the Jacob's ladder/HV arc layers so the sizzle sits behind the cannon rupture rather than in front.\n- Time-align the sub thump transient precisely to start 5–10 ms earlier (aligned with the supersonic .50 crack peak) to concentrate transient power into a single coherent blow.\n- Increase RMS weight and perceived loudness: compress the bus with a 30 ms attack, 100 ms release (2:1 ratio), then limit to bring integrated loudness closer to -14 to -16 LUFS."
+    },
+    {
+      "file": "railgun/fire-2.ogg",
+      "group": "tf.railgun.fire",
+      "sha256": "190a724a33d79d58a3da37a3505fa8b14657f87f3d5df085491321d0c5dcd41d",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 7,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.259,
+        "peak_dbfs": -1.64,
+        "integrated_lufs": -19.79,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.6,
+        "crest_factor_db": 18.33,
+        "spectral_centroid_hz": 3499,
+        "energy_below_200hz_pct": 68.7,
+        "loudest_10ms_at_s": 0.028,
+        "first_2ms_peak": 0.7715,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00019,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 7\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The dynamic range is too extreme (crest factor 18.3 dB, -19.8 LUFS); the sharp initial transient eats available headroom, leaving the body and sub-bass feeling thin and quiet in a game mix.\n- Lacks deep, physical chest punch; the low end below 80 Hz feels diffuse and acoustic rather than a concentrated 7-meter mech weapon discharge.\n- The transient reads primarily as a standard ballistic field cannon rather than Northstar's signature hypervelocity tearing plasma crack.\n- The mid-body decays too quickly around 250–350 ms, causing the electric crackle tail to feel disconnected and weak rather than riding a cohesive thunderous wave.\n\nSUGGESTIONS:\n- Soft-clip or hard-limit the initial 0–25 ms transient spike by 3 to 4 dB to allow the overall shot to be pushed up closer to -15 LUFS.\n- Layer a tight, punchy sub-bass drop (pure/saturated sine wave swept from 130 Hz down to 45 Hz over ~180 ms) to anchor the low-end mech weight.\n- Introduce a high-frequency supersonic \"vacuum rip\" or sonic crack layer (filtered white noise / tearing whip in the 2.5–7 kHz range) right at time 0 to sell extreme projectile velocity.\n- Boost 180–350 Hz by +2 to +3 dB with a wide bell on the body layer to add mechanical fullness and eliminate the hollow sensation.\n- Bring up the HV crackle tail volume by +2.5 dB between 300 ms and 900 ms, and apply gentle parallel saturation to glue the electric sizzle to the decaying boom."
+    },
+    {
+      "file": "railgun/fire-3.ogg",
+      "group": "tf.railgun.fire",
+      "sha256": "435f4e7e1ec385f22b36fa176179a1e11ce4d53169c89630a30579f78ab27e34",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.3,
+        "peak_dbfs": -1.25,
+        "integrated_lufs": -20.24,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.3,
+        "crest_factor_db": 17.11,
+        "spectral_centroid_hz": 3387,
+        "energy_below_200hz_pct": 48.3,
+        "loudest_10ms_at_s": 0.017,
+        "first_2ms_peak": 0.8505,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00011,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The transient lacks the razor-sharp supersonic crack (5–8 kHz whip) characteristic of a hypervelocity railgun slug, leaning closer to a conventional artillery blast with an electric tail.\n- At -20.24 LUFS, integrated loudness and density are too low for the mech chassis' heaviest single shot; it lacks perceived weight and sustained kinetic presence.\n- Boxy buildup and phase smearing in the 300–500 Hz range from layering the ultra-heavy cannon, heavy metal impact, and pitched laser, muddying the low-mid punch.\n- The sub-bass impact (40–80 Hz) feels detached from the initial crack, blooming slightly late rather than delivering a synchronized chest hit on frame 1.\n- The electric Jacob's ladder layer sounds like a static sample placed on top rather than being ionized into the core blast, thinning out quickly into a raspy sizzle.\n\nSUGGESTIONS:\n- Add a dedicated, hyper-fast supersonic whip crack transient layer (0–40 ms, high-pass at 2.5 kHz, boost +3 dB around 6 kHz) aligned precisely at 0 ms.\n- Dip 3 dB with a medium Q (1.8) around 350–450 Hz on the cannon/impact bus to clean up boxiness and carve out room for the sub and high crack.\n- Re-align the synthesized pitch-dropping sine (170 -> 55 Hz) so its peak phase cycle hits exactly on the first 5 ms of the transient for an immediate chest punch.\n- Saturate the Jacob's ladder / discharge layer with aggressive tape or tube drive, then blend it into the body using a transient-triggered sidechain ducker so the arc emerges organically out of the initial crack.\n- Apply parallel distortion/compression (e.g., 20–30 ms release, fast attack) focused on the 80–250 Hz punch to push integrated loudness up toward -16 to -17 LUFS."
+    },
+    {
+      "file": "railgun/tail-2.ogg",
+      "group": "tf.railgun.tail",
+      "sha256": "2807c8278be49c87965155325bb7951d09cb001de2dc1e6ba87fcf3ad4586c57",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 2.669,
+        "peak_dbfs": -3.96,
+        "integrated_lufs": -21.02,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.9,
+        "crest_factor_db": 17.89,
+        "spectral_centroid_hz": 3407,
+        "energy_below_200hz_pct": 34.1,
+        "loudest_10ms_at_s": 0.452,
+        "first_2ms_peak": 0.0,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -3e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "verified",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The loudness peaks late at ~450 ms; unless intentionally delayed for projectile travel, this creates a reverse-swell sensation rather than a smooth, continuous handoff from the primary shot transient.\n- The high-frequency welding crackle above 3 kHz sits slightly detached on top of the mix like topical white noise rather than an integrated ionization field.\n- Low-mid accumulation between 160 Hz and 260 Hz causes a boomy, congested cloud in the core thunder body.\n- The synthesized falling plasma resonance is somewhat swallowed by the competing rumble and top-end crackle, losing some sci-fi readability.\n\nSUGGESTIONS:\n- Shorten the initial fade-in from 60 ms to 10–20 ms and pull down the 450 ms peak so the tail begins at maximum amplitude and decays monotonically.\n- Low-pass or soft-shelf the welding crackle layer at 6.5 kHz (12 dB/oct) and lower it by 2 dB to embed it inside the tail rather than letting it sit on top as fizz.\n- Cut 2.5 dB around 200 Hz (Q = 1.4) to clean up low-mid mud and let the sub-100 Hz weight carry the scale.\n- Boost the falling plasma sweep (1.8 kHz -> 550 Hz) by +2 dB or apply mild saturation (tape/tube drive) to thicken its harmonics against the thunder rumble.\n- Apply gentle bus compression (1.5:1 ratio, 30 ms attack, 150 ms release) across the combined layers to glue the synthetic tone and organic thunder into a single acoustic discharge."
+    },
+    {
+      "file": "railgun/impact-2.ogg",
+      "group": "tf.railgun.impact",
+      "sha256": "e17635e9022aa3f0f363e5c9099a92d1f97347ca90c8fb3f2c59afb351df3f4e",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 8,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 7,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.85,
+        "peak_dbfs": -2.13,
+        "integrated_lufs": -15.4,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.1,
+        "crest_factor_db": 12.41,
+        "spectral_centroid_hz": 2735,
+        "energy_below_200hz_pct": 69.9,
+        "loudest_10ms_at_s": 0.025,
+        "first_2ms_peak": 0.5785,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00052
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 8\nCLEANLINESS: 8\nLENGTH_TAIL: 7\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The metallic component has a hollow, sheet-metal/dumpster clang character rather than dense, heavy mech armor penetration.\n- The electric discharge layer sits too quiet and separate in the mid/tail rather than bursting aggressively out of the initial kinetic rupture.\n- Boxy mid-frequency congestion between 400 Hz and 800 Hz (likely from the robot footstep layer) softens the impact's definition.\n- The tail tapers off linearly into a mild buzz, lacking the searing plasma dissipation or rolling sub rumble of a hypervelocity railgun slug.\n\nSUGGESTIONS:\n- Cut 3–4 dB around 500–750 Hz on the composite crunch/metal layer to clear out hollow boxiness and tighten transient punch.\n- Boost the electric Jacob's ladder layer by +2.5 dB and apply a high shelf (+3 dB above 3.5 kHz) so the discharge sizzle bites clearly through the metal clang.\n- Layer a fast downward frequency sweep/zap (e.g. 6 kHz down to 800 Hz over 40 ms) tightly on the transient (0–40 ms) to sell the ionized plasma crack.\n- Replace or darken the hollow metal smash ring with a dense, non-resonant armor deformation transient (pitch down an additional 3–5 semitones or low-pass at 4 kHz).\n- Allow the sub-bass layer (50–90 Hz) to ring out slightly longer with a smooth 150 ms exponential decay so the kinetic weight rolls into the tail."
+    },
+    {
+      "file": "leadwall/fire-1.ogg",
+      "group": "tf.leadwall.fire",
+      "sha256": "b38903a473b0491ce71c8f4780b715b25b8ebfe56f86a579b9c2082de01039d1",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.78,
+        "peak_dbfs": -1.57,
+        "integrated_lufs": -16.62,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.6,
+        "crest_factor_db": 13.9,
+        "spectral_centroid_hz": 2476,
+        "energy_below_200hz_pct": 29.4,
+        "loudest_10ms_at_s": 0.015,
+        "first_2ms_peak": 0.1285,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 8e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The mid-range scoop (-3 dB at 260 Hz, -3.5 dB at 500 Hz) slightly hollows out the chamber resonance, making the blast feel like a pitched-down infantry weapon rather than a massive 7-meter mech's wide-bore barrel.\n- The faint high-voltage discharge crack layer adds high-frequency electrical sizzle that slightly blurs its ballistic identity against Ion and Northstar.\n- The synthetic sub-bass drop feels somewhat separated from the natural blast acoustic tail rather than a unified kinetic air-displacement wave.\n\nSUGGESTIONS:\n- Restore 2 to 3 dB between 280 Hz and 450 Hz to add physical acoustic mass and chassis rattle to the shotgun body.\n- Drop or remove the HV discharge crack layer (HP 2.5 kHz) completely to keep the weapon purely ballistic, heavy, and distinct from electric titan weapons.\n- Tighten the sub-thump pitch drop envelope duration to the first 40–70 ms so low-end energy delivers instantaneous punch instead of a trailing synth sweep.\n- Apply gentle parallel bus saturation (tape or warm tube style) across the shotgun and tank cannon layers to glue the mechanical slap to the low-frequency body.\n- Add a +1.5 dB wide bell boost centered at 130–160 Hz to enhance physical chest punch."
+    },
+    {
+      "file": "leadwall/fire-2.ogg",
+      "group": "tf.leadwall.fire",
+      "sha256": "b160870fdcdd23accdfdf04004f06a937a3b037d5832ab9cba0fe1e408836ccc",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.78,
+        "peak_dbfs": -1.42,
+        "integrated_lufs": -16.09,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.4,
+        "crest_factor_db": 12.78,
+        "spectral_centroid_hz": 1736,
+        "energy_below_200hz_pct": 65.2,
+        "loudest_10ms_at_s": 0.062,
+        "first_2ms_peak": 0.4311,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00062,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "rebuild",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- Scale is slightly undersized for a 7-meter mech; the initial blast reads more like an infantry heavy 8-gauge or 20mm anti-materiel rifle than a titan-class multi-barrel spread cannon.\n- The mid-body scoop (-3 dB at 260 Hz and -3.5 dB at 500 Hz) leaves a hollow gap between the high-frequency snap and the sub-thump, robbing the shot of meaty chest impact.\n- The mechanical bolt strike layer is masked by the blast transient and lacks heavy low-end acoustic mass/resonance.\n\nSUGGESTIONS:\n- Boost the low-mid body by +2.5 dB around 120–180 Hz with a wide Q (0.7) to add thick ballistic air displacement.\n- Back off the cut at 260 Hz to -1.0 dB to retain the acoustic resonance and barrel warmth of a giant bore.\n- Pitch down the heavy bolt strike layer by another 3 to 5 semitones and delay it by 15–25 ms to let the mechanical clank read distinctly behind the primary muzzle flash.\n- Layer a heavy, wide stereo debris/shrapnel scatter or multi-pellet air rip across 100–350 ms to sell the distinct multi-projectile \"wall of lead\" identity.\n- Apply a slight transient shaper boost (+1.5 dB attack) clamped strictly between 80 Hz and 250 Hz to give the initial wallop more physical punch without making the top end harsh."
+    },
+    {
+      "file": "leadwall/fire-3.ogg",
+      "group": "tf.leadwall.fire",
+      "sha256": "fa96023760b5697563b57bb6e70b26ceec06a0b35e2115df7ade769312cef203",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.78,
+        "peak_dbfs": -1.25,
+        "integrated_lufs": -16.25,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -1.2,
+        "crest_factor_db": 13.5,
+        "spectral_centroid_hz": 2566,
+        "energy_below_200hz_pct": 38.8,
+        "loudest_10ms_at_s": 0.007,
+        "first_2ms_peak": 0.671,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00034,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The synth sub drop and top-end crack feel slightly decoupled, leaving a hollow pocket in the lower-mids due to the combined cuts at 260 Hz and 500 Hz.\n- The initial attack leans slightly light/papery; the sheet-metal slap lacks the dense mechanical breech mass expected from a 7-meter mech weapon.\n- The faint high-voltage crack subtly blurs weapon identity toward Ion and Northstar instead of leaning purely into raw ballistic gunpowder and steel.\n- Tail decay is somewhat generic explosion tail, missing the tactile signature of a wide canister spread or heavy cycling mechanisms.\n\nSUGGESTIONS:\n- Restore 1.5–2.5 dB around 180–240 Hz to bridge the sub thump and mid transient, restoring body and chest punch.\n- Remove the HV crack layer and replace it with a heavy mechanical bolt/breech slam layered at 0–30 ms to emphasize Titan-scale mechanics.\n- Apply gentle parallel saturation (tape or soft-clip) on the combined sub and shotgun body to glue the synthesized drop to the acoustic sample.\n- Add a subtle, fast-decaying (30–60 ms) multi-transient pellet/canister scatter layer to reinforce the multi-projectile shotgun identity.\n- Ease off the +2 dB boost at 3.2 kHz down to +0.5 dB to prevent the initial transient from feeling like a handheld firearm rather than an oversized cannon."
+    },
+    {
+      "file": "leadwall/tail-1.ogg",
+      "group": "tf.leadwall.tail",
+      "sha256": "9d33973299a47c53035056ea770519a3521f07de62a8206849c812c00d27ad10",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 6,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.249,
+        "peak_dbfs": -2.87,
+        "integrated_lufs": -22.5,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.8,
+        "crest_factor_db": 19.63,
+        "spectral_centroid_hz": 1576,
+        "energy_below_200hz_pct": 21.1,
+        "loudest_10ms_at_s": 0.064,
+        "first_2ms_peak": 0.0,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -3e-05
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 6\nOVERALL: 7\n\nPROBLEMS:\n- Scale feels infantry-sized rather than a 7-meter titan shotgun; the SM57 close-mic character dominates over a massive open-world acoustic environment.\n- Low-end weight lacks sustained sub power (only 21% energy below 200 Hz); the thunder layer is overshadowed by the mid-range shotgun reflections.\n- A noticeable boxy resonance sits around 450–700 Hz, making the tail sound like a small clearing or berm reflection rather than a broad, epic outdoor decay.\n- Stereo width and spatial diffusion are narrow; an outdoor tail for a mech weapon needs wider, sprawling stereo dispersion.\n\nSUGGESTIONS:\n- Boost sub weight with a low shelf +3 to +4 dB at 60–90 Hz on the thunder layer to sell the mass of a mech-scale shot.\n- Notch 3–4 dB with a parametric bell around 500–650 Hz (Q = 1.8) to remove boxiness and clear space for ambient rumble.\n- Apply a stereo widener, mid-side processing, or convolution outdoor space IR (100% wet, 1.2 s decay) to spread the mono SM57 tail across the stereo field.\n- Pitch the SM57 layer down further (an additional -2 to -4 semitones) to artificially scale up the acoustic geometry.\n- Add subtle high shelf attenuation (-2 dB above 5 kHz) towards the final 400 ms to emulate high-frequency atmospheric absorption over distance."
+    },
+    {
+      "file": "leadwall/tail-2.ogg",
+      "group": "tf.leadwall.tail",
+      "sha256": "82637f29eae11c54caad47e853198ce7175e01cb7f2f4a19f8b323026fa618ad",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 1.316,
+        "peak_dbfs": -2.91,
+        "integrated_lufs": -22.2,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.9,
+        "crest_factor_db": 17.72,
+        "spectral_centroid_hz": 964,
+        "energy_below_200hz_pct": 66.8,
+        "loudest_10ms_at_s": 0.081,
+        "first_2ms_peak": 0.0,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 4e-05
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The combination of pitched-down thunder and a +4 dB low shelf at 150 Hz creates a boomy, congested pocket between 120 Hz and 220 Hz that clouds the decay.\n- The 30 ms fade-in is slightly too soft; when placed directly behind an initial transient, it risks creating a noticeable energy dip before the tail blooms.\n- Sub-bass rumble around 45–70 Hz lingers too loud toward the end of the decay, which will muddy footfalls and engine hums in a busy mech combat mix.\n- High-frequency slap/scatter drops off very fast, making the layer sound closer to distant natural thunder than a heavy kinetic shotgun echoing off outdoor obstacles.\n\nSUGGESTIONS:\n- Dip 2.5 to 3.5 dB around 180 Hz (Q = 1.2) to clear out boxy low-mid buildup and tighten the decay profile.\n- Reduce the fade-in time from 30 ms to 8–12 ms with an exponential curve so it locks immediately into the attack crack without a volume trough.\n- Automate a high-pass filter ramping from 40 Hz up to 75 Hz across the last 400 ms to clear out sub energy as the sound dies down.\n- Blend in a subtle, short early-reflection slapback layer (filtered between 1.5 kHz and 5 kHz, decaying by 300 ms) to emphasize the ballistic shotgun character off hard surfaces."
+    },
+    {
+      "file": "leadwall/pump-1.ogg",
+      "group": "tf.leadwall.pump",
+      "sha256": "9f46ce691a722aa944daf80dfc13f9ad6325853194cc39b96a9d5e184d06f550",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.502,
+        "peak_dbfs": -4.48,
+        "integrated_lufs": -17.98,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -4.5,
+        "crest_factor_db": 14.35,
+        "spectral_centroid_hz": 3520,
+        "energy_below_200hz_pct": 51.1,
+        "loudest_10ms_at_s": 0.408,
+        "first_2ms_peak": 0.0067,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00026,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The opening pull stroke (0.00–0.20 s) still carries the lightweight character of an infantry 12-gauge slide; it lacks the perceived physical mass and resistance of a massive mech rack.\n- The lock transient at ~0.41 s is somewhat pillowy—the synthesized sub carries low-frequency weight, but the mid/high mechanical strike lacks biting, violent snap.\n- High-mid chatter around 2.8–4.2 kHz betrays the small-arms origin (stamped steel / loose tolerances rather than milled armor plating).\n- The servo whine layer sits statically in the background rather than reacting dynamically to the mechanical inertia and torque of the carrier moving back and forth.\n\nSUGGESTIONS:\n- Layer a heavy pneumatic exhaust burst or hydraulic actuator hiss on the pull stroke (0–150 ms) to instantly sell 7-meter mech scale.\n- Dip 2.8–3.5 kHz by -3 to -4 dB on the Remington 870 layer to eliminate handheld shotgun rattle, replacing the top end with an anvil or industrial press strike for the lock.\n- Add transient snap to the forward lock stroke at 0.40 s using a tight mechanical latch click boosted around 1.5–2.2 kHz with +3 dB transient attack.\n- Shorten the sub thump envelope decay from ~200 ms to ~120 ms and high-pass at 35 Hz (24 dB/oct) to keep the low end punchy without cluttering rapid fire cycles.\n- Automate the servo motor pitch: ramp it up (+3 to +5 semitones) during the pull stroke, then cut it hard the exact millisecond the breech slams shut at 0.41 s."
+    },
+    {
+      "file": "leadwall/pump-2.ogg",
+      "group": "tf.leadwall.pump",
+      "sha256": "856f35ecec907c50a6374dd6ae2c93e6543331ac18243347f6a57e85268b1ddd",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.491,
+        "peak_dbfs": -3.72,
+        "integrated_lufs": -18.01,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.7,
+        "crest_factor_db": 14.67,
+        "spectral_centroid_hz": 3551,
+        "energy_below_200hz_pct": 39.4,
+        "loudest_10ms_at_s": 0.348,
+        "first_2ms_peak": 0.003,
+        "last_2ms_peak": 0.0004,
+        "dc_offset": 5e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- Scale reads closer to an infantry-grade 12-gauge shotgun pitched down rather than a colossal 7-meter mech mechanism cycling artillery-sized shells.\n- Heavy filtering (1.5 kHz low-pass on metal layers and -5 dB high shelf at 5 kHz) has overly muffled the mechanical chatter, stripping away the crisp bite of hardened steel latching.\n- The low-mid range (200–350 Hz) is slightly congested and boxy, clouding the transient separation between the pull and lock strokes.\n- The motorized servo layer is largely buried beneath the clanks, missing an opportunity to emphasize the electro-mechanical Titan chassis.\n\nSUGGESTIONS:\n- Ease off the high shelf at 5 kHz (reduce attenuation to -1.5 dB) and lift around 3–4.5 kHz by +2 dB on the lock stroke to restore crisp mechanical latch bite.\n- Apply a dynamic EQ cut of -3 dB centered at 280 Hz (Q = 1.8) to remove boxiness and let the sub-bass thump hit with tighter definition.\n- Boost the electric motor / servo whine layer by +3 to +4 dB and give it a fast pitch-bend upward into the lock to clearly signal robotic assistance.\n- Layer a short pneumatic exhaust hiss or hydraulic pressure release (80–120 ms decay, high-passed at 1 kHz) at the end of the forward stroke.\n- Replace or reinforce the synthesized sub thump with an acoustic heavy industrial press or dumpster drop layer tuned to ~60–80 Hz with a steep 35 Hz high-pass to give authentic resonant mass."
+    },
+    {
+      "file": "leadwall/ricochet-1.ogg",
+      "group": "tf.leadwall.ricochet",
+      "sha256": "9b42b91c0c769c3d307744959cfda50e4a358c81aa63beb6f28a0d32b0762401",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.451,
+        "peak_dbfs": -2.88,
+        "integrated_lufs": -21.06,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.9,
+        "crest_factor_db": 16.14,
+        "spectral_centroid_hz": 2762,
+        "energy_below_200hz_pct": 84.4,
+        "loudest_10ms_at_s": 0.011,
+        "first_2ms_peak": 0.6756,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00073,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The tonal ricochet \"twang/whistle\" layer carries a classic small-arms/cowboy aesthetic rather than sounding like a massive, heavy-gauge shotgun slug glancing off multi-ton titan chassis plating.\n- The sub-200 Hz synthetic thump and the high ricochet tail feel sonically disconnected; the impact lacks dense 300–800 Hz mechanical crunch and metal deformation to bridge the gap.\n- At 84.4% sub-200 Hz energy, the low end is disproportionately heavy for a single ricocheting pellet, which risks muddying the mix if multiple pellets trigger in rapid succession.\n\nSUGGESTIONS:\n- High-pass the synthetic sub thump around 60–75 Hz (18 dB/oct) and trim its decay to under 120 ms to leave headroom for primary weapon fire and engine movement.\n- Boost or introduce a layer with heavy metal stress/chatter in the 400–900 Hz region during the first 30 ms to simulate dense armor deflection rather than thin sheet metal.\n- Pitch the ricochet whine down another 3–5 semitones or layer a resonant comb filter/flanger tuned low to give the deflection whiz more mass and tearing velocity.\n- Taper the 2.5–4.5 kHz peak on the whiz tail slightly (-2 to -3 dB bell) so the whistled resonance doesn't sound piercing or cartoony over repeated playback."
+    },
+    {
+      "file": "leadwall/ricochet-2.ogg",
+      "group": "tf.leadwall.ricochet",
+      "sha256": "3d922e901e7636b3b8f7f4161336d1c7dea81980f637accba464ae992de4aac0",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.503,
+        "peak_dbfs": -3.06,
+        "integrated_lufs": -20.62,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.0,
+        "crest_factor_db": 17.63,
+        "spectral_centroid_hz": 2566,
+        "energy_below_200hz_pct": 71.0,
+        "loudest_10ms_at_s": 0.003,
+        "first_2ms_peak": 0.6764,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00022,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The tonal whiz/zing layer sounds characteristic of a standard small-arms bullet (rifle caliber) rather than a heavy, thumb-sized mech shotgun pellet.\n- The initial sub thump and the high-frequency ricochet whiz feel slightly disconnected, with a scoop in the low-mids (300–700 Hz) that robs the projectile of physical mass.\n- The tail decay cuts off a bit abruptly at around 480 ms rather than dissolving smoothly into the background wash.\n\nSUGGESTIONS:\n- Pitch the ricochet whiz layer down an additional 3–5 semitones (or apply formanting) to give the bouncing projectile the weight expected of 7 m Titan combat.\n- Boost 350–600 Hz by 2.5–3.0 dB with a wide bell (Q=0.8) on the impact layer to bridge the sub thump with the deflection chirp.\n- Layer a short metallic screech or scrape (frictional scrape cut to 40–90 ms) right at the transient (5–20 ms) to sell heavy armor gouging before the ricochet takes flight.\n- Extend the fade-out curve to an exponential decay across the final 80 ms to ensure it doesn't leave an abrupt negative space in the combat mix.\n- Introduce a slight high-shelf dip (-2 dB above 6 kHz) on the tail to prevent excessive ear fatigue when multiple shotgun pellets ricochet simultaneously."
+    },
+    {
+      "file": "leadwall/ricochet-3.ogg",
+      "group": "tf.leadwall.ricochet",
+      "sha256": "e26f88c5a2bb9039948c710775826f65451bf170dd218b81f6eb557d4e9ab8a5",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.537,
+        "peak_dbfs": -3.3,
+        "integrated_lufs": -20.33,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.3,
+        "crest_factor_db": 18.66,
+        "spectral_centroid_hz": 2272,
+        "energy_below_200hz_pct": 29.2,
+        "loudest_10ms_at_s": 0.017,
+        "first_2ms_peak": 0.485,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00012,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The tonal ricochet whiz sounds like a classic Hollywood small-arms bullet pitched down rather than a massive, heavy Leadwall canister pellet deflecting off multi-ton titan chassis.\n- The initial transient slap lacks low-frequency weight and chassis resonance, feeling more like sheet metal or a small plate impact than heavy mech armor.\n- In a busy battle mix with multiple Leadwall pellets bouncing simultaneously, the sharp whistling tail could quickly become piercing and clutter the 2–4 kHz region.\n\nSUGGESTIONS:\n- Pitch the ricochet whiz layer down an additional 3–5 semitones or layer a low-frequency Doppler whoosh (250–600 Hz) to sell the mass of a giant pellet.\n- Add a dedicated low-end transient layer (80–140 Hz thud, ~60–80 ms decay) to the initial impact to sell the weight of titan-grade armor deflection.\n- Apply a dynamic notch or gentle bell cut of -2 to -3 dB around 2.5–3.5 kHz on the whistle decay to prevent harshness when multiple ricochets trigger in rapid succession.\n- Layer a short burst of heavy debris/shrapnel gravel (100–250 ms) to make the impact feel destructive rather than purely elastic."
+    },
+    {
+      "file": "leadwall/impact-1.ogg",
+      "group": "tf.leadwall.impact",
+      "sha256": "8f6afb61cd083c160f3cc70700a3f7b49da26a01db04f958cd71df043b293092",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.22,
+        "peak_dbfs": -3.06,
+        "integrated_lufs": -18.25,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.1,
+        "crest_factor_db": 13.64,
+        "spectral_centroid_hz": 1616,
+        "energy_below_200hz_pct": 22.4,
+        "loudest_10ms_at_s": 0.004,
+        "first_2ms_peak": 0.6537,
+        "last_2ms_peak": 0.0005,
+        "dc_offset": -0.00035,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- Low-end buildup risk: Having an explicit sub thump (340->170 Hz pulse + pitched sine drop) on an individual pellet sound will cause massive phase comb-filtering and muddy 80–250 Hz stacking when 10 pellets hit in a tight cluster.\n- Slightly thin/clicky top transient: The transient is very punchy, but the click around 3–5 kHz leans slightly toward small-arms or hollow tin rather than a heavy, dense armor-piercing ballistic slug hitting 7 m chassis plate.\n- Lack of mechanical ballistic grit: The body decays into near silence quickly without any micro-shrapnel or brief armor spall texture, making it feel slightly synthetic.\n\nSUGGESTIONS:\n- High-pass the single pellet cue around 90–110 Hz (12 dB/oct) and trim the synthesized sub thump by 4–6 dB; reserve the real sub-100 Hz weight for a dedicated central \"cluster impact\" asset triggered when multiple pellets connect.\n- Warm up the initial bite by dipping 1.5–2 dB around 3.8 kHz and adding a tight +2 dB boost at 600–900 Hz to emphasize heavy steel armor deformation over surface click.\n- Create 3–4 pitch and sample variations (±1.5 to 2.5 semitones) specifically randomized in engine so that cluster impacts don't produce severe flanging or machine-gun artifacts.\n- Layer a tiny, low-level crunchy metal stress/spall tail (lasting 60–120 ms longer, gated softly at -24 dB) to sell the ballistic tearing of armor plate rather than just an elastic bounce."
+    },
+    {
+      "file": "leadwall/impact-2.ogg",
+      "group": "tf.leadwall.impact",
+      "sha256": "3325aa81f227cf201ec9feefd52bd2238235f1d6744c4ce133d50c4b7edf14a2",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.22,
+        "peak_dbfs": -3.27,
+        "integrated_lufs": -18.57,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.3,
+        "crest_factor_db": 13.62,
+        "spectral_centroid_hz": 3620,
+        "energy_below_200hz_pct": 21.3,
+        "loudest_10ms_at_s": 0.004,
+        "first_2ms_peak": 0.564,
+        "last_2ms_peak": 0.0005,
+        "dc_offset": 0.00036,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- Low-frequency mud in clusters: With over 20% of energy below 200 Hz and a dedicated sub thump, triggering 10 pellets simultaneously will cause massive phase cancellation and headroom blowout.\n- Disconnected frequency layers: The high transient clack and the low-end sub thump feel slightly decoupled, lacking solid 350–700 Hz lower-mid punch to sound like a single cohesive impact.\n- Pitch-shifting softening: Pitching source layers down to 0.55x–0.6x smears the initial 5 ms transient, making the attack feel slightly blunt rather than a sharp, high-velocity armor strike.\n- Tonal character: The metal sheet layer rings hollow and light, reading more like thin tin or a loose plate than heavy chassis plating deflecting dense tungsten buckshot.\n\nSUGGESTIONS:\n- High-pass the individual pellet impact around 120–140 Hz (12 dB/oct); offload deep sub-100 Hz weight to a shared \"cluster impact\" event so 10 simultaneous hits don't overload the mix.\n- Boost 450–700 Hz by +2.5 dB (Q 1.2) to add dense ballistic body and glue the transient crack to the low thump.\n- Ease up on the heavy pitch-down (raise from 0.6x to ~0.8x on the bullet transient) to restore crisp mechanical bite on the initial 2–4 ms attack.\n- Pull the 5.6 kHz notch back slightly or soften the 7.5 kHz shelf to retain gritty ballistic debris shatter.\n- Tighten the exponential decay down to ~150–170 ms to prevent overlapping tails from washing out during close-range full-spread impacts.\n- Ensure the game engine applies ±1.5 semitone pitch randomization and 0–12 ms arrival jitter per pellet to eliminate comb filtering when all 10 hit simultaneously."
+    },
+    {
+      "file": "leadwall/impact-3.ogg",
+      "group": "tf.leadwall.impact",
+      "sha256": "9b4776e3c09ddd3a4367ad529bc32dcb819e9ffc3bfdcda9e18ef7c361eab7d6",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 6,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.22,
+        "peak_dbfs": -2.89,
+        "integrated_lufs": -18.12,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.9,
+        "crest_factor_db": 13.45,
+        "spectral_centroid_hz": 1555,
+        "energy_below_200hz_pct": 12.8,
+        "loudest_10ms_at_s": 0.013,
+        "first_2ms_peak": 0.6774,
+        "last_2ms_peak": 0.0001,
+        "dc_offset": -0.00018,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 6\nOVERALL: 7\n\nPROBLEMS:\n- The transient lacks high-energy ballistic bite; heavy downward pitching (0.55x–0.6x) and the high shelf cut (-5 dB at 7.5 kHz) make it read more like a dropped hand tool or dull clack than a high-velocity tungsten/lead pellet strike.\n- The synthesized pitch-dropping body pulse (340 -> 170 Hz) sounds slightly disconnected and tonal rather than feeling like integrated chassis vibration.\n- Lacks armor deformation/spall character, making it difficult to immediately distinguish from generic mechanical impacts or Legion shell hits.\n- Clustering risk: If 10 instances hit nearly simultaneously, the hollow low-mid resonance will compound into muddy buildup without enough distinct high-mid definition to articulate individual pellet hits.\n\nSUGGESTIONS:\n- Add a sharp, unpitched ballistic crack transient layer (1-3 ms, bandpassed around 2.5–5 kHz) to provide crisp velocity and lead-in bite.\n- Back off the high shelf at 7.5 kHz (reduce cut to -1 or -2 dB) to retain metallic spall and high-frequency splatter.\n- Shorten the sub/body thump envelope to <45 ms with a steeper pitch drop so it delivers tight kinetic weight instead of an audible tonal slide.\n- Apply a high-pass filter at 70–80 Hz (12 dB/oct) to prevent sub buildup when 10 pellets trigger simultaneously in a cluster.\n- Cut 2–3 dB around 400–600 Hz to remove the hollow \"box/clatter\" resonance and give it a denser, more ballistic character.\n- Author 3–4 pitch and transient variations (+/- 2–3 semitones, micro-delays up to 15 ms) to prevent comb filtering and flanging when fired as a 10-pellet volley."
+    },
+    {
+      "file": "leadwall/reload-1.ogg",
+      "group": "tf.leadwall.reload",
+      "sha256": "3448c671b3bac40b42c102f5d9bd3b7b8f5b0fc2a6857dc97a56d67d5501cda5",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.85,
+        "peak_dbfs": -3.26,
+        "integrated_lufs": -21.02,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.2,
+        "crest_factor_db": 17.61,
+        "spectral_centroid_hz": 3409,
+        "energy_below_200hz_pct": 19.1,
+        "loudest_10ms_at_s": 1.563,
+        "first_2ms_peak": 0.4053,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.0002,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The initial shell load (0.0–0.4 s) sounds human-sized and plastic/light; loading a massive titan-scale Leadwall canister needs significantly more weight and heavy friction.\n- The mid section (0.5–1.3 s) has an energy trough; the powered slide and motor layer sit too far back (-16 dB is too quiet), leaving the reload feeling sparse and segmented rather than a continuous powered cycle.\n- The final lock at 1.56 s relies heavily on an isolated sine sub-thump, leaving a hollow gap in the upper-bass/low-mid punch (120–250 Hz) where heavy steel-on-steel mass should slam home.\n- Overall spectral balance is skewed thin and top-heavy (centroid ~3.4 kHz), lacking the hydraulic pressure and massive mechanical resistance expected of a 7 m titan chassis.\n\nSUGGESTIONS:\n- Thicken the initial shell insertion (0.0–0.4 s) by pitching it down an additional -4 semitones and layering a heavy magnetic/pneumatic lock click with a boost of +3 dB at 180–300 Hz.\n- Bring up the electric motor and rack slide layer by +4 to +6 dB between 0.4 s and 1.4 s to bridge the gap between shell insertion and lock-up.\n- Add hydraulic servo whine or pressurized pneumatic hiss (decaying around 1.2 s) to emphasize the mechanized titan scale rather than human muscle racking a shotgun.\n- Rebalance the final impact transient (1.56 s) by layering a heavy pneumatic clamp or industrial press transient, boosting 120–220 Hz by +4 dB with a tight Q of 1.2 to bridge the sub sweep into the top-end latch clang.\n- Shorten the sub synth drop pitch start from 85 Hz to 110 Hz with an 80 ms pitch sweep down to 45 Hz so it punches as an acoustic transient rather than a detached sub boom.\n- Apply parallel saturation or gentle soft-clipping across the 250–800 Hz range on the full reload bus to bind the isolated mechanical clicks into a cohesive, armored weapon rack."
+    },
+    {
+      "file": "predator/fire-3.ogg",
+      "group": "tf.predator.fire",
+      "sha256": "dc382e7a6fbc2e41b7eb8a8b0761244bbb0db2d66b78a988e705ca83e9348b38",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 7,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.16,
+        "peak_dbfs": -2.15,
+        "integrated_lufs": -18.66,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.1,
+        "crest_factor_db": 16.09,
+        "spectral_centroid_hz": 2218,
+        "energy_below_200hz_pct": 26.5,
+        "loudest_10ms_at_s": 0.006,
+        "first_2ms_peak": 0.2032,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00056,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 7\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- At 160 ms, the duration is too long for top-end fire rates (17 rounds/sec = 59 ms interval); without voice choking, tails will stack 3x deep and create low-mid buildup.\n- The low end (synthesized pitch drop) feels slightly detached and thin below 150 Hz compared to the very aggressive mechanical top-end click.\n- Slight boxiness around 450–600 Hz diminishes the perceived mass expected from a 7-meter mech weapon.\n- The transient click/bolt layer dominates the attack more than the ballistic muzzle blast pressure.\n\nSUGGESTIONS:\n- Provide an alternate or voice-choked tail envelope truncated to 65–85 ms (with a 20 ms exponential fade-out) when firing at maximum spin rate (>12 rounds/sec).\n- Apply a dynamic dip of -2.5 dB at 500 Hz (Q=1.8) to remove hollow boxiness and carve room for weapon stream stacking.\n- Boost the fundamental impact punch with a +3 dB peak at 120–150 Hz with a steep high-pass at 45 Hz to retain weight without muddying the sub bass.\n- Compress the sub thump layer into the mechanical body using soft saturation (tape/clipper) so the low drop glues tightly to the breech click rather than riding beneath it.\n- Attenuate the top transient spike around 3.5–5 kHz by -1.5 to -2 dB on sustained looping to avoid ear fatigue during continuous fire."
+    },
+    {
+      "file": "predator/spin-up-1.ogg",
+      "group": "tf.predator.spinUp",
+      "sha256": "520c3fdda9ffa801d48a077f2baa3a1e45cf6e937e8cf3c475ace880b4f49b09",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 7,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.65,
+        "peak_dbfs": -3.23,
+        "integrated_lufs": -18.36,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.2,
+        "crest_factor_db": 13.37,
+        "spectral_centroid_hz": 1126,
+        "energy_below_200hz_pct": 45.3,
+        "loudest_10ms_at_s": 0.01,
+        "first_2ms_peak": 0.4693,
+        "last_2ms_peak": 0.0008,
+        "dc_offset": -0.00049,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 7\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The 5.5 kHz low-pass cutoff strips out critical mechanical air, metallic sheen, and bearing friction, leaving the spool-up sounding muffled and boxy rather than massive and industrial.\n- The energy contour is front-loaded; the loudest transient sits right at 0.01 s (the clutch engagement), causing the actual spin acceleration to feel weak by comparison instead of crescendoing into the firing state.\n- Noticeable hollow resonance around 400–600 Hz in the rising motor layer, giving it a cardboard-like drone rather than dense steel mass.\n- The synthesized 35–65 Hz sub hum lacks upper harmonic drive, making the low end feel disconnected from the mid-frequency motor whir.\n\nSUGGESTIONS:\n- Open the high end up to 12–14 kHz to restore metallic teeth friction, high-speed bearing chatter, and hydraulic air rush.\n- Invert the macro dynamic envelope: pull down the initial clutch transient by 3–4 dB and apply an exponential volume ramp (+4 dB rise) over the 0.15–0.60 s window so it naturally leads into the weapon loop.\n- Dip 3 dB with a moderate Q (2.0) around 450–550 Hz to clear the boxy drone and tighten the midrange motor growl.\n- Add subtle wave-shaping or odd-order saturation (e.g., tape or soft tube) to the sub-bass layer (generating 120–250 Hz harmonics) to weld the low-end weight to the mechanical layer."
+    },
+    {
+      "file": "predator/spin-1.ogg",
+      "group": "tf.predator.spin",
+      "sha256": "2e7d47800e4e17b1824ef97b7088a96cd406a62855e3c43f4c93c0ca13e74a4f",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.207,
+        "peak_dbfs": -6.0,
+        "integrated_lufs": -18.02,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -6.0,
+        "crest_factor_db": 10.28,
+        "spectral_centroid_hz": 810,
+        "energy_below_200hz_pct": 58.6,
+        "loudest_10ms_at_s": 0.823,
+        "first_2ms_peak": 0.3088,
+        "last_2ms_peak": 0.2332,
+        "dc_offset": -0.00014,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The motor whir sounds too small and domestic (like a pitched-down drill or servo) rather than a multi-ton motorized barrel assembly on a 7-meter titan.\n- The 12 Hz rotation pulse reads more like an artificial sine LFO tremolo than physical aerodynamic barrel buffering and mechanical inertia.\n- Low-mid boxiness between 160–260 Hz masks clarity and bearing detail without providing true sub-bass motor torque.\n- Top-end mechanical texture (2–5 kHz steel clicks and gear rattle) is overly attenuated by the 950 Hz low-pass, making the loop sound muffled and distant.\n\nSUGGESTIONS:\n- Layer an aerodynamic air-chopping element (heavy industrial blower or slowed rotor blade whoosh) locked to the 12 Hz cycle to sell physical mass displacing air.\n- Unmask or layer brighter mechanical chatter and gear-tooth meshing in the 2.5 kHz to 4.5 kHz range so the spin reads clearly under ambient battlefield noise.\n- Notch 2–3 dB around 200 Hz (Q=1.8) to clear out boxy resonance, and boost 45–60 Hz with a clean low shelf (+2.5 dB) for visceral titan-grade electric torque.\n- Apply mild tape or tube drive to the 500–1200 Hz band to add gritty, grinding harmonics instead of a clean, sterile sine/whine character."
+    },
+    {
+      "file": "predator/spin-down-1.ogg",
+      "group": "tf.predator.spinDown",
+      "sha256": "7f839db8fd6da2fc400c389aeed58031bb5c439f7724f28118210940f9559e0d",
+      "scores": {
+        "FIT": 6,
+        "PUNCH": 5,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 6,
+        "OVERALL": 6
+      },
+      "metrics": {
+        "duration_s": 1.2,
+        "peak_dbfs": -5.84,
+        "integrated_lufs": -19.0,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -5.8,
+        "crest_factor_db": 13.64,
+        "spectral_centroid_hz": 2469,
+        "energy_below_200hz_pct": 7.1,
+        "loudest_10ms_at_s": 0.095,
+        "first_2ms_peak": 0.0439,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -8e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "verified",
+      "verdict": "model: gemini-3.8-flash\nFIT: 6\nPUNCH: 5\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 6\nOVERALL: 6\n\nPROBLEMS:\n- The sound lacks the physical mass and inertia of a multi-ton rotary cannon on a 7 m mech; with only 7.1% energy below 200 Hz, it reads more like an infantry minigun or small drone rotor.\n- The dominant smooth, tonal descending sweep sounds like an electric sci-fi servo or plasma capacitor draining, blurring distinctness against Ion rather than reading as heavy industrial machinery.\n- The mechanical bearing rattle and chain friction layers are drowned out by the central tonal motor whine.\n- The terminating brake detent (~1.0 s) is too polite and soft, lacking the sharp mechanical bite and low-end thud of a heavy barrel clutch locking into place.\n\nSUGGESTIONS:\n- Boost the low-end motor inertia: apply a broad low shelf (+5 dB below 180 Hz) and high-pass cleanly at 35 Hz (24 dB/oct) to anchor the mech's scale.\n- Dip 2.2 kHz – 3.5 kHz by 4–6 dB with a medium Q bell to tame the piercing sci-fi whine and reveal the mechanical texture underneath.\n- Layer a pitched-down (down 4 to 6 semitones) industrial gear grinding or heavy ratchet loop across the 300–1200 Hz band to sell rotating steel weight and friction.\n- Reinforce the final barrel lock/detent at 1.0 s by layering a punchy pneumatic clamp or breech-lock transient with an 80–120 ms decay and solid thump at 90–140 Hz."
+    },
+    {
+      "file": "predator/casings-2.ogg",
+      "group": "tf.predator.casings",
+      "sha256": "c161d1f1d2891c3674ac7f0fca60a4795b70812c1ae4d6cd5675d31e14711e5b",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 7,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.75,
+        "peak_dbfs": -4.32,
+        "integrated_lufs": -23.05,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -4.3,
+        "crest_factor_db": 18.24,
+        "spectral_centroid_hz": 2424,
+        "energy_below_200hz_pct": 2.8,
+        "loudest_10ms_at_s": 0.006,
+        "first_2ms_peak": 0.1977,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 6e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 9\nLENGTH_TAIL: 7\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- Transient lacks low-mid body (200–350 Hz); it reads more like a thin scaffolding pipe or domestic conduit than a heavy, thick-walled 30–40 mm brass shell.\n- At 750 ms, the trailing bounces will stack into a cluttered metallic wash during the Predator Cannon's high-RPM sustained firing.\n- The synthesized sub drop (150–95 Hz) feels detached from the upper metallic rattle rather than hitting as an integrated mechanical impact shock.\n- High frequencies above 4.5 kHz are slightly thin and brittle, giving it an airy/tinny rattle rather than dense heavy metal.\n\nSUGGESTIONS:\n- Boost 220–320 Hz with a moderate bell filter (Q 1.5–2.0, +3.5 dB) to simulate the thicker wall mass and chamber ringing of heavy ordnance brass.\n- Pull down brittle top-end sizzle using a high shelf (-3 dB at 5 kHz) or dynamic EQ to keep it from clashing with incoming bullet cracks and gun transients.\n- Render shortened variations (250–350 ms) with quick 40 ms fade-outs for sustained high-rate-of-fire casing pools, saving the full 750 ms tail for spin-down/burst endings.\n- Pitch the brass chatter layer down an extra 2–4 semitones to scale up the perceived physical mass.\n- Apply tape or warm transformer saturation (drive 2–3 dB) across the master casing bus to glue the low-frequency ground thump to the hollow metallic clank."
+    },
+    {
+      "file": "predator/casings-3.ogg",
+      "group": "tf.predator.casings",
+      "sha256": "8b0c77846f5c848727daa2143bfb99eef005020cf8816c505280a689412727f8",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.75,
+        "peak_dbfs": -4.27,
+        "integrated_lufs": -23.05,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -4.3,
+        "crest_factor_db": 18.04,
+        "spectral_centroid_hz": 1405,
+        "energy_below_200hz_pct": 2.3,
+        "loudest_10ms_at_s": 0.005,
+        "first_2ms_peak": 0.0673,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 7e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The timbral profile reads distinctly as a hollow steel pipe or scaffolding dropping rather than dense, heavy brass artillery casings.\n- Lacks high-mid brass ping and resonance; the shell bounces sound muted and overly damped rather than singing with hard metallic harmonics.\n- Insufficient low-end weight on the initial strike (only 2.3% energy below 200 Hz), making a massive mech-scale casing feel like small hand-dropped hardware.\n- The secondary bounce timing and velocity curve feel somewhat stiff rather than giving the chaotic tumbling roll of spent high-rate-of-fire casings.\n\nSUGGESTIONS:\n- Layer a real rifle or cannon brass casing transient pitched down 3–5 semitones, emphasizing resonant ringing around 2.8 kHz – 5.5 kHz.\n- Cut 3–4 dB with a moderate Q around 450–650 Hz to remove the boxy, hollow pipe tone.\n- Strengthen the initial ground contact thump with a brief (25–35 ms) synthesized sine drop settling at 80–110 Hz to convey the physical mass of a 30mm+ casing.\n- Add rapid micro-jitter and pitch randomization (+/- 1.5 semitones) between consecutive bounces to mimic irregular tumbling across concrete.\n- Apply a very light plate or short metallic impulse response (100–150 ms, 15% wet) to anchor the brass chime into a hard mechanical environment."
+    },
+    {
+      "file": "predator/impact-2.ogg",
+      "group": "tf.predator.impact",
+      "sha256": "ee3a22d880fa559f078410d534c74147d425d6ed04b79bc61b461361ef64612e",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.23,
+        "peak_dbfs": -3.11,
+        "integrated_lufs": -20.59,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.1,
+        "crest_factor_db": 17.66,
+        "spectral_centroid_hz": 3121,
+        "energy_below_200hz_pct": 70.2,
+        "loudest_10ms_at_s": 0.003,
+        "first_2ms_peak": 0.4264,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 0.00023,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- A prominent hollow resonance around 500–800 Hz gives the plate impact a slightly light, \"metal barrel/scaffolding\" tonal character rather than solid, reinforced mech armor.\n- The high-frequency kinetic snap and the low sub pulse feel slightly disconnected rather than acting as a cohesive, high-mass kinetic slug.\n- The 3.2 kHz boost creates a sharp, piercing transient that will quickly cause ear fatigue given the Predator Cannon's high rate of fire.\n\nSUGGESTIONS:\n- Notch/dip 550–750 Hz by 3 to 4 dB (Q ~2.5) to remove the hollow metal ring and simulate thicker armor plate.\n- Tame the sharp spike at 3–4 kHz with a dynamic EQ or multiband transient shaper (-2 to -3 dB on attack) to improve comfort during rapid fire.\n- Glue the low-end pulse (80–160 Hz) to the transient using fast-attack hard clipping or soft saturation across the full mix bus, condensing the punch into the first 10–20 ms.\n- Layer a tiny, textured spall/metal deformation crunch (20–40 ms decay) to sell heavy kinetic penetration rather than just a hammer strike on plate."
+    },
+    {
+      "file": "predator/tail-1.ogg",
+      "group": "tf.predator.tail",
+      "sha256": "e57a0391fed7f197383355892b1ceeec70b12ce4a036182611dfa2dd52dd6e4f",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.097,
+        "peak_dbfs": -3.99,
+        "integrated_lufs": -21.02,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -4.0,
+        "crest_factor_db": 17.14,
+        "spectral_centroid_hz": 1380,
+        "energy_below_200hz_pct": 14.8,
+        "loudest_10ms_at_s": 0.111,
+        "first_2ms_peak": 0.0,
+        "last_2ms_peak": 0.0,
+        "dc_offset": 1e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 8\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The combined pitch-down (0.7x) and steep 8 kHz low-pass filter choke the high-frequency air, making the outdoor reflection sound slightly muffled rather than vast.\n- There is a noticeable boxy resonance/mud around 200–350 Hz, partly exacerbated by the +2.5 dB boost at 200 Hz.\n- Lacks distinct mechanical or metallic high-caliber slapback, causing it to read more like a generic distant explosion tail than an autocannon burst reflection.\n- The decay tapers a bit quickly in the last 150 ms instead of naturally dispersing into atmospheric room tone/air.\n\nSUGGESTIONS:\n- Open the LP filter from 8 kHz to 12–14 kHz (or use a gentle 6 dB/oct shelf) to restore ambient air and high-frequency terrain scattering.\n- Remove the +2.5 dB boost at 200 Hz and apply a narrow -2.5 dB dip around 280–320 Hz to clear out low-mid mud.\n- Add a gentle +2 dB low shelf around 75–90 Hz to give the mech-scale blast more sub-weight as it rolls out.\n- Blend a faint, high-passed (bandpass 1.2 kHz–4.5 kHz) metallic slap delayed by 60–90 ms to reinforce Legion's heavy steel ballistic identity against Ronin's shotgun slam.\n- Lengthen the release fade-out to a 250–300 ms exponential tail to let the final rumble dissipate more organically into gameplay silence."
+    },
+    {
+      "file": "predator/tail-2.ogg",
+      "group": "tf.predator.tail",
+      "sha256": "e8d96911ffd64ccdd1d4aa263e69c1c2ad21a2f806169c52542be17e01376eeb",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 7,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 1.01,
+        "peak_dbfs": -3.19,
+        "integrated_lufs": -21.0,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.2,
+        "crest_factor_db": 17.52,
+        "spectral_centroid_hz": 1468,
+        "energy_below_200hz_pct": 16.9,
+        "loudest_10ms_at_s": 0.051,
+        "first_2ms_peak": 0.0,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -1e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 7\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- Scale feels slightly undersized for a 7-meter titan; it reads like a standard vehicle autocannon rather than a massive mech-grade weapon echoing across an outdoor battlefield.\n- Low-frequency power drops off too quickly; below 150 Hz the decay disappears early, leaving a thin, mid-heavy acoustic reflection.\n- Upper-mid resonance between 1.2 kHz and 2.2 kHz has a slight boxy/hollow ring that distracts from the heavy ballistic character.\n- At 1.01 seconds, the duration sits right at the shortest boundary of the brief; the cosine fade-out attenuates ambient air absorption slightly prematurely.\n- Lacks spatial depth and secondary reflections (e.g., diffuse hills/building slap) to sell an authentic outdoor environment.\n\nSUGGESTIONS:\n- Layer a sub-bass rumble or pitched-down thunder/distant explosion tail filtered at 40–120 Hz, lingering out to 1.3–1.4 s to sell mech weight.\n- Extend the total decay length from 1.01 s to ~1.35–1.5 s with a gentler, more natural exponential decay curve.\n- Apply a dynamic EQ or bell cut of -2.5 dB centered at 1.6 kHz (Q = 1.4) to remove the hollow, tinny resonance.\n- Boost +2.5 dB at 90–130 Hz with a wide shelf/bell to enrich the rolling low-mid body.\n- Layer a faint, heavily low-passed (LP 1.5 kHz) discrete slapback reflection delayed by 110–160 ms to enhance the perception of distant terrain geometry."
+    },
+    {
+      "file": "predator/reload-1.ogg",
+      "group": "tf.predator.reload",
+      "sha256": "0511f6703be8d70a55b51a275882eeb81fb06a384028133decad384b22dbd343",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 7,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 2.153,
+        "peak_dbfs": -3.33,
+        "integrated_lufs": -20.06,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.3,
+        "crest_factor_db": 16.72,
+        "spectral_centroid_hz": 1680,
+        "energy_below_200hz_pct": 35.6,
+        "loudest_10ms_at_s": 1.667,
+        "first_2ms_peak": 0.6782,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.0,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 8\nLENGTH_TAIL: 9\nDISTINCTNESS: 7\nOVERALL: 7\n\nPROBLEMS:\n- The scale reads more like an infantry weapon reload or handheld power tool than a multi-ton drum mechanism on a 7-meter mech.\n- The electric motor layer is thin and domestic (sounding like a drill or cordless driver), lacking hydraulic force or industrial torque.\n- The initial transient at 0.0 s is disproportionately sharp and dry, jumping out abruptly before the rest of the mechanism engages.\n- The final locking slam at 1.67 s feels disjointed; the high metal clatter and the synthesized sub drop sit in separate registers without cohesive mid-range body.\n- Missing the visceral internal rattle of heavy heavy-caliber linked rounds moving through a feed chute.\n\nSUGGESTIONS:\n- Pitch the electric motor down by 5–8 semitones (or 0.65x) and layer a pitched-down hydraulic actuator or pneumatic hiss to convey massive mechanical power.\n- Tame the harsh bite of the opening click at 0.0 s with a 5–10 ms attack fade and a dynamic EQ notch of -4 dB around 3.2 kHz.\n- Layer heavy cycling metal or linked artillery ammo rattle (pitched down) between 0.6 s and 1.5 s during the motor run to sell massive drum rotation.\n- Unify the final lock at 1.67 s by boosting 140–220 Hz by +3 dB on the door slam layer, then bus compress the lock layers together (3:1 ratio, 15 ms attack, 60 ms release) so the sub and transient fuse into a single solid impact."
+    },
+    {
+      "file": "common/hit-confirm-1.ogg",
+      "group": "tf.hit.confirm",
+      "sha256": "6569ed0c21b889bb5fedc3495f0d5daca7e680d312e97c89346f269111745a74",
+      "scores": {
+        "FIT": 7,
+        "PUNCH": 6,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 7
+      },
+      "metrics": {
+        "duration_s": 0.12,
+        "peak_dbfs": -3.31,
+        "integrated_lufs": -18.03,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.3,
+        "crest_factor_db": 16.5,
+        "spectral_centroid_hz": 3484,
+        "energy_below_200hz_pct": 0.0,
+        "loudest_10ms_at_s": 0.006,
+        "first_2ms_peak": 0.5041,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.0,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 7\nPUNCH: 6\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 7\n\nPROBLEMS:\n- The synthesized 1.68 kHz and 2.52 kHz sine partials are too prominent relative to the impact noise, making the sound feel like an arcade UI beep rather than physical armor deflection.\n- High-passing at 900 Hz is overly aggressive, stripping out the 500–800 Hz body that gives heavy mech armor its structural weight.\n- The tonal purity of the sines will create severe pitch fatigue and metallic ringing when triggered rapidly by high-rate-of-fire weapons like Legion.\n- The attack lacks an initial broadband transient crack to bite through dense explosions and weapon discharges.\n\nSUGGESTIONS:\n- Lower the high-pass filter from 900 Hz to 500–600 Hz (12 dB/oct) to restore a sliver of hollow metallic density to the transient.\n- Drop the gain of the 1.68 kHz and 2.52 kHz sine partials by 4–6 dB, letting the acoustic metal impact transient dominate the front of the cue.\n- Shorten the sine decay envelope from 18 ms to 10–12 ms to reduce ringing and keep the confirmation dry and tight.\n- Layer a tiny 2–4 ms burst of shaped white noise or a synthetic transient click filtered between 3 kHz and 6 kHz to give the initial attack a crisper snap.\n- Add +/- 1.5 semitones of random pitch variation and a tight random gain offset (+/- 1 dB) in-engine to prevent comb filtering and fatigue during automatic weapon fire."
+    },
+    {
+      "file": "common/hit-confirm-2.ogg",
+      "group": "tf.hit.confirm",
+      "sha256": "fdad14616c3e1dd0050a013cd0cfded3ebbfa636af7154bf3c819d6871d658f4",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 7,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.12,
+        "peak_dbfs": -3.23,
+        "integrated_lufs": -17.98,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.1,
+        "crest_factor_db": 16.69,
+        "spectral_centroid_hz": 4280,
+        "energy_below_200hz_pct": 0.0,
+        "loudest_10ms_at_s": 0.004,
+        "first_2ms_peak": 0.6084,
+        "last_2ms_peak": 0.0001,
+        "dc_offset": 3e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 7\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8\n\nPROBLEMS:\n- The 1.68 kHz and 2.52 kHz sine partials sound noticeably synthetic and clinical, leaning closer to an arcade UI notification than a physical tungsten/armor plate deflection.\n- High-passing at 900 Hz strips out the dense lower-mid chassis resonance, making a 7 m titan feel slightly like thin sheet metal rather than heavy battle armor.\n- The high spectral centroid (4.28 kHz) risks ear fatigue when triggered rapidly during sustained automatic fire (e.g., Legion's autocannon).\n\nSUGGESTIONS:\n- Lower the high-pass filter from 900 Hz to around 450–550 Hz (12 dB/oct) to preserve a tiny pocket of lower-mid \"clank\" body.\n- Reduce the level of the synthetic 1.68 kHz and 2.52 kHz sine layer by 2.5–3 dB, or lightly saturate them so they marry seamlessly with the rock/metal sample transient.\n- Apply a very rapid downward pitch envelope (dropping ~30–50 cents over the first 12 ms) to the synthesized partials to emulate real metal stress rather than static sine tones.\n- Pull a narrow -2 dB notch around 4.2 kHz to soften potential harshness during high-cadence hit streams.\n- Implement subtle runtime pitch randomization (±1 to 1.5 semitones) in the engine to eliminate flanging/machine-gunning during rapid fire."
+    },
+    {
+      "file": "common/hit-confirm-3.ogg",
+      "group": "tf.hit.confirm",
+      "sha256": "425c83e10da483e50626a1b58884752b4f26410794206312cf57f05c0f432349",
+      "scores": {
+        "FIT": 9,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 8,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.12,
+        "peak_dbfs": -3.39,
+        "integrated_lufs": -18.03,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -2.6,
+        "crest_factor_db": 16.6,
+        "spectral_centroid_hz": 4447,
+        "energy_below_200hz_pct": 0.0,
+        "loudest_10ms_at_s": 0.004,
+        "first_2ms_peak": 0.675,
+        "last_2ms_peak": 0.0001,
+        "dc_offset": 3e-05,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 9\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 9\nDISTINCTNESS: 8\nOVERALL: 8.5\n\nPROBLEMS:\n- The synthetic confirmation sines (1.68 kHz and 2.52 kHz) lean slightly too pure/UI-chime rather than physical high-tensile armor plate deformation.\n- Lacks a tiny touch of lower-mid mechanical grit (around 400–700 Hz) to sell the massive scale of a 7-meter titan chassis without muddying the mix.\n- Playing repeatedly at high rates of fire (e.g., Legion's Predator Cannon) could become ear-fatiguing due to the static high-mid sine ping.\n\nSUGGESTIONS:\n- Lower the high-pass filter from 900 Hz down to ~450 Hz with a steep 18 dB/oct slope to retain a hint of solid plate body behind the tick.\n- Slightly detune or frequency-modulate the synthesized partials (e.g., pitch drop by 2–3 semitones over the 18 ms decay) to sound more like vibrating stressed metal and less like a static UI synth blip.\n- Implement pitch randomization (±30 to 50 cents) in the engine so rapid repeated hits avoid comb filtering and ear fatigue.\n- Create an alternate variant with a brighter snap and slightly higher pitch (around 3.2 kHz) specifically reserved for Titan critical-hit/weak-point confirms."
+    },
+    {
+      "file": "common/doom-confirm-1.ogg",
+      "group": "tf.hit.doom",
+      "sha256": "6c80941880fb1c8f0cf40748a5aac1e397414e0637394de37341a700c28197a1",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 8,
+        "CLEANLINESS": 8,
+        "LENGTH_TAIL": 9,
+        "DISTINCTNESS": 9,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.72,
+        "peak_dbfs": -3.19,
+        "integrated_lufs": -15.0,
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.0,
+        "crest_factor_db": 11.75,
+        "spectral_centroid_hz": 2442,
+        "energy_below_200hz_pct": 25.7,
+        "loudest_10ms_at_s": 0.026,
+        "first_2ms_peak": 0.4433,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.00074
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 8\nCLEANLINESS: 8\nLENGTH_TAIL: 9\nDISTINCTNESS: 9\nOVERALL: 8\n\nPROBLEMS:\n- The gong layer dominates the mid-range resonance (around 500–700 Hz) and high-mid ring (~2.5 kHz), somewhat masking the crunch/debris layer that communicates physical hull failure.\n- The crunch texture feels more like a generic footstep/debris slam rather than stressed mechanical fracture, shearing hydraulics, or buckling plate metal.\n- The sub thump and gong decay clash slightly in the 120–250 Hz range, causing a minor muddy build-up during the first 150 ms.\n- The abrupt cosine fade at the 700 ms mark cuts the natural gong decay slightly unnaturally, giving an artificial room cut rather than a damped ring.\n\nSUGGESTIONS:\n- Notch down the resonant ringing frequency of the pitched gong around 600 Hz (-3 dB, Q=3.0) and 2.6 kHz (-2.5 dB, Q=4.0) to let the impact crunch cut through.\n- Layer a short mechanical stress element (hydraulic burst, snapping cable, or shearing metal twist) pitched up between 1 kHz and 4 kHz in the first 80–200 ms to sell the \"crippled\" state.\n- Boost 100–140 Hz by +2 dB on the initial impact transient to give the initial hit more physical chest-punch before the sub sweeps down.\n- Apply dynamic ducking (sidechain compression) to the gong layer keyed off the crunch transient, ducking it 2–3 dB for the first 60 ms so the transient crack cracks cleanly.\n- Smooth the final 100 ms with an exponential fade instead of a cosine fade to allow the gong tail to die away naturally without leaving an audible tail choke at 0.72 s."
+    },
+    {
+      "file": "common/kill-confirm-1.ogg",
+      "group": "tf.hit.kill",
+      "sha256": "fd7f0287108a594652981e09e891861288a661e564dd312f482078bb4fc6f947",
+      "scores": {
+        "FIT": 8,
+        "PUNCH": 8,
+        "CLEANLINESS": 9,
+        "LENGTH_TAIL": 8,
+        "DISTINCTNESS": 9,
+        "OVERALL": 8
+      },
+      "metrics": {
+        "duration_s": 0.579,
+        "peak_dbfs": -3.34,
+        "integrated_lufs": -18.6,
+        "loudness_method": "BS.1770 gated blocks; K-weighted event mean for cues below 400 ms",
+        "loudness_range_lu": 0.0,
+        "true_peak_dbtp": -3.3,
+        "crest_factor_db": 15.16,
+        "spectral_centroid_hz": 2024,
+        "energy_below_200hz_pct": 39.6,
+        "loudest_10ms_at_s": 0.095,
+        "first_2ms_peak": 0.4078,
+        "last_2ms_peak": 0.0,
+        "dc_offset": -0.0001,
+        "judge_input_format": "ogg"
+      },
+      "judged_in": "final",
+      "verdict": "model: gemini-3.8-flash\nFIT: 8\nPUNCH: 8\nCLEANLINESS: 9\nLENGTH_TAIL: 8\nDISTINCTNESS: 9\nOVERALL: 8\n\nPROBLEMS:\n- The synthesized falling confirmation chime (1100 Hz / 825 Hz sines) sounds somewhat naked and isolated from the acoustic metal wreckage, giving it a slight \"test tone\" quality rather than feeling like an integrated cockpit HUD feedback cue.\n- The 90 ms separation between the two heavy strikes results in a muddy build-up around 180–300 Hz where the body and robot footstep layers overlap.\n- The very first impact lacks crisp high-frequency bite (above 4 kHz), making the initial hit feel slightly blunted before the chime rings out.\n- The decay abruptly terminates around 550 ms; the gong and chime partials could linger slightly longer to convey the scale of a collapsing 7-meter titan.\n\nSUGGESTIONS:\n- Soften the raw sine character of the chime by applying a gentle chorus/micro-pitch detune (±8 cents) and light stereo spread, blending it into the mix as a telemetry UI confirmation.\n- Cut 2 to 3 dB with a bell filter around 220–280 Hz on the second metal strike layer to clear out boxy mid-bass accumulation.\n- Boost transient bite on the first armor strike around 3.5–5.5 kHz by +2 dB (or layer a sharp mechanical latch/snap) for instantaneous hit registration feedback.\n- Extend the total decay tail to roughly 650–700 ms, allowing the gong/chime harmonic ring to fade out naturally with an exponential fade over the last 150 ms.\n- Send the chime and gong partials into a subtly wetter plate or short space reverb (-14 dB send) to embed them into the scene."
+    }
+  ]
+}

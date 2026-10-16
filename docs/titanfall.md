@@ -755,7 +755,23 @@ predatorLong 224.4. Two event details serve the client:
 
 What a primary shot does on the client is tuned in `public/js/titanfall/titan-weapon-feel.js`
 (`TITAN_WEAPON_FEEL`, §7.3). The weapons are felt in this order: a full-charge railgun hardest, then
-Leadwall, T-203 and Splitter, with the Predator a steady rattle. A railgun tap still kicks at 30 %.
+Leadwall, T-203 and Splitter, with the Predator a steady rattle. A railgun tap retains at least
+30 % of the cabin shove. The camera aim ray remains fixed; a damped cabin spring recovers within
+0.5 s and sustained fire holds shake rather than adding unlimited trauma.
+
+| Primary | Report and mechanical feel | Presentation timing |
+|---|---|---|
+| Splitter | Crisp electric crack, tight low-mid pulse, three plasma discharges for the split cue; blue muzzle and ion impacts | Short per-round cabin kick; split expands the shove and reticle bloom |
+| T-203 | Hollow launcher thump with an aligned mortar body, breech close, thermite burst and sizzle | Breech follows the shot; launch, shell flight and impact remain separate server events |
+| Railgun | Rising electric charge, ready ping, heavy supersonic rupture and rolling plasma tail | Charge is 1.6 s from the server definition; the shot consumes the whine, kick and gain scale with event charge |
+| Leadwall | Broad ballistic slam, dense pellet hits, gritty armour ricochets and a heavy rack | The ~0.5 s rack starts at 0.10-0.11 s and finishes before the 0.65 s shot cadence |
+| Predator | Tight autocannon hammers, torque motor, bearing teeth, heavy brass and short kinetic armour hits | Every authoritative round gets a report at full cadence; actual take length controls overlap, spin-up follows 0.6 s |
+
+The sound/feel pass changes client presentation only. Damage, magazine sizes, cooldowns, charge and
+spin thresholds, reload durations and sustained-DPS tolerances are unchanged. Own reload cues are
+stretched to server reload duration and joined at the remaining fraction. The recorded bank uses
+individually checked CC0 and CC BY 4.0 sources; [audio provenance](audio/titan-sfx.md) and
+[Gemini audio judgements](audio/titan-weapons-judging.md) identify every file.
 
 - `fireMountedRay` (`server/sim/combat.js`): one-token WP0 change, `weapon.infantryDamage ?? weapon.damage` for infantry hits.
 - Projectile kinds launch through `launchVehicleProjectile`; titan flight/explode behaviour lives in `server/sim/titanfall/titan-projectiles.js`. The WP0 hook in the `ProjectileSystem.step` loop: `if (projectile.tf) { this.titanfall.step(projectile, stepSeconds, substeps, ctx); continue; }`, placed first in the loop body. The router owns explode, `explodeAt` and `outsideWorld` for its projectiles: before delegating it checks `!(ctx.now < explodeAt)` or out of world (the stock bounds incl. `ctx.airLimit`, non-finite positions), then calls the kind's `explodeTitanProjectile` / `explodePilotProjectile(system, projectile, ctx)` once and always deletes the projectile itself; `step*Projectile` sees only live, in-world projectiles and handles impacts (explode, then `system.active.delete`). `ProjectileSystem`'s constructor builds `this.titanfall = new TitanfallProjectiles(this)` (`server/sim/titanfall/index.js`; inert unless a projectile has `tf`).
@@ -999,7 +1015,7 @@ The rig is deterministic from `(row, time)`, independent of frame rate.
   - The glass reticle blooms (`COCKPIT_HUD.bloom`).
   - T-203, railgun and Leadwall shots shake viewers within 24 m by distance.
   - Railgun values scale with `event.charge`, and the Predator's yaw kick alternates per round.
-  - Own hits on a hull play a hit confirm (`vehicle_hit` with `eff`). A titan doomed by the own rounds adds the doom confirm and the glass `TITAN DOOMED` mark (`titan_doomed`, `by`).
+  - Own hits on a hull play a hit confirm (`vehicle_hit` with `eff`). A titan doomed by the own rounds adds the doom confirm and the glass `TITAN DOOMED` mark (`titan_doomed`, `by`). Confirmed destruction credited to the pilot adds a separate cue and `TITAN DESTROYED` (`vehicle_destroyed`, `attacker` and titan `type`).
 - **Primary weapon FX** (`vehicle-fx.js` `TITAN_SHOT_LOOK`, `_titanShot`):
   - Muzzles are tinted per weapon (ION electric blue, rail pale cyan).
   - The rig recoil kick is per weapon. The railgun kick scales with its charge.
@@ -1015,17 +1031,17 @@ The rig is deterministic from `(row, time)`, independent of frame rate.
   - `TitanSynth` plays fire + tail layers per shot, plus the ION split layer, the T-203 breech and the Leadwall rack after the shot (both within 45 m).
   - Others' shots get a distance low-pass. The Predator plays one round per shot (at most 5 overlapping), brass every 4th round and a tail when the burst stops.
   - The railgun charge whine is stretched to the server's 1.6 s and joined at the row's charge, followed by a ready cue and a hold loop.
-  - The Predator plays a spin-up synced to its 0.6 s, a spin loop and a spin-down from mount field 6. Own magazine reloads have their own cue.
+  - The Predator plays a spin-up synced to its 0.6 s, a spin loop and a spin-down from mount field 6. Own magazine reloads have their own cue, stretched to the server reload duration and joined at its remaining fraction.
   - Impact, ricochet and confirm sounds are budgeted, and weapon voices have their own 20-voice budget.
-  - Until a group decodes, its previous synthesized voice plays. Levels are set in `TITAN_WEAPON_MIX`.
+  - Until a report, impact or charge/spin loop decodes, its synthesized voice plays. Missing first takes do not hide later decoded variants; a late loop decode replaces the synth, and joining uses a 12 ms fade. Bank unload stops held loops. Levels are set in `TITAN_WEAPON_MIX`.
 
 ### 7.4 Verification
 
 - `public/vehicle-capture.html` accepts `?type=titan_ion&phase=<0..1>&pose=walk|idle|dash|doom|embark&team=alpha`.
 - `tools/titanfall-model-capture.mjs` runs a muted CDP capture of 5 titans × front/¾/back plus a walk-phase strip into `docs/design/titanfall/captures/`, under the capture lock.
 - Comparison notes go in `docs/design/titanfall/captures/models.md` (WP5's own file).
-- `tools/titanfall-weapon-fx-capture.mjs` runs muted CDP captures of every primary firing (capture page `pose=fire`: server-shaped shoot events with the pilot as viewer; `view=chase` for the seat's chase camera) next to an idle reference, in the cockpit and chase views at desktop and landscape, into `docs/design/titanfall/captures/weapons/`. `tools/titanfall-weapon-feel-test.mjs` (in `titanfall:test`) pins the feel tuning, the bank files and licences, and the sampled / synth voices.
-- `tools/titanfall-cockpit-fx-capture.mjs` runs muted CDP captures of the cockpit damage stages and the transit beats (held with `pinTransit`) for 3 titans × desktop / landscape / portrait into `docs/design/titanfall/cockpit/damage/captures/`. The hatch and boot beats (`hatch-closing` … `boot-hud`, `exit-plates`) go to `docs/design/titanfall/embark/captures/` with `--out`. The capture page's `settle` steps the page clock, because software GL renders only about one frame per second.
+- `tools/titanfall-weapon-fx-capture.mjs` runs muted CDP captures of every primary firing (capture page `pose=fire`: server-shaped shoot events with the pilot as viewer; `view=chase` for the seat's chase camera) next to an idle reference, in the cockpit and chase views at desktop, landscape and portrait, into `docs/design/titanfall/captures/weapons/`. `tools/titanfall-weapon-feel-test.mjs` (in `titanfall:test`) pins the feel tuning, the bank files and licences, and the sampled / synth voices.
+- `tools/titanfall-cockpit-fx-capture.mjs` runs muted CDP captures of the cockpit damage stages and the transit beats (held with `pinTransit`) for 3 titans × desktop / landscape / portrait into `docs/design/titanfall/cockpit/damage/captures/`. The hatch and boot beats (`hatch-closing` … `boot-hud`, `exit-plates`) go to `docs/design/titanfall/embark/captures/` with `--out`. The capture page's `settle` steps the page clock, because software GL renders only about one frame per second. Charge/spin and doom/destruction fixtures are captured by `titanfall-weapon-fx-capture.mjs`; `tools/titan-sfx/browser-decode.mjs` decodes every shipped Opus file with a real OfflineAudioContext, without playback.
 
 ---
 

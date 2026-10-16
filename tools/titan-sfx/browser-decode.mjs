@@ -6,6 +6,7 @@ import { rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { launchCdpSession } from '../lib/cdp-session.mjs';
 import { startServer, stopServer } from '../lib/server-process.mjs';
+import { TITAN_AUDIO_URLS } from '../../public/js/audio/titan-bank.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 let slot;
@@ -22,8 +23,9 @@ process.once('exit', () => rmSync(slot, { recursive: true, force: true }));
 try {
   server = startServer({ entry: 'tools/capture-server.mjs', failureContext: 'titan audio decode' });
   const port = await server.port;
-  session = await launchCdpSession(`http://127.0.0.1:${port}/vehicle-capture.html?type=titan_ion&manual=1`, { width: 64, height: 64 });
-  await session.page.waitFor('window.titanCapture?.ready === true', { timeoutMs: 60000 });
+  // A same-origin text page avoids loading unrelated weapon models or creating a GL context.
+  session = await launchCdpSession(`http://127.0.0.1:${port}/assets/audio/titan/CREDITS.txt`, { width: 64, height: 64 });
+  await session.page.waitFor('document.readyState === "complete"', { timeoutMs: 20000 });
   const files = await session.page.evaluate(`(async () => {
     const { TITAN_AUDIO_URLS } = await import('/js/audio/titan-bank.js');
     const ctx = new OfflineAudioContext(1, 1, 48000), rows = [];
@@ -37,7 +39,7 @@ try {
     }
     return rows;
   })()`);
-  assert.ok(files.length >= 68);
+  assert.equal(files.length, TITAN_AUDIO_URLS.length);
   for (const file of files) {
     assert.equal(file.channels, 1, file.url);
     assert.equal(file.sampleRate, 48000, file.url);

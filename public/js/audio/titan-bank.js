@@ -17,7 +17,7 @@ export const TITAN_SAMPLE_GROUPS = Object.freeze({
   // ION Splitter Rifle: a snappy energy crack, the heavier triple-beam split shot, a short outdoor tail.
   'tf.splitter.fire': takes('splitter', 'fire', 4),
   'tf.splitter.split': takes('splitter', 'split', 2),
-  'tf.splitter.tail': takes('splitter', 'tail', 2),
+  'tf.splitter.tail': takes('splitter', 'tail', 1),
   'tf.splitter.impact': takes('splitter', 'impact', 3),
   'tf.splitter.reload': takes('splitter', 'reload', 1),
   // SCORCH T-203: the launch thump, its tail, the breech cycling a new shell, the thermite burst and its sizzle.
@@ -32,23 +32,24 @@ export const TITAN_SAMPLE_GROUPS = Object.freeze({
   'tf.railgun.hold': takes('railgun', 'hold', 1),
   'tf.railgun.ready': takes('railgun', 'ready', 1),
   'tf.railgun.fire': takes('railgun', 'fire', 3),
-  'tf.railgun.tail': takes('railgun', 'tail', 2),
-  'tf.railgun.impact': takes('railgun', 'impact', 2),
+  'tf.railgun.tail': Object.freeze(['railgun/tail-2.ogg']),
+  'tf.railgun.impact': Object.freeze(['railgun/impact-2.ogg']),
   // RONIN Leadwall: the boom, its tail, the heavy rack after each shot, pellet ricochets and hits, the reload.
   'tf.leadwall.fire': takes('leadwall', 'fire', 3),
   'tf.leadwall.tail': takes('leadwall', 'tail', 2),
   'tf.leadwall.pump': takes('leadwall', 'pump', 2),
-  'tf.leadwall.ricochet': takes('leadwall', 'ricochet', 4),
+  'tf.leadwall.ricochet': takes('leadwall', 'ricochet', 3),
   'tf.leadwall.impact': takes('leadwall', 'impact', 3),
   'tf.leadwall.reload': takes('leadwall', 'reload', 1),
   // LEGION Predator Cannon: one heavy round per shot, the barrel spin-up, spin loop and spin-down,
   // brass casings, the burst tail and the drum reload.
-  'tf.predator.fire': takes('predator', 'fire', 4),
+  // The clean third report is the accepted foundation. Playback pitch varies per round.
+  'tf.predator.fire': Object.freeze(['predator/fire-3.ogg']),
   'tf.predator.spinUp': takes('predator', 'spin-up', 1),
   'tf.predator.spin': takes('predator', 'spin', 1),
   'tf.predator.spinDown': takes('predator', 'spin-down', 1),
-  'tf.predator.casings': takes('predator', 'casings', 3),
-  'tf.predator.impact': takes('predator', 'impact', 3),
+  'tf.predator.casings': Object.freeze(['predator/casings-2.ogg', 'predator/casings-3.ogg']),
+  'tf.predator.impact': Object.freeze(['predator/impact-2.ogg']),
   'tf.predator.tail': takes('predator', 'tail', 2),
   'tf.predator.reload': takes('predator', 'reload', 1),
   // Every titan: the armour hit confirm of an own round and the doom confirm.
