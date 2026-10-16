@@ -20,8 +20,8 @@ export function killAnnouncerCue(combo, streak) {
 /**
  * Conquest objective calls. They speak through the same single announcer voice
  * as the multikill calls but always rank below them (priority < doublekill).
- * IDs are a whitelist like ANNOUNCER_CUES; every entry maps to one offline
- * synthesized WAV under /assets/audio/announcer/objective/<id>.wav.
+ * IDs are a whitelist like ANNOUNCER_CUES; every entry maps to one Gemini TTS
+ * WAV under /assets/audio/announcer/objective/<id>.wav (docs/audio/announcer.md).
  */
 export const OBJECTIVE_FLAG_IDS = Object.freeze(['A', 'B', 'C', 'D', 'E']);
 export const FLAG_CALLSIGNS = Object.freeze({ A: 'Alpha', B: 'Bravo', C: 'Charlie', D: 'Delta', E: 'Echo' });
@@ -41,7 +41,7 @@ export const objectiveCueUrl = cue => Object.hasOwn(OBJECTIVE_CUES, cue) ? `${OB
 
 /**
  * Titanfall (Attrition) calls (docs/titanfall.md §8.4). Original lines, spoken
- * offline by macOS `say` (tools/synthesize-titanfall-announcer.mjs); every entry
+ * by Gemini TTS (tools/synthesize-announcer-gemini.mjs); every entry
  * maps to /assets/audio/announcer/titanfall/<id>.wav. They rank below every
  * multikill call, like the objective calls.
  */

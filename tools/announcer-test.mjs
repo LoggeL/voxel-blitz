@@ -6,7 +6,8 @@ import { AnnouncerVoice, ANNOUNCER_GAIN, ANNOUNCER_COALESCE_MS } from '../public
 import { CombatFeedback } from '../public/js/combat/feedback.js';
 import { BUILTIN_SAMPLE_MANIFEST } from '../public/js/audio/samples.js';
 import {
-  ANNOUNCER_CUES, MULTIKILL_WINDOW_MS, OBJECTIVE_CUES, OBJECTIVE_FLAG_IDS, announcerCueInfo, objectiveAnnouncerCue, objectiveCueUrl,
+  ANNOUNCER_CUES, MULTIKILL_WINDOW_MS, OBJECTIVE_CUES, OBJECTIVE_FLAG_IDS, TITANFALL_CUES, announcerCueInfo, objectiveAnnouncerCue, objectiveCueUrl,
+  titanfallCueUrl,
 } from '../shared/announcer.js';
 import {
   createObjectiveCues, OBJECTIVE_STINGERS, STINGER_SCORES, stingerForEvent, matchEndCue, CAPTURE_START_REPEAT_MS, UNDER_ATTACK_REPEAT_MS,
@@ -169,17 +170,25 @@ for (const [cue, info] of Object.entries(OBJECTIVE_CUES)) {
 assert.equal(objectiveCueUrl('../quake/godlike'), null, 'objective URLs are whitelisted');
 assert.equal(announcerCueInfo('__proto__'), null);
 
-// Offline-synthesized WAVs: one per cue, RIFF/WAVE PCM, hashes pinned, no cloud voice service.
-const objectiveSource = JSON.parse(readFileSync(new URL('../public/assets/audio/announcer/objective/sources.json', import.meta.url)));
-assert.match(objectiveSource.method, /macOS say/); assert.doesNotMatch(JSON.stringify(objectiveSource), /eleven/i, 'no ElevenLabs assets');
-assert.deepEqual(objectiveSource.clips.map(c => c.id).sort(), objectiveIds.sort());
-for (const clip of objectiveSource.clips) {
-  const bytes = readFileSync(new URL(`../public${objectiveCueUrl(clip.id)}`, import.meta.url));
-  assert.equal(bytes.toString('ascii', 0, 4), 'RIFF'); assert.equal(bytes.toString('ascii', 8, 12), 'WAVE');
-  assert.equal(bytes.readUInt16LE(20), 1, `${clip.id} is PCM`);
-  assert.equal(createHash('sha256').update(bytes).digest('hex'), clip.sha256, `${clip.id} matches its synthesis record`);
-  assert.ok(bytes.length < 200_000, `${clip.id} stays small`);
+// Gemini TTS WAVs (tools/synthesize-announcer-gemini.mjs): one per cue, RIFF/WAVE PCM mono, hashes pinned,
+// every shipped take passed the judge gate (score >= 7, exact transcript, plausible length). No ElevenLabs.
+function checkTtsPack(name, ids, urlOf) {
+  const source = JSON.parse(readFileSync(new URL(`../public/assets/audio/announcer/${name}/sources.json`, import.meta.url)));
+  assert.equal(source.generator, 'tools/synthesize-announcer-gemini.mjs');
+  assert.match(source.method, /Gemini TTS/); assert.doesNotMatch(JSON.stringify(source), /eleven/i, 'no ElevenLabs assets');
+  assert.deepEqual(source.clips.map(c => c.id).sort(), [...ids].sort(), `${name}: every cue has exactly one clip`);
+  for (const clip of source.clips) {
+    const bytes = readFileSync(new URL(`../public${urlOf(clip.id)}`, import.meta.url));
+    assert.equal(bytes.toString('ascii', 0, 4), 'RIFF'); assert.equal(bytes.toString('ascii', 8, 12), 'WAVE');
+    assert.equal(bytes.readUInt16LE(20), 1, `${clip.id} is PCM`); assert.equal(bytes.readUInt16LE(22), 1, `${clip.id} is mono`);
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), clip.sha256, `${clip.id} matches its synthesis record`);
+    assert.ok(bytes.length < 200_000, `${clip.id} stays small`);
+    assert.ok(clip.judge.score >= 7 && clip.judge.problems.length === 0, `${clip.id} passed the judge gate`);
+    assert.ok(Math.abs(clip.lufs - source.target_lufs) <= 1.5, `${clip.id} sits near the announcer level (${clip.lufs} LUFS)`);
+  }
 }
+checkTtsPack('objective', objectiveIds, objectiveCueUrl);
+checkTtsPack('titanfall', Object.keys(TITANFALL_CUES), titanfallCueUrl);
 
 // Events map 1:1 to calls and stingers for the local team.
 const objectiveEvents = [
@@ -283,4 +292,4 @@ assert.equal(voice2.voice.priority, ANNOUNCER_CUES.doublekill.priority);
 voice2.play('captured_A');
 assert.equal(voice2.voice.priority, ANNOUNCER_CUES.doublekill.priority, 'objective call waits behind the multikill');
 voice2.stop();
-console.log(`Conquest objective audio: ${objectiveIds.length} offline calls (pinned WAVs), 1:1 event mapping, stingers and priority below multikill passed.`);
+console.log(`Conquest objective audio: ${objectiveIds.length} objective + ${Object.keys(TITANFALL_CUES).length} Titanfall Gemini TTS calls (pinned WAVs, judge gate), 1:1 event mapping, stingers and priority below multikill passed.`);

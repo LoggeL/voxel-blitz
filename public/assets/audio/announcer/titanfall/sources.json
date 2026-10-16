@@ -1,114 +1,585 @@
 {
-  "generator": "tools/synthesize-titanfall-announcer.mjs",
-  "method": "macOS say + ffmpeg cockpit intercom band (offline, no cloud voice service, original lines)",
-  "license": "Original synthesis for this project (no third-party recording)",
-  "format": "WAV PCM s16le mono 22050 Hz",
-  "command": "node tools/synthesize-titanfall-announcer.mjs --voice \"Samantha\" --rate 185",
-  "filter": "highpass=f=240,lowpass=f=4600,acompressor=threshold=-22dB:ratio=4:attack=5:release=80:makeup=5,equalizer=f=2400:t=q:w=1.4:g=3,aecho=0.8:0.5:18:0.18,alimiter=limit=0.89,aformat=sample_fmts=s16:sample_rates=22050:channel_layouts=mono",
+  "generator": "tools/synthesize-announcer-gemini.mjs",
+  "method": "Gemini TTS (gemini-3.8-flash-tts, prebuilt voice Charon) + deterministic ffmpeg chain; original lines from shared/announcer.js",
+  "license": "AI-generated with Google Gemini TTS for this project; no third-party recording (see public/assets/audio/LICENSES.md)",
+  "format": "WAV PCM s16le mono 24000 Hz",
+  "command": "node tools/synthesize-announcer-gemini.mjs --pack titanfall --voice Charon",
+  "model": "gemini-3.8-flash-tts",
+  "voice": "Charon",
+  "judge_model": "gemini-3.8-flash",
+  "pre_lufs": -18,
+  "target_lufs": -13,
+  "limiter": 0.8,
+  "filter": {
+    "trim": "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.03,areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.06,areverse",
+    "character": "highpass=f=250,lowpass=f=5200,acompressor=threshold=-30dB:ratio=6:attack=1:release=80:makeup=6:knee=4,equalizer=f=2500:t=q:w=1.4:g=3,aecho=0.8:0.6:14:0.12",
+    "post_limiter": "lowpass=f=5400",
+    "wrap": "sine=frequency=1320:sample_rate=24000:duration=0.05[c1];sine=frequency=1760:sample_rate=24000:duration=0.06[c2];anullsrc=r=24000:cl=mono:d=0.04[gap];[c1][c2][gap]concat=n=3:v=0:a=1,highpass=f=250,lowpass=f=5200,volume=0.16[chirp];[chirp][v]concat=n=2:v=0:a=1,apad=pad_dur=0.08[out]"
+  },
+  "judge_summary": {
+    "min": 9,
+    "mean": 9.23,
+    "min_score": 7
+  },
   "clips": [
     {
       "id": "titanfall_ready",
       "text": "Titanfall ready.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 62314,
-      "sha256": "60f360eac6f48dd14fd0e775b996883a8fef627e858c87efd4c7200a661b0d36"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. A crisp status report.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nTitanfall ready.",
+      "raw_sha256": "c91d3a936f97409c43bfdd2062bb7fbfd0dbff84d111be42966331048488997b",
+      "pre_gain_db": 1.6,
+      "gain_db": 14.7,
+      "lufs": -13.2,
+      "peak_dbfs": -1.7,
+      "duration_s": 1.28,
+      "bytes": 61474,
+      "sha256": "6e9e92eb0419b68d422b26af740e6befda95946384025f67461c2b88c9d875e0",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Titanfall ready.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp and authoritative delivery with fitting radio processing that works seamlessly for an in-cockpit tactical AI notification.",
+        "speech_s": 1.036,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "titan_ready",
       "text": "Your titan is ready.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 67994,
-      "sha256": "f865464404790a3c25599950f7af65f951989de7cabf47c4b7ab376bdaa1e767"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4101,
+      "take": 1,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. A crisp status report. Tighter and crisper this time, every consonant sharp.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nYour titan is ready.",
+      "raw_sha256": "0e88c32391335c951c8ff6e797674255538886b03a4aa5588b5d02caa524955b",
+      "pre_gain_db": 0.5,
+      "gain_db": 12.6,
+      "lufs": -13.1,
+      "peak_dbfs": -1.7,
+      "duration_s": 1.201,
+      "bytes": 57678,
+      "sha256": "c787bd89483c07b57c2d93c253cd6da6aa2149cc202e879d38557814664487c2",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Your titan is ready.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent calm tactical delivery with intercom processing that fits the mech cockpit AI role perfectly.",
+        "speech_s": 0.957,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 1
+        },
+        {
+          "take": 1,
+          "seed": 4101,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "prepare_titanfall",
       "text": "Prepare for titanfall.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 79012,
-      "sha256": "ae526b28b35dfceea5b6bbf453872acaf8ed8f8840f573b6efccfd07cef44a04"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. Firm and alert, a heads-up to the pilot.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nPrepare for titanfall.",
+      "raw_sha256": "28bf22f47034bd16b73e3ffaccd1263699d848cd2c25d8c1c6caec54e9bf9646",
+      "pre_gain_db": 0.3,
+      "gain_db": 16.4,
+      "lufs": -13.5,
+      "peak_dbfs": -1.7,
+      "duration_s": 1.529,
+      "bytes": 73428,
+      "sha256": "42915b8178c2ac9f91dd8bb48722f31c9543d138f154510d1c30ea2e216f18ed",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Prepare for titanfall.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp, authoritative delivery with perfectly balanced intercom processing that sounds ready for shipping.",
+        "speech_s": 1.285,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "core_online",
       "text": "Core online.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 57708,
-      "sha256": "27992596aa2a52f1e1bf916727a2a47bbd61a27961844abd2bd8e6b70248e156"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. Crisp, with a hint of confidence.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nCore online.",
+      "raw_sha256": "0ba274d8bf10ae43be46da1048335defcabc603af945d29231865690cf9b36a0",
+      "pre_gain_db": -1.8,
+      "gain_db": 15.6,
+      "lufs": -13.3,
+      "peak_dbfs": -1.7,
+      "duration_s": 1.188,
+      "bytes": 57052,
+      "sha256": "f1cdc220ccd5a688bb44e250cdb9cb99003e056a2dfd8e90efb009fe249c58a8",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Core online.",
+        "words_correct": true,
+        "clarity": 10,
+        "energy": 9,
+        "fit": 10,
+        "artifacts": 10,
+        "overall": 10,
+        "notes": "Excellent clipped military AI delivery with clean, well-balanced radio processing and introductory chirp.",
+        "speech_s": 0.944,
+        "problems": [],
+        "score": 10
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "titan_doomed",
       "text": "Warning: titan doomed.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 82252,
-      "sha256": "2d382271ffd9fcacdc50290739bd9d3289144307cae7fc97ace4bbc0dda01837"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4102,
+      "take": 2,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. An urgent but controlled warning. More presence and conviction, a touch slower and fully clear.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nWarning: titan doomed.",
+      "raw_sha256": "66add34bd0d88c6a65f00408501d52d7f0689783b53092f22f723b31fea93eec",
+      "pre_gain_db": 2.7,
+      "gain_db": 17.8,
+      "lufs": -14,
+      "peak_dbfs": -1.6,
+      "duration_s": 2.134,
+      "bytes": 102476,
+      "sha256": "7d3257a201d1b31d580e69c95f4014ef75ac23780ce1a40f61cd7833542e61a0",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Warning. Titan doomed.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent tactical AI delivery with crisp articulation and well-integrated intercom processing ready for shipping.",
+        "speech_s": 1.89,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        },
+        {
+          "take": 1,
+          "seed": 4101,
+          "score": 9
+        },
+        {
+          "take": 2,
+          "seed": 4102,
+          "score": 9
+        }
+      ],
+      "shootout": {
+        "scores": {
+          "take 0": 6.5,
+          "take 1": 4.5,
+          "take 2": 9
+        },
+        "notes": [
+          "take 2: Candidate C delivers the line with the ideal clipped, authoritative cadence and crisp tactical enunciation, whereas Candidate A feels slightly rushed and Candidate B lacks presence and definition.",
+          "take 2: Candidate A delivers the ideal cold, sterile precision and razor-sharp enunciation suited for an automated cockpit warning system cutting through combat noise."
+        ],
+        "winner": 2
+      }
     },
     {
       "id": "eject",
       "text": "Eject, eject, eject.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 93778,
-      "sha256": "2b90960b9b6f1e01ab58c52816eb4c9755724bb3225f4b4ce9a0e3473b84885a"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. Urgent and rapid: three sharp, evenly spaced commands.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nEject, eject, eject.",
+      "raw_sha256": "c9faee31bb892b5bdc3aadccbb9408424dd67391f91db310a364c7142048b892",
+      "pre_gain_db": 2.2,
+      "gain_db": 17.1,
+      "lufs": -13.8,
+      "peak_dbfs": -1.5,
+      "duration_s": 2.476,
+      "bytes": 118906,
+      "sha256": "179465ad658af3655568bec67e763a63030f858bd5bc26bb38aa6a3cf72979d0",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Eject, eject, eject.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent tactical delivery with clean intercom processing, perfectly suited for the mech cockpit AI role.",
+        "speech_s": 2.232,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        },
+        {
+          "take": 1,
+          "seed": 4101,
+          "score": 9
+        },
+        {
+          "take": 2,
+          "seed": 4102,
+          "score": 9
+        }
+      ],
+      "shootout": {
+        "scores": {
+          "take 0": 6.5,
+          "take 1": 6.5,
+          "take 2": 6.5
+        },
+        "notes": [
+          "take 0: Candidate A delivers the ideal calm, metronomic cadence essential for an automated cockpit warning system, whereas B and C rush the final two repetitions.",
+          "take 1: Candidate B delivers the quintessential crisp, authoritative, and perfectly clipped avionics cadence expected of a tactical cockpit AI, while A is slightly too soft and C is overly muffled and sluggish."
+        ],
+        "winner": 0
+      }
     },
     {
       "id": "enemy_titan",
       "text": "Enemy titanfall incoming.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 87154,
-      "sha256": "9fb229840f648d5e0aa7be8e1c47ccc5237be9c8196083109b10c3cdc00d0244"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. An alert threat call.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nEnemy titanfall incoming.",
+      "raw_sha256": "cee8dc6a85a39d33267d9a0bca2cbeff9600da1b6b41fe7615f7ef9d87bc9956",
+      "pre_gain_db": -0.4,
+      "gain_db": 14.6,
+      "lufs": -13.2,
+      "peak_dbfs": -1.5,
+      "duration_s": 1.877,
+      "bytes": 90160,
+      "sha256": "7b8e8adbe43cda4216720ff6d09cf38623a3f93d075e40b96f81ce71a8d3d8fe",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Enemy Titanfall incoming.",
+        "words_correct": true,
+        "clarity": 10,
+        "energy": 9,
+        "fit": 10,
+        "artifacts": 10,
+        "overall": 10,
+        "notes": "Excellent performance with crisp delivery and appropriate radio processing that perfectly suits a tactical cockpit AI.",
+        "speech_s": 1.633,
+        "problems": [],
+        "score": 10
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "rodeo_warning",
       "text": "Warning: rodeo.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 72974,
-      "sha256": "54436329f2bc5042789887020679ec2f98a1864171ca26bf3339b7a57ccaaf68"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. An urgent warning.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nWarning: rodeo.",
+      "raw_sha256": "0a0a2fccf911102ed0732fe16226eacc4f927ebf437f6899f73472e38b3f7fec",
+      "pre_gain_db": -1.3,
+      "gain_db": 17.8,
+      "lufs": -14.1,
+      "peak_dbfs": -1.8,
+      "duration_s": 1.428,
+      "bytes": 68610,
+      "sha256": "669a8cd7b1f877539e59888a46bd0c0f9a6d840e98408a904f728e5bbf80a92c",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Warning. Rodeo.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 10,
+        "overall": 9,
+        "notes": "Excellent clipped delivery and convincing intercom processing make this ready to ship.",
+        "speech_s": 1.184,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "battery_acquired",
       "text": "Battery acquired.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 66896,
-      "sha256": "e28f9a3725c66412818bd7e2a585c7ba414432fc7e08f703af72feca698ddc22"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. A brief confirmation.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nBattery acquired.",
+      "raw_sha256": "fd80137348355b1fe795da557c65bb67bdf085161d999202d8285a6a3f44a0a3",
+      "pre_gain_db": -1.9,
+      "gain_db": 15.2,
+      "lufs": -13.3,
+      "peak_dbfs": -1.6,
+      "duration_s": 1.199,
+      "bytes": 57616,
+      "sha256": "d0404f6864560b5a29b6b6df5a2bcbbfe84630371d42ed08bfd760b37563f2cf",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Battery acquired.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp, concise delivery with well-integrated intercom processing that fits the tactical mech AI tone perfectly.",
+        "speech_s": 0.955,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "winning",
       "text": "We are winning this fight.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 67374,
-      "sha256": "bab26ca1ff65627e8a67af75d473de6e804e1e7cc58c40c3c7977ecf62782012"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. Measured and encouraging.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nWe are winning this fight.",
+      "raw_sha256": "3e5208ea2b371d0a1db07c0c1cbb2a407d118b2a57d3f17d56d90765ce7398b1",
+      "pre_gain_db": -0.1,
+      "gain_db": 14.5,
+      "lufs": -13.2,
+      "peak_dbfs": -1.7,
+      "duration_s": 1.57,
+      "bytes": 75416,
+      "sha256": "b7ed35c3b080c6927ab4a00a6c7126d2b7d6c1eddd2e672b0d40e26d47f2b0ad",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "We are winning this fight.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 10,
+        "overall": 9,
+        "notes": "Crisp delivery with excellent intercom processing that perfectly captures the tactical cockpit AI persona.",
+        "speech_s": 1.326,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "losing",
       "text": "We are losing this fight.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 70130,
-      "sha256": "be2ed6f84908d8dd4a3795027180c5fa005f0915786b2a6e1d65ca88700c21c0"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4101,
+      "take": 1,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. Measured and grave. Tighter and crisper this time, every consonant sharp.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nWe are losing this fight.",
+      "raw_sha256": "291e0ac523be1a1969e1de8c5f7910325e5de17d65a28dc11b478d5648aaa82a",
+      "pre_gain_db": -1.3,
+      "gain_db": 13.8,
+      "lufs": -13.1,
+      "peak_dbfs": -1.8,
+      "duration_s": 1.499,
+      "bytes": 71980,
+      "sha256": "9c370a5a921ccf3b7e335200872c973d32959e62db6c78bff45881d190ccd4b0",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "We are losing this fight.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent calm tactical delivery with fitting radio filtering and chirp effect.",
+        "speech_s": 1.255,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 1
+        },
+        {
+          "take": 1,
+          "seed": 4101,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "match_win",
       "text": "Mission accomplished.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 64138,
-      "sha256": "a510547239d8dd65b8c77f98394d9fa32daa7d48d193638290fe2cd582be88ea"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. Composed, quietly satisfied.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nMission accomplished.",
+      "raw_sha256": "676477e907a29c2167417bcfe807c46e2e645be8226737983fe6cf4204841974",
+      "pre_gain_db": 1.6,
+      "gain_db": 13.1,
+      "lufs": -13.1,
+      "peak_dbfs": -1.6,
+      "duration_s": 1.249,
+      "bytes": 59990,
+      "sha256": "98f103172e020a4347c7e2fd8648d7340853d59404366669e61942d917aaf92c",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Mission accomplished.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp, disciplined delivery with an authentic radio treatment that fits the tactical cockpit AI perfectly.",
+        "speech_s": 1.005,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "match_lose",
       "text": "Mission failed.",
-      "voice": "Samantha",
-      "rate": 185,
-      "bytes": 53180,
-      "sha256": "2199f5a7fc0909b32eed02b26455ea028e987c4984c73c41a7ab3c791ddcd0d3"
+      "voice": "Charon",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Cockpit tactical AI\n## THE SCENE: The intercom of a pilot's combat mech cockpit during a firefight. The onboard tactical AI reports status over the cockpit radio.\n### DIRECTOR'S NOTES\nStyle: Calm, clipped, precise military intercom voice. Controlled and confident, low emotion, crisp consonants, short decisive delivery with no trailing pauses. Composed and grave.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nMission failed.",
+      "raw_sha256": "ad41b5b757f0b675bbfb620c0741e920cdc2768df2c4f89a9c310e02e95220a2",
+      "pre_gain_db": 0.6,
+      "gain_db": 14.4,
+      "lufs": -13.2,
+      "peak_dbfs": -1.8,
+      "duration_s": 1.178,
+      "bytes": 56572,
+      "sha256": "38717a098ed5d9559df4c214e48b87d75a88b5a0aa3d9e6413dfb4941a42680f",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Mission failed.",
+        "words_correct": true,
+        "clarity": 10,
+        "energy": 9,
+        "fit": 10,
+        "artifacts": 10,
+        "overall": 10,
+        "notes": "Excellent, crisp tactical AI delivery with perfectly balanced radio processing that is ready to ship.",
+        "speech_s": 0.934,
+        "problems": [],
+        "score": 10
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     }
   ]
 }

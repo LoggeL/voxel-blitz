@@ -29,7 +29,7 @@ number.** Dirty files at spec time: `package.json`, `public/index.html`, `public
 | R4 | Do not touch a file outside your WP's ownership table. A needed change in a foreign file goes through a WP0 hook, or is sent as a hunk patch to the orchestrator. |
 | R5 | No browser flow that plays audio. Muted CDP captures (`tools/lib/cdp-session.mjs`) are allowed, **one WebGL capture at a time**, behind the capture lock. Heavy node jobs run behind the heavy lock (§12.4). |
 | R6 | Work files go in the session scratchpad, never `/tmp`. |
-| R7 | No ripped Titanfall art or audio. Use original synthesis, macOS `say` voices, or CC0/CC-BY assets listed in `sources.json`. Do not use real product names in any shipped string (only the in-game names listed here). |
+| R7 | No ripped Titanfall art or audio. Use original synthesis, AI voices speaking original lines (Gemini TTS), or CC0/CC-BY assets listed in `sources.json`. Do not use real product names in any shipped string (only the in-game names listed here). |
 | R8 | UI and models follow `AGENTS.md`: ImageGen reference first (they exist now in `docs/design/titanfall/`), then implement, then compare a muted capture against the reference at desktop **and** mobile size. |
 | R9 | Displayed values come from authoritative state (snapshot rows, `match.titanfall`, the `tfs` frame). The client never computes score, hp or meter on its own (prediction excepted, and it is reconciled). |
 | R10 | `npm run preload:build` is run **only by the orchestrator** under the heavy lock. WPs run `node tools/build-module-preload.mjs --check` and report the diff. `public/index.html` is never edited by a WP (titanfall CSS is injected lazily, §8.1). |
@@ -1134,7 +1134,7 @@ in capture phase, as `VehicleController` does. `server/accounts.js` imports
 ### 8.4 Audio and announcer
 
 - `shared/announcer.js`: append `TITANFALL_CUES` (`titanfall_ready`, `titan_ready`, `prepare_titanfall`, `core_online`, `titan_doomed`, `eject`, `enemy_titan`, `rodeo_warning`, `battery_acquired`, `winning`, `losing`, `match_win`, `match_lose`). Add them to `announcerCueInfo` without changing existing cues.
-- WAVs go to `public/assets/audio/announcer/titanfall/`, made with macOS `say` (an original voice, e.g. `-v Samantha`, plus filtering in `tools/`). `sources.json` lists the generation command per file.
+- WAVs go to `public/assets/audio/announcer/titanfall/`, spoken by Gemini TTS (prebuilt voice Charon, cockpit intercom filtering) through `tools/synthesize-announcer-gemini.mjs`. `sources.json` lists model, voice, prompt, chain and judge score per file; voice choice and judging are in `docs/audio/announcer.md`.
 - The ElevenLabs quota is exhausted: do not plan generation there.
 
 ### 8.5 main.js integration (WP0 hooks only)

@@ -1,151 +1,790 @@
 {
-  "generator": "tools/synthesize-objective-announcer.mjs",
-  "method": "macOS say + ffmpeg radio band (offline, no cloud voice service)",
-  "format": "WAV PCM s16le mono 22050 Hz",
+  "generator": "tools/synthesize-announcer-gemini.mjs",
+  "method": "Gemini TTS (gemini-3.8-flash-tts, prebuilt voice Alnilam) + deterministic ffmpeg chain; original lines from shared/announcer.js",
+  "license": "AI-generated with Google Gemini TTS for this project; no third-party recording (see public/assets/audio/LICENSES.md)",
+  "format": "WAV PCM s16le mono 24000 Hz",
+  "command": "node tools/synthesize-announcer-gemini.mjs --pack objective --voice Alnilam",
+  "model": "gemini-3.8-flash-tts",
+  "voice": "Alnilam",
+  "judge_model": "gemini-3.8-flash",
+  "pre_lufs": -18,
+  "target_lufs": -13,
+  "limiter": 0.8,
+  "filter": {
+    "character": "highpass=f=300,lowpass=f=3800,acompressor=threshold=-22dB:ratio=5:attack=3:release=60:makeup=4,acrusher=bits=12:mode=log:aa=1:mix=0.2,equalizer=f=1800:t=q:w=1.2:g=3",
+    "wrap": "anoisesrc=color=white:amplitude=0.12:sample_rate=24000:seed=11:duration=0.06,highpass=f=900,lowpass=f=4200,afade=t=out:st=0.03:d=0.03[a];anoisesrc=color=pink:amplitude=0.05:sample_rate=24000:seed=12:duration=0.08,highpass=f=600,lowpass=f=3000,afade=t=out:st=0.02:d=0.06[c];[a][v][c]concat=n=3:v=0:a=1[out]",
+    "trim": "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.03,areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.06,areverse"
+  },
+  "judge_summary": {
+    "min": 8,
+    "mean": 9.06,
+    "min_score": 7
+  },
   "clips": [
     {
       "id": "captured_A",
       "text": "Objective Alpha captured.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 79532,
-      "sha256": "7eced05b98ee521d4e84341b1c9376f0e5d0eee6612672cf984d9c16bddb2774"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. A confident, upbeat confirmation.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Alpha captured.",
+      "raw_sha256": "4503d3d0dc8b5a3ac2d04b57dc819e2e351222cf6bfde9b719c0b3ac0cb72553",
+      "pre_gain_db": -3.5,
+      "gain_db": 2.4,
+      "lufs": -13.2,
+      "peak_dbfs": -1.6,
+      "duration_s": 1.69,
+      "bytes": 81158,
+      "sha256": "e0a154cdcb21ace0558b9df4599c70803de471a2fc294a827685f4fc3d57f04d",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Alpha captured.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Sharp, commanding delivery with well-integrated radio processing that works great for in-game comms.",
+        "speech_s": 1.55,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "lost_A",
       "text": "Objective Alpha lost.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 74250,
-      "sha256": "320e1299767021dd308e7e8de50665f2b1c0aa6805bb1993a040d6da6c3eb6d2"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. Grim and urgent.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Alpha lost.",
+      "raw_sha256": "19cf3a05b53cd9ab15a9090291b908db27edc7b180fa1835a5594ddc6926d12f",
+      "pre_gain_db": -5.3,
+      "gain_db": 3.1,
+      "lufs": -13.2,
+      "peak_dbfs": -0.9,
+      "duration_s": 1.487,
+      "bytes": 71414,
+      "sha256": "218e501b336317780f58c7cc18878501a8e776a4b74811a77c1b902a49285727",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Alpha lost.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Solid, authoritative radio delivery with effective stylistic processing that fits the game role well.",
+        "speech_s": 1.347,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "under_attack_A",
       "text": "Objective Alpha under attack.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 84154,
-      "sha256": "6e7024b05b9b2a46c275799cff599b6c2e70c4bb0cfed2ec248ced4b6da31ac3"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. An urgent alert, clipped and fast.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Alpha under attack.",
+      "raw_sha256": "3187effc48fed9018756a9867be1d8cf7b687fe848b6f717205be2e2ea3ebdcd",
+      "pre_gain_db": -5.1,
+      "gain_db": 2.9,
+      "lufs": -13.3,
+      "peak_dbfs": -1.6,
+      "duration_s": 1.573,
+      "bytes": 75562,
+      "sha256": "66fa553fca58cedd14d30e576fafa5067337699c0ff505d3880f0a217dc59d03",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Alpha under attack.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8.5,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp tactical delivery with well-integrated radio effects and urgent battlefield tone ready for shipping.",
+        "speech_s": 1.433,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "captured_B",
       "text": "Objective Bravo captured.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 82744,
-      "sha256": "36fdfdb999cd70b0f0b091bcbc3da9cb7204d072f7f01018e86cdd89aac141ab"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. A confident, upbeat confirmation.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Bravo captured.",
+      "raw_sha256": "b0622695546692b3703efea7b012fba3333156b5089f54afc225685e4f838253",
+      "pre_gain_db": -3.4,
+      "gain_db": 1.4,
+      "lufs": -13.2,
+      "peak_dbfs": -1.8,
+      "duration_s": 1.525,
+      "bytes": 73244,
+      "sha256": "5d782b16adbb73166c36158d6495a6bbbfff12fdc5eb218441fb1a3f5ee2e4f1",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Bravo captured.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp, authoritative tactical delivery with well-balanced radio processing ready to ship.",
+        "speech_s": 1.385,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "lost_B",
       "text": "Objective Bravo lost.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 77322,
-      "sha256": "8f03d0a6c65b8db60093a2b0e062d9bdaf93c876df7d81aae2fa7fe65bc5e8e4"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. Grim and urgent.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Bravo lost.",
+      "raw_sha256": "aad7379ec9a6d7177d930c988ffb1347b08cb7628e80a7628e3901e0fd47b1a6",
+      "pre_gain_db": -5.5,
+      "gain_db": 2.4,
+      "lufs": -13.2,
+      "peak_dbfs": -1.7,
+      "duration_s": 1.655,
+      "bytes": 79466,
+      "sha256": "b64ecd35fe9e737c9db5d12efd3a4428e70d9802ddade47aaa6d0f010f47d1b9",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Bravo lost.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp and authoritative delivery with radio processing that fits the battlefield announcer role nicely.",
+        "speech_s": 1.515,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "under_attack_B",
       "text": "Objective Bravo under attack.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 88384,
-      "sha256": "dcb812e7d03e86d8b0163674f1d32466002c192001963a6bbb150896fdb0c4eb"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. An urgent alert, clipped and fast.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Bravo under attack.",
+      "raw_sha256": "c1106659fa1c3cc8b23dea123fbfdc754cfe1a01220c4358f0ad4ea392305f50",
+      "pre_gain_db": -4.8,
+      "gain_db": 2.1,
+      "lufs": -13.2,
+      "peak_dbfs": -1.7,
+      "duration_s": 1.62,
+      "bytes": 77818,
+      "sha256": "e1a7252dfa4e5aaae16db30747a9484a10ed87730aecf49e8f875b9241370906",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Bravo under attack.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent urgent delivery with well-balanced radio filtering that is ready to ship.",
+        "speech_s": 1.48,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "captured_C",
       "text": "Objective Charlie captured.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 80542,
-      "sha256": "b37cfa3dd116a0db9120f08457314cd2b73b4e035b085dbccb8fa3abf55bf851"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. A confident, upbeat confirmation.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Charlie captured.",
+      "raw_sha256": "bc5701e440e64c24ae50e3a2b8cdd94557c665619e5d05f95dd821e019fb6445",
+      "pre_gain_db": -5,
+      "gain_db": 3,
+      "lufs": -13.2,
+      "peak_dbfs": -1.3,
+      "duration_s": 1.786,
+      "bytes": 85758,
+      "sha256": "6850a447df2294fc12dffe91b4becb8bcfe3c1c3e26491cadb9c9aca0aa3f23c",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Charlie captured.",
+        "words_correct": true,
+        "clarity": 10,
+        "energy": 9,
+        "fit": 10,
+        "artifacts": 10,
+        "overall": 10,
+        "notes": "Crisp, authoritative delivery with perfectly balanced radio processing suitable for a AAA tactical shooter.",
+        "speech_s": 1.646,
+        "problems": [],
+        "score": 10
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 10
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "lost_C",
       "text": "Objective Charlie lost.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 75650,
-      "sha256": "33b5bae3711fe3b96bbaa433b6d0db806a2c426d0f5fc689589b5ccba5c399a9"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. Grim and urgent.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Charlie lost.",
+      "raw_sha256": "56d863561f7f9ea72cb1b7e8afd92dab15f6b1676bab688bfb03a402109fda88",
+      "pre_gain_db": -5,
+      "gain_db": 2.7,
+      "lufs": -13.2,
+      "peak_dbfs": -1.9,
+      "duration_s": 1.557,
+      "bytes": 74798,
+      "sha256": "e0e1455da2245fb68394b1cec52d49ebca14e29b78ea4e49cde88963361a0bcd",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Charlie lost.",
+        "words_correct": true,
+        "clarity": 10,
+        "energy": 9,
+        "fit": 10,
+        "artifacts": 10,
+        "overall": 10,
+        "notes": "Excellent performance with crisp, authoritative delivery and perfectly balanced radio treatment ready for shipping.",
+        "speech_s": 1.417,
+        "problems": [],
+        "score": 10
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 10
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "under_attack_C",
       "text": "Objective Charlie under attack.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 86224,
-      "sha256": "9796fa077fe17489d4079af53029a452355c3c584a169a0e5f9bdebc449d0a98"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. An urgent alert, clipped and fast.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Charlie under attack.",
+      "raw_sha256": "4af53462c701ffd49e9c89edca9ae15806839255f08f376c23940365f3037d4c",
+      "pre_gain_db": -4.6,
+      "gain_db": 2.5,
+      "lufs": -13.1,
+      "peak_dbfs": -1.7,
+      "duration_s": 1.662,
+      "bytes": 79798,
+      "sha256": "4a8542e4b8ae9fafb0c736e769dabb074460f7eded28a21ceb8ea6ebc1ec0f96",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Charlie under attack.",
+        "words_correct": true,
+        "clarity": 10,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp delivery with a convincing military radio filter that cuts through the mix cleanly.",
+        "speech_s": 1.522,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "captured_D",
       "text": "Objective Delta captured.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 79878,
-      "sha256": "040246625a966eb504b84175666d03535d19bf81db51c02a858b95affb362c69"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. A confident, upbeat confirmation.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Delta captured.",
+      "raw_sha256": "7a249105c9f57ef3dd10f1eea2004ed70d7a4585e73a43456819aca612a8cbe6",
+      "pre_gain_db": -4.6,
+      "gain_db": 2.2,
+      "lufs": -13.1,
+      "peak_dbfs": -1.8,
+      "duration_s": 2.056,
+      "bytes": 98742,
+      "sha256": "ddc0b187aa116ff2d3ce8abde6f17f5f89b429babe68041f96089351a5ea854f",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Delta captured.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp, commanding delivery with well-balanced radio processing that fits the game context perfectly.",
+        "speech_s": 1.916,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "lost_D",
       "text": "Objective Delta lost.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 75274,
-      "sha256": "9636d279eb14819137a52deef8aee03e7d7759aa30786ecec88a438f4a03db80"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. Grim and urgent.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Delta lost.",
+      "raw_sha256": "3140bdec9849a30b5fda90a81b67ed5a3d64d94f98895ff86353be230d239e05",
+      "pre_gain_db": -6.6,
+      "gain_db": 2,
+      "lufs": -13.1,
+      "peak_dbfs": -1.8,
+      "duration_s": 1.639,
+      "bytes": 78700,
+      "sha256": "0dd4a5e06531d4b182fba4ff6c7e379364ec16b067ccc1bd207bdea3d93aa8c9",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Delta lost.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Authentic radio treatment with a clear, authoritative delivery perfectly suited for the game announcer role.",
+        "speech_s": 1.499,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "under_attack_D",
       "text": "Objective Delta under attack.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 84420,
-      "sha256": "b25efe3717d811e6d022338cdd48a15436d4fded8fc7694a8a80330933ea4652"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. An urgent alert, clipped and fast.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Delta under attack.",
+      "raw_sha256": "7a6001fc0f62faea92a7b38c5469a9d7a46176bd250626cae07a4e3ec100c1b7",
+      "pre_gain_db": -3.1,
+      "gain_db": 4.2,
+      "lufs": -13.3,
+      "peak_dbfs": -1.3,
+      "duration_s": 1.625,
+      "bytes": 78028,
+      "sha256": "4149f00ab30cf8818582ca66716134b22192d12e4a5b56f1b13a42be7d467890",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Delta under attack.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp, urgent delivery with authentic radio filtering that is production-ready.",
+        "speech_s": 1.485,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "captured_E",
       "text": "Objective Echo captured.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 75882,
-      "sha256": "3409b7d6a1bf7ec4fef7bbab01916115268d82bf20bcb3d5a450abec0df3a149"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. A confident, upbeat confirmation.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Echo captured.",
+      "raw_sha256": "b420c960340da046d7a3f2b52728184d21247f3ee7f64473c5c6e3240650ce2c",
+      "pre_gain_db": -2.2,
+      "gain_db": 2.3,
+      "lufs": -13.2,
+      "peak_dbfs": -0.9,
+      "duration_s": 1.527,
+      "bytes": 73328,
+      "sha256": "80db99cb2d4db0deacb3dd64f61f548f3e557d7603cf242171c6f69820af7a31",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Echo captured.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent, authoritative military delivery with authentic radio processing that is fully ready to ship.",
+        "speech_s": 1.387,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "lost_E",
       "text": "Objective Echo lost.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 70540,
-      "sha256": "0e4f9f35da9670cc265a9387db0dc549a451f4d5f994f4f1b3cf73ef81267f27"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. Grim and urgent.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Echo lost.",
+      "raw_sha256": "ac6127a5ddcf8b80df834c031defe2499d6c2a764588a2fb34c3962800a387d1",
+      "pre_gain_db": -4.7,
+      "gain_db": 4,
+      "lufs": -13.4,
+      "peak_dbfs": -1.4,
+      "duration_s": 1.878,
+      "bytes": 90192,
+      "sha256": "fe034e8708e884092351b98a526ccdb7a5ec01bab3e5b885c15749f3b7c906a5",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Echo lost.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp tactical delivery with well-integrated radio processing ready for in-game use.",
+        "speech_s": 1.738,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "under_attack_E",
       "text": "Objective Echo under attack.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 81758,
-      "sha256": "1973406c5248903efe7f3522684e9c4e7c639d633f4ca41569e3965577e67c0c"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. An urgent alert, clipped and fast.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nObjective Echo under attack.",
+      "raw_sha256": "0e49958e7491ac8251e52251d6b4188110681f40731e7881b82ed3ed0b538a96",
+      "pre_gain_db": -3.5,
+      "gain_db": 3.6,
+      "lufs": -13.6,
+      "peak_dbfs": -1.7,
+      "duration_s": 1.572,
+      "bytes": 75514,
+      "sha256": "2f67bcba182bb74a882a1ecdcb342e3cedc1c04609ac5ee538792ca331c5bf9d",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Objective Echo under attack.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent radio processing and delivery that fits the tactical operator role well.",
+        "speech_s": 1.432,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
     },
     {
       "id": "tickets_low",
       "text": "Reinforcements low.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 70634,
-      "sha256": "f7d3f2debae67e7198487a5ee7f54aac5d47aea7b6310294c413183156a86cf8"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. Urgent and serious, a warning to the team.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nReinforcements low.",
+      "raw_sha256": "b7aebb06dc6672e13e440c456236c92e8fb7bfcd1d8b0cab2ba1e4e72c815115",
+      "pre_gain_db": -6.3,
+      "gain_db": 2,
+      "lufs": -12.8,
+      "peak_dbfs": -1.8,
+      "duration_s": 1.342,
+      "bytes": 64474,
+      "sha256": "27e74189859202f02cf3ecf2b0e52b3ac3e3632355c6cbcdd8f06970850e6e82",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Reinforcements low.",
+        "words_correct": true,
+        "clarity": 8,
+        "energy": 7,
+        "fit": 8,
+        "artifacts": 9,
+        "overall": 8,
+        "notes": "Solid radio-filtered delivery with clear enunciation and an appropriate tactical tone.",
+        "speech_s": 1.202,
+        "problems": [],
+        "score": 8
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 8
+        },
+        {
+          "take": 1,
+          "seed": 4101,
+          "score": 9
+        },
+        {
+          "take": 2,
+          "seed": 4102,
+          "score": 9
+        }
+      ],
+      "shootout": {
+        "scores": {
+          "take 0": 8,
+          "take 1": 7.5,
+          "take 2": 4
+        },
+        "notes": [
+          "take 0: Candidate A delivers the line with the ideal gritty authority and tactical weight for a battlefield commander, whereas B has an awkward upward inflection and C lacks urgency and presence.",
+          "take 1: Candidate B brings the sharpest tactical authority and crisp military urgency to the line, while Candidate C feels slightly rushed and Candidate A lacks commanding weight."
+        ],
+        "winner": 0
+      }
     },
     {
       "id": "victory",
       "text": "Victory.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 39676,
-      "sha256": "cc046121ea3b3f6882f84bfc7c06974b5b1b7b03ef8459f792442c6c52f946c4"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4102,
+      "take": 2,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. Triumphant and proud. More presence and conviction, a touch slower and fully clear.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nVictory.",
+      "raw_sha256": "4d328c46461f4da15a0b9d39b5d8272eb78cdda33808ad8443e3d584d4413b77",
+      "pre_gain_db": -4.3,
+      "gain_db": 2.2,
+      "lufs": -13.2,
+      "peak_dbfs": -1.8,
+      "duration_s": 0.924,
+      "bytes": 44396,
+      "sha256": "8802e88e20382bd2e8bbd08857d6022f111b9298ed03f0f88084c513e8315528",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Victory.",
+        "words_correct": true,
+        "clarity": 10,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Crisp, authoritative delivery with well-balanced radio processing that fits the game context perfectly.",
+        "speech_s": 0.784,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        },
+        {
+          "take": 1,
+          "seed": 4101,
+          "score": 9
+        },
+        {
+          "take": 2,
+          "seed": 4102,
+          "score": 9
+        }
+      ],
+      "shootout": {
+        "scores": {
+          "take 0": 4,
+          "take 1": 5.5,
+          "take 2": 7
+        },
+        "notes": [
+          "Candidate C: Candidate C provides the most commanding, authoritative, and battle-hardened vocal weight suited for a military radio operator.",
+          "Candidate A: Candidate A delivers the line with the deepest, most authoritative command presence and tactical composure suited for a battlefield radio operator."
+        ],
+        "winner": 2
+      }
     },
     {
       "id": "defeat",
       "text": "Defeat.",
-      "voice": "Daniel",
-      "rate": 190,
-      "bytes": 38138,
-      "sha256": "b3590d92ac8454158ec48dba857d6ba8351198cb9368080f618eb7fcf5452332"
+      "voice": "Alnilam",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Battlefield radio operator\n## THE SCENE: A command post radio on a large battlefield. The operator calls objective changes to the whole team over the field radio, with artillery in the distance.\n### DIRECTOR'S NOTES\nStyle: Commanding battlefield radio operator. Authoritative, clear and punchy, projected over the noise of battle, clipped military cadence, no hesitation. Heavy and grave.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nDefeat.",
+      "raw_sha256": "3cb369e0cf3fa1950dfa9adcdd25bc0ecbb35d1c6ca61e983713a97686d0a93d",
+      "pre_gain_db": 0.6,
+      "gain_db": 5.8,
+      "lufs": -14,
+      "peak_dbfs": -1.1,
+      "duration_s": 0.722,
+      "bytes": 34696,
+      "sha256": "bfd605e2c4e9a36636437c2de829df6fe47013e675dcf0e657d6d2401d329244",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Defeat.",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 8,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Solid, punchy delivery with an appropriate radio filter that works well for a match-end announcement.",
+        "speech_s": 0.582,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        },
+        {
+          "take": 1,
+          "seed": 4101,
+          "score": 9
+        },
+        {
+          "take": 2,
+          "seed": 4102,
+          "score": 9
+        }
+      ],
+      "shootout": {
+        "scores": {
+          "take 0": 6.5,
+          "take 1": 4,
+          "take 2": 6.5
+        },
+        "notes": [
+          "take 2: Candidate C delivers the most commanding and authoritative vocal presence through the radio filter, whereas Candidate B lacks impact.",
+          "take 0: Candidate C delivers the strongest authoritative grit and gravitas fitting a serious battlefield transmission."
+        ],
+        "winner": 0
+      }
     }
   ]
 }

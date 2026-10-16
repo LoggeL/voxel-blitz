@@ -197,6 +197,22 @@ origin and license of every bundled recording remain auditable.
   license (yt-dlp license field `NA`), with only a "royalty-free" note in the description. They
   and their build script were removed.
 
+## Announcer voices (Gemini TTS)
+
+- Folders: `announcer/titanfall/` (13 Titanfall calls) and `announcer/objective/` (18 Conquest calls).
+- AI-generated speech: Google Gemini TTS (`gemini-3.8-flash-tts`) with the prebuilt voices Charon
+  (Titanfall cockpit intercom) and Alnilam (Conquest radio operator), generated on 2026-10-16 through
+  the Gemini API by `tools/synthesize-announcer-gemini.mjs`. Every line is original project wording from
+  `shared/announcer.js`; no game, film or voice-actor recordings were used or imitated.
+- Processing: silence trim, pack filter (intercom band and chirp, or field-radio band and seeded squelch),
+  loudness gain to -13 LUFS, -1.9 dBFS limiter, mono 16-bit 24 kHz WAV.
+- `sources.json` in each folder records per clip: text, model, voice, style prompt, seed, raw and shipped
+  sha256, the filter chain, measured loudness and the Gemini audio-judge verdict (`gemini-3.8-flash`).
+- Google account and API terms govern the generated audio; no CC0 or CC license is asserted.
+  Voice choice and judging: `docs/audio/announcer.md`.
+- `announcer/quake/` is different: unchanged classic "Quake Sounds" recordings, see
+  `docs/audio/quake-announcer.md`.
+
 ## Conquest sound banks
 
 - Folders: `conquest/vehicles/` (80 files), `conquest/explosions/` (68) and

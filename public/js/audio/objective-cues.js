@@ -1,7 +1,7 @@
 /**
  * Conquest objective audio: procedural stingers (built from the shared
- * synthesis primitives, read-only) plus announcer calls from offline-
- * synthesized WAVs. Every cue maps 1:1 to an authoritative event:
+ * synthesis primitives, read-only) plus announcer calls from Gemini TTS
+ * WAVs (tools/synthesize-announcer-gemini.mjs). Every cue maps 1:1 to an authoritative event:
  *
  *   flag_state  (own side starts capturing / neutralizing) → capture_start
  *   flag_state  (enemy on an own flag)                     → announcer under_attack_X

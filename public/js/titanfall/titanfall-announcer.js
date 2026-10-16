@@ -1,7 +1,7 @@
 /**
  * Titanfall announcer cue mapping (docs/titanfall.md §8.4; WP6). The voice is
  * the shared single announcer (sfx.objectiveAudio(): priority coalescing, no
- * queue); this module loads the offline-synthesized WAVs once a context exists
+ * queue); this module loads the Gemini TTS WAVs once a context exists
  * (shared/announcer.js TITANFALL_CUES, titanfallCueUrl) and decides which cue
  * an authoritative event or HUD state change speaks.
  *

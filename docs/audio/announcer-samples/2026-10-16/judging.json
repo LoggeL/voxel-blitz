@@ -1,0 +1,819 @@
+{
+  "date": "2026-10-16",
+  "tts_model": "gemini-3.8-flash-tts",
+  "judge_model": "gemini-3.8-flash",
+  "method": "Each candidate voice spoke the pack lines with the pack prompt (take 0, seed 4100) and went through the shipped processing chain. Per-clip judge: 1-10 with transcript check. Comparative judge: all candidates of one line in one request, scored against each other, run in two orders and averaged.",
+  "auditions": [
+    {
+      "pack": "titanfall",
+      "round": "main",
+      "cues": [
+        "prepare_titanfall",
+        "eject",
+        "core_online"
+      ],
+      "summary": [
+        {
+          "voice": "Charon",
+          "compare": 6.87,
+          "mean": 9.33,
+          "clarity": 9.33,
+          "energy": 9,
+          "fit": 9.67,
+          "artifacts": 9.33,
+          "n": 3
+        },
+        {
+          "voice": "Iapetus",
+          "compare": 6.83,
+          "mean": 9.1,
+          "clarity": 9,
+          "energy": 9,
+          "fit": 9.17,
+          "artifacts": 9.17,
+          "n": 3
+        },
+        {
+          "voice": "Kore",
+          "compare": 5.67,
+          "mean": 9.33,
+          "clarity": 9.33,
+          "energy": 8.67,
+          "fit": 9.33,
+          "artifacts": 9.33,
+          "n": 3
+        },
+        {
+          "voice": "Schedar",
+          "compare": 5.5,
+          "mean": 9.33,
+          "clarity": 9.33,
+          "energy": 9,
+          "fit": 9.33,
+          "artifacts": 9.33,
+          "n": 3
+        },
+        {
+          "voice": "Erinome",
+          "compare": 5.08,
+          "mean": 9,
+          "clarity": 9.33,
+          "energy": 9,
+          "fit": 9.33,
+          "artifacts": 9,
+          "n": 3
+        }
+      ],
+      "comparisons": {
+        "prepare_titanfall": {
+          "scores": {
+            "Kore": 4.5,
+            "Erinome": 5,
+            "Charon": 5,
+            "Iapetus": 7,
+            "Schedar": 3.5
+          },
+          "notes": [
+            "Iapetus: Candidate D delivers the ideal blend of calm tactical authority, resonant presence, and controlled military cadence suited for a mech cockpit AI.",
+            "Iapetus: Candidate B delivers the ideal low-register gravitas, steady cadence, and calm tactical authority required for a mech cockpit AI."
+          ]
+        },
+        "eject": {
+          "scores": {
+            "Kore": 5,
+            "Erinome": 6,
+            "Charon": 7,
+            "Iapetus": 7,
+            "Schedar": 7
+          },
+          "notes": [
+            "Charon: Candidate C delivers the line with the ideal deep, calm authority and steady, clipped cadence expected from a classic military mech tactical computer.",
+            "Schedar: Candidate A delivers the ideal 'Bitchin' Betty' cockpit AI cadence—calm, clipped, authoritative, and impeccably articulated through the intercom processing."
+          ]
+        },
+        "core_online": {
+          "scores": {
+            "Kore": 7.5,
+            "Erinome": 4.25,
+            "Charon": 8.6,
+            "Iapetus": 6.5,
+            "Schedar": 6
+          },
+          "notes": [
+            "Iapetus: Candidate D delivers the line with an impeccably crisp, clipped cadence and a calm, authoritative military presence that feels authentic to a tactical mech cockpit.",
+            "Charon: Candidate C delivers the line with the sharpest attack, firmest military cadence, and most authoritative tactical AI presence of the group."
+          ]
+        }
+      },
+      "clips": [
+        {
+          "voice": "Kore",
+          "cue": "prepare_titanfall",
+          "score": 10,
+          "transcript": "Prepare for titanfall.",
+          "notes": "Excellent tactical AI delivery with crisp intercom processing and authoritative clarity."
+        },
+        {
+          "voice": "Kore",
+          "cue": "eject",
+          "score": 9,
+          "transcript": "Eject, eject, eject.",
+          "notes": "Excellent clipped military tactical AI delivery with crisp, well-integrated radio processing."
+        },
+        {
+          "voice": "Kore",
+          "cue": "core_online",
+          "score": 9,
+          "transcript": "Core online.",
+          "notes": "Crisp, authoritative delivery with clean radio processing that fits the tactical mech AI perfectly."
+        },
+        {
+          "voice": "Erinome",
+          "cue": "prepare_titanfall",
+          "score": 9,
+          "transcript": "Prepare for titanfall.",
+          "notes": "Excellent calm tactical delivery with great radio comms processing suitable for a mech cockpit AI."
+        },
+        {
+          "voice": "Erinome",
+          "cue": "eject",
+          "score": 9,
+          "transcript": "Eject. Eject. Eject.",
+          "notes": "Excellent calm, urgent delivery with authentic cockpit comms processing that fits the tactical mech AI role perfectly."
+        },
+        {
+          "voice": "Erinome",
+          "cue": "core_online",
+          "score": 9,
+          "transcript": "Core online.",
+          "notes": "Crisp, controlled delivery with radio processing that fits the tactical mech AI persona perfectly."
+        },
+        {
+          "voice": "Charon",
+          "cue": "prepare_titanfall",
+          "score": 9,
+          "transcript": "Prepare for titanfall.",
+          "notes": "Excellent calm, clipped military delivery with fitting tactical intercom processing."
+        },
+        {
+          "voice": "Charon",
+          "cue": "eject",
+          "score": 9,
+          "transcript": "Eject, eject, eject.",
+          "notes": "Excellent clipped, urgent tactical delivery with clean radio filtering and chime, ready to ship."
+        },
+        {
+          "voice": "Charon",
+          "cue": "core_online",
+          "score": 10,
+          "transcript": "Core online.",
+          "notes": "Excellent delivery with clean processing that fits the tactical mech AI brief perfectly."
+        },
+        {
+          "voice": "Iapetus",
+          "cue": "prepare_titanfall",
+          "score": 9,
+          "transcript": "Prepare for titanfall.",
+          "notes": "Excellent clipped military tactical delivery with clean, convincing intercom processing ready to ship."
+        },
+        {
+          "voice": "Iapetus",
+          "cue": "eject",
+          "score": 9,
+          "transcript": "Eject, eject, eject.",
+          "notes": "Crisp, authoritative delivery and clean intercom processing make this line fully ship-ready."
+        },
+        {
+          "voice": "Iapetus",
+          "cue": "core_online",
+          "score": 9.3,
+          "transcript": "Core online.",
+          "notes": "Excellent delivery and processing that perfectly suits a tactical mech AI announcer."
+        },
+        {
+          "voice": "Schedar",
+          "cue": "prepare_titanfall",
+          "score": 9,
+          "transcript": "Prepare for Titanfall.",
+          "notes": "Crisp, calm delivery and effective intercom processing fit the cockpit AI archetype well."
+        },
+        {
+          "voice": "Schedar",
+          "cue": "eject",
+          "score": 10,
+          "transcript": "Eject, eject, eject.",
+          "notes": "Crisp, disciplined tactical delivery with spot-on radio processing that is fully ready to ship."
+        },
+        {
+          "voice": "Schedar",
+          "cue": "core_online",
+          "score": 9,
+          "transcript": "Core online.",
+          "notes": "Excellent tactical intercom tone with clean processing and crisp, controlled delivery ready for shipping."
+        }
+      ]
+    },
+    {
+      "pack": "titanfall",
+      "round": "tie-break",
+      "cues": [
+        "titan_doomed",
+        "battery_acquired",
+        "match_lose"
+      ],
+      "summary": [
+        {
+          "voice": "Charon",
+          "compare": 6.5,
+          "mean": 9.33,
+          "clarity": 9.33,
+          "energy": 9,
+          "fit": 9.33,
+          "artifacts": 9.33,
+          "n": 3
+        },
+        {
+          "voice": "Iapetus",
+          "compare": 4.83,
+          "mean": 9,
+          "clarity": 9,
+          "energy": 9,
+          "fit": 9,
+          "artifacts": 9,
+          "n": 3
+        }
+      ],
+      "comparisons": {
+        "titan_doomed": {
+          "scores": {
+            "Charon": 7,
+            "Iapetus": 4
+          },
+          "notes": [
+            "Candidate A: Candidate A provides the ideal clipped, synthetic tactical cadence for an automated cockpit system, whereas Candidate B sounds overly fluid and less authoritative.",
+            "Candidate B: Candidate B delivers the line with the requisite calm, mechanical precision and clipped cadence, whereas Candidate A feels overly rushed and conversational for a tactical AI."
+          ]
+        },
+        "battery_acquired": {
+          "scores": {
+            "Charon": 7,
+            "Iapetus": 5
+          },
+          "notes": [
+            "Candidate A: Candidate A provides a crisper, more clipped delivery that fits a fast-paced tactical cockpit AI better than Candidate B's slower read.",
+            "Charon: Candidate B delivers a deeper, more clipped, and appropriately detached tactical cadence that fits a mech cockpit AI better than the overly natural tone of Candidate A."
+          ]
+        },
+        "match_lose": {
+          "scores": {
+            "Charon": 5.5,
+            "Iapetus": 5.5
+          },
+          "notes": [
+            "Charon: Candidate A provides a crisp, calm, and seamless tactical delivery, whereas Candidate B has an awkward, unnatural pause between words.",
+            "Iapetus: Candidate A delivers the ideal calm, precise tactical AI cadence, whereas Candidate B sounds overly processed, guttural, and indistinct."
+          ]
+        }
+      },
+      "clips": [
+        {
+          "voice": "Charon",
+          "cue": "titan_doomed",
+          "score": 9,
+          "transcript": "Warning. Titan doomed.",
+          "notes": "Crisp, disciplined tactical AI delivery with well-integrated intercom effects ready for shipping."
+        },
+        {
+          "voice": "Charon",
+          "cue": "battery_acquired",
+          "score": 9,
+          "transcript": "Battery acquired.",
+          "notes": "Crisp and clipped tactical AI delivery with clean, game-ready intercom processing."
+        },
+        {
+          "voice": "Charon",
+          "cue": "match_lose",
+          "score": 10,
+          "transcript": "Mission failed.",
+          "notes": "Excellent performance and intercom processing that are ready to ship directly into the game."
+        },
+        {
+          "voice": "Iapetus",
+          "cue": "titan_doomed",
+          "score": 9,
+          "transcript": "Warning: titan doomed.",
+          "notes": "Excellent clipped tactical delivery with clean, convincing cockpit intercom processing."
+        },
+        {
+          "voice": "Iapetus",
+          "cue": "battery_acquired",
+          "score": 9,
+          "transcript": "Battery acquired.",
+          "notes": "Clean and precise delivery with intercom processing that perfectly matches the tactical cockpit AI persona."
+        },
+        {
+          "voice": "Iapetus",
+          "cue": "match_lose",
+          "score": 9,
+          "transcript": "Mission failed.",
+          "notes": "Excellent tactical intercom delivery with clear radio processing and perfect matter-of-fact tone."
+        }
+      ]
+    },
+    {
+      "pack": "objective",
+      "round": "main",
+      "cues": [
+        "under_attack_C",
+        "captured_A",
+        "victory"
+      ],
+      "summary": [
+        {
+          "voice": "Alnilam",
+          "compare": 7.5,
+          "mean": 9,
+          "clarity": 9,
+          "energy": 8.67,
+          "fit": 9,
+          "artifacts": 9,
+          "n": 3
+        },
+        {
+          "voice": "Sadaltager",
+          "compare": 6.23,
+          "mean": 9,
+          "clarity": 9.33,
+          "energy": 8.67,
+          "fit": 9,
+          "artifacts": 9,
+          "n": 3
+        },
+        {
+          "voice": "Gacrux",
+          "compare": 5.92,
+          "mean": 8.33,
+          "clarity": 8.67,
+          "energy": 7.67,
+          "fit": 8.5,
+          "artifacts": 9,
+          "n": 3
+        },
+        {
+          "voice": "Orus",
+          "compare": 5.87,
+          "mean": 9,
+          "clarity": 9,
+          "energy": 8.33,
+          "fit": 9,
+          "artifacts": 9.33,
+          "n": 3
+        },
+        {
+          "voice": "Algenib",
+          "compare": 5.47,
+          "mean": 9,
+          "clarity": 9,
+          "energy": 8,
+          "fit": 9,
+          "artifacts": 9,
+          "n": 3
+        }
+      ],
+      "comparisons": {
+        "under_attack_C": {
+          "scores": {
+            "Alnilam": 6.5,
+            "Orus": 7.6,
+            "Algenib": 6.4,
+            "Gacrux": 4.75,
+            "Sadaltager": 6.2
+          },
+          "notes": [
+            "Orus: Candidate B delivers the line with the ideal balance of tactical urgency, commanding authority, and razor-sharp clarity that cuts cleanly through the radio processing.",
+            "Algenib: Candidate C delivers the callout with authentic battlefield grit, authoritative command presence, and a natural, urgent military cadence."
+          ]
+        },
+        "captured_A": {
+          "scores": {
+            "Alnilam": 9,
+            "Orus": 3,
+            "Algenib": 7,
+            "Gacrux": 4.5,
+            "Sadaltager": 6.5
+          },
+          "notes": [
+            "Candidate A: Candidate A delivers the most authoritative, crisp, and tactically punchy performance, perfectly embodying a commanding battlefield radio operator.",
+            "Alnilam: Candidate E delivers the line with the ideal punchy military cadence, sharp articulation, and commanding authority required for a high-intensity battlefield radio operator."
+          ]
+        },
+        "victory": {
+          "scores": {
+            "Alnilam": 7,
+            "Orus": 7,
+            "Algenib": 3,
+            "Gacrux": 8.5,
+            "Sadaltager": 6
+          },
+          "notes": [
+            "Gacrux: Candidate D delivers the ideal battle-hardened grit, authoritative punch, and crisp projection to cut through chaotic battlefield comms.",
+            "Orus: Candidate D delivers the deep, authoritative gravitas and stoic military presence ideal for a commanding battlefield operator, outperforming the lighter tones and Candidate C's harsh audio artifacts."
+          ]
+        }
+      },
+      "clips": [
+        {
+          "voice": "Alnilam",
+          "cue": "under_attack_C",
+          "score": 9,
+          "transcript": "Objective Charlie under attack.",
+          "notes": "Excellent tactical urgency and punchy radio processing ready for in-game implementation."
+        },
+        {
+          "voice": "Alnilam",
+          "cue": "captured_A",
+          "score": 9,
+          "transcript": "Objective Alpha captured.",
+          "notes": "Excellent tactical radio delivery with clean, authentic processing and clear articulation."
+        },
+        {
+          "voice": "Alnilam",
+          "cue": "victory",
+          "score": 9,
+          "transcript": "Victory",
+          "notes": "A punchy, commanding delivery with well-integrated radio effects ready to ship."
+        },
+        {
+          "voice": "Orus",
+          "cue": "under_attack_C",
+          "score": 9,
+          "transcript": "Objective Charlie, under attack.",
+          "notes": "Crisp and urgent delivery with convincing, well-balanced radio processing suitable for shipping."
+        },
+        {
+          "voice": "Orus",
+          "cue": "captured_A",
+          "score": 9,
+          "transcript": "Objective Alpha captured.",
+          "notes": "A crisp, authoritative delivery with convincing radio processing that is ready to ship."
+        },
+        {
+          "voice": "Orus",
+          "cue": "victory",
+          "score": 9,
+          "transcript": "Victory.",
+          "notes": "Crisp and commanding delivery with authentic radio processing that is ready to ship."
+        },
+        {
+          "voice": "Algenib",
+          "cue": "under_attack_C",
+          "score": 9,
+          "transcript": "Objective Charlie under attack.",
+          "notes": "Crisp, urgent delivery with authentic radio processing that fits the battlefield role perfectly."
+        },
+        {
+          "voice": "Algenib",
+          "cue": "captured_A",
+          "score": 9,
+          "transcript": "Objective Alpha captured.",
+          "notes": "Crisp, authoritative delivery with clean, authentic radio processing ready for shipping."
+        },
+        {
+          "voice": "Algenib",
+          "cue": "victory",
+          "score": 9,
+          "transcript": "Victory.",
+          "notes": "Crisp delivery with a well-balanced tactical radio filter suitable for shipping."
+        },
+        {
+          "voice": "Gacrux",
+          "cue": "under_attack_C",
+          "score": 9,
+          "transcript": "Objective Charlie under attack.",
+          "notes": "Excellent tactical radio delivery with clean processing and high intelligibility."
+        },
+        {
+          "voice": "Gacrux",
+          "cue": "captured_A",
+          "score": 9,
+          "transcript": "Objective Alpha captured.",
+          "notes": "Crisp, authoritative delivery with convincing and clean military radio processing that fits the role perfectly."
+        },
+        {
+          "voice": "Gacrux",
+          "cue": "victory",
+          "score": 7,
+          "transcript": "Victory.",
+          "notes": "Clear transmission and suitable tactical radio processing, though the delivery is slightly subdued for a victory announcement."
+        },
+        {
+          "voice": "Sadaltager",
+          "cue": "under_attack_C",
+          "score": 9,
+          "transcript": "Objective Charlie under attack.",
+          "notes": "Excellent urgent delivery with well-integrated radio effects that fit the role perfectly."
+        },
+        {
+          "voice": "Sadaltager",
+          "cue": "captured_A",
+          "score": 9,
+          "transcript": "Objective Alpha captured.",
+          "notes": "Clear, crisp military radio delivery with well-balanced tactical effects."
+        },
+        {
+          "voice": "Sadaltager",
+          "cue": "victory",
+          "score": 9,
+          "transcript": "Victory.",
+          "notes": "Crisp, authoritative delivery with solid radio processing that cuts through cleanly and is ready to ship."
+        }
+      ]
+    },
+    {
+      "pack": "arena",
+      "round": "main",
+      "cues": [
+        "doublekill",
+        "monsterkill",
+        "godlike"
+      ],
+      "summary": [
+        {
+          "voice": "Fenrir",
+          "compare": 7.67,
+          "mean": 9,
+          "clarity": 9,
+          "energy": 9,
+          "fit": 9.33,
+          "artifacts": 9,
+          "n": 3
+        },
+        {
+          "voice": "Rasalgethi",
+          "compare": 6.5,
+          "mean": 9,
+          "clarity": 9,
+          "energy": 9,
+          "fit": 9,
+          "artifacts": 9.17,
+          "n": 3
+        },
+        {
+          "voice": "Orus",
+          "compare": 6.17,
+          "mean": 9,
+          "clarity": 8.67,
+          "energy": 9,
+          "fit": 9,
+          "artifacts": 8.67,
+          "n": 3
+        },
+        {
+          "voice": "Alnilam",
+          "compare": 5.83,
+          "mean": 9,
+          "clarity": 8.67,
+          "energy": 9,
+          "fit": 9,
+          "artifacts": 9,
+          "n": 3
+        },
+        {
+          "voice": "Algenib",
+          "compare": 4.83,
+          "mean": 8.33,
+          "clarity": 8.33,
+          "energy": 7.83,
+          "fit": 8.5,
+          "artifacts": 9,
+          "n": 3
+        }
+      ],
+      "comparisons": {
+        "doublekill": {
+          "scores": {
+            "Algenib": 5.5,
+            "Fenrir": 6.5,
+            "Orus": 7.5,
+            "Alnilam": 6.5,
+            "Rasalgethi": 6
+          },
+          "notes": [
+            "Alnilam: Candidate D delivers the ideal blend of guttural power, explosive punch, and booming resonance needed to hype up a fast-paced arena shooter.",
+            "Orus: Candidate C delivers the ideal arena shooter archetype with commanding vocal depth, aggressive grit, and explosive hype."
+          ]
+        },
+        "monsterkill": {
+          "scores": {
+            "Algenib": 5.5,
+            "Fenrir": 7.5,
+            "Orus": 3.5,
+            "Alnilam": 6.5,
+            "Rasalgethi": 7
+          },
+          "notes": [
+            "Alnilam: Candidate D delivers the ideal combination of thunderous low-end resonance, explosive pacing, and commanding hype perfectly suited for a fast arena shooter.",
+            "Candidate A: Candidate A delivers the ideal combination of guttural resonance, booming power, and explosive hype that defines a classic arena shooter kill streak."
+          ]
+        },
+        "godlike": {
+          "scores": {
+            "Algenib": 3.5,
+            "Fenrir": 9,
+            "Orus": 7.5,
+            "Alnilam": 4.5,
+            "Rasalgethi": 6.5
+          },
+          "notes": [
+            "Fenrir: Candidate B delivers the ideal combination of deep chest resonance, ferocious hype, and crisp impact needed for an iconic arena kill-streak callout.",
+            "Fenrir: Candidate D delivers the most explosive, authoritative punch with crisp articulation and classic arena-shooter aggression."
+          ]
+        }
+      },
+      "clips": [
+        {
+          "voice": "Algenib",
+          "cue": "doublekill",
+          "score": 9.5,
+          "transcript": "Double kill",
+          "notes": "Classic, punchy, deep arena announcer delivery that fits the genre perfectly and is ready to ship."
+        },
+        {
+          "voice": "Algenib",
+          "cue": "monsterkill",
+          "score": 9,
+          "transcript": "Monster kill",
+          "notes": "Classic, deep Unreal Tournament-style delivery that would cut through a mix and hype up the player nicely."
+        },
+        {
+          "voice": "Algenib",
+          "cue": "godlike",
+          "score": 6.5,
+          "transcript": "Godlike",
+          "notes": "The delivery has a suitably deep tone, but lacks the explosive excitement and vocal punch expected for such a high-tier killstreak."
+        },
+        {
+          "voice": "Fenrir",
+          "cue": "doublekill",
+          "score": 9,
+          "transcript": "Double kill!",
+          "notes": "Excellent aggressive delivery with great impact and fitting arena reverb."
+        },
+        {
+          "voice": "Fenrir",
+          "cue": "monsterkill",
+          "score": 9,
+          "transcript": "Monster kill!",
+          "notes": "Classic booming arena shooter delivery with impactful processing and great hype."
+        },
+        {
+          "voice": "Fenrir",
+          "cue": "godlike",
+          "score": 9,
+          "transcript": "Godlike!",
+          "notes": "Classic, high-impact delivery with aggressive processing that fits an arena shooter killstreak perfectly."
+        },
+        {
+          "voice": "Orus",
+          "cue": "doublekill",
+          "score": 9,
+          "transcript": "Double kill",
+          "notes": "Punchy, deep, and authoritative delivery that fits an arena shooter announcer perfectly."
+        },
+        {
+          "voice": "Orus",
+          "cue": "monsterkill",
+          "score": 9,
+          "transcript": "Monster kill!",
+          "notes": "Classic deep and aggressive delivery that perfectly captures the iconic arena shooter killstreak aesthetic."
+        },
+        {
+          "voice": "Orus",
+          "cue": "godlike",
+          "score": 9,
+          "transcript": "Godlike!",
+          "notes": "Excellent aggressive delivery perfectly matching classic arena shooter announcers, ready to ship."
+        },
+        {
+          "voice": "Alnilam",
+          "cue": "doublekill",
+          "score": 9,
+          "transcript": "Double Kill!",
+          "notes": "Crisp, booming delivery with fitting punch and hype for an arena announcer."
+        },
+        {
+          "voice": "Alnilam",
+          "cue": "monsterkill",
+          "score": 9,
+          "transcript": "Monster kill!",
+          "notes": "Classic arena shooter energy with an aggressive, punchy growl that would cut well through gameplay mix."
+        },
+        {
+          "voice": "Alnilam",
+          "cue": "godlike",
+          "score": 9,
+          "transcript": "Godlike",
+          "notes": "Classic aggressive arena announcer delivery with solid punch, clean reverb, and great low-end impact."
+        },
+        {
+          "voice": "Rasalgethi",
+          "cue": "doublekill",
+          "score": 9,
+          "transcript": "Double Kill!",
+          "notes": "Classic, punchy arena announcer delivery with excellent vocal grit and presence."
+        },
+        {
+          "voice": "Rasalgethi",
+          "cue": "monsterkill",
+          "score": 9,
+          "transcript": "Monster kill!",
+          "notes": "Classic, booming delivery with great presence and impact that fits the arena shooter archetype perfectly."
+        },
+        {
+          "voice": "Rasalgethi",
+          "cue": "godlike",
+          "score": 9,
+          "transcript": "Godlike",
+          "notes": "Excellent, aggressive, and booming delivery that fits an arena shooter killstreak callout perfectly."
+        }
+      ]
+    }
+  ],
+  "old_vs_new": {
+    "titanfall": {
+      "prepare_titanfall": {
+        "old": 5,
+        "new": 9
+      },
+      "eject": {
+        "old": 6.5,
+        "new": 6.5
+      },
+      "match_lose": {
+        "old": 4,
+        "new": 8.5
+      }
+    },
+    "objective": {
+      "under_attack_C": {
+        "old": 6,
+        "new": 8
+      },
+      "captured_A": {
+        "old": 3.5,
+        "new": 9
+      },
+      "victory": {
+        "old": 7,
+        "new": 6
+      }
+    },
+    "arena": {
+      "doublekill": {
+        "old": 5,
+        "new": 9
+      },
+      "monsterkill": {
+        "old": 8,
+        "new": 7.75
+      },
+      "godlike": {
+        "old": 7,
+        "new": 7
+      }
+    }
+  },
+  "pack_consistency": {
+    "titanfall": {
+      "consistency": 10,
+      "outliers": [],
+      "weakest": [
+        "titan_doomed"
+      ],
+      "notes": "The robotic vocal processing, timbre, delivery pace, and loudness are exceptionally consistent across the entire set."
+    },
+    "objective": {
+      "consistency": 9,
+      "outliers": [],
+      "weakest": [
+        "tickets_low",
+        "defeat"
+      ],
+      "notes": "The pack has highly consistent vocal processing, leveling, and sci-fi military announcer delivery throughout."
+    },
+    "arena": {
+      "consistency": 8,
+      "outliers": [
+        {
+          "clip": "ultrakill",
+          "issue": "Noticeably lower energy and flatter inflection compared to the explosive hype of the other multi-kill lines."
+        }
+      ],
+      "weakest": [
+        "ultrakill",
+        "godlike"
+      ],
+      "notes": "The vocal processing and character tone are cohesive throughout, though 'ultrakill' lacks the sustained intensity and explosive punch of the surrounding streak lines."
+    }
+  }
+}

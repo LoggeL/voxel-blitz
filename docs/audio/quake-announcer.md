@@ -32,3 +32,7 @@ real client. Server-triggered Double Kill, Triple Kill and Monster Kill events
 started decoded Web Audio sources. Six same-tick kills started only Monster
 Kill. Death and authoritative respawn stopped the active voice, including a
 respawn while already alive. All 114 built-in samples decoded without failures.
+
+A Gemini TTS arena pack (voice Fenrir) was generated and judged against these
+recordings on 2026-10-16. It is kept as an alternative and is not shipped; see
+`docs/audio/announcer.md`.

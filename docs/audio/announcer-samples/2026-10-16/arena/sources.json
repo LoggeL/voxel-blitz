@@ -1,0 +1,319 @@
+{
+  "generator": "tools/synthesize-announcer-gemini.mjs",
+  "method": "Gemini TTS (gemini-3.8-flash-tts, prebuilt voice Fenrir) + deterministic ffmpeg chain; original lines from shared/announcer.js",
+  "license": "AI-generated with Google Gemini TTS for this project; no third-party recording (see public/assets/audio/LICENSES.md)",
+  "format": "WAV PCM s16le mono 24000 Hz",
+  "command": "node tools/synthesize-announcer-gemini.mjs --pack arena --voice Fenrir",
+  "model": "gemini-3.8-flash-tts",
+  "voice": "Fenrir",
+  "judge_model": "gemini-3.8-flash",
+  "pre_lufs": -18,
+  "target_lufs": -13,
+  "limiter": 0.8,
+  "filter": {
+    "character": "highpass=f=70,bass=g=3:f=110,acompressor=threshold=-20dB:ratio=3:attack=8:release=120:makeup=3,treble=g=2:f=4500,apad=pad_dur=0.35,aecho=1.0:0.7:38|71|113:0.22|0.14|0.08,areverse,silenceremove=start_periods=1:start_threshold=-60dB:start_silence=0.03,areverse",
+    "wrap": null,
+    "trim": "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.03,areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.06,areverse"
+  },
+  "judge_summary": {
+    "min": 8,
+    "mean": 8.79,
+    "min_score": 7
+  },
+  "clips": [
+    {
+      "id": "doublekill",
+      "text": "Double Kill!",
+      "voice": "Fenrir",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Arena announcer\n## THE SCENE: A huge futuristic deathmatch arena. The announcer booms the kill streak over the stadium speakers as the crowd erupts.\n### DIRECTOR'S NOTES\nStyle: Big, hyped, deep arena announcer. Booming chest voice with grit, explosive energy, a punchy attack on the first syllable and a powerful, slightly drawn out final vowel. Larger than life, but every word perfectly clear. Strong and punchy.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nDouble Kill!",
+      "raw_sha256": "fc965bf18cea0ec37d9f534a5f470cd603fb11bbbac0b329d44253a088df6ae5",
+      "pre_gain_db": -4.1,
+      "gain_db": 3.1,
+      "lufs": -13.1,
+      "peak_dbfs": -0.5,
+      "duration_s": 1.898,
+      "bytes": 91152,
+      "sha256": "6f13987be94fdcea3d93e0599dbd355a4909d92c654f67cc0d29d2416b39dc20",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Double kill!",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent aggressive delivery with great punch and processing suited for an arena shooter.",
+        "speech_s": 1.833,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
+    },
+    {
+      "id": "triplekill",
+      "text": "Triple Kill!",
+      "voice": "Fenrir",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Arena announcer\n## THE SCENE: A huge futuristic deathmatch arena. The announcer booms the kill streak over the stadium speakers as the crowd erupts.\n### DIRECTOR'S NOTES\nStyle: Big, hyped, deep arena announcer. Booming chest voice with grit, explosive energy, a punchy attack on the first syllable and a powerful, slightly drawn out final vowel. Larger than life, but every word perfectly clear. Louder, rising excitement.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nTriple Kill!",
+      "raw_sha256": "92ffc31a787947ac1750cb2fb4cdcbb6691910c834627b4dff685c57416c8116",
+      "pre_gain_db": -5.3,
+      "gain_db": 3.2,
+      "lufs": -13,
+      "peak_dbfs": -0.6,
+      "duration_s": 1.748,
+      "bytes": 83936,
+      "sha256": "0e4f3d69efdfea39c4e73b70979a621cdb7ea57623f0a847f1756e9a93548a21",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Triple Kill!",
+        "words_correct": true,
+        "clarity": 8.5,
+        "energy": 8,
+        "fit": 8,
+        "artifacts": 9,
+        "overall": 8,
+        "notes": "Solid, punchy delivery with great clarity and fitting energy for an arena shooter streak call.",
+        "speech_s": 1.689,
+        "problems": [],
+        "score": 8
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 8
+        }
+      ],
+      "shootout": null
+    },
+    {
+      "id": "multikill",
+      "text": "Multi Kill!",
+      "voice": "Fenrir",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Arena announcer\n## THE SCENE: A huge futuristic deathmatch arena. The announcer booms the kill streak over the stadium speakers as the crowd erupts.\n### DIRECTOR'S NOTES\nStyle: Big, hyped, deep arena announcer. Booming chest voice with grit, explosive energy, a punchy attack on the first syllable and a powerful, slightly drawn out final vowel. Larger than life, but every word perfectly clear. Even bigger, thrilled.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nMulti Kill!",
+      "raw_sha256": "296d906fed09c76a9a2c3c939e7c77071ea61a88142a0ee57affa598a74b9add",
+      "pre_gain_db": -3.8,
+      "gain_db": 3.6,
+      "lufs": -13.1,
+      "peak_dbfs": -1.8,
+      "duration_s": 1.875,
+      "bytes": 90030,
+      "sha256": "89b801278c7bc1dcf869a2a1a9465914b7d41e67260172eae298b11fb5bdd816",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Multi kill",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent deep, aggressive arena shooter delivery that clearly conveys the intended line with great impact.",
+        "speech_s": 1.836,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
+    },
+    {
+      "id": "ultrakill",
+      "text": "Ultra Kill!",
+      "voice": "Fenrir",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4101,
+      "take": 1,
+      "prompt": "# AUDIO PROFILE: Arena announcer\n## THE SCENE: A huge futuristic deathmatch arena. The announcer booms the kill streak over the stadium speakers as the crowd erupts.\n### DIRECTOR'S NOTES\nStyle: Big, hyped, deep arena announcer. Booming chest voice with grit, explosive energy, a punchy attack on the first syllable and a powerful, slightly drawn out final vowel. Larger than life, but every word perfectly clear. Thunderous. Tighter and crisper this time, every consonant sharp.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nUltra Kill!",
+      "raw_sha256": "fb081581b6bdb5dd633be9d0803322830a21dc48f5225ce4f06068f3d0265a74",
+      "pre_gain_db": -6.1,
+      "gain_db": 2.9,
+      "lufs": -13,
+      "peak_dbfs": -0.7,
+      "duration_s": 1.616,
+      "bytes": 77594,
+      "sha256": "f0a96996c201e54e2443161c2eef64cd0e36d348574bcb7059d080a2ba70bee9",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Ultra kill",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Excellent booming delivery with punchy energy and well-controlled reverb that fits an arena shooter perfectly.",
+        "speech_s": 1.604,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        },
+        {
+          "take": 1,
+          "seed": 4101,
+          "score": 9
+        },
+        {
+          "take": 2,
+          "seed": 4102,
+          "score": 9
+        }
+      ],
+      "shootout": {
+        "scores": {
+          "take 0": 6.5,
+          "take 1": 7,
+          "take 2": 6.5
+        },
+        "notes": [
+          "take 1: Candidate B delivers the explosive grit, booming chest resonance, and aggressive hype required for an arena shooter, whereas A loses power on the finish and C completely lacks energy.",
+          "take 2: Candidate A provides the ideal booming chest resonance, explosive hype, and classic arena authority, outperforming B's thinner shouted delivery and C's overly sluggish guttural tone."
+        ],
+        "winner": 1
+      }
+    },
+    {
+      "id": "monsterkill",
+      "text": "Monster Kill!",
+      "voice": "Fenrir",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Arena announcer\n## THE SCENE: A huge futuristic deathmatch arena. The announcer booms the kill streak over the stadium speakers as the crowd erupts.\n### DIRECTOR'S NOTES\nStyle: Big, hyped, deep arena announcer. Booming chest voice with grit, explosive energy, a punchy attack on the first syllable and a powerful, slightly drawn out final vowel. Larger than life, but every word perfectly clear. Massive and menacing, drawn out.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nMonster Kill!",
+      "raw_sha256": "05d2a0663c248530854fd0ef2fd2afbd7e09ce1260a7d61a7f70e666fe5395ac",
+      "pre_gain_db": -4.1,
+      "gain_db": 3.2,
+      "lufs": -13.1,
+      "peak_dbfs": -1.3,
+      "duration_s": 1.763,
+      "bytes": 84652,
+      "sha256": "892a05edc389c8c99405516154cd8dc8b2dcae329ef003bd1c0d63d043f38345",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Monster kill!",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Classic, punchy arena announcer delivery with clean processing and great impact.",
+        "speech_s": 1.714,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
+    },
+    {
+      "id": "rampage",
+      "text": "Rampage!",
+      "voice": "Fenrir",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Arena announcer\n## THE SCENE: A huge futuristic deathmatch arena. The announcer booms the kill streak over the stadium speakers as the crowd erupts.\n### DIRECTOR'S NOTES\nStyle: Big, hyped, deep arena announcer. Booming chest voice with grit, explosive energy, a punchy attack on the first syllable and a powerful, slightly drawn out final vowel. Larger than life, but every word perfectly clear. An explosive, roaring call.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nRampage!",
+      "raw_sha256": "b3e7dc0083560047941a18bbbfd67ec5952ab5c788999badfed2cf416258318f",
+      "pre_gain_db": -3.9,
+      "gain_db": 3.3,
+      "lufs": -13.1,
+      "peak_dbfs": -1.6,
+      "duration_s": 1.9,
+      "bytes": 91238,
+      "sha256": "b058b8f5f7ce57f66d906e8700809fd3b61c4c17136af05bc9e184a5d54bbe86",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Rampage",
+        "words_correct": true,
+        "clarity": 8.5,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 8.5,
+        "overall": 8.5,
+        "notes": "Excellent aggressive delivery with authentic arena shooter flair, exhibiting only minor high-frequency harshness.",
+        "speech_s": 1.839,
+        "problems": [],
+        "score": 8.5
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 8.5
+        }
+      ],
+      "shootout": null
+    },
+    {
+      "id": "godlike",
+      "text": "Godlike!",
+      "voice": "Fenrir",
+      "model": "gemini-3.8-flash-tts",
+      "seed": 4100,
+      "take": 0,
+      "prompt": "# AUDIO PROFILE: Arena announcer\n## THE SCENE: A huge futuristic deathmatch arena. The announcer booms the kill streak over the stadium speakers as the crowd erupts.\n### DIRECTOR'S NOTES\nStyle: Big, hyped, deep arena announcer. Booming chest voice with grit, explosive energy, a punchy attack on the first syllable and a powerful, slightly drawn out final vowel. Larger than life, but every word perfectly clear. The biggest call of all: awed, epic and drawn out.\nSpeak only the transcript, once.\n#### TRANSCRIPT\nGodlike!",
+      "raw_sha256": "a6268162f211b631da398f9c3152c02ead0310be70d8580276f5b160437b46bb",
+      "pre_gain_db": -5.2,
+      "gain_db": 3.1,
+      "lufs": -13,
+      "peak_dbfs": -1.8,
+      "duration_s": 1.74,
+      "bytes": 83560,
+      "sha256": "edc4463ed9cdafaa8e5c428c69fe0580f4c0b160a38e3bf70c5f24758a59f9e3",
+      "judge": {
+        "model": "gemini-3.8-flash",
+        "transcript": "Godlike!",
+        "words_correct": true,
+        "clarity": 9,
+        "energy": 9,
+        "fit": 9,
+        "artifacts": 9,
+        "overall": 9,
+        "notes": "Classic deep, aggressive arena announcer delivery that hits the mark with great presence and impact.",
+        "speech_s": 1.71,
+        "problems": [],
+        "score": 9
+      },
+      "attempts": [
+        {
+          "take": 0,
+          "seed": 4100,
+          "score": 9
+        }
+      ],
+      "shootout": null
+    }
+  ]
+}
