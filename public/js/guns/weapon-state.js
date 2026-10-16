@@ -325,6 +325,7 @@ export class WeaponState {
       this._ammo[weaponId] = { mag: def.magSize, reserve: (def.spareRounds ?? def.spareMags) };
     }
     this._rig.setArcher?.({ mag: this._ammo.archer.mag });
+    this._rig.setRocket?.({ mag: this._ammo.rocket.mag });
   }
 
   /** Apply authoritative ammo arrays in canonical WEAPON_IDS order. */
@@ -341,6 +342,7 @@ export class WeaponState {
       if (Number.isFinite(reserve[index])) ammo.reserve = reserve[index];
     }
     this._rig.setArcher?.({ mag: this._ammo.archer.mag });
+    this._rig.setRocket?.({ mag: this._ammo.rocket.mag });
     if (this.def.id === 'stinger') this._syncStinger();
   }
 
@@ -569,6 +571,7 @@ export class WeaponState {
     this._resetRecoilPattern();
     this._syncThunderbolt();
     if (def.id === 'archer') this._rig.setArcher?.({ mag: ammo.mag });
+    if (def.id === 'rocket') this._rig.setRocket?.({ mag: ammo.mag });
     this._rig.reload(dur / 1000, type, plan.staged ? {
       startSeconds: plan.startSeconds,
       perRoundSeconds: plan.perRoundSeconds,
@@ -586,6 +589,7 @@ export class WeaponState {
     this._reloadState = null;
     this._completedReloadWeapon = null;
     if (this.def.id === 'archer') this._rig.setArcher?.({ mag: this._ammo.archer?.mag ?? 0 });
+    if (this.def.id === 'rocket') this._rig.setRocket?.({ mag: this._ammo.rocket?.mag ?? 0 });
     this._rig.cancelReload?.();
     if (reload?.weapon === 'stinger') {
       this._lockProgress = 0;
@@ -649,6 +653,9 @@ export class WeaponState {
     }
     if (def.id === 'archer') {
       this._rig.setArcher?.({ mag: this._ammo.archer?.mag ?? 0 });
+    }
+    if (def.id === 'rocket') {
+      this._rig.setRocket?.({ mag: this._ammo.rocket?.mag ?? 0 });
     }
     this._syncThunderbolt();
   }
@@ -863,6 +870,7 @@ export class WeaponState {
     ammo.mag -= 1;
     if (weaponId === 'stinger') this._syncStinger();
     if (weaponId === 'archer') this._rig.setArcher?.({ mag: ammo.mag });
+    if (weaponId === 'rocket') this._rig.setRocket?.({ mag: ammo.mag });
     this._syncThunderbolt();
     const period = 60000 / def.rpm;
     // Preserve continuous fuel/rotary cadence across frame boundaries without catching up

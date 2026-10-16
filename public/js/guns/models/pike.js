@@ -4,12 +4,11 @@ import { createBlenderParts } from '../../engine/blender-assets.js';
 // including the rail optic (rear aperture + glowing front post) and the violet
 // arc-glow emissive, so the builder only places parts and the sight line.
 export function buildPike({ groups }) {
-  // Flag the authored arc-glow clones so the viewmodel charge drive can raise
-  // their emissive with the lance cell. Per-rig clones; the shared template
-  // and other owners are untouched.
+  // The dedicated local/remote induction drive owns these cloned materials.
+  // Shared templates and other carriers keep their own charge state.
   const parts = createBlenderParts('pike', { materialFor: (original) => {
     const clone = original.clone();
-    if (clone.userData.cosmeticGlow) clone.userData.chargeGlow = true;
+    if (clone.userData.cosmeticGlow) clone.userData.voltlanceGlow = { role: 'housing' };
     return clone;
   } });
   if (!parts) return false;

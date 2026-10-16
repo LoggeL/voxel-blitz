@@ -1,4 +1,12 @@
-import { buildTorch } from './torch.js';
+import {
+  ROCKET_GATE_SWING,
+  ROCKET_HINGE,
+  ROCKET_SEAT,
+  buildProceduralRocketRound,
+  buildTorch,
+} from './torch.js';
+
+export { ROCKET_GATE_SWING, ROCKET_HINGE, ROCKET_SEAT, buildProceduralRocketRound };
 
 /** Build the RX-8 HAVOC from the TORCH Blender asset. The old procedural
  *  silhouette is gone: when the asset is unavailable (headless Node simulation,

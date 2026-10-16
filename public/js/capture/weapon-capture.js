@@ -24,7 +24,7 @@ const angle = params.get('angle');
 const shot = findWeaponCaptureShot(weapon, state);
 
 if (!shot) throw new Error(`unknown weapon capture: ${weapon}/${state}`);
-if (angle && (!['mgl', 'stinger'].includes(weapon) || state !== 'held' ||
+if (angle && (!['mgl', 'stinger', 'rocket'].includes(weapon) || state !== 'held' ||
   !['hero', 'front', 'left', 'right', 'rear', 'top'].includes(angle))) {
   throw new Error(`unknown weapon inspection angle: ${weapon}/${state}/${angle}`);
 }
@@ -96,6 +96,9 @@ if (weapon === 'stinger') {
   rig.setStinger({ mag: state === 'empty' || state.startsWith('reload-') ? 0 : 1,
     lockProgress: state === 'lock-acquire' ? 0.6 : state === 'lock-ready' || state === 'scoped' ? 1 : 0,
     reloading: state.startsWith('reload-') });
+}
+if (weapon === 'rocket') {
+  rig.setRocket({ mag: state === 'empty' || state.startsWith('reload-') ? 0 : 1 });
 }
 
 const stablePose = Object.freeze({

@@ -2,18 +2,21 @@ import * as THREE from '../../vendor/three.module.js';
 import { buildPike } from './pike.js';
 import { COL, GLOW_ACCENT } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
+import { addVoltlanceGlow } from '../voltlance-glow.js';
 
 // CL-9 VOLTLANCE: compact charge rail-lance. A short polymer receiver feeds a dense forward
 // rail shroud; the last third of the gun is an exposed twin-rail lane carrying three
 // lance-cell coil rings that light violet-cyan on charge (rechargeDur) and vent through a
 // bayonet-caged emitter tip landing exactly on T.muzzle. A capacitor block hangs under the
 // receiver and the lance-cell magazine feeds the magwell on the stock reload timeline.
-// kit.js carries no GLOW_ACCENT.lance key yet, so the def-tracer hex is the in-file
-// fallback; the sight line (0.155) matches the ADS offset.
+// The violet accent matches the tracer; the sight line (0.155) matches the ADS offset.
 const LANCE_VIOLET = GLOW_ACCENT.lance ?? 0xc9a2ff;
 
 export function build({ kit, T, groups }) {
-  if (buildPike({ groups })) return;
+  if (buildPike({ groups })) {
+    addVoltlanceGlow({ kit, T, groups, authored: true });
+    return;
+  }
   const { box, cylZ, ironSights } = kit;
   const { body, mag, bolt, trigger } = groups;
   const VIOLET = LANCE_VIOLET;
@@ -175,4 +178,5 @@ export function build({ kit, T, groups }) {
   box(trigger, 0.038, 0.007, 0.068, 0, -0.047, TRIGGER_Z.lance + 0.004, COL.polyDark);
   box(trigger, 0.038, 0.025, 0.007, 0, -0.036, TRIGGER_Z.lance - 0.031, COL.polyDark);
   box(trigger, 0.038, 0.025, 0.007, 0, -0.036, TRIGGER_Z.lance + 0.039, COL.polyDark);
+  addVoltlanceGlow({ kit, T, groups });
 }

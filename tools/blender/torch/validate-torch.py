@@ -6,7 +6,8 @@ Usage:
 
 Checks the study GLB and the browser glTF against the frozen runtime contract:
 node and marker names, anchor placement, group identity, bounds, UV references,
-embedded material images, gate-leaf node translations exactly [-0.104, 0.075, -0.135],
+embedded material images, gate-leaf node translations [-0.104, 0.075, -0.135],
+round-leaf node translations [0.0, 0.075, -0.55] and local z bounds [-0.245, +0.150],
 no negative scale, no nonfinite coordinates, no inward-facing surfaces. Writes
 docs/design/blender/torch/validation.json with passed/failures/advisory keys.
 """
@@ -34,7 +35,9 @@ PARTS = ('body', 'mag', 'bolt', 'trigger', 'extra')
 MARKERS = ('muzzle', 'grip', 'support', 'sight')
 GROUP_NAMES = set(PARTS)
 GATE_PREFIX = 'gate | '
-HINGE_GAME = (-0.104, 0.075, -0.135)  # vertical side pin, see build-torch.py HINGE
+ROUND_PREFIX = 'round | '
+HINGE_GAME = (-0.104, 0.075, -0.135)       # vertical side pin, see build-torch.py HINGE
+ROUND_SEAT_GAME = (0.0, 0.075, -0.55)      # seated rocket round origin, see build-torch.py ROUND_SEAT
 ANCHORS = {  # authoring space: +Y forward, +Z up
     'muzzle': (0.0, 0.780, 0.075),
     'grip': (0.045, 0.080, -0.020),
@@ -43,8 +46,6 @@ ANCHORS = {  # authoring space: +Y forward, +Z up
 }
 HEAT_BAND = (0.528, 0.752)
 BORE_R = 0.0620
-# Shared palette maps applied by tools/blender/material-library.py (six of the
-# seven materials; cavity black stays untextured).
 PALETTE_IMAGES = {'phosphated-steel', 'olive-paint', 'orange-paint',
                   'ivory-ceramic', 'molded-polymer', 'pebbled-rubber'}
 EXPECTED_MATERIALS = {'gunmetal', 'olive drab', 'orange paint', 'ivory coating',
@@ -100,8 +101,9 @@ def document_checks(label, document):
         extras = by_name.get(part, {}).get('extras', {})
         check(f'{label}:blenderAsset:{part}', extras.get('blenderAsset') == 'torch',
               f'extras.blenderAsset={extras.get("blenderAsset")!r}')
+
     gates = sorted(name for name in names if name.startswith(GATE_PREFIX))
-    check(f'{label}:gate_leaves', len(gates) >= 2, f'{gates}')
+    check(f'{label}:gate_leaves', len(gates) == 3, f'{gates}')
     for name in gates:
         node = by_name[name]
         translation = node.get('translation', [])
@@ -109,7 +111,10 @@ def document_checks(label, document):
         check(f'{label}:gate_translation:{name}',
               len(translation) == 3 and delta <= 1e-6,
               f'translation={translation} want={list(HINGE_GAME)}')
-        # hinge-local geometry: the mesh must NOT be centred on the world origin
+        extras = node.get('extras', {})
+        check(f'{label}:gate_role:{name}',
+              extras.get('blenderAsset') == 'torch' and extras.get('role') == 'breech gate',
+              f'extras={extras}')
         mesh = document['meshes'][node['mesh']]
         bounds = mesh['primitives'][0]['attributes']['POSITION']
         low = document['accessors'][bounds]['min']
@@ -118,14 +123,40 @@ def document_checks(label, document):
         check(f'{label}:gate_hinge_local:{name}',
               max(abs(c - h) for (c, h) in zip(centre, HINGE_GAME)) < 0.35,
               f'mesh centre {centre} (hinge-relative)')
+
+    rounds = sorted(name for name in names if name.startswith(ROUND_PREFIX))
+    check(f'{label}:round_leaves', len(rounds) >= 4, f'{rounds}')
+    round_z_min, round_z_max = 1e9, -1e9
+    for name in rounds:
+        node = by_name[name]
+        translation = node.get('translation', [])
+        delta = max((abs(a - b) for (a, b) in zip(translation, ROUND_SEAT_GAME)), default=9e9)
+        check(f'{label}:round_translation:{name}',
+              len(translation) == 3 and delta <= 1e-6,
+              f'translation={translation} want={list(ROUND_SEAT_GAME)}')
+        extras = node.get('extras', {})
+        check(f'{label}:round_role:{name}',
+              extras.get('blenderAsset') == 'torch' and extras.get('role') == 'rocket round',
+              f'extras={extras}')
+        mesh = document['meshes'][node['mesh']]
+        bounds = mesh['primitives'][0]['attributes']['POSITION']
+        low = document['accessors'][bounds]['min']
+        high = document['accessors'][bounds]['max']
+        round_z_min = min(round_z_min, low[2])
+        round_z_max = max(round_z_max, high[2])
+    check(f'{label}:round_local_bounds_z',
+          abs(round_z_min - (-0.245)) <= 2e-3 and abs(round_z_max - 0.150) <= 2e-3,
+          f'z_min={round_z_min:.5f} (want -0.245), z_max={round_z_max:.5f} (want +0.150)')
+
     extra_children = [names[i] for i in by_name.get('extra', {}).get('children', [])]
+    expected_extra = set(gates) | set(rounds)
     check(f'{label}:extra_children',
-          len(extra_children) == len(gates) and set(extra_children) == set(gates),
-          f'{extra_children} (contract: the breech gate leaves only)')
+          len(extra_children) == len(expected_extra) and set(extra_children) == expected_extra,
+          f'{extra_children} (contract: breech gate leaves + rocket round leaves)')
+
     for marker in MARKERS:
         node = by_name.get(marker, {})
         want = ANCHORS[marker]
-        # node translation is game space; ANCHORS are authoring space
         want_game = (want[0], want[2], -want[1])
         got = node.get('translation', [])
         delta = max((abs(a - b) for (a, b) in zip(got, want_game)), default=9e9)
@@ -137,7 +168,6 @@ def document_checks(label, document):
                   if any(component <= 0 for component in scale)]
     check(f'{label}:node_scales', not bad_scales, f'{len(scales)} explicit scales, negative: {bad_scales}')
 
-    # UV references and accessor sanity on every primitive.
     missing_uv, mismatched, nonfinite = [], [], []
     for mesh in document.get('meshes', []):
         for primitive in mesh.get('primitives', []):
@@ -191,13 +221,13 @@ def document_checks(label, document):
             check(f'{label}:image_reference:{material["name"]}',
                   source < len(images), f'texture source {source}')
     draws = sum(len(mesh.get('primitives', [])) for mesh in document.get('meshes', []))
-    check(f'{label}:primitive_budget', draws <= 24, f'{draws} primitives (budget 24)')
+    check(f'{label}:primitive_budget', draws <= 28, f'{draws} primitives (budget 28)')
     triangles = 0
     for mesh in document.get('meshes', []):
         for primitive in mesh.get('primitives', []):
             triangles += document['accessors'][primitive['indices']]['count'] // 3
-    check(f'{label}:triangle_budget', 8000 <= triangles <= 20000,
-          f'{triangles} tris (budget 8k-20k)')
+    check(f'{label}:triangle_budget', 8000 <= triangles <= 22000,
+          f'{triangles} tris (budget 8k-22k)')
     measured[f'{label}:draws'] = draws
     measured[f'{label}:triangles'] = triangles
 

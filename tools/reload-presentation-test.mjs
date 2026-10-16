@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { WEAPONS } from '../shared/combatmath.js';
 import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
-import { WeaponActions } from '../public/js/guns/actions.js';
+import { WeaponActions, syncRocketAmmo } from '../public/js/guns/actions.js';
 import { buildGun, disposeGunModels } from '../public/js/guns/assemble.js';
 import { MaterialCache } from '../public/js/guns/kit.js';
 import { BREACH_Z } from '../public/js/guns/models/common.js';
@@ -76,31 +76,19 @@ const models = [];
 function modelFor(id) { const model = buildGun(id, cache); models.push(model); return model; }
 try {
   const rocket = modelFor('rocket');
-  // The TORCH template never loads in headless node. This contract mount
-  // fixture mirrors torch.js wiring so the WeaponActions rocket choreography
-  // can be asserted here; the TORCH template mapping and authored gate
-  // geometry are covered by tools/weapon-materials-browser-test.mjs and the
-  // weapon capture matrix.
-  const rearZ = BREACH_Z.rocket + 0.16;
-  // The authored hinge: a vertical pin on the left flank, game (-0.104, 0.075,
-  // -0.135) = the gate node translation torch.gltf carries.
-  const hinge = new THREE.Vector3(-0.104, rocket.T.muzzle[1], BREACH_Z.rocket + 0.085);
-  const breech = new THREE.Group();
-  breech.name = 'rocket_rear_breech';
-  breech.position.copy(hinge);
-  rocket.extra.add(breech);
-  rocket.extra.userData.reloadPart = breech;
-  rocket.extra.userData.rocketReload = { gate: breech, axisY: rocket.T.muzzle[1], rearZ, swing: 1.75, hinge };
-  const reloadRound = new THREE.Group();
-  reloadRound.name = 'rocket_reload_round';
-  reloadRound.visible = false;
-  reloadRound.userData.homePosition = reloadRound.position.clone();
-  rocket.extra.add(reloadRound);
-  rocket.extra.userData.reloadRounds = reloadRound;
+  const rocketReload = rocket.extra.userData.rocketReload;
+  assert.ok(rocketReload?.gate && rocketReload?.chambered && rocketReload?.round,
+    'buildGun(rocket) populates rocketReload contract fallback in headless Node');
+  const rearZ = rocketReload.rearZ;
+  const hinge = rocketReload.hinge;
+  const round = rocket.extra.userData.reloadRounds;
+  const gate = rocketReload.gate;
+  const chambered = rocketReload.chambered;
+  assert.equal(rearZ, BREACH_Z.rocket + 0.16);
+  syncRocketAmmo(rocketReload, 0);
+  assert.equal(chambered.visible, false, 'empty rocket launcher hides chambered warhead');
   const action = new WeaponActions();
   action.startReload(0, 1, 'magswap', rocket.T);
-  const round = rocket.extra.userData.reloadRounds;
-  const gate = rocket.extra.userData.rocketReload.gate;
   action.update(0.35, 0, rocket, rocket.T);
   assert.ok(gate.position.equals(hinge) && gate.rotation.y < -1.7 && gate.rotation.x === 0,
     'rocket breech swings open sideways on its side pin (no slide, tail out to -x)');
@@ -122,12 +110,15 @@ try {
   assert.ok(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
   action.update(0.88, 0, rocket, rocket.T);
   assert.ok(gate.rotation.y < -1.5, 'the hand swings the rear breech shut after seating the rocket');
+  assert.equal(round.visible, false, 'seating rocket hands off to chambered warhead at home');
+  assert.equal(chambered.visible, true, 'chambered warhead appears in the bore once seated');
   action.update(0.91, 0, rocket, rocket.T);
   assert.ok(gate.rotation.y > -0.5 && gate.rotation.y < 0, 'rocket rear breech slams shut over the seated round');
   action.update(0.93, 0, rocket, rocket.T);
   assert.ok(Math.abs(rocket.bolt.rotation.x) < 1e-9, 'rocket arming lever cocks home on the closing cue');
   action.update(0.94, 0, rocket, rocket.T);
   assert.equal(round.visible, false, 'seated rocket is inside the tube');
+  assert.equal(chambered.visible, true, 'chambered warhead remains visible through latch');
   assert.equal(gate.rotation.y, 0, 'rear breech latches closed');
   assert.ok(gate.position.equals(hinge), 'rocket rear breech stays on its hinge pin');
   // Cancelling mid-reload, while the round is staged and the breech stands open,
@@ -145,6 +136,7 @@ try {
     'cancelled rocket reload keeps the round parts visible');
   assert.ok(round.position.equals(round.userData.homePosition),
     'cancelled rocket reload returns the round to its home position');
+  assert.equal(chambered.visible, false, 'cancelled empty reload does not grant a chambered warhead');
 
   const shotgun = modelFor('shotgun');
   const stage = WEAPONS.shotgun.reloadStages;

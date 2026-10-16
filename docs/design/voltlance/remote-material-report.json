@@ -1,0 +1,80 @@
+{
+  "generated": "2026-10-13T22:56:06.866Z",
+  "source": "browser loaded Blender PIKE, ViewmodelRig and AvatarWeaponModel",
+  "modelAsset": "pike",
+  "isolatedMaterials": true,
+  "shotLightPriority": true,
+  "samples": [
+    {
+      "charge": 0,
+      "localCoils": [
+        0.025,
+        0.025,
+        0.025
+      ],
+      "remoteCoils": [
+        0.025,
+        0.025,
+        0.025
+      ],
+      "light": 0
+    },
+    {
+      "charge": 0.2,
+      "localCoils": [
+        1.465,
+        0.025,
+        0.025
+      ],
+      "remoteCoils": [
+        1.465,
+        0.025,
+        0.025
+      ],
+      "light": 0.0008000000000000001
+    },
+    {
+      "charge": 0.64,
+      "localCoils": [
+        2.425,
+        2.2329999999999997,
+        0.025
+      ],
+      "remoteCoils": [
+        2.425,
+        2.2329999999999997,
+        0.025
+      ],
+      "light": 0.008192000000000001
+    },
+    {
+      "charge": 1,
+      "localCoils": [
+        8.425,
+        8.425,
+        8.425
+      ],
+      "remoteCoils": [
+        8.425,
+        8.425,
+        8.425
+      ],
+      "light": 0.16
+    },
+    {
+      "charge": 0,
+      "localCoils": [
+        0.025,
+        0.025,
+        0.025
+      ],
+      "remoteCoils": [
+        0.025,
+        0.025,
+        0.025
+      ],
+      "light": 0
+    }
+  ],
+  "errors": []
+}

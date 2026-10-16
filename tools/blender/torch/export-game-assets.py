@@ -7,12 +7,10 @@ Run headless from the saved study source:
 
 Produces public/assets/blender/torch.gltf + torch.bin against the frozen node
 contract: top-level group nodes body/mag/bolt/trigger batching geometry per
-material (extras.blenderAsset = "torch"), `extra` holding ONLY the breech gate
-leaves as per-material meshes with hinge-local geometry and node translation
-exactly at the side hinge (BISON cover-leaf convention; the gate swings about
-game +y on that pin), marker nodes grip, muzzle,
-sight and support at the frozen anchors. Textures are the shared files under
-public/assets/blender/textures referenced byte-identical; nothing is generated.
+material (extras.blenderAsset = "torch"), `extra` holding the breech gate
+leaves (`gate | <material>`) at HINGE and the rocket round leaves
+(`round | <material>`) at ROUND_SEAT, and marker nodes grip, muzzle, sight and
+support at the frozen anchors.
 """
 import bpy
 import json
@@ -35,14 +33,12 @@ TEXTURES = ['ivory-armor', 'orange-painted-metal', 'petrol-ballistic-fabric',
             'worn-gunmetal', 'worn-rubber']
 UV_SCALE = 3.6  # texture tiles per metre; must match build-torch.py
 
-# Reload hinge in game space: the VERTICAL pin on the left flank at bore-axis
-# height (T.muzzle[1]), BREACH_Z.rocket + 0.085 deep, just outside the 0.099
-# gate rim. Must match HINGE in build-torch.py (authoring (-0.104, 0.135,
-# 0.075)); the runtime reads it back from the gate node translation.
+# Reload hinge in game space: vertical pin on the left flank at bore-axis height
 HINGE = Vector((-0.104, 0.075, -0.135))
+# Seated rocket round origin in game space: authoring (0.0, 0.550, 0.075)
+ROUND_SEAT = Vector((0.0, 0.075, -0.55))
 
-# game_x = x, game_y = z, game_z = -y: a proper rotation, so normals map like
-# positions and the flat normal matrix is this rotation itself.
+# game_x = x, game_y = z, game_z = -y: a proper rotation
 GAME = Matrix(((1, 0, 0), (0, 0, 1), (0, -1, 0)))
 
 scene = next((s for s in bpy.data.scenes if s.name == f'{SCENE_PREFIX} | Voxel Blitz rocket study'),
@@ -83,6 +79,7 @@ if abs(muzzle_game[0] - 0.0) > 1e-6 or abs(muzzle_game[1] - HINGE[1]) > 1e-6 \
 depsgraph = bpy.context.evaluated_depsgraph_get()
 batches = defaultdict(lambda: {'vertices': [], 'indices': [], 'lookup': {}})
 gate_batches = defaultdict(lambda: {'vertices': [], 'indices': [], 'lookup': {}})
+round_batches = defaultdict(lambda: {'vertices': [], 'indices': [], 'lookup': {}})
 part_batches = defaultdict(list)
 material_order = []
 material_index = {}
@@ -96,6 +93,7 @@ def stored_world(obj):
 
 material_meta = []
 gate_sources = 0
+round_sources = 0
 for obj in sorted(scene.objects, key=lambda o: o.name):
     part = obj.get('part')
     if obj.type != 'MESH' or part not in GROUPS:
@@ -117,13 +115,16 @@ for obj in sorted(scene.objects, key=lambda o: o.name):
     mesh.calc_loop_triangles()
     if mesh.uv_layers.active is None:
         raise SystemExit(f'{obj.name} has no UV layer')
-    is_gate = part == 'extra'
-    if is_gate:
-        # A gate piece is its own material batch under `extra`: vertices baked
-        # relative to the reload hinge, the hinge travelling as translation.
-        gate_sources += 1
-        target = gate_batches[material_index[key]]
-        offset = GAME @ world.translation - HINGE
+    if part == 'extra':
+        role = obj.get('extra_role', 'gate')
+        if role == 'round':
+            round_sources += 1
+            target = round_batches[material_index[key]]
+            offset = GAME @ world.translation - ROUND_SEAT
+        else:
+            gate_sources += 1
+            target = gate_batches[material_index[key]]
+            offset = GAME @ world.translation - HINGE
     else:
         target = batches[(part, material_index[key])]
         offset = GAME @ world.translation
@@ -152,6 +153,8 @@ for obj in sorted(scene.objects, key=lambda o: o.name):
 
 if not gate_batches or gate_sources < 4:
     raise SystemExit(f'breech gate leaves missing from the TORCH scene ({gate_sources} pieces)')
+if not round_batches or round_sources < 4:
+    raise SystemExit(f'rocket round leaves missing from the TORCH scene ({round_sources} pieces)')
 for part in GROUPS:
     if part != 'extra' and not part_batches[part]:
         raise SystemExit(f'part {part} has no geometry')
@@ -250,9 +253,9 @@ for part in GROUPS:
         part_triangles[f'{part} | {material_order[material]}'] = len(batch['indices']) // 3
     add_node(part, primitives, extras={'blenderAsset': SLUG})
 
-# The breech gate ships as one node per material under `extra`, hinge-relative,
-# so the runtime reload pivot needs no procedural stand-in for the venturi.
-gate_children = []
+# `extra` holds both the hinge-relative breech gate leaves (`gate | <mat>`) and
+# the seat-relative rocket round leaves (`round | <mat>`).
+extra_children = []
 for material in sorted(gate_batches):
     batch = gate_batches[material]
     attributes, indices = build_mesh(batch)
@@ -265,11 +268,29 @@ for material in sorted(gate_batches):
     document['nodes'].append({'name': name, 'mesh': mesh_index,
                               'translation': [round(float(v), 6) for v in HINGE],
                               'extras': {'blenderAsset': SLUG, 'role': 'breech gate'}})
-    gate_children.append(node_index)
+    extra_children.append(node_index)
     draws += 1
     triangles += len(batch['indices']) // 3
     part_triangles[f'extra | {name}'] = len(batch['indices']) // 3
-add_node('extra', None, extras={'blenderAsset': SLUG}, children=gate_children)
+
+for material in sorted(round_batches):
+    batch = round_batches[material]
+    attributes, indices = build_mesh(batch)
+    mesh_index = len(document['meshes'])
+    name = f'round | {material_order[material]}'
+    document['meshes'].append({'name': name,
+                               'primitives': [{'attributes': attributes, 'indices': indices,
+                                               'material': material}]})
+    node_index = len(document['nodes'])
+    document['nodes'].append({'name': name, 'mesh': mesh_index,
+                              'translation': [round(float(v), 6) for v in ROUND_SEAT],
+                              'extras': {'blenderAsset': SLUG, 'role': 'rocket round'}})
+    extra_children.append(node_index)
+    draws += 1
+    triangles += len(batch['indices']) // 3
+    part_triangles[f'extra | {name}'] = len(batch['indices']) // 3
+
+add_node('extra', None, extras={'blenderAsset': SLUG}, children=extra_children)
 
 for name in MARKERS:
     # A marker owned by another study in the same file would have picked up a
@@ -301,7 +322,7 @@ print(json.dumps({
     'removed_scenes': removed,
     'source_parts': source_parts,
     'nodes': [node['name'] for node in document['nodes']],
-    'gate_children': [document['nodes'][i]['name'] for i in gate_children],
+    'extra_children': [document['nodes'][i]['name'] for i in extra_children],
     'draws': draws,
     'triangles': triangles,
     'triangles_per_primitive': part_triangles,

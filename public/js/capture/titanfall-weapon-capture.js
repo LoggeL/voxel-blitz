@@ -11,7 +11,7 @@ import { HUD } from '../ui/hud.js';
 import { TitanHud } from '../titanfall/titan-hud.js';
 import { titanHudModel, titanfallTouchModel } from '../titanfall/titan-hud-state.js';
 import { TouchControls, setTitanfallTouchSource } from '../engine/touch-controls.js';
-import { decodeTitanfallSelf, encodeTitanfallSelf, TITAN_PILOT_AT } from '../../../shared/titan-contract.js';
+import { decodeTitanfallSelf, encodeTitanfallSelf, TITAN_PILOT_AT, titanWeaponRole } from '../../../shared/titan-contract.js';
 import { WEAPON_IDS, WEAPONS } from '../../../shared/combatmath.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
 import { MuzzleLights } from '../engine/muzzle-lights.js';
@@ -92,6 +92,8 @@ async function render({ weapon = 'rifle', state = 'full', fov = 75, ads = 0, tou
   hud.gameplay?.setDeviceLabels?.({ touch });
 
   const read = readModel(weapon, state);
+  const isPilotWeapon = !!titanWeaponRole(weapon);
+  const mode = isPilotWeapon ? 'titanfall' : 'fun';
   const reloading = state === 'reload' || reloadProgress !== null;
   const progress = reloading ? Math.max(0, Math.min(1, Number(reloadProgress ?? 0.42))) : null;
   const firing = fire || state === 'fire';
@@ -111,7 +113,7 @@ async function render({ weapon = 'rifle', state = 'full', fov = 75, ads = 0, tou
   self.mag[slot] = read.mag;
   self.reserve[slot] = read.reserve;
   const snapshot = { serverNow: FIXTURE_NOW, players: [self], vehicles: [],
-    match: { mode: 'titanfall', phase: 'live', titanfall: { v: 1, endsAt: FIXTURE_NOW + 521000, scoreLimit: 250, sc: [142, 128], bat: [], bay: [1, 2, 6] } } };
+    match: { mode, phase: 'live', ...(isPilotWeapon ? { titanfall: { v: 1, endsAt: FIXTURE_NOW + 521000, scoreLimit: 250, sc: [142, 128], bat: [], bay: [1, 2, 6] } } : {}) } };
   const tfs = decodeTitanfallSelf({ t: 'tfs', s: FIXTURE_NOW, d: encodeTitanfallSelf({ jumpsLeft: 1, tacCharges: 2, tacReady: 1, lockProgress: read.lock }) });
   hud.setMatchState(snapshot.match, self, snapshot.players, FIXTURE_NOW);
   hud.setState({ alive: true, hp: 100, medkit: { remaining: 1, active: false, progress: 0 }, armor: 0,
@@ -127,17 +129,21 @@ async function render({ weapon = 'rifle', state = 'full', fov = 75, ads = 0, tou
     touchControls = new TouchControls({ documentRef: document });
     touchControls.mount(document.body);
     touchControls.setEnabled(true);
-    setTitanfallTouchSource(() => titanfallTouchModel(hudModel));
+    setTitanfallTouchSource(() => hudModel?.layout !== 'hidden' ? titanfallTouchModel(hudModel) : null);
   }
   touchControls?.setContext(touch ? { alive: true, canFire: true, canReload: true, weaponCount: 4, canThrow: true, grenadeTotal: 3,
     canInteract: false, grenadeReady: 0, grenadeCounts: [2, 0, 0, 0, 1], conquest: false, deployOpen: false, deployValid: true,
     deployLabel: 'DEPLOY', vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false } : null);
-  document.body.dataset.titanfall = model.layout;
+  if (isPilotWeapon) document.body.dataset.titanfall = model.layout;
+  else delete document.body.dataset.titanfall;
 
   rig.setWeapon(weapon);
   rig.setCharge(read.charge01 ?? 0);
   // Placement study: a trial seat replaces the builder's mount (and the panel built on it) for this shot.
   const bundle = rig._models[weapon];
+  if (weapon === 'lance' && bundle.body.userData.blenderAsset !== 'pike') {
+    throw new Error('VOLTLANCE capture requires the loaded Blender PIKE asset');
+  }
   if (mount) {
     bundle.body.userData.trialMount ??= bundle.body.userData.displayMount;
     bundle.body.userData.displayMount = { ...bundle.body.userData.trialMount, ...mount };
@@ -147,11 +153,12 @@ async function render({ weapon = 'rifle', state = 'full', fov = 75, ads = 0, tou
     delete bundle.body.userData.trialMount;
     applyWeaponDisplay(bundle, weapon, null);
   }
-  const shown = display ? weaponDisplayModel(read, { mode: 'titanfall', lock: read.lock }) : null;
+  const shown = display ? weaponDisplayModel(read, { mode, lock: read.lock }) : null;
   rig.setWeaponDisplay?.(shown);
   // Match WeaponState's authoritative ammo feed. A completed reload starts empty
   // here, then receives its loaded count after its animation reaches the end.
   rig.setArcher?.({ mag: reloading ? 0 : firing ? read.mag + 1 : read.mag });
+  rig.setRocket?.({ mag: reloading ? 0 : firing ? read.mag + 1 : read.mag });
   if (weapon === 'thunderbolt') rig.setThunderbolt({
     mag: reloading ? 0 : firing ? read.mag + 1 : read.mag, magSize: 4, reloading: false,
   });
@@ -170,11 +177,13 @@ async function render({ weapon = 'rifle', state = 'full', fov = 75, ads = 0, tou
     if (weapon === 'thunderbolt') rig.setThunderbolt({ mag: 0, magSize: 4, reloading: true });
     advance(WEAPONS[weapon].reloadTime * progress + (progress === 1 ? 0.000001 : 0));
     rig.setArcher?.({ mag: read.mag });
+    rig.setRocket?.({ mag: read.mag });
     if (weapon === 'thunderbolt') rig.setThunderbolt({ mag: read.mag, magSize: 4, reloading: progress < 1 });
     rig.update(0, stablePose);
   } else if (firing) {
     fired = rig.fire();
     rig.setArcher?.({ mag: read.mag });
+    rig.setRocket?.({ mag: read.mag });
     if (weapon === 'thunderbolt') rig.setThunderbolt({ mag: read.mag, magSize: 4, reloading: false });
     advance(Math.max(0, Number(fireElapsed) || 0));
   }

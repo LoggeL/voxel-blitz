@@ -9,13 +9,14 @@ import { WEAPONS } from '../../../shared/combatmath.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from './heavy-weapon-animation.js';
 import { animateChargeRifle } from './chargerifle-animation.js';
+import { animateVoltlance } from './voltlance-animation.js';
 import { glaivePresentationFor } from './glaive-presentation.js';
 import { bubblePresentationFor } from './bubble-presentation.js';
 import { stingerPresentationFor } from './stinger-presentation.js';
 import { thunderboltAnimationFor } from './thunderbolt-animation.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
 import { buildGun, disposeGunModels } from './assemble.js';
-import { WeaponActions, syncArcherAmmo, syncSkipjackAmmo } from './actions.js';
+import { WeaponActions, syncArcherAmmo, syncRocketAmmo, syncSkipjackAmmo } from './actions.js';
 import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
 import { kickMassScale } from './defs.js';
@@ -71,15 +72,15 @@ export class ViewmodelRig {
     this._materials = new MaterialCache();
     this._mastery = {};                // per-weapon {kills,headshots} from the welcome payload
     this._chargeOrb = new THREE.Group();
-    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.055, 1),
-      new THREE.MeshBasicMaterial({ color: 0xc9a2ff, transparent: true, opacity: 0.8,
-        blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 12),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(0xddefff).multiplyScalar(3), transparent: true, opacity: 0.18,
+        blending: THREE.AdditiveBlending, depthTest: true, depthWrite: false, toneMapped: false }));
     this._chargeOrb.add(core);
     for (let i = 0; i < 2; i++) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.085 + i * 0.018, 0.004, 4, 24),
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.019 + i * 0.007, 0.0008, 4, 32),
         new THREE.MeshBasicMaterial({ color: i ? 0x86edff : 0xc9a2ff,
-          transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending,
-          depthWrite: false, toneMapped: false }));
+          transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending,
+          depthTest: true, depthWrite: false, toneMapped: false }));
       ring.rotation.x = i * Math.PI / 2;
       this._chargeOrb.add(ring);
     }
@@ -96,6 +97,7 @@ export class ViewmodelRig {
     this._thunderboltState = null;     // ammunition/reload state, never filled by an animation
     this._skipjackState = null;        // total chambered + cassette rounds from WeaponState
     this._archerState = null;          // chambered missile count from WeaponState
+    this._rocketState = null;          // chambered warhead count from WeaponState
     this._weaponDisplay = null;        // titanfall on-gun display model (weapon-display.js), else null
     this._weaponDisplayInView = true;  // the drawn gun's counter on screen at its last settled pose
     this._id = null;
@@ -236,6 +238,7 @@ export class ViewmodelRig {
     this._thunderbolt?.reset(this._thunderboltState);
     this._restoreSkipjack();
     if (this._archerState) this.setArcher(this._archerState);
+    if (this._rocketState) this.setRocket(this._rocketState);
     next.muzzleMarker.add(this._chargeOrb);
     this._chargeOrb.visible = false;
     this.pivot.position.copy(next.pivotCam);
@@ -249,6 +252,7 @@ export class ViewmodelRig {
     this._surge.p = this._surge.v = 0;
     this._chargeT = 0;
     if (key === 'chargerifle') animateChargeRifle(next.body, 0);
+    if (key === 'lance') animateVoltlance(next.body, 0);
     this._flameActive = false;
     this._flameFuel = 1;
     this._fallSpeed = 0;
@@ -385,6 +389,10 @@ export class ViewmodelRig {
       this.setArcher({ mag: Math.max(0,
         (this._archerState?.mag ?? cur.extra.userData.archer.authoritativeMag) - 1) });
     }
+    if (this._id === 'rocket' && cur.extra.userData.rocketReload) {
+      this.setRocket({ mag: Math.max(0,
+        (this._rocketState?.mag ?? cur.extra.userData.rocketReload.authoritativeMag) - 1) });
+    }
     return true;
   }
 
@@ -452,6 +460,15 @@ export class ViewmodelRig {
     this._archerState.mag = Math.max(0, Math.trunc(Number(state.mag) || 0));
     const archer = this._models.archer?.extra.userData.archer;
     if (archer?.round) syncArcherAmmo(archer, this._archerState.mag);
+  }
+
+  /** RX-8 HAVOC warhead follows authoritative/predicted ammunition and reload seating. */
+  setRocket(state) {
+    if (!state) return;
+    if (!this._rocketState) this._rocketState = { mag: 0 };
+    this._rocketState.mag = Math.max(0, Math.trunc(Number(state.mag) || 0));
+    const rocket = this._models.rocket?.extra.userData.rocketReload;
+    if (rocket) syncRocketAmmo(rocket, this._rocketState.mag);
   }
 
   /** One round is already chambered; the cassette shows only the remaining rounds. */
@@ -525,6 +542,13 @@ export class ViewmodelRig {
       // Seek immediately when recovering an already running server reload.
       this._actions.update(this._now, 0, this._cur, this._cur.T);
     }
+    const rocketReload = this._cur.extra.userData.rocketReload;
+    if (started && rocketReload) {
+      rocketReload.reloading = true;
+      rocketReload.seated = false;
+      syncRocketAmmo(rocketReload, rocketReload.authoritativeMag);
+      this._actions.update(this._now, 0, this._cur, this._cur.T);
+    }
     this._bubble?.reload(dur, this._cur.T.magTimeline, elapsed);
     this._stinger?.setState({ ...this._stingerState, lockProgress: 0, reloading: true });
     this._thunderbolt?.reload();
@@ -540,6 +564,7 @@ export class ViewmodelRig {
     this._stinger?.reset({ ...this._stingerState, lockProgress: 0, reloading: false });
     this._restoreSkipjack();
     if (this._archerState) this.setArcher(this._archerState);
+    if (this._rocketState) this.setRocket(this._rocketState);
     return cancelled;
   }
 
@@ -685,6 +710,7 @@ export class ViewmodelRig {
     if (cur) animateHeavyWeapon(cur.body, { dt: elapsed, time: this._now,
       minigun: this._minigunState, flameActive: this._flameActive, fuel: this._flameFuel });
     if (cur && this._id === 'chargerifle') animateChargeRifle(cur.body, this._chargeT, this._now, !!ctx.reducedMotion);
+    if (cur && this._id === 'lance') animateVoltlance(cur.body, this._chargeT, this._now, !!ctx.reducedMotion);
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
     // Floating swimmers are never grounded, so the jump/land springs and the
     // airborne dampen must not fire; the shared stance rule is swimming && !grounded.
@@ -851,6 +877,10 @@ export class ViewmodelRig {
       this._flinchPending = 0;
     }
     /* ---------- choreography states ---------- */
+    // Portrait screens frame the launchers tighter; the HAVOC reload also stages its round nearer the bore.
+    const narrowScreen = this._smooth01(Math.max(0, Math.min(1, (1 - (this.camera?.aspect || 1)) / 0.54)));
+    const rocketReload = this._id === 'rocket' ? cur.extra.userData.rocketReload : null;
+    if (rocketReload) rocketReload.narrow = narrowScreen;
     const actionMotion = this._actions.update(this._now, elapsed, cur, T, ctx);
     const reloadDip = actionMotion.dip;
     const reloadRock = actionMotion.rock;
@@ -875,7 +905,7 @@ export class ViewmodelRig {
     }
     /* capacitor charge: the gun creeps back into the shoulder and hums with a fine tremor */
     const chargeT = this._chargeT;
-    const strain = this._id === 'lance' ? chargeT ** 3 : chargeT * 0.12;
+    const strain = (this._id === 'lance' ? chargeT ** 3 : chargeT * 0.12) * cosmeticMotion;
     const chargeZ = 0.045 * chargeT + Math.sin(this._now * 61) * 0.009 * strain;
     const chargeY = Math.sin(this._now * 47) * 0.007 * strain;
     const nadeX = -0.035 * wind + 0.02 * lunge + Math.sin(this._now * 73) * 0.006 * strain;
@@ -960,17 +990,16 @@ export class ViewmodelRig {
     // The top-loaded missile needs horizontal room on a portrait phone. Move
     // the hip presentation inward and away; aiming returns to the same sight
     // line and scale as desktop, without changing the weapon's local anchors.
-    const archerNarrow = this._id === 'archer' ?
-      this._smooth01(Math.max(0, Math.min(1, (1 - (this.camera?.aspect || 1)) / 0.54))) * (1 - adsE) : 0;
+    const launcherNarrow = this._id === 'archer' || this._id === 'rocket' ? narrowScreen * (1 - adsE) : 0;
     this.content.position.set(
-      hip.x + (T.adsOffset.x - hip.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway - 0.10 * archerNarrow,
+      hip.x + (T.adsOffset.x - hip.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway - 0.10 * launcherNarrow,
       hip.y + (T.adsOffset.y - hip.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065 - swimCarry * 0.05 - stow * 0.34,
-      hip.z + (T.adsOffset.z - hip.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush + stow * 0.08 - 0.22 * archerNarrow
+      hip.z + (T.adsOffset.z - hip.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush + stow * 0.08 - 0.22 * launcherNarrow
     );
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22 - stow * 0.95,
       swingRy + (dep.ry || 0) + (actionMotion.yaw || 0) + (T.hipYaw || 0) * (1 - adsE) + (T.adsYaw || 0) * adsE,
       swingRz + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0) + swimCarry * 0.06 + stow * 0.35);
-    this.content.scale.setScalar(this._id === 'knife' ? this._swingPose.s || 1 : 1 - 0.28 * archerNarrow);
+    this.content.scale.setScalar(this._id === 'knife' ? this._swingPose.s || 1 : 1 - 0.28 * launcherNarrow);
 
     /* arms: two-bone reach from each glove back to the player's own shoulders.
        Runs after the pose is composed, so it reads the final hand transforms. */
@@ -991,7 +1020,7 @@ export class ViewmodelRig {
     }
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
-    this._decayFx(dt, cur);
+    this._decayFx(dt, cur, !!ctx.reducedMotion);
 
     /* anti-stall catch-up: keeps the busy gate honest even if a server event got dropped */
     if (T.cycleBack && !this._actions.cycling && this._now > this._stallUntil) {
@@ -1033,8 +1062,8 @@ export class ViewmodelRig {
 
   get flashLight() {
     const shot = this._cur?.flash.light || null;
-    if (!this._cur || shot?.intensity > 0 || this._id !== 'chargerifle') return shot;
-    const charge = this._cur.chargeLight ??= this._cur.body.getObjectByName('chargerifle_charge_light');
+    if (!this._cur || shot?.intensity > 0 || (this._id !== 'chargerifle' && this._id !== 'lance')) return shot;
+    const charge = this._cur.chargeLight ??= this._cur.body.getObjectByName(`${this._id}_charge_light`);
     return charge?.intensity > 0 ? charge : shot;
   }
 
@@ -1043,14 +1072,14 @@ export class ViewmodelRig {
     this._cur.uni.uGlow.value = glow; this._cur.uni.uHeat.value = heat;
   }
 
-  _decayFx(dt, cur) {
+  _decayFx(dt, cur, reducedMotion = false) {
     if (!cur) return;
     const u = cur.uni;
     const tauG = Math.max(0.004, cur.T.rechargeDur / 3);
     u.uGlow.value *= Math.exp(-dt / tauG);
     // A held charge keeps the coils lit at the charge level (plus a fast flicker near full).
     if (this._chargeT > 0) {
-      const flicker = this._chargeT > 0.85 ? 0.85 + 0.15 * Math.sin(this._now * 90) : 1;
+      const flicker = !reducedMotion && this._chargeT > 0.85 ? 0.85 + 0.15 * Math.sin(this._now * 90) : 1;
       u.uGlow.value = Math.max(u.uGlow.value, this._chargeT * flicker * (this._id === 'lance' ? 2.5 : 1));
     }
     u.uHeat.value *= Math.exp(-dt / 0.6);
@@ -1069,12 +1098,14 @@ export class ViewmodelRig {
     // A growing energy corona at the muzzle accompanies the charging rails.
     if (this._id === 'lance' && this._chargeT > 0) {
       const energy = this._chargeT ** 2;
-      const pulse = 0.9 + 0.1 * Math.sin(this._now * (14 + 36 * energy));
+      const pulse = reducedMotion ? 1 : 0.96 + 0.04 * Math.sin(this._now * (14 + 36 * energy));
       this._chargeOrb.visible = true;
       this._chargeOrb.scale.setScalar((0.25 + energy * 1.8) * pulse);
-      this._chargeOrb.rotation.set(this._now * 2, this._now * 3, this._now * 4);
-      for (const mesh of this._chargeOrb.children) mesh.material.opacity = (0.25 + energy * 0.6) * pulse;
-      cur.flash.light.intensity = 0.2 + energy * 2.8 * pulse;
+      this._chargeOrb.rotation.set(reducedMotion ? 0 : this._now * 0.4,
+        reducedMotion ? 0 : this._now * 0.6, reducedMotion ? 0 : this._now * 0.8);
+      this._chargeOrb.children.forEach((mesh, index) => {
+        mesh.material.opacity = (index === 0 ? 0.12 + energy * 0.68 : 0.04 + energy * 0.14) * pulse;
+      });
     } else if (this._flashT < 0 && this._lightT < 0) {
       cur.flash.grp.visible = false;
       cur.flash.light.intensity = 0;
@@ -1088,7 +1119,7 @@ export class ViewmodelRig {
       cur.body.traverse(o => {
         const mats = [].concat(o.material || []);
         for (const m of mats) {
-          if (m?.userData?.chargeGlow && !seenMats.has(m)) {
+          if (m?.userData?.chargeGlow && !m.userData.voltlanceGlow && !seenMats.has(m)) {
             seenMats.add(m);
             cur._glowMats.push(m);
           }
@@ -1097,7 +1128,7 @@ export class ViewmodelRig {
     }
     if (cur._glowMats.length) {
       const glow = 0.5 + 2.4 * this._chargeT ** 3 +
-        Math.sin(this._now * 36) * 0.12 * this._chargeT;
+        (reducedMotion ? 0 : Math.sin(this._now * 36) * 0.12 * this._chargeT);
       for (const m of cur._glowMats) m.emissiveIntensity = Math.max(0.15, glow);
     }
   }

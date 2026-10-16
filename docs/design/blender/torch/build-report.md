@@ -1,51 +1,39 @@
-# TORCH — RX-8 HAVOC rocket launcher, revision 2
+# TORCH — RX-8 HAVOC rocket launcher, revision 3
 
-Study name: **BULWARK** (design alternative 3 of `concepts/`). Blender asset
-id `torch`, game slot `rocket`, display name RX-8 HAVOC. Revision 2 is a
-from-scratch redo: the old AT4-style disposable-tube study (thin smooth tube,
-flared orange warning cone) is deleted along with its renders.
+Study name: **VANGUARD**. Blender asset id `torch`, game slot `rocket`,
+display name RX-8 HAVOC. Revision 3 replaces revision 2 (BULWARK: squared
+breech, half cage, flat white top deck, oversized bucket venturi) with the
+ImageGen Concept A in `docs/design/havoc/` (prompts, selection and in-game
+captures in `docs/design/havoc/README.md`), plus Concept B's orange-tipped
+right-flank arming lever.
 
 ## Design intent
 
-A heavy sci-fi shoulder launcher that reads as ordnance, not a painted pipe:
-
-- **Squared breech housing** — an octagonal receiver block and an olive
-  cladding shell with bolted gunmetal cheek panels, orange bolt bosses, latch,
-  a black vent slot and modelled `RX-8` / `HAVOC` stencil geometry.
-- **Half-cage braces** — four converging struts from the housing to a front
-  collar over the bare tube, the launch tube visible through the gap.
-- **Seated warhead nose** — a rocket nose peeking from the tube mouth
-  (ivory ogive, orange band, black tip on a gunmetal boom inside the mouth,
-  rubber obturator seating it). Per the runtime owner the tip sits 0.018 m
-  proud of the muzzle plane at radius ≤ 0.047: the muzzle marker is where the
-  game spawns the flying rocket and the flash, so nothing slim may project
-  well forward of the plane.
-- **Industrial panels and handles** — cheek panels, a forward hand hold around
-  the support marker, a left-flank shoulder brace with a ribbed rubber pad
-  clear of the gate swing (the gate never leaves |x| ≤ 0.099), a fixed
-  underslung control canister in `mag`, pistol grip with finger ribs.
-- **Visible breech separation** — the tilting back-blast venturi gate (two
-  clamshell leaves under clamp and warning rings, throat liner, knuckles,
-  latch) hangs on hinge pins with a 6 mm seam gap to the breech block.
-- **Unobstructed sight window** — flip-up ladder sights bracket the 0.175
-  sight line (rear notch bar at game z -0.02, hooded front post at z -0.768);
-  nothing but the sights touches the line inside |x| < 0.02.
-- The heat band z [-0.752, -0.528] is bare 0.0620 tube (the runtime's 0.0625
-  glow sleeve and the support hand own that span); the seated nose nests
-  inside the bore there at radius ≤ 0.047, which is the single exception.
-
-## Design alternatives and choice
-
-`concepts/` holds three blockout alternatives with their generating prompts
-(`concept-prompts.md`, geometry in `concept-blockouts.py`): ANVIL (squared
-armour slab), CAGE (open exoskeleton lattice) and BULWARK (hybrid squared
-breech + half cage). **Chosen: BULWARK** — best fit to the frozen contract and
-the quality bar: it is the only alternative carrying every brief element at
-once (squared tube, cage braces, visible warhead, industrial panels/handles)
-and its layered mid-body survives the first-person close-up best. Two
-refinements came with the choice: the warhead finish from ANVIL's ivory/orange
-palette, and the proud warhead of the blockout tightened to the runtime
-owner's seated-nose spec (flash/spawn point at the muzzle plane).
+- **Sculpted receiver** — two octagonal olive-drab shells with chamfered
+  upper shoulder fairings, a belly fairing, three gunmetal collar bands with
+  orange accent rings, flank armour plates, dark polymer service pockets and
+  modelled `RX-8` / `HAVOC` ivory stencils on both flanks.
+- **Slotted forward jacket** — a gunmetal jacket with six axial cooling ribs
+  and black slot voids, an orange band and a taper down to the bare 0.0620
+  launch tube across the heat band.
+- **Castellated muzzle crown** — blast collar, orange warning band and six
+  crown lugs (the top quadrant stays free for the front sight riser). The
+  seated warhead's ivory/orange nose sits in the mouth.
+- **Low-profile sight bridge** — a gunmetal rail on three stanchions under
+  the 0.175 sight line, an open U-notch rear sight (no crossbar in the sight
+  window) and a hooded front post with an orange tip.
+- **Compact fluted venturi** — the breech gate is a De Laval cone of outer
+  radius 0.068 at the throat to 0.079 at the rear, a 0.083 rim bumper and eight
+  flute ribs: no wider than the receiver, so the hip and sight views look past
+  it (revision 2's rim reached 0.096). Two knuckles on the vertical left-flank
+  pin, joined to the cone by knuckle arms; orange cam latch on the right.
+- **Furniture** — raked polymer pistol grip with rubber panels and finger
+  swells, a vertical foregrip around the support marker, a left-flank shoulder
+  pad clear of the gate swing, and the underslung ignition canister (`mag`).
+- **Authored rocket round** — ogive warhead (orange tip, ivory ogive, orange
+  band), olive shoulder and motor body, orange aft ring, steel nozzle and four
+  swept fins within radius 0.051, nose at game z -0.245 and nozzle at +0.150
+  relative to its seat.
 
 ## Part contract
 
@@ -53,123 +41,76 @@ Authoring space +Y forward, +Z up, +X right; game map `game_x = x,
 game_y = z, game_z = -y` (the glTF exporter's +Y-up conversion is the same
 map). Anchors (game space): muzzle `[0, 0.075, -0.78]`, grip
 `[0.045, -0.02, -0.08]`, support `[-0.06, -0.03, -0.40]`, sight
-`[0, 0.175, -0.34]`. Bore axis x 0 / y 0.075, exposed radius 0.0620 from the
-breech z -0.22 to the muzzle plane z -0.78, clear bore radius 0.0555 so the
-runtime reload round (r ≤ 0.046, seats nose at z ≈ -0.58) slides through from
-z +0.36.
+`[0, 0.175, -0.34]`. Bore axis x 0 / y 0.075, exposed radius 0.0620 across
+the heat band z [-0.752, -0.528], clear bore radius 0.0555.
 
-- `body`: tube core + bore liner, breech block, housing shell, cage, deck,
-  sights, grips, shoulder brace, markings and the seated warhead nose.
-- `mag`: the fixed underslung control canister (runtime owner: the group IS
-  the canister; the old shoe-only look would read as a missing part).
-- `bolt`: side arming lever at game z -0.040; the runtime rotates the group
-  +0.55 rad about the gun origin (tips while the breech is open, snaps home on
-  the cocking cue).
-- `trigger`: blade (tip at z -0.055) + shoe + guard at z -0.11.
-- `extra`: ONLY the breech gate leaves (`gate | gunmetal`, `gate | orange
-  paint`, `gate | cavity black`), hinge-local geometry with node translation
-  exactly `[-0.104, 0.075, -0.135]` (the vertical left-flank pin); the runtime
-  swings the venturi 1.75 rad open sideways about that pin (Carl Gustaf M3
-  style; hinge-stop bounce on the drop, slam at the seat cue). No loose reload
-  round: the runtime spawns it.
+- `body`: tube core, bore liner and blast baffle, receiver, jacket, muzzle
+  crown, sight bridge and sights, grips, shoulder pad, hinge hardware, latch
+  keeper and markings.
+- `mag`: the fixed underslung ignition canister.
+- `bolt`: right-flank arming lever at game z -0.040; the runtime rotates the
+  group +0.55 rad about the gun origin while the breech is open.
+- `trigger`: blade (tip at z -0.055), shoe and guard at z -0.11.
+- `extra`: the breech gate leaves (`gate | gunmetal`, `gate | orange paint`,
+  `gate | cavity black`) with hinge-local geometry and node translation
+  exactly `[-0.104, 0.075, -0.135]`, and the rocket round leaves
+  (`round | <material>`, five materials) with seat-local geometry and node
+  translation `[0, 0.075, -0.55]`. The runtime shows one copy as the
+  chambered warhead (driven by authoritative ammunition) and drives a clone
+  along the reload path.
 
 ## Commands
 
 ```sh
-# design alternatives (blockout renders + prompts under docs/design/blender/torch/concepts/)
-blender --background --factory-startup --python docs/design/blender/torch/concepts/concept-blockouts.py
-# authoring (headless; all four build checks gate the build)
 blender --background --factory-startup --python tools/blender/torch/build-torch.py
-# authoring through the live Blender MCP session (creates its own scene, saves with copy=True)
-"$HOME/Library/Application Support/VoxelBlitz/blender-mcp/.venv/bin/python" \
-  tools/blender/mcp-client.py execute_blender_code --code-file <wrapper> --arguments '{}'
-"$HOME/Library/Application Support/VoxelBlitz/blender-mcp/.venv/bin/python" \
-  tools/blender/mcp-client.py get_viewport_screenshot --arguments '{}' \
-  --image-output docs/design/blender/torch/mcp-viewport.png
-# browser delivery, fresh-import validation, proof renders, articulation stills
 blender --background --factory-startup docs/design/blender/torch/torch.blend --python tools/blender/torch/export-game-assets.py
 blender --background --factory-startup --python tools/blender/torch/validate-torch.py
 blender --background --factory-startup docs/design/blender/torch/torch.blend --python tools/blender/torch/render-torch.py
 blender --background --factory-startup docs/design/blender/torch/torch.blend --python tools/blender/torch/pose-torch.py
 ```
 
-`<wrapper>` is a one-line execute_code shim that sets `__file__` to the build
-script path before `exec` (MCP `execute_blender_code` evaluates text without a
-module file). The live-session read-back is `mcp-viewport.png`.
+`concepts/` keeps revision 2's blockout alternatives (ANVIL, CAGE, BULWARK)
+for history; the revision 3 references live in `docs/design/havoc/`.
 
-## Counts (measured, final build)
+## Counts (measured, final build, 2026-10-16)
 
-- 108 authored source parts, 17 material batches (draw calls), 15,140
-  triangles (build GLB and runtime glTF agree exactly).
-- Triangles per group: body 11,824 · mag 328 · bolt 208 · trigger 312 ·
-  extra (gate) 2,468.
-- 7 materials (frozen names): gunmetal, olive drab, orange paint, ivory
-  coating, polymer, rubber, cavity black — six mapped onto the shared 1024px
-  palette JPEGs by the material-library pass
-  (`gunmetal` → phosphated-steel, `olive drab` → olive-paint, `orange paint` →
-  orange-paint, `ivory coating` → ivory-ceramic, `polymer` → molded-polymer,
-  `rubber` → pebbled-rubber; `cavity black` untextured), with the
-  `textureLibrary` / `textureBumpScale` extras every other weapon delivery
-  carries. No new images were generated;
-  `docs/design/blender/torch/material-library.json` is the pass record.
-- Bounds (authoring space): x -0.136..+0.122, y -0.052..+0.798,
-  z -0.129..+0.209. UV density 3.6 tiles/m, analytic per-face projection.
-- File sizes (final run): torch.blend 2,689,726 B (varies by tens of kB
-  between identical runs) · torch.glb 1,972,884 B · torch.gltf 15,790 B ·
-  torch.bin 1,010,576 B.
+- 151 authored source parts, 22 material batches (draw calls, budget 28),
+  19,716 triangles (budget 8k-22k; build GLB and runtime glTF agree).
+- Per primitive: body 13,780 · mag 648 · bolt 216 · trigger 312 ·
+  gate 3,400 · round 1,360.
+- 7 materials: gunmetal → phosphated-steel, olive drab → olive-paint,
+  orange paint → orange-paint, ivory coating → ivory-ceramic, polymer →
+  molded-polymer, rubber → pebbled-rubber (shared 1024px palette JPEGs from
+  `tools/blender/material-library.py`); cavity black untextured.
+- Bounds (game space): x -0.136..+0.114, y -0.131..+0.196,
+  z -0.795..+0.048. UV density 3.6 tiles/m, analytic projection.
+- Files: torch.blend 1.33 MB (varies slightly between identical runs) ·
+  torch.glb 3.33 MB · torch.gltf 20 kB · torch.bin 1.34 MB.
 
 ## Checks actually executed
 
-Every run below was executed for this delivery (not assumed):
-
-1. **anchor contract** (build-torch.py, fails the build): muzzle plane rows,
-   forward-most bore vertex at 0.780, bore axis x/z, exposed 0.0620 radius
-   across the whole heat band (measured on the tube core), all four marker
-   positions, the 0.175 sight line (marker + sight clearance assertion: no
-   non-sight vertex inside |x| < 0.02 reaches z 0.175), trigger blade y 0.110
-   with tip at z -0.055 ± 1e-4, arming lever home at y 0.040 with knob reach
-   x = 0.122, rear sight post y 0.020, front sight post y 0.768.
-2. **heat-band clearance** (fails the build): nothing but the bore assembly
-   enters z [0.528, 0.752]; nothing stands proud of the 0.0620 sleeve there;
-   the seated nose stays inside radius 0.050. Measured: band max radius
-   0.0620 over 872 vertices, no intruders.
-3. **coplanar-face audit** (fails the build): clean — no flush overlapping
-   faces between parts (they would z-fight once same-material parts merge).
-4. **floating-part audit** (fails the build): clean — every part crosses,
-   touches within 1 mm or sits inside another; one connected cluster.
-5. **fresh-import validation** (`validate-torch.py`, both torch.glb and
-   torch.gltf, writes validation.json with `passed: true`): node and marker
-   names, `extras.blenderAsset`, gate-leaf node translations exactly
-   `[0, 0.075, -0.06]` with hinge-local mesh centres, `extra` children = the
-   gate leaves only, anchors, group identity, UV references (TEXCOORD_0 on
-   every primitive, counts match positions), material images (the six shared
-   palette maps, 6 textured materials), `textureLibrary`/`textureBumpScale`
-   extras, seven material names, primitive budget 17 ≤ 24,
-   triangle budget 15,140 in 8k-20k, muzzle tip in [0.778, 0.800], heat-band
-   radius 0.0620, no negative scale, no nonfinite coordinates, no
-   inward-facing surfaces (signed-volume test per mesh).
-6. **material-library browser gate** (`node tools/weapon-materials-browser-test.mjs`
-   over the runtime loader): torch row reports materials 7, paletteMaterials 6,
-   triangles 15,172 — every mapped material resolves its shared 1024px palette
-   map with bump, deduped across the twelve weapon assets.
-
-## Assumptions (stated, not checked)
-
-- Gate articulation axis: the runtime swings `gate.rotation.y` (1.75 rad)
-  about the vertical left-flank pin at (-0.104, 0.075, -0.135); the leaves are
-  shaped for that motion
-  (confirmed with the runtime owner during the redo).
-- Hand fit: the grip and support palms sit on the contract points and the
-  furniture is built around them, but no third-person pose test was run.
-- The seated warhead nose inside the bore is the one geometry the strict
-  reading of "no vertex other than the bore may enter the heat band" would
-  exclude; the runtime owner explicitly freed the mouth region for it
-  (radius ≤ ~0.045, tip ≤ 0.02 proud) because the reload round never seats
-  past z ≈ -0.58 and the hand clearance is radial around the sleeve.
+1. **anchor contract** (fails the build): muzzle plane, bore axis, exposed
+   0.0620 radius across the heat band, all four markers, the 0.175 sight line
+   with no non-sight vertex inside |x| < 0.02 reaching it, trigger blade and
+   arming lever home position.
+2. **heat-band clearance** (fails the build): only the bore assembly and the
+   seated round nose enter the band.
+3. **coplanar-face audit** (fails the build): clean.
+4. **floating-part audit** (fails the build): clean. Revision 3's first build
+   only passed because the oversized cone grazed the lever boss; the knuckle
+   arms now run into their knuckle eyes (2.5 mm short of the pin).
+5. **gate sweep** (fails the build): 1,728 gate vertices × 38 angles
+   (0..1.85 rad). Closed venturi bounds x ±0.083; open bore-axis clearance
+   0.093 (need 0.055); tightest swing gap 9.6 mm (throat collar vs trigger
+   guard at 0.3 rad).
+6. **fresh-import validation** (`validate-torch.py`, both files,
+   `validation.json` `passed: true`): node names, gate and round translations,
+   round local bounds -0.245..+0.150, anchors, UVs, embedded palette images,
+   budgets, no negative scales or non-finite coordinates.
+7. **browser** (`npm run weapons:blender:browser`, muted headless CDP): the
+   runtime loader builds TORCH with its palette materials.
 
 ## Limitations
 
 - Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.
 - Single LOD; no mobile GPU profiling.
-- The runtime reload round is procedural and was not rendered here; the clear
-  bore (0.0555) and rear-breech envelope were built to its stated sweep.

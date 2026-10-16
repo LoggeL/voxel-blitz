@@ -1,0 +1,1264 @@
+{
+  "generated": "2026-10-13T22:59:23.122Z",
+  "source": "production WorldView / CombatPostProcess / ViewmodelRig / MuzzleLights",
+  "fixture": "lance charge read model; settled hip pose; no match or server simulation",
+  "weapon": "lance",
+  "shots": [
+    {
+      "file": "docs/design/voltlance/runtime/desktop-high-idle.png",
+      "size": "desktop",
+      "quality": "high",
+      "state": "idle",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 1
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 0.025
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/desktop-high-charge.png",
+      "size": "desktop",
+      "quality": "high",
+      "state": "charge",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.008192000000000001,
+      "lightIntensity": 0.008192000000000001,
+      "lightColor": "979eff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 2.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 2.2329999999999997
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/desktop-high-charged.png",
+      "size": "desktop",
+      "quality": "high",
+      "state": "charged",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.16,
+      "lightIntensity": 0.16,
+      "lightColor": "a4bdff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 8.425
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/desktop-high-charged-spill-disabled.png",
+      "diagnostic": true,
+      "size": "desktop",
+      "quality": "high",
+      "state": "charged",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 1,
+      "spill": false,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.16,
+      "lightIntensity": 0,
+      "lightColor": "a4bdff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 8.425
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/desktop-low-idle.png",
+      "size": "desktop",
+      "quality": "low",
+      "state": "idle",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 1
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 0.025
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/desktop-low-charge.png",
+      "size": "desktop",
+      "quality": "low",
+      "state": "charge",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.008192000000000001,
+      "lightIntensity": 0.008192000000000001,
+      "lightColor": "979eff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 2.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 2.2329999999999997
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/desktop-low-charged.png",
+      "size": "desktop",
+      "quality": "low",
+      "state": "charged",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 1600,
+        "bufferHeight": 900,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 1600,
+      "height": 900,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.16,
+      "lightIntensity": 0.16,
+      "lightColor": "a4bdff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 8.425
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/landscape-high-idle.png",
+      "size": "landscape",
+      "quality": "high",
+      "state": "idle",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 1
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 0.025
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/landscape-high-charge.png",
+      "size": "landscape",
+      "quality": "high",
+      "state": "charge",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.008192000000000001,
+      "lightIntensity": 0.008192000000000001,
+      "lightColor": "979eff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 2.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 2.2329999999999997
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/landscape-high-charged.png",
+      "size": "landscape",
+      "quality": "high",
+      "state": "charged",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.16,
+      "lightIntensity": 0.16,
+      "lightColor": "a4bdff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 8.425
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/landscape-low-idle.png",
+      "size": "landscape",
+      "quality": "low",
+      "state": "idle",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 1
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 0.025
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/landscape-low-charge.png",
+      "size": "landscape",
+      "quality": "low",
+      "state": "charge",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.008192000000000001,
+      "lightIntensity": 0.008192000000000001,
+      "lightColor": "979eff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 2.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 2.2329999999999997
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/landscape-low-charged.png",
+      "size": "landscape",
+      "quality": "low",
+      "state": "charged",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 844,
+        "bufferHeight": 390,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 844,
+      "height": 390,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.16,
+      "lightIntensity": 0.16,
+      "lightColor": "a4bdff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 8.425
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/portrait-high-idle.png",
+      "size": "portrait",
+      "quality": "high",
+      "state": "idle",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 1
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 0.025
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/portrait-high-charge.png",
+      "size": "portrait",
+      "quality": "high",
+      "state": "charge",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.008192000000000001,
+      "lightIntensity": 0.008192000000000001,
+      "lightColor": "979eff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 2.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 2.2329999999999997
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/portrait-high-charged.png",
+      "size": "portrait",
+      "quality": "high",
+      "state": "charged",
+      "graphics": {
+        "tier": "high",
+        "renderScale": 1.35,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "ibl": true,
+        "anisotropy": 8,
+        "edgeShading": true,
+        "normalMaps": true,
+        "grassDensity": 1,
+        "ambientParticles": 1200,
+        "shadowMapSize": 2048,
+        "ssao": false,
+        "preference": "high"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 4,
+        "hdr": true,
+        "bloomLevels": 5,
+        "fxaa": false,
+        "ssao": false,
+        "adaptation": true,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.16,
+      "lightIntensity": 0.16,
+      "lightColor": "a4bdff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 8.425
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/portrait-low-idle.png",
+      "size": "portrait",
+      "quality": "low",
+      "state": "idle",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 0,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "",
+      "sourceIntensity": 0,
+      "lightIntensity": 0,
+      "lightColor": "ffd080",
+      "lightDistance": 6,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 1
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 0.025
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/portrait-low-charge.png",
+      "size": "portrait",
+      "quality": "low",
+      "state": "charge",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 0.64,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.008192000000000001,
+      "lightIntensity": 0.008192000000000001,
+      "lightColor": "979eff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 2.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 2.2329999999999997
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 0.025
+        }
+      ],
+      "display": false
+    },
+    {
+      "file": "docs/design/voltlance/runtime/portrait-low-charged.png",
+      "size": "portrait",
+      "quality": "low",
+      "state": "charged",
+      "graphics": {
+        "tier": "low",
+        "renderScale": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "ibl": false,
+        "anisotropy": 4,
+        "edgeShading": false,
+        "normalMaps": false,
+        "grassDensity": 0,
+        "ambientParticles": 250,
+        "shadowMapSize": 0,
+        "ssao": false,
+        "preference": "low"
+      },
+      "post": {
+        "enabled": true,
+        "failed": false,
+        "frames": 2,
+        "fallbacks": 0,
+        "bufferWidth": 390,
+        "bufferHeight": 844,
+        "pixelRatio": 1,
+        "msaa": 0,
+        "hdr": false,
+        "bloomLevels": 0,
+        "fxaa": true,
+        "ssao": false,
+        "adaptation": false,
+        "lastError": ""
+      },
+      "map": "frontier",
+      "shot": "trenches",
+      "width": 390,
+      "height": 844,
+      "fov": 75,
+      "charge": 1,
+      "spill": true,
+      "modelAsset": "pike",
+      "source": "lance_charge_light",
+      "sourceIntensity": 0.16,
+      "lightIntensity": 0.16,
+      "lightColor": "a4bdff",
+      "lightDistance": 0.95,
+      "cells": [
+        {
+          "name": "voltlance_coil_0",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_1",
+          "emissive": 8.425
+        },
+        {
+          "name": "voltlance_coil_2",
+          "emissive": 8.425
+        }
+      ],
+      "display": false
+    }
+  ],
+  "errors": []
+}

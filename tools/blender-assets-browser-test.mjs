@@ -176,7 +176,7 @@ try {
     must(lead.visible && lead.position.equals(lead.userData.homePosition), 'belt lead rests at its tray home');
     const leadBounds = new T.Box3().setFromObject(lead);
     must(leadBounds.max.y <= coverTop && leadBounds.min.y >= 0.12, 'belt lead lies inside the feed tray');
-    const { WeaponActions } = await import('/js/guns/actions.js');
+    const { WeaponActions, syncRocketAmmo } = await import('/js/guns/actions.js');
     const belt = new WeaponActions();
     belt.startReload(0, 4.2, 'magswap', lmg.T);
     belt.update(0.45 * 4.2, 0, lmg, lmg.T);
@@ -194,18 +194,28 @@ try {
     const rocket = buildGun('rocket', cache);
     must(rocket.body.userData.blenderAsset === 'torch', 'first person TORCH');
     must(rocket.body.userData.sightHeight === 0.175, 'rocket sight line at 0.175');
-    const rocketReload = rocket.extra.userData.rocketReload, gate = rocketReload?.gate;
-    must(gate, 'TORCH exposes its rocketReload gate under extra');
+    const rocketReload = rocket.extra.userData.rocketReload, gate = rocketReload?.gate, chambered = rocketReload?.chambered;
+    must(gate && chambered, 'TORCH exposes its rocketReload gate and chambered round under extra');
     must(gate.name === 'rocket_rear_breech', 'TORCH gate is named rocket_rear_breech');
-    must(gate.parent === rocket.extra && rocket.root.getObjectByName('rocket_rear_breech') === gate,
-      'TORCH gate group hangs inside the rocket scene graph');
+    must(chambered.name === 'rocket_chambered_round', 'TORCH chambered warhead is named rocket_chambered_round');
+    must(gate.parent === rocket.extra && rocket.root.getObjectByName('rocket_rear_breech') === gate
+      && chambered.parent === rocket.extra && rocket.root.getObjectByName('rocket_chambered_round') === chambered,
+      'TORCH gate and chambered groups hang inside the rocket scene graph');
     must(Math.abs(gate.position.x + 0.104) < 1e-6 && Math.abs(gate.position.y - 0.075) < 1e-6 && Math.abs(gate.position.z + 0.135) < 1e-6,
       'TORCH gate hinge pins at (-0.104, 0.075, -0.135), the vertical side pin the template exported');
-    must(rocketReload.hinge.equals(gate.position) && rocketReload.swing === 1.75 && Math.abs(rocketReload.rearZ + 0.06) < 1e-9,
-      'TORCH rocketReload exposes the hinge, the 1.75 rad swing and the -0.06 round-path reference');
+    must(Math.abs(chambered.position.x) < 1e-6 && Math.abs(chambered.position.y - 0.075) < 1e-6 && Math.abs(chambered.position.z + 0.55) < 1e-6,
+      'TORCH chambered round seats at (0, 0.075, -0.55)');
+    must(rocketReload.hinge.equals(gate.position) && rocketReload.seat.equals(chambered.position)
+      && rocketReload.swing === 1.75 && Math.abs(rocketReload.rearZ + 0.06) < 1e-9,
+      'TORCH rocketReload exposes the hinge, seat, 1.75 rad swing and -0.06 round-path reference');
     must(gate.children.length === 3 && gate.children.every((leaf) => leaf.position.lengthSq() < 1e-12),
       'TORCH gate leaves are hinge-local under the swing group');
+    must(chambered.children.length >= 3 && chambered.children.every((leaf) => leaf.position.lengthSq() < 1e-12),
+      'TORCH chambered round leaves are seat-local');
     const round = rocket.extra.userData.reloadRounds, rearZ = rocketReload.rearZ;
+    must(round.children.length === chambered.children.length, 'TORCH reload round mirrors the chambered warhead');
+    syncRocketAmmo(rocketReload, 0);
+    must(chambered.visible === false, 'empty rocket launcher hides chambered warhead');
     const actions = new WeaponActions();
     actions.startReload(0, 1, 'magswap', rocket.T);
     const rocketHandL = rocket.root.getObjectByName('hand_l');
@@ -239,8 +249,8 @@ try {
     actions.update(0.81, 0, rocket, rocket.T);
     must(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
     actions.update(0.88, 0, rocket, rocket.T);
-    must(gate.rotation.y < -1.5, 'the hand swings the rear breech shut after seating the rocket');
-    actions.update(0.90, 0, rocket, rocket.T);
+    must(gate.rotation.y < -1.5 && round.visible === false && chambered.visible === true,
+      'the hand swings the rear breech shut after seating the rocket into chambered');
     rocket.root.updateMatrixWorld(true);
     must(rocketHand().distanceTo(rocketGrab()) < 0.05,
       'the support hand returns to close and latch the venturi clamp');
@@ -249,16 +259,16 @@ try {
     actions.update(0.93, 0, rocket, rocket.T);
     must(Math.abs(rocket.bolt.rotation.x) < 1e-9, 'rocket arming lever cocks home on the closing cue');
     actions.update(0.94, 0, rocket, rocket.T);
-    must(round.visible === false, 'seated rocket is inside the tube');
+    must(round.visible === false && chambered.visible === true, 'seated rocket is inside the tube');
     must(gate.rotation.y === 0 && gate.position.equals(rocketReload.hinge), 'rocket rear breech latches closed on its pin');
-    // Cancelling mid-reload, while the round is staged and the breech stands open,
     // restores the complete rest pose.
     actions.cancelReload(rocket);
     actions.startReload(0, 1, 'magswap', rocket.T);
     actions.update(0.50, 0, rocket, rocket.T);
     must(round.visible === true, 'a complete new rocket is drawn');
     actions.cancelReload(rocket);
-    must(round.visible === false && gate.rotation.y === 0 && gate.position.equals(rocketReload.hinge)
+    must(round.visible === false && chambered.visible === false && gate.rotation.y === 0
+      && gate.position.equals(rocketReload.hinge)
       && rocket.bolt.rotation.x === 0
       && round.children.every((child) => child.visible)
       && round.position.equals(round.userData.homePosition),

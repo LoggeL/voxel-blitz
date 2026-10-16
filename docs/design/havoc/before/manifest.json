@@ -1,0 +1,62 @@
+[
+  {
+    "weapon": "rocket",
+    "state": "swap-stow",
+    "file": "rocket-swap-stow.png",
+    "bytes": 14927
+  },
+  {
+    "weapon": "rocket",
+    "state": "swap-draw",
+    "file": "rocket-swap-draw.png",
+    "bytes": 30350
+  },
+  {
+    "weapon": "rocket",
+    "state": "swap-ready",
+    "file": "rocket-swap-ready.png",
+    "bytes": 181963
+  },
+  {
+    "weapon": "rocket",
+    "state": "held",
+    "file": "rocket-held.png",
+    "bytes": 181963
+  },
+  {
+    "weapon": "rocket",
+    "state": "vaulting",
+    "file": "rocket-vaulting.png",
+    "bytes": 379559
+  },
+  {
+    "weapon": "rocket",
+    "state": "scoped",
+    "file": "rocket-scoped.png",
+    "bytes": 201930
+  },
+  {
+    "weapon": "rocket",
+    "state": "firing",
+    "file": "rocket-firing.png",
+    "bytes": 185685
+  },
+  {
+    "weapon": "rocket",
+    "state": "reload-open",
+    "file": "rocket-reload-open.png",
+    "bytes": 245148
+  },
+  {
+    "weapon": "rocket",
+    "state": "reload-load",
+    "file": "rocket-reload-load.png",
+    "bytes": 135163
+  },
+  {
+    "weapon": "rocket",
+    "state": "reload-charge",
+    "file": "rocket-reload-charge.png",
+    "bytes": 236786
+  }
+]

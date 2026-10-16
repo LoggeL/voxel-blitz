@@ -1,0 +1,37 @@
+{
+  "generated": "2026-10-13T22:59:23.125Z",
+  "fov": 75,
+  "ads": 1,
+  "display": true,
+  "shots": [
+    {
+      "size": "desktop",
+      "weapon": "lance",
+      "state": "full",
+      "live": false,
+      "file": "docs/design/voltlance/ads/desktop-lance-full-ads.jpg"
+    },
+    {
+      "size": "desktop",
+      "weapon": "lance",
+      "state": "charged",
+      "live": false,
+      "file": "docs/design/voltlance/ads/desktop-lance-charged-ads.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "lance",
+      "state": "full",
+      "live": false,
+      "file": "docs/design/voltlance/ads/portrait-lance-full-ads.jpg"
+    },
+    {
+      "size": "portrait",
+      "weapon": "lance",
+      "state": "charged",
+      "live": false,
+      "file": "docs/design/voltlance/ads/portrait-lance-charged-ads.jpg"
+    }
+  ],
+  "errors": []
+}

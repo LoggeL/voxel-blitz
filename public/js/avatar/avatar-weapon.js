@@ -4,10 +4,11 @@ import { applyGunCosmetics } from '../cosmetics/skins.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
 import { animateChargeRifle } from '../guns/chargerifle-animation.js';
+import { animateVoltlance } from '../guns/voltlance-animation.js';
 import { glaivePresentationFor } from '../guns/glaive-presentation.js';
 import { bubblePresentationFor } from '../guns/bubble-presentation.js';
 import { thunderboltAnimationFor } from '../guns/thunderbolt-animation.js';
-import { WeaponActions, syncArcherAmmo } from '../guns/actions.js';
+import { WeaponActions, syncArcherAmmo, syncRocketAmmo } from '../guns/actions.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { SWIM } from '../../../shared/player-stance.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
@@ -85,7 +86,7 @@ export class AvatarWeaponModel {
   }
 
   /** 0..1 reload pose weight (third-person mag work). */
-  get reloadT() { return this._weaponId === 'archer' ? 0 : this._reload; }
+  get reloadT() { return (this._weaponId === 'archer' || this._weaponId === 'rocket') ? 0 : this._reload; }
   /** 0..1 draw progress; 1 once the new weapon is fully raised. */
   get deployT() {
     return this._deployDur > 0 ? 1 - this._deployT / this._deployDur : 1;
@@ -93,16 +94,16 @@ export class AvatarWeaponModel {
 
   get flashLight() {
     const shot = this._model?.flash.light || null;
-    if (!this._model || shot?.intensity > 0 || this._weaponId !== 'chargerifle') return shot;
-    const charge = this._model.chargeLight ??= this._model.body.getObjectByName('chargerifle_charge_light');
+    if (!this._model || shot?.intensity > 0 || (this._weaponId !== 'chargerifle' && this._weaponId !== 'lance')) return shot;
+    const charge = this._model.chargeLight ??= this._model.body.getObjectByName(`${this._weaponId}_charge_light`);
     return charge?.intensity > 0 ? charge : shot;
   }
 
   get id() { return this._weaponId; }
   get modelRoot() { return this._model?.root || null; }
   get handPose() {
-    return this._archerActions?.reloading && this._archerHandPose
-      ? this._archerHandPose : this._profile?.hands || HANDS.rifle;
+    return this._launcherActions?.reloading && this._launcherHandPose
+      ? this._launcherHandPose : this._profile?.hands || HANDS.rifle;
   }
   get twoHanded() { return !!this.handPose.support; }
   get adsT() { return this._ads; }
@@ -142,11 +143,11 @@ export class AvatarWeaponModel {
     this._model.root.scale.setScalar(MODEL_SCALE);
     const sightHeight = Number(this._model.body?.userData?.sightHeight);
     this._profile = mountProfile(nextId, Number.isFinite(sightHeight) ? sightHeight : 0.12);
-    if (nextId === 'archer') {
-      this._archerActions = new WeaponActions();
-      this._archerClock = 0;
-      this._archerReloadObserved = false;
-      this._archerHandPose = { ...this._profile.hands,
+    if (nextId === 'archer' || nextId === 'rocket') {
+      this._launcherActions = new WeaponActions();
+      this._launcherClock = 0;
+      this._launcherReloadObserved = false;
+      this._launcherHandPose = { ...this._profile.hands,
         support: new THREE.Vector3().copy(this._profile.hands.support) };
     }
     this._model.flash.grp.scale.setScalar(0.58);
@@ -262,50 +263,82 @@ export class AvatarWeaponModel {
     }
     // Belt-fed receivers show their feed cover thrown open for the whole swap.
     const cover = this._model.extra?.userData.reloadPart;
-    if (cover) cover.rotation[cover.userData.reloadAxis || 'x'] = -1.0 * this._reload;
+    if (cover && this._weaponId !== 'rocket') cover.rotation[cover.userData.reloadAxis || 'x'] = -1.0 * this._reload;
     this._model.flash.grp.visible = this._flash > 0;
     for (const material of this._model.flash.mats) material.opacity = this._flash;
     this._model.flash.light.intensity = this._flash * 1.4;
     // A remote capacitor charge lights the coils exactly like the first-person rig.
     const charge01 = Math.max(0, Math.min(1, Number(charge) || 0));
     if (this._weaponId === 'chargerifle') animateChargeRifle(this._model.body, charge01, this._machineTime);
+    if (this._weaponId === 'lance') animateVoltlance(this._model.body, charge01, this._machineTime);
     const glow = this._model.uni.uGlow;
     glow.value = Math.max(charge01, glow.value * Math.exp(-frameDt / 0.05), this._flash);
     if (this._weaponId === 'archer') this._animateArcher(frameDt, mag, !!reloading);
+    if (this._weaponId === 'rocket') this._animateRocket(frameDt, mag, !!reloading);
   }
 
   /** Snapshot edges start one reload; only authoritative ammunition fills the chamber. */
   _animateArcher(dt, mag, reloading) {
     const parts = this._model.extra.userData.archer;
-    if (!parts?.round || !this._archerActions) return;
+    if (!parts?.round || !this._launcherActions) return;
     if (Number.isFinite(mag)) this._archerMag = Math.max(0, Math.trunc(mag));
     syncArcherAmmo(parts, this._archerMag ?? 0);
-    this._archerClock += dt;
-    if (reloading && !this._archerReloadObserved) {
-      this._archerActions.startReload(this._archerClock, WEAPONS.archer.reloadTime,
+    this._launcherClock += dt;
+    if (reloading && !this._launcherReloadObserved) {
+      this._launcherActions.startReload(this._launcherClock, WEAPONS.archer.reloadTime,
         null, this._model.T);
-    } else if (!reloading && this._archerReloadObserved) {
-      this._archerActions.cancelReload(this._model);
+    } else if (!reloading && this._launcherReloadObserved) {
+      this._launcherActions.cancelReload(this._model);
     }
     // The authority can hold this flag beyond our presentation duration. Keep
     // the edge latched so the fresh missile does not loop back out of the tube.
-    this._archerReloadObserved = reloading;
-    this._archerActions.update(this._archerClock, dt, this._model, this._model.T);
+    this._launcherReloadObserved = reloading;
+    this._launcherActions.update(this._launcherClock, dt, this._model, this._model.T);
     syncArcherAmmo(parts, this._archerMag ?? 0);
     const hand = this._model.extra.userData.reloadHand?.hand;
     if (hand) {
-      hand.getWorldPosition(this._archerHandPose.support);
-      this._model.root.worldToLocal(this._archerHandPose.support);
+      hand.getWorldPosition(this._launcherHandPose.support);
+      this._model.root.worldToLocal(this._launcherHandPose.support);
       // The external avatar hand follows this exact action target. Its hidden
       // first-person glove must stay hidden even when the action moves it.
       hand.visible = false;
     }
   }
 
+  /** Snapshot edges start one reload; only authoritative ammunition or reload seating shows the warhead. */
+  _animateRocket(dt, mag, reloading) {
+    const parts = this._model.extra.userData.rocketReload;
+    if (!parts || !this._launcherActions) return;
+    if (Number.isFinite(mag)) this._rocketMag = Math.max(0, Math.trunc(mag));
+    syncRocketAmmo(parts, this._rocketMag ?? 0);
+    this._launcherClock += dt;
+    if (reloading && !this._launcherReloadObserved) {
+      this._launcherActions.startReload(this._launcherClock, WEAPONS.rocket.reloadTime,
+        null, this._model.T);
+    } else if (!reloading && this._launcherReloadObserved) {
+      this._launcherActions.cancelReload(this._model);
+    }
+    this._launcherReloadObserved = reloading;
+    this._launcherActions.update(this._launcherClock, dt, this._model, this._model.T);
+    syncRocketAmmo(parts, this._rocketMag ?? 0);
+    const hand = this._model.extra.userData.reloadHand?.hand;
+    if (hand) {
+      hand.getWorldPosition(this._launcherHandPose.support);
+      this._model.root.worldToLocal(this._launcherHandPose.support);
+      hand.visible = false;
+    }
+  }
+
   _resetArcher() {
-    if (!this._archerActions || !this._model) return;
-    this._archerActions.reset(this._model);
+    if (!this._launcherActions || !this._model || this._weaponId !== 'archer') return;
+    this._launcherActions.reset(this._model);
     syncArcherAmmo(this._model.extra.userData.archer, this._archerMag ?? 0);
+  }
+
+  _resetRocket() {
+    if (!this._launcherActions || !this._model || this._weaponId !== 'rocket') return;
+    this._launcherActions.reset(this._model);
+    syncRocketAmmo(this._model.extra.userData.rocketReload, this._rocketMag ?? 0);
   }
 
   /**
@@ -385,6 +418,7 @@ export class AvatarWeaponModel {
 
   resetPose() {
     this._resetArcher();
+    this._resetRocket();
     if (this._model && this._weaponId === 'glaive') glaivePresentationFor(this._model).reset();
     if (this._model && this._weaponId === 'bubble') bubblePresentationFor(this._model)?.reset();
     if (this._model && this._weaponId === 'thunderbolt') {
@@ -422,6 +456,7 @@ export class AvatarWeaponModel {
     this._flash = 0;
     if (!this._model) return;
     this._resetArcher();
+    this._resetRocket();
     if (this._weaponId === 'thunderbolt') {
       thunderboltAnimationFor(this._model)?.reset({ mag: this._thunderboltState?.mag ?? 0 });
     }
@@ -440,9 +475,9 @@ export class AvatarWeaponModel {
   }
 
   _disposeModel() {
-    this._archerActions?.dispose(this._model);
-    this._archerActions = null;
-    this._archerHandPose = null;
+    this._launcherActions?.dispose(this._model);
+    this._launcherActions = null;
+    this._launcherHandPose = null;
     if (this._model) disposeGunModels([this._model], this._cache);
     this._model = null;
     this._cache = null;

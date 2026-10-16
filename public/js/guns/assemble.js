@@ -121,7 +121,8 @@ export function buildGun(id, cache) {
   // the external charging pawl; its rounded stock would leave the cap in plain view.
   // ARCHER opens the receiver during loading; a generic cap would fill its trough.
   // FURNACE's open stock likewise exposes it; heat belongs to its six barrels.
-  if (!melee && id !== 'revolver' && id !== 'glaive' && id !== 'bubble' && id !== 'mgl' && id !== 'thunderbolt' && id !== 'archer' && id !== 'stinger' && id !== 'minigun') {
+  // VOLTLANCE uses its fitted induction strips; the cap floats beside PIKE's open rail.
+  if (!melee && id !== 'revolver' && id !== 'glaive' && id !== 'bubble' && id !== 'mgl' && id !== 'thunderbolt' && id !== 'archer' && id !== 'stinger' && id !== 'minigun' && id !== 'lance' && id !== 'rocket') {
     const capZ = BOLT_HOME[id];
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), glow);
     cap.position.set(-0.02, 0.07, capZ + 0.052);

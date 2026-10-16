@@ -20,6 +20,16 @@ export function syncArcherAmmo(archer, mag) {
   archer.chambered.visible = archer.authoritativeMag > 0;
 }
 
+/** The seated HAVOC warhead shows when loaded or after the reload shove reaches its seat. */
+export function syncRocketAmmo(rocket, mag) {
+  if (!rocket) return;
+  rocket.authoritativeMag = Math.max(0, Math.trunc(Number(mag) || 0));
+  if (rocket.chambered) {
+    rocket.chambered.visible = (rocket.reloading && rocket.seated)
+      || (!rocket.reloading && rocket.authoritativeMag > 0);
+  }
+}
+
 /** Place the remaining cassette shells in consecutive slots, starting at the top. */
 export function presentSkipjackReserve(skipjack, reserve) {
   const rounds = skipjack.rounds;
@@ -269,8 +279,11 @@ export class WeaponActions {
     if (rocket) {
       // The rocket reload swings the gate about its side pin and yaws the round
       // (the arming lever rides model.bolt, zeroed above); restore all of it.
+      rocket.reloading = false;
+      rocket.seated = false;
       rocket.gate.position.copy(rocket.hinge);
       rocket.gate.rotation.set(0, 0, 0);
+      syncRocketAmmo(rocket, rocket.authoritativeMag);
     }
     const stinger = model.extra.userData.stinger;
     if (stinger) {
@@ -1124,13 +1137,22 @@ export class WeaponActions {
     const raise = this._phase(frac, 0.36, 0.56);
     const align = this._phase(frac, 0.56, 0.68);
     // SEAT: an accelerating shove drives the round home — at insert = 1 its
-    // origin reaches rearZ - 0.29 (game z -0.35), its previous seat — and the
-    // support hand rides it the whole way.
+    // origin reaches parts.seat (game z -0.55) — and the support hand rides it
+    // the whole way. Once seated at timeline.home (0.84), `round` hands off to
+    // `chambered` while the breech gate closes and the arming lever cocks.
+    // A portrait lens is too narrow for the wide run-in, so `narrow` (set by the
+    // rig from the camera aspect) stages the round nearer the bore and further
+    // from the camera; the nose still clears the tube's rear end before it aligns.
     const insert = this._phase(frac, 0.70, timeline.home);
+    const narrow = parts.narrow || 0;
+    const stageZ = parts.rearZ + 0.42 - 0.20 * narrow;
+    parts.reloading = true;
+    parts.seated = frac >= timeline.home;
     round.visible = frac >= 0.36 && frac < timeline.home;
-    round.position.set(0.30 * (1 - align), parts.axisY - 0.55 * (1 - raise),
-      parts.rearZ + 0.42 - 0.71 * insert * insert);
-    round.rotation.y = 0.45 * (1 - align);
+    round.position.set(0.30 * (1 - 0.75 * narrow) * (1 - align), parts.axisY - 0.55 * (1 - 0.6 * narrow) * (1 - raise),
+      stageZ + (parts.seat.z - stageZ) * insert * insert);
+    round.rotation.y = 0.45 * (1 - 0.55 * narrow) * (1 - align);
+    syncRocketAmmo(parts, parts.authoritativeMag);
     // HAND: one support hand runs the whole story — pull the clamp open, take the
     // rocket and shove it home, then swing the clamp shut and latch it. Targets
     // blend between the swing-following clamp grab and the round's grip point.

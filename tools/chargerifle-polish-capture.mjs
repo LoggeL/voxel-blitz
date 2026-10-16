@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * CR-6 render proof using the actual WorldView, character lighting, MuzzleLights
+ * Charge-weapon render proof using the actual WorldView, character lighting, MuzzleLights
  * and CombatPostProcess from capture.html. Charge is an explicit presentation
  * fixture; weapon shape, materials, animation, exposure and bloom are production
  * code. Images are unmodified framebuffer exports. No account, audio or match.
  *
  * node tools/chargerifle-polish-capture.mjs [--sizes desktop,landscape,portrait]
- *   [--qualities high,low] [--states idle,charge,charged] [--out <directory>]
+ *   [--weapon chargerifle|lance] [--qualities high,low]
+ *   [--states idle,charge,charged] [--out <directory>]
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -29,7 +30,10 @@ const STATES = { idle: 0, charge: 0.64, charged: 1 };
 const sizes = list('--sizes', 'desktop,landscape,portrait');
 const qualities = list('--qualities', 'high,low');
 const states = list('--states', 'idle,charge,charged');
-const outDir = path.resolve(root, arg('--out', 'docs/design/chargerifle/polish/runtime'));
+const weapon = arg('--weapon', 'chargerifle');
+const chargeSource = `${weapon}_charge_light`;
+const outDir = path.resolve(root, arg('--out', weapon === 'lance'
+  ? 'docs/design/voltlance/runtime' : 'docs/design/chargerifle/polish/runtime'));
 
 async function evaluateLong(page, expression) {
   const result = await page.send('Runtime.evaluate', {
@@ -40,13 +44,14 @@ async function evaluateLong(page, expression) {
 }
 
 async function main() {
+  if (!['chargerifle', 'lance'].includes(weapon)) throw new Error(`unknown weapon: ${weapon}`);
   for (const size of sizes) if (!SIZES[size]) throw new Error(`unknown size: ${size}`);
   for (const quality of qualities) if (!['high', 'low'].includes(quality)) throw new Error(`unknown quality: ${quality}`);
   for (const state of states) if (!(state in STATES)) throw new Error(`unknown state: ${state}`);
   await mkdir(outDir, { recursive: true });
   const report = { generated: new Date().toISOString(), source: 'production WorldView / CombatPostProcess / ViewmodelRig / MuzzleLights',
-    fixture: 'CR-6 charge read model; settled hip pose; no match or server simulation', shots: [], errors: [] };
-  const server = startServer({ entry: 'tools/capture-server.mjs', failureContext: 'CR-6 polish capture' });
+    fixture: `${weapon} charge read model; settled hip pose; no match or server simulation`, weapon, shots: [], errors: [] };
+  const server = startServer({ entry: 'tools/capture-server.mjs', failureContext: `${weapon} polish capture` });
   try {
     const port = await server.port;
     for (const sizeId of sizes) for (const quality of qualities) {
@@ -76,29 +81,42 @@ async function main() {
           camera.near = 0.01;
           camera.updateProjectionMatrix();
           const rig = new ViewmodelRig(camera);
-          rig.setWeapon('chargerifle');
+          const weapon = ${JSON.stringify(weapon)};
+          rig.setWeapon(weapon);
+          const modelAsset = rig._cur.body.userData.blenderAsset ?? 'procedural';
+          if (weapon === 'lance' && modelAsset !== 'pike') throw new Error('VOLTLANCE capture requires the loaded Blender PIKE asset');
           worldview.addCharacterRoots(rig.root);
           const pool = new MuzzleLights(scene);
           const avatars = new Map();
           const pose = { speed: 0, grounded: true, aimSwayScale: 0, reducedMotion: true };
           for (let i = 0; i < 240; i++) rig.update(1 / 60, pose);
           window.__cr6Capture = async (charge, spill = true, advance = true) => {
-            const def = WEAPONS.chargerifle;
+            const def = WEAPONS[weapon];
             rig.setCharge(charge);
-            rig.setWeaponDisplay(weaponDisplayModel({ wid: 'chargerifle', mag: def.magSize, reserve: def.magSize * 3,
-              charge01: charge, ready01: 1, reloading01: null }, { mode: 'titanfall' }));
+            rig.setWeaponDisplay(weaponDisplayModel({ wid: weapon, mag: def.magSize, reserve: def.magSize * 3,
+              charge01: charge, ready01: 1, reloading01: null }, { mode: weapon === 'lance' ? 'fun' : 'titanfall' }));
             if (advance) rig.update(1 / 60, pose);
             pool.update(spill ? rig.flashLight : null, avatars, camera);
             worldview.presentCharacters({ camera, dt: 0, roster: null, bodyPosition: null });
             frame();
             const png = document.getElementById('capture').toDataURL('image/png');
-            return { png, charge, spill, source: rig.flashLight?.name,
+            const coilNames = weapon === 'lance' ? [0, 1, 2].map(index => 'voltlance_coil_' + index)
+              : ['left', 'right'].flatMap(side => [0, 1, 2].map(index => 'chargerifle_cell_' + side + '_' + index));
+            const cells = coilNames.map(name => {
+              const cell = rig._cur.body.getObjectByName(name);
+              if (!cell) throw new Error('Missing charge cell: ' + name);
+              const emissive = [];
+              cell.traverse(object => {
+                for (const material of [].concat(object.material || [])) {
+                  if (material.emissiveIntensity > 0) emissive.push(material.emissiveIntensity);
+                }
+              });
+              return { name, emissive: Math.max(0, ...emissive) };
+            });
+            return { png, charge, spill, modelAsset, source: rig.flashLight?.name,
               sourceIntensity: rig.flashLight?.intensity || 0, lightIntensity: pool.lights[0].intensity,
               lightColor: pool.lights[0].color.getHexString(), lightDistance: pool.lights[0].distance,
-              cells: ['left', 'right'].flatMap(side => [0, 1, 2].map(index => {
-                const cell = rig._cur.body.getObjectByName('chargerifle_cell_' + side + '_' + index);
-                return { name: cell.name, emissive: cell.children[0].material.emissiveIntensity };
-              })), display: rig.weaponDisplayLive };
+              cells, display: rig.weaponDisplayLive };
           };
           await document.fonts.ready;
           return { graphics: window.__vbCapture.graphics, post: window.__vbCapture.post,
@@ -109,11 +127,11 @@ async function main() {
         for (const state of states) {
           const result = await evaluateLong(page, `window.__cr6Capture(${STATES[state]})`);
           const { png, ...detail } = result;
-          if (STATES[state] > 0 && (!(detail.lightIntensity > 0) || detail.source !== 'chargerifle_charge_light')) {
-            throw new Error(`${state}: charged CR-6 did not reach production light pool`);
+          if (STATES[state] > 0 && (!(detail.lightIntensity > 0) || detail.source !== chargeSource)) {
+            throw new Error(`${state}: charged ${weapon} did not reach production light pool`);
           }
           if (STATES[state] === 0 && (detail.sourceIntensity !== 0 || detail.lightIntensity !== 0)) {
-            throw new Error('idle CR-6 retained a charge or shot light');
+            throw new Error(`idle ${weapon} retained a charge or shot light`);
           }
           const name = `${sizeId}-${quality}-${state}.png`;
           await writeFile(path.join(outDir, name), Buffer.from(png.split(',')[1], 'base64'));

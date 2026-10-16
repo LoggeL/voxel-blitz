@@ -16,13 +16,16 @@ const NODE_BLENDER_ONLY = new Set(['sniper', 'rocket', 'mgl']);
 
 // Body meshes of one built gun, excluding the gloves and the anchor-driven
 // flash, muzzle attachments (the rail charge orb), bolt glow cap and heat
-// sleeve that every slot receives.
+// sleeve that every slot receives. The HAVOC's procedural reload rounds are
+// props, not body: Node builds them so the reload choreography stays testable.
 function bodyMeshCount(model) {
   let count = 0;
+  const rocket = model.extra?.userData.rocketReload;
+  const props = new Set(rocket ? [rocket.chambered, rocket.round] : []);
   model.root.traverse((object) => {
     if (!object.isMesh || object.material?.uniforms === model.uni) return;
     for (let node = object; node && node !== model.root; node = node.parent) {
-      if (node === model.flash.grp || node === model.muzzleMarker
+      if (node === model.flash.grp || node === model.muzzleMarker || props.has(node)
         || node.name === 'hand_r' || node.name === 'hand_l') return;
     }
     count++;
