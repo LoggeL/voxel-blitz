@@ -4,6 +4,8 @@ import { VEHICLE_RULES } from '../shared/vehicles.js';
 import { vehicleHullParts } from '../shared/vehicle-collision.js';
 import { createMapState, getMapMeta } from '../shared/world/templates.js';
 
+const TOP=VEHICLE_RULES.plane.maxSpeed;
+
 function fixture(type='plane') {
   const dimensions={sx:1024,sy:32,sz:1024},walls=new Set();
   const world={dimensions,getBlock:(x,y,z)=>walls.has(`${x},${y},${z}`)||y===0?3:0,
@@ -280,11 +282,11 @@ for(const type of ['helicopter','plane']) {
   // From the middle of Frontier the full-speed jet keeps its controls in every
   // direction (the old guard counted any heading as threatened there and took
   // over). Diagonal headings are left alone; only head-on toward an edge 5 s
-  // away at 72 m/s does the soft steer (never a takeover) start to blend in.
+  // away at full speed does the soft steer (never a takeover) start to blend in.
   for(let k=0;k<8;k++) {
     const f=frontier(),yaw=k*Math.PI/4;
-    Object.assign(f.v,{x:384,y:140,z:384,yaw,pitch:0,roll:0,grounded:false,gearDown:false,vx:-Math.sin(yaw)*72,vy:0,vz:-Math.cos(yaw)*72,
-      speed:72,airspeed:72,throttle:1,enginePower:1,pitchRate:0,rollRate:0,rudderRate:0,yawRate:0});
+    Object.assign(f.v,{x:384,y:140,z:384,yaw,pitch:0,roll:0,grounded:false,gearDown:false,vx:-Math.sin(yaw)*TOP,vy:0,vz:-Math.cos(yaw)*TOP,
+      speed:TOP,airspeed:TOP,throttle:1,enginePower:1,pitchRate:0,rollRate:0,rudderRate:0,yawRate:0});
     f.input({});
     for(let i=0;i<30;i++){f.tick();assert(!f.game.vehicles.boundaryAvoidance.has(f.v.id),'no hard takeover from the map centre');}
     if(k%2) assert.equal(f.v.edgeSteer,0,`heading ${yaw.toFixed(2)}: no steer from the centre`);
@@ -320,11 +322,11 @@ for(const type of ['helicopter','plane']) {
   {
     let longest=0,flagged=false,takeovers=0;
     for(let k=0;k<8;k++) for(const offset of [-1,0,1]) {
-      // Full speed, 200 m short of the airspace limit and heading out of it
-      // (from 300 m on, the soft steer alone turns the jet).
-      const f=frontier(),yaw=k*Math.PI/4+.2,out=(limit+384-200)/Math.max(Math.abs(Math.sin(yaw)),Math.abs(Math.cos(yaw)));
-      Object.assign(f.v,{x:384-Math.sin(yaw)*out,y:140,z:384-Math.cos(yaw)*out,yaw,pitch:0,roll:0,grounded:false,gearDown:false,vx:-Math.sin(yaw)*72,vy:0,vz:-Math.cos(yaw)*72,
-        speed:72,airspeed:72,throttle:1,enginePower:1,pitchRate:0,rollRate:0,rudderRate:0,yawRate:0});
+      // Full speed, 120 m short of the airspace limit and heading out of it
+      // (at the 60 m/s top speed the soft steer alone turns the jet from 200 m).
+      const f=frontier(),yaw=k*Math.PI/4+.2,out=(limit+384-120)/Math.max(Math.abs(Math.sin(yaw)),Math.abs(Math.cos(yaw)));
+      Object.assign(f.v,{x:384-Math.sin(yaw)*out,y:140,z:384-Math.cos(yaw)*out,yaw,pitch:0,roll:0,grounded:false,gearDown:false,vx:-Math.sin(yaw)*TOP,vy:0,vz:-Math.cos(yaw)*TOP,
+        speed:TOP,airspeed:TOP,throttle:1,enginePower:1,pitchRate:0,rollRate:0,rudderRate:0,yawRate:0});
       let aim=yaw,engaged=null,released=null;
       for(let i=0;i<60*40&&released==null;i++) {
         const active=f.game.vehicles.boundaryAvoidance.has(f.v.id);
