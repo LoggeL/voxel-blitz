@@ -36,9 +36,11 @@ export const PILOT_RULES = Object.freeze({
   // direction, keeping its speed but at least this much.
   doubleJumpVy: 7.4, doubleJumpH: 4, airWishCap: 1.6, airAccel: 60,
   // Entry: airborne, minAir of air under the feet here and 1..`ahead` m along the run (no stairs), a
-  // full-height wall within `probe` of the hull, moving along it (tangent >= minTangent, at most
-  // maxAngle into it), the wish (if any) not into it past wishDot. A held key is not needed.
-  wallrun: Object.freeze({ minAir: 0.9, ahead: 2, probe: 0.3, minLength: 2, minTangent: 3.5, maxAngle: 72 * Math.PI / 180,
+  // full-height wall within `probe` of the hull (beside it or one voxel ahead, so a runner over a
+  // one-voxel gap still catches), at least minLength of the next `span` voxels walled, moving along it
+  // (tangent >= minTangent, at most maxAngle into it), the wish (if any) not into it past wishDot.
+  // A held key is not needed; for the first `catchT` s the hull is pulled in at `catch` m/s.
+  wallrun: Object.freeze({ minAir: 0.75, ahead: 2, probe: 0.75, minLength: 2, span: 3, minTangent: 2.5, maxAngle: 80 * Math.PI / 180,
     wishDot: -0.95, maxRise: 8,
     // Speed: entry keeps the tangent plus `redirect` of the speed into the wall (never more than the
     // speed it had), at least `speed`; a run along the wish builds by `accel` m/s² up to `top` (a faster
@@ -48,12 +50,12 @@ export const PILOT_RULES = Object.freeze({
     // chain's wallJump.decay; gravity ramps from `gravity` to `gravityEnd` (quadratic in wallT) over
     // the `seconds` the run lasts.
     kick: 1, entryVy: 2, gravity: 2, gravityEnd: 9, seconds: 1.5, roll: 13 * Math.PI / 180,
-    // Contact: `stick` m/s pulls the hull flush to the wall; a wall at any of the three probe heights holds
+    // Contact: `stick` m/s pulls the hull flush to the wall (after the catch); a wall at any of the three probe heights holds
     // the run; a wall one voxel farther (recess) is followed; with no wall the run coasts for `grace` s
     // if the wall resumes within `bridge` m ahead (gaps, windows); a one-voxel step toward the runner is
     // stepped around, at most one per `stepGap` m along the run (a wall angled up to ~30° runs, a 45° voxel
     // staircase ends the run). detachDot: pulling away this hard drops off; endTangent: too slow to hold on.
-    stick: 5, grace: 0.25, bridge: 2, stepGap: 1.5, detachDot: 0.7, detachPush: 1.5, endTangent: 2 }),
+    stick: 5, catch: 9, catchT: 0.2, grace: 0.35, bridge: 2, stepGap: 1.5, detachDot: 0.7, detachPush: 1.5, endTangent: 2 }),
   // Wall-jump: speed max(run speed, wallrun.speed) + boost (under the clamp), aimed by the wish between
   // minOut and maxOut off the wall (along the wall without a wish); vy decays with the chain, and no
   // wallrun, wall-jump or chained double jump lifts the feet past lastGroundY + wallrun.maxRise.
@@ -258,7 +260,7 @@ export function pilotAccel(state, body, wish, ctx, dt) {
       const next = t + (dir * state.wallSpeed - t) * (1 - Math.exp(-W.blend * dt));
       // In contact the hull is pulled flush (a recessed wall is reached in a few ticks).
       const gap = state.wallGap > 0 ? 0 : wallGapOf(body, state);
-      const pull = gap > 0.001 ? -n * Math.min(W.stick, gap / dt) : 0;
+      const pull = gap > 0.001 ? -n * Math.min(state.wallT < W.catchT ? W.catch : W.stick, gap / dt) : 0;
       if (tx === 'x') { body.vx = next; body.vz = pull; } else { body.vz = next; body.vx = pull; }
       state.wallTan = next;
       state.wallFrom = tx === 'x' ? body.x : body.z;
@@ -400,15 +402,18 @@ export function grappleLineClear(ctx, body, anchor) {
   return true;
 }
 
-/** The wall's plane cell when a wall with outward normal `code` is within the probe at all three heights, else false. */
-function probeWall(ctx, body, code) {
+/**
+ * The wall's plane cell when a wall with outward normal `code` is within the probe at all three
+ * heights, `along` m ahead on the tangent, else false.
+ */
+function probeWall(ctx, body, code, along = 0) {
   const ax = axisOf(code), n = code > 0 ? 1 : -1;
   // The wall lies opposite its outward normal.
   const reach = ax === 'x' ? body.x - n * (HALF_W + W.probe) : body.z - n * (HALF_W + W.probe);
   const plane = Math.floor(reach);
   for (let i = 0; i < WALL_HEIGHTS.length; i++) {
     const y = body.y + WALL_HEIGHTS[i];
-    if (ax === 'x' ? !solid(ctx, plane, y, body.z) : !solid(ctx, body.x, y, plane)) return false;
+    if (ax === 'x' ? !solid(ctx, plane, y, body.z + along) : !solid(ctx, body.x + along, y, plane)) return false;
   }
   return plane;
 }
@@ -505,17 +510,20 @@ function tryEnterWall(state, body, ctx) {
     // A wish (if any) not into the wall and not back along the run.
     if (wishing && ((ax === 'x' ? state.wishX : state.wishZ) * n < W.wishDot
       || (tx === 'x' ? state.wishX : state.wishZ) * (t > 0 ? 1 : -1) < -0.5)) continue;
-    const plane = probeWall(ctx, body, code);
+    // Beside the wall, or over a one-voxel gap with the wall resuming just ahead.
+    const step = t > 0 ? 1 : -1;
+    let plane = probeWall(ctx, body, code);
+    if (plane === false) plane = probeWall(ctx, body, code, step);
     if (plane === false) continue;
     if (state.wallLock > 0 && state.wallLockN === code && state.wallLockPlane === plane) continue;
     if (state.wallSpentN === code && state.wallSpentPlane === plane) continue;
-    // At least minLength voxels of wall along the run direction.
-    const step = t > 0 ? 1 : -1, y = body.y + 1.0;
-    let long = true;
-    for (let k = 1; k < W.minLength; k++) {
-      if (tx === 'z' ? !solid(ctx, plane, y, body.z + step * k) : !solid(ctx, body.x + step * k, y, plane)) { long = false; break; }
+    // At least minLength of the next `span` voxels along the run are wall (a lone post or crate is not).
+    const y = body.y + 1.0;
+    let walled = 0;
+    for (let k = 0; k < W.span; k++) {
+      if (tx === 'z' ? solid(ctx, plane, y, body.z + step * k) : solid(ctx, body.x + step * k, y, plane)) walled++;
     }
-    if (!long) continue;
+    if (walled < W.minLength) continue;
     // Air ahead too (every metre up to `ahead`): a stair climb along a wall never starts a run.
     let clear = true;
     for (let d = 1; d <= W.ahead && clear; d++) clear = tx === 'z' ? airBelow(ctx, body, body.x, body.z + step * d) : airBelow(ctx, body, body.x + step * d, body.z);

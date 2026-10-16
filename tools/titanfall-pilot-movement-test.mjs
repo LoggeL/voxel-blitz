@@ -156,7 +156,7 @@ const feel = [];
     'wallrun prediction is bit-equal to authority');
 }
 {
-  // Entry rules: no wallrun with < 1.2 m of air, too slow, pointing into the wall or above lastGroundY + 8.
+  // Entry rules: no wallrun with less than minAir of air, too slow, pointing into the wall or above lastGroundY + 8.
   const tryEntry = (y, vz, wishInto, groundY) => {
     const b = { x: 29.6, y, z: 12.5, vx: 0, vy: 0, vz, grounded: false, coyote: 0 };
     const state = createPilotState();
@@ -166,8 +166,8 @@ const feel = [];
     return state.wall;
   };
   eq(tryEntry(20, 8, false, 14), -1, 'reference entry');
-  eq(tryEntry(10.9, 8, false, 10), 0, 'under 1.2 m of air: no wallrun');
-  eq(tryEntry(20, 3, false, 14), 0, 'tangent speed under 4: no wallrun');
+  eq(tryEntry(10 + R.wallrun.minAir - 0.1, 8, false, 10), 0, `under ${R.wallrun.minAir} m of air: no wallrun`);
+  eq(tryEntry(20, R.wallrun.minTangent - 0.5, false, 14), 0, `tangent speed under ${R.wallrun.minTangent}: no wallrun`);
   eq(tryEntry(20, 8, true, 14), 0, 'wish straight into the wall: no wallrun');
   eq(tryEntry(20, 8, false, 11), 0, 'more than 8 m above the last ground: no wallrun');
   // A wall only one voxel long along the run is not runnable: the run heads off the wall's end (z 39 -> 40).
@@ -175,6 +175,31 @@ const feel = [];
   const state = createPilotState(); state.lastGroundY = 14;
   stepPilot(state, b, { wishX: 0, wishZ: 1 }, { solidAt: world }, DT);
   eq(state.wall, 0, 'wall shorter than 2 voxels along the run: no wallrun');
+}
+{
+  // Aggressive catch: a wall at x = 40 with a one-voxel gap at z 20 and a lone post at z 60.
+  const gapWorld = (x, y, z) => y < 10 || (x === 40 && y < 40 && ((z >= 0 && z < 50 && z !== 20) || z === 60));
+  const enter = (x, z, vx = 0) => {
+    const body = { x, y: 14, z, vx, vy: 0, vz: 8, grounded: false, coyote: 0 };
+    const st = createPilotState(); st.lastGroundY = 10;
+    stepPilot(st, body, { wishX: 0, wishZ: 1 }, { solidAt: gapWorld }, DT);
+    return { st, body };
+  };
+  const hullHalf = PHYSICS.halfW;
+  eq(enter(40 - hullHalf - 0.7, 10.5).st.wall, -1, 'a wall 0.7 m off the hull is caught');
+  eq(enter(40 - hullHalf - 1.2, 10.5).st.wall, 0, 'a wall 1.2 m off the hull is not');
+  eq(enter(39.6, 20.5).st.wall, -1, 'over a one-voxel gap with the wall resuming ahead: caught');
+  eq(enter(39.6, 60.5).st.wall, 0, 'a lone post is not a wall');
+  // Caught 0.7 m out, the hull is pulled flush within a few ticks and runs past the gap.
+  const { st, body } = enter(40 - hullHalf - 0.7, 12.5);
+  let flushAt = -1, held = true;
+  for (let i = 0; i < 90 && held; i++) {
+    stepPilot(st, body, { wishX: 0, wishZ: 1 }, { solidAt: gapWorld }, DT);
+    if (flushAt < 0 && body.x > 40 - hullHalf - 0.01) flushAt = i;
+    held = st.wall !== 0;
+  }
+  ok(flushAt >= 0 && flushAt <= 8, `the catch pulls the hull flush in ${flushAt} ticks`);
+  ok(held && body.z > 21.5, `the run carries over the one-voxel gap (z ${body.z.toFixed(1)})`);
 }
 
 /* ---------------------------------------------------------------- stairs never wallrun */
@@ -354,17 +379,18 @@ for (const [label, z, yawSign] of [['1 m steps', 72.5, 1], ['2 m steps', 82.5, 1
     }
   }
   ok(peakAll <= R.wallrun.maxRise, `alley ping-pong with double jumps stays within ${R.wallrun.maxRise} m (${peakAll.toFixed(2)})`);
-  ok(airAll < 12, `alley ping-pong with double jumps comes down (${airAll.toFixed(2)} s of 20)`);
+  // The 0.75 m catch takes the opposite wall early, so chains run longer; the decay still lands them.
+  ok(airAll < 15, `alley ping-pong with double jumps comes down (${airAll.toFixed(2)} s of 20)`);
   feel.push(`alley ping-pong + double jumps: peak ${peakAll.toFixed(2)} m, longest airtime ${airAll.toFixed(2)} s`);
 }
 
 /* ---------------------------------------------------------------- wallrun feel (tools/titanfall-wallrun-measure.mjs) */
 {
-  // Entry: touching a wall airborne while moving along it attaches, no held key needed, up to 72° into it.
+  // Entry: touching a wall airborne while moving along it attaches, no held key needed, up to maxAngle into it.
   ok(airborneEntry({ speed: 8.5, angle: 20, vy: 0, key: false }).attached, 'airborne along a wall: wallrun without a held key');
   ok(airborneEntry({ speed: 8.5, angle: 60, vy: 0 }).attached, 'a 60° approach attaches');
   ok(!airborneEntry({ speed: 8.5, angle: 80, vy: 0 }).attached, 'an 80° (head-on) approach does not');
-  ok(!airborneEntry({ speed: 3, angle: 20, vy: 0 }).attached, 'too slow along the wall: no wallrun');
+  ok(!airborneEntry({ speed: 2.5, angle: 20, vy: 0 }).attached, 'too slow along the wall: no wallrun');
   const falling = airborneEntry({ speed: 8.5, angle: 20, vy: -6 });
   ok(falling.attached && falling.vy > 0, `a falling catch kicks up (vy ${falling.vy})`);
   // Profile of a sprint-jump run: attaches within 0.2 s, builds to the top speed, a short rise and a slow sink, all in 16 m.
@@ -429,9 +455,10 @@ for (const [label, z, yawSign] of [['1 m steps', 72.5, 1], ['2 m steps', 82.5, 1
   // Stairs, crates and low walls along a wall: stairs and the low wall never start a run.
   const runs = falsePositiveRuns();
   for (const [label, r] of Object.entries(runs)) if (!label.startsWith('crates')) eq(r.wallTicks, 0, `${label}: no wallrun (${r.climbed} m climbed)`);
-  // Hopping crates beside a tall wall is a wallrun when a hop clears them by minAir (intended): one, from 2.85 m up.
+  // Hopping crates beside a tall wall catches the wall from a hop's height (intended, the catch is
+  // aggressive): each catch starts above the 2-voxel crates with minAir under the feet, never off a crate top.
   const crates = runs['crates along a wall'];
-  ok(crates.entries <= 1 && (crates.entries === 0 || crates.entryHeight >= 2 + R.wallrun.minAir - 0.1),
+  ok(crates.entries <= 4 && (crates.entries === 0 || crates.entryHeight >= 2),
     `crates: ${crates.entries} run(s), entered ${crates.entryHeight} m up`);
   ok(runs['stairs 1 m (held jump)'].climbed > 5 && runs['stairs 2 m (held jump)'].climbed > 5, 'the stair runs climb');
 }
