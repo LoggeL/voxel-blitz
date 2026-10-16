@@ -7,7 +7,7 @@
  * Frames: metres, hull-local +X right, +Y up, forward is -Z. World yaw follows
  * vehicleDirection (yaw 0 faces -Z, positive yaw turns toward -X / left).
  */
-import { VEHICLE_TOPOLOGY, COUNTERMEASURES, VEHICLE_TYPE_IDS, vehicleMountOrder, seatWeaponList, vehicleWeaponMeta } from './conquest-contract.js';
+import { VEHICLE_TOPOLOGY, COUNTERMEASURES, VEHICLE_TYPE_IDS, vehicleMountOrder, seatWeaponList, vehicleWeaponMeta, isStoreMount } from './conquest-contract.js';
 import { TITAN_TYPE_IDS, TITAN_TOPOLOGY, isTitanType } from './titan-contract.js';
 import { TITAN_DEFS_INPUT } from './vehicle-handling/titan.js';
 import { TITAN_WEAPONS } from './vehicle-handling/titan-weapons.js';
@@ -132,9 +132,39 @@ export const VEHICLE_WEAPONS = freeze({
   aaMissile: weapon('aaMissile', { cooldown: 1, magazine: 2, rearmSeconds: 15, damage: 300, splash: 40, splashRadius: 3, splashCls: 'aa',
     terrainRadius: 0, terrainPower: 0, maxDestroyedBlocks: 0, lifetimeMs: 6000, knockback: 10,
     turnRate: 2.4, navConstant: 4, proximity: 3 }),
+  // STRIKE pylons: two free-fall bombs, each re-armed 20 s after its release.
+  // A direct hit is AT (a tank's deck takes 500 x 1.3), the blast is HE.
+  jetBomb: weapon('jetBomb', { cooldown: 0.5, magazine: 2, rearmSeconds: 20, damage: 500, splash: 420, splashRadius: 9, splashCls: 'he',
+    terrainRadius: 6, terrainPower: 300, maxDestroyedBlocks: 300, lifetimeMs: 15000, knockback: 30 }),
   // Titan mount weapons (shared/vehicle-handling/titan-weapons.js, WP3 numbers).
   ...TITAN_WEAPONS,
 });
+
+/**
+ * Store mounts (STORE_MOUNTS: the jet's pylons). Changing the store takes the
+ * hull landed (grounded) and slower than `maxGroundSpeed` m/s; the new store
+ * loads empty and fills its magazine after `loadSeconds`. A bomb leaves the
+ * pylon with the airframe's velocity plus `eject` m/s straight down, and only
+ * from an airborne hull.
+ */
+export const VEHICLE_STORE_RULES = freeze({ loadSeconds: 4, maxGroundSpeed: 4, eject: 3 });
+
+/**
+ * Whether a hull (a live server hull or a snapshot row, whose missing
+ * `grounded` means landed) may change a store mount's load now: landed,
+ * alive and slower than VEHICLE_STORE_RULES.maxGroundSpeed.
+ */
+export function storesChangeable(hull) {
+  const n = value => Number.isFinite(value) ? value : 0;
+  if (!hull || hull.grounded === false || !(n(hull.hp) > 0)) return false;
+  return Math.hypot(n(hull.vx), n(hull.vy), n(hull.vz), n(hull.speed)) < VEHICLE_STORE_RULES.maxGroundSpeed;
+}
+
+/** A bomb's release velocity: the airframe's own (a row's or a live hull's vx/vy/vz) plus the pylon's downward kick. */
+export function bombReleaseVelocity(hull) {
+  const n = value => Number.isFinite(value) ? value : 0;
+  return [n(hull?.vx), n(hull?.vy) - VEHICLE_STORE_RULES.eject, n(hull?.vz)];
+}
 
 /**
  * Infantry RX-8 rocket in Conquest: the Engineer's dumb-fire AT launcher. Hull
@@ -328,7 +358,7 @@ function buildDef(type) {
   for (const seat of VEHICLE_TOPOLOGY[type]) for (const [order, mount] of seat.mounts.entries()) {
     const key = `${seat.id}:${mount.id}`;
     mounts[mount.id] = { id: mount.id, key, seatId: seat.id, order, index: vehicleMountOrder(type).indexOf(key),
-      weapons: [...mount.weapons], frame: 'hull', fixed: false, slavedTo: null, ...mountAnchors[type][mount.id] };
+      weapons: [...mount.weapons], frame: 'hull', fixed: false, slavedTo: null, stores: isStoreMount(type, mount.id), ...mountAnchors[type][mount.id] };
   }
   return {
     type, ...shapes[type], hp: rules.hp, respawnSeconds: rules.respawnSeconds, rules,
@@ -464,4 +494,4 @@ export function clampMountAim(vehicle, mountId, yaw, pitch) {
   return { yaw: outYaw, pitch: clamp(finite(pitch), limit[0] + slope, limit[1] + slope) };
 }
 
-export { vehicleMountOrder, seatWeaponList };
+export { vehicleMountOrder, seatWeaponList, isStoreMount };

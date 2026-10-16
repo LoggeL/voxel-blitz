@@ -268,11 +268,24 @@ function keyTarget() {
   // Jet pilot: Q is also the left rudder (Input leanLeft -> flightYawLeft), so it never flips the weapon; slot keys do.
   const jet = { id: 'plane-1', type: 'plane', team: 'alpha', x: 11, y: 10, z: 10, yaw: 0, hp: 450, seatOccupants: { driver: 'p' }, occupantId: 'p' };
   controller.sync({ self, vehicles: [jet], enabled: true });
-  check(() => assert.equal(controller.selectedWeapon().count, 2));
+  check(() => assert.equal(controller.selectedWeapon().count, 3));
   target.fire('keydown', { code: 'KeyQ' });
   check(() => assert.equal(controller.consumeAction(), null, 'the jet rudder key does not cycle weapons'));
   target.fire('keydown', { code: 'Digit2' });
   check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 1 }, 'jet slot 2 picks the missiles'));
+  // Slot 3 loads the bombs onto the pylons (AA missiles loaded: rails row store 0) only while landed and stopped.
+  target.fire('keydown', { code: 'Digit3' });
+  check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 2 }, 'a parked jet may load its bombs'));
+  const flying = { ...jet, grounded: false, vx: 0, vy: 0, vz: -50, speed: 50, airspeed: 50, mounts: [[0, 0, -1, 0, 0], [0, 0, 2, 0, 0, 0]] };
+  controller.sync({ self, vehicles: [flying], enabled: true });
+  target.fire('keydown', { code: 'Digit3' });
+  check(() => assert.equal(controller.consumeAction(), null, 'in the air the stowed bombs cannot be picked'));
+  check(() => assert.equal(controller.storeLocked(2), true));
+  check(() => assert.equal(controller.queueWeaponNext(), true, 'touch WEAPON cycles past the stowed store'));
+  check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 1 }));
+  controller.sync({ self, vehicles: [{ ...flying, sel: { driver: 1 } }], enabled: true });
+  check(() => assert.equal(controller.queueWeaponNext(), true));
+  check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 0 }, 'from the missiles the cycle wraps to the cannon, skipping the bombs'));
   // Jeep passenger looks around and may fire a personal weapon.
   const jeep = { id: 'jeep', type: 'jeep', team: 'alpha', x: 11, y: 10, z: 10, yaw: 0.7, hp: 320, seatOccupants: { driver: 'd', 'front-passenger': 'p' } };
   controller.sync({ self, vehicles: [jeep], enabled: true });

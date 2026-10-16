@@ -910,7 +910,8 @@ function flashbangRing(pos) {
 
 /**
  * Conquest bank group of a blast: water geyser over a fluid block, tank AP
- * (2.5 m) or HE (5.5 m) shell, AA airburst, rocket, 25 mm pop, limpet, frag.
+ * (2.5 m) or HE (5.5 m) shell, AA airburst, jet bomb (HE take), rocket,
+ * 25 mm pop, limpet, frag.
  */
 export function conquestBlastGroup(type, detail = null) {
   if (detail?.fluid && type !== 'pulse') return 'cq.blast.water';
@@ -918,6 +919,8 @@ export function conquestBlastGroup(type, detail = null) {
   if (type === 'shell') return weapon === 'tankAP' || (!weapon && Number(detail?.radius) > 0 && Number(detail.radius) < 4)
     ? 'cq.blast.ap' : 'cq.blast.he';
   if (weapon === 'aaMissile' || type === 'stinger') return 'cq.blast.airburst';
+  // The jet's bomb lands with the heaviest take the bank has: the HE shell's.
+  if (type === 'bomb') return 'cq.blast.he';
   return { rocket: 'cq.blast.rocket', mgl: 'cq.blast.autocannon', frag: 'cq.blast.frag', limpet: 'cq.blast.limpet' }[type] || null;
 }
 
@@ -2078,8 +2081,8 @@ export const sfx = {
     type = BLAST_ALIAS[type] ?? type;
     // Conquest bank (when decoded): per-weapon blast takes, near/distant by range.
     const conquestGroup = conquestBlastGroup(type, detail);
-    // A Conquest tank shell bursts with the rocket's heavy blast bank.
-    if (type === 'shell') type = 'rocket';
+    // A Conquest tank shell (and a jet bomb) bursts with the rocket's heavy blast bank.
+    if (type === 'shell' || type === 'bomb') type = 'rocket';
     // Bolt expiry shares the projectile event channel, but has no blast radius.
     if (type === 'bolt') return this.arcZap(deferredPos);
     if (type === 'glaive') {
@@ -2331,6 +2334,20 @@ export const sfx = {
       primitives.hiss(output, { t0: t + 0.01, filter: 'bandpass', f: pod ? 2600 : 1800, sweepTo: pod ? 900 : 600,
         sweepMs: pod ? 0.35 : 0.9, q: 0.7, att: 0.01, dec: pod ? 0.4 : 0.95, g: pod ? 0.32 : 0.45 });
       primitives.tone(output, { t0: t, type: 'sine', f0: 90, f1: 40, att: 0.002, dec: 0.2, g: 0.3 });
+    });
+    return true;
+  },
+
+  /** A bomb leaving the jet's pylon: the release latch clunk and a short rush of air (procedural). */
+  vehicleBombRelease(pos, { self = false } = {}) {
+    const at = positionFrom(pos);
+    if (!self && listenerDistance(at) > 120) return false;
+    run('vehicleBombRelease', () => {
+      const output = pool.acquire({ pos: self ? null : at, priority: 1 }, 0.7);
+      const t = primitives.nowT();
+      primitives.tone(output, { t0: t, type: 'square', f0: 180, f1: 70, att: 0.001, dec: 0.08, g: 0.22 });
+      primitives.tone(output, { t0: t, type: 'sine', f0: 95, f1: 45, att: 0.002, dec: 0.18, g: 0.32 });
+      primitives.hiss(output, { t0: t + 0.02, filter: 'bandpass', f: 900, sweepTo: 400, sweepMs: 0.5, q: 0.7, att: 0.02, dec: 0.45, g: 0.2 });
     });
     return true;
   },

@@ -416,6 +416,8 @@ export class ConquestHud {
       viewYaw: angles?.yaw ?? null, hullYaw: presented?.id === seated.row.id ? presented.yaw : null,
       view: periscope ? 'driver' : null, driverAim: aim }) : null;
     this._setSight(reticle?.sensor ? 'sensor' : reticle?.periscope ? 'periscope' : '');
+    // A dive puts the bomb pipper below the aim, where phones keep the exit prompt: it steps above the aim then.
+    this.root.dataset.bombSight = String(!!reticle && reticle.ccip !== undefined);
     const locker = projector ? lockerModel(self, { projector, vehicles, selfTeam, seated,
       camera: angles && eye ? { ...eye, yaw: angles.yaw, pitch: angles.pitch } : null }) : null;
     this.reticles.draw(reticle, locker, width, height, { touch });

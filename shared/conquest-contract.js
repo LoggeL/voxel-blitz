@@ -145,6 +145,9 @@ export const VEHICLE_WEAPON_META = Object.freeze({
   doorMinigun:      Object.freeze({ label: 'DOOR GUN',   kind: 'hitscan', cls: 'mg',         speed: 0,   gravity: 0, rate: 18,      presentation: 'minigun' }),
   planeCannon:      Object.freeze({ label: '20MM CANNON',kind: 'hitscan', cls: 'autocannon', speed: 0,   gravity: 0, rate: 14,      presentation: 'minigun' }),
   aaMissile:        Object.freeze({ label: 'AA MISSILE', kind: 'missile', cls: 'aa',         speed: 150, gravity: 0, rate: 1 / 7.5, presentation: 'rocket' }),
+  // Jet free-fall bomb (STRIKE pylons): released with the airframe's velocity
+  // (speed 0: no muzzle velocity of its own) and dropping under gravity.
+  jetBomb:          Object.freeze({ label: 'BOMB',       kind: 'bomb',    cls: 'at',         speed: 0,   gravity: 9.8, rate: 1 / 10,  presentation: 'bomb' }),
 });
 export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null });
 
@@ -174,9 +177,18 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
     S('rear-right', 'passenger', false, false, false, []),
   ]),
   plane: Object.freeze([
-    S('driver', 'pilot', true, false, false, [M('nose', ['planeCannon']), M('rails', ['aaMissile'])]),
+    S('driver', 'pilot', true, false, false, [M('nose', ['planeCannon']), M('rails', ['aaMissile', 'jetBomb'])]),
   ]),
 });
+/**
+ * Store mounts carry one of their weapons at a time (the jet's pylons: AA
+ * missiles or bombs). The other entry in the seat's weapon list is stowed
+ * and can only be loaded on the ground (VEHICLE_STORE_RULES); snapshot mount
+ * rows of a store mount carry the loaded weapon's index in the mount as a
+ * sixth entry.
+ */
+export const STORE_MOUNTS = Object.freeze({ plane: Object.freeze(['rails']) });
+export const isStoreMount = (type, mountId) => !!STORE_MOUNTS[type]?.includes(mountId);
 /** Seat topology of a conquest or titan type (titan types: shared/titan-contract.js). */
 const topologyOf = type => VEHICLE_TOPOLOGY[type] || TITAN_TOPOLOGY[type];
 /** META row of a conquest or titan mount weapon, or null. */

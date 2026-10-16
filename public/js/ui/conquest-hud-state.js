@@ -7,7 +7,7 @@
  */
 import {
   CONQUEST_RULES, KITS, KIT_IDS, SCORE_LABELS, SCORE_POINTS, TEAM_DISPLAY, VEHICLE_TOPOLOGY,
-  VEHICLE_WEAPON_META, COUNTERMEASURES, decodeConquestPlayer, decodeConquestStats, seatWeaponList,
+  VEHICLE_WEAPON_META, COUNTERMEASURES, decodeConquestPlayer, decodeConquestStats, isStoreMount, seatWeaponList,
   vehicleMountOrder, vehicleStatus,
 } from '../../../shared/conquest-contract.js';
 import {
@@ -279,9 +279,12 @@ export function mountState(row, seatId, mountId) {
   const index = order.indexOf(`${seatId}:${mountId}`);
   const raw = index >= 0 && Array.isArray(row?.mounts) ? row.mounts[index] : null;
   if (!Array.isArray(raw)) return null;
+  // A store mount (the jet's pylons) names its loaded weapon (index in the mount) in a sixth entry.
+  const store = isStoreMount(row?.type, mountId) ? Math.max(0, raw[5] | 0) : null;
   return { index, yaw: finite(raw[0]), pitch: finite(raw[1]), ammo: Number.isFinite(raw[2]) ? raw[2] : null,
-    heat: clamp01(finite(raw[3]) / 100), reload: clamp01(finite(raw[4]) / 100) };
+    heat: clamp01(finite(raw[3]) / 100), reload: clamp01(finite(raw[4]) / 100), ...(store != null ? { store } : {}) };
 }
+
 
 /** Selected weapon index of a seat (`sel` is only sent for seats with >1 weapon). */
 export function selectedWeaponIndex(row, seatId) {
@@ -290,18 +293,24 @@ export function selectedWeaponIndex(row, seatId) {
   return list.length ? Math.max(0, Math.min(list.length - 1, raw | 0)) : -1;
 }
 
-/** Weapon list with ammo, heat and reload for one seat. */
+/**
+ * Weapon list with ammo, heat and reload for one seat. On a store mount only
+ * the loaded store carries the mount's state; the other is `stowed` (never
+ * ready) with `loadable` set while the hull may change its load.
+ */
 export function seatWeapons(row, seatId) {
   const list = seatWeaponList(row?.type, seatId);
   const selected = selectedWeaponIndex(row, seatId);
   return list.map(({ mount, weapon }, index) => {
     const meta = VEHICLE_WEAPON_META[weapon] || {};
     const state = mountState(row, seatId, mount);
-    const heat = state?.heat ?? 0, reload = state?.reload ?? 0;
+    const stowed = state?.store != null && list.filter(entry => entry.mount === mount)[state.store]?.weapon !== weapon;
+    const heat = stowed ? 0 : state?.heat ?? 0, reload = stowed ? 0 : state?.reload ?? 0;
     return {
       index, mount, weapon, label: meta.label || weapon, kind: meta.kind || null, cls: meta.cls || null,
-      selected: index === selected, ammo: state?.ammo ?? null, heat, overheated: heat >= 0.999,
-      reload, ready: reload <= 0 && heat < 0.999 && (state?.ammo == null || state.ammo !== 0),
+      selected: index === selected, ammo: stowed ? null : state?.ammo ?? null, heat, overheated: heat >= 0.999,
+      reload, ready: !stowed && reload <= 0 && heat < 0.999 && (state?.ammo == null || state.ammo !== 0),
+      ...(stowed ? { stowed: true, loadable: vehicleDefs.storesChangeable(row) } : {}),
       key: `${index + 1}`,
     };
   });
@@ -619,6 +628,13 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
     const far = hullPoint(row, registry, 'nose', -300);
     const dir = far ? [far[0] - nose[0], far[1] - nose[1], far[2] - nose[2]].map(v => v / 300) : forwardFromAngles(finite(row.yaw), finite(row.pitch));
     const bore = project(far ?? [nose[0] + dir[0] * 300, nose[1] + dir[1] * 300, nose[2] + dir[2] * 300]);
+    const speed = Number.isFinite(row.airspeed) ? row.airspeed : Math.hypot(finite(row.vx), finite(row.vy), finite(row.vz));
+    const common = { ...base, kind: 'jet', boresight: bore ? { x: bore.x, y: bore.y } : null,
+      speedKmh: Math.round(speed * 3.6), altitude: base.flight?.agl ?? Math.round(finite(row.y)), heat: selected.heat, label: selected.label };
+    if (selected.kind === 'bomb') {
+      return { ...common, pipper: null, target: null,
+        ccip: bombImpactCue(row, seat.id, selected, { registry, raycast, projector }) };
+    }
     const target = pickAirTarget(row, dir, nose, vehicles, selfTeam, selected.weapon === 'aaMissile' ? 350 : 600);
     let pipper = null, lockBox = null;
     if (target) {
@@ -629,13 +645,48 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
       const t = project([target.x, target.y, target.z]);
       if (t) lockBox = { x: t.x, y: t.y, id: String(target.id) };
     }
-    const speed = Number.isFinite(row.airspeed) ? row.airspeed : Math.hypot(finite(row.vx), finite(row.vy), finite(row.vz));
-    return { ...base, kind: 'jet', boresight: bore ? { x: bore.x, y: bore.y } : null, pipper, target: lockBox,
-      speedKmh: Math.round(speed * 3.6), altitude: base.flight?.agl ?? Math.round(finite(row.y)), heat: selected.heat, label: selected.label };
+    return { ...common, pipper, target: lockBox };
   }
   // Pintle, RWS and other hitscan mounts: barrel crosshair 100 m along the mount.
   const aim = pose ? project([pose.origin[0] + pose.dir[0] * 100, pose.origin[1] + pose.dir[1] * 100, pose.origin[2] + pose.dir[2] * 100]) : null;
   return { ...base, kind: 'mg', barrel: aim ? { x: aim.x, y: aim.y } : null, heat: selected.heat, overheated: selected.overheated };
+}
+
+/**
+ * CCIP (continuously computed impact point) for the jet's bombs: where a bomb
+ * released now lands. It leaves the pylon with the row's velocity plus the
+ * pylon kick (bombReleaseVelocity, as the server's VehicleMounts.fire) and
+ * falls on the same constant-gravity arc, marched against `raycast` (solid
+ * blocks) until the bomb's lifetime. Returns { x, y, inside, edge, angle,
+ * time, slant, ammo, ready, airborne, solution } in screen space; an impact
+ * off the screen slides to its edge (`edge`, `angle` toward it). Without a
+ * landing point inside the lifetime `solution` is false.
+ */
+export function bombImpactCue(row, seatId, weapon, { registry = vehicleDefs, raycast = null, projector = null } = {}) {
+  if (!row || !projector) return null;
+  const airborne = row.grounded === false;
+  const rules = registry?.vehicleWeapon?.(weapon.weapon) ?? vehicleDefs.VEHICLE_WEAPONS[weapon.weapon] ?? {};
+  const meta = VEHICLE_WEAPON_META[weapon.weapon] || {};
+  const base = { ammo: Number.isFinite(weapon.ammo) && weapon.ammo >= 0 ? weapon.ammo : null, ready: weapon.ready === true,
+    reload: weapon.reload ?? 0, airborne, solution: false };
+  const pose = mountPoseOf(row, seatId, weapon.mount, registry);
+  if (!pose || !airborne) return base;
+  const velocity = vehicleDefs.bombReleaseVelocity(row), speed = Math.hypot(...velocity);
+  if (!(speed > 0.1)) return base;
+  const dir = velocity.map(n => n / speed);
+  const landed = ballisticImpact(pose.origin, dir, speed, finite(meta.gravity, 9.8), raycast,
+    { maxSeconds: finite(rules.lifetimeMs, 15000) / 1000, step: 0.1 });
+  if (!landed) return base;
+  const raw = projector.project(landed.point[0], landed.point[1], landed.point[2]);
+  if (!raw || !Number.isFinite(raw.x) || !Number.isFinite(raw.y)) return base;
+  const width = finite(projector.width), height = finite(projector.height);
+  // A point behind the camera mirrors through the centre: push it far out first.
+  const onScreen = !raw.behind && raw.inside;
+  const point = raw.behind ? { x: width - raw.x, y: height + Math.abs(raw.y) * 10, inside: false } : raw;
+  const edge = clampToEdge({ x: point.x, y: point.y, inside: onScreen }, width, height, { top: 80, bottom: 110, left: 70, right: 70 });
+  const slant = Math.hypot(landed.point[0] - pose.origin[0], landed.point[1] - pose.origin[1], landed.point[2] - pose.origin[2]);
+  return { ...base, solution: true, x: edge.x, y: edge.y, inside: !edge.edge, edge: edge.edge, angle: edge.angle,
+    time: Math.round(landed.time * 10) / 10, slant: Math.round(slant), point: landed.point };
 }
 
 /** Longest sensor rangefinder cast (m); farther or open sky reads as no return. */

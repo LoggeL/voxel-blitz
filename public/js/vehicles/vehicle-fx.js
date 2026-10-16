@@ -25,6 +25,8 @@ export const VEHICLE_FX = Object.freeze({
   lightCapacity: 256,
   // Tank shell pass-by cue: closest approach within this radius (m) and flight time (s).
   shellPassRadius: 14, shellPassSeconds: 3,
+  // Falling bomb: listeners within this radius (m) of its predicted impact hear the whistle.
+  bombWhistleRadius: 45,
   rotorWashAgl: 14, contrailAgl: 120, vortexG: 3.2,
   damageSmokeBelow: 0.5, wreckColumn: [30, 45], wreckFireSeconds: 14,
   flashSeconds: 0.09,
@@ -48,7 +50,7 @@ const TRACERS = Object.freeze({
 /** Muzzle flash scale per vehicle weapon. */
 const MUZZLE_SCALE = Object.freeze({
   tankAP: 2.4, tankHE: 2.4, coaxMG: 0.55, hmg: 0.75, helicopterRocket: 1.1, chinCannon: 0.9,
-  doorMinigun: 0.6, planeCannon: 0.85, aaMissile: 1.2,
+  doorMinigun: 0.6, planeCannon: 0.85, aaMissile: 1.2, jetBomb: 0,
   splitter: 1.1, t203: 1.6, railgun: 2.2, leadwall: 2.0, predatorClose: 1.0, predatorLong: 1.1, titanMelee: 0,
 });
 /** Energy and fire tints of the titan muzzles, impacts and light flashes (linear RGB, HDR). */
@@ -421,6 +423,12 @@ export class VehicleFx {
     if (!origin || !origin.every(Number.isFinite)) return false;
     this._count('shoot');
     if (Object.hasOwn(TITAN_WEAPON_META, weapon)) return this._titanShot(ev, weapon, meta, item, self, origin, dir);
+    if (meta.kind === 'bomb') {
+      // A bomb leaves the pylon with no flash: the release clunk and a small jolt.
+      this.sfx?.vehicleBombRelease?.(origin, { self });
+      if (self) this.shake?.add(0.04);
+      return true;
+    }
     const scale = MUZZLE_SCALE[weapon] ?? 0.8;
     const inherit = item?.row && isAircraftType(item.kind) ? [finite(item.row.vx), finite(item.row.vy), finite(item.row.vz)] : null;
     this.fx?.emit('muzzle', origin, { count: weapon.startsWith('tank') ? 3 : 1, dir, scale, near: false, velocity: inherit });
@@ -612,6 +620,7 @@ export class VehicleFx {
     if (!meta) return false;
     this._count('launch');
     if (weapon === 'tankAP' || weapon === 'tankHE') this._shellPass(ev, o, v, weapon);
+    if (meta.kind === 'bomb') this._bombWhistle(ev, o, v);
     // Shells only flash at the muzzle (ProjectileFX draws their tracer); rockets and missiles carry a smoke trail.
     if (meta.kind !== 'rocket' && meta.kind !== 'missile') return true;
     if (this.missiles.size >= VEHICLE_FX.maxMissileTrails) {
@@ -643,17 +652,22 @@ export class VehicleFx {
     const ended = ev.pid != null && this._endTrail(ev.pid);
     if (typeof ev.vehicleWeapon !== 'string') return ended;
     // A shell that bursts short of its pass point takes its pending whistle or crack with it.
-    if (ev.pid != null && (ev.vehicleWeapon === 'tankAP' || ev.vehicleWeapon === 'tankHE')) this.sfx?.cancelShellFlyby?.(ev.pid);
+    if (ev.pid != null && (ev.vehicleWeapon === 'tankAP' || ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'jetBomb')) this.sfx?.cancelShellFlyby?.(ev.pid);
     const pos = [ev.x, ev.y, ev.z];
     if (!pos.every(Number.isFinite)) return ended;
     this._count('explode');
-    const heavy = ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'tankAP';
-    const radius = heavy ? (ev.vehicleWeapon === 'tankHE' ? 5.5 : 2.5) : ev.vehicleWeapon === 'helicopterRocket' ? 4 : 2;
+    const bomb = ev.vehicleWeapon === 'jetBomb';
+    const heavy = bomb || ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'tankAP';
+    const radius = bomb ? 9 : heavy ? (ev.vehicleWeapon === 'tankHE' ? 5.5 : 2.5) : ev.vehicleWeapon === 'helicopterRocket' ? 4 : 2;
     const below = this.ground(pos[0], pos[1] + 0.5, pos[2], 3);
     if (below && !below.fluid) {
       const tint = blockDustTint(below.block);
-      this._ring(pos, below.y, heavy ? 18 : 10, heavy ? 7 : 4.5, tint);
+      this._ring(pos, below.y, bomb ? 28 : heavy ? 18 : 10, bomb ? 10 : heavy ? 7 : 4.5, tint);
+      // A bomb also throws a dirt fountain out of the crater.
+      if (bomb) this.fx?.emit('dust', [pos[0], below.y + 0.3, pos[2]], { count: 26, dir: [0, 1, 0], speed: 7, spread: 0.7, scale: 1.8,
+        color0: tint, color1: tint.map(v => v * 0.7), ground: below.y });
     }
+    if (bomb) this._flashLight(pos, 1.6);
     this.shake?.addExplosion(pos, radius, this.camera);
     return true;
   }
@@ -679,6 +693,30 @@ export class VehicleFx {
     const miss = Math.hypot(point[0] - listener[0], point[1] - listener[1], point[2] - listener[2]);
     if (miss > VEHICLE_FX.shellPassRadius) return false;
     return !!this.sfx?.shellFlyby?.(point, { he: weapon === 'tankHE', delay: time, id: ev.pid ?? null });
+  }
+
+  /**
+   * A falling bomb: its arc from the launch event (gravity `g`) marched against
+   * the voxels; a listener within VEHICLE_FX.bombWhistleRadius of the impact
+   * hears the incoming whistle (the HE shell bank) peak as it lands. The crew
+   * that dropped it never does. Explode cancels a whistle still pending.
+   */
+  _bombWhistle(ev, o, v) {
+    const eye = this.camera?.position;
+    if (!eye || String(ev.id) === this.selfId) return false;
+    const g = finite(ev.g) || 9.8, step = 0.1;
+    let prevY = o[1];
+    for (let t = step; t <= 15; t += step) {
+      const x = o[0] + v[0] * t, y = o[1] + v[1] * t - 0.5 * g * t * t, z = o[2] + v[2] * t;
+      const below = this.ground(x, prevY, z, Math.max(1, Math.ceil(prevY - y) + 1));
+      prevY = y;
+      if (!below || below.y < y) continue;
+      const impact = [x, below.y, z];
+      const miss = Math.hypot(impact[0] - eye.x, impact[1] - eye.y, impact[2] - eye.z);
+      if (miss > VEHICLE_FX.bombWhistleRadius) return false;
+      return !!this.sfx?.shellFlyby?.([impact[0], impact[1] + 4, impact[2]], { he: true, delay: Math.max(0, t - 0.15), id: ev.pid ?? null });
+    }
+    return false;
   }
 
   /** A flat ring of dust racing outward (shockwave on the ground). */

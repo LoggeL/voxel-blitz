@@ -76,9 +76,9 @@ function roster(self, more = []) {
 /** A state: everything ConquestHud.update needs plus events to replay and capture hints. */
 function state(id, title, { selfTeam = 'alpha', self, players, vehicles = [], match, camera, events = [], dead = false, killer = null,
   bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null, career = null, viewStrip = null,
-  flight = null, aim = null } = {}) {
+  flight = null, aim = null, groundPlane = null } = {}) {
   return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch, career, viewStrip,
-    flight, aim };
+    flight, aim, ...(groundPlane != null ? { groundPlane } : {}) };
 }
 
 /** Every HUD state the acceptance list names, in capture order. */
@@ -246,9 +246,9 @@ export function conquestHudFixtures() {
   {
     const yaw = yawTo(jetAt, C);
     const self = meAt(jetAt.x, jetAt.z, { y: 140, vehicleId: 'alpha-plane', vehicleSeatId: 'driver', cq: { squad: 1, lock: 70 } });
-    const vx = -Math.sin(yaw) * 92, vz = -Math.cos(yaw) * 92;
-    const jet = vehicle('alpha-plane', 'plane', 'alpha', jetAt.x, jetAt.z, { y: 140, hp: 450, yaw, pitch: -0.04, roll: 0.1,
-      seatOccupants: { driver: 'me' }, mounts: [[yaw, -0.04, -1, 35, 0], [yaw, -0.04, 1, 0, 30]], sel: { driver: 1 }, airspeed: 92, vx, vy: -3, vz, cmr: 100, lk: 0 });
+    const vx = -Math.sin(yaw) * 58, vz = -Math.cos(yaw) * 58;
+    const jet = vehicle('alpha-plane', 'plane', 'alpha', jetAt.x, jetAt.z, { y: 140, hp: 450, yaw, pitch: -0.04, roll: 0.1, grounded: false,
+      seatOccupants: { driver: 'me' }, mounts: [[yaw, -0.04, -1, 35, 0], [yaw, -0.04, 1, 0, 30, 0]], sel: { driver: 1 }, airspeed: 58, vx, vy: -3, vz, cmr: 100, lk: 0 });
     const target = vehicle('bravo-helicopter', 'helicopter', 'bravo', jetAt.x - Math.sin(yaw) * 260 + 25, jetAt.z - Math.cos(yaw) * 260, { y: 128, hp: 600, sp: 1, vx: 12, vy: 0, vz: -20 });
     out.push(state('jet', 'Jet · AA missile selected · lead pipper · locking 70 %', { self, players: roster(self), vehicles: [jet, target],
       match: baseMatch(), camera: cam(jetAt.x + Math.sin(yaw) * 17, 144.4, jetAt.z + Math.cos(yaw) * 17, yaw, -0.02) }));
@@ -258,7 +258,7 @@ export function conquestHudFixtures() {
     const yaw = yawTo(jetAt, C);
     const self = meAt(jetAt.x, jetAt.z, { y: 140, vehicleId: 'alpha-plane', vehicleSeatId: 'driver', cq: { squad: 1 } });
     const jet = vehicle('alpha-plane', 'plane', 'alpha', jetAt.x, jetAt.z, { y: 140, hp: 450, yaw, pitch: -0.04, roll: 0.1,
-      seatOccupants: { driver: 'me' }, mounts: [[yaw, -0.04, -1, 35, 0], [yaw, -0.04, 1, 0, 30]], sel: { driver: 0 }, airspeed: 92, cmr: 100, lk: 0 });
+      seatOccupants: { driver: 'me' }, mounts: [[yaw, -0.04, -1, 35, 0], [yaw, -0.04, 1, 0, 30, 0]], sel: { driver: 0 }, airspeed: 58, grounded: false, cmr: 100, lk: 0 });
     const views = [['chase', 'CHASE'], ['action', 'ACTION'], ['cockpit', 'COCKPIT'], ['flyby', 'FLYBY']].map(([id, label]) => ({ id, label }));
     out.push(state('jet-view', 'Jet · V pressed · camera view strip (cockpit)', { self, players: roster(self), vehicles: [jet],
       match: baseMatch(), camera: cam(jetAt.x, 142.1, jetAt.z, yaw, -0.04), viewStrip: { type: 'plane', seatId: 'driver', view: 'cockpit', views } }));
@@ -280,6 +280,21 @@ export function conquestHudFixtures() {
       vx: -Math.sin(yaw) * 64, vy: 1.2, vz: -Math.cos(yaw) * 64, throttle: 0.85, enginePower: 0.85, grounded: false, gearDown: false, cmr: 100 });
     out.push(state('jet-aim', 'Jet · mouse aim · banking toward the aim circle · throttle 85 %', { self, players: roster(self), vehicles: [jet],
       match: baseMatch(), camera: aimCam(jetAt, 120, aimYaw, 0.1, 17), flight: { aim: true, mode: 'aim', agl: 94 } }));
+  }
+  // 14f. STRIKE pylons: bombs selected in a 26° dive on C at 110 m AGL; the CCIP sits
+  // short of the flag on the bomb fall line, the stowed AA missiles read LAND.
+  // `groundPlane` gives the capture a flat world cast at the valley floor.
+  {
+    const at = { x: C.x - 165, z: C.z + 12 }, yaw = yawTo(at, C), pitch = -0.45, speed = 56, y = GROUND + 110;
+    const self = meAt(at.x, at.z, { y, vehicleId: 'alpha-plane', vehicleSeatId: 'driver', cq: { squad: 1 } });
+    const jet = vehicle('alpha-plane', 'plane', 'alpha', at.x, at.z, { y, hp: 450, yaw, pitch, roll: 0,
+      seatOccupants: { driver: 'me' }, mounts: [[yaw, pitch, -1, 0, 0], [yaw, pitch, 2, 0, 0, 1]], sel: { driver: 2 }, airspeed: speed, speed,
+      vx: -Math.sin(yaw) * Math.cos(pitch) * speed, vy: Math.sin(pitch) * speed, vz: -Math.cos(yaw) * Math.cos(pitch) * speed,
+      throttle: 0.6, enginePower: 0.6, grounded: false, gearDown: false, cmr: 100 });
+    const orbit = pitch + 0.1 - 0.14;
+    out.push(state('jet-bomb', 'Jet · STRIKE pylons · bombs selected · 26° dive on C · CCIP', { self, players: roster(self), vehicles: [jet, spottedTank],
+      match: baseMatch(), camera: cam(at.x + Math.sin(yaw) * Math.cos(orbit) * 17, y + 2.6 - Math.sin(orbit) * 17, at.z + Math.cos(yaw) * Math.cos(orbit) * 17, yaw, pitch + 0.1),
+      flight: { aim: true, mode: 'aim', agl: 110 }, groundPlane: GROUND }));
   }
   {
     const yaw = yawTo(jetAt, C), aimYaw = yaw + 0.1;

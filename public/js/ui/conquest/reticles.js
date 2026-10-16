@@ -6,8 +6,9 @@
  * bracket frame, bar reticle, barrel pip, range / heading / zoom readouts),
  * door-gun arc limits, hitscan mount crosshair, the tank hull indicator
  * (top-down hull and turret, turned as seen from the view), jet gun
- * funnel with lead pipper, the pilot instruments (speed / AGL tapes, climb,
- * throttle, stall) with the mouse-aim circle, and the locker box for our own
+ * funnel with lead pipper (with bombs selected the CCIP instead), the pilot
+ * instruments (speed / AGL tapes, climb, throttle, stall) with the
+ * mouse-aim circle, and the locker box for our own
  * lock attempt. Models come from reticleModel / lockerModel.
  */
 import { el } from '../hud-support.js';
@@ -793,6 +794,7 @@ export class Reticles {
     shadowed(ctx, () => {
       ctx.beginPath(); ctx.moveTo(b.x - 10, b.y); ctx.lineTo(b.x + 10, b.y); ctx.moveTo(b.x, b.y - 10); ctx.lineTo(b.x, b.y + 10); ctx.stroke();
     });
+    if (m.ccip !== undefined) { this._ccip(ctx, m, b, width, height); return; }
     // Gun funnel: walls converge on the boresight from below (bullet drop envelope).
     ctx.lineWidth = 1.5; ctx.strokeStyle = '#7ef29ab0';
     shadowed(ctx, () => {
@@ -818,6 +820,58 @@ export class Reticles {
       ctx.fillStyle = '#0008'; ctx.fillRect(width / 2 - 40, height / 2 + 60, 80, 3);
       ctx.fillStyle = m.heat >= 0.999 ? RED : m.heat > 0.75 ? AMBER : GREEN; ctx.fillRect(width / 2 - 40, height / 2 + 60, 80 * m.heat, 3);
     }
+  }
+
+  /**
+   * Bomb CCIP (design docs/design/conquest/flight/bombs/): the bomb fall line
+   * from the boresight to the impact pipper, a circle with a centre dot where a
+   * bomb released now lands (green with a bomb ready, amber while the pylons
+   * re-arm), the fall time and slant range over it and the bombs left under
+   * it. An impact off the screen slides to its edge as an arrow (DIVE). With
+   * no landing point the readout says why (LANDED, NO SOLUTION).
+   */
+  _ccip(ctx, m, b, width, height) {
+    const c = m.ccip, ready = !!c?.ready, tone = ready ? GREEN : AMBER;
+    const stores = c?.ammo == null ? '' : `${c.ammo} BOMB${c.ammo === 1 ? '' : 'S'}`;
+    const status = ready ? stores : c?.ammo === 0 || (c?.reload ?? 0) > 0 ? `${stores} \u00B7 REARM` : stores;
+    if (!c?.solution) {
+      const why = c && !c.airborne ? 'BOMBS \u00B7 AIRBORNE ONLY' : 'BOMBS \u00B7 NO SOLUTION';
+      this._text(ctx, why, b.x, b.y + 46, AMBER);
+      if (status) this._text(ctx, status, b.x, b.y + 62, tone);
+      return;
+    }
+    if (c.edge) {
+      ctx.save();
+      ctx.translate(c.x, c.y); ctx.rotate(c.angle);
+      ctx.fillStyle = tone; ctx.lineWidth = 3; ctx.strokeStyle = '#000000a0';
+      ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(9, 4); ctx.lineTo(0, -1); ctx.lineTo(-9, 4); ctx.closePath();
+      ctx.stroke(); ctx.fill();
+      ctx.restore();
+      const dx = Math.sin(c.angle), dy = -Math.cos(c.angle);
+      this._text(ctx, 'CCIP \u00B7 DIVE', c.x - dx * 30, c.y - dy * 30 + 4, tone);
+      if (status) this._text(ctx, status, b.x, b.y + 46, tone);
+      return;
+    }
+    // Bomb fall line: boresight to the pipper (the bomb drops along it as the jet flies on).
+    ctx.lineWidth = 1.5; ctx.strokeStyle = ready ? '#7ef29ab0' : '#ffcf5cb0';
+    ctx.setLineDash([6, 5]);
+    const reach = Math.hypot(c.x - b.x, c.y - b.y);
+    if (reach > 26) {
+      const ux = (c.x - b.x) / reach, uy = (c.y - b.y) / reach;
+      shadowed(ctx, () => { ctx.beginPath(); ctx.moveTo(b.x + ux * 12, b.y + uy * 12); ctx.lineTo(c.x - ux * 14, c.y - uy * 14); ctx.stroke(); });
+    }
+    ctx.setLineDash([]);
+    ctx.lineWidth = 2; ctx.strokeStyle = tone;
+    shadowed(ctx, () => {
+      ctx.beginPath(); ctx.arc(c.x, c.y, 13, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(c.x, c.y, 2, 0, TAU); ctx.stroke();
+      // Short wings either side, like the gun pipper's range ring.
+      ctx.beginPath(); ctx.moveTo(c.x - 22, c.y); ctx.lineTo(c.x - 15, c.y); ctx.moveTo(c.x + 15, c.y); ctx.lineTo(c.x + 22, c.y); ctx.stroke();
+    });
+    this._text(ctx, `${c.time.toFixed(1)} S \u00B7 ${c.slant} M`, c.x, c.y - 20, tone);
+    if (status) this._text(ctx, status, c.x, c.y + 30, tone);
+    // Clamped flag markers keep clear of the pipper and its readouts.
+    this.reserved.push({ left: c.x - 60, top: c.y - 34, right: c.x + 60, bottom: c.y + 38 });
   }
 
   /**

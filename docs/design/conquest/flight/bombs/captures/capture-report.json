@@ -1,0 +1,56 @@
+{
+  "generated": "2026-10-16T00:18:27.959Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "jet",
+        "title": "Jet · AA missile selected · lead pipper · locking 70 %",
+        "file": "docs/design/conquest/flight/bombs/captures/desktop-jet.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      },
+      {
+        "id": "jet-bomb",
+        "title": "Jet · STRIKE pylons · bombs selected · 26° dive on C · CCIP",
+        "file": "docs/design/conquest/flight/bombs/captures/desktop-jet-bomb.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "jet",
+        "title": "Jet · AA missile selected · lead pipper · locking 70 %",
+        "file": "docs/design/conquest/flight/bombs/captures/portrait-jet.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      },
+      {
+        "id": "jet-bomb",
+        "title": "Jet · STRIKE pylons · bombs selected · 26° dive on C · CCIP",
+        "file": "docs/design/conquest/flight/bombs/captures/portrait-jet-bomb.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "jet",
+        "title": "Jet · AA missile selected · lead pipper · locking 70 %",
+        "file": "docs/design/conquest/flight/bombs/captures/landscape-jet.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      },
+      {
+        "id": "jet-bomb",
+        "title": "Jet · STRIKE pylons · bombs selected · 26° dive on C · CCIP",
+        "file": "docs/design/conquest/flight/bombs/captures/landscape-jet-bomb.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

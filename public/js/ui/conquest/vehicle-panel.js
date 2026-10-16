@@ -148,7 +148,7 @@ export class VehiclePanel {
       this._weaponRows = model.weapons.map((w, index) => {
         const row = el('div', 'cq-weapon', this.weapons);
         row.classList.toggle('is-selected', w.selected);
-        // In the jet Q is the rudder, so its weapons are picked with the slot keys (1, 2).
+        // In the jet Q is the rudder, so its weapons are picked with the slot keys (1, 2, 3).
         el('kbd', 'cq-weapon-key', row).textContent = model.weapons.length > 1
           ? (model.type === 'plane' ? bindingLabel(`slot${index + 1}`) : bindingLabel('vehicleWeaponNext')) : '';
         el('span', 'cq-weapon-name', row).textContent = w.label;
@@ -165,8 +165,10 @@ export class VehiclePanel {
       const heatWeapon = w.kind === 'hitscan' || w.weapon === 'chinCannon';
       const value = heatWeapon ? w.heat : 1 - w.reload;
       dom.fill.style.width = `${(Math.max(0, Math.min(1, value)) * 100).toFixed(0)}%`;
-      dom.row.dataset.state = w.overheated ? 'overheated' : heatWeapon ? (w.heat > 0.75 ? 'hot' : 'ok') : w.reload > 0 ? 'reloading' : 'ready';
-      const ammoText = w.overheated ? 'OVERHEAT' : w.reload > 0 && !heatWeapon ? 'RELOAD' : Number.isFinite(w.ammo) && w.ammo >= 0 ? String(w.ammo) : '∞';
+      // A stowed pylon store (the jet's AA missiles or bombs) loads on the ground: LOAD there, LAND in the air.
+      dom.row.dataset.state = w.stowed ? 'stowed' : w.overheated ? 'overheated' : heatWeapon ? (w.heat > 0.75 ? 'hot' : 'ok') : w.reload > 0 ? 'reloading' : 'ready';
+      const ammoText = w.stowed ? (w.loadable ? 'LOAD' : 'LAND') : w.overheated ? 'OVERHEAT' : w.reload > 0 && !heatWeapon ? 'RELOAD'
+        : Number.isFinite(w.ammo) && w.ammo >= 0 ? String(w.ammo) : '∞';
       if (dom.ammo.textContent !== ammoText) dom.ammo.textContent = ammoText;
     });
     this.cm.hidden = !model.cm;

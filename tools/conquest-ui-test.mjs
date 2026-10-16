@@ -13,6 +13,7 @@ const dom = installFakeDom({ width: 1440, height: 900 });
 const { document } = dom;
 
 const state = await import('../public/js/ui/conquest-hud-state.js');
+const vehicleDefs = await import('../shared/vehicle-defs.js');
 const { ConquestHud } = await import('../public/js/ui/conquest-hud.js');
 const { cameraPose, createProjector, clampToEdge, leadPoint, ballisticPoint, ballisticImpact } = await import('../public/js/ui/conquest/projection.js');
 const { supportPump, SUPPORT_INTERVAL_MS } = await import('../public/js/ui/conquest/interact.js');
@@ -42,7 +43,7 @@ const ok = () => { checks++; };
 /* ------------------------------------------------------------ fixtures */
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
-  'tank-driver', 'tank-commander', 'tank-periscope', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
+  'tank-driver', 'tank-commander', 'tank-periscope', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-bomb', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
   'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'scoreboard', 'result'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
@@ -213,8 +214,19 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
   assert.equal(door.seats.length, VEHICLE_TOPOLOGY.transport.length);
 
   const jet = panelOf(byId('jet'));
-  assert.deepEqual(jet.weapons.map(w => [w.label, w.selected]), [['20MM CANNON', false], ['AA MISSILE', true]]);
-  assert.equal(jet.altitude, 140); assert.equal(jet.speedKmh, Math.round(92 * 3.6));
+  assert.deepEqual(jet.weapons.map(w => [w.label, w.selected]), [['20MM CANNON', false], ['AA MISSILE', true], ['BOMB', false]]);
+  assert.equal(jet.altitude, 140); assert.equal(jet.speedKmh, Math.round(58 * 3.6));
+  // The pylons carry the AA missiles (store index 0 in the rails row): the bombs are stowed,
+  // and in the air they cannot be loaded (LAND); landed and stopped they can (LOAD).
+  assert.equal(jet.weapons[1].stowed, undefined); assert.equal(jet.weapons[1].ammo, 1);
+  assert.deepEqual([jet.weapons[2].stowed, jet.weapons[2].loadable, jet.weapons[2].ready, jet.weapons[2].ammo], [true, false, false, null]);
+  const parked = { ...seatedOf(byId('jet')), row: { ...seatedOf(byId('jet')).row, grounded: undefined, vx: 0, vy: 0, vz: 0, airspeed: 0, speed: 0 } };
+  assert.equal(state.vehiclePanelModel(parked, { selfId: 'me' }).weapons[2].loadable, true, 'a landed, stopped jet may load the other store');
+  const rolling = { ...parked, row: { ...parked.row, speed: 6 } };
+  assert.equal(state.vehiclePanelModel(rolling, { selfId: 'me' }).weapons[2].loadable, false, 'not while it rolls');
+  const strike = panelOf(byId('jet-bomb'));
+  assert.deepEqual(strike.weapons.map(w => [w.label, w.selected, w.stowed === true, w.ammo]),
+    [['20MM CANNON', false, false, -1], ['AA MISSILE', false, true, null], ['BOMB', true, false, 2]], 'STRIKE pylons: bombs loaded, AA stowed');
 
   // Seat strip marks bots; zone flashes map hit zones onto the silhouette.
   const botRow = { ...seatedOf(byId('tank-driver')).row };
@@ -345,6 +357,36 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
   assert.ok(jet.pipper.tof > 0, 'missile flight time from VEHICLE_WEAPON_META.speed');
   assert.equal(jet.altitude, 140);
   assert.equal(state.reticleModel(null, { projector: projectorFor(byId('jet')) }), null);
+
+  // Bomb CCIP: a bomb released now leaves the pylon with the jet's velocity plus the 3 m/s
+  // pylon kick and falls on the gravity arc to the flat valley floor of the fixture.
+  {
+    const f = byId('jet-bomb'), seated = seatedOf(f), row = seated.row, floorY = f.groundPlane;
+    const plane = (o, d, length) => { if (!(d.y < 0)) return null; const t = (floorY - o.y) / d.y; return t >= 0 && t <= length ? { t } : null; };
+    const model = state.reticleModel(seated, { projector: projectorFor(f), vehicles: f.vehicles, selfTeam: 'alpha', raycast: plane });
+    assert.equal(model.kind, 'jet'); assert.equal(model.pipper, null, 'no gun pipper with bombs selected');
+    const c = model.ccip;
+    assert.equal(c.solution, true); assert.equal(c.inside, true, 'the 26° dive puts the impact on screen');
+    assert.deepEqual([c.ammo, c.ready, c.airborne], [2, true, true]);
+    const pose = vehicleDefs.mountPose(row, 'driver', 'rails');
+    const v = vehicleDefs.bombReleaseVelocity(row), g = VEHICLE_WEAPON_META.jetBomb.gravity;
+    const drop = pose.origin[1] - floorY, time = (v[1] + Math.sqrt(v[1] * v[1] + 2 * g * drop)) / g;
+    assert.ok(Math.abs(c.time - time) < 0.15, `fall time ${c.time} s vs ${time.toFixed(2)} s`);
+    const at = projectorFor(f).project(pose.origin[0] + v[0] * time, floorY, pose.origin[2] + v[2] * time);
+    assert.ok(Math.hypot(at.x - c.x, at.y - c.y) < 12, 'the pipper sits on the projected impact');
+    assert.equal(vehicleDefs.VEHICLE_STORE_RULES.eject, 3);
+    const noWorld = state.reticleModel(seated, { projector: projectorFor(f), raycast: null }).ccip;
+    assert.deepEqual([noWorld.solution, noWorld.airborne], [false, true], 'no world cast: no solution');
+    const onRunway = state.reticleModel({ ...seated, row: { ...row, grounded: undefined } }, { projector: projectorFor(f), raycast: plane }).ccip;
+    assert.deepEqual([onRunway.solution, onRunway.airborne], [false, false], 'bombs drop only from the air');
+    // Level at 40 m/s and 30 m with the camera looking 26° up: the impact lies under the screen, so the cue slides to the bottom edge.
+    const level = { ...row, pitch: 0, vx: -Math.sin(row.yaw) * 40, vy: 0, vz: -Math.cos(row.yaw) * 40, y: floorY + 30 };
+    const lowCam = { ...f.camera, x: level.x + Math.sin(row.yaw) * 17, y: level.y + 4, z: level.z + Math.cos(row.yaw) * 17, pitch: 0.45 };
+    const lowProjector = createProjector(cameraPose({ ...lowCam, aspect: VIEW.width / VIEW.height }), VIEW.width, VIEW.height);
+    const low = state.reticleModel({ ...seated, row: level }, { projector: lowProjector, raycast: plane }).ccip;
+    assert.equal(low.solution, true); assert.equal(low.edge, true, 'an impact under the screen edge becomes the DIVE arrow');
+    assert.ok(low.y > VIEW.height / 2, 'the arrow sits on the bottom half');
+  }
 
   // Lead pipper math: a crossing target is led by velocity × time of flight.
   const lead = leadPoint([0, 0, 0], [0, 0, -300], [20, 0, 0], VEHICLE_WEAPON_META.aaMissile.speed);

@@ -268,6 +268,19 @@ export class ProjectileFX {
     // Energy additives carry HDR colour (> 1.0) so HDR tiers bloom them; LDR clips.
     this.boltGlowMaterial.color.multiplyScalar(2);
     this.exhaustMaterial.color.multiplyScalar(2.2);
+    // Jet bomb: an olive body (nose -z, tapering tail +z), a yellow fuze band and
+    // cruciform fins. It falls dark; the blast carries the show.
+    this.bombBodyGeometry = new THREE.CylinderGeometry(0.11, 0.18, 1.3, 12);
+    this.bombBodyGeometry.rotateX(Math.PI / 2);
+    this.bombNoseGeometry = new THREE.SphereGeometry(0.18, 12, 8);
+    this.bombNoseGeometry.translate(0, 0, -0.65);
+    this.bombBandGeometry = new THREE.CylinderGeometry(0.185, 0.185, 0.07, 12);
+    this.bombBandGeometry.rotateX(Math.PI / 2);
+    this.bombBandGeometry.translate(0, 0, -0.42);
+    this.bombFinGeometry = new THREE.BoxGeometry(0.52, 0.03, 0.3);
+    this.bombFinGeometry.translate(0, 0, 0.6);
+    this.bombMaterial = new THREE.MeshStandardMaterial({ color: 0x4d5a3a, roughness: 0.62, metalness: 0.35 });
+    this.bombBandMaterial = new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.5, metalness: 0.3 });
     // Tank shell tracer: unit boxes from the head (z 0) back along +z, scaled per frame.
     this.shellStreakGeometry = new THREE.BoxGeometry(1, 1, 1);
     this.shellStreakGeometry.translate(0, 0, 0.5);
@@ -504,6 +517,14 @@ export class ProjectileFX {
       group.add(glow, core);
       group.userData.streak = { core, glow };
       this._poseShellStreak(group, 0);
+    } else if (type === 'bomb') {
+      const body = new THREE.Mesh(this.bombBodyGeometry, this.bombMaterial);
+      const nose = new THREE.Mesh(this.bombNoseGeometry, this.bombMaterial);
+      const band = new THREE.Mesh(this.bombBandGeometry, this.bombBandMaterial);
+      const finA = new THREE.Mesh(this.bombFinGeometry, this.bombMaterial);
+      const finB = new THREE.Mesh(this.bombFinGeometry, this.bombMaterial);
+      finB.rotation.z = Math.PI / 2;
+      group.add(body, nose, band, finA, finB);
     } else if (type === 'rocket') {
       const body = new THREE.Mesh(this.rocketBodyGeometry, this.rocketMaterial);
       const nose = new THREE.Mesh(this.rocketNoseGeometry, this.rocketNoseMaterial);
@@ -706,14 +727,14 @@ export class ProjectileFX {
     const values = [...event.o, ...event.v].map(Number);
     if (!values.every(Number.isFinite)) return false;
     if (modeProjectileViews?.has(event.type)) return modeProjectileViews.get(event.type).launch(this, event, { local, fromSelf });
-    const type = event.type === 'rocket' || event.type === 'shell' || event.type === 'bolt' || event.type === 'glaive' || event.type === 'mgl'
-      || event.type === 'bubble' || GRENADE_TYPES[event.type]
+    const type = event.type === 'rocket' || event.type === 'shell' || event.type === 'bomb' || event.type === 'bolt' || event.type === 'glaive'
+      || event.type === 'mgl' || event.type === 'bubble' || GRENADE_TYPES[event.type]
       ? event.type
       : 'frag';
     if (type === 'limpet' && (!Array.isArray(event.n) || event.n.length !== 3
       || event.n[1] !== 0 || Math.abs(event.n[0]) + Math.abs(event.n[2]) !== 1)) return false;
     if (type === 'limpet' && !local && this._mineIds && !this._mineIds.has(String(event.pid))) return false;
-    const fallbackFuse = type === 'rocket' || type === 'shell'
+    const fallbackFuse = type === 'rocket' || type === 'shell' || type === 'bomb'
       ? ROCKET_RULES.lifetimeMs
       : type === 'mgl' ? MGL_RULES.fuseMs
       : type === 'bolt' ? BOLT_RULES.lifetimeMs
@@ -788,7 +809,7 @@ export class ProjectileFX {
     if (type === 'limpet') this._configureMine(this.projectiles.get(id), event);
     if (type === 'glaive') this._configureGlaive(this.projectiles.get(id), event, local || fromSelf);
     if (type === 'bubble') this._configureBubble(this.projectiles.get(id), event);
-    if (type === 'rocket' || type === 'shell' || type === 'bolt' || type === 'glaive' || type === 'mgl') this._orientRocket(this.projectiles.get(id));
+    if (type === 'rocket' || type === 'shell' || type === 'bomb' || type === 'bolt' || type === 'glaive' || type === 'mgl') this._orientRocket(this.projectiles.get(id));
     return true;
   }
 
@@ -1412,6 +1433,12 @@ export class ProjectileFX {
         this._orientRocket(projectile);
         this._poseShellStreak(projectile.group, projectile.travelled);
         if (projectile.hit && !projectile.local) projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
+      } else if (projectile.type === 'bomb') {
+        // Jet bomb: the same ballistic integrator, nose turning down along the fall, no trail.
+        stepRocket(projectile, step, this.raycast);
+        projectile.group.position.set(projectile.x, projectile.y, projectile.z);
+        this._orientRocket(projectile);
+        if (projectile.hit && !projectile.local) projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
       } else if (projectile.type === 'rocket' || projectile.vehicleShell) {
         stepRocket(projectile, step, this.raycast);
         projectile.group.position.set(projectile.x, projectile.y, projectile.z);
@@ -1892,6 +1919,7 @@ export class ProjectileFX {
       this.grenadeRibGeometry, this.grenadeBandGeometry,
       this.bottleGeometry, this.bottleNeckGeometry, this.bottleFlameGeometry,
       this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry, this.shellStreakGeometry,
+      this.bombBodyGeometry, this.bombNoseGeometry, this.bombBandGeometry, this.bombFinGeometry,
       this.mglBodyGeometry, this.mglNoseGeometry, this.mglBandGeometry, this.mglCoreGeometry, this.bubbleGeometry,
       this.bubbleShineGeometry,
       this.glaiveDiscGeometry, this.glaiveHubGeometry, this.glaiveRimGeometry, this.glaiveCrescentGeometry,
@@ -1900,6 +1928,7 @@ export class ProjectileFX {
       this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial,
       this.bottleMaterial, this.bottleLabelMaterial,
       this.rocketNoseMaterial, this.exhaustMaterial, this.shellCoreMaterial, this.shellGlowMaterial,
+      this.bombMaterial, this.bombBandMaterial,
       this.boltCoreMaterial, this.boltGlowMaterial,
       this.mglBodyMaterial, this.mglNoseMaterial, this.mglBandMaterial, this.mglCoreMaterial, this.mglTrailMaterial,
       ...this.bubbleFilms, ...this.bubbleTellFilms, this.bubbleInnerMaterial, this.bubbleShineMaterial,

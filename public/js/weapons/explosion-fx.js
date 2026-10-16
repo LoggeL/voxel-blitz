@@ -69,6 +69,15 @@ export const BLAST_STYLE = Object.freeze({
     light: Object.freeze({ color: 0xffa648, range: 11, intensity: 22, life: 0.5 }),
     scorch: 4,
   }),
+  // Conquest jet bomb (9 m blast radius): a long white-hot flash, a wide fireball
+  // and a tall dark column that lingers over the crater.
+  bomb: Object.freeze({
+    color: 0xffd08a, grow: 0.6, life: 0.7, ring: true, ringColor: 0xff7a1c, ringPeak: 0.85, flash: 3.6, flashLife: 0.18,
+    fire: Object.freeze({ count: 16, size: 2.6, speed: 9, life: 0.8, tint: FIRE_HOT }),
+    smoke: Object.freeze({ count: 26, size: 2.6, speed: 4.2, life: 5, shade: 0.12 }),
+    light: Object.freeze({ color: 0xffa040, range: 22, intensity: 30, life: 0.8 }),
+    scorch: 5,
+  }),
   mgl: Object.freeze({
     color: 0xffe2a2, grow: 0.5, life: 0.38, ring: true, ringColor: 0xff8a2c,
     ringPeak: 0.65, flash: 3.1, flashLife: 0.095,

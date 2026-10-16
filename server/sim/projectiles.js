@@ -1158,21 +1158,26 @@ export class ProjectileSystem {
   /**
    * A mounted shell, rocket or missile leaves a vehicle muzzle. `weapon` is a
    * VEHICLE_WEAPONS key; blast and flight come from that table (never Chaos).
-   * `targetId` (a locked hull) adds proportional-navigation guidance. The
-   * launch event type is the weapon's presentation family, plus `vehicleId`,
+   * `targetId` (a locked hull) adds proportional-navigation guidance. A
+   * dropped store (a jet bomb, which has no muzzle speed) passes its release
+   * `velocity` instead of flying `dir` at the weapon's speed. The launch
+   * event type is the weapon's presentation family, plus `vehicleId`,
    * `vehicleWeapon` and the shell gravity `g`.
    */
-  launchVehicleProjectile(owner, { weapon, origin, dir, vehicleId = null, targetId = null } = {}, ctx) {
+  launchVehicleProjectile(owner, { weapon, origin, dir, velocity = null, vehicleId = null, targetId = null } = {}, ctx) {
     const rules = typeof weapon === 'string' && Object.hasOwn(VEHICLE_WEAPONS, weapon) ? VEHICLE_WEAPONS[weapon] : null;
     if (!owner || !ctx || !rules || rules.kind === 'hitscan' || !Array.isArray(origin) || !Array.isArray(dir)
       || origin.length !== 3 || dir.length !== 3 || ![...origin, ...dir].every(Number.isFinite)
       || Math.abs(Math.hypot(...dir) - 1) > 0.001 || !this._hasRoom()) return null;
+    if (velocity != null && !(Array.isArray(velocity) && velocity.length === 3 && velocity.every(Number.isFinite)
+      && Math.hypot(...velocity) <= 400)) return null;
+    const launch = velocity ?? dir.map(n => n * rules.speed);
     const id = `r${this._nextId++}`;
     const projectile = {
       id, type: 'rocket', eventType: rules.presentation, vehicleId, vehicleWeapon: weapon, weaponKey: weapon,
       ownerId: String(owner.id), owner,
       x: origin[0], y: origin[1], z: origin[2],
-      vx: dir[0] * rules.speed, vy: dir[1] * rules.speed, vz: dir[2] * rules.speed,
+      vx: launch[0], vy: launch[1], vz: launch[2],
       gravity: rules.gravity ?? 0,
       launchedAt: ctx.now, explodeAt: ctx.now + rules.lifetimeMs,
       stuck: false, hit: null, directVictim: null,

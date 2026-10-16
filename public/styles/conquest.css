@@ -289,6 +289,8 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-weapon[data-state="overheated"] .cq-weapon-meter i { background: var(--cq-danger); }
 .cq-weapon[data-state="reloading"] .cq-weapon-meter i { background: #ffcf5c; }
 .cq-weapon[data-state="ready"] .cq-weapon-meter i { background: #7ef29a; }
+.cq-weapon[data-state="stowed"] { opacity: 0.55; }
+.cq-weapon[data-state="stowed"] .cq-weapon-meter i { width: 0 !important; }
 .cq-weapon-ammo { text-align: right; font-variant-numeric: tabular-nums; }
 .cq-weapon[data-state="overheated"] .cq-weapon-ammo { color: var(--cq-danger); }
 .cq-vehicle-cm { display: grid; grid-template-columns: 1fr 70px auto; gap: 8px; align-items: center; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--cq-sub); }
@@ -603,6 +605,8 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .vb-touch-mode .cq-vehicle-cm { grid-template-columns: 1fr 40px; font-size: 9px; }
 .vb-touch-mode .cq-vehicle-badges .cq-badge { font-size: 8px; }
 .vb-touch-mode .cq-interact { bottom: auto; top: calc(50% + 120px); font-size: 11px; padding: 4px 10px 4px 6px; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; }
+/* A jet's bomb pipper falls below the aim in a dive: the exit prompt steps up, under the vehicle card and clear of VIEW. */
+.vb-touch-mode .vb-conquest-hud[data-bomb-sight="true"] .cq-interact { top: auto; bottom: calc(50% + 132px); left: calc(50% + 30px); }
 /* Phones have room under the ring for the ticker or the interact prompt, not both: the ticker steps above the crosshair. */
 .vb-touch-mode .vb-conquest-hud:has(.cq-interact:not([hidden])) .cq-ticker { top: auto; bottom: calc(50% + 70px); }
 .vb-touch-mode .cq-lock { top: calc(50% - 96px); font-size: 12px; }
@@ -683,6 +687,9 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   .vb-touch-mode .cq-ticker { top: calc(50% + 30px); bottom: auto; left: calc(50% - 122px); }
   .vb-touch-mode .vb-conquest-hud:has(.cq-interact:not([hidden])) .cq-ticker { top: calc(50% + 30px); bottom: auto; }
   .vb-touch-mode .cq-interact { top: auto; bottom: 64px; }
+  /* Bomb sight up: the prompt moves to the free corner left of the top bar. */
+  .vb-touch-mode .vb-conquest-hud[data-bomb-sight="true"] .cq-interact { top: max(10px, env(safe-area-inset-top)); bottom: auto;
+    left: calc(50% - 146px); transform: translateX(-100%); }
   .vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 52px); max-width: calc(100vw - 460px); }
   .vb-touch-mode .cq-restricted { top: 16%; }
   /* Landscape: the squad list rides right of the HP card, left of the banner lane and above MAP / SPOT. */

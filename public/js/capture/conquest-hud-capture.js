@@ -80,11 +80,18 @@ async function render(id, { touch: touchMode = false } = {}) {
   conquest?.dispose();
   h.setScoreboard?.(false);
   // Mouse-aim fixtures: a ground cast straight down reports the fixture's AGL, and the pilot hint shows as on a first entry.
-  const flight = state.flight;
+  // A `groundPlane` fixture (the bomb CCIP) casts every ray against a flat floor at that height instead.
+  const flight = state.flight, floor = state.groundPlane;
   try { localStorage.removeItem('vb-flight-hint-v1'); } catch (_) {}
+  const planeCast = (origin, dir, max) => {
+    if (!(dir?.y < -1e-6)) return null;
+    const t = (floor - origin.y) / dir.y;
+    return t >= 0 && t <= max ? { t } : null;
+  };
   conquest = new ConquestHud(document.body, { combatHud: h.combat, onDeploy() {}, onSpot() {}, onSupport() {}, onInteract() {},
     careerProfile: () => state.career ?? null,
-    ...(flight ? { shellRaycast: (origin, dir) => (dir?.y < -0.9 ? { t: flight.agl + 0.5 } : null) } : {}) });
+    ...(Number.isFinite(floor) ? { shellRaycast: planeCast }
+      : flight ? { shellRaycast: (origin, dir) => (dir?.y < -0.9 ? { t: flight.agl + 0.5 } : null) } : {}) });
   if (touchMode && !touch) {
     touch = new TouchControls({ documentRef: document });
     touch.mount(document.body);

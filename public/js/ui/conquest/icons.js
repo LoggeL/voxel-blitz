@@ -9,6 +9,7 @@ export const ICON_PATHS = Object.freeze({
   // Mounted weapons.
   shell: 'M2 10.5h11l3-2h4.5a1.5 1.5 0 0 1 0 3V12.5a1.5 1.5 0 0 1 0 3H16l-3-2H2zM5 9h2v6H5z',
   mg: 'M2 11h14v2H2zM16 9.5h3l3 1.5-3 1.5h-3zM4 13h3l-1 4H4zM9 13h2v2H9zM3 8h5v3H3z',
+  bomb: 'M12 6.5a3.5 3.5 0 0 1 3.5 3.5v6a3.5 4.5 0 0 1-7 0v-6A3.5 3.5 0 0 1 12 6.5zM8.5 2h7l-1.5 3.5h-4z',
   rocket: 'M3 11h11l4-2.5h1.5L22 12l-2.5 3.5H18L14 13H3zM3 9l3 2H3zM3 15l3-2H3z',
   missile: 'M2 11.2h14l3.5-1.2L22 12l-2.5 2-3.5-1.2H2zM5 8.5l3 2.7H5zM5 15.5l3-2.7H5zM13 9.5l2 1.7h-2zM13 14.5l2-1.7h-2z',
   autocannon: 'M2 10h9v4H2zM11 11h9v2h-9zM20 10.3h2v3.4h-2zM4 14h3v3H4z',
@@ -60,7 +61,7 @@ export const ICON_PATHS = Object.freeze({
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */
 export const KILL_KEY_ICONS = Object.freeze({
   tankAP: 'shell', tankHE: 'shell', coaxMG: 'mg', hmg: 'mg', doorMinigun: 'mg', planeCannon: 'autocannon',
-  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', vehicle: 'roadkill', restricted: 'restricted',
+  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', jetBomb: 'bomb', vehicle: 'roadkill', restricted: 'restricted',
   fall: 'fall', crash: 'crash', redeploy: 'redeploy', collapse: 'collapse',
   // Titanfall kill keys (docs/titanfall.md §2.3) on existing glyphs; WP5 may add titan glyphs later.
   splitter: 'mg', predatorClose: 'mg', predatorLong: 'mg', railgun: 'autocannon', t203: 'shell', leadwall: 'shell',
