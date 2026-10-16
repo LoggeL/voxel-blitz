@@ -19,6 +19,9 @@ import { LEAN, leanEyeOffset, leanPose } from '../../../shared/player-lean.js';
 import { WEAPON_NAMES, THROWABLE_NAMES } from '../ui/hud-support.js';
 import { StructureFx } from '../fx/structure-fx.js';
 import { ParticleField } from '../fx/particle-field.js';
+import { VehicleCamera, seatViews } from '../session/vehicle-camera.js';
+import { vehicleDef, mountAim } from '../../../shared/vehicle-defs.js';
+import { raycastVoxels } from '../../../shared/raycast.js';
 
 /** Replay dust slots: one small particle field while a replay runs. */
 const REPLAY_PARTICLES = 1024;
@@ -26,6 +29,39 @@ const REPLAY_PARTICLES = 1024;
 // Replay tail after the clip end, plus slack for the respawn snapshot's latency.
 const TAIL_MS = 300;
 const RESPAWN_SLACK_MS = 200;
+/** Replay view of a seat, best first: the hull stays in the picture (chase), else over the gun, else the seat's own. */
+const REPLAY_SEAT_VIEWS = Object.freeze(['chase', 'mount', 'passenger', 'gimbal', 'cockpit']);
+
+/** The seat view a replay uses for (type, seat): see REPLAY_SEAT_VIEWS. */
+export function replaySeatView(type, seatId) {
+  const views = seatViews(type, seatId);
+  return REPLAY_SEAT_VIEWS.find(view => views.includes(view)) ?? views[0] ?? 'chase';
+}
+
+/**
+ * Where the replay camera rides at one sample: `{ kind: 'seat', row, seatId, aimYaw, aimPitch }`
+ * for a seated killer or a followed hull (clip.follow 'vehicle': an auto-titan, an empty
+ * titan's crush), `{ kind: 'eye', target }` for a killer on foot, or null (the subject is gone).
+ */
+export function replaySubject(clip, sample) {
+  const target = sample.players.get(clip.killer) || null;
+  if (clip.follow === 'vehicle') {
+    const row = sample.vehicles?.get(clip.focus.vehicleId);
+    if (!row) return null;
+    const def = vehicleDef(row.type ?? row.kind);
+    const seat = def?.seats.find(entry => entry.drives) ?? def?.seats[0] ?? null;
+    const aim = seat?.mounts?.length ? mountAim(row, seat.mounts[0]) : null;
+    return { kind: 'seat', row, seatId: seat?.id ?? 'driver', aimYaw: aim?.yaw ?? row.yaw ?? 0, aimPitch: aim?.pitch ?? 0, target };
+  }
+  if (!target) return null;
+  const vehicleId = target.vehicleId != null && target.state === 'alive' ? String(target.vehicleId) : null;
+  const row = vehicleId ? sample.vehicles?.get(vehicleId) : null;
+  if (row) {
+    return { kind: 'seat', row, seatId: target.vehicleSeatId != null ? String(target.vehicleSeatId) : 'driver',
+      aimYaw: Number.isFinite(target.yaw) ? target.yaw : row.yaw ?? 0, aimPitch: Number.isFinite(target.pitch) ? target.pitch : 0, target };
+  }
+  return { kind: 'eye', target };
+}
 
 /** Recorded attacker view. Live simulation keeps running and owns respawn. */
 /**
@@ -45,8 +81,14 @@ export function playKillcamShot(event, { audio = null, tracers = null, rig = nul
 }
 
 export class Killcam {
+  /**
+   * `createVehicleView({ getBlock })` builds the replay's own hull view (a VehicleView; Conquest hulls and
+   * Titanfall titans), `presentation({ parent, getBlock, viewerTeam })` the mode's replay presentation for bodies
+   * (Titanfall pilots: `{ avatarState(row, avatar, dt), viewRoll(row, dt), frame(row, camera), dispose() }`).
+   */
   constructor({ scene, getBlock, worldview = null, mapBytes = null, blockDamage = [],
-    terrainTime = -Infinity, audio = null, now = () => performance.now(), onActivate = null, structureTier = 'medium' }) {
+    terrainTime = -Infinity, audio = null, now = () => performance.now(), onActivate = null, structureTier = 'medium',
+    createVehicleView = null, presentation = null }) {
     this.scene = scene;
     this.getBlock = (x, y, z) => this.clip?.terrain
       ? this.clip.terrain.getBlock(x, y, z) : getBlock(x, y, z);
@@ -55,6 +97,12 @@ export class Killcam {
     this.now = now;
     this.onActivate = onActivate;
     this.structureTier = structureTier;
+    this.createVehicleView = typeof createVehicleView === 'function' ? createVehicleView : null;
+    this.presentationFactory = typeof presentation === 'function' ? presentation : null;
+    /** The replay's hull view, built on the first replay with a hull and kept for the match. */
+    this.vehicles = null;
+    this.presentation = null;
+    this._baseFov = 80;
     this.history = new KillcamHistory(mapBytes ? new KillcamTerrain(mapBytes, blockDamage, terrainTime) : null);
     this.active = false;
     this.group = new THREE.Group();
@@ -64,6 +112,11 @@ export class Killcam {
     this.camera = new THREE.PerspectiveCamera(80, 1, 0.04, 1500);
     this.camera.rotation.order = 'YXZ';
     this.group.add(this.camera);
+    // Seated killers and followed hulls: the stock seat cameras, wall-safe against the replay terrain.
+    this.seatCamera = new VehicleCamera({ camera: this.camera, storage: null, getBaseFov: () => this._baseFov,
+      raycast: (origin, direction, distance) => raycastVoxels(this.getBlock,
+        origin.x, origin.y, origin.z, direction.x, direction.y, direction.z, distance) });
+    this._seatKey = null;
     this.root = document.createElement('section');
     this.root.className = 'vb-killcam hidden';
     this.root.id = 'killcam-replay';
@@ -132,7 +185,23 @@ export class Killcam {
     this.root.querySelector('.vb-killcam-name').textContent = clip.name;
     this.root.querySelector('.vb-killcam-weapon').textContent =
       WEAPON_NAMES[clip.weapon] || THROWABLE_NAMES[clip.weapon] || 'ELIMINATED';
-    this.roster = new AvatarRoster({ scene: this.group, getBlock: this.getBlock, getMyId: () => clip.killer });
+    // A followed hull is not the killer's eye: the killer's own body (if anywhere) stays visible.
+    const ownId = clip.follow === 'vehicle' ? null : clip.killer;
+    try {
+      this.presentation = this.presentationFactory?.({ parent: this.group, getBlock: this.getBlock,
+        viewerTeam: () => this.sample?.players?.get(clip.killer)?.team ?? null }) ?? null;
+    } catch (error) { this.presentation = null; console.warn('[vb] killcam presentation', error); }
+    this.roster = new AvatarRoster({ scene: this.group, getBlock: this.getBlock, getMyId: () => ownId, presentation: this.presentation });
+    if (!this.vehicles && this.createVehicleView && clip.frames.some(frame => frame.vehicles?.length)) {
+      try {
+        this.vehicles = this.createVehicleView({ getBlock: this.getBlock });
+        this.group.add(this.vehicles.group);
+      } catch (error) { this.vehicles = null; console.warn('[vb] killcam vehicles', error); }
+    }
+    // Large maps stream chunks around the view: load the replay's ground before its first frame.
+    const first = replaySubject(clip, sampleKillcam(clip, this.replayStart, this.replayStart));
+    const at = first?.kind === 'seat' ? first.row : first?.target;
+    if (at && [at.x, at.z].every(Number.isFinite)) this.worldview?.setViewPosition?.({ x: at.x, y: at.y, z: at.z });
     this.tracers = new TracerFX(this.group, this.getBlock, () => {});
     // Replayed discs steer home toward their owner's sampled position (the killer's too).
     this.projectiles = new ProjectileFX(this.group, this.getBlock, { camera: this.camera,
@@ -173,12 +242,23 @@ export class Killcam {
     this.sample = sample;
     this.clip.terrain?.apply(sample.terrain);
     this.worldview?.updateReplayTerrain(sample.terrain);
-    const target = sample.players.get(this.clip.killer);
-    if (!target) { this.stop(); return false; }
+    const subject = replaySubject(this.clip, sample);
+    if (!subject) { this.stop(); return false; }
+    this._baseFov = fov;
+    // Hulls first: a seat camera rides this frame's presented pose.
+    if (this.vehicles) {
+      this.vehicles.sync([...sample.vehicles.values()], [...sample.players.values()], subject.target, {});
+      this.vehicles.update(dt, this.camera);
+    }
+    if (subject.kind === 'seat') return this._updateSeat(dt, aspect, subject, sample, elapsed);
+    this._leaveSeat();
+    const target = subject.target;
     const lean = leanEyeOffset(target.leanT || 0, target.yaw, target.crouch ? 1 : 0);
     this.camera.position.set(target.x + lean.x, target.y + stanceEye(EYE_HEIGHT, target.crouch, target.proneT) + lean.y,
       target.z + lean.z);
-    this.camera.rotation.set(target.pitch, target.yaw, -leanPose(target.leanT || 0) * LEAN.viewRoll, 'YXZ');
+    // A Titanfall pilot's wallrun rolls the view as it did for the killer.
+    const pilotRoll = this.presentation?.viewRoll?.(target, dt) ?? 0;
+    this.camera.rotation.set(target.pitch, target.yaw, -leanPose(target.leanT || 0) * LEAN.viewRoll + pilotRoll, 'YXZ');
     const weaponId = WEAPON_IDS[target.weapon] || 'rifle';
     const def = configuredWeapon(weaponId, {[weaponId]:target.attachments});
     const ads = target.adsT ?? (target.ads ? 1 : 0);
@@ -206,6 +286,43 @@ export class Killcam {
     this.rig.root.visible = !this.scopeActive;
     this.audio?.setListener({ pos: [target.x, this.camera.position.y, target.z],
       fwd: [-Math.sin(target.yaw) * Math.cos(target.pitch), Math.sin(target.pitch), -Math.cos(target.yaw) * Math.cos(target.pitch)] });
+    this.presentation?.frame?.(target, this.camera);
+    this._playEvents(dt, sample, duration, elapsed);
+    return true;
+  }
+
+  /** A seated killer or a followed hull: the seat's replay view (chase where it has one), no viewmodel. */
+  _updateSeat(dt, aspect, subject, sample, elapsed) {
+    const row = this.vehicles?.presentedRow(subject.row.id) || subject.row;
+    const type = row.type ?? row.kind, key = `${type}:${subject.seatId}`;
+    if (key !== this._seatKey) {
+      this._seatKey = key;
+      this.seatCamera.setView(type, subject.seatId, replaySeatView(type, subject.seatId), { remember: false });
+    }
+    if (this.camera.aspect !== aspect) this.camera.aspect = aspect;
+    this.seatCamera.update(dt, { row, seatId: subject.seatId, aimYaw: subject.aimYaw, aimPitch: subject.aimPitch });
+    const firstPerson = this.seatCamera.firstPerson || this.seatCamera.sight;
+    this.vehicles?.setLocalView(firstPerson ? { id: row.id, seatId: subject.seatId, sight: this.seatCamera.sight } : null);
+    this.scopeActive = false;
+    this.scope.classList.toggle('active', false);
+    if (this.rig) this.rig.root.visible = false;
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const pos = this.camera.position;
+    this.audio?.setListener({ pos: [pos.x, pos.y, pos.z], fwd: [fwd.x, fwd.y, fwd.z] });
+    this.presentation?.frame?.(null, this.camera);
+    this._playEvents(dt, sample, this.clip.end - this.replayStart, elapsed);
+    return true;
+  }
+
+  _leaveSeat() {
+    if (this._seatKey == null) return;
+    this._seatKey = null;
+    this.seatCamera.end();
+    this.vehicles?.setLocalView(null);
+  }
+
+  /** Replayed events, hit marker, effects, bodies and the banner of one replay frame. */
+  _playEvents(dt, sample, duration, elapsed) {
     for (const event of sample.events) {
       if (event.kind === 'shoot') playKillcamShot(event, { audio: this.audio, tracers: this.tracers, rig: this.rig, killer: this.clip.killer });
       else if (event.kind === 'bullet') this.tracers.settleRound?.(event);
@@ -258,15 +375,22 @@ export class Killcam {
     this.projectiles.update(dt);
     this.impacts.update(dt);
     this.particles?.update(dt, this.camera);
-    this.roster.sync(sample.players, dt, this.now());
+    // Mode bodies that are not player rows (Titanfall minions) join the replay through the presentation.
+    const extra = this.presentation?.replayRows?.(sample.npcs) ?? null;
+    this.roster.sync(extra?.size ? new Map([...sample.players, ...extra]) : sample.players, dt, this.now());
     this.roster.hideLabels();
     this.timeLabel.textContent = `${Math.max(0, (duration - elapsed) / 1000).toFixed(1)}s`;
     this.progress.style.transform = `scaleX(${Math.min(1, elapsed / duration)})`;
-    return true;
   }
 
   stop() {
     if (this.active) this.worldview?.setReplayTerrain(null);
+    this.clip?.terrain?.release?.();
+    this._leaveSeat();
+    // The replay hull view stays for the next replay; its hulls go now.
+    if (this.vehicles) { try { this.vehicles.sync([], [], null, {}); } catch (error) { console.warn('[vb] killcam vehicles', error); } }
+    try { this.presentation?.dispose?.(); } catch (error) { console.warn('[vb] killcam presentation', error); }
+    this.presentation = null;
     this.active = false;
     this.pendingAt = null;
     this._minedBreak = null;
@@ -286,6 +410,8 @@ export class Killcam {
 
   dispose() {
     this.stop();
+    this.vehicles?.dispose();
+    this.vehicles = null;
     this.history.clear();
     this.history.terrain = null;
     this.group.removeFromParent();

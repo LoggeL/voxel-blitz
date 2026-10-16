@@ -3429,7 +3429,7 @@ h1.vb-title::after {
 .vb-killcam button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .vb-killcam-progress { grid-column: 1 / -1; height: 3px; margin-top: 6px; background: #48525b; }
 .vb-killcam-progress i { display: block; height: 100%; background: #ff8768; transform-origin: left; }
-body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidden; }
+body.is-replaying #hud, body.is-replaying .vb-touch-controls, body.is-replaying .vb-conquest-hud { visibility: hidden; }
 /* Local death cut: the severed-head flight blacks out before the killcam or spectator view. */
 .vb-death-fade {
   position: fixed; inset: 0; z-index: calc(var(--z-scope) + 2); pointer-events: none;

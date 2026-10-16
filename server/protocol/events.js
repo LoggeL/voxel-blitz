@@ -64,6 +64,8 @@ export function evKill(killer, victim, w, hs, markers = null) {
     ...(Object.hasOwn(ANNOUNCER_CUES, markers?.announcer) ? { announcer: markers.announcer } : {}),
     ...(Number.isFinite(markers?.dist) ? { dist: round(markers.dist, 10) } : {}),
     ...damageMetadata(markers?.damage),
+    // Killcam focus (shared/killcam-rules.js): the hull the kill came from, and the killer's seat in it.
+    ...(markers?.killcam?.v != null ? { kv: String(markers.killcam.v), ...(markers.killcam.s != null ? { ks: String(markers.killcam.s) } : {}) } : {}),
   };
 }
 

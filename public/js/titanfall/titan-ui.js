@@ -337,7 +337,11 @@ function syncLoadout(model) {
     if (S.stored) intent('loadout', S.loadout.packed);
   }
   const post = (S.client.snapshot?.() ?? S.snapshot)?.match?.phase === 'post';
-  const waiting = layout === 'dead' && !!tf?.deploy && !tf.deployQueued && !post;
+  // The killcam replay of this death plays first (and its head-flight intro): the screen opens when it ends.
+  const killcam = S.app?.killcam;
+  const replay = layout === 'dead' && !post && !!(killcam?.active || killcam?.pending);
+  if (replay && loadout.isOpen && S.loadoutReason === 'death') loadout.close();
+  const waiting = layout === 'dead' && !!tf?.deploy && !tf.deployQueued && !post && !replay;
   if (!waiting || tf?.deployQueued) S.deploySentAt = null;
   const sent = S.deploySentAt != null && nowMs() - S.deploySentAt < DEPLOY_RESEND_MS;
   if (waiting && !sent && !loadout.isOpen) openLoadout(tf.staged ? 'join' : 'death');

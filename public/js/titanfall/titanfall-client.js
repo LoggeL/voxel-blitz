@@ -22,6 +22,34 @@ import * as titanUi from './titan-ui.js';
 import * as pilotProjectileViews from './pilot-projectile-views.js';
 import * as titanProjectileViews from './titan-projectile-views.js';
 import * as npcView from './npc-view.js';
+import { WEAPON_IDS } from '../../../shared/combatmath.js';
+
+/** Minion weapons (npc-view.js NPC_WEAPONS). */
+const REPLAY_NPC_WEAPONS = Object.freeze({ grunt: 'rifle', spectre: 'smg' });
+const lerpAngle = (a, b, u) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * u;
+
+/**
+ * Killcam rows of the recorded minions (sampleKillcam `npcs` = { a, b, t }: the compact
+ * `match.titanfall.npc` lists around the replay instant): synthetic AvatarRoster rows in the
+ * npc-view.js shape, interpolated, with `npcKind` for the dressing. Map id -> row.
+ */
+export function replayNpcRows(npcs) {
+  const out = new Map();
+  if (!npcs) return out;
+  const next = new Map((Array.isArray(npcs.b) ? npcs.b : []).map(npcView.decodeNpcRow).filter(Boolean).map(row => [row.id, row]));
+  for (const row of (Array.isArray(npcs.a) ? npcs.a : Array.isArray(npcs.b) ? npcs.b : []).map(npcView.decodeNpcRow)) {
+    if (!row) continue;
+    const q = next.get(row.id), u = Number.isFinite(npcs.t) ? Math.max(0, Math.min(1, npcs.t)) : 0;
+    const near = q && !row.dead && !q.dead && Math.hypot(q.x - row.x, q.z - row.z) < 8;
+    const weapon = REPLAY_NPC_WEAPONS[row.kind] ?? 'rifle';
+    out.set(row.id, { id: row.id, name: npcView.NPC_NAMES[row.kind], team: row.team, npcKind: row.kind,
+      x: near ? row.x + (q.x - row.x) * u : row.x, y: near ? row.y + (q.y - row.y) * u : row.y, z: near ? row.z + (q.z - row.z) * u : row.z,
+      yaw: near ? lerpAngle(row.yaw, q.yaw, u) : row.yaw, pitch: 0, hp: row.dead ? 0 : row.hp, state: row.dead ? 'dead' : 'alive',
+      weapon: WEAPON_IDS.indexOf(weapon), owned: [weapon], firing: row.firing, ads: row.firing, crouch: row.crouch && !row.moving,
+      grounded: true, vaulting: false, moveSpeed: row.moving ? 3 : 0, proneT: 0, leanT: 0, reloading: false, charge: 0, vehicleId: null, swimming: false });
+  }
+  return out;
+}
 
 /** Registered modules, fan-out order. */
 export const TITANFALL_CLIENT_MODULES = Object.freeze([
@@ -102,6 +130,21 @@ export function create(app) {
       // A pilot that just left a titan vaults out of its hatch (titan-transit.js).
       try { titanTransit.avatarState(row, avatar); } catch (error) { report('transit', 'avatarState', error); }
       return posed;
+    },
+    /** Killcam replay presentation of pilots (pilot-client.js createReplayPresentation), or null once disposed. */
+    createReplayPresentation(options = {}) {
+      if (disposed) return null;
+      let pilots;
+      try { pilots = pilotClient.createReplayPresentation(options); } catch (error) { report('pilot', 'createReplayPresentation', error); return null; }
+      return {
+        ...pilots,
+        // Minions are dressed as GRUNTS and SPECTRES; pilots pose from their recorded tf.
+        avatarState(row, avatar, dt) {
+          if (row?.npcKind) { try { npcView.applyNpcLook(avatar, row.npcKind, row.team); } catch (error) { report('npcs', 'applyNpcLook', error); } return null; }
+          return pilots.avatarState(row, avatar, dt);
+        },
+        replayRows: replayNpcRows,
+      };
     },
     tick(next, dt = 0) {
       if (disposed || !next) return;

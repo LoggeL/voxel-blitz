@@ -167,6 +167,65 @@ await check('deploy cover: the stock spectator overlay and death note hide while
   app.vehicleView.dispose();
 });
 
+await check('killcam first: the death loadout opens when the replay ends or is skipped', async () => {
+  const contract = await import('../shared/titan-contract.js');
+  const { titanfallHudFixtures, FIXTURE_NOW, pilotRow } = await import('../public/js/capture/titanfall-hud-fixtures.js');
+  const ui = await import('../public/js/titanfall/titan-ui.js');
+  const base = titanfallHudFixtures().find(f => f.id === 'pilot-ready');
+  const DF = contract.TITANFALL_PLAYER_FLAGS;
+  const app = makeApp();
+  app.killcam = { active: false, pending: false };
+  let current = base;
+  const client = { snapshot: () => current.snapshot, selfRow: () => current.self, selfTf: () => contract.decodeTitanfallPlayer(current.self),
+    selfFrame: () => contract.decodeTitanfallSelf(current.tfs) };
+  const step = () => { ui.tick(current.snapshot, 0); ui.frame(1 / 60, { nowMs: FIXTURE_NOW }); };
+  ui.init(app, client);
+  step();
+  assert.equal(ui.debugState().loadoutOpen, false, 'alive: no loadout');
+  // Killed by an enemy pilot: main.js set the replay up (pending through the head flight, then active).
+  app.killcam.pending = true;
+  current = { ...base, self: pilotRow({ state: 'dead', hp: 0, respawnAt: FIXTURE_NOW + 800, tf: { flags: DF.deploy } }) };
+  step();
+  assert.equal(ui.debugState().loadoutOpen, false, 'no loadout during the death intro');
+  app.killcam.pending = false; app.killcam.active = true;
+  step();
+  assert.equal(ui.debugState().loadoutOpen, false, 'no loadout under the replay');
+  assert.equal(document.body.dataset.titanfallDeploy, '', 'the stock death note stays covered');
+  app.killcam.active = false;   // replay over or skipped
+  step();
+  assert.equal(ui.debugState().loadoutOpen, true, 'the loadout (DEPLOY) opens right after the replay');
+  // No killcam (a grunt or world death): the loadout opens at once, as before.
+  current = base; step();
+  current = { ...base, self: pilotRow({ state: 'dead', hp: 0, respawnAt: FIXTURE_NOW + 4000, tf: { flags: DF.deploy } }) };
+  step();
+  assert.equal(ui.debugState().loadoutOpen, true, 'without a replay the loadout opens on the death');
+  ui.dispose();
+  app.vehicleView.dispose();
+});
+
+await check('killcam presentation: replay pilots pose from the recorded tf without touching the live match', async () => {
+  const pilot = await import('../public/js/titanfall/pilot-client.js');
+  const contract = await import('../shared/titan-contract.js');
+  const parent = new THREE.Group();
+  const presentation = pilot.createReplayPresentation({ parent, getBlock: (x) => (x >= 11 ? 1 : 0), THREE, viewerTeam: () => 'alpha' });
+  assert.equal(parent.children.length, 1, 'the replay ropes live in the replay group');
+  const tf = contract.encodeTitanfallPlayer({ mv: 3, grapple: [12, 4, 10] });
+  const row = { id: 'k', team: 'alpha', x: 10.5, y: 2, z: 10.5, yaw: 0, tf };
+  let roll = 0;
+  for (let i = 0; i < 60; i++) roll = presentation.viewRoll(row, 1 / 60);
+  assert.ok(Math.abs(roll) > 0.15, `a recorded wallrun rolls the killer's eye (${roll.toFixed(3)} rad)`);
+  assert.ok(Math.abs(presentation.viewRoll({ ...row, tf: contract.encodeTitanfallPlayer({ mv: 0 }) }, 10)) < 1e-6, 'on the ground the roll returns');
+  const avatar = { group: new THREE.Group(), torso: new THREE.Group(), lLeg: new THREE.Group(), rLeg: new THREE.Group() };
+  assert.ok(presentation.avatarState(row, avatar, 1 / 60), 'a replay body poses from its recorded tf');
+  presentation.frame(row, { position: new THREE.Vector3(10.5, 3.6, 10.5) });
+  assert.equal(parent.children[0].geometry.drawRange.count > 0, true, 'the killer\'s recorded grapple draws its rope');
+  presentation.dispose();
+  assert.equal(parent.children.length, 0, 'dispose takes the ropes out of the replay group');
+  const { replayNpcRows } = await import('../public/js/titanfall/titanfall-client.js');
+  const grunt = replayNpcRows({ a: [[3, 0, 1, 10, 2, 10, 0, 80, 1]], b: [[3, 0, 1, 11, 2, 10, 0.2, 80, 1]], t: 0.5 }).get('tfg3');
+  assert.deepEqual([grunt.x, grunt.team, grunt.npcKind, grunt.state], [10.5, 'bravo', 'grunt', 'alive'], 'recorded minions replay as dressed bodies');
+});
+
 await check('warm-up: the portrait kit and pilot-weapon warm-up are prepared and released', async () => {
   assert.equal(typeof loadout.warmTitanPortraits, 'function');
   assert.equal(typeof loadout.disposeTitanPortraits, 'function');

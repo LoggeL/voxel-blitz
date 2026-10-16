@@ -19,6 +19,7 @@ import { FootstepCadence, footstepSurfaceAt } from '../audio/footsteps.js';
 import { PilotCamera } from './pilot-camera.js';
 import { PilotAnim, poseRemotePilot, wallSideAt } from './pilot-anim.js';
 import { GrappleRopes } from './grapple-ropes.js';
+import { PILOT_RULES } from '../../../shared/pilot-movement.js';
 
 /** Own footfalls on a wall: a quick cadence, as loud as the ground ones (main.js ×0.3). */
 export const PILOT_WALL_STEPS = Object.freeze({ cadence: 1.15, volume: 0.3 });
@@ -203,4 +204,49 @@ export function avatarState(row, avatar, dt) {
     } catch {}
   }
   return state;
+}
+
+/** Killcam wallrun roll: the replayed eye eases to the killer's wall side at this rate (1/s). */
+const REPLAY_ROLL_RATE = 12;
+
+/**
+ * Killcam presentation of titanfall pilots (Killcam `presentation`, via titanfall-client.js): the
+ * recorded `tf` poses replay bodies (wallrun, slide, rodeo, cloak), grapple ropes draw in the replay
+ * group, and the killer's first-person eye rolls on a wallrun. Nothing here touches the live match
+ * (no live ropes, no footsteps); `getBlock` reads the replay terrain.
+ *   avatarState(row, avatar, dt)  AvatarRoster hook for one replay body
+ *   viewRoll(row, dt)             the killer's eye roll (radians) for its recorded wallrun
+ *   frame(row, camera)            per replay frame: the ropes, the killer's own (row) from the eye
+ *   dispose()
+ */
+export function createReplayPresentation({ parent = null, getBlock: replayGetBlock = getBlock, THREE = null, viewerTeam = null } = {}) {
+  const replaySolid = (x, y, z) => isSolidBlock(replayGetBlock(x, y, z));
+  const replayRopes = parent && THREE ? new GrappleRopes(THREE, parent) : null;
+  const clock = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
+  let roll = 0;
+  return {
+    avatarState(row, avatar, dt) {
+      if (!row || !avatar || !Array.isArray(row.tf)) return null;
+      const decoded = decodeTitanfallPlayer({ tf: row.tf });
+      const team = typeof viewerTeam === 'function' ? viewerTeam() : viewerTeam;
+      const ally = !!team && row.team === team;
+      if (decoded.cloaked && !ally) avatar.disguised = true;
+      const side = decoded.mv === 3 ? wallSideAt(replaySolid, row.x, row.y, row.z, row.yaw) : 0;
+      replayRopes?.setRemote(row.id, avatar.group?.position ?? row, decoded.grapple);
+      return poseRemotePilot(avatar, { mv: decoded.mv, flags: decoded.flags, side, ally,
+        speed: Number.isFinite(avatar.speedEst) ? avatar.speedEst : 0, now: clock() }, dt);
+    },
+    viewRoll(row, dt) {
+      const decoded = Array.isArray(row?.tf) ? decodeTitanfallPlayer({ tf: row.tf }) : null;
+      const side = decoded?.mv === 3 ? wallSideAt(replaySolid, row.x, row.y, row.z, row.yaw) : 0;
+      const target = side * PILOT_RULES.wallrun.roll;
+      roll += (target - roll) * (1 - Math.exp(-Math.max(0, Number(dt) || 0) * REPLAY_ROLL_RATE));
+      return roll;
+    },
+    frame(row, camera) {
+      const decoded = Array.isArray(row?.tf) ? decodeTitanfallPlayer({ tf: row.tf }) : null;
+      replayRopes?.update(decoded?.grapple && camera ? { anchor: decoded.grapple, camera: camera.position, yaw: row.yaw } : null);
+    },
+    dispose() { replayRopes?.dispose(); },
+  };
 }

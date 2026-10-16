@@ -1,9 +1,17 @@
 import { normalizeCosmeticLoadout } from '../../../shared/career.js';
-import { KILLCAM, supportsKillcam } from '../../../shared/killcam-rules.js';
+import { KILLCAM, supportsKillcam, killcamWeaponAllowed } from '../../../shared/killcam-rules.js';
 import { copySmokeFields } from '../../../shared/smoke-rules.js';
 
 const POSE_FIELDS = ['id', 'name', 'x', 'y', 'z', 'yaw', 'pitch', 'state', 'hp',
-  'weapon', 'firing', 'ads', 'adsT', 'scopeZoom', 'attachments', 'reloading', 'deploying', 'grenadeHandling', 'crouch', 'proneT', 'leanT', 'grounded', 'vaulting', 'swimming', 'moveSpeed', 'team', 'charge'];
+  'weapon', 'firing', 'ads', 'adsT', 'scopeZoom', 'attachments', 'reloading', 'deploying', 'grenadeHandling', 'crouch', 'proneT', 'leanT', 'grounded', 'vaulting', 'swimming', 'moveSpeed', 'team', 'charge',
+  // Conquest/Titanfall: the seat a body rides (hidden avatar, seat camera) and the titanfall pilot state
+  // (`tf`: wallrun, slide, grapple, cloak, rodeo) the replay poses from.
+  'vehicleId', 'vehicleSeatId', 'tf', 'chute'];
+/** Vehicle and titan row fields interpolated between frames (the rest switch at their frame). */
+const VEHICLE_LINEAR = ['x', 'y', 'z'];
+const VEHICLE_ANGLES = ['yaw', 'pitch', 'roll', 'legYaw', 'turretYaw'];
+/** A hull farther apart than this between two frames jumped (respawn, drop start): no path between. */
+const VEHICLE_JUMP_M = 40;
 const EVENT_KINDS = new Set(['shoot', 'bullet', 'hit', 'kill', 'mine', 'block', 'blockDamage',
   'projectileLaunch', 'projectileUpdate', 'projectileStick', 'projectileExplode',
   // Structural collapses (docs/structural-physics.md): replays drop the same chunks.
@@ -28,31 +36,69 @@ export class KillcamHistory {
       // Large explosions must not crowd out the killer's confirmed hits.
       events: structuredClone((snapshot.events || []).filter(e => EVENT_KINDS.has(e?.kind)
         && (e.kind === 'hit' || e.kind === 'kill' || effects++ < 256))),
+      // Conquest hulls and Titanfall titans (VehicleView rows): a shallow copy per frame.
+      vehicles: Array.isArray(snapshot.vehicles) ? snapshot.vehicles
+        .filter(v => v && v.id != null && [v.x, v.y, v.z].every(Number.isFinite)).map(v => ({ ...v })) : [],
       smokeFields: copySmokeFields(snapshot.smokeFields),
+      // Titanfall minions (compact `match.titanfall.npc` rows; a snapshot without them keeps the last list).
+      npcs: Array.isArray(snapshot.match?.titanfall?.npc) ? snapshot.match.titanfall.npc.slice() : this.frames.at(-1)?.npcs ?? null,
       terrain: this.terrain?.record(snapshot) || [],
     });
     const clip = this.activeClip;
-    if (clip && time > clip.killTime && time <= clip.end &&
-        clip.frames.at(-1).players.some(p => p.id === clip.killer && p.state === 'alive')) {
+    if (clip && time > clip.killTime && time <= clip.end && clipContinues(clip, clip.frames.at(-1))) {
       clip.frames.push(this.frames.at(-1));
     }
     while (this.frames.length > KILLCAM.maxFrames || (this.frames.length > 2
       && this.frames[1].time < time - KILLCAM.historyMs)) this.frames.shift();
   }
-  clip({ killer, victim, w }, mode) {
-    if (!supportsKillcam(mode) || !killer || killer === victim) return null;
+  /**
+   * The replay of one `kill` event, or null. `kv`/`ks` (server killcam focus): the hull the
+   * kill came from and the killer's seat in it. With a seat the camera rides the killer
+   * (seat camera while seated, first person on foot); without one (an auto-titan, a crush by
+   * an empty titan) it follows that hull from behind.
+   */
+  clip({ killer, victim, w, kv = null, ks = null }, mode) {
+    if (!supportsKillcam(mode) || !killer || killer === victim || !killcamWeaponAllowed(w)) return null;
     const end = this.frames.at(-1)?.time;
+    const focus = kv != null && kv !== '' ? { vehicleId: String(kv), seatId: ks != null && ks !== '' ? String(ks) : null } : null;
+    const follow = focus && !focus.seatId ? 'vehicle' : 'player';
+    const probe = { killer, focus, follow };
     // Never replay a previous life; append only the bounded post-kill window.
     let frames = this.frames.filter(f => f.time >= end - KILLCAM.historyMs);
     let start = frames.length - 1;
-    while (start >= 0 && frames[start].players.some(p => p.id === killer
-      && (p.state === 'alive' || start === frames.length - 1))) start--;
+    while (start >= 0 && (start === frames.length - 1 ? clipSubject(probe, frames[start]) : clipContinues(probe, frames[start]))) start--;
     frames = frames.slice(start + 1);
     if (frames.length < 2 || end - frames[0].time < 250) return null;
-    return this.activeClip = { killer, victim, weapon: w, frames, start: frames[0].time, killTime: end, end: end + KILLCAM.postKillMs,
+    return this.activeClip = { killer, victim, weapon: w, focus, follow, frames, start: frames[0].time, killTime: end, end: end + KILLCAM.postKillMs,
       terrain: this.terrain?.clip(frames) || null,
       name: frames.at(-1).players.find(p => p.id === killer)?.name || 'OPERATOR' };
   }
+}
+
+/** The clip's subject is in this frame (alive or not: the kill frame may show it dying). */
+function clipSubject(clip, frame) {
+  if (clip.follow === 'vehicle') return frame.vehicles?.some(v => String(v.id) === clip.focus.vehicleId) === true;
+  return frame.players.some(p => p.id === clip.killer);
+}
+
+/** The clip's subject is alive in this frame: the killer's life, or the followed hull. */
+function clipContinues(clip, frame) {
+  if (clip.follow === 'vehicle') return frame.vehicles?.some(v => String(v.id) === clip.focus.vehicleId && !(v.hp <= 0) && !v.wreck) === true;
+  return frame.players.some(p => p.id === clip.killer && p.state === 'alive');
+}
+
+const VEHICLE_ROW_DEFAULTS = Object.freeze([]);
+/** Interpolated hull rows of one replay instant (sampleKillcam). */
+function sampleVehicles(a, b, t) {
+  const next = new Map((b.vehicles || VEHICLE_ROW_DEFAULTS).map(v => [String(v.id), v]));
+  return new Map((a.vehicles || VEHICLE_ROW_DEFAULTS).map(v => {
+    const q = next.get(String(v.id)), row = { ...v };
+    if (q && (q.type ?? q.kind) === (v.type ?? v.kind) && Math.hypot(q.x - v.x, q.y - v.y, q.z - v.z) < VEHICLE_JUMP_M) {
+      for (const key of VEHICLE_LINEAR) row[key] = lerp(v[key], q[key], t);
+      for (const key of VEHICLE_ANGLES) if (Number.isFinite(v[key]) && Number.isFinite(q[key])) row[key] = angle(v[key], q[key], t);
+    }
+    return [String(v.id), row];
+  }));
 }
 
 /** Interpolate recorded poses; discrete state takes effect at its own frame. */
@@ -75,7 +121,8 @@ export function sampleKillcam(clip, time, previousTime = -Infinity) {
     return [p.id, row];
   }));
   const crossed = frames.filter(f => f.time > previousTime && f.time <= at);
-  return { time: at, players, smokeFields: a.smokeFields,
+  return { time: at, players, vehicles: sampleVehicles(a, b, t), npcs: a.npcs || b.npcs ? { a: a.npcs, b: b.npcs, t } : null,
+    smokeFields: a.smokeFields,
     // The terrain copy already includes the first frame.
     terrain: crossed.filter(f => f.time > clip.start).flatMap(f => f.terrain),
     events: crossed.flatMap(f => f.events),

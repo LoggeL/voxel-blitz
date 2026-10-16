@@ -472,6 +472,8 @@ class Game {
       shellRaycast: (origin, direction, distance) => this.worldview?.pickSolidRay(origin, direction, distance) ?? null,
       // XP progress toward locked classes (display only; unlocks come from the server's kit_unlocks).
       careerProfile: () => career?.profile ?? null,
+      // The killcam replay plays first; the deploy screen opens when it ends or is skipped.
+      replayHold: () => !!(this.killcam?.active || this.killcam?.pending),
     });
     if (this._ownKitUnlocks) this.conquestHud.handleEvent(this._ownKitUnlocks, this.myId);
     // The Conquest deploy screen replaces the spectator overlay while dead.
@@ -603,7 +605,10 @@ class Game {
       mapBytes: worldBlocks(), blockDamage: [...net.blockDamage.values()],
       terrainTime: net.latestSnapshots.at(-1)?.serverNow ?? -Infinity, audio: sfx, now: nowMs,
       // The replay shows recorded terrain: live collapse proxies give their cells back first.
-      onActivate: () => this.structureFx?.clear(), structureTier: graphics.tier });
+      onActivate: () => this.structureFx?.clear(), structureTier: graphics.tier,
+      // Conquest hulls and Titanfall titans replay in their own view; titanfall pilots pose through the mode client.
+      createVehicleView: (options) => new rt.VehicleView(options),
+      presentation: (options) => this.titanfall?.createReplayPresentation?.({ ...options, THREE: rt.THREE }) ?? null });
     this.deathFade = new rt.DeathFade();
     this._deathAt = null;
     this.worldview.addCharacterRoots?.(this.liveAvatarsGroup, this.rig.root, this.killcam.group);
@@ -754,6 +759,14 @@ class Game {
     const self = players.find((row) => row.id === this.myId) || null;
     const match = snapshot.match && typeof snapshot.match === 'object' ? snapshot.match : null;
     const previousMatch = this.matchState;
+    // A killed player's replay is set up before the mode HUDs read this snapshot: Conquest's deploy
+    // screen and the Titanfall loadout then wait for it instead of opening under it (the replay
+    // itself waits for the local head flight and its cut to black).
+    const killEvent = Array.isArray(snapshot.events)
+      ? snapshot.events.find((event) => event?.kind === 'kill' && event.victim === this.myId) || null : null;
+    if (killEvent && self?.state === 'dead' && this.player?.alive) {
+      this.killcam?.start(killEvent, match?.mode, { delayMs: this.rt.DEATH_HEAD.introMs });
+    }
     this.matchState = match;
     this.worldview?.setMatch(match, Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : undefined);
     // Conquest flags draw team-relative colours (own blue, enemy orange).
@@ -828,10 +841,6 @@ class Game {
       this.weapon?.deathReset();
       this.session.syncGameplayInput();
     } else if (reconciled.transition?.kind === 'death') {
-      // The replay waits for the local head flight and its cut to black.
-      if (deathEvent?.kind === 'kill') {
-        this.killcam?.start(deathEvent, match?.mode, { delayMs: this.rt.DEATH_HEAD.introMs });
-      }
       this.feedback?.presentLocalDeath(
         deathEvent?.killer || null,
         reconciled.transition,
@@ -1423,7 +1432,8 @@ class Game {
       this.conquestAmbience?.update(dt, this.camera);
       this.conquestSoundscape?.update(dt, this.camera, { match: this.matchState, selfTeam: this.selfRow?.team,
         inVehicle: !!this.vehicleController?.active });
-      this.worldview.update(dt, this.camera, { targetFps: this.frameRate.targetFps });
+      // A replay streams the ground around its own camera (a killer across a large map).
+      this.worldview.update(dt, this.killcam?.active ? this.killcam.camera : this.camera, { targetFps: this.frameRate.targetFps });
       // After the terrain rebuild budget: proxies swap in the frame their chunk rebuilt.
       this.structureFx?.update(frameDt, this.net?.presentedServerTime?.(performance.now()) ?? null);
     } catch (error) { this.phaseError('fx/rig', error); }
@@ -1551,8 +1561,14 @@ class Game {
     // A tank cannon flash takes the remote muzzle-light slot for 90 ms.
     this.vehicleFx?.applyMuzzleLight();
     const replaying = this.killcam?.update(frameDt, this.camera.aspect, this.session.baseFov);
+    // A finished or skipped replay hands over to the mode's own respawn screen at once.
+    const replayHold = !!(this.killcam?.active || this.killcam?.pending);
+    if (this._replayHold && !replayHold) this.conquestHud?.syncReplay?.();
+    this._replayHold = replayHold;
     this.liveEffectsGroup.visible = !replaying;
     this.liveAvatarsGroup.visible = !replaying;
+    // The live hulls stand where they are now; the replay draws its recorded ones.
+    if (this.vehicleView) this.vehicleView.group.visible = !replaying;
     this.worldview.powerups.group.visible = !replaying;
     // Character light probe, material patching and contact blobs (contact-shadows.js).
     const characterFrame = this._characterFrame ||= { camera: null, dt: 0, roster: null, bodyPosition: null, vehicles: null };
@@ -1560,7 +1576,7 @@ class Game {
     characterFrame.dt = frameDt;
     characterFrame.roster = replaying ? this.killcam.roster : this.roster;
     characterFrame.bodyPosition = !replaying && !spectating && this.player.alive ? this.player.pos : null;
-    characterFrame.vehicles = replaying ? null : this.vehicleView;
+    characterFrame.vehicles = replaying ? this.killcam.vehicles : this.vehicleView;
     this.worldview.presentCharacters?.(characterFrame);
     const renderStart = performance.now();
     if (renderFrame && replaying) {

@@ -304,6 +304,47 @@ let groups = 0;
   groups++;
 }
 
+/* ---------------------- killcam first: the deploy screen waits for the replay */
+
+{
+  let replay = false;
+  const hud = new ConquestHud(document.body, { eventTarget: dom.window, replayHold: () => replay });
+  const alive = { ...deploy.self, hp: 100, state: 'alive', x: 300, z: 300 };
+  const args = self => ({ match: deploy.match, mapMeta, self, players: [self, ...deploy.players.slice(1)], vehicles: deploy.vehicles, nowMs: FIXTURE_NOW,
+    camera: cameraPose({ ...deploy.camera, aspect: 1.6 }), viewport: { width: 1440, height: 900 } });
+  hud.update(args(alive));
+  // main.js sets the replay up before the HUD reads the death snapshot (killcam pending, then active).
+  replay = true;
+  hud.handleEvent({ kind: 'kill', killer: 'en1', victim: 'me', w: 'tankAP', kv: 'bravo-tank', ks: 'driver' }, 'me');
+  hud.update(args(deploy.self));
+  assert.equal(hud.dead, true);
+  assert.equal(hud.deploy.open, false, 'no deploy screen under the killcam replay');
+  hud.update(args(deploy.self));
+  assert.equal(hud.deploy.open, false, 'still closed on later snapshots while it plays');
+  assert.equal(hud.syncReplay(), false, 'nothing to hand over while it plays');
+  // Replay over (or skipped): the deploy screen opens at once with the killer card; its countdown is the server's respawnAt.
+  replay = false;
+  assert.equal(hud.syncReplay(), true);
+  assert.equal(hud.deploy.open, true);
+  assert.equal(hud.killerInfo?.killerId, 'en1', 'the killer card survives the replay');
+  hud.update(args(deploy.self));
+  assert.equal(hud.deploy.open, true);
+  assert.equal(hud.deploy.model?.waitMs, deploy.self.respawnAt - FIXTURE_NOW, 'the countdown stays tied to the authoritative respawnAt');
+  // A revive or respawn during a replay never leaves a screen behind.
+  replay = true;
+  hud.update(args(deploy.self));
+  assert.equal(hud.deploy.open, false, 'a replay that starts later closes it again');
+  hud.update(args(alive));
+  replay = false;
+  assert.equal(hud.syncReplay(), false, 'alive: no deploy screen');
+  assert.equal(hud.deploy.open, false);
+  hud.dispose();
+  const css = readFileSync(new URL('../public/style.css', import.meta.url), 'utf8');
+  assert.match(css, /body\.is-replaying #hud, body\.is-replaying \.vb-touch-controls, body\.is-replaying \.vb-conquest-hud \{ visibility: hidden; \}/,
+    'the Conquest HUD hides under the replay like the stock HUD');
+  groups++;
+}
+
 /* ------------------------------ classes HUD: adrenaline, heal tick, unlocks */
 
 {

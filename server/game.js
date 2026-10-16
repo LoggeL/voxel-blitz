@@ -18,7 +18,7 @@ import { DEFAULT_MAP_ID, isTitanfall, modeHasVehicles } from '../shared/modes.js
 import { NETWORK_PRESENTATION } from '../shared/networking.js';
 import { TICK_MS } from './protocol/admission.js';
 import { TickTiming } from './diagnostics.js';
-import { KILLCAM, supportsKillcam } from '../shared/killcam-rules.js';
+import { KILLCAM, isTitanHullKillKey, killcamEligible } from '../shared/killcam-rules.js';
 import { makeSnapshot } from './protocol/snapshot.js';
 import { medkitMovement, medkitCombat } from '../shared/medkit.js';
 import { interruptMedkit, updateMedkit } from './sim/medkit.js';
@@ -767,12 +767,15 @@ export class GameEngine {
       killer.kills++;
       killer.score += this.mode.killScoreDelta(victim, killer, modeContext);
     }
+    // The hull a vehicle or titan kill came from, read before the mode's death bookkeeping.
+    const killcamFocus = this.killcamFocus(killer, weaponKey);
     this.mode.onPlayerDeath(victim, killer, modeContext);
-    // Human replay time is authoritative; bots and world deaths keep mode pacing.
-    if (!victim.bot && killer && killer.id !== victim.id && supportsKillcam(this.mode.mode)
-        && Number.isFinite(victim.respawnAt)) {
+    // Human replay time is authoritative; bots, minion and world deaths keep mode pacing.
+    const killcam = killcamEligible({ mode: this.mode.mode, victim, killer, weapon: weaponKey, focus: killcamFocus });
+    if (killcam && Number.isFinite(victim.respawnAt)) {
       victim.respawnAt = Math.max(victim.respawnAt, this.now + KILLCAM.respawnMs);
     }
+    if (killcam && killcamFocus) shotTraits.killcam = killcamFocus;
     this.tickEvents.push(evDie(victim.id, damage));
     this.tickEvents.push(evKill(
       killer ? killer.id : '',
@@ -782,6 +785,25 @@ export class GameEngine {
       shotTraits,
     ));
     victim.spawnProtected = false;
+  }
+
+  /**
+   * Killcam focus of a kill (event `kv`/`ks`): a seated killer's hull and seat; for a titan
+   * kill by a killer outside the hull (an auto-titan's stand-in, a drop or leg crush of an
+   * empty titan) the titan that killer owns, without a seat. Null on foot.
+   */
+  killcamFocus(killer, weaponKey) {
+    if (!killer) return null;
+    if (killer.vehicleId != null && this.vehicles?.vehicles?.has?.(killer.vehicleId)) {
+      return { v: String(killer.vehicleId), s: killer.vehicleSeatId == null ? null : String(killer.vehicleSeatId) };
+    }
+    if (!killer.standIn && !isTitanHullKillKey(weaponKey)) return null;
+    let owned = null;
+    for (const hull of this.vehicles?.vehicles?.values?.() ?? []) {
+      if (hull?.owner == null || String(hull.owner) !== String(killer.id)) continue;
+      if (!owned || (hull.hp > 0 && !(owned.hp > 0))) owned = hull;
+    }
+    return owned ? { v: String(owned.id), s: null } : null;
   }
 
   respawnPlayer(player, spawn = null, { emitEvent = true, protect = false } = {}) {

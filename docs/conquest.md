@@ -31,6 +31,8 @@ The flag states are `idle`, `capturing`, `neutralizing`, `contested` and `restor
 
 The round starts with every bot at its HQ. After each death, the **deploy screen** replaces the spectator overlay. It shows the map with every valid spawn, a kit picker (the picked class's variant toggle and, for the Engineer, gadget toggle sit in one loadout slot under the class row, so picking a class never moves the rows or the Deploy button), a killer card and a countdown to the respawn time (6 s). If no choice arrives within 15 s of that time, the server deploys the player at the last valid choice, or else at HQ.
 
+**Killcam.** A human killed by another player (bots included) first sees the killcam replay, then the deploy screen (it stays closed while the replay and its head-flight intro run, and opens the moment the replay ends or is skipped with Space, pad A or the SKIP button). The respawn time is unchanged: the replay window (`KILLCAM.respawnMs`, 4.8 s from the death) ends inside the 6 s delay, so the deploy countdown still reads the authoritative `respawnAt`. A killer seated in a hull is replayed from that seat's chase view (gunners over their gun, the chin gunner through its sight) with the recorded hulls drawn; the kill event names the hull and seat (`kv`, `ks`). A redeploy (kill key `redeploy`) and deaths without a killer show no replay. A medic revive during the replay ends it.
+
 Spawn options come from `deployOptions` in `shared/conquest.js`. The server validates choices with the same function the client uses to list them.
 
 - **HQ**: always available, with 2 s of spawn protection.

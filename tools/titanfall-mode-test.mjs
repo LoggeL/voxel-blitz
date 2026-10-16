@@ -21,6 +21,7 @@ import {
 } from '../shared/titan-contract.js';
 import { DEPLOY_RULES } from '../server/modes/titanfall.js';
 import { titanfallScoreLimit, MODE_RULES } from '../shared/modes.js';
+import { KILLCAM } from '../shared/killcam-rules.js';
 import {
   TITANFALL_PLAYER_EXTRA_KEYS, TITANFALL_TF_LENGTH, TITANFALL_TFS_LENGTH, TITANFALL_SELF_KEYS, TITANFALL_STATE_KEYS,
   TITANFALL_MATCH_BUDGET_BYTES, TITAN_ROW_EXTRA_KEYS,
@@ -243,15 +244,18 @@ function teamEngine(map = 'harbor') {
   // Pilot kill: 5 to the killer's team; a team kill scores nothing.
   f.engine.killPlayer(b1, a1, 'rifle', false);
   eq(f.policy.scores.alpha, 5, 'pilot kill 5');
-  eq(b1.respawnAt - f.engine.now, 4000, 'respawn in 4 s');
+  // A human killed by a pilot waits for the killcam replay (4.8 s); the mode delay itself is 4 s.
+  const RESPAWN = Math.max(MODE_RULES.titanfall.respawnMs, KILLCAM.respawnMs);
+  eq(MODE_RULES.titanfall.respawnMs, 4000, 'mode respawn 4 s');
+  eq(b1.respawnAt - f.engine.now, RESPAWN, 'respawn after the killcam replay (4.8 s)');
   ok(decodeTitanfallPlayer(f.last.players.find(r => r.id === 'b1')) !== null, 'b1 row');
   f.step(1);
   const deadTf = decodeTitanfallPlayer(f.last.players.find(r => r.id === 'b1'));
   ok(deadTf.deploy && !deadTf.staged && !deadTf.deployQueued, 'a dead human waits for DEPLOY (tf deploy flag, not staged)');
-  f.step(Math.floor(4000 / TICK_MS) - 3);
-  eq(b1.state, 'dead', 'still dead before 4 s');
+  f.step(Math.floor(RESPAWN / TICK_MS) - 3);
+  eq(b1.state, 'dead', 'still dead before the respawn time');
   f.step(4);
-  eq(b1.state, 'dead', 'no respawn after 4 s without DEPLOY');
+  eq(b1.state, 'dead', 'no respawn after the respawn time without DEPLOY');
   ok(f.engine.titanfallIntent('b1', { type: 'deploy', value: packTitanLoadout({ primary: 'kraber', at: 'thunderbolt', tactical: 'cloak', titan: 'titan_legion' }) }), 'DEPLOY after the timer');
   f.step(1);
   eq(b1.state, 'alive', 'respawned on DEPLOY');
@@ -263,20 +267,20 @@ function teamEngine(map = 'harbor') {
   ok(f.engine.titanfallIntent('b1', { type: 'deploy', value: TITAN_LOADOUT_DEFAULT_PACKED }), 'early DEPLOY accepted');
   f.step(1);
   ok(decodeTitanfallPlayer(f.last.players.find(r => r.id === 'b1')).deployQueued, 'tf deployQueued');
-  f.step(Math.floor(4000 / TICK_MS) - 3);
+  f.step(Math.floor(RESPAWN / TICK_MS) - 3);
   eq(b1.state, 'dead', 'queued DEPLOY waits for the respawn timer');
   f.step(4);
   eq(b1.state, 'alive', 'queued DEPLOY spawns once the timer ran out');
   // Idle on the loadout screen: the server deploys after DEPLOY_RULES.timeoutMs past the respawn time.
   f.engine.killPlayer(b1, a1, 'rifle', false);
-  f.step(Math.floor((4000 + DEPLOY_RULES.timeoutMs) / TICK_MS) - 2);
+  f.step(Math.floor((RESPAWN + DEPLOY_RULES.timeoutMs) / TICK_MS) - 2);
   eq(b1.state, 'dead', 'idle: still on the loadout screen before the timeout');
   f.step(4);
   eq(b1.state, 'alive', 'idle: auto-deployed after the timeout');
   f.policy.scores.alpha = 5;
   f.engine.killPlayer(a2, a1, 'rifle', false);
   eq(f.policy.scores.alpha, 5, 'team kill scores nothing');
-  f.step(Math.ceil(4000 / TICK_MS) + 2);
+  f.step(Math.ceil((a2.respawnAt - f.engine.now) / TICK_MS) + 2);
   deployHumans(f.engine, ['a2']);
   // Titan: doomed by b1, finished by b2: 10 once, to the doomer (b1).
   const v = landedTitan(f, a1);
@@ -450,7 +454,7 @@ function teamEngine(map = 'harbor') {
   f.step(2);
   ok(v.hp > 0 && f.engine.vehicles.vehicles.has(v.id), 'titan survives its owner');
   eq(decodeTitanRow(f.last.vehicles.find(r => r.id === v.id)).phase, TITAN_PHASE.auto, 'auto-titan phase');
-  f.step(Math.ceil(4000 / TICK_MS) + 2);
+  f.step(Math.ceil((f.p('a1').respawnAt - f.engine.now) / TICK_MS) + 2);
   deployHumans(f.engine, ['a1']);
   ok(f.p('a1').state === 'alive', 'owner redeployed');
   eq(f.titans.ownedBy('a1'), v, 'owner keeps the titan across respawn');

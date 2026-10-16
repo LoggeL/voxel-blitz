@@ -53,8 +53,10 @@ export class ConquestHud {
   constructor(parent = globalThis.document?.body, {
     onInteract = () => {}, onDeploy = () => {}, onDeployOpen = () => {}, onSpot = () => {}, onSupport = () => {},
     combatHud = null, eventTarget = typeof window !== 'undefined' ? window : null, inputEnabled = () => true,
-    shellRaycast = null, careerProfile = () => null,
+    shellRaycast = null, careerProfile = () => null, replayHold = () => false,
   } = {}) {
+    // True while the local killcam replay runs or waits for the death intro: the deploy screen opens after it.
+    this.replayHold = typeof replayHold === 'function' ? replayHold : () => false;
     // Solid-block picker for the tank shell impact marker (the camera picker stops on water; shells don't).
     this.shellRaycast = typeof shellRaycast === 'function' ? shellRaycast : null;
     // Keys for spot and the full map only act while gameplay input is live (not in menus).
@@ -207,6 +209,13 @@ export class ConquestHud {
     return next;
   }
 
+  /** The killcam replay ended or was skipped: open the deploy screen now rather than on the next snapshot. */
+  syncReplay() {
+    if (!this.dead || !this.active || this.deploy.open || this.replayHold() || this._lastArgs?.match?.phase === 'post') return false;
+    this.deploy.setOpen(true, this.killerInfo);
+    return true;
+  }
+
   /** Touch DEPLOY button: same as pressing the deploy screen button. */
   deployNow() { return this.dead && this.deploy.open ? this.deploy.deploy() : false; }
 
@@ -242,7 +251,7 @@ export class ConquestHud {
     this.dead = !!dead;
     if (killerInfo) this.killerInfo = killerInfo;
     if (!this.dead) this.killerInfo = null;
-    const show = this.dead && this.active;
+    const show = this.dead && this.active && !this.replayHold();
     this.deploy.setOpen(show, this.killerInfo);
     this.root.dataset.dead = String(this.dead);
     if (this.dead) { this.bigMap.setOpen(false); this.reticles.clear(); this._setSight(''); this.markers.clear(); }
@@ -313,8 +322,9 @@ export class ConquestHud {
       if (selfDead !== this.dead) this.setDead(selfDead);
     }
     const post = match.phase === 'post';
-    if (post && this.deploy.open) this.deploy.setOpen(false);
-    else if (!post && this.dead && (wasHidden || !this.deploy.open)) this.deploy.setOpen(true, this.killerInfo);
+    const replay = this.dead && this.replayHold();
+    if ((post || replay) && this.deploy.open) this.deploy.setOpen(false);
+    else if (!post && !replay && this.dead && (wasHidden || !this.deploy.open)) this.deploy.setOpen(true, this.killerInfo);
     this.cq = cq;
     this.self = self;
     const selfTeam = self?.team === 'alpha' || self?.team === 'bravo' ? self.team : null;
