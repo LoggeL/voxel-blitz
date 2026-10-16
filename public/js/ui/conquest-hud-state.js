@@ -309,6 +309,8 @@ export function seatWeapons(row, seatId) {
 
 const STATUS_BADGES = Object.freeze([
   ['disabled', 'DISABLED', 'danger'], ['burning', 'BURNING', 'danger'], ['immobilized', 'IMMOBILIZED', 'warn'],
+  // Tank subsystems (shared/tank-armor.js): broken tracks, a damaged engine or turret ring.
+  ['tracksHit', 'TRACKS BROKEN', 'warn'], ['engineHit', 'ENGINE DAMAGED', 'warn'], ['turretHit', 'TURRET DAMAGED', 'warn'],
   ['flares', 'FLARES', 'info'], ['smoke', 'SMOKE', 'info'],
 ]);
 const LOCK_LABELS = Object.freeze({ 1: 'LOCKING', 2: 'LOCKED', 3: 'MISSILE INBOUND' });
@@ -957,10 +959,46 @@ export function matchEndBanner(match, selfTeam) {
     detail: `${teamDisplayName(winner)} WINS`, priority: 9, outcome: won ? 'victory' : 'defeat' };
 }
 
-/** Hitmarker variant of a vehicle_hit by the local player: yellow when effective, white spark when not. */
+/** Hitmarker variant of a vehicle_hit by the local player: yellow when effective, white spark when not (ricochets and non-penetrations too). */
 export function vehicleHitMark(ev, selfId) {
   if (ev?.kind !== 'vehicle_hit' || String(ev.attacker) !== String(selfId)) return null;
+  if (ev.res === 'rico' || ev.res === 'nopen') return 'spark';
   return ev.eff === 1 || ev.eff === true ? 'armor' : 'spark';
+}
+
+/** Readable names of the tank hit parts (shared/tank-armor.js TANK_PARTS). */
+const TANK_PART_LABELS = Object.freeze({
+  'turret-front': 'TURRET FRONT', 'turret-side': 'TURRET SIDE', 'turret-rear': 'TURRET REAR', 'turret-top': 'TURRET ROOF',
+  'hull-front': 'HULL FRONT', 'hull-side': 'HULL SIDE', 'hull-rear': 'HULL REAR', 'hull-top': 'HULL ROOF', 'hull-bottom': 'BELLY',
+  engine: 'ENGINE DECK', tracks: 'TRACKS',
+});
+const SUBSYSTEM_CALLOUTS = Object.freeze({ tracks: 'TRACKS', engine: 'ENGINE', turret: 'TURRET' });
+
+/**
+ * Callout text for an armour hit on a tank (vehicle_hit with a `part`):
+ * the shooter reads RICOCHET, NO PENETRATION, a subsystem kill ("TRACKS HIT")
+ * or the part a penetrating AT / HE round struck ("HULL REAR"); the crew of
+ * the struck tank reads what bounced or broke. Null for everything else
+ * (other hulls, small arms, someone else's hit on someone else's tank).
+ * `tone`: 'good' (our win), 'bad' (our tank hurt), 'neutral'.
+ */
+export function tankHitCallout(ev, selfId, seatedRow = null) {
+  if (ev?.kind !== 'vehicle_hit' || typeof ev.part !== 'string') return null;
+  const mine = selfId != null && String(ev.attacker) === String(selfId);
+  const ours = !!seatedRow && String(ev.vehicleId) === String(seatedRow.id);
+  if (!mine && !ours) return null;
+  const sys = SUBSYSTEM_CALLOUTS[ev.sys] ?? null;
+  if (mine) {
+    if (ev.res === 'rico') return { text: 'RICOCHET', tone: 'neutral', key: 'rico' };
+    if (ev.res === 'nopen') return { text: 'NO PENETRATION', tone: 'neutral', key: 'nopen' };
+    if (sys) return { text: `${sys} HIT`, tone: 'good', key: `sys:${ev.sys}` };
+    if (!(ev.eff === 1 || ev.eff === true) || !['at', 'he'].includes(ev.cls)) return null;
+    return { text: TANK_PART_LABELS[ev.part] ?? 'HIT', tone: 'good', key: `part:${ev.part}` };
+  }
+  if (ev.res === 'rico') return { text: 'RICOCHET · ARMOUR HELD', tone: 'neutral', key: 'rico' };
+  if (ev.res === 'nopen') return { text: 'NO PENETRATION', tone: 'neutral', key: 'nopen' };
+  if (sys) return { text: sys === 'TRACKS' ? 'TRACKS BROKEN' : `${sys} DAMAGED`, tone: 'bad', key: `sys:${ev.sys}` };
+  return null;
 }
 
 /** Hull-zone flash on our own vehicle from a vehicle_hit. */

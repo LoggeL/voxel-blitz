@@ -222,6 +222,14 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-squad-row[data-state="dead"] { opacity: 0.5; }
 .cq-squad-row[data-state="dead"] .cq-squad-state { color: var(--cq-sub); }
 .cq-spot-flash { position: absolute; left: 50%; top: calc(50% - 70px); transform: translateX(-50%); font-size: 13px; font-weight: 800; letter-spacing: 2px; color: var(--cq-danger); text-shadow: 0 1px 3px #000; }
+/* Tank armour callout under the crosshair (RICOCHET, NO PENETRATION, TRACKS HIT, HULL REAR). */
+.cq-hit-callout { position: absolute; left: 50%; top: calc(50% + 40px); transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #f4f7f9; text-shadow: 0 1px 3px #000, 0 0 6px #000a; }
+.cq-hit-callout[data-tone="good"] { color: #ffcf5c; }
+.cq-hit-callout[data-tone="bad"] { color: #ff6b6b; }
+.cq-hit-callout:not([hidden]) { animation: cq-callout-in 160ms ease-out; }
+@keyframes cq-callout-in { from { opacity: 0; transform: translate(-50%, 4px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .cq-hit-callout:not([hidden]) { animation: none; } }
 
 /* ------------------------------------------------------------- vehicle */
 .cq-vehicle {
@@ -730,7 +738,7 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   top: calc(max(10px, env(safe-area-inset-top)) + 70px);
   max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - 80px);
 }
-body:has(#scoreboard.is-open[data-mode="conquest"]) :is(.vb-conquest-hud :is(.cq-world, .cq-reticles, .cq-ring, .cq-ticker, .cq-minimap, .cq-squad, .cq-vehicle, .cq-view, .cq-interact, .cq-map-hint, .cq-banner, .cq-lock, .cq-lock-bearing, .cq-restricted, .cq-spot-flash), .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
+body:has(#scoreboard.is-open[data-mode="conquest"]) :is(.vb-conquest-hud :is(.cq-world, .cq-reticles, .cq-ring, .cq-ticker, .cq-minimap, .cq-squad, .cq-vehicle, .cq-view, .cq-interact, .cq-map-hint, .cq-banner, .cq-lock, .cq-lock-bearing, .cq-restricted, .cq-spot-flash, .cq-hit-callout), .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
 /* Phone portrait board: drop the ping column and tighten cells so names stay on one line. */
 @media (max-width: 520px) {
   #scoreboard.vb-mode-scoreboard[data-mode="conquest"] { min-width: 0; width: calc(100vw - 20px); max-width: none; padding: 12px 8px 14px; }

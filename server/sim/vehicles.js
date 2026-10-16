@@ -12,7 +12,8 @@ import { evHit } from '../protocol/events.js';
 import { PHYSICS, boxCollides } from '../../shared/player-movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { vehicleDestructionBlast } from './vehicle-destruction.js';
-import { VehicleDamageModel, occupantShielded as shieldedOccupant } from './vehicle-damage.js';
+import { VehicleDamageModel, occupantShielded as shieldedOccupant, subsystemBroken } from './vehicle-damage.js';
+import { TANK_SUBSYSTEMS, ricochetVelocity, tankArmorHit } from '../../shared/tank-armor.js';
 import { VehicleMounts } from './vehicle-mounts.js';
 import { VehicleLocks } from './vehicle-locks.js';
 import { stepJeepDrive } from '../../shared/vehicle-handling/jeep.js';
@@ -1250,8 +1251,11 @@ export class VehicleSystem {
   advanceGround(v, p, controls, dt) {
     const def = VEHICLE_RULES[v.type], handling = vehicleDef(v).handling, driver = this.momentumDriver(v);
     const previous = { x: v.x, y: v.y, z: v.z, yaw: v.yaw }, startSpeed = v.speed;
-    const drive = v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1;
-    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: controls.steer, brake: controls.brake }, dt);
+    // Broken tracks stop the hull outright (no drive, no pivot); a damaged engine caps the drive.
+    const now = this.nowMs(), tracks = v.subsystems && subsystemBroken(v, 'tracks', now);
+    const drive = (v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1)
+      * (tracks ? 0 : v.subsystems && subsystemBroken(v, 'engine', now) ? TANK_SUBSYSTEMS.engine.drive : 1);
+    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: tracks ? 0 : controls.steer, brake: controls.brake }, dt);
     // A driverless hull at rest with no body in reach: its collision pass is a
     // pure function of the fields, terrain and nearby hulls it reads, so when
     // they all equal the previous pass's inputs, that pass's result is reused.
@@ -1719,11 +1723,32 @@ export class VehicleSystem {
   // ---- damage -------------------------------------------------------------------
 
   /** Damage one hull. opts.cls is a contract damage class (or 'collision');
-   * legacy callers pass explosive:true for unmitigated physical damage. */
-  damage(id, amount, attacker, { explosive = false, cls = null, point = null, origin = null, impactVelocity = null, sourceTeam = null } = {}) {
+   * legacy callers pass explosive:true for unmitigated physical damage.
+   * `dir` and `weapon` (a direct round's world direction and key) set the
+   * plate angle and ricochet limit on a tank. */
+  damage(id, amount, attacker, { explosive = false, cls = null, point = null, origin = null, dir = null, weapon = null, impactVelocity = null, sourceTeam = null } = {}) {
     return this.damageModel.apply(this.vehicles.get(id), amount, attacker,
-      { cls: cls ?? (explosive ? 'collision' : 'small'), point, origin, impactVelocity, sourceTeam });
+      { cls: cls ?? (explosive ? 'collision' : 'small'), point, origin, dir, weapon, impactVelocity, sourceTeam });
   }
+  /**
+   * A flying AT round meets a tank plate: when the plate is too steep for it
+   * (shared/tank-armor.js), the round glances off. Returns null for a hit
+   * that lands (the caller detonates it), else { point, velocity }: where the
+   * round leaves the plate and its reflected velocity. The ricochet is
+   * reported as a zero-damage `vehicle_hit` with `res: 'rico'`.
+   */
+  ricochet(id, point, velocity, attacker, { cls = 'at', weapon = null } = {}) {
+    const v = this.vehicles.get(id);
+    if (!v || !(v.hp > 0) || vehicleDef(v)?.armorModel !== 'tank' || cls !== 'at') return null;
+    const speed = Math.hypot(...velocity);
+    if (!(speed > 0)) return null;
+    const dir = velocity.map(n => n / speed), hit = tankArmorHit(v, point, { dir, cls, weapon });
+    if (hit?.outcome !== 'rico') return null;
+    if (!this.damageModel.ricochet(v, attacker, { cls, part: hit.part, facing: hit.facing, point: hit.point })) return null;
+    return { point: hit.point.map((n, i) => n + hit.normal[i] * 0.15), velocity: ricochetVelocity(velocity, hit.normal, weapon), part: hit.part };
+  }
+  /** Whether a tank subsystem ('tracks' | 'engine' | 'turret') of hull `v` is broken now. */
+  subsystemBroken(v, id, now = this.nowMs()) { return subsystemBroken(v, id, now); }
   /** Hull death: crew die once, events fire once, the wreck blast queues.
    * `crewKey` overrides the crew's kill key (an aircraft lost to the
    * out-of-bounds timer: 'restricted'). */
@@ -1765,7 +1790,7 @@ export class VehicleSystem {
     this.damageModel.emit('vehicle_destroyed', {t:'ev',kind:'vehicle_destroyed',vehicleId:v.id,vehicleType:v.type,type:v.type,team:v.team,
       pos:[q(v.x,100),q(v.y,100),q(v.z,100)],velocity:[q(velocity.vx,100),q(velocity.vy,100),q(velocity.vz,100)],blastRadius:vehicleDef(v).destruction.radius,
       attacker:killer?.id ?? null,assists,crewKilled}, v);
-    Object.assign(v, { disabled: false, burning: false, disabledBy: null, lk: 0 });
+    Object.assign(v, { disabled: false, burning: false, disabledBy: null, lk: 0, subsystems: null });
     v.damageLog.clear();
     this.locks.breakLocks(v);
     this.titans?.onDestroyed(v, killer);
@@ -1864,6 +1889,11 @@ export class VehicleSystem {
     if (v.disabled) st |= S.disabled;
     if (v.burning) st |= S.burning;
     if (v.stuckFor > 1) st |= S.immobilized;
+    if (v.subsystems) {
+      if (subsystemBroken(v, 'tracks', now)) st |= S.tracksHit;
+      if (subsystemBroken(v, 'engine', now)) st |= S.engineHit;
+      if (subsystemBroken(v, 'turret', now)) st |= S.turretHit;
+    }
     if (v.flaresUntil > now) st |= S.flares;
     if (v.smokeUntil > now) st |= S.smoke;
     if (isAircraft(v.type) ? v.grounded : !this.fallSpeeds.has(v.id)) st |= S.grounded;

@@ -5,6 +5,7 @@
  * combat.fireMountedRay. Every accepted shot emits a `shoot` event.
  */
 import { VEHICLE_DAMAGE_RULES, VEHICLE_WEAPONS, vehicleDef, mountPose, clampMountAim, seatWeaponList } from '../../shared/vehicle-defs.js';
+import { TANK_SUBSYSTEMS } from '../../shared/tank-armor.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { fireMountedRay } from './combat.js';
 import { evVehicleShoot } from '../protocol/events.js';
@@ -115,6 +116,8 @@ export class VehicleMounts {
     const def = vehicleDef(vehicle);
     if (!def || !vehicle.mounts?.length) return;
     const slewScale = vehicle.disabled ? VEHICLE_DAMAGE_RULES.disabledSlew : 1;
+    // A damaged turret ring (tank subsystem) slows the turret's own traverse and elevation.
+    const ringScale = vehicle.subsystems && this.system.subsystemBroken?.(vehicle, 'turret') ? TANK_SUBSYSTEMS.turret.slew : 1;
     for (const state of vehicle.mounts) this.tickTimers(state, dt);
     for (const seat of def.seats) {
       if (!seat.mounts.length) continue;
@@ -126,7 +129,8 @@ export class VehicleMounts {
         if (mount.fixed) { state.yaw = finite(vehicle.yaw); state.pitch = finite(vehicle.pitch); continue; }
         const desired = input && Number.isFinite(input.yaw) ? { yaw: input.yaw, pitch: finite(input.pitch) } : { yaw: state.yaw, pitch: state.pitch };
         const target = clampAim(vehicle, mountId, desired.yaw, desired.pitch);
-        const yawStep = mount.yawRate * slewScale * dt, pitchStep = mount.pitchRate * slewScale * dt;
+        const ring = mount.turret ? ringScale : 1;
+        const yawStep = mount.yawRate * slewScale * ring * dt, pitchStep = mount.pitchRate * slewScale * ring * dt;
         state.yaw = wrap(state.yaw + clamp(wrap(target.yaw - state.yaw), -yawStep, yawStep));
         state.pitch = state.pitch + clamp(target.pitch - state.pitch, -pitchStep, pitchStep);
         // The hull may have turned under a limited mount: stay inside the arc.

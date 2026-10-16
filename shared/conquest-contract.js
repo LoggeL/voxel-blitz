@@ -95,7 +95,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'heal',              // {id, by, hp}                   Medic aura pulse: `by` restored `hp` to `id` (one per pulse per mate)
   'kit_unlocks',       // {id, level, unlocked:[kit], newly:[kit]}  career level gate; on join and on a level-up that opens a kit
   'spot',              // {by, ids:[playerOrVehicleId]}
-  'vehicle_hit',       // {vehicleId, attacker, dmg, zone, cls, eff:0|1, pos:[x,y,z]}  merged per attacker/hull/100ms
+  'vehicle_hit',       // {vehicleId, attacker, dmg, zone, cls, eff:0|1, pos:[x,y,z], part?, res?:'rico'|'nopen', sys?:'tracks'|'engine'|'turret'}  merged per attacker/hull/100ms
   'vehicle_disabled',  // {vehicleId, attacker}
   'vehicle_repaired',  // {vehicleId, by, hp}
   'countermeasure',    // {vehicleId, cm:'flares'|'smoke'}  (kind is the event discriminator)
@@ -187,7 +187,9 @@ export const vehicleMountOrder = type => (topologyOf(type) || []).flatMap(seat =
 export const seatWeaponList = (type, seatId) => ((topologyOf(type) || []).find(s => s.id === seatId)?.mounts || []).flatMap(m => m.weapons.map(w => ({ mount: m.id, weapon: w })));
 
 /** Vehicle row status bitfield `st`. */
-export const VEHICLE_STATUS = Object.freeze({ engine: 1, disabled: 2, burning: 4, immobilized: 8, flares: 16, smoke: 32, grounded: 64, wreck: 128, repairing: 256 });
+export const VEHICLE_STATUS = Object.freeze({ engine: 1, disabled: 2, burning: 4, immobilized: 8, flares: 16, smoke: 32, grounded: 64, wreck: 128, repairing: 256,
+  // Tank subsystems (shared/tank-armor.js TANK_SUBSYSTEMS): broken tracks, damaged engine, damaged turret ring.
+  tracksHit: 512, engineHit: 1024, turretHit: 2048 });
 export const vehicleStatus = row => Object.fromEntries(Object.entries(VEHICLE_STATUS).map(([k, bit]) => [k, ((row?.st | 0) & bit) !== 0]));
 
 /** Player row field `cq` (Conquest only): [kitIndex(-1 none), squadId(0 none), down(0/1), spotted(0/1), restrictedDs (tenths of s left, 0 none), lockProgress(0..100), actionProgress(0..100), chute?]

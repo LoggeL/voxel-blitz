@@ -9,7 +9,7 @@ import { bindingLabel, isTypingTarget, matchesBinding } from '../keybindings.js'
 import {
   bannerForEvent, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
   killerCard, kitUnlockBanner, kitUnlockState, lockerModel, mapItems, matchEndBanner, nextFreeSeatIndex, ownKitUnlocks, readConquest,
-  restrictedModel, reticleModel, scoreEntry, seatedVehicle, spreadEdgeMarkers, squadListModel, ticketModel, unitMarkerModels,
+  restrictedModel, reticleModel, scoreEntry, seatedVehicle, spreadEdgeMarkers, squadListModel, tankHitCallout, ticketModel, unitMarkerModels,
   vehicleHitMark, vehiclePanelModel,
 } from './conquest-hud-state.js';
 import { KITS, decodeConquestPlayer } from '../../../shared/conquest-contract.js';
@@ -90,6 +90,10 @@ export class ConquestHud {
     this.interact = new InteractPrompt(this.root, { onInteract, onSupport });
     this.spotFlash = el('div', 'cq-spot-flash', this.root);
     this.spotFlash.hidden = true;
+    // Tank armour callout under the crosshair: RICOCHET, NO PENETRATION, TRACKS HIT, HULL REAR.
+    this.hitCallout = el('div', 'cq-hit-callout', this.root);
+    this.hitCallout.setAttribute('aria-live', 'polite');
+    this.hitCallout.hidden = true;
     this.bigMapHint = el('div', 'cq-map-hint', this.root);
     this.bigMap = new BigMap(this.root);
     this.deploy = new DeployScreen(this.root, { onDeploy, onOpen: onDeployOpen,
@@ -117,6 +121,7 @@ export class ConquestHud {
     this._shownAt = clockNow();
     this._hintUsed = false;
     this._spotUntil = 0;
+    this._calloutUntil = 0;
     this._interactDownAt = null;
     this._downSince = null;
     this._endKey = null;
@@ -449,6 +454,7 @@ export class ConquestHud {
     if (!touch && this.bigMapHint.textContent !== hint) this.bigMapHint.textContent = hint;
     this.bigMapHint.hidden = touch || !hint;
     this.spotFlash.hidden = now >= this._spotUntil;
+    this.hitCallout.hidden = now >= this._calloutUntil;
   }
 
   /** Forget the measured HUD panel rects (after a layout change the caller knows about). */
@@ -544,6 +550,13 @@ export class ConquestHud {
         if (mark) this.combatHud?.hitmark?.(mark);
         const flash = hullZoneFlash(ev, this.seated?.row);
         if (flash) this.vehiclePanel.flashZone(flash, now);
+        const callout = tankHitCallout(ev, selfId, this.seated?.row);
+        if (callout) {
+          this.hitCallout.textContent = callout.text;
+          this.hitCallout.dataset.tone = callout.tone;
+          this._calloutUntil = now + (callout.tone === 'bad' ? 2200 : 1300);
+          this.hitCallout.hidden = false;
+        }
         break;
       }
       case 'vehicle_destroyed':

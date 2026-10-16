@@ -82,6 +82,8 @@ const OWNER_GRACE_MS = 220;
 const CHAIN_REACH = 0.8;
 /** A bolt contact ends in this tiny "blast" — a pop, never a real explosion. */
 const BOLT_FIZZLE_RADIUS = 0.5;
+/** An AT round glances off tank plates at most this often; the next contact detonates. */
+const MAX_RICOCHETS = 2;
 /** The RIPTIDE's fixed weapon slot: catches and fabrications land here in any hand. */
 const GLAIVE_SLOT = WEAPON_IDS.indexOf('glaive');
 /** Every returning or seeking disc re-publishes its steered path this often (ms). */
@@ -402,12 +404,30 @@ export class ProjectileSystem {
     stepRocket(projectile, seconds, projectile.raycast);
     const delta = [projectile.x - prev.x, projectile.y - prev.y, projectile.z - prev.z];
     const distance = Math.hypot(...delta);
-    const hull = distance > 0 ? ctx.vehicles?.rayHit([prev.x, prev.y, prev.z], delta.map(v => v / distance), distance, projectile.vehicleId) : null;
+    // After a ricochet the round ignores the hull it glanced off (it leaves that plate).
+    const ignore = projectile.ricochetHullId ?? projectile.vehicleId;
+    const hull = distance > 0 ? ctx.vehicles?.rayHit([prev.x, prev.y, prev.z], delta.map(v => v / distance), distance, ignore) : null;
     const contact = this._sweepVictim(prev, projectile, ROCKET_RULES.radius, ctx, projectile);
-    if (hull && hull.id !== projectile.vehicleId && (!contact || hull.distance <= Math.hypot(contact.x-prev.x, contact.y-prev.y, contact.z-prev.z))) {
-      [projectile.x, projectile.y, projectile.z] = [prev.x, prev.y, prev.z].map((v,i) => v + delta[i] * hull.distance / distance);
+    if (hull && hull.id !== ignore && (!contact || hull.distance <= Math.hypot(contact.x-prev.x, contact.y-prev.y, contact.z-prev.z))) {
+      const point = [prev.x, prev.y, prev.z].map((v,i) => v + delta[i] * hull.distance / distance);
+      const cls = projectile.hullCls ?? projectile.blastRules?.cls ?? null;
+      // An AT round on a tank plate past its ricochet angle glances off instead of detonating.
+      const glance = hull.vehicle?.hp > 0 && cls === 'at' && !(projectile.ricochets >= MAX_RICOCHETS)
+        ? ctx.vehicles?.ricochet?.(hull.id, point, [projectile.vx, projectile.vy, projectile.vz], projectile.owner, { cls, weapon: projectile.weaponKey ?? projectile.type })
+        : null;
+      if (glance) {
+        [projectile.x, projectile.y, projectile.z] = glance.point;
+        [projectile.vx, projectile.vy, projectile.vz] = glance.velocity;
+        projectile.ricochetHullId = hull.id;
+        projectile.ricochets = (projectile.ricochets ?? 0) + 1;
+        projectile.hit = null;
+        ctx.pushEvent(evProjectileUpdate(projectile.id, glance.point, glance.velocity));
+        return false;
+      }
+      [projectile.x, projectile.y, projectile.z] = point;
       projectile.directVehicleId = hull.vehicle?.hp > 0 ? hull.id : null;
-      projectile.directPoint = [projectile.x, projectile.y, projectile.z];
+      projectile.directPoint = point;
+      projectile.directDir = delta.map(v => v / distance);
       return this.explode(projectile, ctx);
     }
     if (contact) {
@@ -1590,7 +1610,8 @@ export class ProjectileSystem {
         : projectile.hullDirect ?? rules.directDamage;
       if (splash > 0) ctx.vehicles?.explosion(origin, rules.damageRadius, splash, owner, { cls: splashCls });
       if (projectile.directVehicleId && Number.isFinite(direct) && direct > 0) {
-        ctx.vehicles?.damage(projectile.directVehicleId, direct, owner, { cls: directCls, point: projectile.directPoint ?? origin });
+        ctx.vehicles?.damage(projectile.directVehicleId, direct, owner, { cls: directCls, point: projectile.directPoint ?? origin,
+          dir: projectile.directDir ?? null, weapon: projectile.weaponKey ?? projectile.type });
       }
     }
     if (ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'mgl'

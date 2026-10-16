@@ -278,7 +278,7 @@ const handlingRules = {
  */
 const shapes = {
   jeep: { handling: 'wheeled', armor: 'light', openCrew: true, collider: { halfWidth: 1.15, halfLength: 2.12 } },
-  tank: { handling: 'tracked', armor: 'heavy', openCrew: false, collider: { halfWidth: 1.95, halfLength: 2.6 } },
+  tank: { handling: 'tracked', armor: 'heavy', armorModel: 'tank', openCrew: false, collider: { halfWidth: 1.95, halfLength: 2.6 } },
   helicopter: { handling: 'rotor', armor: 'air', openCrew: false, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   transport: { handling: 'rotor', armor: 'air', openCrew: true, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   plane: { handling: 'fixedwing', armor: 'air', openCrew: false, collider: { halfWidth: 4.5, halfLength: 5 }, hullBoxes: PLANE_BOXES, gearBoxes: [7, 8] },

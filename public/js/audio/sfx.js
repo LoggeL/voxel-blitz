@@ -2410,6 +2410,22 @@ export const sfx = {
     return true;
   },
 
+  /** A round glancing off a tank plate: the ricochet whine over a light plate ping (the crew hears it inside). */
+  vehicleRicochet(pos, { self = false } = {}) {
+    const at = positionFrom(pos);
+    if (!self && listenerDistance(at) > 170) return false;
+    if (!cqBudget(self ? 'hullSelf' : 'hull', HULL_HIT_SOUND.window, self ? HULL_HIT_SOUND.selfBudget : HULL_HIT_SOUND.budget)) return false;
+    run('vehicleRicochet', () => {
+      const t0 = cqOneShot('cq.hull.small', { pos: self ? null : at, priority: 2 }, { gain: 0.8, rate: 0.85 });
+      if (cqOneShot('cq.ricochet', { pos: self ? null : at, priority: 2 }, { gain: 1.1, rate: 0.75 + Math.random() * 0.15, delay: 0.02 }) || t0) return;
+      const output = pool.acquire({ pos: self ? null : at, priority: 2 }, 0.7);
+      const t = primitives.nowT();
+      primitives.tone(output, { t0: t, type: 'triangle', f0: 2400, f1: 900, att: 0.002, dec: 0.45, g: 0.2 });
+      primitives.tone(output, { t0: t, type: 'sine', f0: 520, f1: 380, att: 0.001, dec: 0.2, g: 0.18 });
+    });
+    return true;
+  },
+
   /** Positional burning crackle for a burning hull or a fresh wreck; refresh each frame. */
   vehicleBurning(id, pos, intensity = 1) {
     const at = positionFrom(pos);

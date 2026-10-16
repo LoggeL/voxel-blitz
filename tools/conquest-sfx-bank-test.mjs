@@ -305,6 +305,8 @@ try {
   ctx.currentTime = 10;
   check(() => assert.deepEqual(groups(fresh(() => sfx.vehicleTurret('tt', [0, 2, -10], 1))), ['cq.tank.turret'], 'turret'));
   check(() => assert.deepEqual(groups(fresh(() => sfx.vehicleTurret('tt', [0, 2, -10], 0))), ['cq.tank.turretStop'], 'traverse stop clunk'));
+  // A round glancing off a tank plate: a light plate ping under the ricochet whine.
+  check(() => assert.deepEqual(groups(fresh(() => sfx.vehicleRicochet([0, 2, -10]))), ['cq.hull.small', 'cq.ricochet'], 'tank ricochet'));
   sfx.stopVehicleCues();
 
   // Pass-bys: the loudest moment lands on the closest approach.

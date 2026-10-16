@@ -236,6 +236,12 @@ const transitions = events.filter(e => e.kind === 'flag_captured' || e.kind === 
 const vehicleShots = events.filter(e => e.kind === 'shoot' && e.vehicleWeapon);
 const vehicleWeaponKeys = [...new Set(vehicleShots.map(e => e.vehicleWeapon))];
 const vehicleHits = events.filter(e => e.kind === 'vehicle_hit');
+// Tank armour outcomes (shared/tank-armor.js): AT / HE hits on tanks by result and the subsystems they broke.
+const tankArmourHits = vehicleHits.filter(e => typeof e.part === 'string' && (e.cls === 'at' || e.cls === 'he'));
+const tankArmour = { hits: tankArmourHits.length, rico: tankArmourHits.filter(e => e.res === 'rico').length,
+  nopen: tankArmourHits.filter(e => e.res === 'nopen').length,
+  sys: Object.fromEntries(['tracks', 'engine', 'turret'].map(id => [id, tankArmourHits.filter(e => e.sys === id).length])),
+  tanksDestroyed: events.filter(e => e.kind === 'vehicle_destroyed' && e.type === 'tank').length };
 const destroyed = events.filter(e => e.kind === 'vehicle_destroyed');
 const tickets = policy.conquestView?.().tickets ?? policy.tickets ?? {};
 const maxTickets = CONQUEST_RULES.tickets;
@@ -246,7 +252,7 @@ const report = {
   firstCaptureS: captures.length ? +at(captures[0]).toFixed(1) : null,
   kills: kills.length, infantryKills: infantryKills.length, infantryWeaponKills: infantryWeaponKills.length,
   vehicleShots: vehicleShots.length, vehicleWeaponKeys,
-  vehicleHits: vehicleHits.length, vehiclesDestroyed: destroyed.length,
+  vehicleHits: vehicleHits.length, vehiclesDestroyed: destroyed.length, tankArmour,
   flagTransitions: transitions.length,
   flags: (policy.conquestView?.().flags ?? []).map(f => `${f.id}:${f.owner ?? '-'}`).join(' '),
   respawns: respawnDistances.length, respawnKinds,

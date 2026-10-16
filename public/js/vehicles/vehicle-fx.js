@@ -696,6 +696,14 @@ export class VehicleFx {
     this._count(ev.eff ? 'hit' : 'ping');
     const item = this.view?.item(ev.vehicleId);
     const self = item ? this._rowIsSelf(item.row) : false;
+    if (ev.res === 'rico') {
+      // A round glancing off a tank plate: a hot spark fan and the ricochet whine, no scorch.
+      this.fx?.emit('spark', pos, { count: 22, speed: 1.8, scale: 1.1, spread: 0.9, color0: [6, 4.2, 1.6], color1: [2.4, 1.2, 0.4] });
+      this.fx?.emit('smoke', pos, { count: 2, speed: 0.5, scale: 0.4 });
+      this.sfx?.vehicleRicochet?.(pos, { self });
+      if (self && item) this.shake?.add(0.12);
+      return true;
+    }
     if (!ev.eff) {
       // Rounds that cannot hurt this armour: a white spark and a ping only.
       this.fx?.emit('spark', pos, { count: 3, speed: 0.6, scale: 0.8, color0: [3, 3, 3], color1: [1.4, 1.4, 1.4] });

@@ -178,13 +178,21 @@ export function evVehicleShoot(id, origin, dir, presentation, { vehicleId, mount
   return event;
 }
 
-/** Hull damage feedback, merged per attacker, hull and window (contract `vehicle_hit`). */
-export function evVehicleHit(vehicleId, attacker, dmg, zone, cls, eff, pos) {
-  return {
+/**
+ * Hull damage feedback, merged per attacker, hull and window (contract `vehicle_hit`).
+ * Tank hits add the struck `part`, the outcome `res` ('rico' | 'nopen', omitted for a
+ * penetration) and `sys`, the subsystem the window broke ('tracks' | 'engine' | 'turret').
+ */
+export function evVehicleHit(vehicleId, attacker, dmg, zone, cls, eff, pos, { part = null, res = null, sys = null } = {}) {
+  const event = {
     t: 'ev', kind: 'vehicle_hit', vehicleId: String(vehicleId), attacker: attacker == null ? null : String(attacker),
     dmg: round(dmg, 1), zone: String(zone), cls: String(cls), eff: eff ? 1 : 0,
     pos: [round(pos?.[0], D2), round(pos?.[1], D2), round(pos?.[2], D2)],
   };
+  if (part) event.part = String(part);
+  if (res === 'rico' || res === 'nopen') event.res = res;
+  if (sys) event.sys = String(sys);
+  return event;
 }
 
 export function evVehicleDisabled(vehicleId, attacker) {
