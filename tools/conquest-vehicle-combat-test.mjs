@@ -12,7 +12,7 @@ import { TANK_ARMOR } from '../shared/tank-armor.js';
 import { VEHICLE_DEFS, VEHICLE_WEAPONS, VEHICLE_DAMAGE_RULES, CONQUEST_ROCKET_PROFILE, vehicleLocalPoint, mountPose, seatWeaponList, vehicleMaxHp } from '../shared/vehicle-defs.js';
 import { vehicleWeaponBlast } from '../shared/weapon-aircraft-projectiles.js';
 import { vehicleSeats } from '../shared/vehicle-seats.js';
-import { VEHICLE_STATUS, VEHICLE_TYPE_IDS, VEHICLE_WEAPON_META, vehicleMountOrder } from '../shared/conquest-contract.js';
+import { VEHICLE_STATUS, VEHICLE_TYPE_IDS, VEHICLE_WEAPON_META, isStoreMount, vehicleMountOrder } from '../shared/conquest-contract.js';
 import { playerHullContact } from '../shared/player-vehicle-collision.js';
 
 const TICK = 1000 / 60;
@@ -300,6 +300,11 @@ for (const type of VEHICLE_TYPE_IDS) {
     const list = seatWeaponList(type, seat.id), p = crew[index];
     for (const [weaponIndex, entry] of list.entries()) {
       if (list.length > 1) assert(f.game.vehicles.action(p, { type: 'weapon', index: weaponIndex }), 'weapon action selects');
+      if (VEHICLE_WEAPON_META[entry.weapon]?.kind === 'bomb') {
+        // The jet's other store loads on the ground (4 s), and bombs only release in the air.
+        f.tick(Math.ceil(60 * 4.2));
+        Object.assign(f.vehicle('v'), { y: f.vehicle('v').y + 80, grounded: false });
+      }
       f.frames.length = 0;
       const look = lookAt([p.x, p.y, p.z], vehicleLocalPoint(f.vehicle('v'), seat.position[0] * 10, 1.5, -12));
       f.aim(p, { ...look, wantFire: true });
@@ -317,7 +322,8 @@ for (const type of VEHICLE_TYPE_IDS) {
   assert.deepEqual([...covered].sort(), [...vehicleMountOrder(type)].sort(), `${type}: every mount fired`);
   const row = f.frames.at(-1).vehicles.find(r => r.id === 'v');
   assert.equal(row.mounts.length, vehicleMountOrder(type).length, 'mounts[] follows vehicleMountOrder');
-  for (const mount of row.mounts) assert.equal(mount.length, 5);
+  // A store mount's row adds the loaded store's index (the jet's AA missiles or bombs).
+  for (const [i, mount] of row.mounts.entries()) assert.equal(mount.length, isStoreMount(type, vehicleMountOrder(type)[i].split(':')[1]) ? 6 : 5);
 }
 
 // ------------------------------------------- a seat switch moves weapon control within one tick
