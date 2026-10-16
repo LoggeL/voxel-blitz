@@ -152,7 +152,7 @@ The driver's gun reticle shows where the shell will land. The impact marker is w
 | --- | --- |
 | Pylons | 2, each re-arms 20 s after its release (`rearmSeconds`) |
 | Release | airborne only (refused on the runway), 0.5 s between bombs; the bomb leaves with the jet's velocity plus 3 m/s down (`bombReleaseVelocity`) and falls ballistically (9.8 m/s², 15 s fuse) |
-| Direct hit | 500, class `at` (a hit on a tank's deck: ×1.3 top and AT → about 890 of 1000) |
+| Direct hit | 500, class `at` (a hit on a tank's deck, through the tank armour model: about 945 of 1000) |
 | Splash | 420 within 9 m, class `he` (infantry within ~4 m and jeeps die; a tank 7 m away takes about 65) |
 | Terrain | crater radius 6 m, power 300, at most 300 blocks |
 
