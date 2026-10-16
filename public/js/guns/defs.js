@@ -145,12 +145,10 @@ export const TIMERS = {
     cycleKind: null,
     ejectOnFire: true,
     magTimeline: { start: 0.16, home: 0.84, clickAt: 0.93, type: 'belt' },
-    // Show the exposed rotor beside the round motor housing in hip fire.
-    hipOffset: { x: 0.18, y: -0.25, z: -0.40 },
-    hipYaw: 0.35,
+    // Hold the receiver at the side without turning the barrels off the shot ray.
+    hipOffset: { x: 0.12, y: -0.25, z: -0.40 },
     // Brace the heavy receiver at the side, slightly closer, with a clear target.
-    adsOffset: { x: 0.15, y: -0.24, z: -0.38 },
-    adsYaw: 0.30,
+    adsOffset: { x: 0.09, y: -0.24, z: -0.38 },
     kick: { stiffness: 205, damping: 25, yawWobble: 0.75 },
   },
   revolver: {

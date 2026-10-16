@@ -3,6 +3,7 @@ import * as THREE from '../public/js/vendor/three.module.js';
 import { WeaponAimMotion, SPRINT_AIM_DIP } from '../public/js/guns/weapon-aim.js';
 import { projectAimReticle } from '../public/js/ui/aim-reticle.js';
 import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
+import { TracerFX } from '../public/js/weapons/ballistics.js';
 import { LocalPlayer } from '../public/js/player/local-player.js';
 import { WEAPONS } from '../shared/combatmath.js';
 import { LEAN } from '../shared/player-lean.js';
@@ -83,6 +84,65 @@ for (const pitch of [-Math.PI / 3, 0, Math.PI / 3]) {
   rig.ads(0);
 }
 rig.dispose();
+
+// A side hold translates the minigun but must not yaw its bore away from the
+// shot. Exercise actual turn lag and the rendered tracer throughout bracing.
+{
+  const camera = new THREE.PerspectiveCamera(75, 16 / 9, 0.01, 400);
+  camera.position.set(3, 1.6, 5);
+  camera.rotation.order = 'YXZ';
+  const minigun = new ViewmodelRig(camera);
+  const tracers = new TracerFX(new THREE.Scene(), () => 0);
+  tracers.setMuzzleProvider(out => minigun.getMuzzleWorldPos(out));
+  const still = { grounded: true, aimSwayScale: 0, reducedMotion: true, shotYaw: 0, shotPitch: 0,
+    weaponAim: { yaw: 0, pitch: 0, turn: { yaw: 0, pitch: 0, roll: 0, x: 0, y: 0 } } };
+  const checkBore = stage => {
+    for (const yaw of [-1.2, 1.2]) for (const pitch of [-Math.PI / 3, 0, Math.PI / 3]) {
+      camera.rotation.set(pitch, yaw, 0);
+      const motion = new WeaponAimMotion();
+      const handling = { weapon: 'minigun', weightKg: WEAPONS.minigun.weightKg,
+        handling: WEAPONS.minigun.handling, ads: minigun._adsSmooth };
+      motion.update(0, { ...handling, yaw: yaw - 0.18, pitch: pitch + 0.1 });
+      const weaponAim = motion.update(1 / 60, { ...handling, yaw, pitch });
+      assert.ok(Math.abs(weaponAim.yaw) > 0.1 && Math.abs(weaponAim.pitch) > 0.05,
+        'minigun fixture retains real horizontal and vertical aim lag');
+      const shotYaw = yaw + weaponAim.yaw, shotPitch = pitch + weaponAim.pitch;
+      minigun.update(1 / 60, { ...still, weaponAim, shotYaw, shotPitch });
+      const expected = new THREE.Vector3(-Math.sin(shotYaw) * Math.cos(shotPitch),
+        Math.sin(shotPitch), -Math.cos(shotYaw) * Math.cos(shotPitch));
+      const bore = new THREE.Vector3(0, 0, -1).applyQuaternion(
+        minigun._cur.muzzleMarker.getWorldQuaternion(new THREE.Quaternion()));
+      const error = bore.angleTo(expected);
+      assert.ok(error < 1e-6,
+        `minigun ${stage} bore follows the shot at yaw ${yaw}, pitch ${pitch}; error ${error} rad`);
+
+      tracers.reset();
+      const target = camera.position.clone().addScaledVector(expected, 180);
+      tracers.spawnTracer(camera.position.toArray(), expected, WEAPONS.minigun.tracer.len,
+        WEAPONS.minigun, target.toArray());
+      const matrix = new THREE.Matrix4();
+      tracers.tracerMesh.getMatrixAt(0, matrix);
+      const origin = new THREE.Vector3().setFromMatrixPosition(matrix);
+      const direction = new THREE.Vector3(0, 0, -1).transformDirection(matrix);
+      assert.ok(origin.distanceTo(minigun.getMuzzleWorldPos(new THREE.Vector3())) < 1e-6,
+        `minigun ${stage} tracer starts at the visible muzzle`);
+      assert.ok(new THREE.Ray(origin, direction).distanceToPoint(target) < 1e-4,
+        `minigun ${stage} tracer converges on the authoritative far ray`);
+      assert.ok(bore.angleTo(direction) < 0.2 * Math.PI / 180,
+        `minigun ${stage} tracer leaves along the bore with only distant-target parallax`);
+    }
+  };
+  try {
+    minigun.setWeapon('minigun');
+    for (let i = 0; i < 240; i++) minigun.update(1 / 60, still);
+    checkBore('hip');
+    minigun.ads(1);
+    checkBore('ADS transition');
+    assert.ok(minigun._adsSmooth > 0 && minigun._adsSmooth < 0.95, 'transition checks run before full ADS');
+    for (let i = 0; i < 240; i++) minigun.update(1 / 60, still);
+    checkBore('full ADS');
+  } finally { tracers.dispose(); minigun.dispose(); }
+}
 
 const input = new Proxy({ consumeDelta: () => ({ dx: 0, dy: 0 }),
   getKeys: () => ({ forward: true, sprint: true }), setGameplayEnabled() {},

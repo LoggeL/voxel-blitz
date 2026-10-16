@@ -8,7 +8,9 @@ gun at the side, brings it slightly closer, adds mild zoom and slows look input.
 Alternative C represents this framing intent. Its generated geometry is only a
 rough composition reference; the shipped Blender model provides the geometry.
 
-The runtime retains a sideways hold in ADS and keeps the center target clear.
+The runtime holds the gun beside the view in ADS and keeps the center target
+clear. Only its position is offset: the barrels stay aligned with the actual
+shot direction, including during the transition into and out of ADS.
 It uses 1.15× zoom and a 25% sensitivity reduction beyond zoom compensation.
 The five heat cells remain visible on desktop and portrait mobile. No material
 or geometry changes were needed for this aiming adjustment.

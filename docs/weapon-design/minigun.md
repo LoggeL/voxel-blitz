@@ -13,7 +13,9 @@ rotor reaches full speed, pressing fire starts shooting immediately. Aim can
 stay held during trigger pauses to keep the rotor ready.
 
 Aiming braces the gun at the player's side, pulling it slightly closer while
-keeping the center of the screen clear. It uses a mild 1.15× zoom relative to
+keeping the center of the screen clear. The side hold uses a position offset;
+the barrel axis follows the actual shot direction in both hip fire and ADS.
+It uses a mild 1.15× zoom relative to
 the player's chosen field of view. Look sensitivity eases down by another 25%
 on top of normal zoom compensation, across mouse, touch and controller input.
 The minigun has no selectable optics or full-screen scope. Saved optic choices
@@ -42,7 +44,9 @@ cooling, eligibility gates, the thermal lifecycle, model animation, and the
 shipped Blender asset's six-barrel contract. `node tools/hydra-browser-test.mjs`
 loads that asset in Chromium and verifies movement of actual barrel vertices,
 stationary receiver geometry, per-weapon heat isolation, first-person and avatar
-animation, and desktop/mobile captures with a clear braced aiming view.
+animation, barrel alignment with the shot ray, and desktop/mobile captures with
+a clear braced aiming view. `node tools/weapon-aim-test.mjs` also checks minigun
+barrel and tracer alignment while turning and entering ADS.
 
 ## Visual reference
 

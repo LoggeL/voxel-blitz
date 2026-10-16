@@ -19,6 +19,7 @@ async function checkImportedHydra() {
   const { animateHeavyWeapon } = await import('/js/guns/heavy-weapon-animation.js');
   const { ViewmodelRig } = await import('/js/guns/viewmodel.js');
   const { AvatarWeaponModel } = await import('/js/avatar/avatar-weapon.js');
+  const { fwdFromAngles } = await import('/js/util/look.js');
   const must = (value, message) => { if (!value) throw new Error(message); };
   const close = (a, b, message) => must(Math.abs(a - b) < 1e-6, message);
   const meshes = (root) => {
@@ -48,6 +49,9 @@ async function checkImportedHydra() {
   const cache = new MaterialCache();
   const gun = buildGun('minigun', cache), coldGun = buildGun('minigun', cache);
   const rig = new ViewmodelRig(new THREE.PerspectiveCamera(75, 16 / 9, 0.01, 100));
+  const aimCamera = new THREE.PerspectiveCamera(75, 16 / 9, 0.01, 100);
+  aimCamera.rotation.order = 'YXZ';
+  const aimRig = new ViewmodelRig(aimCamera);
   const remote = new AvatarWeaponModel();
   try {
     const { rotor, barrels } = barrelsOf(gun.body);
@@ -107,13 +111,55 @@ async function checkImportedHydra() {
     remote.update({ weapon: 'minigun', minigun: { spin: 0, heat: 0 }, dt: 0.1 });
     close(avatar.rotor.rotation.z, 2.1, 'remote spin zero stops the rotor');
     must(materialRoles(rig._cur.body).thermal.every(material => material.emissiveIntensity > 1), 'remote cooling leaves local hot barrels intact');
+    // Check the real exported barrel end rings against the same angles used by
+    // ballistics. A turning rotor alone cannot detect a cosmetically yawed gun.
+    aimRig.setWeapon('minigun');
+    const aimed = barrelsOf(aimRig._cur.body);
+    const barrelEnds = aimed.barrels.map(mesh => {
+      const positions = mesh.geometry.attributes.position;
+      mesh.geometry.computeBoundingBox();
+      const { min, max } = mesh.geometry.boundingBox;
+      must(max.z - min.z > 0.4, 'authored barrel has distinct front and rear end rings');
+      const front = new THREE.Vector3(), rear = new THREE.Vector3();
+      const frontVertices = new Map(), rearVertices = new Map();
+      for (let i = 0; i < positions.count; i++) {
+        const point = new THREE.Vector3().fromBufferAttribute(positions, i);
+        const key = point.toArray().map(value => value.toFixed(7)).join(',');
+        if (Math.abs(point.z - min.z) < 1e-6) frontVertices.set(key, point);
+        if (Math.abs(point.z - max.z) < 1e-6) rearVertices.set(key, point);
+      }
+      must(frontVertices.size >= 6 && rearVertices.size >= 6, 'barrel direction is measured from visible end-ring vertices');
+      for (const point of frontVertices.values()) front.add(point);
+      for (const point of rearVertices.values()) rear.add(point);
+      return { mesh, front: front.divideScalar(frontVertices.size), rear: rear.divideScalar(rearVertices.size) };
+    });
+    const barrelAlignment = [];
+    for (const ads of [0, 0.5, 1]) {
+      aimRig.ads(ads);
+      for (const [name, cameraYaw, cameraPitch] of [['level', 0, 0], ['up-turned', 1.2, Math.PI / 3], ['down-turned', -0.8, -Math.PI / 3]]) {
+        aimCamera.rotation.set(cameraPitch, cameraYaw, 0);
+        const shotYaw = cameraYaw + 0.15, shotPitch = cameraPitch - 0.11;
+        const ctx = { grounded: true, aimSwayScale: 0, reducedMotion: true, shotYaw, shotPitch };
+        for (let frame = 0; frame < 180; frame++) aimRig.update(1 / 60, ctx);
+        aimCamera.updateMatrixWorld(true);
+        const expected = new THREE.Vector3().copy(fwdFromAngles(shotYaw, shotPitch));
+        const barrelError = Math.max(...barrelEnds.map(({ mesh, front, rear }) =>
+          mesh.localToWorld(front.clone()).sub(mesh.localToWorld(rear.clone())).normalize().angleTo(expected)));
+        const muzzleError = new THREE.Vector3(0, 0, -1)
+          .transformDirection(aimRig._cur.muzzleMarker.matrixWorld).angleTo(expected);
+        barrelAlignment.push({ ads, camera: name, barrelErrorDegrees: THREE.MathUtils.radToDeg(barrelError),
+          muzzleErrorDegrees: THREE.MathUtils.radToDeg(muzzleError) });
+      }
+    }
+    must(barrelAlignment.every(sample => sample.barrelErrorDegrees < 0.001 && sample.muzzleErrorDegrees < 0.001),
+      `visible barrel and muzzle axes must follow the authoritative shot ray: ${JSON.stringify(barrelAlignment)}`);
     return { asset: gun.body.userData.blenderAsset, visibleBarrels: barrels.length,
       rotorChildren: meshes(rotor).length, barrelVertexBefore: before.toArray(), barrelVertexAfter: after.toArray(),
       barrelVertexTravel: before.distanceTo(after), fixedReceiverTravel: vertex(receiver).distanceTo(fixedBefore),
       localRotorRadians: local.rotor.rotation.z, remoteRotorRadians: avatar.rotor.rotation.z,
-      thermalMaterials: hot.thermal.length, heatIndicators: hot.lamps.length };
+      thermalMaterials: hot.thermal.length, heatIndicators: hot.lamps.length, barrelAlignment };
   } finally {
-    rig.dispose(); remote.dispose(); disposeGunModels([gun, coldGun], cache);
+    rig.dispose(); aimRig.dispose(); remote.dispose(); disposeGunModels([gun, coldGun], cache);
   }
 }
 
@@ -163,9 +209,15 @@ async function installCaptureHarness() {
       const center = cell.localToWorld(cell.geometry.boundingBox.getCenter(new THREE.Vector3()));
       const projected = center.clone().project(camera);
       const inFrame = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1;
+      const positions = cell.geometry.attributes.position;
+      let fullyInFrame = true;
+      for (let i = 0; i < positions.count; i++) {
+        const point = cell.localToWorld(new THREE.Vector3().fromBufferAttribute(positions, i)).project(camera);
+        fullyInFrame &&= Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1;
+      }
       const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera);
       const hit = ray.intersectObjects(rayTargets, false)[0];
-      return { name: cell.name, inFrame, visible: inFrame && hit?.object === cell,
+      return { name: cell.name, inFrame, fullyInFrame, visible: inFrame && hit?.object === cell,
         projectedCenter: projected.toArray(),
         occluder: hit && hit.object !== cell ? hit.object.name : null };
     });
@@ -287,8 +339,13 @@ try {
     assert.equal(result.asset, 'hydra', `${name}: uses authored asset`);
     assert.equal(result.finite, true, `${name}: finite transforms`);
     assert.ok(result.inFrameRotorVertices > 0, `${name}: actual rotor projects into the frame`);
+    const screenshot = await page.send('Page.captureScreenshot', { format: 'png' });
+    const bytes = Buffer.from(screenshot.data, 'base64');
+    assert.ok(bytes.length > 10000, `${name}: rendered screenshot`);
+    await writeFile(path.join(out, `${name}.png`), bytes);
+    report.captures[name] = { ...options, ...result, bytes: bytes.length };
     if (options.kind === 'viewmodel' && ['held', 'firing', 'scoped'].includes(options.state)) {
-      assert.equal(result.heatCellVisibility.filter(cell => cell.visible).length, 5,
+      assert.equal(result.heatCellVisibility.filter(cell => cell.visible && cell.fullyInFrame).length, 5,
         `${name}: all five temperature cells are in frame and unoccluded: ${JSON.stringify(result.heatCellVisibility)}`);
     }
     if (options.kind === 'viewmodel' && options.state === 'scoped') {
@@ -297,11 +354,6 @@ try {
       assert.ok(Math.abs(result.cameraFov - mildZoomFov) < 1e-6, `${name}: braced aim uses the 1.15x camera zoom`);
     }
     assert.ok(result.triangles > 1000, `${name}: substantial model geometry rendered`);
-    const screenshot = await page.send('Page.captureScreenshot', { format: 'png' });
-    const bytes = Buffer.from(screenshot.data, 'base64');
-    assert.ok(bytes.length > 10000, `${name}: rendered screenshot`);
-    await writeFile(path.join(out, `${name}.png`), bytes);
-    report.captures[name] = { ...options, ...result, bytes: bytes.length };
   };
   const viewports = [{ name: 'desktop', width: 1600, height: 900 }, { name: 'mobile', width: 390, height: 844 }];
   for (const viewport of viewports) {
