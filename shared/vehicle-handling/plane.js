@@ -1,7 +1,7 @@
 /** Fixed-wing jet. Distances are metres, time seconds, angles radians. */
 export const PLANE_RULES = Object.freeze({
   hp: 450, width: 9, length: 10, height: 2.8, radius: 6.75, seatHeight: 1.55,
-  speed: 72, maxSpeed: 72, reverse: 0, acceleration: 14, brake: 24,
+  speed: 60, maxSpeed: 60, reverse: 0, acceleration: 14, brake: 24,
   takeoffSpeed: 24, stallSpeed: 20, ceiling: 180,
   minPitch: -0.55, maxPitch: 0.65, maxBank: 1.25,
   rudderRate: 0.25, rateResponse: 5,

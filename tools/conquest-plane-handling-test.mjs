@@ -44,7 +44,9 @@ assert(takeoff.takeoff && takeoff.takeoff.distance < 300, 'Jet rotates within th
 assert(takeoff.takeoff.speed >= rules.takeoffSpeed && takeoff.takeoff.time > 1);
 assert(takeoff.state.y > ground + 5 && takeoff.state.vy > 5, 'Nose-up lift continues climbing after rotation');
 const level = simulate(12, { throttle: 1, pitch: 0, yaw: 0 }, takeoff.state).state;
-assert(level.speed > 68 && level.speed <= rules.maxSpeed + 1e-8);
+// 2026-10-16: top speed 60 m/s (was 72) for tighter, easier turns.
+assert.equal(rules.maxSpeed, 60);
+assert(level.speed > rules.maxSpeed - 3 && level.speed <= rules.maxSpeed + 1e-8);
 assert(Math.abs(level.vy) < 3, 'Trimmed wings sustain a shallow cruise at full power');
 assert(level.z < -600 && !level.stalled);
 
@@ -60,13 +62,13 @@ assert(aimed.yaw > 0.05 && aimed.yaw < 0.4, 'Mouse heading turns the aircraft gr
 run(3, { active: true, grounded: false, throttle: 1, yaw: 0.6, pitch: 0.12 }, aimed);
 assert(Math.abs(aimed.yaw - 0.6) < 0.01 && Math.abs(aimed.roll) < 0.02, 'The nose settles on the aim with the wings level');
 assert(Math.abs(aimed.pitch - 0.12) < 0.001 && aimed.vy > 3);
-// Mouse-aim responsiveness from a trimmed cruise: a 10° correction settles
-// within a second, a 30° turn within 2.6 s, and the roll-out stops on the aim
+// Mouse-aim responsiveness from a trimmed top-speed cruise: a 10° correction
+// settles within a second, a 30° turn within 2.3 s, 90° within 4.6 s, and the roll-out stops on the aim
 // with a small counter-bank; a held turn neither sinks nor balloons.
 {
   const cruise = (speed, power) => run(20, { active: true, grounded: false, yaw: 0, pitch: 0 }, { speed, vz: -speed, throttle: power, enginePower: power }, 60);
-  for (const [degrees, limit] of [[10, 1], [30, 2.6]]) {
-    const s = cruise(72, 1), target = degrees * Math.PI / 180;
+  for (const [degrees, limit] of [[10, 1], [30, 2.3], [90, 4.6]]) {
+    const s = cruise(rules.maxSpeed, 1), target = degrees * Math.PI / 180;
     let settled = null, counter = 0;
     for (let i = 0; i < 6 * 60; i++) {
       stepPlaneFlight(s, { active: true, grounded: false, yaw: target, pitch: 0 }, 1 / 60);
@@ -85,6 +87,19 @@ assert(Math.abs(aimed.pitch - 0.12) < 0.001 && aimed.vy > 3);
   }
   assert(turned > 2 * Math.PI * 0.95, `a held turn at 50 m/s comes round in 12 s (${turned.toFixed(2)} rad)`);
   assert(Math.abs(climb) < 25, `a held turn keeps its height (${climb.toFixed(1)} m)`);
+  // A sustained full-throttle turn at top speed: at least 27°/s, a radius
+  // under 130 m (at 72 m/s it was 23.5°/s and 176 m), never near the stall.
+  const fast = cruise(rules.maxSpeed, 1);
+  let swept = 0, slowest = Infinity;
+  for (let i = 0; i < 16 * 60; i++) {
+    const before = fast.yaw;
+    stepPlaneFlight(fast, { active: true, grounded: false, yaw: fast.yaw - 2, pitch: 0 }, 1 / 60);
+    if (i >= 6 * 60) { swept += Math.abs(Math.atan2(Math.sin(fast.yaw - before), Math.cos(fast.yaw - before))); slowest = Math.min(slowest, fast.speed); }
+    assert(!fast.stalled, 'a sustained top-speed turn never stalls');
+  }
+  const rate = swept / 10;
+  assert(rate > 27 * Math.PI / 180, `sustained turn ${(rate * 180 / Math.PI).toFixed(1)}°/s`);
+  assert(slowest / rate < 130 && slowest > rules.stallSpeed * 2.5, `turn radius ${(slowest / rate).toFixed(0)} m at ${slowest.toFixed(1)} m/s`);
 }
 const down = run(2, { active: true, grounded: false, throttle: 1, pitch: 0, lift: -1 }, { speed: 50, throttle: 1, enginePower: 1 });
 assert(Math.abs(down.pitch + 0.28) < 0.001);
