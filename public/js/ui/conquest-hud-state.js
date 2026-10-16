@@ -385,7 +385,10 @@ export function vehiclePanelModel(seated, { selfId, players = [], selfTeam = nul
     seats: seatStrip(row, selfId, players),
     hp, maxHp, fraction: maxHp ? clamp01(hp / maxHp) : null,
     hpText: maxHp ? `${Math.ceil(hp)} / ${Math.ceil(maxHp)}` : `${Math.ceil(hp)}`,
-    badges: STATUS_BADGES.filter(([key]) => status[key]).map(([key, label, tone]) => ({ key, label, tone })),
+    badges: [...STATUS_BADGES.filter(([key]) => status[key]).map(([key, label, tone]) => ({ key, label, tone })),
+      ...(status.repairing ? [{ key: 'repairing', label: 'REPAIRING', tone: 'repair' }] : [])],
+    // An Engineer in the crew is mending the hull (the snapshot's `repairing` bit).
+    repairing: status.repairing === true,
     weapons: seatWeapons(row, seat.id),
     cm: cmKind && drives ? { kind: cmKind, label: cmKind === 'smoke' ? 'SMOKE' : 'FLARES',
       ready: clamp01(finite(row.cmr) / 100), available: finite(row.cmr) >= 100, active: status[cmKind] === true } : null,

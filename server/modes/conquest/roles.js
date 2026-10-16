@@ -165,7 +165,7 @@ export class ConquestRoles {
         lastDamageRef: entity && typeof entity === 'object' ? entity.lastDamage ?? null : null,
         lastHp: Number.isFinite(entity?.hp) ? entity.hp : null,
         lastDamagedAt: -Infinity, seatedVehicleId: null,
-        repairCredit: new Map(), nextResupplyAt: this.now + KIT_ROLE_RULES.resupplyIntervalMs,
+        repairCredit: new Map(), lastCrewRepairAwardAt: -Infinity, nextResupplyAt: this.now + KIT_ROLE_RULES.resupplyIntervalMs,
         lastRefilledAt: -Infinity, lastGadgetRefillAt: -Infinity, resupplyAwards: new Map(),
         // Medic aura: own pulse clock, HP owed toward the next `heal` award, and per-mate gates.
         nextHealAt: this.now + KIT_ROLE_RULES.healIntervalMs, healCredit: 0,
@@ -570,6 +570,7 @@ export class ConquestRoles {
       if (state.session.type === 'revive') this._advanceRevive(p, state, now, dt);
       else this._advanceRepair(p, state, now, dt);
     }
+    this._crewRepair(entities, now, dt);
     this._resupply(entities, now);
     this._heal(entities, now);
     this._passives(entities, now);
@@ -681,6 +682,67 @@ export class ConquestRoles {
       this._award(actor, 'repair');
     }
     state.repairCredit.set(key, Math.max(0, credit));
+  }
+
+  /**
+   * Why the seated `actor` cannot crew-repair `vehicle` right now, or null
+   * when it can. A disabled (burning) hull is refused: the crew bails out and
+   * an Engineer repairs it from outside, which can clear the state. An
+   * airborne aircraft and a Titan are refused too, and the hull must have
+   * gone crewRepairDelayMs without damage ('delay').
+   */
+  _crewRepairRefusal(actor, vehicle, now) {
+    if (!actor || actor.state !== 'alive' || actor.vehicleId == null) return 'actor';
+    if (KITS[this.kitOf(actor)]?.ability !== 'repair') return 'kit';
+    if (!vehicle || String(vehicle.id) !== String(actor.vehicleId) || !(vehicle.hp > 0) || vehicle.padInactive) return 'target';
+    const team = this.teamOf(actor);
+    if (!team || vehicle.team !== team) return 'team';
+    if (sharedVehicles.vehicleDef?.(vehicle)?.armor === 'titan') return 'titan';
+    if (vehicle.disabled || vehicle.burning) return 'disabled';
+    if (sharedVehicles.isAircraft(vehicle.type) && vehicle.grounded !== true) return 'airborne';
+    const maxHp = hullMaxHp(vehicle);
+    if (!(maxHp > 0) || vehicle.hp >= maxHp) return 'full';
+    if (now - (vehicle.lastDamagedAt ?? -Infinity) < KIT_ROLE_RULES.crewRepairDelayMs) return 'delay';
+    return null;
+  }
+
+  /**
+   * Engineer crew repair: a living Engineer seated in a friendly hull (any
+   * seat) mends it at crewRepairPerSecFraction of its maximum HP per second.
+   * One Engineer per hull counts, so a crew of Engineers does not stack. The
+   * hull carries `crewRepairUntil` for the snapshot's `repairing` bit. HP
+   * restored accrues `repair` awards like an outside repair, at most one per
+   * crewRepairAwardMs per Engineer.
+   */
+  _crewRepair(entities, now, dt) {
+    const r = KIT_ROLE_RULES, system = this.engine?.vehicles;
+    if (!(dt > 0) || typeof system?.repair !== 'function') return;
+    const mended = new Set();
+    for (const actor of entities) {
+      if (!actor || actor.state !== 'alive' || actor.vehicleId == null) continue;
+      const key = String(actor.vehicleId);
+      if (mended.has(key)) continue;
+      const state = this.states.get(idOf(actor));
+      if (!state || KITS[state.kit]?.ability !== 'repair') continue;
+      const vehicle = system.vehicles?.get?.(key);
+      if (this._crewRepairRefusal(actor, vehicle, now)) continue;
+      mended.add(key);
+      const maxHp = hullMaxHp(vehicle), before = vehicle.hp;
+      const result = system.repair(vehicle.id, r.crewRepairPerSecFraction * maxHp * dt / 1000, actor);
+      const added = Number.isFinite(result) ? Math.max(0, result) : Math.max(0, (vehicle.hp ?? before) - before);
+      if (!(added > 0)) continue;
+      vehicle.crewRepairUntil = now + r.crewRepairStatusMs;
+      const credit = (state.repairCredit.get(key) ?? 0) + added;
+      const step = r.repairAwardFraction * maxHp;
+      if (step > 0 && credit >= step - 1e-6 && now - (state.lastCrewRepairAwardAt ?? -Infinity) >= r.crewRepairAwardMs) {
+        state.lastCrewRepairAwardAt = now;
+        this._award(actor, 'repair');
+        state.repairCredit.set(key, Math.max(0, credit - step));
+      } else {
+        // Past one award step the credit waits for the award clock instead of piling up.
+        state.repairCredit.set(key, Math.min(credit, Math.max(step, 0)));
+      }
+    }
   }
 
   /** Support aura pulses: every supporter refills teammates in reach on its own clock. */

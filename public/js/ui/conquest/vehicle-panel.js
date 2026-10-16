@@ -126,6 +126,7 @@ export class VehiclePanel {
     const fraction = model.fraction ?? 1;
     this.hpFill.style.width = `${(fraction * 100).toFixed(1)}%`;
     this.root.dataset.hp = fraction < 0.25 ? 'critical' : fraction < 0.5 ? 'damaged' : 'ok';
+    this.root.dataset.repairing = String(model.repairing === true);
     if (this._changed('hp', model.hpText)) this.hpText.textContent = model.hpText;
     const badgeSig = model.badges.map(b => b.key).join(',');
     if (this._changed('badges', badgeSig)) {

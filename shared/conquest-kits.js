@@ -39,6 +39,18 @@ export const KIT_ROLE_RULES = Object.freeze({
   repairInterruptMs: 1000,
   /** One `repair` award per this fraction of the hull's maximum HP restored. */
   repairAwardFraction: 0.1,
+  /**
+   * Crew repair: a living Engineer seated in a friendly hull mends it from
+   * inside at this fraction of its maximum HP per second (an outside repair
+   * runs at CONQUEST_RULES.repairPerSecFraction, 0.08), once the hull has
+   * gone `crewRepairDelayMs` without damage. One Engineer per hull counts.
+   */
+  crewRepairPerSecFraction: 0.025,
+  crewRepairDelayMs: 5000,
+  /** At most one crew-repair `repair` award per Engineer this often. */
+  crewRepairAwardMs: 8000,
+  /** How long the hull's `repairing` status bit outlives the last crew-repair tick. */
+  crewRepairStatusMs: 300,
   /** A support session that stays stale for this long is dropped (progress lost). */
   supportSessionDropMs: 1500,
   /** Support aura pulse interval and reach (m, 3D, self included). */
@@ -119,7 +131,7 @@ export function kitAbilityHint(kit, rules = {}) {
   switch (ability) {
     case 'adrenaline': return `ENEMY KILL RE-ARMS YOUR MEDKIT · +${r.adrenalineGrenades} ${r.adrenalineGrenade.toUpperCase()} · ${secs(r.adrenalineCooldownMs)} COOLDOWN`;
     case 'revive': return `REVIVE DOWNED MATES · HEAL ${+hps.toFixed(1)} HP/S WITHIN ${r.healRadius} M`;
-    case 'repair': return `REPAIR FRIENDLY HULLS WITHIN ${r.repairRange} M`;
+    case 'repair': return `REPAIR FRIENDLY HULLS WITHIN ${r.repairRange} M · MENDS YOUR OWN HULL FROM INSIDE`;
     case 'resupply': return `AMMO AND GRENADES TO MATES WITHIN ${r.resupplyRadius} M EVERY ${secs(r.resupplyIntervalMs)}`;
     case 'spot': return `SPOTS REACH ${rules.spotRangeRecon ?? 400} M AND LAST ${secs(rules.spotMsRecon ?? 8000)}`;
     case 'fireproof': return 'IMMUNE TO FIRE · FLAMES AND MOLOTOVS';

@@ -2,7 +2,7 @@
 // the support resupply aura (WP8). A fake engine/policy/VehicleSystem drives
 // the role rules exactly; a final case runs them on the real GameEngine.
 import assert from 'node:assert/strict';
-import { CONQUEST_RULES, KITS, KIT_IDS, KIT_SIDEARM, decodeConquestPlayer } from '../shared/conquest-contract.js';
+import { CONQUEST_RULES, KITS, KIT_IDS, KIT_SIDEARM, VEHICLE_STATUS, decodeConquestPlayer } from '../shared/conquest-contract.js';
 import {
   KIT_GADGET_AMMO, KIT_MELEE, KIT_MENU, KIT_ROLE_RULES, applyResupply, isUnsuppressedWeapon, kitGadget, kitIndex,
   kitLoadout, kitMaxGrenades, kitMaxReserve, kitWeapons, normalizeGadget, normalizeKit, normalizeVariant, reserveUnitsPerMagazine,
@@ -429,6 +429,80 @@ class FakeVehicleSystem {
   engi.vehicleId = null;
 }
 
+// ------------------------------------------------------------- crew repair --
+{
+  const r = KIT_ROLE_RULES;
+  const f = fixture();
+  const hull = (id, extra = {}) => ({ id, type: 'tank', team: 'alpha', x: 0, y: 10, z: 0, yaw: 0, hp: 500, maxHp: 1000, ...extra });
+  const tank = hull('alpha-tank'), jeep = hull('alpha-jeep', { type: 'jeep', maxHp: 400, hp: 200 });
+  const heli = hull('alpha-heli', { type: 'helicopter', maxHp: 600, hp: 300, grounded: false });
+  const enemy = hull('bravo-tank', { team: 'bravo' });
+  f.engine.vehicles = new FakeVehicleSystem([tank, jeep, heli, enemy]);
+  const seat = (p, v) => { p.vehicleId = v?.id ?? null; };
+  const second = (ticks = 60) => { for (let i = 0; i < ticks; i++) f.step(); };
+  const engi = f.add('a1', 'alpha', 'engineer', 0, 0, 0);
+  const assault = f.add('a2', 'alpha', 'assault', 0, 0, 0);
+  seat(assault, jeep);
+  second();
+  assert.equal(jeep.hp, 200, 'a non-Engineer crew repairs nothing');
+  seat(engi, tank);
+  second();
+  assert.ok(Math.abs(tank.hp - (500 + r.crewRepairPerSecFraction * 1000)) < 1e-6, `2.5% max HP per second from inside (${tank.hp})`);
+  assert.ok(r.crewRepairPerSecFraction < CONQUEST_RULES.repairPerSecFraction, 'slower than an outside repair');
+  assert.ok(tank.crewRepairUntil > f.engine.now, 'the hull carries the repairing stamp');
+  assert.ok(f.engine.vehicles.calls.every(c => c.by === 'a1' && c.vehicleId === 'alpha-tank'), 'credited to the seated Engineer');
+  // A second Engineer in the same hull does not stack.
+  const engi2 = f.add('a3', 'alpha', 'engineer', 0, 0, 0);
+  seat(engi2, tank);
+  let before = tank.hp;
+  second();
+  assert.ok(Math.abs(tank.hp - before - r.crewRepairPerSecFraction * 1000) < 1e-6, `two Engineers repair like one (${tank.hp - before})`);
+  seat(engi2, null);
+  // Fresh damage pauses the crew repair for crewRepairDelayMs.
+  tank.lastDamagedAt = f.engine.now;
+  before = tank.hp;
+  second(Math.floor(r.crewRepairDelayMs / TICK) - 2);
+  assert.equal(tank.hp, before, 'no crew repair within 5 s of damage');
+  second();
+  assert.ok(tank.hp > before, 'crew repair resumes 5 s after the last hit');
+  // Disabled (burning) hulls need an outside repair.
+  Object.assign(tank, { disabled: true, burning: true });
+  before = tank.hp;
+  second();
+  assert.equal(tank.hp, before, 'a burning hull is not repaired from inside');
+  Object.assign(tank, { disabled: false, burning: false });
+  // Aircraft only on the ground.
+  seat(engi, heli);
+  second();
+  assert.equal(heli.hp, 300, 'no crew repair in flight');
+  heli.grounded = true;
+  second();
+  assert.ok(heli.hp > 300, 'a landed aircraft is repaired');
+  // Enemy hulls and dead Engineers never repair.
+  seat(engi, enemy);
+  second();
+  assert.equal(enemy.hp, 500, 'an enemy hull is refused');
+  seat(engi, tank);
+  engi.state = 'dead';
+  before = tank.hp;
+  second();
+  assert.equal(tank.hp, before, 'a dead Engineer repairs nothing');
+  engi.state = 'alive';
+  // Awards: one per 10% restored, at most one per crewRepairAwardMs.
+  f.policy.awards.length = 0;
+  engi.vehicleId = tank.id;
+  f.roles._state(engi).repairCredit.clear();
+  f.roles._state(engi).lastCrewRepairAwardAt = -Infinity;
+  tank.hp = 100;
+  second(60 * 18); // 450 HP: 4.5 award steps, but the clock allows awards at about 4 s and 12 s only
+  assert.deepEqual(f.policy.awards, [['a1', 'repair', 1], ['a1', 'repair', 1]], `crew repair awards are rate-limited (${JSON.stringify(f.policy.awards)})`);
+  // A full hull is not marked as repairing.
+  tank.hp = 1000;
+  tank.crewRepairUntil = 0;
+  second();
+  assert.equal(tank.crewRepairUntil, 0, 'a full hull carries no repairing stamp');
+}
+
 // ---------------------------------------------------------------- resupply --
 {
   const f = fixture();
@@ -676,6 +750,29 @@ class FakeVehicleSystem {
       `real hull gains about 8% per second (${gained} of ${max})`);
     assert.ok(events.some(e => e.kind === 'vehicle_repaired' && e.vehicleId === 'alpha-tank'), 'vehicle_repaired on the wire');
     console.log('  real VehicleSystem repair: passed');
+
+    // Crew repair: the same Engineer seated in the hull mends it and the row carries the repairing bit.
+    Object.assign(engineer, { x: tank.x + 2, y: tank.y, z: tank.z });
+    assert.equal(game.vehicles.enter(engineer, 'alpha-tank'), true, 'the Engineer boards the tank');
+    tank.hp = Math.round(max * 0.7);
+    tank.lastDamagedAt = -Infinity;
+    const seated = tank.hp;
+    for (let i = 0; i < 60; i++) {
+      game.step();
+      if (!wired) roles.tick(game.now, 1000 / 60);
+    }
+    const mended = tank.hp - seated;
+    assert.ok(Math.abs(mended - max * KIT_ROLE_RULES.crewRepairPerSecFraction) <= max * 0.005 + 1,
+      `a seated Engineer mends about 2.5% per second (${mended} of ${max})`);
+    const row = game.vehicles.snapshot().find(v => v.id === 'alpha-tank');
+    assert.ok(row.st & VEHICLE_STATUS.repairing, 'the snapshot row carries the repairing bit');
+    tank.lastDamagedAt = game.vehicles.nowMs();
+    for (let i = 0; i < 30; i++) {
+      game.step();
+      if (!wired) roles.tick(game.now, 1000 / 60);
+    }
+    assert.equal(game.vehicles.snapshot().find(v => v.id === 'alpha-tank').st & VEHICLE_STATUS.repairing, 0, 'a fresh hit clears the bit');
+    console.log('  real VehicleSystem crew repair: passed');
   }
 }
 
@@ -787,4 +884,4 @@ class FakeVehicleSystem {
   console.log('  real engine: gadget choice (STINGER / AT default), gadget resupply, FFA exclusion');
 }
 
-console.log('Conquest kits: loadouts per kit and variant, down/revive window and refusals, repair rate/disabled/interrupt/awards, resupply caps and award limit, engineer gadget choice (AT / STINGER) and gadget resupply, real-engine revive passed.');
+console.log('Conquest kits: loadouts per kit and variant, down/revive window and refusals, repair rate/disabled/interrupt/awards, crew repair from inside, resupply caps and award limit, engineer gadget choice (AT / STINGER) and gadget resupply, real-engine revive passed.');

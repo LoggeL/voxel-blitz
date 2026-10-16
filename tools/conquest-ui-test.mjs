@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installFakeDom, isShown, textsDrawn } from './lib/conquest-ui-dom.mjs';
 import {
-  CONQUEST_RULES, SCORE_LABELS, TEAM_DISPLAY, VEHICLE_TOPOLOGY, VEHICLE_WEAPON_META,
+  CONQUEST_RULES, SCORE_LABELS, TEAM_DISPLAY, VEHICLE_STATUS, VEHICLE_TOPOLOGY, VEHICLE_WEAPON_META,
 } from '../shared/conquest-contract.js';
 import { LOCK_RULES, vehicleWeapon } from '../shared/vehicle-defs.js';
 
@@ -190,6 +190,13 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
   assert.equal(commander.seatId, 'commander'); assert.deepEqual(commander.weapons.map(w => w.label), ['.50 HMG']);
   assert.equal(commander.weapons[0].heat, 0.81); assert.equal(commander.cm, null, 'countermeasures belong to the driving seat');
   assert.deepEqual(commander.seats.map(s => s.you), [false, true]);
+  assert.equal(commander.repairing, false);
+  // An Engineer in the crew mends the hull: the row's repairing bit becomes a green REPAIRING badge.
+  const mending = seatedOf(byId('tank-commander'));
+  const repairing = state.vehiclePanelModel({ ...mending, row: { ...mending.row, st: (mending.row.st | 0) | VEHICLE_STATUS.repairing } }, { selfId: 'me', players: byId('tank-commander').players });
+  assert.equal(repairing.repairing, true);
+  assert.deepEqual(repairing.badges.map(b => [b.label, b.tone]), [['REPAIRING', 'repair']]);
+  assert.equal(state.driverHudModel({ ...mending.row, st: VEHICLE_STATUS.repairing }, 'driver').badges.length, 0, 'REPAIRING is no periscope danger badge');
 
   const pilot = panelOf(byId('heli-pilot'));
   assert.equal(pilot.weapons[0].label, 'ROCKET POD'); assert.equal(pilot.weapons[0].ammo, 9);

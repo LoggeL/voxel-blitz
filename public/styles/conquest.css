@@ -259,12 +259,17 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-vehicle-hp-track i { display: block; height: 100%; background: linear-gradient(90deg, #3fbf6b, #7ef29a); transition: width 200ms; }
 .cq-vehicle[data-hp="damaged"] .cq-vehicle-hp-track i { background: linear-gradient(90deg, #d9921f, #ffcf5c); }
 .cq-vehicle[data-hp="critical"] .cq-vehicle-hp-track i { background: linear-gradient(90deg, #b8242a, #ff4b4b); animation: cq-bleed 0.6s infinite; }
+/* An Engineer in the crew is mending the hull: the HP track glows green. */
+.cq-vehicle[data-repairing="true"] .cq-vehicle-hp-track { box-shadow: 0 0 0 1px #7ef29a99, 0 0 8px #7ef29a66; animation: cq-repair-pulse 1.2s ease-in-out infinite; }
+@keyframes cq-repair-pulse { 50% { box-shadow: 0 0 0 1px #7ef29a44, 0 0 2px #7ef29a22; } }
+@media (prefers-reduced-motion: reduce) { .cq-vehicle[data-repairing="true"] .cq-vehicle-hp-track { animation: none; } }
 .cq-vehicle-hp-text { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .cq-vehicle-badges { display: flex; gap: 4px; flex-wrap: wrap; min-height: 0; }
 .cq-badge { padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
 .cq-badge-danger { background: #ff4b4b; color: #1a0606; animation: cq-bleed 0.9s infinite; }
 .cq-badge-warn { background: #ffcf5c; color: #1d1404; }
 .cq-badge-info { background: #4cc3ff; color: #04131c; }
+.cq-badge-repair { background: #7ef29a; color: #04190b; }
 .cq-vehicle-telemetry { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: var(--cq-sub); font-variant-numeric: tabular-nums; }
 .cq-vehicle-weapons { display: grid; gap: 3px; }
 .cq-weapon { display: grid; grid-template-columns: 22px 1fr 80px 64px; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 3px; font-size: 12px; font-weight: 700; color: var(--cq-sub); }
