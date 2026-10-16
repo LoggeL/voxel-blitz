@@ -337,7 +337,7 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-flight-hint-item:first-child .cq-flight-hint-text { color: #fff; }
 .vb-touch-mode .cq-flight-hint { display: none; }
 .cq-vehicle-telemetry[data-stall="true"] { color: #ff4b4b; }
-/* The tank driver's DRIVER periscope draws its own instrument bar (reticles.js) in the card's place. */
+/* The tank driver's DRIVER periscope draws its own phosphor console (reticles.js) in the card's place. */
 .vb-conquest-hud[data-vehicle-view="driver"] .cq-vehicle { display: none; }
 .cq-interact.is-active { border-color: #7ef29a; box-shadow: 0 0 14px #7ef29a55; }
 
@@ -367,6 +367,28 @@ body[data-vehicle-sight="sensor"] #crosshair { display: none !important; }
   50% { transform: translate(5%, -6%); } 75% { transform: translate(-3%, -2%); } 100% { transform: translate(0, 0); }
 }
 @media (prefers-reduced-motion: reduce) { .cq-sensor::after { animation: none; } }
+
+/* Tank driver's DRIVER periscope (docs/design/conquest/tank-hud/phosphor/ variant B): a phosphor
+   tactical display. The world keeps its colours (team markers must read), only slightly cooled;
+   a faint phosphor wash, fine scanlines, a soft vignette and a slow refresh band sit under the
+   markers. The glowing symbology itself is drawn on .cq-reticles. */
+body[data-vehicle-sight="periscope"] :is(canvas#game, canvas[data-sensor-grade]) { filter: saturate(0.86) contrast(1.06) brightness(0.97); }
+.cq-scope {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  background:
+    radial-gradient(ellipse 82% 78% at 50% 48%, transparent 60%, #01060380 88%, #010402c8 100%),
+    repeating-linear-gradient(180deg, #00000000 0 2px, #00000012 2px 3px),
+    linear-gradient(#7dffa809, #7dffa809);
+}
+.cq-scope::after {
+  content: ""; position: absolute; left: 0; right: 0; top: -30%; height: 30%;
+  background: linear-gradient(180deg, #7dffa800, #7dffa80a 50%, #7dffa800);
+  animation: cq-scope-refresh 7s linear infinite;
+}
+@keyframes cq-scope-refresh { from { transform: translateY(0); } to { transform: translateY(440%); } }
+@media (prefers-reduced-motion: reduce) { .cq-scope::after { animation: none; display: none; } }
+/* The console sits under the exit prompt on desktop, so the prompt rides a little higher. */
+html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-interact { bottom: 158px; }
 
 /* ------------------------------------------------------------- big map */
 .cq-bigmap { position: absolute; inset: 0; display: grid; place-items: center; background: #03070acc; pointer-events: auto; z-index: 5; }

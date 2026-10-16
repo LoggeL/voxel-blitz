@@ -11,12 +11,24 @@
  * lock attempt. Models come from reticleModel / lockerModel.
  */
 import { el } from '../hud-support.js';
+import { bindingLabel } from '../../keybindings.js';
 import { clampToEdge } from './projection.js';
 
 const AMBER = '#ffcf5c', WHITE = '#f4f7f9', RED = '#ff4b4b', GREEN = '#7ef29a', CYAN = '#4cc3ff';
 /** Gimbal sensor symbology: pale phosphor green-white over the monochrome world. */
 const SENSOR = '#dcffe6', SENSOR_DIM = '#dcffe699';
+/** Tank driver's phosphor display: glowing green symbology on smoked glass. */
+const PHOS = '#7dffa8', PHOS_PALE = '#c9ffd9', PHOS_LABEL = '#c9ffd9a8', PHOS_DIM = '#7dffa855', PHOS_FAINT = '#7dffa824';
+const CONSOLE = '#03120ad0', CONSOLE_INK = '#03120a', GLASS = '#03120aa8', EDGE = '#7dffa8b0', SCANLINE = '#7dffa80c';
+/** Gun marks over the world in the driver's display. */
+const PHOSPHOR_MARKS = Object.freeze({ ring: '#c9ffd9b0', ready: PHOS, line: PHOS_PALE, aligned: PHOS, tick: '#c9ffd9c0', label: '#c9ffd9d0', glow: PHOS });
 const TAU = Math.PI * 2;
+
+/** Phosphor glow: what is drawn next gets a soft halo in `color`. */
+function glow(ctx, color, blur = 6) {
+  ctx.shadowColor = color;
+  ctx.shadowBlur = blur;
+}
 
 function shadowed(ctx, draw) {
   ctx.save();
@@ -117,19 +129,24 @@ export class Reticles {
     this._text(ctx, m.ready ? `${m.label} · READY` : `${m.label} · LOADING`, x, y + 46, m.ready ? GREEN : AMBER);
   }
 
-  /** Desired aim: a dashed circle with the reload arc around it (clockwise as the breech reloads). */
-  _aimRing(ctx, x, y, m) {
-    ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffffb0';
+  /** Desired aim: a dashed circle with the reload arc around it (clockwise as the breech reloads); `look` recolours it. */
+  _aimRing(ctx, x, y, m, look = null) {
+    ctx.save();
+    if (look) glow(ctx, look.glow, 5);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = look?.ring ?? '#ffffffb0';
     ctx.setLineDash([4, 4]);
     shadowed(ctx, () => { ctx.beginPath(); ctx.arc(x, y, 20, 0, TAU); ctx.stroke(); });
     ctx.setLineDash([]);
     const progress = 1 - Math.max(0, Math.min(1, m.reload));
-    ctx.lineWidth = 3; ctx.strokeStyle = m.ready ? GREEN : AMBER;
+    ctx.lineWidth = 3; ctx.strokeStyle = m.ready ? look?.ready ?? GREEN : AMBER;
     shadowed(ctx, () => { ctx.beginPath(); ctx.arc(x, y, 26, -Math.PI / 2, -Math.PI / 2 + TAU * progress); ctx.stroke(); });
+    ctx.restore();
   }
 
-  /** The shell's range ladder and the impact marker with its range readout. */
-  _shellMarks(ctx, m) {
+  /** The shell's range ladder and the impact marker with its range readout; `look` recolours them. */
+  _shellMarks(ctx, m, look = null) {
+    ctx.save();
+    if (look) glow(ctx, look.glow, 5);
     // Range ladder: the shell's arc at 100 m steps below the bore (labels in hundreds of metres).
     let lastY = -Infinity;
     for (const tick of m.ladder ?? []) {
@@ -137,18 +154,19 @@ export class Reticles {
       lastY = tick.y;
       // Stadia marks start just left of the arc point, clear of the impact marker's right arm.
       const length = tick.range % 200 === 0 ? 10 : 6, x0 = tick.x - 14 - length;
-      ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffffc0';
+      ctx.lineWidth = 1.5; ctx.strokeStyle = look?.tick ?? '#ffffffc0';
       shadowed(ctx, () => { ctx.beginPath(); ctx.moveTo(x0, tick.y); ctx.lineTo(x0 + length, tick.y); ctx.stroke(); });
       ctx.save();
       ctx.font = '700 10px "Rajdhani", "Barlow Condensed", system-ui, sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
       ctx.lineWidth = 3; ctx.strokeStyle = '#000000b0'; ctx.strokeText(String(tick.range / 100), x0 - 3, tick.y);
-      ctx.fillStyle = '#ffffffd0'; ctx.fillText(String(tick.range / 100), x0 - 3, tick.y);
+      ctx.fillStyle = look?.label ?? '#ffffffd0'; ctx.fillText(String(tick.range / 100), x0 - 3, tick.y);
       ctx.restore();
     }
     // Barrel impact marker where the shell lands (terrain, with drop).
     if (m.impact) {
       const { x: ix, y: iy } = m.impact;
-      ctx.lineWidth = 2; ctx.strokeStyle = m.aligned ? GREEN : WHITE;
+      const tone = m.aligned ? look?.aligned ?? GREEN : look?.line ?? WHITE;
+      ctx.lineWidth = 2; ctx.strokeStyle = tone;
       shadowed(ctx, () => {
         ctx.beginPath();
         ctx.moveTo(ix - 12, iy); ctx.lineTo(ix - 4, iy); ctx.moveTo(ix + 4, iy); ctx.lineTo(ix + 12, iy);
@@ -158,10 +176,11 @@ export class Reticles {
       });
       if (Number.isFinite(m.range)) {
         ctx.save(); ctx.textAlign = 'left';
-        this._text(ctx, m.airburst ? `AIRBURST ${m.range} M` : `${m.range} M`, ix + 16, iy - 6, m.aligned ? GREEN : WHITE);
+        this._text(ctx, m.airburst ? `AIRBURST ${m.range} M` : `${m.range} M`, ix + 16, iy - 6, tone);
         ctx.restore();
       }
     }
+    ctx.restore();
   }
 
   /**
@@ -262,218 +281,352 @@ export class Reticles {
   }
 
   /**
-   * Tank driver's periscope (DRIVER view; docs/design/conquest/tank-hud/driver-view/,
-   * variant B): the screen centre is the hull's nose, so the gun's marks are
-   * wherever the gun points. The aim ring sits on the mouse aim, the ladder and
-   * impact marker where the shell lands; an impact outside the periscope window
-   * slides to its edge as a GUN arrow. The instruments come from `m.driver`.
+   * Tank driver's periscope (DRIVER view) as a phosphor tactical display
+   * (docs/design/conquest/tank-hud/phosphor/, variant B): the screen centre is
+   * the hull's nose, so the gun's marks are wherever the gun points. The aim
+   * ring sits on the mouse aim, the ladder and impact marker where the shell
+   * lands; an impact outside the periscope window slides to its edge as a GUN
+   * arrow with the range. The instruments come from `m.driver`.
    */
   _periscope(ctx, m, width, height, touch = false) {
     const frame = this._driverHud(ctx, m.driver, width, height, touch);
     const a = m.aimMark;
-    if (a?.inside) this._aimRing(ctx, a.x, a.y, m);
+    if (a?.inside) this._aimRing(ctx, a.x, a.y, m, PHOSPHOR_MARKS);
     const raw = m.impactRaw;
     const within = raw && raw.inside && raw.x >= frame.left && raw.x <= width - frame.right && raw.y >= frame.top && raw.y <= height - frame.bottom;
-    if (within) { this._shellMarks(ctx, m); return; }
+    if (within) { this._shellMarks(ctx, m, PHOSPHOR_MARKS); return; }
     if (!raw) return;
     // Off the window: an arrow on its edge toward where the gun points.
+    const tone = m.ready ? PHOS : AMBER;
     const edge = clampToEdge({ x: raw.x, y: raw.y, inside: false }, width, height, frame);
     ctx.save();
     ctx.translate(edge.x, edge.y);
     ctx.rotate(edge.angle);
-    ctx.fillStyle = m.ready ? GREEN : AMBER; ctx.lineWidth = 3; ctx.strokeStyle = '#000000a0';
     ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(9, 4); ctx.lineTo(0, -1); ctx.lineTo(-9, 4); ctx.closePath();
-    ctx.stroke(); ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = '#000000a0'; ctx.stroke();
+    glow(ctx, tone); ctx.fillStyle = tone; ctx.fill();
     ctx.restore();
     const dx = Math.sin(edge.angle), dy = -Math.cos(edge.angle);
-    this._text(ctx, 'GUN', edge.x - dx * 22, edge.y - dy * 22 + 4, m.ready ? GREEN : AMBER);
+    ctx.save(); ctx.textAlign = 'center';
+    this._phosText(ctx, Number.isFinite(m.range) ? `GUN ${m.range} M` : 'GUN', edge.x - dx * 30, edge.y - dy * 22 + 4, tone, true);
+    ctx.restore();
+  }
+
+  /** Phosphor text: a soft glow in its own colour; `outline` adds a dark rim for text over the world. */
+  _phosText(ctx, text, x, y, color = PHOS, outline = false) {
+    ctx.save();
+    if (outline) { ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = '#000000a8'; ctx.strokeText(text, x, y); }
+    glow(ctx, color, 5);
+    ctx.fillStyle = color; ctx.fillText(text, x, y);
+    ctx.restore();
   }
 
   /**
-   * The periscope instruments: corner brackets, the hull heading tape (with
-   * the gun's bearing on it) and the instrument bar (speed and gear, the
-   * turret over the fixed hull, the main gun's load, hull integrity and
-   * smoke). Phones get one compact panel in the vehicle card's place (which
-   * hides in this view) and, in landscape, a shorter tape. Returns the
+   * Top-down wireframe tank for the driver display: the hull fixed screen up
+   * (bevelled glacis, track strips, engine deck, front chevron), the turret
+   * ring and barrel turned by `turret` (rad, +left), a faint wedge on the side
+   * the tracks drive (`travel` +1 / -1 / 0).
+   */
+  _phosphorTank(ctx, cx, cy, scale, turret, travel) {
+    const halfW = 15 * scale, halfL = 23 * scale, track = 5 * scale, bevel = 5 * scale;
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (travel) {
+      const r0 = halfL + 3 * scale, r1 = halfL + 16 * scale;
+      ctx.fillStyle = PHOS_FAINT;
+      ctx.beginPath();
+      ctx.moveTo(-halfW * 0.7, -travel * r0); ctx.lineTo(halfW * 0.7, -travel * r0);
+      ctx.lineTo(halfW * 1.1, -travel * r1); ctx.lineTo(-halfW * 1.1, -travel * r1);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.lineJoin = 'round'; ctx.lineWidth = 1.25; ctx.strokeStyle = PHOS_PALE;
+    glow(ctx, PHOS, 6);
+    ctx.beginPath();
+    ctx.moveTo(-halfW + bevel, -halfL); ctx.lineTo(halfW - bevel, -halfL); ctx.lineTo(halfW, -halfL + bevel);
+    ctx.lineTo(halfW, halfL); ctx.lineTo(-halfW, halfL); ctx.lineTo(-halfW, -halfL + bevel); ctx.closePath();
+    ctx.moveTo(-halfW + track, -halfL + bevel); ctx.lineTo(-halfW + track, halfL);
+    ctx.moveTo(halfW - track, -halfL + bevel); ctx.lineTo(halfW - track, halfL);
+    ctx.rect(-halfW + track + 2 * scale, halfL - 12 * scale, 2 * (halfW - track - 2 * scale), 9 * scale);
+    ctx.stroke();
+    ctx.fillStyle = PHOS_PALE;
+    ctx.beginPath(); ctx.moveTo(0, -halfL - 10 * scale); ctx.lineTo(6 * scale, -halfL - 3 * scale); ctx.lineTo(-6 * scale, -halfL - 3 * scale); ctx.closePath(); ctx.fill();
+    ctx.rotate(-turret);
+    ctx.lineWidth = 2; ctx.strokeStyle = PHOS;
+    ctx.beginPath(); ctx.arc(0, 0, 8.5 * scale, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -8.5 * scale); ctx.lineTo(0, -36 * scale); ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * The phosphor periscope instruments: glowing corner brackets, the hull
+   * heading tape (with the gun's bearing on it) and the smoked-glass console:
+   * SPEED (km/h and gear), TURRET (the turret over the fixed hull), ARMAMENT
+   * (every weapon of the seat with the selected one lit, the main gun's load,
+   * the coax heat and the switch key) and STATUS (hull, smoke, crew, lock and
+   * danger badges). Phones get one compact console in the vehicle card's slot
+   * (which hides in this view) and, in landscape, a shorter tape. Returns the
    * periscope window insets the gun marks keep inside.
    */
   _driverHud(ctx, d, width, height, touch = false) {
     const landscape = touch && width > height;
-    const MINT = '#c9f7d6', PANEL = '#0a0e16d0', EDGE = '#ffffff2e';
     const font = (size, weight = 700) => `${weight} ${size}px "Rajdhani", "Barlow Condensed", system-ui, sans-serif`;
     const pad = n => String(n).padStart(3, '0');
-    const gun = !d ? '' : Math.abs(d.gunOffset) < 3 ? 'GUN AHEAD' : `GUN ${d.gunOffset > 0 ? '\u25C0' : '\u25B6'} ${Math.abs(d.gunOffset)}\u00B0`;
+    const text = (t, x, y, color = PHOS, size = 12, align = 'left', weight = 700) => {
+      ctx.font = font(size, weight); ctx.textAlign = align; this._phosText(ctx, t, x, y, color);
+    };
     const boxes = {};
     // Corner brackets of the periscope window (desktop; a phone screen is all window).
-    const inset = 18, arm = 30;
-    ctx.save();
     if (!touch) {
-    ctx.lineWidth = 2; ctx.strokeStyle = '#ffffffb0';
-    shadowed(ctx, () => {
+      const inset = 18, arm = 30;
+      ctx.save();
+      ctx.lineWidth = 2; ctx.strokeStyle = PHOS; glow(ctx, PHOS, 8);
       ctx.beginPath();
       for (const [sx, sy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
         const x = sx ? width - inset : inset, y = sy ? height - inset : inset, hx = sx ? -arm : arm, vy = sy ? -arm : arm;
         ctx.moveTo(x + hx, y); ctx.lineTo(x, y); ctx.lineTo(x, y + vy);
       }
       ctx.stroke();
-    });
+      ctx.restore();
     }
-    ctx.restore();
     if (!d) return { top: 80, bottom: 96, left: 40, right: 40 };
+    const gunText = Math.abs(d.gunOffset) < 3 ? 'GUN AHEAD' : `GUN ${d.gunOffset > 0 ? '\u25C0' : '\u25B6'} ${Math.abs(d.gunOffset)}\u00B0`;
     // Heading tape under the ticket bar and the V view strip (not on portrait
-    // phones: the panel carries the heading).
+    // phones: the console header carries the heading).
     let tapeBottom = touch ? 64 : 96;
     if (!touch || landscape) {
       const tw = touch ? Math.min(250, width * 0.3) : Math.min(440, width * 0.32), th = touch ? 20 : 26;
       const tx = width / 2 - tw / 2, ty = touch ? 94 : 136, span = touch ? 70 : 90, pxPer = tw / span;
       ctx.save();
-      ctx.fillStyle = PANEL; ctx.fillRect(tx, ty, tw, th);
-      ctx.strokeStyle = EDGE; ctx.lineWidth = 1; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+      ctx.fillStyle = GLASS; ctx.fillRect(tx, ty, tw, th);
+      glow(ctx, PHOS, 6); ctx.strokeStyle = EDGE; ctx.lineWidth = 1; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+      ctx.restore();
+      ctx.save();
       ctx.beginPath(); ctx.rect(tx, ty, tw, th); ctx.clip();
-      ctx.strokeStyle = '#ffffff90'; ctx.fillStyle = MINT; ctx.font = font(touch ? 9 : 10, 600); ctx.textAlign = 'center';
+      glow(ctx, PHOS, 4);
+      ctx.strokeStyle = PHOS; ctx.fillStyle = PHOS_PALE; ctx.lineWidth = 1; ctx.font = font(touch ? 9 : 10, 600); ctx.textAlign = 'center';
       const from = Math.floor((d.headingDeg - span / 2) / 5) * 5;
+      ctx.beginPath();
       for (let deg = from; deg <= d.headingDeg + span / 2 + 5; deg += 5) {
         const x = width / 2 + (deg - d.headingDeg) * pxPer, major = deg % 15 === 0;
-        ctx.beginPath(); ctx.moveTo(x, ty + th); ctx.lineTo(x, ty + th - (major ? 7 : 4)); ctx.stroke();
+        ctx.moveTo(x, ty + th); ctx.lineTo(x, ty + th - (major ? 7 : 4));
         const norm = ((deg % 360) + 360) % 360;
         if (major) ctx.fillText(norm === 0 ? 'N' : norm === 90 ? 'E' : norm === 180 ? 'S' : norm === 270 ? 'W' : pad(norm), x, ty + (touch ? 10 : 12));
       }
+      ctx.stroke();
       // The gun's bearing on the tape (it turns with the turret, the tape with the hull).
       const gx = width / 2 - (d.turret * 180 / Math.PI) * pxPer;
       if (gx > tx + 4 && gx < tx + tw - 4) {
-        ctx.fillStyle = GREEN;
+        ctx.fillStyle = PHOS;
         ctx.beginPath(); ctx.moveTo(gx, ty + th - 1); ctx.lineTo(gx - 5, ty + th - 8); ctx.lineTo(gx + 5, ty + th - 8); ctx.closePath(); ctx.fill();
       }
       ctx.restore();
       // Centre caret and the boxed hull heading.
-      ctx.save();
-      ctx.fillStyle = WHITE;
-      ctx.beginPath(); ctx.moveTo(width / 2, ty + 7); ctx.lineTo(width / 2 - 5, ty); ctx.lineTo(width / 2 + 5, ty); ctx.closePath(); ctx.fill();
       const bw = touch ? 34 : 44, bh = touch ? 15 : 19, by = ty + th + 3;
-      ctx.fillStyle = '#0b1218'; ctx.strokeStyle = '#ffffffa0'; ctx.lineWidth = 1;
-      ctx.fillRect(width / 2 - bw / 2, by, bw, bh); ctx.strokeRect(width / 2 - bw / 2 + 0.5, by + 0.5, bw - 1, bh - 1);
-      ctx.fillStyle = WHITE; ctx.font = font(touch ? 11 : 14); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(pad(d.heading), width / 2, by + bh / 2 + 1);
+      ctx.save();
+      glow(ctx, PHOS, 6);
+      ctx.fillStyle = PHOS_PALE;
+      ctx.beginPath(); ctx.moveTo(width / 2, ty + 7); ctx.lineTo(width / 2 - 5, ty); ctx.lineTo(width / 2 + 5, ty); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#03120ae6'; ctx.fillRect(width / 2 - bw / 2, by, bw, bh);
+      ctx.strokeStyle = PHOS; ctx.lineWidth = 1; ctx.strokeRect(width / 2 - bw / 2 + 0.5, by + 0.5, bw - 1, bh - 1);
+      ctx.restore();
+      ctx.save(); ctx.textBaseline = 'middle';
+      text(pad(d.heading), width / 2, by + bh / 2 + 1, PHOS_PALE, touch ? 11 : 14, 'center', 800);
       ctx.restore();
       boxes.tape = { left: tx, top: ty, right: tx + tw, bottom: by + bh };
       tapeBottom = by + bh;
     }
-    // Instrument cells.
-    const cell = (x, y, w, h) => {
-      ctx.fillStyle = PANEL; ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = EDGE; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    };
-    const speedCell = (x, y, w, h, big) => {
+    // Console pieces.
+    const panel = (x, y, w, h) => {
       ctx.save();
-      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = GREEN; ctx.font = font(big ? 40 : 20, 800);
-      ctx.fillText(String(d.speedKmh), x + w / 2, y + (big ? 44 : 21));
-      ctx.fillStyle = MINT; ctx.font = font(big ? 12 : 8);
-      ctx.fillText('KM/H', x + w / 2, y + (big ? 59 : 31));
-      // Gear row R N D with the active one boxed.
-      const gw = big ? 24 : 15, gy = y + h - (big ? 30 : 16), gh = big ? 21 : 12;
+      ctx.fillStyle = CONSOLE; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = SCANLINE;
+      for (let sy = y + 2; sy < y + h - 1; sy += 3) ctx.fillRect(x + 1, sy, w - 2, 1);
+      glow(ctx, PHOS, 9); ctx.strokeStyle = EDGE; ctx.lineWidth = 1.5; ctx.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
+      ctx.restore();
+    };
+    const frame = (x, y, w, h) => {
+      ctx.save(); ctx.strokeStyle = PHOS_DIM; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); ctx.restore();
+    };
+    const header = (label, x, y) => text(label, x + 10, y + 16, PHOS_LABEL, 11, 'left', 700);
+    // A segmented bar; the lit part glows in `color`.
+    const bar = (x, y, w, h, fraction, color, segments = 10) => {
+      const gap = 2, sw = (w - gap * (segments - 1)) / segments, lit = Math.max(0, Math.min(1, fraction)) * segments;
+      ctx.save();
+      ctx.strokeStyle = PHOS_DIM; ctx.lineWidth = 1;
+      for (let i = 0; i < segments; i++) ctx.strokeRect(x + i * (sw + gap) + 0.5, y + 0.5, sw - 1, h - 1);
+      glow(ctx, color, 5); ctx.fillStyle = color;
+      for (let i = 0; i < segments && i < lit; i++) ctx.fillRect(x + i * (sw + gap), y, sw * Math.min(1, lit - i), h);
+      ctx.restore();
+    };
+    const gun = d.gun, coax = d.coax, selected = d.weapons.find(w => w.selected) ?? null;
+    const gunFill = gun ? 1 - Math.max(0, Math.min(1, gun.reload)) : 0;
+    const gunTone = gun?.ready ? PHOS : AMBER;
+    const hullTone = (d.fraction ?? 1) < 0.3 ? RED : (d.fraction ?? 1) < 0.6 ? AMBER : PHOS;
+    const smokeText = !d.smoke ? null : d.smoke.active ? 'SMOKE ACTIVE' : d.smoke.available ? 'SMOKE READY' : `SMOKE ${Math.round(d.smoke.ready * 100)}%`;
+    const alert = d.lock ? { label: d.lock.label, tone: RED }
+      : d.badges.length ? { label: d.badges.map(b => b.label).join(' \u00B7 '), tone: d.badges[0].tone === 'danger' ? RED : AMBER } : null;
+    const crewText = c => `${c.label} ${c.name ? c.name.toUpperCase() : '\u2014'}`;
+    const status = w => w.kind === 'hitscan' ? (w.overheated ? 'OVERHEAT' : `HEAT ${Math.round(w.heat * 100)}%`)
+      : w.selected ? (w.ready ? 'READY' : `LOADING ${Math.round(gunFill * 100)}%`) : '';
+    const gears = (cx, gy, gw, gh, gap, size) => {
       ['R', 'N', 'D'].forEach((g, i) => {
-        const gx = x + w / 2 + (i - 1) * (gw + (big ? 6 : 3)) - gw / 2, on = g === d.gear;
-        if (on) { ctx.strokeStyle = g === 'R' ? AMBER : GREEN; ctx.lineWidth = 1.5; ctx.strokeRect(gx + 0.5, gy + 0.5, gw - 1, gh - 1); }
-        ctx.fillStyle = on ? (g === 'R' ? AMBER : GREEN) : '#ffffff55'; ctx.font = font(big ? 14 : 10, 800);
-        ctx.fillText(g, gx + gw / 2, gy + gh - (big ? 5 : 3));
+        const gx = cx + (i - 1) * (gw + gap) - gw / 2, on = g === d.gear, tone = g === 'R' ? AMBER : PHOS;
+        if (on) { ctx.save(); glow(ctx, tone, 6); ctx.strokeStyle = tone; ctx.lineWidth = 1.5; ctx.strokeRect(gx + 0.5, gy + 0.5, gw - 1, gh - 1); ctx.restore(); }
+        text(g, gx + gw / 2, gy + gh - Math.round(gh * 0.25), on ? tone : PHOS_DIM, size, 'center', 800);
       });
-      ctx.restore();
     };
-    const gunCell = (x, y, w, h, big) => {
-      this._silhouette(ctx, x + w / 2, y + h / 2 - (big ? 6 : 5), big ? 0.95 : 0.5, 0, d.turret, d.gear === 'D' ? 1 : d.gear === 'R' ? -1 : 0);
-      ctx.save(); ctx.textAlign = 'center'; ctx.font = font(big ? 15 : 10);
-      this._text(ctx, gun, x + w / 2, y + h - (big ? 8 : 5), GREEN);
-      ctx.restore();
-    };
-    const weaponCell = (x, y, w, h, big) => {
-      const wpn = d.weapon;
-      ctx.save(); ctx.textAlign = 'center';
-      ctx.font = font(big ? 15 : 10, 800);
-      this._text(ctx, wpn?.label ?? '--', x + w / 2, y + (big ? 20 : 12), AMBER);
-      const ready = !!wpn?.ready, fill = 1 - Math.max(0, Math.min(1, wpn?.reload ?? 0));
-      if (big) {
-        const r = 21, cx = x + w / 2, cy = y + 53;
-        ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff1e'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke();
-        ctx.strokeStyle = ready ? GREEN : AMBER; ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + TAU * fill); ctx.stroke();
-        // Inside the ring: the rounds left once loaded, else the load progress.
-        ctx.font = font(13, 800); ctx.textBaseline = 'middle'; ctx.fillStyle = ready ? GREEN : AMBER;
-        ctx.fillText(ready ? (Number.isFinite(wpn?.ammo) && wpn.ammo >= 0 ? String(wpn.ammo) : 'RDY') : `${Math.round(fill * 100)}%`, cx, cy + 1);
-        ctx.textBaseline = 'alphabetic'; ctx.font = font(12);
-        this._text(ctx, ready ? 'READY' : 'LOADING', cx, y + h - 7, ready ? GREEN : AMBER);
-      } else {
-        const bx = x + 8, bw = w - 16, by = y + 20;
-        ctx.fillStyle = '#ffffff1e'; ctx.fillRect(bx, by, bw, 5);
-        ctx.fillStyle = ready ? GREEN : AMBER; ctx.fillRect(bx, by, bw * fill, 5);
-        ctx.font = font(9);
-        this._text(ctx, ready ? 'READY' : 'LOADING', x + w / 2, y + h - 6, ready ? GREEN : AMBER);
-      }
-      ctx.restore();
-    };
-    const hullCell = (x, y, w, h, big) => {
-      ctx.save();
-      const fraction = d.fraction ?? 1, tone = fraction < 0.3 ? RED : fraction < 0.6 ? AMBER : GREEN;
-      ctx.font = font(big ? 14 : 9, 800); ctx.textAlign = 'left';
-      this._text(ctx, 'HULL', x + 10, y + (big ? 21 : 12), MINT);
-      ctx.textAlign = 'right';
-      this._text(ctx, big ? `${Math.ceil(d.hp)} / ${Math.ceil(d.maxHp)}` : `${Math.ceil(d.hp)}`, x + w - 10, y + (big ? 21 : 12), tone);
-      const bx = x + 10, bw = w - 20, by = y + (big ? 29 : 16);
-      ctx.fillStyle = '#ffffff1e'; ctx.fillRect(bx, by, bw, big ? 7 : 4);
-      ctx.fillStyle = tone; ctx.fillRect(bx, by, bw * fraction, big ? 7 : 4);
-      // Danger badges (disabled, burning) under the bar, else the smoke readiness.
-      const badge = d.badges[0];
-      const smoke = d.smoke;
-      const sy = y + (big ? 60 : 33);
-      ctx.textAlign = 'left'; ctx.font = font(big ? 14 : 9, 800);
-      if (smoke) {
-        const label = smoke.active ? 'SMOKE ACTIVE' : smoke.available ? 'SMOKE READY' : `SMOKE ${Math.round(smoke.ready * 100)}%`;
-        ctx.fillStyle = smoke.available ? GREEN : '#ffffff55';
-        ctx.beginPath(); ctx.arc(x + 14, sy - (big ? 4 : 3), big ? 4 : 3, 0, TAU); ctx.fill();
-        this._text(ctx, label, x + (big ? 24 : 20), sy, smoke.available ? GREEN : MINT);
-      }
-      if (badge) {
-        ctx.font = font(big ? 12 : 8, 800);
-        this._text(ctx, d.badges.map(b => b.label).join(' \u00B7 '), x + 10, y + h - (big ? 10 : 5), badge.tone === 'danger' ? RED : AMBER);
-      }
-      ctx.restore();
-    };
-    let bar;
+    let consoleBox;
     if (!touch) {
-      // Desktop: the instrument bar at the bottom centre, under the exit prompt,
-      // kept right of the squad list (minimap 22 + 184 + 18, list up to 190 wide).
+      // Desktop: the console at the bottom, under the exit prompt (lifted in this
+      // view, conquest.css), centred where it can be but kept right of the squad
+      // list (minimap 22 + 184 + 18, list up to 190 wide).
       const SQUAD_RIGHT = 424;
-      const bw = Math.min(780, Math.max(560, width - 2 * SQUAD_RIGHT - 12)), bh = 108;
+      const bw = Math.min(820, Math.max(560, width - SQUAD_RIGHT - 30)), bh = 128;
       const bx = Math.max(width / 2 - bw / 2, SQUAD_RIGHT + 6), by = height - 18 - bh;
-      const widths = [0.2, 0.24, 0.24, 0.32].map(f => Math.round(bw * f));
-      let x = bx;
-      const draws = [speedCell, gunCell, weaponCell, hullCell];
-      widths.forEach((w, i) => { const cw = i === widths.length - 1 ? bx + bw - x : w; cell(x, by, cw, bh); draws[i](x, by, cw, bh, true); x += cw; });
-      bar = { left: bx, top: by, right: bx + bw, bottom: by + bh };
-    } else {
-      // Phones: a 2 x 2 panel in the vehicle card's slot (top right), headed by the hull heading on portrait.
-      const pw = Math.min(196, width * 0.5), header = landscape ? 0 : 16, ph = header + 2 * 54;
-      const px = width - 12 - pw, py = landscape ? 8 : 64;
-      if (header) {
-        cell(px, py, pw, header);
-        ctx.save(); ctx.font = font(10, 800); ctx.textAlign = 'left';
-        this._text(ctx, 'DRIVER', px + 8, py + 12, MINT);
-        ctx.textAlign = 'right';
-        this._text(ctx, `HDG ${pad(d.heading)}`, px + pw - 8, py + 12, WHITE);
-        ctx.restore();
+      panel(bx, by, bw, bh);
+      const gap = 6, inner = bw - 2 * gap - 3 * gap;
+      const widths = [0.16, 0.2, 0.37, 0.27].map(f => Math.round(inner * f));
+      widths[3] = inner - widths[0] - widths[1] - widths[2];
+      const cells = [];
+      let cx = bx + gap;
+      for (const w of widths) { cells.push({ x: cx, y: by + gap, w, h: bh - 2 * gap }); cx += w + gap; }
+      for (const c of cells) frame(c.x, c.y, c.w, c.h);
+      // SPEED
+      {
+        const { x, y, w, h } = cells[0];
+        header('SPEED', x, y);
+        text(String(d.speedKmh), x + w / 2, y + 66, PHOS, 44, 'center', 800);
+        text('KM/H', x + w / 2, y + 82, PHOS_PALE, 12, 'center');
+        gears(x + w / 2, y + h - 28, 22, 20, 5, 13);
       }
-      const cw = pw / 2, ch = 54, y0 = py + header;
-      [[speedCell, 0, 0], [gunCell, 1, 0], [weaponCell, 0, 1], [hullCell, 1, 1]].forEach(([draw, cx, cy]) => {
-        cell(px + cx * cw, y0 + cy * ch, cw, ch); draw(px + cx * cw, y0 + cy * ch, cw, ch, false);
+      // TURRET
+      {
+        const { x, y, w, h } = cells[1];
+        header('TURRET', x, y);
+        this._phosphorTank(ctx, x + w / 2, y + h / 2 + 6, 1, d.turret, d.gear === 'D' ? 1 : d.gear === 'R' ? -1 : 0);
+        text(gunText, x + w / 2, y + h - 9, PHOS, 15, 'center', 800);
+      }
+      // ARMAMENT
+      {
+        const { x, y, w } = cells[2];
+        header('ARMAMENT', x, y);
+        if (d.weapons.length > 1) {
+          const key = bindingLabel('vehicleWeaponNext');
+          ctx.font = font(11, 700);
+          const sw = ctx.measureText('SWITCH').width, kw = ctx.measureText(key).width + 8;
+          text('SWITCH', x + w - 10, y + 16, PHOS_LABEL, 11, 'right');
+          const kx = x + w - 10 - sw - 5 - kw;
+          ctx.save(); ctx.strokeStyle = PHOS_LABEL; ctx.lineWidth = 1; ctx.strokeRect(kx + 0.5, y + 5.5, kw - 1, 14); ctx.restore();
+          text(key, kx + kw / 2, y + 16, PHOS_PALE, 11, 'center', 800);
+        }
+        d.weapons.forEach((wpn, i) => {
+          const ry = y + 24 + i * 17, base = ry + 12;
+          const tone = wpn.kind === 'hitscan' && wpn.overheated ? RED : !wpn.selected ? PHOS_PALE : wpn.ready ? PHOS : AMBER;
+          if (wpn.selected) {
+            ctx.save(); glow(ctx, tone, 8); ctx.fillStyle = tone; ctx.fillRect(x + 6, ry, w - 12, 15); ctx.restore();
+          }
+          const ink = wpn.selected ? CONSOLE_INK : tone;
+          if (wpn.selected) { ctx.font = font(12, 800); ctx.textAlign = 'left'; ctx.fillStyle = ink; ctx.fillText('\u25B6', x + 10, base); }
+          const draw = (t, tx, align, weight = 700) => {
+            ctx.font = font(12, weight); ctx.textAlign = align;
+            if (wpn.selected) { ctx.fillStyle = ink; ctx.fillText(t, tx, base); } else this._phosText(ctx, t, tx, base, tone);
+          };
+          draw(wpn.key, x + 24, 'left', 800);
+          draw(wpn.ammo == null ? wpn.label : `${wpn.label} \u00D7${wpn.ammo}`, x + 38, 'left');
+          const st = status(wpn);
+          if (st) draw(st, x + w - 12, 'right', 800);
+        });
+        const after = y + 24 + d.weapons.length * 17 + 6;
+        if (gun) {
+          bar(x + 10, after, Math.round(w * 0.55), 9, gunFill, gunTone);
+          text(gun.ready ? 'READY' : `${Math.round(gunFill * 100)}% LOADING`, x + w - 12, after + 9, gunTone, 12, 'right', 800);
+        }
+        if (coax) {
+          const cy = after + 20, tone = coax.overheated ? RED : PHOS;
+          text('COAX HEAT', x + 10, cy + 7, PHOS_LABEL, 10, 'left');
+          const bx = x + 18 + ctx.measureText('COAX HEAT').width;
+          bar(bx, cy, x + 10 + Math.round(w * 0.55) - bx, 6, coax.heat, tone, 12);
+          text(coax.overheated ? 'OVERHEAT' : `${Math.round(coax.heat * 100)}%`, x + w - 12, cy + 7, tone, 11, 'right', 800);
+        }
+      }
+      // STATUS
+      {
+        const { x, y, w, h } = cells[3];
+        header('STATUS', x, y);
+        text('HULL', x + 10, y + 36, PHOS_PALE, 13, 'left', 800);
+        text(`${Math.ceil(d.hp)} / ${Math.ceil(d.maxHp)}`, x + w - 10, y + 36, hullTone, 13, 'right', 800);
+        bar(x + 10, y + 42, w - 20, 9, d.fraction ?? 1, hullTone);
+        const dot = (yy, on, tone = PHOS) => {
+          ctx.save(); glow(ctx, tone, on ? 6 : 0); ctx.beginPath(); ctx.arc(x + 15, yy - 4, 4, 0, TAU);
+          if (on) { ctx.fillStyle = tone; ctx.fill(); } else { ctx.strokeStyle = PHOS_DIM; ctx.lineWidth = 1.5; ctx.stroke(); }
+          ctx.restore();
+        };
+        if (smokeText) { dot(y + 71, d.smoke.available || d.smoke.active); text(smokeText, x + 26, y + 71, d.smoke.available ? PHOS : PHOS_PALE, 13, 'left', 800); }
+        const c = d.crew[0];
+        if (c) { dot(y + 90, !!c.name); text(crewText(c), x + 26, y + 90, c.name ? PHOS_PALE : PHOS_DIM, 13, 'left', 800); }
+        if (alert) text(alert.label, x + 10, y + h - 7, alert.tone, 12, 'left', 800);
+      }
+      consoleBox = { left: bx, top: by, right: bx + bw, bottom: by + bh };
+    } else {
+      // Phones: one compact console in the vehicle card's slot (top right):
+      // a heading header (portrait), speed | turret, the armament chips with
+      // the load or heat bar, and the hull / smoke / crew line.
+      const pw = Math.min(204, width * 0.52), head = landscape ? 0 : 16, rowA = 56, rowB = 48, rowC = 36;
+      const ph = head + rowA + rowB + rowC;
+      const px = width - 12 - pw, py = landscape ? 8 : 64;
+      panel(px, py, pw, ph);
+      let y = py;
+      if (head) {
+        text('DRIVER', px + 8, y + 12, PHOS_LABEL, 10, 'left', 800);
+        text(`HDG ${pad(d.heading)}`, px + pw - 8, y + 12, PHOS_PALE, 10, 'right', 800);
+        ctx.save(); ctx.fillStyle = PHOS_DIM; ctx.fillRect(px + 4, y + head - 1, pw - 8, 1); ctx.restore();
+        y += head;
+      }
+      const half = pw / 2;
+      frame(px + 3, y + 2, half - 4, rowA - 3); frame(px + half + 1, y + 2, half - 4, rowA - 3);
+      text(String(d.speedKmh), px + half / 2, y + 24, PHOS, 22, 'center', 800);
+      text('KM/H', px + half / 2, y + 33, PHOS_PALE, 8, 'center');
+      gears(px + half / 2, y + rowA - 17, 14, 12, 3, 10);
+      this._phosphorTank(ctx, px + half + half / 2, y + rowA / 2 - 5, 0.42, d.turret, d.gear === 'D' ? 1 : d.gear === 'R' ? -1 : 0);
+      text(gunText, px + half + half / 2, y + rowA - 5, PHOS, 10, 'center', 800);
+      y += rowA;
+      // Armament chips (the selected one lit) and the load or heat of the selected weapon.
+      const n = Math.max(1, d.weapons.length), chipW = (pw - 16 - (n - 1) * 4) / n;
+      d.weapons.forEach((wpn, i) => {
+        const cx = px + 8 + i * (chipW + 4), tone = wpn.kind === 'hitscan' && wpn.overheated ? RED : wpn.selected ? (wpn.ready ? PHOS : AMBER) : PHOS_PALE;
+        ctx.save();
+        if (wpn.selected) { glow(ctx, tone, 6); ctx.fillStyle = tone; ctx.fillRect(cx, y + 4, chipW, 14); }
+        else { ctx.strokeStyle = PHOS_DIM; ctx.lineWidth = 1; ctx.strokeRect(cx + 0.5, y + 4.5, chipW - 1, 13); }
+        ctx.restore();
+        ctx.font = font(10, 800); ctx.textAlign = 'center';
+        const chip = wpn.ammo == null ? wpn.short : `${wpn.short} ${wpn.ammo}`;
+        if (wpn.selected) { ctx.fillStyle = CONSOLE_INK; ctx.fillText(chip, cx + chipW / 2, y + 15); } else this._phosText(ctx, chip, cx + chipW / 2, y + 15, tone);
       });
-      bar = { left: px, top: py, right: px + pw, bottom: py + ph };
+      if (selected) {
+        const heat = selected.kind === 'hitscan';
+        const fill = heat ? selected.heat : gunFill, tone = heat ? (selected.overheated ? RED : PHOS) : gunTone;
+        bar(px + 8, y + 24, pw - 70, 6, fill, tone, 10);
+        text(heat ? `${Math.round(selected.heat * 100)}%` : selected.ready ? 'RDY' : `${Math.round(gunFill * 100)}%`, px + pw - 8, y + 31, tone, 10, 'right', 800);
+        text(selected.label, px + 8, y + 43, PHOS_PALE, 9, 'left', 700);
+        text(heat ? (selected.overheated ? 'OVERHEAT' : 'HEAT') : selected.ready ? 'READY' : 'LOADING', px + pw - 8, y + 43, tone, 9, 'right', 800);
+      }
+      ctx.save(); ctx.fillStyle = PHOS_DIM; ctx.fillRect(px + 4, y + rowB - 1, pw - 8, 1); ctx.restore();
+      y += rowB;
+      // Hull, smoke, then a lock / badge alert or the crew.
+      text('HULL', px + 8, y + 12, PHOS_PALE, 9, 'left', 800);
+      text(`${Math.ceil(d.hp)}`, px + 14 + ctx.measureText('HULL').width, y + 12, hullTone, 9, 'left', 800);
+      if (smokeText) text(d.smoke.active ? 'SMOKE ON' : d.smoke.available ? 'SMOKE RDY' : smokeText, px + pw - 8, y + 12, d.smoke.available ? PHOS : PHOS_PALE, 9, 'right', 800);
+      bar(px + 8, y + 16, pw - 16, 4, d.fraction ?? 1, hullTone, 12);
+      if (alert) text(alert.label, px + 8, y + 31, alert.tone, 9, 'left', 800);
+      else if (d.crew[0]) text(crewText(d.crew[0]), px + 8, y + 31, d.crew[0].name ? PHOS_PALE : PHOS_DIM, 9, 'left', 800);
+      consoleBox = { left: px, top: py, right: px + pw, bottom: py + ph };
     }
-    boxes.bar = bar;
+    boxes.bar = consoleBox;
     this.driverBoxes = boxes;
     for (const box of Object.values(boxes)) this.reserved.push({ left: box.left - 4, top: box.top - 4, right: box.right + 4, bottom: box.bottom + 4 });
-    // The gun marks stay inside the brackets, below the tape and above the bar (desktop).
-    return { top: tapeBottom + 16, bottom: touch ? 110 : height - bar.top + 16, left: 44, right: 44 };
+    // The gun marks stay inside the brackets, below the tape and above the console (desktop).
+    return { top: tapeBottom + 16, bottom: touch ? 110 : height - consoleBox.top + 16, left: 44, right: 44 };
   }
-
   _pods(ctx, m) {
     const p = m.pip ?? m.center;
     ctx.lineWidth = 2; ctx.strokeStyle = AMBER;

@@ -259,7 +259,7 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
     assert.equal(drawn.hullBox, null);
     ok();
   }
-  // DRIVER periscope (tank driver, view 'driver'): instruments from the row, the gun marks against the mouse aim.
+  // DRIVER periscope (tank driver, view 'driver'): the phosphor display's instruments from the row, the gun marks against the mouse aim.
   {
     const f = byId('tank-periscope'), seated = seatedOf(f), row = seated.row;
     const model = (opts = {}) => state.reticleModel(seated, { projector: projectorFor(f), players: f.players, vehicles: f.vehicles,
@@ -274,6 +274,21 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
     assert.equal(d.hp, 640); assert.ok(d.maxHp > 640 && Math.abs(d.fraction - 640 / d.maxHp) < 1e-9);
     assert.deepEqual(d.smoke, { kind: 'smoke', ready: 1, available: true, active: false });
     assert.equal(d.heading, state.hullIndicatorModel(row).heading, 'the boxed heading is the hull heading');
+    // The whole armament of the seat: AP and HE share the breech, the coax runs its own heat.
+    assert.deepEqual(d.weapons.map(w => [w.key, w.label, w.short, w.selected]),
+      [['1', '120MM AP', 'AP', false], ['2', '120MM HE', 'HE', true], ['3', 'COAX 7.62', 'COAX', false]]);
+    assert.equal(d.gun.label, '120MM HE', 'the main gun is the selected shell'); assert.equal(d.gun.ready, false);
+    assert.ok(Math.abs(d.coax.heat - 0.1) < 1e-9); assert.equal(d.coax.overheated, false);
+    assert.ok(d.weapons.every(w => w.ammo === null), 'no magazine (snapshot -1): no ammo count');
+    assert.deepEqual(d.crew, [{ seatId: 'commander', label: 'CMDR', name: 'Brannock' }], 'the commander from the seat occupants');
+    assert.equal(d.lock, null);
+    const mounts = row.mounts.map(m => [...m]); mounts[0][2] = 4; mounts[1][3] = 100;
+    const loaded = state.driverHudModel({ ...row, mounts, sel: { driver: 2 }, lk: 3, seatOccupants: { driver: 'me' } });
+    assert.equal(loaded.weapons[0].ammo, 4, 'a finite magazine shows its rounds');
+    assert.equal(loaded.gun.label, '120MM AP', 'with the coax selected the main gun is the first shell');
+    assert.equal(loaded.coax.overheated, true);
+    assert.deepEqual(loaded.lock, { state: 3, label: 'MISSILE INBOUND' });
+    assert.equal(loaded.crew[0].name, null, 'an empty commander seat');
     assert.ok(scope.aimMark && scope.aimMark.x > VIEW.width / 2, 'the aim mark sits right of the nose');
     assert.ok(scope.impactRaw, 'unclamped shell projection for the edge arrow');
     assert.equal(model({ view: 'chase' }).periscope, undefined, 'other views keep the hull indicator');
@@ -288,18 +303,24 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
     const drawn = new Reticles(document.body);
     drawn.draw(scope, null, VIEW.width, VIEW.height, {});
     const texts = textsDrawn(drawn.context);
-    for (const text of ['23', 'KM/H', 'GUN \u25B6 30\u00B0', 'LOADING', 'SMOKE READY', `640 / ${Math.ceil(d.maxHp)}`]) assert.ok(texts.includes(text), `desktop bar draws ${text}`);
-    assert.ok(drawn.driverBoxes.bar && drawn.driverBoxes.tape, 'desktop: instrument bar and heading tape');
+    for (const text of ['23', 'KM/H', 'GUN \u25B6 30\u00B0', 'SPEED', 'TURRET', 'ARMAMENT', 'STATUS', '120MM AP', '120MM HE', 'COAX 7.62',
+      'LOADING 45%', '45% LOADING', 'HEAT 10%', 'SWITCH', 'SMOKE READY', `640 / ${Math.ceil(d.maxHp)}`, 'CMDR BRANNOCK']) assert.ok(texts.includes(text), `desktop console draws ${text}`);
+    assert.ok(drawn.driverBoxes.bar && drawn.driverBoxes.tape, 'desktop: console and heading tape');
+    assert.ok(drawn.driverBoxes.bar.bottom <= VIEW.height - 18 && drawn.driverBoxes.bar.right <= VIEW.width - 18, 'the console stays inside the brackets');
+    drawn.draw({ ...scope, driver: loaded }, null, VIEW.width, VIEW.height, {});
+    for (const text of ['MISSILE INBOUND', 'OVERHEAT', '120MM AP \u00D74', 'CMDR \u2014']) assert.ok(textsDrawn(drawn.context).includes(text), `alerts: ${text}`);
+    drawn.draw(scope, null, VIEW.width, VIEW.height, {});
     assert.ok(drawn.driverBoxes.bar.left >= 424, 'the bar keeps right of the squad list');
     assert.ok(Object.values(drawn.driverBoxes).every(b => drawn.reserved.some(r => r.left <= b.left && r.right >= b.right)), 'markers keep clear');
     assert.ok(!texts.some(t => t.includes('HULL AHEAD') || /^HULL \d{3}/.test(t)), 'no hull indicator readout');
     // A gun turned out of the window gets an edge arrow instead of the shell marks.
     const behind = model({ driverAim: { yaw: row.yaw + Math.PI, pitch: 0 } });
     drawn.draw({ ...behind, impact: null, impactRaw: { x: -400, y: VIEW.height / 2, inside: false, behind: false } }, null, VIEW.width, VIEW.height, {});
-    assert.ok(textsDrawn(drawn.context).includes('GUN'), 'edge arrow labelled GUN');
+    assert.ok(textsDrawn(drawn.context).some(t => t === 'GUN' || /^GUN \d+ M$/.test(t)), 'edge arrow labelled GUN (with the range)');
     drawn.draw(scope, null, 390, 844, { touch: true });
     assert.equal(drawn.driverBoxes.tape, undefined, 'portrait: the panel header carries the heading');
     assert.ok(textsDrawn(drawn.context).includes(`HDG ${String(d.heading).padStart(3, '0')}`));
+    for (const text of ['AP', 'HE', 'COAX', 'LOADING', 'SMOKE RDY', 'CMDR BRANNOCK']) assert.ok(textsDrawn(drawn.context).includes(text), `phone console draws ${text}`);
     drawn.draw(scope, null, 844, 390, { touch: true });
     assert.ok(drawn.driverBoxes.tape && drawn.driverBoxes.bar.right <= 844 - 12 + 1e-9);
     drawn.clear();
@@ -781,6 +802,18 @@ ok();
     assert.equal(hud.sensor.hidden, true);
     assert.ok(textsDrawn(hud.reticles.context).includes('25MM CHIN \u00B7 GIMBAL'), 'the plain gimbal box');
     hud.dispose();
+    // The tank driver's DRIVER periscope: the phosphor dressing and its light grade, gone in any other view.
+    const scopeFixture = byId('tank-periscope');
+    const driverHud = new ConquestHud(document.body, { eventTarget: dom.window });
+    const driverView = view => ({ ...renderArgs(scopeFixture), vehicleController: { yaw: scopeFixture.aim.yaw, pitch: scopeFixture.aim.pitch, viewState: () => ({ view }) } });
+    driverHud.update(driverView('driver'));
+    assert.equal(document.body.dataset.vehicleSight, 'periscope'); assert.equal(driverHud.scope.hidden, false); assert.equal(driverHud.sensor.hidden, true);
+    assert.equal(driverHud.root.dataset.vehicleView, 'driver');
+    driverHud.update(driverView('chase'));
+    assert.equal(document.body.dataset.vehicleSight, '', 'chase view: no grade'); assert.equal(driverHud.scope.hidden, true);
+    driverHud.update(driverView('driver'));
+    driverHud.dispose();
+    assert.equal(document.body.dataset.vehicleSight, '', 'dispose clears the grade');
     const readout = state.sensorReadout({ x: 0, y: 50, z: 0, yaw: -Math.PI / 2, pitch: -0.3, zoom: 4 }, { raycast: () => ({ t: 412.4 }) });
     assert.deepEqual([readout.range, readout.heading, readout.elevation, readout.zoom], [412, 90, -17, 4], 'east is 090');
     assert.equal(state.sensorReadout({ yaw: 0, pitch: 0 }, {}).range, null, 'no return without a raycast');

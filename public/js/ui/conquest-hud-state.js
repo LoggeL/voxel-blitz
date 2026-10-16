@@ -450,16 +450,19 @@ export function hullIndicatorModel(row, { viewYaw = null, hullYaw = null } = {})
 }
 
 /**
- * Tank driver's periscope instruments (the DRIVER view; design
- * docs/design/conquest/tank-hud/driver-view/, variant B), all from the
+ * Tank driver's periscope instruments (the DRIVER view's phosphor display;
+ * design docs/design/conquest/tank-hud/phosphor/, variant B), all from the
  * authoritative row: track speed (km/h) and the gear it implies (D forward,
  * R reversing, N at rest), the hull heading (compass degrees, `headingDeg`
  * unrounded for the tape), the turret's offset from the hull (`turret` rad
- * +left, `gunOffset` whole degrees: here the hull is screen up), the selected
- * main weapon with its reload, hull integrity, smoke readiness and the
- * danger badges. `hullYaw` is the presented hull yaw (else the row's).
+ * +left, `gunOffset` whole degrees: here the hull is screen up), the seat's
+ * whole armament (`weapons`, the selected one also as `weapon`; `ammo` only
+ * for a magazine, null when unlimited), the main gun's load (`gun`) and the
+ * coax heat (`coax`), hull integrity, smoke readiness, the danger badges,
+ * the lock warning on the hull (`lock`) and the rest of the crew (`crew`,
+ * names from `players`). `hullYaw` is the presented hull yaw (else the row's).
  */
-export function driverHudModel(row, seatId = 'driver', { hullYaw = null } = {}) {
+export function driverHudModel(row, seatId = 'driver', { hullYaw = null, players = [] } = {}) {
   if (row?.type !== 'tank') return null;
   const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
   const yaw = finite(hullYaw, finite(row.yaw)), turret = wrap(finite(row.turretYaw, yaw) - yaw);
@@ -468,14 +471,34 @@ export function driverHudModel(row, seatId = 'driver', { hullYaw = null } = {}) 
   const weapons = seatWeapons(row, seatId), selected = weapons.find(w => w.selected) || weapons[0] || null;
   const cm = COUNTERMEASURES[row.type] ?? null;
   const headingDeg = ((-yaw * 180 / Math.PI) % 360 + 360) % 360;
+  // The main gun is the shell weapon in use (AP and HE share its breech), else the first one.
+  const gun = selected?.kind === 'shell' ? selected : weapons.find(w => w.kind === 'shell') ?? null;
+  const coax = weapons.find(w => w.kind === 'hitscan') ?? null;
+  const lockState = Math.max(0, Math.min(3, row.lk | 0));
   return {
     speedKmh: Math.round(Math.abs(speed) * 3.6), gear: speed > 0.3 ? 'D' : speed < -0.3 ? 'R' : 'N',
     headingDeg, heading: Math.round(headingDeg) % 360, turret, gunOffset: Math.round(turret * 180 / Math.PI),
     weapon: selected ? { label: selected.label, ready: selected.ready, reload: selected.reload, ammo: selected.ammo, count: weapons.length } : null,
+    weapons: weapons.map(armament), gun: gun ? armament(gun) : null, coax: coax ? armament(coax) : null,
     hp, maxHp, fraction: maxHp ? clamp01(hp / maxHp) : null,
     smoke: cm ? { kind: cm, ready: clamp01(finite(row.cmr) / 100), available: finite(row.cmr) >= 100, active: status[cm] === true } : null,
     badges: STATUS_BADGES.filter(([key, , tone]) => tone !== 'info' && status[key]).map(([key, label, tone]) => ({ key, label, tone })),
+    lock: lockState ? { state: lockState, label: LOCK_LABELS[lockState] } : null,
+    crew: topology(row.type).filter(seat => seat.id !== seatId).map(seat => {
+      const id = seatOccupant(row, seat.id);
+      return { seatId: seat.id, label: CREW_LABELS[seat.id] ?? seat.id.toUpperCase(), name: id == null ? null : nameOf(players, id).name ?? 'CREW' };
+    }),
   };
+}
+
+/** Short seat names on the driver's crew line. */
+const CREW_LABELS = Object.freeze({ commander: 'CMDR', gunner: 'GNR', driver: 'DRVR' });
+/** Short weapon names for the phone armament chips. */
+const WEAPON_SHORT = Object.freeze({ tankAP: 'AP', tankHE: 'HE', coaxMG: 'COAX' });
+/** One armament row of the driver display; `ammo` only for a magazine (snapshot -1 = unlimited). */
+function armament(w) {
+  return { key: w.key, weapon: w.weapon, label: w.label, short: WEAPON_SHORT[w.weapon] ?? w.label, kind: w.kind, selected: w.selected,
+    ready: w.ready, reload: w.reload, heat: w.heat, overheated: w.overheated, ammo: Number.isFinite(w.ammo) && w.ammo >= 0 ? w.ammo : null };
 }
 
 /**
@@ -554,7 +577,7 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
       const mark = projector.project(pose.origin[0] + dir[0] * far, pose.origin[1] + dir[1] * far, pose.origin[2] + dir[2] * far);
       aimMark = { x: mark.x, y: mark.y, inside: mark.inside };
     }
-    return { ...model, periscope: true, driver: driverHudModel(row, seat.id, { hullYaw }),
+    return { ...model, periscope: true, driver: driverHudModel(row, seat.id, { hullYaw, players }),
       impactRaw: raw ? { x: raw.x, y: raw.y, inside: raw.inside, behind: raw.behind } : null, aimMark,
       aligned: point && aimMark?.inside ? Math.hypot(point.x - aimMark.x, point.y - aimMark.y) < 6 : false };
   }

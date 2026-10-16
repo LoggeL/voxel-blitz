@@ -70,6 +70,10 @@ export class ConquestHud {
     this.sensor = el('div', 'cq-sensor', this.root);
     this.sensor.setAttribute('aria-hidden', 'true');
     this.sensor.hidden = true;
+    // Tank driver's phosphor periscope dressing (wash, scanlines, vignette); the light grade is the same body flag.
+    this.scope = el('div', 'cq-scope', this.root);
+    this.scope.setAttribute('aria-hidden', 'true');
+    this.scope.hidden = true;
     this.markers = new WorldMarkers(this.root);
     this.reticles = new Reticles(this.root);
     this.topBar = new TopBar(this.root);
@@ -236,7 +240,7 @@ export class ConquestHud {
     const show = this.dead && this.active;
     this.deploy.setOpen(show, this.killerInfo);
     this.root.dataset.dead = String(this.dead);
-    if (this.dead) { this.bigMap.setOpen(false); this.reticles.clear(); this._setSensor(false); this.markers.clear(); }
+    if (this.dead) { this.bigMap.setOpen(false); this.reticles.clear(); this._setSight(''); this.markers.clear(); }
   }
 
   /**
@@ -368,7 +372,7 @@ export class ConquestHud {
       this.lock.update(null);
       this.restricted.update(null);
       this.reticles.clear();
-      this._setSensor(false);
+      this._setSight('');
       this.markers.clear();
       this.minimap.root.hidden = true;
       this.squadList.update(null);
@@ -406,7 +410,7 @@ export class ConquestHud {
       raycast: this.shellRaycast, flightAim: this.vehicleController?.aimFlight === true, sight,
       viewYaw: angles?.yaw ?? null, hullYaw: presented?.id === seated.row.id ? presented.yaw : null,
       view: periscope ? 'driver' : null, driverAim: aim }) : null;
-    this._setSensor(!!reticle?.sensor);
+    this._setSight(reticle?.sensor ? 'sensor' : reticle?.periscope ? 'periscope' : '');
     const locker = projector ? lockerModel(self, { projector, vehicles, selfTeam, seated,
       camera: angles && eye ? { ...eye, yaw: angles.yaw, pitch: angles.pitch } : null }) : null;
     this.reticles.draw(reticle, locker, width, height, { touch });
@@ -451,12 +455,17 @@ export class ConquestHud {
   invalidateLayout() { this._obstacleCache = null; }
 
   /** Screen rects of the visible fixed HUD panels, cached per layout and refreshed a few times a second. */
-  /** Gimbal sensor look on or off: the overlay and the body flag that grades #game. */
-  _setSensor(on) {
-    if (this.sensor.hidden === !on) return;
-    this.sensor.hidden = !on;
+  /**
+   * Seat sight look: 'sensor' (the gimbal's monochrome sensor), 'periscope' (the
+   * tank driver's phosphor display) or '': the overlay and the body flag that grades #game.
+   */
+  _setSight(kind) {
+    if ((this._sight ?? '') === kind) return;
+    this._sight = kind;
+    this.sensor.hidden = kind !== 'sensor';
+    this.scope.hidden = kind !== 'periscope';
     const body = globalThis.document?.body;
-    if (body?.dataset) body.dataset.vehicleSight = on ? 'sensor' : '';
+    if (body?.dataset) body.dataset.vehicleSight = kind;
   }
 
   _markerObstacles(width, height, touch) {
@@ -557,7 +566,7 @@ export class ConquestHud {
   hide() {
     const body = globalThis.document?.body;
     if (body?.dataset) { delete body.dataset.vehicleSeated; delete body.dataset.flightAim; }
-    this._setSensor(false);
+    this._setSight('');
     if (this.root.hidden) return;
     this.root.hidden = true;
     this.bigMap.setOpen(false);

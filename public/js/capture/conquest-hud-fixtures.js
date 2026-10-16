@@ -196,7 +196,7 @@ export function conquestHudFixtures() {
     const yaw = yawTo(tankAt, C), gunYaw = yaw - 30 * Math.PI / 180;
     const self = meAt(tankAt.x, tankAt.z, { vehicleId: 'alpha-tank', vehicleSeatId: 'driver' });
     const tank = vehicle('alpha-tank', 'tank', 'alpha', tankAt.x, tankAt.z, { hp: 640, yaw, turretYaw: gunYaw, turretPitch: 0.03,
-      seatOccupants: { driver: 'me', commander: 'sq2' }, mounts: [[gunYaw, 0.03, 3, 0, 55], [gunYaw, 0.03, -1, 10, 0], [yaw, 0, -1, 0, 0]],
+      seatOccupants: { driver: 'me', commander: 'sq2' }, mounts: [[gunYaw, 0.03, -1, 0, 55], [gunYaw, 0.03, -1, 10, 0], [yaw, 0, -1, 0, 0]],
       sel: { driver: 1 }, cmr: 100, speed: 6.4 });
     const crew = roster(self).map(p => p.id === 'sq2' ? { ...p, x: tankAt.x, z: tankAt.z, vehicleId: 'alpha-tank', vehicleSeatId: 'commander' } : p);
     // The periscope eye (shared seat camera `periscope`, hull frame [-0.6, 1.5, -2.55]) looking along the hull.

@@ -1,0 +1,35 @@
+{
+  "generated": "2026-10-16T00:02:49.321Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "tank-periscope",
+        "title": "Tank driver · DRIVER periscope · HE loading · gun 30° right",
+        "file": "docs/design/conquest/tank-hud/phosphor/captures/hud/desktop-tank-periscope.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "tank-periscope",
+        "title": "Tank driver · DRIVER periscope · HE loading · gun 30° right",
+        "file": "docs/design/conquest/tank-hud/phosphor/captures/hud/portrait-tank-periscope.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "tank-periscope",
+        "title": "Tank driver · DRIVER periscope · HE loading · gun 30° right",
+        "file": "docs/design/conquest/tank-hud/phosphor/captures/hud/landscape-tank-periscope.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

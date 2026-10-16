@@ -4,8 +4,8 @@
 // rows run through the real VehicleView, VehicleFx and ParticleField.
 import * as THREE from '../vendor/three.module.js';
 import { VehicleView } from '../engine/vehicle-view.js';
-import { VEHICLE_STATUS, vehicleMountOrder } from '../../../shared/conquest-contract.js';
-import { vehicleDef } from '../../../shared/vehicle-defs.js';
+import { VEHICLE_STATUS, seatWeaponList, vehicleMountOrder } from '../../../shared/conquest-contract.js';
+import { VEHICLE_WEAPONS, vehicleDef } from '../../../shared/vehicle-defs.js';
 
 const params = new URLSearchParams(location.search);
 const type = params.get('type') || 'tank';
@@ -88,12 +88,17 @@ const flying = aircraft && params.get('air') === '1';
 
 function rowFor(id, rowTeam, x, z, yaw) {
   const occupants = Object.fromEntries(def.seats.map(seat => [seat.id, crew && state !== 'wreck' ? `${id}-${seat.id}` : null]));
-  // Mount aims: tilt every articulated gun a little so the rigs read.
+  // Mount aims: tilt every articulated gun a little so the rigs read. The tank's ammo is
+  // what the server sends (a full magazine, or -1 for a weapon without one), so its driver
+  // display shows no made-up round counts; other hulls keep their 2-round placeholder.
   const mounts = vehicleMountOrder(type).map((key, i) => {
-    const mount = def.mounts[key.split(':')[1]];
+    const [seatId, mountId] = key.split(':');
+    const mount = def.mounts[mountId];
     const centre = mount.yawLimit ? mount.yawLimit[0] : 0;
-    if (aimOffset !== null) return [yaw + centre + (mount.fixed ? 0 : aimOffset), mount.fixed ? 0 : aimPitch, 2, 0, 0];
-    return [yaw + centre + (mount.fixed ? 0 : 0.35 - i * 0.15), mount.fixed ? 0 : 0.12, 2, 0, 0];
+    const ammo = type !== 'tank' ? 2
+      : seatWeaponList(type, seatId).filter(w => w.mount === mountId).map(w => VEHICLE_WEAPONS[w.weapon]?.magazine).find(Number.isFinite) ?? -1;
+    if (aimOffset !== null) return [yaw + centre + (mount.fixed ? 0 : aimOffset), mount.fixed ? 0 : aimPitch, ammo, 0, 0];
+    return [yaw + centre + (mount.fixed ? 0 : 0.35 - i * 0.15), mount.fixed ? 0 : 0.12, ammo, 0, 0];
   });
   return {
     id, type, team: rowTeam, x, y: GROUND_Y + (flying ? altitude : 0), z, yaw, pitch: aircraft ? num('pitch', 0) : 0, roll: aircraft ? num('roll', 0) : 0,
@@ -213,7 +218,7 @@ function renderHullMask() {
 const hullMask = angle === 'range' ? renderHullMask() : null;
 renderer.render(scene, camera);
 if (seatShot && hud) {
-  // The live HUD's reticle code, CSS and gimbal sensor dressing over the real seat camera.
+  // The live HUD's reticle code, CSS and seat sight dressing (gimbal sensor, driver periscope) over the real seat camera.
   const [{ Reticles }, { reticleModel }, { createProjector, cameraAngles }, { raycastVoxels }] = await Promise.all([
     import('../ui/conquest/reticles.js'), import('../ui/conquest-hud-state.js'), import('../ui/conquest/projection.js'), import('../../../shared/raycast.js')]);
   const link = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: './styles/conquest.css' });
@@ -225,6 +230,9 @@ if (seatShot && hud) {
   const sensor = document.createElement('div');
   sensor.className = 'cq-sensor';
   layer.appendChild(sensor);
+  const scope = document.createElement('div');
+  scope.className = 'cq-scope';
+  layer.appendChild(scope);
   const reticles = new Reticles(layer);
   camera.updateMatrixWorld();
   const row = view.presentedRow(rows[0].id);
@@ -238,7 +246,8 @@ if (seatShot && hud) {
     viewYaw: angles.yaw, hullYaw: row.yaw, view: periscope ? 'driver' : null,
     driverAim: periscope ? { yaw: rows[0].turretYaw, pitch: rows[0].turretPitch } : null });
   sensor.hidden = !model?.sensor;
-  document.body.dataset.vehicleSight = model?.sensor ? 'sensor' : '';
+  scope.hidden = !model?.periscope;
+  document.body.dataset.vehicleSight = model?.sensor ? 'sensor' : model?.periscope ? 'periscope' : '';
   reticles.draw(model, null, innerWidth, innerHeight, { touch: params.get('touch') === '1' });
   root.dataset.reticleKind = model?.kind ?? '';
   root.dataset.sensorRange = String(model?.sensor?.range ?? '');
