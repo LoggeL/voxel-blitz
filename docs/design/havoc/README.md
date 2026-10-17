@@ -1,5 +1,8 @@
 # RX-8 HAVOC redesign (TORCH revision 3)
 
+> Superseded by [revision 4 (RIDGEBACK)](../havoc-rev4/README.md). This file is
+> kept as the revision-3 design record.
+
 The HAVOC's revision 2 model read as a blocky slab with a flat white top plank
 and an oversized bucket venturi that filled the first-person view. This pass
 rebuilds the Blender asset `torch` from an ImageGen concept, ships an authored

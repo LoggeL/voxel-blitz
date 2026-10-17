@@ -176,7 +176,8 @@ try {
     must(lead.visible && lead.position.equals(lead.userData.homePosition), 'belt lead rests at its tray home');
     const leadBounds = new T.Box3().setFromObject(lead);
     must(leadBounds.max.y <= coverTop && leadBounds.min.y >= 0.12, 'belt lead lies inside the feed tray');
-    const { WeaponActions, syncRocketAmmo } = await import('/js/guns/actions.js');
+    const { WeaponActions } = await import('/js/guns/actions.js');
+    const { syncRocketAmmo } = await import('/js/guns/rocket-presentation.js');
     const belt = new WeaponActions();
     belt.startReload(0, 4.2, 'magswap', lmg.T);
     belt.update(0.45 * 4.2, 0, lmg, lmg.T);

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
-import { WeaponActions, syncRocketAmmo } from '../public/js/guns/actions.js';
+import { WeaponActions } from '../public/js/guns/actions.js';
+import { syncRocketAmmo } from '../public/js/guns/rocket-presentation.js';
 import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { buildGun, disposeGunModels } from '../public/js/guns/assemble.js';

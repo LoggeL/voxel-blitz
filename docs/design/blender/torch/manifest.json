@@ -2,10 +2,10 @@
   "asset": "TORCH",
   "asset_id": "torch",
   "kind": "original heavy sci-fi shoulder-fired rocket launcher prop (visual game asset)",
-  "design_study": "VANGUARD",
+  "design_study": "RIDGEBACK",
   "blender": "5.2.1 LTS",
   "authoring_script": "tools/blender/torch/build-torch.py",
-  "source_parts": 151,
+  "source_parts": 180,
   "animation_group_nodes": [
     "body",
     "mag",
@@ -19,7 +19,7 @@
     "sight",
     "support"
   ],
-  "batch_nodes": 22,
+  "batch_nodes": 23,
   "round_nodes": [
     "round | cavity black",
     "round | gunmetal",
@@ -27,20 +27,21 @@
     "round | olive drab",
     "round | orange paint"
   ],
-  "triangles": 19716,
+  "triangles": 21848,
   "triangles_per_primitive": {
-    "body | cavity black": 892,
-    "body | gunmetal": 7228,
+    "body | cavity black": 1036,
+    "body | gunmetal": 7568,
     "body | ivory coating": 744,
-    "body | olive drab": 1436,
-    "body | orange paint": 2072,
-    "body | polymer": 708,
+    "body | machined steel": 384,
+    "body | olive drab": 1780,
+    "body | orange paint": 2736,
+    "body | polymer": 752,
     "body | rubber": 700,
     "bolt | gunmetal": 124,
     "bolt | orange paint": 92,
-    "gate | cavity black": 236,
-    "gate | gunmetal": 2736,
-    "gate | orange paint": 428,
+    "gate | cavity black": 108,
+    "gate | gunmetal": 2836,
+    "gate | orange paint": 668,
     "mag | gunmetal": 336,
     "mag | orange paint": 124,
     "mag | polymer": 188,
@@ -59,7 +60,8 @@
     "ivory coating",
     "polymer",
     "rubber",
-    "cavity black"
+    "cavity black",
+    "machined steel"
   ],
   "material_textures": {
     "gunmetal": "palette/phosphated-steel.jpg",
@@ -67,7 +69,8 @@
     "orange paint": "palette/orange-paint.jpg",
     "ivory coating": "palette/ivory-ceramic.jpg",
     "polymer": "palette/molded-polymer.jpg",
-    "rubber": "palette/pebbled-rubber.jpg"
+    "rubber": "palette/pebbled-rubber.jpg",
+    "machined steel": "palette/machined-steel.jpg"
   },
   "texture_source": "public/assets/blender/textures/palette (the shared 1024px palette JPEGs applied by tools/blender/material-library.py; originals untouched)",
   "uv_density_tiles_per_metre": 3.6,
@@ -156,9 +159,9 @@
         "Hinge pin"
       ],
       "min_swing_gap": [
-        0.009587,
+        0.0095,
         0.3,
-        "Gate throat collar",
+        "Gate front lip",
         "Trigger guard"
       ]
     }
@@ -180,7 +183,7 @@
     "heat_band_clearance": "no vertex other than the bore and seated round nose may enter the heat band",
     "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
     "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build",
-    "gate_sweep": "every evaluated gate vertex is swung about the vertical hinge line for theta 0..1.85 rad step 0.05: none may enter a body/mag/bolt/trigger volume, for theta >= 1.55 all must keep 0.055 from the bore axis, and at theta 0 the frozen venturi pieces must occupy their closed-pose bounds"
+    "gate_sweep": "every evaluated gate vertex is swung about the vertical hinge line for theta 0..1.85 rad step 0.05: none may enter a body/mag/bolt/trigger volume, for theta >= 1.55 all must keep 0.055 from the bore axis, and at theta 0 the frozen blast-brake pieces must occupy their closed-pose bounds"
   },
   "geometry_audit": {
     "coplanar_faces": [],
@@ -192,6 +195,6 @@
     "Single LOD; no mobile GPU profiling."
   ],
   "notes": [
-    "VANGUARD design study (Concept A + Concept B side arming lever): sculpted octagonal olive-drab receiver shell, slotted forward gunmetal barrel jacket, castellated muzzle crown, low-profile sight bridge with open U-notch rear sight and hooded front sight, underslung cylindrical ignition canister, tapered fluted De Laval venturi breech gate, and full fin-stabilized HAVOC rocket round under extra."
+    "RIDGEBACK design study (GPT Image 2.5 concept, docs/design/havoc-rev4): lofted super-elliptic olive-drab receiver, sixteen-frame perforated forward shroud with cavity-black sleeve, low left-flank ballistic computer, castellated muzzle crown, low-profile sight bridge with open U-notch rear sight and hooded front sight, underslung ignition canister, four-port blast-brake breech gate, and full fin-stabilized HAVOC rocket round under extra."
   ]
 }

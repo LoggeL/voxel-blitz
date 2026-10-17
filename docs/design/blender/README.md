@@ -472,44 +472,40 @@ node tools/blender-assets-browser-test.mjs
 node tools/throwable-browser-test.mjs
 ```
 
-## TORCH (rocket slot), revision 2
+## TORCH (rocket slot), revision 4
 
-TORCH supplies the existing `rocket` slot (RX-8 HAVOC). Revision 2 is a
-from-scratch redo (design study "BULWARK", chosen from three documented
-alternatives in `torch/concepts/`): the first AT4-style study — thin smooth
-tube with a flared orange warning cone — is deleted. Revision 2 is a heavy
-sci-fi launcher: a squared breech housing with bolted cheek panels and
-modelled `RX-8` / `HAVOC` stencils, half-cage braces to a front collar over
-the bare tube, industrial handles (pistol grip, forward hand hold, left-flank
-shoulder brace with rubber pad), a fixed underslung control canister, a
-rocket nose peeking from the tube mouth, and a visibly separated breech whose
-back-blast venturi gate tilts open for the reload. 108 authored parts, 15,140
-triangles, 17 runtime primitives, seven frozen materials with six sampling the
-shared palette maps through the material-library pass. Display name, stats,
-hitboxes and the reload timeline are unchanged.
+TORCH supplies the existing `rocket` slot (RX-8 HAVOC). Revision 4
+("RIDGEBACK") is a lofted super-elliptic olive receiver with a perforated
+sixteen-frame forward shroud, a low left-flank ballistic computer, a
+castellated muzzle crown and a four-port blast-brake breech gate on the frozen
+left-flank hinge. The full design record, counts and checks are in
+[`torch/build-report.md`](torch/build-report.md) and
+[`havoc-rev4/README.md`](../havoc-rev4/README.md). 180 authored parts, 21,848
+triangles, 23 material batches, eight materials sampling the shared palette
+maps through the material-library pass. Display name, stats, hitboxes and the
+reload timeline are unchanged.
 
 The study was authored through the live Blender MCP session (protocol 5) with
 `tools/blender/torch/build-torch.py`, which creates its own scene and saves
 with `copy=True`; the runtime export, validation and renders run headless.
 
-Animated parts (runtime model `torch.js`):
+Animated parts (runtime model `models/rocket.js`, choreography in `rocket-presentation.js`):
 
 - `mag`: the fixed underslung control canister — it stays put during reload.
 - `bolt`: side arming lever at game z -0.040, rotated about the gun origin for
   the post-launch jerk stroke.
 - `trigger`: blade (tip z -0.055) and guard at z -0.11.
-- `extra`: ONLY the breech gate leaves (`gate | gunmetal`, `gate | orange
+- `extra`: the four-port gate leaves (`gate | gunmetal`, `gate | orange
   paint`, `gate | cavity black`) with hinge-local geometry and node translation
   exactly `[-0.104, 0.075, -0.135]` (the vertical left-flank pin); the runtime
-  re-parents them under a gate group on that pin (BISON cover-leaf convention)
-  and reload swings the venturi 1.75 rad open sideways about the pin
-  (Carl Gustaf M3 style; hinge-stop bounce on the drop, slam at the seat
-  cue). No loose reload round ships: the
-  runtime spawns it procedurally.
+  re-parents them under a gate group on that pin and reload swings the gate
+  1.75 rad open sideways (hinge-stop bounce on the drop, slam at the seat
+  cue). The seat-relative rocket round leaves (`round | <material>`) ship in
+  the same group; the runtime clones one into the reload path.
 
 The launch tube is bare 0.0620 tube across the heat band z [-0.752, -0.528]
 (the runtime 0.0625 glow sleeve and the support hand own that span) with a
-clear bore of radius 0.0555 from the venturi mouth through the tube's rear
+clear bore of radius 0.0555 from the breech mouth through the tube's rear
 half so the reload round (seats nose at z ≈ -0.58) slides through. Ladder
 sights bracket the 0.175 sight line at z -0.02 and z -0.768.
 

@@ -47,9 +47,9 @@ ANCHORS = {  # authoring space: +Y forward, +Z up
 HEAT_BAND = (0.528, 0.752)
 BORE_R = 0.0620
 PALETTE_IMAGES = {'phosphated-steel', 'olive-paint', 'orange-paint',
-                  'ivory-ceramic', 'molded-polymer', 'pebbled-rubber'}
+                  'ivory-ceramic', 'molded-polymer', 'pebbled-rubber', 'machined-steel'}
 EXPECTED_MATERIALS = {'gunmetal', 'olive drab', 'orange paint', 'ivory coating',
-                      'polymer', 'rubber', 'cavity black'}
+                      'polymer', 'rubber', 'cavity black', 'machined steel'}
 
 failures, advisory, measured = [], [], {}
 
@@ -211,7 +211,7 @@ def document_checks(label, document):
           f'{len(mapped)} palette materials {sorted(mapped.items())}')
     images = document.get('images', [])
     stems = {Path(image.get('uri', image.get('name', ''))).stem for image in images}
-    check(f'{label}:images_embedded', PALETTE_IMAGES <= stems and textured == 6,
+    check(f'{label}:images_embedded', PALETTE_IMAGES <= stems and textured == 7,
           f'{len(images)} images {sorted(stems)} for {textured} textured materials')
     for material in materials:
         pbr = material.get('pbrMetallicRoughness', {})

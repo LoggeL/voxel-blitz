@@ -3,16 +3,8 @@
   "asset": "torch",
   "materials": [
     {
-      "material": "TORCH | gunmetal",
-      "texture": "phosphated-steel"
-    },
-    {
-      "material": "TORCH | polymer",
-      "texture": "molded-polymer"
-    },
-    {
-      "material": "TORCH | ivory coating",
-      "texture": "ivory-ceramic"
+      "material": "TORCH | machined steel",
+      "texture": "machined-steel"
     },
     {
       "material": "TORCH | rubber",
@@ -23,8 +15,20 @@
       "texture": "olive-paint"
     },
     {
+      "material": "TORCH | polymer",
+      "texture": "molded-polymer"
+    },
+    {
       "material": "TORCH | orange paint",
       "texture": "orange-paint"
+    },
+    {
+      "material": "TORCH | gunmetal",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "TORCH | ivory coating",
+      "texture": "ivory-ceramic"
     }
   ]
 }
