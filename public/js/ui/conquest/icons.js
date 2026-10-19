@@ -33,6 +33,8 @@ export const ICON_PATHS = Object.freeze({
   helicopter: 'M2 5h20v1.4H2zM11.3 6.4h1.4v2H11.3zM6 9h10a4 4 0 0 1 0 8H9l-2-2H4l-2-3h4zM17 10.5h2.2a2.6 2.6 0 0 1 0 3.5H17zM8 17.5h9v1.3H8z',
   transport: 'M1 5h11v1.3H1zM12 5h11v1.3H12zM5.5 6.3h1.2v2H5.5zM17.3 6.3h1.2v2h-1.2zM3 8.5h16l3 3.5v3.5H5L2 12zM6 10h2.5v2H6zM10 10h2.5v2H10zM5 15.5h14v1.4H5z',
   plane: 'M2 11.2l4-.2 3-5h2.2l-1.4 5H17l2.5-3H21l-1 3.4L22 12l-2 .6 1 3.4h-1.5L17 13H9.8l1.4 5H9l-3-5-4-.2z',
+  // Patrol boat: raised bow, gun on the foredeck, helm roof amidships, outboard at the stern, on a wave line.
+  boat: 'M2 12h17.5v-2H21v2h1l-2.4 4H5.2zM5.5 9.8h3.2v2.2H5.5zM2.6 10.2h4v1H2.6zM10 7h5.2v1.2h-.8l.6 3.8H10zM11 8.2V10h2.8l-.3-1.8zM14 4.5h1v2.5h-1zM2 18.4c1.5 0 1.5-1 3-1s1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1v1.6c-1.5 0-1.5 1-3 1s-1.5-1-3-1-1.5 1-3 1-1.5-1-3-1-1.5 1-3 1-1.5-1-3-1-1.5 1-3 1z',
   // Kits.
   assault: 'M10.5 3h3v5h5v3h-5v10h-3V11h-5V8h5z',
   engineer: 'M14.5 3a4.5 4.5 0 0 0-4.3 5.9L3 16.1 5.9 19l7.2-7.2A4.5 4.5 0 0 0 19 6.5l-2.7 2.7-2.4-.6-.6-2.4L16 3.5a4.5 4.5 0 0 0-1.5-.5z',

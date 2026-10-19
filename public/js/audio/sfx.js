@@ -83,7 +83,7 @@ const vehicleLoops = new Map();
 const glaiveLoops = new Map();
 
 /** Bastion vehicle drones: sawtooth fundamental per hull; the walker adds a stride thud. */
-const VEHICLE_DRONE = Object.freeze({ buggy: 140, apc: 90, walker: 60, jeep: 115, tank: 48 });
+const VEHICLE_DRONE = Object.freeze({ buggy: 140, apc: 90, walker: 60, jeep: 115, tank: 48, boat: 130 });
 const VEHICLE_HOLD = 0.6;
 const VEHICLE_FADE = 0.3;
 const VEHICLE_LEVEL = 0.16;
@@ -165,6 +165,13 @@ function tuneAircraftVehicleVoice(voice, options, speed, at) {
     param.cancelScheduledValues(at);
     param.setTargetAtTime(value, at, 0.12);
   };
+  if (voice.kind === 'boat') {
+    // Twin outboards: one long rev climb, no gear shifts, a lighter idle.
+    const load = Math.min(1, speed / 20);
+    set(layers.idle, Math.cos(Math.min(1, speed / 3) * quarter) * 0.8, 1.15 + Math.min(1, speed / 3) * 0.15);
+    set(layers.drive, Math.sin(Math.min(1, speed / 3) * quarter), 0.95 + load * 0.55);
+    return CONQUEST_MIX.boat * (0.7 + 0.3 * load);
+  }
   if (ROTOR_KINDS.has(voice.kind)) {
     const rotor = vehicleUnit(options?.rotorSpeed);
     const moving = Math.min(1, speed / 34);
@@ -636,7 +643,7 @@ function loadConquestSlots(manifest, fetchImpl, generation, attempt) {
 }
 /** Decoded mix levels (bank loops sit near -18 LUFS, one-shots peak at -3.5 dBFS). */
 export const CONQUEST_MIX = Object.freeze({
-  tank: 0.55, jeep: 0.42, rotor: 0.62, plane: 0.62,
+  tank: 0.55, jeep: 0.42, boat: 0.4, rotor: 0.62, plane: 0.62,
   cannon: 1.2, cannonSelf: 0.9, distant: 0.85, blast: 1, gunShot: 0.85, gunLoop: 0.5, chin: 0.62, chinSelf: 0.5,
   burning: 0.5, cue: 0.32, missile: 0.5, turret: 0.38, wade: 0.5, descent: 0.35, bullet: 0.7, debris: 0.85,
 });
@@ -665,14 +672,18 @@ const SAMPLED_VEHICLE_LAYERS = Object.freeze({
   helicopter: Object.freeze([['ext', 'cq.heli.ext'], ['distant', 'cq.heli.distant'], ['cabin', 'cq.heli.cockpit']]),
   transport: Object.freeze([['ext', 'cq.transport.ext'], ['distant', 'cq.heli.distant'], ['cabin', 'cq.transport.cabin']]),
   plane: Object.freeze([['ext', 'cq.jet.ext'], ['low', 'cq.jet.low'], ['burner', 'cq.jet.burner']]),
+  // Patrol boat: no bank of its own yet; the jeep engine takes, revved higher
+  // like twin outboards (the hull's water rush is the wade loop, vehicle-audio.js).
+  boat: Object.freeze([['idle', 'cq.jeep.idle'], ['drive', 'cq.jeep.drive']]),
 });
 /** Hatch takes per hull kind: [enter, exit]. */
 const HATCH_GROUPS = Object.freeze({
   tank: ['cq.hatch.tankEnter', 'cq.hatch.tankExit'], jeep: ['cq.hatch.jeepEnter', 'cq.hatch.jeepExit'],
   transport: ['cq.hatch.cabin', 'cq.hatch.cabin'], helicopter: ['cq.hatch.canopy', 'cq.hatch.cabin'], plane: ['cq.hatch.canopy', 'cq.hatch.canopy'],
+  boat: ['cq.hatch.jeepEnter', 'cq.hatch.jeepExit'],
 });
 const DESTRUCTION_GROUPS = Object.freeze({ tank: 'cq.destroy.tank', jeep: 'cq.destroy.jeep', helicopter: 'cq.destroy.heli',
-  transport: 'cq.destroy.heli', plane: 'cq.destroy.jet' });
+  transport: 'cq.destroy.heli', plane: 'cq.destroy.jet', boat: 'cq.destroy.jeep' });
 const BULLET_SURFACES = Object.freeze({ dirt: 'dirt', grass: 'dirt', gravel: 'dirt', sand: 'dirt', wood: 'wood', metal: 'metal',
   water: 'water', stone: 'stone', glass: 'stone', cloth: 'dirt' });
 /** Bullet impacts: audible radius (m), budget per window, ricochet share of stone/metal hits. */
@@ -1314,7 +1325,7 @@ export const sfx = {
       const ctx = engine.ctx;
       if (!ctx || ctx.state !== 'running') return;
       const at = ctx.currentTime;
-      const ground = kind === 'jeep' || kind === 'tank';
+      const ground = kind === 'jeep' || kind === 'tank' || kind === 'boat';
       const speed = Math.min(aircraft ? 140 : 24,
         Number.isFinite(options?.speed) ? Math.abs(options.speed) : 0);
       const trackSpeed = Math.min(24, Math.max(speed, Math.abs(options?.trackSpeed || 0)));
@@ -2426,7 +2437,7 @@ export const sfx = {
       // Conquest bank: AT/HE/AA rounds crunch the plate (muffled interior take
       // for the crew); rounds that cannot hurt it ping off, sheet metal on a jeep.
       const heavy = eff && (cls ? ['at', 'he', 'aa'].includes(cls) : weight >= 0.6);
-      const group = heavy ? (self ? 'cq.hull.heavyIn' : 'cq.hull.heavy') : type === 'jeep' ? 'cq.hull.light' : 'cq.hull.small';
+      const group = heavy ? (self ? 'cq.hull.heavyIn' : 'cq.hull.heavy') : type === 'jeep' || type === 'boat' ? 'cq.hull.light' : 'cq.hull.small';
       if (cqOneShot(group, { pos: self ? null : at, priority: eff ? 2 : 0 }, {
         gain: heavy ? 0.95 : 0.55 + weight * 0.3, rate: pitch > 1 ? 1 + (pitch - 1) * 0.3 : 1 - (1 - pitch) * 0.3,
       })) return;
@@ -2596,7 +2607,7 @@ export const sfx = {
     type = vehicleHullType(type);
     const at = positionFrom(pos);
     if (listenerDistance(at) > VEHICLE_SOUND.farRange) return { near: false, far: false };
-    const heavy = type === 'tank' ? 1 : type === 'jeep' ? 0.7 : 0.85;
+    const heavy = type === 'tank' ? 1 : type === 'jeep' || type === 'boat' ? 0.7 : 0.85;
     const near = listenerDistance(at) <= VEHICLE_SOUND.crackTo;
     const group = secondary ? 'cq.cookoff' : DESTRUCTION_GROUPS[type];
     if (group && cqHas(group)) {

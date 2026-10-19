@@ -30,7 +30,7 @@ export const CQ_COLORS = Object.freeze({
   own: '#4cc3ff', enemy: '#ff8a3d', neutral: '#d8d8d8', squad: '#7ef29a', self: '#ffffff',
   spotted: '#ff4b4b', down: '#ff6b6b', contested: '#ffd166',
 });
-export const VEHICLE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP' });
+export const VEHICLE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP', boat: 'PATROL BOAT' });
 const ROLE_LABELS = Object.freeze({ driver: 'DRIVER', pilot: 'PILOT', gunner: 'GUNNER', passenger: 'PASSENGER' });
 const SEAT_LABELS = Object.freeze({
   driver: 'DRIVER', gunner: 'GUNNER', commander: 'COMMANDER', 'front-passenger': 'PASSENGER', 'rear-left': 'REAR LEFT',
@@ -422,7 +422,7 @@ export function nextFreeSeatIndex(row, seatId) {
 
 /** Tank gunner range ladder: horizontal ranges (m) marked along the shell's arc. */
 export const TANK_RANGE_TICKS = Object.freeze([100, 200, 300, 400, 500]);
-const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1, jeep_at: 2.15 });
+const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1, jeep_at: 2.15, boat: 1.95 });
 
 /** Muzzle pose from the shared vehicle registry (mountPose), else from the row mount angles at the hull. */
 export function mountPoseOf(row, seatId, mountId, registry = vehicleDefs) {

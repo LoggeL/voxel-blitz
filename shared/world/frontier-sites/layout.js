@@ -7,8 +7,9 @@
 import { FRONTIER_PLAN } from '../../conquest-contract.js';
 import { FRONTIER_DIMENSIONS } from '../dimensions.js';
 import {
-  FRONTIER_ROAD_PLAN, FRONTIER_CROSSINGS, frontierTopY, frontierSurfaceY,
+  FRONTIER_ROAD_PLAN, FRONTIER_CROSSINGS, frontierTopY, frontierSurfaceY, frontierWaterY,
 } from '../frontier-terrain.js';
+import { BOAT_RULES } from '../../vehicle-handling/boat.js';
 import { FARM_SITE } from './farm.js';
 import { VILLAGE_SITE } from './village.js';
 import { BRIDGE_SITE } from './bridge.js';
@@ -172,6 +173,12 @@ function buildVehicleSpawns(airfields) {
     spawns.push({ id: `${team}-transport`, team, type: 'transport', ...feet(transportPad.x, transportPad.z), yaw: yawFor(team, -Math.PI / 2), walkingRoute: routes.transport });
     spawns.push({ id: `${team}-plane`, team, type: 'plane', ...feet(field.runway.takeoffStart.x, field.runway.takeoffStart.z), yaw: field.runway.yaw, walkingRoute: routes.plane });
   }
+  for (const pad of FRONTIER_BOAT_PADS) for (const team of ['alpha', 'bravo']) {
+    const x = team === 'alpha' ? pad.x : SX - pad.x, z = team === 'alpha' ? pad.z : SZ - pad.z;
+    // Named by where the mooring lies: the east boats' mirror swaps north and south.
+    const side = z < SZ / 2 ? 'north' : 'south';
+    spawns.push({ id: `${team}-boat-${side}`, team, type: 'boat', x, y: boatPadY(x, z), z, yaw: yawFor(team, pad.yaw) });
+  }
   for (const site of FRONTIER_SITES) {
     const v = site.vehicle;
     const entry = { id: v.id, team: v.team, type: v.type, ...feet(v.x, v.z), yaw: v.yaw, flag: site.flag };
@@ -179,6 +186,38 @@ function buildVehicleSpawns(airfields) {
     spawns.push(entry);
   }
   return spawns;
+}
+
+// ------------------------------------------------------------------ river
+
+/**
+ * West-bank patrol boat moorings (alpha frame; the east boats are the point
+ * mirror). Each lies in a wide reach beside the boat lane with room for a full
+ * pivot, its bow down the lane toward the Iron Bridge, a short jump from the bank.
+ */
+export const FRONTIER_BOAT_PADS = Object.freeze([
+  Object.freeze({ id: 'north', x: 370, z: 211, yaw: -2.7 }),
+  Object.freeze({ id: 'south', x: 362, z: 452, yaw: -0.85 }),
+]);
+/** Moored hull height: the water face, less the draft, plus the 0.02 m pad gap every hull has. */
+const boatPadY = (x, z) => round2(frontierWaterY(x, z) + 1 - BOAT_RULES.draft + 0.02);
+
+/**
+ * The boat lane down the navigable river, north to south between the two
+ * end bridges (whose decks sit on the water): wide-reach channels clear of
+ * the islands and the Iron Bridge's east arch (x 385-389, under the deck at
+ * y 24). Authored north of the Iron Bridge and point-mirrored south of it.
+ * Bots steer along it; it is not a rule (players may go anywhere afloat).
+ */
+const BOAT_LANE_NORTH = [
+  [395, 158], [392, 170], [387, 182], [379, 196], [374, 206], [374, 218], [378, 228], [385, 242], [389, 256],
+  [391, 268], [391, 280], [393, 292], [397, 304], [401, 314], [398, 322], [390, 330], [386.5, 342], [386, 356],
+  [386.5, 368], [387.5, 377], [387.5, 390],
+];
+function buildWaterways() {
+  const south = BOAT_LANE_NORTH.slice(0, -3).reverse().map(([x, z]) => [SX - x, SZ - z]);
+  const points = [...BOAT_LANE_NORTH, [385, 398], ...south].map(([x, z]) => [x, frontierWaterY(x, z) + 1, z]);
+  return [{ id: 'river', kind: 'boat-lane', width: 5, points }];
 }
 
 // -------------------------------------------------------------- roads, etc.
@@ -256,6 +295,7 @@ function frontierBundle() {
     airfields,
     roads: buildRoads(),
     crossings: buildCrossings(),
+    waterways: buildWaterways(),
     weather: 'golden',
     dressing: buildDressing(),
   };

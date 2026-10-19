@@ -9,7 +9,7 @@ import { createPaletteResolver } from './material.js';
 
 const geometryCache = new Map();
 const resolvers = new Map();
-const SEEDS = Object.freeze({ jeep: 3, tank: 7, helicopter: 11, transport: 13, plane: 17, jeep_at: 3 });
+const SEEDS = Object.freeze({ jeep: 3, tank: 7, helicopter: 11, transport: 13, plane: 17, jeep_at: 3, boat: 19 });
 
 function resolverFor(type, team) {
   const key = `${type}|${team}`;

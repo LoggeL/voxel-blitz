@@ -78,6 +78,9 @@ const FRONTIER_SHOTS = [
   // Smoke over the burnt-out tank by the river west of C (mapMeta.conquest.dressing).
   groundShot('wreck-column', [C.x - 50, C.z + 70, 6], [C.x - 14, C.z + 30, 14], 66,
     { subject: Object.freeze({ landmark: 'wreck-tank-c-west', from: Object.freeze([-24, 6, 30]), to: Object.freeze([0, 10, 0]) }) }),
+  // The west patrol boat at its north mooring, from off its port bow (mapMeta.conquest.vehicleSpawns).
+  groundShot('boat-river', [C.x - 21, C.z - 182, 4], [C.x - 14, C.z - 173, 1], 62,
+    { subject: Object.freeze({ vehicle: 'alpha-boat-north', from: Object.freeze([-7, 3, -9]), to: Object.freeze([0, 1.2, 0]) }) }),
   // Past the west edge at cruise height, looking out over the apron to the ranges.
   airShot('airspace-west', [-90, 150, 384], [-700, 72, 330], 64),
   // From deep in the apron, back toward the map and its HQ plateau.

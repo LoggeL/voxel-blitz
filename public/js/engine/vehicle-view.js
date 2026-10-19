@@ -8,6 +8,8 @@ import { makeTankModel } from '../vehicles/models/tank.js';
 import { makeHelicopterModel } from '../vehicles/models/helicopter.js';
 import { makeTransportModel } from '../vehicles/models/transport.js';
 import { makePlaneModel } from '../vehicles/models/plane.js';
+import { makeBoatModel } from '../vehicles/models/boat.js';
+import { boatSwell } from '../../../shared/vehicle-handling/boat.js';
 import { JeepDriver } from '../vehicles/jeep-driver.js';
 import { AircraftPilot } from '../vehicles/aircraft-pilot.js';
 import { hasCockpitOverlay, makeCockpitOverlay } from '../vehicles/cockpit-overlay.js';
@@ -33,7 +35,7 @@ const finite = value => Number.isFinite(value) ? value : 0;
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 export const VEHICLE_MODEL_FACTORIES = Object.freeze({
   jeep: makeJeepModel, tank: makeTankModel, helicopter: makeHelicopterModel, transport: makeTransportModel, plane: makePlaneModel,
-  jeep_at: makeAtJeepModel,
+  jeep_at: makeAtJeepModel, boat: makeBoatModel,
   // Titanfall walkers: the installed walker presentation picks the model (docs/titanfall.md §7).
   ...Object.fromEntries(TITAN_TYPES.map(type => [type, (options) => {
     if (!walkerPresentation) throw new Error(`vehicle-view: no walker presentation installed for ${type}`);
@@ -320,7 +322,8 @@ export class VehicleView {
     // track stay on the ground instead of the hull hovering above it. A
     // landed aircraft wreck has lost its gear or skids and sits on its belly.
     const aircraft = isAircraftType(item.kind);
-    const tilt = wreck && !aircraft ? VEHICLE_VIEW.wreckTilt : 0;
+    // A boat wreck lists by the published roll as it sinks (server/sim/boat.js).
+    const tilt = wreck && !aircraft && item.kind !== 'boat' ? VEHICLE_VIEW.wreckTilt : 0;
     const grounded = row.grounded ?? (row.st != null ? status.grounded : true);
     const belly = wreck && aircraft && grounded ? finite(item.model.wreckDrop) : 0;
     item.model.group.rotation.z = tilt;
@@ -346,6 +349,7 @@ export class VehicleView {
 
   update(dt = 0, camera = null) {
     const step = Math.max(0, Math.min(0.1, finite(dt))), alpha = 1 - Math.exp(-step * VEHICLE_VIEW.follow);
+    this._clock = finite(this._clock) + step;
     if (camera) camera.getWorldQuaternion(this._cameraRotation);
     const cameraPosition = camera ? camera.getWorldPosition(this._vector) : null;
     for (const item of this.items.values()) {
@@ -364,6 +368,14 @@ export class VehicleView {
         // Walkers stand upright; titan-presentation.js poses the rig (legs, pelvis, hatch).
         root.rotation.set(0, yaw, 0, 'YXZ');
         walkerPresentation?.update(item, row, step);
+      } else if (item.kind === 'boat') {
+        // Afloat: the published trim and heel (never a voxel fit: the bed lies
+        // under the water) plus a presentation-only swell on the live hull.
+        this._groundAttitude(item, row, step, false);
+        const swell = item.wreck ? null : boatSwell(this._clock, row.x, row.z, row.speed);
+        root.position.y += swell ? swell.heave * alpha : 0;
+        root.rotation.set(item.attitude.pitch + (swell?.pitch ?? 0), yaw, item.attitude.roll + (swell?.roll ?? 0), 'YXZ');
+        this._suspension(item, row, step);
       } else {
         this._groundAttitude(item, row, step);
         root.rotation.set(item.attitude.pitch, yaw, item.attitude.roll, 'YXZ');
@@ -417,10 +429,10 @@ export class VehicleView {
   }
 
   /** Pitch and roll fitted to the voxel support (the server's own function). */
-  _groundAttitude(item, row, step) {
+  _groundAttitude(item, row, step, voxelFit = true) {
     const state = item.attitude;
     state.age += step;
-    if (this.getBlock && !item.wreck) {
+    if (voxelFit && this.getBlock && !item.wreck) {
       const moved = Math.hypot(row.x - state.x, row.z - state.z) > 0.05 || Math.abs(angleDelta(row.yaw, state.yaw)) > 0.01;
       if (moved || state.age >= VEHICLE_VIEW.attitudeResample || !Number.isFinite(state.x)) {
         const fit = groundAttitude(this.getBlock, item.kind, row.x, row.z, row.yaw, row.y);
@@ -447,7 +459,8 @@ export class VehicleView {
     const accel = clamp((speed - spring.speed) / step, -20, 20);
     const yawRate = angleDelta(row.yaw, spring.yaw) / step;
     spring.speed = speed; spring.yaw = row.yaw;
-    const scale = item.kind === 'tank' ? 0.5 : 1;
+    // A boat's heel and trim already come from the server: only a light spring on top.
+    const scale = item.kind === 'tank' ? 0.5 : item.kind === 'boat' ? 0.3 : 1;
     const targetPitch = clamp(accel * 0.004 * scale, -0.05, 0.05);
     const targetRoll = clamp(-yawRate * speed * 0.004 * scale, -0.06, 0.06);
     const k = VEHICLE_VIEW.spring, c = 2 * Math.sqrt(k) * VEHICLE_VIEW.damping;

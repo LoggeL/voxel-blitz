@@ -14,6 +14,8 @@
 //  - Routes follow mapMeta.conquest.roads joined at junctions and crossings;
 //    the last leg runs cross-country with a placement-checked detour probe
 //    at 4 Hz (or after the stuck watchdog).
+//  - Boats patrol the river lane to the crossing nearest the focus flag
+//    (server/bot-boat-driving.js).
 //  - Reflexes: a lock warning (lk >= 2) pops smoke after the difficulty's
 //    reaction time; a disabled hull with no engineer within 20 m is abandoned.
 
@@ -25,12 +27,13 @@ import { mountSystem, seatWeapons } from './bot-vehicle-combat.js';
 import { kitOfPlayer } from './bot-commander.js';
 import { isCombinedArms } from '../shared/modes.js';
 import { navigationWaypoint } from './bot-navigation.js';
+import { boatPatrol } from './bot-boat-driving.js';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
 const bearing = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
-const GROUND = new Set(['jeep', 'tank', 'jeep_at']);
+const GROUND = new Set(['jeep', 'tank', 'jeep_at', 'boat']);
 /** Armour that holds an overwatch spot on the focus flag (the AT jeep stands off like a tank destroyer). */
 const OVERWATCH = new Set(['tank', 'jeep_at']);
 /**
@@ -316,6 +319,7 @@ export class ConquestVehicleDriving {
         if (!mine) this.park(br, p, v, now, inp);
         else if (this.commander?.holdFor?.(v, now)) this.hold(br, v, now, inp);
         else if (mine.role === 'transit') this.transitDrive(br, p, v, mine, now, inp);
+        else if (v.type === 'boat') boatPatrol(this, br, p, v, mine, now, inp);
         else if (OVERWATCH.has(v.type)) this.overwatch(br, p, v, mine, now, inp);
         else this.transitDrive(br, p, v, { ...mine, destination: mine.flag ?? goal.target }, now, inp);
       } else {
@@ -423,7 +427,8 @@ export class ConquestVehicleDriving {
     const error = wrap(desiredYaw - v.yaw), d = distance(v, target);
     const next = state.detour ? (state.detour[1] ?? state.points[state.index]) : state.points[state.index + 1];
     const corner = next ? Math.abs(wrap(bearing(target, next) - desiredYaw)) : 0;
-    const reverse = v.type !== 'tank' && Math.abs(error) > 1.9 && d < 42;
+    // Tanks and boats pivot onto a waypoint behind them; wheeled hulls back up to it.
+    const reverse = v.type !== 'tank' && v.type !== 'boat' && Math.abs(error) > 1.9 && d < 42;
     const steeringError = reverse ? wrap(error + Math.PI) : error;
     const rules = VEHICLE_RULES[v.type];
     inp.vehicleSteer = clamp(-steeringError * (v.type === 'tank' ? 2 : 2.5) * (reverse ? -1 : 1), -1, 1);

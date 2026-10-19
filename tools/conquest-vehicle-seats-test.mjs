@@ -31,7 +31,7 @@ const near=(a,b,message)=>assert(Math.abs(a-b)<1e-7,message);
 
 assert(Object.isFrozen(VEHICLE_SEATS));
 assert.equal(vehicleSeats('constructor').length,0);assert.equal(vehicleSeats(null).length,0);
-assert.deepEqual(Object.fromEntries(Object.entries(VEHICLE_SEATS).filter(([type])=>VEHICLE_TYPE_IDS.includes(type)).map(([type,seats])=>[type,seats.length])),{jeep:4,tank:2,helicopter:2,transport:5,plane:1,jeep_at:4});
+assert.deepEqual(Object.fromEntries(Object.entries(VEHICLE_SEATS).filter(([type])=>VEHICLE_TYPE_IDS.includes(type)).map(([type,seats])=>[type,seats.length])),{jeep:4,tank:2,helicopter:2,transport:5,plane:1,jeep_at:4,boat:4});
 for(const [type,seats] of Object.entries(VEHICLE_SEATS).filter(([type])=>VEHICLE_TYPE_IDS.includes(type))) {
   assert(Object.isFrozen(seats));
   assert.deepEqual(seats.map(seat=>seat.id),VEHICLE_TOPOLOGY[type].map(seat=>seat.id),`${type} seat order is the contract F-key order`);

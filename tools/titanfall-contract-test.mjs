@@ -64,7 +64,7 @@ const hasExports = (mod, names, label) => {
   eq([...TITAN_TYPE_IDS], ['titan_ion', 'titan_scorch', 'titan_northstar', 'titan_ronin', 'titan_legion'], 'titan type ids');
   ok(new Set(TITAN_TYPE_IDS).size === TITAN_TYPE_IDS.length, 'titan ids unique');
   ok(TITAN_TYPE_IDS.every(type => !VEHICLE_TYPE_IDS.includes(type)), 'titan ids disjoint from conquest');
-  eq([...VEHICLE_TYPE_IDS], ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at'], 'VEHICLE_TYPE_IDS: conquest hulls only');
+  eq([...VEHICLE_TYPE_IDS], ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'boat'], 'VEHICLE_TYPE_IDS: conquest hulls only');
   eq(Object.keys(TITAN_TOPOLOGY), [...TITAN_TYPE_IDS], 'topology covers every titan');
   eq(Object.keys(TITAN_CHASSIS), [...TITAN_TYPE_IDS], 'chassis covers every titan');
   ok(isTitanType('titan_ion') && !isTitanType('tank') && !isTitanType('constructor') && !isTitanType(null), 'isTitanType');

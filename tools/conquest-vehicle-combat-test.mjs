@@ -75,7 +75,7 @@ const near = (a, b, tolerance, message) => assert(Math.abs(a - b) <= tolerance, 
   assert.equal(armorEffective(armorMultiplier('hmg', 'heavy')), false, 'eff = multiplier >= 0.1');
   assert.equal(armorEffective(armorMultiplier('autocannon', 'heavy')), true);
   assert.equal(armorMultiplier('bogus', 'light'), 0);
-  for (const type of VEHICLE_TYPE_IDS) assert.equal(vehicleMaxHp({ type }), { jeep: 320, tank: 1000, helicopter: 650, transport: 600, plane: 450, jeep_at: 320 }[type]);
+  for (const type of VEHICLE_TYPE_IDS) assert.equal(vehicleMaxHp({ type }), { jeep: 320, tank: 1000, helicopter: 650, transport: 600, plane: 450, jeep_at: 320, boat: 360 }[type]);
 }
 
 // ------------------------------------------- a rifle magazine into the tank: 0 damage, eff:0

@@ -6,6 +6,7 @@ import * as THREE from '../vendor/three.module.js';
 import { VehicleView } from '../engine/vehicle-view.js';
 import { VEHICLE_STATUS, seatWeaponList, vehicleMountOrder } from '../../../shared/conquest-contract.js';
 import { VEHICLE_WEAPONS, vehicleDef } from '../../../shared/vehicle-defs.js';
+import { VEHICLE_RULES } from '../../../shared/vehicles.js';
 
 const params = new URLSearchParams(location.search);
 const type = params.get('type') || 'tank';
@@ -25,6 +26,8 @@ const seatShot = !!(seatId && seatView);
 const num = (key, fallback) => { const value = Number(params.get(key)); return params.has(key) && Number.isFinite(value) ? value : fallback; };
 const aimOffset = num('aim', null), aimPitch = num('aimPitch', 0), altitude = num('alt', 6), speed = num('speed', 0);
 if (!vehicleDef(type)) throw new Error(`unknown vehicle type ${type}`);
+// A boat floats on a river channel (its face at GROUND_Y) between grass banks.
+const afloat = vehicleDef(type).handling === 'boat';
 
 // Deterministic page: no clock-driven randomness leaks into the capture.
 let seed = 0x5eed;
@@ -59,11 +62,14 @@ const color = new THREE.Color(), matrix = new THREE.Matrix4();
 let index = 0;
 for (let x = 0; x < fieldSize; x++) for (let z = 0; z < fieldSize; z++) {
   const wx = x - fieldSize / 2, wz = z - fieldSize / 2 - (angle === 'range' ? 100 : 0);
-  matrix.makeTranslation(wx + 0.5, GROUND_Y - 0.5, wz + 0.5);
+  const bank = afloat && Math.abs(wx + Math.sin(wz * 0.05) * 3) >= (angle === 'range' ? 40 : 13);
+  matrix.makeTranslation(wx + 0.5, GROUND_Y - 0.5 + (bank ? 1 : 0), wz + 0.5);
   field.setMatrixAt(index, matrix);
-  const road = Math.abs(wx + 9) < 3;
+  const road = !afloat && Math.abs(wx + 9) < 3;
   const n = Math.sin(wx * 0.37) * Math.cos(wz * 0.29) + Math.sin(wx * 0.11 + wz * 0.07);
-  if (road) color.setHex(0x8a8579).offsetHSL(0, 0, (Math.random() - 0.5) * 0.04);
+  const river = afloat && Math.abs(wx + Math.sin(wz * 0.05) * 3) < (angle === 'range' ? 40 : 13);
+  if (river) color.setHex(0x2f7a78).offsetHSL(0, (Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.04);
+  else if (road) color.setHex(0x8a8579).offsetHSL(0, 0, (Math.random() - 0.5) * 0.04);
   else if (n > 1.1) color.setHex(0x6b5235);
   else color.setHex(n > 0.2 ? 0x5f8a3a : 0x6f9840).offsetHSL(0, 0, (Math.random() - 0.5) * 0.05);
   field.setColorAt(index++, color);
@@ -101,7 +107,7 @@ function rowFor(id, rowTeam, x, z, yaw) {
     return [yaw + centre + (mount.fixed ? 0 : 0.35 - i * 0.15), mount.fixed ? 0 : 0.12, ammo, 0, 0];
   });
   return {
-    id, type, team: rowTeam, x, y: GROUND_Y + (flying ? altitude : 0), z, yaw, pitch: aircraft ? num('pitch', 0) : 0, roll: aircraft ? num('roll', 0) : 0,
+    id, type, team: rowTeam, x, y: GROUND_Y + (flying ? altitude : 0) - (afloat ? VEHICLE_RULES[type].draft : 0), z, yaw, pitch: aircraft ? num('pitch', 0) : 0, roll: aircraft ? num('roll', 0) : 0,
     vx: -Math.sin(yaw) * speed, vy: 0, vz: -Math.cos(yaw) * speed, speed,
     hp: hpByState[state] ?? maxHp, st: (stByState[state] ?? VEHICLE_STATUS.engine) | (flying ? 0 : VEHICLE_STATUS.grounded),
     turretYaw: yaw + (aimOffset ?? 0.35), turretPitch: aimOffset !== null ? aimPitch : 0.06, mounts, seatOccupants: occupants, occupantId: occupants.driver,

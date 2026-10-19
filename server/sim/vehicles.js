@@ -25,7 +25,8 @@ import { markLaunched } from './player.js';
 import { TitanSystem } from './titans.js';
 import { isTitanfall } from '../../shared/modes.js';
 import { isTitanType } from '../../shared/titan-contract.js';
-import { isWalkerType } from '../../shared/vehicle-defs.js';
+import { isWalkerType, isBoatType } from '../../shared/vehicle-defs.js';
+import { advanceBoat, boatPlacement, boatSwimExit, sinkBoatWreck, updateBoatAttitude } from './boat.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(n) ? n : 0));
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
@@ -302,6 +303,8 @@ export class VehicleSystem {
     return true;
   }
   placement(v, x, z) {
+    // A boat rides the water surface (server/sim/boat.js); its wreck rests on the bed.
+    if (isBoatType(v.type)) return boatPlacement(this, v, x, z);
     const def = VEHICLE_RULES[v.type], hull = hullFootprint(v.type, x, z, v.yaw);
     const maxStep = def.maxStep ?? 0.25, maxSlope = def.maxSlope ?? 0.1;
     const offset = isAircraft(v.type) ? vehicleSupportOffset(v) : 0;
@@ -522,6 +525,9 @@ export class VehicleSystem {
       if (y == null || !free(x, y, z)) continue;
       return { x, y, z, grounded: !airborne };
     }
+    // A boat in open water puts its crew into the river beside the seat (they swim).
+    const swim = isBoatType(v.type) ? boatSwimExit(this, v, seat) : null;
+    if (swim) return swim;
     const top = Math.max(...vehicleHullParts(v).map(part => part.maxY)) + 0.02;
     if (free(v.x, top, v.z)) return { x: v.x, y: top, z: v.z, grounded: !airborne };
     // Forced eject: the seat column, with a brief hull no-collide to walk clear.
@@ -711,6 +717,7 @@ export class VehicleSystem {
     this.mounts.reset(v);
     this.lastDrivers.delete(v.id); this.fallSpeeds.delete(v.id); this.boundaryAvoidance.delete(v.id);
     if (isAircraft(v.type)) v.grounded = true;
+    if (isBoatType(v.type)) Object.assign(v, { course: pose.yaw, boatRest: null });
   }
   /** Try the pad and its alternates; after a long block, nudge infantry off the pad. */
   tryRespawn(v, dt) {
@@ -1634,6 +1641,7 @@ export class VehicleSystem {
   /** Ground hulls pitch and roll with the voxel support under them. */
   updateAttitude(v, dt) {
     if (isAircraft(v.type)) return;
+    if (isBoatType(v.type)) return updateBoatAttitude(this, v, dt);
     const revision = this.engine.blockRevision ?? 0, seen = this.attitudeKeys.get(v);
     // An identical pose and revision rebuild the identical key string.
     if (!(seen && seen.key === v.attitudeKey && Object.is(seen.x, v.x) && Object.is(seen.y, v.y) && Object.is(seen.z, v.z)
@@ -1665,6 +1673,8 @@ export class VehicleSystem {
   }
   advanceWreck(v, dt) {
     v.wreckAge += dt;
+    // A boat wreck sinks onto the river bed (server/sim/boat.js).
+    if (isBoatType(v.type)) return sinkBoatWreck(this, v, dt);
     if(!isAircraft(v.type)) {
       // A ground wreck keeps the hull's gravity: one killed mid-air or over its
       // own crater falls until it rests, then sleeps until terrain changes.
@@ -1748,7 +1758,8 @@ export class VehicleSystem {
         const coastSteer = handling==='wheeled' ? clamp((v.visualSteer || 0)*Math.exp(-2.8*dt)/(0.43/(1+(Math.abs(v.speed)/15)**2)),-1,1) : 0;
         const steer=allowed ? clamp(input.vehicleSteer ?? ((k.r?1:0)-(k.l?1:0)),-1,1) : coastSteer;
         const brake = allowed ? clamp(input.vehicleBrake ?? (k.jump ? 1 : 0), 0, 1) : 0;
-        this.advanceGround(v, p, { throttle, steer, brake }, dt);
+        if (handling === 'boat') advanceBoat(this, v, p, { throttle, steer, brake }, dt);
+        else this.advanceGround(v, p, { throttle, steer, brake }, dt);
       }
       if (v.hp > 0) this.syncCrew(v);
     }
@@ -1959,7 +1970,7 @@ export class VehicleSystem {
       row.turretYaw = q(v.turretYaw, 1000); put('turretPitch', v.turretPitch, 1000);
       put('leftTrackSpeed', v.leftTrackSpeed, 100); put('rightTrackSpeed', v.rightTrackSpeed, 100);
     }
-    if (handling === 'wheeled') put('visualSteer', v.visualSteer, 1000);
+    if (handling === 'wheeled' || handling === 'boat') put('visualSteer', v.visualSteer, 1000);
     if (air) {
       put('vx', v.vx, 100); put('vy', v.vy, 100); put('vz', v.vz, 100);
       // Landed is the default (st grounded bit); flight is spelled out as grounded:false.

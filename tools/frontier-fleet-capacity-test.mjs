@@ -1,4 +1,4 @@
-// Frontier v2 fleet (spec 4.4): seventeen hulls on terrain-derived pads. Every
+// Frontier v2 fleet (spec 4.4): twenty-one hulls on terrain-derived pads (four boats moored on the river). Every
 // parked hull rests on prepared ground with room to pivot, no hull overlaps
 // another, every HQ hull has a clear infantry pickup route, the ground hulls
 // drive out of their bays and every aircraft departs without striking scenery.
@@ -26,13 +26,13 @@ const sample = (route, visit) => {
   }
 };
 
-assert.equal(hulls.length, 17, 'seventeen hulls');
-assert.equal(new Set(hulls.map(v => v.id)).size, 17);
+assert.equal(hulls.length, 21, 'twenty-one hulls');
+assert.equal(new Set(hulls.map(v => v.id)).size, 21);
 const seats = {};
 for (const team of ['alpha', 'bravo']) {
   const fleet = hulls.filter(v => v.team === team);
-  assert.equal(fleet.length, 8, `${team}: HQ six plus two flag jeeps`);
-  assert.deepEqual(fleet.map(v => v.type).sort(), ['helicopter', 'jeep', 'jeep', 'jeep', 'jeep_at', 'plane', 'tank', 'transport']);
+  assert.equal(fleet.length, 10, `${team}: HQ six, two flag jeeps and two river boats`);
+  assert.deepEqual(fleet.map(v => v.type).sort(), ['boat', 'boat', 'helicopter', 'jeep', 'jeep', 'jeep', 'jeep_at', 'plane', 'tank', 'transport']);
   seats[team] = fleet.reduce((sum, v) => sum + vehicleSeats(v).length, 0);
 }
 const cTank = parked.vehicles.get('flag-C-tank');
@@ -54,8 +54,32 @@ for (const pad of [cTank.spawn, cTank.spawn.alt]) {
   for (let a = 0; a < 16; a++) assert.ok(parked.clearHull(probe, pad.x, pad.y, pad.z, a * Math.PI / 8), 'C tank pad pivot room');
 }
 
+// River boats: moored afloat, boardable from the bank, and they leave the mooring under way.
+for (const hull of live.filter(v => v.type === 'boat')) {
+  const step = { x: hull.x, z: hull.z };
+  // The nearest walkable bank cell (solid top, body clear above it) lies within boarding range.
+  let bank = Infinity;
+  for (let dx = -8; dx <= 8; dx++) for (let dz = -4; dz <= 4; dz++) {
+    const x = Math.floor(step.x) + dx, z = Math.floor(step.z) + dz;
+    for (let y = 26; y >= 20; y--) if (solidAt(x, y, z)) {
+      if (!boxCollides(solidAt, x + 0.5, y + 1, z + 0.5, PHYSICS.height)) {
+        const ex = Math.max(x, Math.min(x + 1, hull.x)), ez = Math.max(z, Math.min(z + 1, hull.z));
+        bank = Math.min(bank, Math.hypot(ex - hull.x, y + 1 - hull.y, ez - hull.z));
+      }
+      break;
+    }
+  }
+  assert.ok(bank < vehicleEnterDistance(hull.type), `${hull.id} can be boarded from the bank (${bank.toFixed(2)} m)`);
+  const sim = engine(), system = new VehicleSystem(sim), v = system.vehicles.get(hull.id);
+  const driver = { id: `${hull.id}-driver`, team: hull.team, state: 'alive', x: v.x, y: v.y, z: v.z, input: { keys: {}, vehicleThrottle: 1, vehicleSteer: 0, vehicleBrake: 0 } };
+  sim.entities.set(driver.id, driver); assert.ok(system.enter(driver, v.id));
+  for (let i = 0; i < 600 && distance(v, step) < 10; i++) system.step(1 / 60);
+  assert.ok(distance(v, step) >= 10, `${v.id} gets under way from its mooring`);
+  assert.equal(v.hp, VEHICLE_RULES[v.type].hp, `${v.id} leaves undamaged`);
+}
+
 // HQ hulls: authored infantry pickup routes from the HQ road head.
-for (const hull of live.filter(v => !v.spawn.flag)) {
+for (const hull of live.filter(v => !v.spawn.flag && v.type !== 'boat')) {
   const spawn = meta.conquest.vehicleSpawns.find(s => s.id === hull.id), route = spawn.walkingRoute;
   assert.ok(route?.length >= 2, `${hull.id} has an authored pickup route`);
   assert.ok(distance(route[0], meta.conquest.bases[hull.team]) < 1, 'pickup begins at the HQ');

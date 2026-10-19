@@ -40,7 +40,7 @@ assert.equal(meta.spawns.fun.length, 16);
 // ----------------------------------------------------- mapMeta.conquest v2
 const c = meta.conquest;
 assert.equal(c.version, 2);
-assert.deepEqual(Object.keys(c).sort(), ['airfields', 'bases', 'combatArea', 'crossings', 'dressing', 'flags', 'roads', 'vehicleSpawns', 'version', 'weather'].sort());
+assert.deepEqual(Object.keys(c).sort(), ['airfields', 'bases', 'combatArea', 'crossings', 'dressing', 'flags', 'roads', 'vehicleSpawns', 'version', 'waterways', 'weather'].sort());
 assert.deepEqual(c.combatArea, plan.combatArea);
 assert.ok(['golden', 'mist', 'overcast'].includes(c.weather));
 assert.deepEqual(c.flags.map(f => f.id), ['A', 'B', 'C', 'D', 'E']);
@@ -74,8 +74,9 @@ assert.ok(c.crossings.filter(x => x.kind === 'bridge').every(x => x.y > plan.riv
 
 // --------------------------------------------------- fleet (spec 4.4)
 const fleet = c.vehicleSpawns;
-assert.equal(fleet.length, 17);
+assert.equal(fleet.length, 21);
 const expected = [
+  ...['alpha', 'bravo'].flatMap(team => ['north', 'south'].map(side => [`${team}-boat-${side}`, team, 'boat', undefined])),
   ...['alpha', 'bravo'].flatMap(team => ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at'].map(type => [`${team}-${type}`, team, type, undefined])),
   ['flag-A-jeep', 'alpha', 'jeep', 'A'], ['flag-B-jeep', 'alpha', 'jeep', 'B'], ['flag-C-tank', null, 'tank', 'C'],
   ['flag-D-jeep', 'bravo', 'jeep', 'D'], ['flag-E-jeep', 'bravo', 'jeep', 'E'],
@@ -83,7 +84,9 @@ const expected = [
 assert.deepEqual(fleet.map(v => [v.id, v.team, v.type, v.flag]).sort(), expected.sort());
 for (const v of fleet) {
   assert.ok(VEHICLE_TYPE_IDS.includes(v.type));
-  assert.equal(v.y, feetY(v.x, v.z), `${v.id} rests on the terrain`);
+  // A boat floats: its pad height is the water face less the draft (plus the 0.02 m pad gap).
+  if (v.type === 'boat') assert.equal(v.y, plan.river.surfaceY + 1 - 0.45 + 0.02, `${v.id} floats on the river`);
+  else assert.equal(v.y, feetY(v.x, v.z), `${v.id} rests on the terrain`);
   assert.ok(Number.isFinite(v.yaw));
   if (v.flag) {
     const flag = c.flags.find(f => f.id === v.flag);
@@ -99,6 +102,18 @@ for (const type of ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at
   assert.ok(Math.abs(a.x + b.x - plan.dimensions.sx) < 1e-9 && Math.abs(a.z + b.z - plan.dimensions.sz) < 1e-9, `${type} pads are point-mirrored`);
   assert.ok(Math.abs(Math.cos(a.yaw) + Math.cos(b.yaw)) < 1e-9 && Math.abs(Math.sin(a.yaw) + Math.sin(b.yaw)) < 1e-9, `${type} yaw is mirrored`);
 }
+for (const [a, b] of [['alpha-boat-north', 'bravo-boat-south'], ['alpha-boat-south', 'bravo-boat-north']].map(ids => ids.map(id => fleet.find(v => v.id === id)))) {
+  assert.ok(Math.abs(a.x + b.x - plan.dimensions.sx) < 1e-9 && Math.abs(a.z + b.z - plan.dimensions.sz) < 1e-9, `${a.id} and ${b.id} are point-mirrored`);
+  assert.ok(Math.abs(Math.cos(a.yaw) + Math.cos(b.yaw)) < 1e-9, 'boat yaw is mirrored');
+  assert.ok(a.x < plan.river.points[2][0] && b.x > plan.river.points[2][0], 'each team moors on its own bank');
+}
+// The boat lane: one polyline on the water face, north to south between the end bridges.
+assert.equal(c.waterways.length, 1);
+const lane = c.waterways[0];
+assert.equal(lane.kind, 'boat-lane');
+assert.ok(lane.points.every(([, y]) => y === plan.river.surfaceY + 1), 'the lane lies on the water face');
+assert.ok(lane.points.every(([, , z], i) => !i || z > lane.points[i - 1][2]), 'the lane runs north to south');
+assert.ok(lane.points[0][2] > 150 && lane.points.at(-1)[2] < 618, 'the lane stops short of the end bridges');
 assert.equal(c.airfields.length, 2);
 assert.deepEqual(c.airfields.map(a => a.team), ['alpha', 'bravo']);
 

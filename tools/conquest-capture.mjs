@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CAPTURES = path.join(ROOT, 'docs', 'design', 'conquest', 'redesign', 'captures');
-const WORLD_SHOTS = ['vista', 'farm', 'village-street', 'bridge', 'trenches', 'works', 'tank-forest', 'heli-river', 'jet-sky', 'wreck-column'];
+const WORLD_SHOTS = ['vista', 'farm', 'village-street', 'bridge', 'trenches', 'works', 'tank-forest', 'heli-river', 'jet-sky', 'wreck-column', 'boat-river'];
 
 const scene = (args) => ['tools/render-map-scenes.mjs', '--map', 'frontier', '--vehicles',
   '--out-dir', path.join(CAPTURES, 'world'), ...args];

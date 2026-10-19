@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 5;
+export const CONQUEST_CONTRACT_VERSION = 6;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -132,7 +132,7 @@ export const DAMAGE_CLASSES = Object.freeze(['small', 'mg', 'hmg', 'autocannon',
 export const ARMOR_CLASSES = Object.freeze(['light', 'heavy', 'air']);
 export const HIT_ZONES = Object.freeze(['front', 'side', 'rear', 'top', 'bottom']);
 
-export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at']);
+export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'boat']);
 /**
  * Hull variants: a type that shares another type's hull (handling, collider,
  * seats, model and sounds) but arms it differently. The AT jeep is the jeep
@@ -164,7 +164,7 @@ export const VEHICLE_WEAPON_META = Object.freeze({
   guidedMissile:    Object.freeze({ label: 'GUIDED MSL', kind: 'missile', cls: 'at',         speed: 75,  gravity: 0, rate: 1 / 1.5, presentation: 'rocket' }),
   towMissile:       Object.freeze({ label: 'TOW MSL',    kind: 'missile', cls: 'at',         speed: 65,  gravity: 0, rate: 1 / 2,   presentation: 'rocket' }),
 });
-export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null });
+export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, boat: null });
 
 /** Seat and mount topology. Order is significant (F1..F5, mounts[] in snapshot rows). Positions/anchors live in shared/vehicle-defs.js. */
 const S = (id, role, drives, exposed, personalWeapons, mounts) => Object.freeze({ id, role, drives, exposed, personalWeapons, mounts: Object.freeze(mounts) });
@@ -203,6 +203,14 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
     S('gunner', 'gunner', false, true, false, [M('pintle', ['towMissile'])]),
     S('front-passenger', 'passenger', false, true, true, []),
     S('rear-left', 'passenger', false, true, true, []),
+  ]),
+  // River patrol boat (contract v6): a helmsman at the console, a .50 in the
+  // bow tub and two passengers in the open aft cockpit; every seat is exposed.
+  boat: Object.freeze([
+    S('driver', 'driver', true, true, false, []),
+    S('gunner', 'gunner', false, true, false, [M('bow', ['hmg'])]),
+    S('rear-left', 'passenger', false, true, true, []),
+    S('rear-right', 'passenger', false, true, true, []),
   ]),
 });
 /** Seat topology of a conquest or titan type (titan types: shared/titan-contract.js). */

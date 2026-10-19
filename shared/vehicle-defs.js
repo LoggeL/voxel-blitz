@@ -16,6 +16,7 @@ import { TANK_RULES } from './vehicle-handling/tank.js';
 import { HELICOPTER_RULES } from './vehicle-handling/helicopter.js';
 import { TRANSPORT_RULES } from './vehicle-handling/transport.js';
 import { PLANE_RULES } from './vehicle-handling/plane.js';
+import { BOAT_RULES } from './vehicle-handling/boat.js';
 
 const freeze = value => {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -48,7 +49,7 @@ export const VEHICLE_LIFECYCLE = freeze({
 });
 
 /** Hull mass in tonnes: momentum transfer when a hull shoves a wreck. */
-export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7,
+export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, boat: 3.5,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, TITAN_DEFS_INPUT[type].mass])) });
 
 /**
@@ -81,7 +82,10 @@ export const RAM_RULES = freeze({ speedLoss: 0.15, damage: 0.5, glancingNormal: 
  * full hp at top speed and stops dead. A 45 t tank rocks back off a wall and
  * loses at most a tenth of its hull.
  */
-export const WALL_CRASH_RULES = freeze({ tank: { maxShare: 0.1, bounce: 0.3 } });
+export const WALL_CRASH_RULES = freeze({ tank: { maxShare: 0.1, bounce: 0.3 },
+  // A boat driven into a bank, a pier or an island at speed: a quarter of its hull at most, a short
+  // rebound, and one strike per `crashSeconds` (a hull glancing back into the same bank pays once).
+  boat: { maxShare: 0.25, bounce: 0.25, crashSeconds: 1 } });
 
 /**
  * A ground hull driving into another hull. The contact is perfectly inelastic
@@ -213,6 +217,8 @@ const seatHips = {
   helicopter: { driver: [-0.36, 1.4, -0.95], gunner: [0.36, 1.4, -0.95] },
   transport: { driver: [-0.36, 1.4, -0.95], 'door-left': [-0.95, 1.35, 0.4], 'door-right': [0.95, 1.35, 0.4], 'rear-left': [-0.45, 1.4, 1.2], 'rear-right': [0.45, 1.4, 1.2] },
   plane: { driver: [0, 1.4, -1.17] },
+  // Helm console amidships, the bow tub gunner standing, two benches in the aft cockpit.
+  boat: { driver: [-0.35, 1.35, -0.3], gunner: [0, 1.35, -2.3], 'rear-left': [-0.6, 1.0, 1.7], 'rear-right': [0.6, 1.0, 1.7] },
 };
 /** Seats whose hip anchor rides the turret ring (rotates with turretYaw). */
 const turretSeats = { tank: ['commander'] };
@@ -250,6 +256,10 @@ const seatCameras = {
     'door-left': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.38, 0.45], eyeFrame: 'mount' },
     'door-right': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [0.22, 0.38, 0.45], eyeFrame: 'mount' } },
   plane: { driver: { mode: 'chase', distance: 17, height: 4.4, views: FLY_VIEWS } },
+  boat: { driver: { mode: 'chase', distance: 9, height: 3, views: DRIVE_VIEWS, eye: [-0.35, 2.1, -0.4] },
+    gunner: { mode: 'mount', distance: 4.5, height: 1.6, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.62, 0.62], eyeFrame: 'mount' },
+    'rear-left': { mode: 'passenger', distance: 7, height: 2.4, views: ['cockpit', 'passenger'], eye: [-0.6, 1.75, 1.55] },
+    'rear-right': { mode: 'passenger', distance: 7, height: 2.4, views: ['cockpit', 'passenger'], eye: [0.6, 1.75, 1.55] } },
 };
 const defaultCamera = { mode: 'passenger', distance: 6, height: 2.2, views: ['cockpit', 'passenger'] };
 
@@ -289,6 +299,8 @@ const mountAnchors = {
     // Inner wing pylons between the gear and the missile rails: one bomb each.
     bombs: { fixed: true, sides: [[-1.8, 0.8, 0.4], [1.8, 0.8, 0.4]], pivot: [0, 0.8, 0.4], muzzle: 0, yawRate: 0, pitchRate: 0 },
   },
+  // The bow tub's .50 on its ring: 270 degrees ahead and abeam (the helm console is behind it).
+  boat: { bow: { pivot: [0, 1.95, -2.75], muzzle: 1, yawLimit: [0, 2.35], pitchLimit: [-0.3, 0.7], yawRate: 3, pitchRate: 2.4 } },
 };
 
 /** Compound boxes [[lo],[hi]] for aircraft; ground hulls use one box. */
@@ -320,6 +332,7 @@ const handlingRules = {
   helicopter: { ...HELICOPTER_RULES, hp: 650, respawnSeconds: 35, enterDistance: 5.5 },
   transport: { ...TRANSPORT_RULES, hp: 600, respawnSeconds: 35, enterDistance: 6 },
   plane: { ...PLANE_RULES, hp: 450, respawnSeconds: 40, enterDistance: 7.5 },
+  boat: { ...BOAT_RULES, hp: 360, respawnSeconds: 20, enterDistance: 5 },
 };
 /**
  * openCrew: the hull is an open cab (jeep) or open cabin (transport doors), so a
@@ -333,6 +346,8 @@ const shapes = {
   helicopter: { handling: 'rotor', armor: 'air', openCrew: false, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   transport: { handling: 'rotor', armor: 'air', openCrew: true, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   plane: { handling: 'fixedwing', armor: 'air', openCrew: false, collider: { halfWidth: 4.5, halfLength: 5 }, hullBoxes: PLANE_BOXES, gearBoxes: [7, 8] },
+  // Floats (shared/vehicle-handling/boat.js, server/sim/boat.js): an open fibreglass hull, light armour.
+  boat: { handling: 'boat', armor: 'light', openCrew: true, collider: { halfWidth: 1.25, halfLength: 3.4 } },
 };
 /** Wreck blasts keep terrain intact so cover survives chain reactions. */
 const destruction = {
@@ -341,6 +356,7 @@ const destruction = {
   helicopter: { radius: 9, damage: 180, damageFalloffExponent: 1.22 },
   transport: { radius: 9, damage: 190, damageFalloffExponent: 1.22 },
   plane: { radius: 10, damage: 200, damageFalloffExponent: 1.22 },
+  boat: { radius: 7, damage: 140, damageFalloffExponent: 1.22 },
 };
 
 /** Titan definitions (docs/titanfall.md §2.5) from TITAN_DEFS_INPUT. */
@@ -407,6 +423,8 @@ export function vehicleDef(value) {
 export const isAircraftType = value => ['rotor', 'fixedwing'].includes(vehicleDef(value)?.handling);
 /** Titan walkers (handling 'walker'). */
 export const isWalkerType = value => vehicleDef(value)?.handling === 'walker';
+/** Floating hulls (handling 'boat'): they ride the water surface, never the bed. */
+export const isBoatType = value => vehicleDef(value)?.handling === 'boat';
 /** Maximum hull points for a row, hull or type. */
 export const vehicleMaxHp = value => vehicleDef(value)?.hp ?? 0;
 export const vehicleSeatList = value => vehicleDef(value)?.seats ?? [];

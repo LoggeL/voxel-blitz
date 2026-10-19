@@ -128,10 +128,11 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 - `flags`: `{ id, name, site, x, y, z, radius, home, spawns ×12 }`
 - `bases`: `{ alpha|bravo: { id, name, x, y, z, radius: 56, spawns ×8 } }`
 - `combatArea`
-- `vehicleSpawns`: 15 hulls
+- `vehicleSpawns`: 21 hulls
 - `airfields`: today's shape, with terrain y
 - `roads`: `{ id, kind, width, points: [[x, y, z]] }`, resampled every 10 m or less
 - `crossings`: `{ id, kind, x, y, z, width }`
+- `waterways`: one boat lane, `{ id: 'river', kind: 'boat-lane', width: 5, points: [[x, 22, z]] }` with 40 points at the water face. It runs from z 158 to z 610 down the river's deep channel, clear of piers, fords and banks, through the Iron Bridge's east arch (x 387.5). The south half is the point mirror of the north half. The patrol bots sail it, and tests read it to check that a boat can get from mooring to mooring.
 - `weather: 'golden'`
 - `dressing`: the wreck smoke anchors
 
@@ -151,6 +152,7 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 |---|---|
 | `alpha-jeep` | (126.5, 404.5) |
 | `alpha-tank` | (126.5, 424.5) |
+| `alpha-jeep_at` | (126.5, 414.5) |
 | `alpha-helicopter` | helipad (112.5, 300.5) |
 | `alpha-transport` | helipad (112.5, 468.5) |
 | `alpha-plane` | runway start (44, 532), yaw 0 (EAST yaw π) |
@@ -159,6 +161,10 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 | `flag-D-jeep` (bravo) | (510.5, 250.5) |
 | `flag-E-jeep` (bravo) | (520.5, 532.5) |
 | `flag-C-tank` (team null, `flag: 'C'`) | west bank (346.5, 392.5); alternate east-bank pad `altX/altZ` (421.5, 375.5) |
+| `alpha-boat-north` / `bravo-boat-south` | moored at (370, 211), yaw −2.7, above ford-north / EAST mirror (398, 557) |
+| `alpha-boat-south` / `bravo-boat-north` | moored at (362, 452), yaw −0.85, below the Iron Bridge / EAST mirror (406, 316) |
+
+Boats float at y 21.57 (water face 22 minus the 0.45 m draft, plus 0.02). Each boat pad is named for where it sits on the river, so the EAST mirror of WEST's north boat is `bravo-boat-south`. Every pad clears a full pivot (32 yaws), and a boat crewed from the bank gets under way (`frontier-fleet-capacity-test`). Boats are left out of the HQ walking-route checks.
 
 **Crossings:**
 
@@ -191,7 +197,7 @@ Run each file on its own (on the shared development machine, through `.conquest-
 ```
 node tools/frontier-terrain-test.mjs     # pads, grades, jeep/tank drive along every road and ford, river, sight lines, cover, budgets
 node tools/frontier-sites-test.mjs       # per-flag gameplay contract, landmarks, forests, dressing
-node tools/frontier-map-test.mjs         # §3.2 shape, terrain y everywhere, 15-hull fleet, round trip
+node tools/frontier-map-test.mjs         # §3.2 shape, terrain y everywhere, 21-hull fleet, boat lane, round trip
 node tools/frontier-airfields-test.mjs   # runway, corridor, helipads, roundel, tower ladder, mirroring
 node tools/frontier-fleet-capacity-test.mjs  # parked hulls, pivots, pickup routes, bay exits, aircraft departures
 node tools/conquest-world-protocol-test.mjs  # V2 RLE header, Frontier payload, client decode
