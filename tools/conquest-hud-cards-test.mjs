@@ -139,6 +139,24 @@ function viewState(type, seatId, view = seatViews(type, seatId)[0]) {
     }
   }
   check(!/^\s*&/m.test(css), 'flat selectors (no CSS nesting)');
+  // A display value set here outranks the shared hide rules (.vb-medkit-inventory[hidden],
+  // .vb-touch-button.is-hidden): every such rule must exclude the hidden state itself.
+  const hiddenBy = { '.vb-medkit-inventory': ':not([hidden])', '.vb-touch-vehicleView': ':not(.is-hidden)' };
+  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const display = /(?:^|;)\s*display\s*:\s*([^;]+)/.exec(match[2])?.[1]?.trim();
+    if (!display || display === 'none') continue;
+    for (const part of match[1].trim().split(/,(?![^(]*\))/)) {
+      const last = part.trim().split(/\s+/).pop();
+      for (const [target, guard] of Object.entries(hiddenBy)) {
+        if (last.startsWith(target) && !last.includes('::')) check(last.includes(guard), `${part.trim()} sets display ${display} only with ${guard}`);
+      }
+    }
+  }
+  // main.js merges a literal fallback into the persistent touch context when there is no
+  // ConquestHud: it must list every default key, or a stale VIEW face / count would survive.
+  const main = readFileSync(new URL('../public/js/main.js', import.meta.url), 'utf8');
+  const fallback = /this\.conquestHud\.touchContextFields\(\) : \{([^}]*)\}/.exec(main)?.[1] ?? '';
+  for (const key of Object.keys(state.CONQUEST_TOUCH_DEFAULTS)) check(new RegExp(`\\b${key}:`).test(fallback), `main.js touch fallback lists ${key}`);
   for (const page of ['../public/index.html', '../public/conquest-hud-capture.html']) {
     const html = readFileSync(new URL(page, import.meta.url), 'utf8');
     const at = name => html.indexOf(`styles/${name}`);

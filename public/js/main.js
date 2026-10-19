@@ -1102,7 +1102,7 @@ class Game {
     // Conquest MAP, SPOT, DEPLOY, SEAT and FLARES/SMOKE buttons. ctx persists, so the
     // fallback lists every key: a missing one would keep a stale value.
     Object.assign(ctx, this.conquestHud ? this.conquestHud.touchContextFields() : { conquest: false, deployOpen: false, deployValid: true,
-      deployLabel: 'DEPLOY', vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false });
+      deployLabel: 'DEPLOY', vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false, vehicleViewCount: 0, vehicleViewLabel: '' });
     this.input.setTouchContext(ctx);
     const seatKey = ctx.vehicleSeated ? `${ctx.vehicleId}:${ctx.vehicleSeatId}` : '';
     if (seatKey !== this._inputVehicleSeatKey) {

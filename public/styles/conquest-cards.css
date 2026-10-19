@@ -34,7 +34,8 @@ html:not(.vb-touch-mode) body:has(> .vb-conquest-hud:not([hidden])) #healthbar::
   font: 800 16px/1 var(--font-ui); letter-spacing: 0.5px; font-variant-numeric: tabular-nums; color: var(--cqc-text); white-space: nowrap;
 }
 html:not(.vb-touch-mode) body:has(> .vb-conquest-hud:not([hidden])) #healthbar > :not(.hp-track, .vb-medkit-inventory, .cq-heal-tick) { grid-column: 1 / -1; }
-html:not(.vb-touch-mode) body:has(> .vb-conquest-hud:not([hidden])) .vb-medkit-inventory {
+/* :not([hidden]): the line hides while dead (MedkitHud), which display: flex would override. */
+html:not(.vb-touch-mode) body:has(> .vb-conquest-hud:not([hidden])) .vb-medkit-inventory:not([hidden]) {
   grid-column: 4; grid-row: 1; display: flex; align-items: center; gap: 5px; margin: 0;
   font-size: 0; line-height: 1; white-space: nowrap; color: #c9f5d6;
 }
@@ -120,7 +121,8 @@ body:has(> .vb-conquest-hud:not([hidden])) #healthbar.critical::after { color: v
 body:has(> .vb-conquest-hud:not([hidden])) #healthbar.critical::before { --cqc-heal: var(--cqc-danger); }
 
 /* VIEW (touch, seated): camera glyph over the active view's name (data-view from touch-controls). */
-.vb-touch-vehicleView[data-view]:not([data-view=""]) {
+/* :not(.is-hidden): display: grid must not outrank touch-controls' hide (spectating, result screen). */
+.vb-touch-vehicleView[data-view]:not([data-view=""]):not(.is-hidden) {
   display: grid; place-items: end center; padding: 0 2px 6px; font: 800 8px/1 var(--font-ui); letter-spacing: 0.4px; white-space: nowrap;
 }
 .vb-touch-vehicleView[data-view]:not([data-view=""])::before {
