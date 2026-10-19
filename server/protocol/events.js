@@ -205,6 +205,11 @@ export function evVehicleRepaired(vehicleId, by, hp) {
   return { t: 'ev', kind: 'vehicle_repaired', vehicleId: String(vehicleId), by: by == null ? null : String(by), hp: round(hp, 1) };
 }
 
+/** An empty enemy hull boarded by `by`: it changed team `from` -> `to`. */
+export function evVehicleHijacked(vehicleId, type, by, from, to) {
+  return { t: 'ev', kind: 'vehicle_hijacked', vehicleId: String(vehicleId), type: String(type), by: String(by), from: from ?? null, to: to ?? null };
+}
+
 /** `kind` is taken by the event kind, so the countermeasure type travels as `cm` (flares|smoke). */
 export function evCountermeasure(vehicleId, kind) {
   return { t: 'ev', kind: 'countermeasure', vehicleId: String(vehicleId), cm: String(kind) };

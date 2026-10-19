@@ -8,7 +8,7 @@ import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, VEHICLE_MASS, WRECK_PUSH_RULES
 import { VEHICLE_STATUS } from '../../shared/conquest-contract.js';
 import { groundAttitude } from '../../shared/vehicle-attitude.js';
 import { playerHullContact, vehiclePlayerPush, infantryHeight } from '../../shared/player-vehicle-collision.js';
-import { evHit } from '../protocol/events.js';
+import { evHit, evVehicleHijacked } from '../protocol/events.js';
 import { PHYSICS, boxCollides } from '../../shared/player-movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { vehicleDestructionBlast } from './vehicle-destruction.js';
@@ -196,7 +196,7 @@ export class VehicleSystem {
         turretYaw: yaw, turretPitch: 0, speed: 0, yawRate: 0, visualSteer: 0, leftTrackSpeed: 0, rightTrackSpeed: 0, vx: 0, vy: 0, vz: 0,
         hp: def.hp, occupantId: null, seatOccupants: this.emptySeats(s.type),
         respawnIn: 0, engineOn: false, wreckAge: 0,
-        spawn: { x: s.x, y: s.y, z: s.z, yaw, ...(typeof s.flag === 'string' ? { flag: s.flag } : {}),
+        spawn: { x: s.x, y: s.y, z: s.z, yaw, team: s.team ?? null, ...(typeof s.flag === 'string' ? { flag: s.flag } : {}),
           ...(padAlternate(s) ? { alt: padAlternate(s) } : {}), ...spawnRoutes(s) } };
       this.freshCondition(v);
       this.mounts.reset(v);
@@ -364,10 +364,13 @@ export class VehicleSystem {
   enter(p, id, requestedSeatId = null) {
     const v = this.vehicles.get(id);
     if (!p || this.engine.entities.get(String(p.id)) !== p || p.state !== 'alive' || p.vehicleId || !v || !(v.hp > 0) || v.padInactive
-      || this.teamOf(p) !== v.team || Math.hypot(p.x-v.x,p.y-v.y,p.z-v.z) > vehicleEnterDistance(v.type)) return false;
+      || Math.hypot(p.x-v.x,p.y-v.y,p.z-v.z) > vehicleEnterDistance(v.type)) return false;
+    const team = this.teamOf(p);
+    if (team !== v.team && !this.hijackable(v, team)) return false;
     if (p.chute) { p.chute = CHUTE.none; p.chuteT = 0; }
     if (this.engine.mode?.canFire && !this.engine.mode.canFire(p)) return false;
     if (this.titans && !this.titans.canEnter(v, p)) return false;
+    if (team !== v.team) this.hijack(v, p, team);
     this.cleanCrew(v);
     const free = seat => vehicleSeatOccupantId(v, seat.id) == null;
     // A human takes a seat a bot holds (the requested one, else a free seat
@@ -385,6 +388,25 @@ export class VehicleSystem {
     if (seat.drives) { this.lastDrivers.delete(v.id); v.occupantId = String(p.id); v.engineOn = true; this.takeoverGrace(p, v, airborne); }
     p.vehicleId = v.id; p.vehicleSeatId = seat.id; p.ghostVehicleId = null;
     this.sync(p,v); return true;
+  }
+  /** An enemy hull nobody crews may be boarded by `team`; titans never (shared/vehicle-seats.js vehicleBoardable). */
+  hijackable(v, team) {
+    if (!v || v.team == null || team == null || v.team === team || isTitanType(v.type)) return false;
+    this.cleanCrew(v);
+    return this.crew(v).length === 0;
+  }
+  /**
+   * Boarding an empty enemy hull takes it over: the hull changes team at once
+   * (clients repaint it), old spots, locks and driver credit lapse. Its pad
+   * keeps the team it was built for (padTeam), so a wreck respawns at home.
+   */
+  hijack(v, p, team) {
+    const from = v.team;
+    v.team = team;
+    v.spotted = {};
+    this.lastDrivers.delete(v.id);
+    this.locks?.breakLocks?.(v);
+    this.engine.tickEvents?.push(evVehicleHijacked(v.id, v.type, p.id, from, team));
   }
   /** The bot a human `p` may put out of `seatId` (never a human, never for a bot), or null. */
   botTakeover(p, v, seatId) {
@@ -668,9 +690,9 @@ export class VehicleSystem {
     const at = (lx, lz) => { const point = vehicleLocalPoint({ x: pad.x, y: pad.y, z: pad.z, yaw: pad.yaw }, lx, 0, lz); return { x: point[0], y: pad.y, z: point[2], yaw: pad.yaw }; };
     return [pad, at(side, 0), at(-side, 0), at(0, back)];
   }
-  /** Team owning the pad now, or undefined for a plain HQ pad (keeps hull team). */
+  /** Team owning the pad now: a flag pad follows the flag, an HQ pad keeps its own team (a hijacked hull goes home). */
   padTeam(v) {
-    return v.spawn.flag ? this.padOwners.get(v.spawn.flag) ?? null : v.team;
+    return v.spawn.flag ? this.padOwners.get(v.spawn.flag) ?? null : v.spawn.team !== undefined ? v.spawn.team : v.team;
   }
   canRespawn(v, pose = this.padPosition(v)) {
     const hull = { ...v, ...(isAircraft(v.type) ? flightRest() : {}), ...pose, pitch: 0, roll: 0, hp: vehicleMaxHp(v) };

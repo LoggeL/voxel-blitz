@@ -1,7 +1,7 @@
 import { CONQUEST_RULES, COUNTERMEASURES, isStoreMount, seatWeaponList, vehicleMountOrder } from '../../../shared/conquest-contract.js';
 import { storesChangeable } from '../../../shared/vehicle-defs.js';
 import { vehicleEnterDistance } from '../../../shared/vehicles.js';
-import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleHasFreeSeat } from '../../../shared/vehicle-seats.js';
+import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleHasFreeSeat, vehicleBoardable } from '../../../shared/vehicle-seats.js';
 import { isBotId } from '../../../shared/conquest.js';
 import { isTypingTarget, matchesBinding } from '../keybindings.js';
 import { VehicleCamera, VEHICLE_CAMERA } from './vehicle-camera.js';
@@ -317,7 +317,8 @@ export class VehicleController {
     this.nearest = null;
     let distance = Infinity;
     if (this.enabled && !this.vehicle) for (const row of this.rows) {
-      if (row.hp <= 0 || row.wreck || !hullTakeable(row) || (row.team && row.team !== self.team)) continue;
+      // Own hulls, or an enemy hull nobody crews (boarding hijacks it).
+      if (row.hp <= 0 || row.wreck || !hullTakeable(row) || (row.team && !vehicleBoardable(row, self.team))) continue;
       // Titanfall: only the own titan, and not while it falls or is doomed (tw[5] phase 1 / 6).
       if (isTitanType(row.type ?? row.kind)
         && (String(row.own) !== String(self.id) || [1, 6].includes(Array.isArray(row.tw) ? row.tw[5] | 0 : 0))) continue;

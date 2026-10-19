@@ -13,8 +13,8 @@ function fixture(type='jeep') {
  return {p,enemy,other,engine,walls,system:new VehicleSystem(engine)};
 }
 {
- const f=fixture();assert.equal(f.system.enter(f.enemy,'v'),false); f.other.x=30;assert.equal(f.system.enter(f.other,'v'),false);
- assert.equal(f.system.enter(f.p,'v'),true);f.other.x=20;assert.equal(f.system.enter(f.other,'v'),true);assert.equal(f.other.vehicleSeatId,'gunner','next free seat in topology order');
+ const f=fixture(); f.other.x=30;assert.equal(f.system.enter(f.other,'v'),false);
+ assert.equal(f.system.enter(f.p,'v'),true);assert.equal(f.system.enter(f.enemy,'v'),false,'a crewed enemy hull cannot be boarded');f.other.x=20;assert.equal(f.system.enter(f.other,'v'),true);assert.equal(f.other.vehicleSeatId,'gunner','next free seat in topology order');
  const third={...f.p,id:'t',vehicleId:null,vehicleSeatId:null};f.engine.entities.set('t',third);
  assert.equal(f.system.enter(third,'v','rear-left'),true);assert.equal(third.vehicleSeatId,'rear-left','requested free seat is honoured');
  assert.equal(f.system.action(third,{type:'seat',seatId:'gunner'}),false,'occupied seat refuses a switch');

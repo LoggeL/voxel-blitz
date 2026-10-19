@@ -7,7 +7,7 @@
  */
 import { bindingLabel, isTypingTarget, matchesBinding } from '../keybindings.js';
 import {
-  bannerForEvent, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
+  bannerForEvent, hijackBanner, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
   killerCard, kitUnlockBanner, kitUnlockState, lockerModel, mapItems, matchEndBanner, nextFreeSeatIndex, ownKitUnlocks, readConquest,
   restrictedModel, reticleModel, scoreEntry, seatedVehicle, spreadEdgeMarkers, squadListModel, tankHitCallout, ticketModel, unitMarkerModels,
   vehicleHitMark, vehiclePanelModel,
@@ -574,6 +574,11 @@ export class ConquestHud {
       case 'vehicle_destroyed':
         this.combatHud?.vehicleDestroyed?.(ev);
         break;
+      case 'vehicle_hijacked': {
+        const banner = hijackBanner(ev, selfTeam, selfId);
+        if (banner) this.banners.push(banner, now);
+        break;
+      }
       case 'kill': {
         // ADRENALINE only re-arms on an own kill: remember when the last one landed.
         if (selfId != null && String(ev.killer) === String(selfId) && String(ev.victim) !== String(selfId)) this._ownKillAt = now;

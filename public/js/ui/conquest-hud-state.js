@@ -14,6 +14,7 @@ import {
   decodeConquestMatch, deployOptions, deployViewFromSnapshot, isBotId, oppositeTeam, parseSpawnChoice, resolveDeployChoice, teamSign,
 } from '../../../shared/conquest.js';
 import * as vehicleDefs from '../../../shared/vehicle-defs.js';
+import { vehicleHijackable } from '../../../shared/vehicle-seats.js';
 import {
   KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
 } from '../../../shared/conquest-kits.js';
@@ -967,6 +968,16 @@ export function scoreEntry(ev, selfId) {
     text: `+${pts} ${SCORE_LABELS[reason] || 'SCORE'}`, base: SCORE_POINTS[reason] ?? null };
 }
 
+/** Banner for a hijacked hull: your own hijack, a teammate's, or one of your team's hulls lost to the enemy. */
+export function hijackBanner(ev, selfTeam, selfId) {
+  if (ev?.kind !== 'vehicle_hijacked' || !selfTeam) return null;
+  const name = VEHICLE_LABELS[ev.type] || 'VEHICLE', key = `hij:${ev.vehicleId}:${ev.to}`;
+  if (selfId != null && String(ev.by) === String(selfId)) return { key, tone: 'own', title: `${name} HIJACKED`, detail: 'IT FIGHTS FOR YOUR TEAM NOW', priority: 5 };
+  if (ev.to === selfTeam) return { key, tone: 'own', title: `ENEMY ${name} HIJACKED`, detail: 'A TEAMMATE TOOK IT', priority: 2 };
+  if (ev.from === selfTeam) return { key, tone: 'enemy', title: `${name} HIJACKED`, detail: 'THE ENEMY TOOK AN EMPTY HULL', priority: 3 };
+  return null;
+}
+
 /**
  * Objective banners from events: captured, lost, neutralized, under attack
  * (flag_state with the enemy moving control on an own flag), ticket low.
@@ -1277,13 +1288,15 @@ export function interactModel({ self, players = [], vehicles = [], nearbyVehicle
   }
   if (needsMedic) return needsMedic;
   if (seated) return { type: 'exit', label: `EXIT ${VEHICLE_LABELS[seated.row.type] || 'VEHICLE'}`, progress: 0, hold: false };
-  const near = nearbyVehicle && nearbyVehicle.hp > 0 && (!nearbyVehicle.team || nearbyVehicle.team === team) ? nearbyVehicle : null;
+  // An empty enemy hull can be boarded too: entering hijacks it.
+  const hijack = !!nearbyVehicle && nearbyVehicle.hp > 0 && vehicleHijackable(nearbyVehicle, team);
+  const near = nearbyVehicle && nearbyVehicle.hp > 0 && (!nearbyVehicle.team || nearbyVehicle.team === team || hijack) ? nearbyVehicle : null;
   if (near) {
     const free = topology(near.type).find(seat => seatOccupant(near, seat.id) == null);
     if (free) {
       const index = topology(near.type).indexOf(free);
-      return { type: 'enter', targetId: String(near.id), seatId: free.id,
-        label: `ENTER ${VEHICLE_LABELS[near.type] || 'VEHICLE'} · F${index + 1} ${SEAT_LABELS[free.id] || free.role.toUpperCase()}`, progress: 0, hold: false };
+      return { type: 'enter', targetId: String(near.id), seatId: free.id, ...(hijack ? { hijack: true } : {}),
+        label: `${hijack ? 'HIJACK' : 'ENTER'} ${VEHICLE_LABELS[near.type] || 'VEHICLE'} · F${index + 1} ${SEAT_LABELS[free.id] || free.role.toUpperCase()}`, progress: 0, hold: false };
     }
     // A full hull with a bot aboard: Interact takes the first bot seat (the server puts the bot out).
     const held = topology(near.type).find(seat => isBotId(seatOccupant(near, seat.id)));

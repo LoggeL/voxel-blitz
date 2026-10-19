@@ -58,7 +58,7 @@ for(const type of VEHICLE_TYPE_IDS) {
   assert.equal(f.board(f.people[1],last.id),false,'an occupied seat request is refused');
   Object.assign(f.people[1],{x:400,y:1,z:400});
   Object.assign(f.enemy,{x:f.v.x,y:f.v.y,z:f.v.z});
-  assert.equal(f.game.vehicles.enter(f.enemy,'v'),false,'enemies cannot board');
+  assert.equal(f.game.vehicles.enter(f.enemy,'v'),false,'enemies cannot board a crewed hull');
   assert.equal(f.game.vehicles.enter(f.people[1],'v'),false,'distant entry is refused');
   const rest=seats.slice(0,-1);
   for(const [i,seat] of rest.entries()) {

@@ -98,6 +98,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'vehicle_hit',       // {vehicleId, attacker, dmg, zone, cls, eff:0|1, pos:[x,y,z], part?, res?:'rico'|'nopen', sys?:'tracks'|'engine'|'turret'}  merged per attacker/hull/100ms
   'vehicle_disabled',  // {vehicleId, attacker}
   'vehicle_repaired',  // {vehicleId, by, hp}
+  'vehicle_hijacked',  // {vehicleId, type, by, from, to}  an empty enemy hull boarded: it now belongs to `to`
   'countermeasure',    // {vehicleId, cm:'flares'|'smoke'}  (kind is the event discriminator)
   'ejection',          // {id, vehicleId, pos:[x,y,z], vel:[vx,vy,vz], yaw}  jet pilot left on the ejection seat
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
