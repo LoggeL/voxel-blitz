@@ -598,17 +598,19 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   if (mount?.overheated || (mount?.heat ?? 0) > 0.82) state.cooling = true;
   if (state.cooling && (mount?.heat ?? 0) < 0.3 && !mount?.overheated) state.cooling = false;
   const hitscan = meta?.kind === 'hitscan';
-  const lineClear = clearFlight(game, p, target, origin, dir, aim.distance,
+  // The flight check samples the whole arc against voxels, smoke and bodies:
+  // it only runs once the mount sits on the aim (it is pure, so the outcome is the same).
+  const lineClear = () => clearFlight(game, p, target, origin, dir, aim.distance,
     { speed: meta?.speed ?? 0, gravity: meta?.gravity ?? 0, explosive: !hitscan });
   // A titan railgun holds the trigger to a full charge and releases it on target (a held full charge waits).
   const charged = titan ? VEHICLE_WEAPONS[active.weapon]?.chargeSeconds : 0;
   if (charged) {
     const mountIndex = vehicleMountOrder(v.type).indexOf(`${seatId}:${active.mount}`);
-    const release = (v.mounts?.[mountIndex]?.charge ?? 0) >= 0.97 && error < tolerance && lineClear;
+    const release = (v.mounts?.[mountIndex]?.charge ?? 0) >= 0.97 && error < tolerance && lineClear();
     inp.wantFire = !release;
     return { target, sighting, recognized: true, fired: release };
   }
-  if (error >= tolerance || !lineClear || state.cooling) { state.inBurst = false; return { target, sighting, recognized: true }; }
+  if (error >= tolerance || state.cooling || !lineClear()) { state.inBurst = false; return { target, sighting, recognized: true }; }
   if (!hitscan) {
     inp.wantFire = true;
     if (beam && (mount?.ammo ?? 1) > 0) { state.guideUntil = now + Math.min(aim.flightTime, 9) * 1000 + 400; state.guideTarget = target.id; }

@@ -11,6 +11,10 @@ COPY public ./public
 
 ENV NODE_ENV=production
 ENV PORT=8070
+# libuv's pool runs permessage-deflate and the scrypt key derivations (logins,
+# room passwords). Four threads let two logins and two password joins stall
+# every snapshot deflate; it must be set before node starts, not from JS.
+ENV UV_THREADPOOL_SIZE=8
 
 EXPOSE 8070
 

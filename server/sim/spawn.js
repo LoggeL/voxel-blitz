@@ -10,9 +10,21 @@ const NEIGHBOURS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
 const SPAWN_LOS_PENALTY = 36;
 const SPAWN_RECENT_PENALTY = 24;
 const MAX_TRACKED_SPAWNS = 256;
+// Axis-distance cull of the nearest-enemy scan, with a margin far above
+// Math.hypot's rounding, so a culled body could never have been the nearest.
+const NEAR_SKIP = 1 + 1e-9;
 
 function spawnPointKey(point) {
   return `${point.x},${point.y},${point.z}`;
+}
+
+// The scorer's safety class and score of a candidate row (see pick) with
+// `visible` enemies in sight. Both only fall as `visible` grows.
+function rowSafety(row, visible, variety) {
+  return row.occupied ? -1 : !variety ? 0 : row.nearest >= 12 && visible === 0 ? 2 : row.nearest >= 8 ? 1 : 0;
+}
+function rowScore(row, visible) {
+  return row.nearest - visible * SPAWN_LOS_PENALTY - row.recentPenalty - row.priorPenalty + row.jitter;
 }
 
 /**
@@ -24,7 +36,7 @@ function spawnPointKey(point) {
  * choosing spawns.
  */
 export class SpawnSelector {
-  constructor({ entities, isEnemy, solidAt, fluidAt = null, portalAt = null, now, spawnBounds = null, dimensions = null }) {
+  constructor({ entities, isEnemy, solidAt, fluidAt = null, portalAt = null, now, spawnBounds = null, dimensions = null, revision = null }) {
     this.dimensions = dimensions || worldDimensions();
     this.entities = entities;
     this.isEnemy = isEnemy;
@@ -42,6 +54,11 @@ export class SpawnSelector {
       this.spawnSurfaces?.delete(`${x},${floorY + 1},${z}`);
     }
     this.now = now;
+    // Optional voxel revision (any change to what solidAt/fluidAt answer bumps it).
+    this.revision = typeof revision === 'function' ? revision : null;
+    this.candidateCache = new WeakMap();
+    this.losMemo = new WeakMap();
+    this.losRevision = NaN;
     this.spawnUseTimes = new Map();
     this.expandedPools = new WeakMap();
   }
@@ -119,6 +136,26 @@ export class SpawnSelector {
     const dist = Math.hypot(dx, dy, dz);
     if (dist <= 0.2) return true;
     return !raycastVoxels(this.solidAt, ox, oy, oz, dx, dy, dz, dist - 0.1);
+  }
+
+  /**
+   * enemyHasSpawnLos through a memo of the voxel revision: one result per
+   * candidate cell and enemy while the enemy keeps its eye position, so the
+   * picks of a room start or a respawn wave (bodies standing still between
+   * them) cast each ray once. Cells are the cached candidate objects.
+   */
+  _sightLine(enemy, point) {
+    if (!this.revision) return this.enemyHasSpawnLos(enemy, point);
+    const revision = this.revision();
+    if (revision !== this.losRevision) { this.losMemo = new WeakMap(); this.losRevision = revision; }
+    let byEnemy = this.losMemo.get(point);
+    if (!byEnemy) this.losMemo.set(point, byEnemy = new WeakMap());
+    const eyeY = Number.isFinite(enemy.eyeY) ? enemy.eyeY : enemy.y + EYE_HEIGHT;
+    const seen = byEnemy.get(enemy);
+    if (seen && seen.x === enemy.x && seen.eyeY === eyeY && seen.z === enemy.z) return seen.los;
+    const los = this.enemyHasSpawnLos(enemy, point);
+    byEnemy.set(enemy, { x: enemy.x, eyeY, z: enemy.z, los });
+    return los;
   }
 
   /** Clear body box with a floor, inside the horizontal spawn bounds. Ignores authored floor heights. */
@@ -223,7 +260,64 @@ export class SpawnSelector {
     return null;
   }
 
-  pick(pool, player = null, excludeIndex = -1, { variety = false } = {}) {
+  /**
+   * The row a full scan in pool order picks: the highest safety, then the
+   * highest score, the earliest row on a tie. Sight lines are what cost (a
+   * voxel ray per enemy and candidate, O(N²) when a room starts or a wave
+   * respawns), so rows are tried best bound first (the bound assumes no enemy
+   * sees the cell) and a row stops counting enemies once it can no longer
+   * win. The chosen row is the same; most rays are never cast.
+   */
+  _bestSpawnRow(rows, enemies, variety) {
+    const bounds = rows.map(row => ({ row, safety: rowSafety(row, 0, variety), score: rowScore(row, 0) }));
+    let best = null, bestSafety = -Infinity, bestScore = -Infinity;
+    if (!bounds.every(bound => Number.isFinite(bound.score))) {
+      // Non-finite positions: no usable bound, scan every row in order.
+      for (const row of rows) {
+        let visible = 0;
+        for (const enemy of enemies) if (this._sightLine(enemy, row.candidate)) visible++;
+        const safety = rowSafety(row, visible, variety), score = rowScore(row, visible);
+        if (safety > bestSafety || (safety === bestSafety && score > bestScore)) { best = row; bestSafety = safety; bestScore = score; }
+      }
+      return best;
+    }
+    bounds.sort((a, b) => b.safety - a.safety || b.score - a.score || a.row.order - b.row.order);
+    const wins = (safety, score, order) => best === null || safety > bestSafety
+      || (safety === bestSafety && (score > bestScore || (score === bestScore && order < best.order)));
+    for (const bound of bounds) {
+      const row = bound.row;
+      // Every later row is bounded by this one: none of them can win either.
+      if (!wins(bound.safety, bound.score, row.order)) break;
+      let visible = 0, beaten = false;
+      for (const enemy of enemies) {
+        if (!this._sightLine(enemy, row.candidate)) continue;
+        visible++;
+        if (best !== null && !wins(rowSafety(row, visible, variety), rowScore(row, visible), row.order)) { beaten = true; break; }
+      }
+      if (beaten) continue;
+      const safety = rowSafety(row, visible, variety), score = rowScore(row, visible);
+      if (wins(safety, score, row.order)) { best = row; bestSafety = safety; bestScore = score; }
+    }
+    return best;
+  }
+
+  /**
+   * The pool's usable cells for pick (walkable, and dry when any is dry). They
+   * depend on the voxels only, so with a `revision` source they are kept per
+   * pool until the world changes: a room start or a respawn wave tests each
+   * cell's floor and fluids once instead of once per pick.
+   */
+  _poolCandidates(pool) {
+    const revision = this.revision ? this.revision() : NaN;
+    const cacheable = Number.isFinite(revision) && pool !== null && typeof pool === 'object';
+    const cached = cacheable ? this.candidateCache.get(pool) : null;
+    if (cached && cached.revision === revision) return cached.candidates;
+    const candidates = this._scanCandidates(pool);
+    if (cacheable) this.candidateCache.set(pool, { revision, candidates });
+    return candidates;
+  }
+
+  _scanCandidates(pool) {
     const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
     let candidates = [];
     for (let i = 0; i < pool.length; i++) {
@@ -259,7 +353,12 @@ export class SpawnSelector {
     // Prefer candidates clear of fluids and portal triggers; a pool that is
     // entirely hazardous keeps the ordinary scoring rather than failing.
     const dry = candidates.filter((candidate) => !this.hazardous(candidate));
-    if (dry.length) candidates = dry;
+    return dry.length ? dry : candidates;
+  }
+
+  pick(pool, player = null, excludeIndex = -1, { variety = false } = {}) {
+    const { sx: SX, sz: SZ } = this.dimensions;
+    const candidates = this._poolCandidates(pool);
 
     const hasPriorPoint = player &&
       [player.lastSpawnX, player.lastSpawnY, player.lastSpawnZ].every(Number.isFinite);
@@ -270,27 +369,25 @@ export class SpawnSelector {
       : candidate.index === excludeIndex;
     const canExcludePrior = candidates.length > 1 &&
       candidates.some((candidate) => !isPriorSpawn(candidate));
-    const enemies = [];
+    const enemies = [], bodies = [];
     for (const entity of this.entities.values()) {
       if (entity === player || entity.state !== 'alive') continue;
+      bodies.push(entity);
       if (player && !this.isEnemy(player, entity)) continue;
       enemies.push(entity);
     }
 
-    let best = null;
-    let bestScore = -Infinity;
-    let bestSafety = -Infinity;
+    // Everything but the sight lines, in pool order (the variety jitter draws
+    // Math.random exactly as often and in the same order as a full scan).
+    const rows = [];
     for (const candidate of candidates) {
       if (!variety && canExcludePrior && isPriorSpawn(candidate)) continue;
       let nearest = Math.hypot(SX, SZ);
-      let visibleEnemies = 0;
       for (const enemy of enemies) {
-        nearest = Math.min(nearest, Math.hypot(
-          candidate.x - enemy.x,
-          candidate.y - enemy.y,
-          candidate.z - enemy.z,
-        ));
-        if (this.enemyHasSpawnLos(enemy, candidate)) visibleEnemies++;
+        const dx = candidate.x - enemy.x, dy = candidate.y - enemy.y, dz = candidate.z - enemy.z;
+        // A body farther than `nearest` along one axis can't be nearer (hypot >= every axis).
+        if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) > nearest * NEAR_SKIP) continue;
+        nearest = Math.min(nearest, Math.hypot(dx, dy, dz));
       }
 
       const usedAt = this.spawnUseTimes.get(spawnPointKey(candidate));
@@ -300,19 +397,17 @@ export class SpawnSelector {
       const recentPenalty = age < SPAWN_RECENT_MS
         ? SPAWN_RECENT_PENALTY * (1 - age / SPAWN_RECENT_MS)
         : 0;
-      const occupied = [...this.entities.values()].some((entity) => entity !== player
-        && entity.state === 'alive' && Math.hypot(candidate.x - entity.x,
-          candidate.y - entity.y, candidate.z - entity.z) < 2.5);
-      // Every mode needs a free body-sized slot. Deterministic modes still
-      // score safety normally once occupied positions have been excluded.
-      const safety = occupied ? -1 : !variety ? 0 : nearest >= 12 && visibleEnemies === 0 ? 2 : nearest >= 8 ? 1 : 0;
-      const score = nearest - visibleEnemies * SPAWN_LOS_PENALTY - recentPenalty - (variety && isPriorSpawn(candidate) ? 12 : 0) + (variety ? Math.random() * 6 : 0);
-      if (safety > bestSafety || (safety === bestSafety && score > bestScore)) {
-        bestSafety = safety;
-        best = candidate;
-        bestScore = score;
+      let occupied = false;
+      for (const entity of bodies) {
+        const dx = candidate.x - entity.x, dy = candidate.y - entity.y, dz = candidate.z - entity.z;
+        if (Math.abs(dx) >= 3 || Math.abs(dy) >= 3 || Math.abs(dz) >= 3) continue;
+        if (Math.hypot(dx, dy, dz) < 2.5) { occupied = true; break; }
       }
+      const priorPenalty = variety && isPriorSpawn(candidate) ? 12 : 0;
+      const jitter = variety ? Math.random() * 6 : 0;
+      rows.push({ candidate, order: rows.length, nearest, recentPenalty, occupied, priorPenalty, jitter });
     }
+    const best = this._bestSpawnRow(rows, enemies, variety)?.candidate;
 
     const chosen = best || candidates[0];
     this.spawnUseTimes.set(spawnPointKey(chosen), this.now);

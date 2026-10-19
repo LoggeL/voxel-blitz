@@ -131,7 +131,9 @@ export class GameEngine {
     this.intervalMs = TICK_MS;
     this.running = false;
     this.timer = null;
-    this.tickTiming = new TickTiming();
+    // Long ticks are logged with the room's mode, map, bodies and the number of rooms ticking.
+    this.tickTiming = new TickTiming({ budgetMs: () => this.intervalMs,
+      describe: () => `${this.mode?.mode}/${this.mapMeta?.id}, ${this.entities.size + this.npcs.size} bodies, ${tickingEngines} rooms` });
     this.blockHp = new Map();
     this.blockMining = new Map();
     this.blockDamage = new Map();
@@ -183,12 +185,16 @@ export class GameEngine {
       spawnBounds: this.mapMeta?.spawnBounds,
       dimensions: this.world.dimensions,
       now: this.now,
+      // Every voxel replacement, so cached spawn candidates follow the terrain.
+      revision: () => this.world.mutationCount,
     });
   }
 
   start(tickRateMs = TICK_MS) {
     if (this.running) return this;
-    if (modeHasVehicles(this.mode.mode)) groundNavigation(this.world);
+    // Vehicle modes route hulls; any mode with bots (tick hooks) routes them. Built
+    // here, the first tick does not sweep the grid (a pristine map copies a cached one).
+    if (modeHasVehicles(this.mode.mode) || this.tickHooks.length) groundNavigation(this.world);
     this.intervalMs = tickRateMs;
     this.running = true;
     tickingEngines++;

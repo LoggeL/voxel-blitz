@@ -414,6 +414,31 @@ Joining a Conquest match takes about 0.7 s locally from the JOIN click to the fi
 
 Measure with `npm run join:profile` (one muted headless browser; through `.conquest-work/heavy.sh` on a shared machine).
 
+## Server load
+
+Every room, socket, ping and deflate callback shares the server's one event loop, so a long synchronous block in one room delays snapshots and RTT in every other room. The work below removes the big blocks without changing a result: spawns, routes and snapshots are the same bit for bit (seeded matches hash identically before and after on 11 mode/map pairs, including a 2-minute 16-bot Conquest match).
+
+- **Spawn picks** (`server/sim/spawn.js`). A pick scores every pool cell against every living enemy, and each pair used to cast a voxel sight ray: O(N²) rays per wave, about 110 000 when a 32-player TDM room starts. Now:
+  - candidates (walkable, dry) are cached per pool until the world's `mutationCount` changes;
+  - cells are tried best bound first (the score with no enemy in sight) and a cell stops counting sight lines once it can no longer win, so the chosen cell is the full scan's (ties still go to the earliest cell, the variety jitter draws `Math.random` as often and in the same order);
+  - each (cell, enemy) sight line is kept while the enemy's eye stays put and the voxels are unchanged, so the picks of one wave cast each ray once.
+- **Ground routes** (`server/bot-navigation.js`, flat-floor maps). `closest()` (the walkable grid node in sight of a point) is memoized per point until the grid or the voxels change. It was 37 % of a TDM tick, because bots ask for the same points again. The route search reuses its scratch arrays. A world still equal to its template copies a cached grid instead of sweeping every cell (the sweep was the 26–32 ms first tick of every TDM Harbor room).
+- **Boot warm-up** (`server/boot-warmup.js`). Before listening, the server prepares Frontier as before and now also builds its bot cover sets, so the first Conquest room clones them instead of sampling about 1000 points per flag. After listening, it sweeps the flat-floor maps' ground grids in 2 ms slices between room ticks (`VOXEL_NAV_WARM=0` skips it). The log line `ground grids warmed: N maps ...` reports it.
+- **Smaller fixes**: `solidBelow` without per-call arrays; the mounted-gun sight line is cast only when the gun would fire; the Docker image runs libuv with 8 threads, so logins and password joins (scrypt) can't hold every snapshot deflate.
+- **Seeing it**: the server log names each room tick of 25 ms or more (and at least twice the budget), at most once per second per room: `[voxel-blitz] long tick 31.4 ms (tdm/harbor, 32 bodies, 2 rooms, 3 so far)` (rooms: those ticking in this process). Connection diagnostics add event-loop utilization, GC pauses, `longTicks` and `skippedTicks` (docs/development.md, *Connection diagnostics*).
+
+Measured with `npm run bench:load` (`tools/load-spike-bench.mjs [--only conquest,tdm,fun] [--seconds 30] [--repeat 3] [--cold] [--json out.json]`: lobby start with the host and N bots on fresh rooms, then the room stepped in-process; no sockets, no browser), on a loaded M-series Mac, median of 3 starts, two runs each, before → after:
+
+| Room | Start (lobby → first tick) | Sight rays at start | First tick | Steady tick p99 / max |
+|---|---|---|---|---|
+| Conquest Frontier, 15 bots | 11–15 → 7 ms | 2090 → 182 | 18 → 16 ms | 2.9–3.4 / 5.6–6.2 → 2.7–2.9 / 4.4–5.0 ms |
+| TDM Harbor, 31 bots | 62–68 → 9–12 ms | 110 712 → about 1000 | 21–22 → 7–8 ms | 2.3–2.7 / 4.8–5.1 → 2.1 / 4.2–4.3 ms |
+| FFA Canyon, 15 bots | 51–53 → 8 ms | 92 280 → 2400–3700 | 15 → 3 ms | 6.1–6.9 / 8.4 → 1.6–2.0 / 3.8–3.9 ms |
+
+On the efficiency cores (`taskpolicy -b`, a stand-in for the slower production host) a TDM Harbor start fell from 180–240 ms to 28–50 ms and an FFA Canyon start from 178 to 23 ms. Conquest's remaining first tick (16 ms here, 35–50 ms on the efficiency cores) is the bots' first routes and the first vehicle step.
+
+Not changed (each would change what bots do): per-tick re-route budgets, a resumable surface A*, the threat-scan cadence of bots in vehicles, a shared scrypt semaphore, admission by event-loop load, and worker threads. Vehicle stepping (about a third of a Conquest tick) is untouched.
+
 ## Map metadata (`mapMeta.conquest`, built by `createFrontierMetadata`)
 
 ```
@@ -452,6 +477,7 @@ Node suites (no browser):
 - `node tools/conquest-vehicle-ram-test.mjs` covers shoving wrecks (tank pushes a jeep wreck, a jeep only nudges one and can't move a tank wreck, a pushed wreck stops at a wall and sleeps again) and ramming (fence, plank wall, plaster at speed, corrugated steel and cobble walls for the tank, the per-tick cap, speed loss and damage, stone, concrete and brick for the jeep, flag guard), and a tank's top-speed crash into stone (at most 10 % hull lost, a rebound).
 - `node tools/conquest-bot-wait-test.mjs` covers bot drivers waiting for humans: a bot-driven jeep squad ride, tank crew, transport squad ride and attack helicopter hold while a human runs to them and leave after the human boards; no wait for a human walking away or standing 28 m off; the 8 s timeout (12 s for a squad mate) and the 30 s cooldown; a ride already well on its way drives on; an airborne helicopter never waits.
 - `node tools/conquest-redeploy-test.mjs` (protocol and policy) and `node tools/conquest-redeploy-ui-test.mjs` (fake DOM) cover the in-game menu RESPAWN.
+- `node tools/load-spike-test.mjs` (in `conquest:test`) checks the *Server load* shortcuts against verbatim copies of the code they replaced: 2400 spawn picks on seeded synthetic arenas (variety, prior spawns, terrain edits, dead and NaN bodies, the next `Math.random` draw), `solidBelow`, the ground grid's pristine copy and sliced warm-up against a full sweep, 960 Harbor routes with terrain edits, and Frontier's boot cover sets against a cold build. It also checks that a Conquest room samples no cover, the room-start ray budget (TDM Harbor 31 bots under 15 000 rays, it was about 110 000; Conquest Frontier 16 under 1000), and the long-tick log and diagnostics fields.
 - `node tools/conquest-scale-test.mjs` checks the snapshot budgets: at most 260 B per vehicle row, 27 KB per tick and 400 B for `match.conquest`.
 - `node tools/atlastest.mjs` pins the Frontier world fingerprint. Re-pin it after any map geometry change.
 - `node tools/map-loading-test.mjs` covers V3 map frames (template, reference, patch), the admission `mapCache`, the server's per-client frame choice, the browser map cache, and checks that the load-time fast paths (raw-voxel light classification, the distant shell's layer window, far-terrain probes, spawn-ring meshing, primed Frontier metadata) give exactly the old results.

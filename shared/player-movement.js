@@ -75,14 +75,14 @@ export function canClimb({ reloading = false, grenadeHandling = false, quickMele
 export function solidBelow(solidAt, px, py, pz, halfW = HALF_W) {
   const yy = py - 0.06;
   if (Math.floor(yy) < 0) return true;
-  const xs = [px - halfW + SHRINK, px + halfW - SHRINK];
-  const zs = [pz - halfW + SHRINK, pz + halfW - SHRINK];
+  // The four footprint corners, x-major (no per-call arrays: bot route sweeps call this thousands of times a tick).
+  const x0 = Math.floor(px - halfW + SHRINK), x1 = Math.floor(px + halfW - SHRINK);
+  const z0 = Math.floor(pz - halfW + SHRINK), z1 = Math.floor(pz + halfW - SHRINK);
   const cellY = Math.floor(yy);
-  for (const cx of xs) {
-    for (const cz of zs) {
-      if (solidAt(Math.floor(cx), cellY, Math.floor(cz))) return true;
-    }
-  }
+  if (solidAt(x0, cellY, z0)) return true;
+  if (solidAt(x0, cellY, z1)) return true;
+  if (solidAt(x1, cellY, z0)) return true;
+  if (solidAt(x1, cellY, z1)) return true;
   return false;
 }
 
