@@ -68,8 +68,9 @@ function buildParts() {
     hull.cyl([x, y, z - 0.15], 0.42, 0.2, 'z', 'dark', { hollow: 0.24 });
     hull.cyl([x, y, z - 0.3], 0.2, 0.6, 'z', 'exhaust');
   }
-  // Wing pylons down to the missile rails.
+  // Wing pylons down to the missile rails (outer) and the bomb racks (inner).
   for (const [x, y, z] of def.mounts.rails.sides) hull.box([x - 0.2, y + 0.2, z - 0.6], [x + 0.2, 1.2, z + 0.8], 'gunmetal', { tag: x < 0 ? 'wing-left' : 'wing-right' });
+  for (const [x, y, z] of def.mounts.bombs.sides) hull.box([x - 0.2, y + 0.2, z - 0.4], [x + 0.2, 1.2, z + 0.6], 'gunmetal', { tag: x < 0 ? 'wing-left' : 'wing-right' });
   // Gun port by the nose.
   const nose = def.mounts.nose.pivot;
   hull.box([nose[0] + 0.2, nose[1] - 0.1, nose[2] + 1.4], [nose[0] + 0.4, nose[1] + 0.1, nose[2] + 1.8], 'dark');
@@ -85,6 +86,14 @@ function buildParts() {
   missile.box([-0.3, -0.1, -0.6], [0.3, 0.1, -0.4], 'warhead');
   missile.userData.breaks = true;
 
+  // Free-fall bomb: team drab body, steel nose, yellow fuze band, dark tail fins.
+  const bomb = new VoxelPart('plane-bomb', { grid: [-0.2, -0.2, 0] });
+  bomb.box([-0.2, -0.2, -0.8], [0.2, 0.2, 0.8], 'drab');
+  bomb.box([-0.2, -0.2, -1.0], [0.2, 0.2, -0.8], 'gunmetal');
+  bomb.box([-0.2, -0.2, -0.6], [0.2, 0.2, -0.4], 'hazard');
+  for (const [x, y] of [[-0.4, -0.4], [0.2, -0.4], [-0.4, 0.2], [0.2, 0.2]]) bomb.box([x, y, 0.4], [x + 0.2, y + 0.2, 0.8], 'dark');
+  bomb.userData.breaks = true;
+
   // Retracting gear legs, pivoting at the bay roof.
   const gear = (name, top, tag) => {
     const [x, y, z] = top;
@@ -96,15 +105,16 @@ function buildParts() {
     return part;
   };
   return {
-    hull, missile,
+    hull, missile, bomb,
     noseGear: gear('plane-nose-gear', PLANE_GEAR.nose, 'gear-nose'),
     mainGears: PLANE_GEAR.mains.map((top, i) => gear(`plane-main-gear-${i}`, top, i ? 'gear-right' : 'gear-left')),
   };
 }
 
 /**
- * Single-seat strike jet: glass canopy, nose cannon, AA missiles on wing
- * rails (hidden as they launch), twin nozzles and retracting gear.
+ * Single-seat strike jet: glass canopy, nose cannon, AA missiles on the outer
+ * wing rails and bombs on the inner pylons (each hidden as it launches), twin
+ * nozzles and retracting gear.
  */
 export function makePlaneModel(options = {}) {
   const parts = blueprint('plane', buildParts);
@@ -122,12 +132,16 @@ export function makePlaneModel(options = {}) {
   const def = VEHICLE_DEFS.plane;
   const missileTransforms = def.mounts.rails.sides.map(([x, y, z]) => ({ position: [x, y, z + 0.2] }));
   const missiles = kit.instances(body, parts.missile, missileTransforms, 'plane-missiles');
+  const bombTransforms = def.mounts.bombs.sides.map(([x, y, z]) => ({ position: [x, y, z] }));
+  const bombs = kit.instances(body, parts.bomb, bombTransforms, 'plane-bombs');
   const noseRig = kit.node(body, 'plane-nose-gun', def.mounts.nose.pivot);
   const railRig = kit.node(body, 'plane-rails', def.mounts.rails.pivot);
+  const bombRig = kit.node(body, 'plane-bombs', def.mounts.bombs.pivot);
   const seatAnchors = buildSeatAnchors(kit, 'plane', { body });
   const mounts = buildMounts(kit, 'plane', {
     nose: { yawNode: noseRig, pitchNode: noseRig },
     rails: { yawNode: railRig, pitchNode: railRig },
+    bombs: { yawNode: bombRig, pitchNode: bombRig },
   });
   const cockpitControls = {
     leftHand: kit.anchor(body, 'plane-left-hand', [-0.27, 1.55, -1.62]), rightHand: kit.anchor(body, 'plane-right-hand', [0.27, 1.55, -1.62]),
@@ -150,18 +164,23 @@ export function makePlaneModel(options = {}) {
     ...PLANE_GEAR.mains.map(([x, , z]) => ({ x, z: z + 0.2, radius: 0.45, strength: 0.45, stretch: 1 }))];
   const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), unit = new THREE.Vector3(1, 1, 1);
   const zero = new THREE.Vector3(0, 0, 0);
-  let retraction = 0, loaded = [true, true];
-  const setMissiles = ammo => {
-    const next = [ammo >= 1, ammo >= 2];
-    if (next[0] === loaded[0] && next[1] === loaded[1]) return;
-    loaded = next;
-    missileTransforms.forEach((transform, i) => {
-      matrix.compose(position.fromArray(transform.position), quaternion.identity(), loaded[i] ? unit : zero);
-      missiles.setMatrixAt(i, matrix);
-    });
-    missiles.instanceMatrix.needsUpdate = true;
+  let retraction = 0;
+  // Rounds on a pair of stations (the first leaves first): a store shows while its station is loaded.
+  const stations = (mesh, transforms) => {
+    let loaded = [true, true];
+    return ammo => {
+      const next = [ammo >= 1, ammo >= 2];
+      if (next[0] === loaded[0] && next[1] === loaded[1]) return;
+      loaded = next;
+      transforms.forEach((transform, i) => {
+        matrix.compose(position.fromArray(transform.position), quaternion.identity(), loaded[i] ? unit : zero);
+        mesh.setMatrixAt(i, matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+    };
   };
-  const animate = (dt, { grounded = true, wreck = false, railAmmo = null } = {}) => {
+  const setMissiles = stations(missiles, missileTransforms), setBombs = stations(bombs, bombTransforms);
+  const animate = (dt, { grounded = true, wreck = false, railAmmo = null, bombAmmo = null } = {}) => {
     const step = Math.max(0, Math.min(0.1, dt || 0));
     const target = grounded || wreck ? 0 : 1;
     retraction += Math.sign(target - retraction) * Math.min(Math.abs(target - retraction), step * 0.75);
@@ -170,14 +189,15 @@ export function makePlaneModel(options = {}) {
     const visible = retraction < 0.995;
     noseGear.visible = visible; for (const gear of mainGears) gear.visible = visible;
     if (Number.isFinite(railAmmo)) setMissiles(railAmmo);
+    if (Number.isFinite(bombAmmo)) setBombs(bombAmmo);
   };
   return finishModel(kit, {
-    body, noseGear, mainGears, landingGear: [noseGear, ...mainGears], missiles,
+    body, noseGear, mainGears, landingGear: [noseGear, ...mainGears], missiles, bombs,
     mounts, seatAnchors, emitters, contacts, animate, wheels: [],
     turret: noseRig, gun: noseRig, operatorSeat: seatAnchors.driver, cockpitControls,
     pilotPose: { footHeight: 1.2 }, muzzle: mounts['driver:nose'].muzzle, muzzleLength: 0, floorTop: 1.2,
     // Gear legs break away with the wreck: the belly settles this far.
     wreckDrop: 0.75,
-    setMissiles,
+    setMissiles, setBombs,
   });
 }

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { PLANE_RULES as rules, stepPlaneFlight } from '../shared/vehicle-handling/plane.js';
+import { PLANE_RULES as rules, PILOT_ASSISTS, stepPlaneFlight } from '../shared/vehicle-handling/plane.js';
 
 const ground = 11;
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const numericFields = ['yaw', 'pitch', 'roll', 'pitchRate', 'rollRate', 'rudderRate', 'yawRate', 'vx', 'vy', 'vz', 'speed', 'airspeed', 'throttle', 'enginePower', 'angleOfAttack'];
 const manual = { active: true, grounded: false, pitchControl: 0, rollControl: 0, yawControl: 0 };
 function run(seconds, input, state = {}, hz = 120) {
@@ -63,14 +64,17 @@ run(3, { active: true, grounded: false, throttle: 1, yaw: 0.6, pitch: 0.12 }, ai
 assert(Math.abs(aimed.yaw - 0.6) < 0.01 && Math.abs(aimed.roll) < 0.02, 'The nose settles on the aim with the wings level');
 assert(Math.abs(aimed.pitch - 0.12) < 0.001 && aimed.vy > 3);
 // Mouse-aim responsiveness from a trimmed top-speed cruise: a 10° correction
-// settles within a second, a 30° turn within 2.3 s, 90° within 4.6 s, and the roll-out stops on the aim
-// with a small counter-bank; a held turn neither sinks nor balloons.
+// settles within a second, a 30° turn within 2 s, 90° within 3.8 s, 179° within
+// 6 s (2026-10-19: 1.93 / 3.57 / 5.60 s; before 2.05 / 4.30 / 7.45 s), and the
+// roll-out stops on the aim with a small counter-bank; a held turn neither
+// sinks nor balloons.
+assert.deepEqual([rules.maxBank, rules.bankRate, rules.turn, rules.maxLiftLoad, rules.pitchRate, rules.minPitch], [1.36, 3, 0.9, 5.5, 1, -0.8]);
+const cruise = (speed, power) => run(20, { active: true, grounded: false, yaw: 0, pitch: 0 }, { speed, vz: -speed, throttle: power, enginePower: power }, 60);
 {
-  const cruise = (speed, power) => run(20, { active: true, grounded: false, yaw: 0, pitch: 0 }, { speed, vz: -speed, throttle: power, enginePower: power }, 60);
-  for (const [degrees, limit] of [[10, 1], [30, 2.3], [90, 4.6]]) {
+  for (const [degrees, limit] of [[10, 1], [30, 2], [90, 3.8], [179, 6]]) {
     const s = cruise(rules.maxSpeed, 1), target = degrees * Math.PI / 180;
     let settled = null, counter = 0;
-    for (let i = 0; i < 6 * 60; i++) {
+    for (let i = 0; i < 9 * 60; i++) {
       stepPlaneFlight(s, { active: true, grounded: false, yaw: target, pitch: 0 }, 1 / 60);
       counter = Math.max(counter, -s.roll);
       if (Math.abs(target - s.yaw) < 3 * Math.PI / 180) settled ??= (i + 1) / 60; else settled = null;
@@ -85,21 +89,101 @@ assert(Math.abs(aimed.pitch - 0.12) < 0.001 && aimed.vy > 3);
     stepPlaneFlight(s, { active: true, grounded: false, yaw: s.yaw - 2, pitch: 0 }, 1 / 60);
     climb += s.vy / 60; turned += Math.abs(Math.atan2(Math.sin(s.yaw - before), Math.cos(s.yaw - before)));
   }
-  assert(turned > 2 * Math.PI * 0.95, `a held turn at 50 m/s comes round in 12 s (${turned.toFixed(2)} rad)`);
+  assert(turned > 2 * Math.PI * 1.1, `a held turn at 50 m/s comes round in 12 s (${turned.toFixed(2)} rad)`);
   assert(Math.abs(climb) < 25, `a held turn keeps its height (${climb.toFixed(1)} m)`);
-  // A sustained full-throttle turn at top speed: at least 27°/s, a radius
-  // under 130 m (at 72 m/s it was 23.5°/s and 176 m), never near the stall.
-  const fast = cruise(rules.maxSpeed, 1);
-  let swept = 0, slowest = Infinity;
+}
+// A sustained mouse-aim turn (aim held 2 rad ahead of the nose), speed held
+// with the throttle like a pilot on a bomb run. 2026-10-19: at the 60 m/s top
+// speed at least 42°/s and a radius under 85 m (44.0°/s, 78 m; before 28.2°/s,
+// 122 m), at 40 m/s at least 48°/s and under 50 m (51°/s, 45 m; before 33°/s,
+// 71 m and a 113 m sink per 10 s), never stalling and sinking at most 20 m
+// per 10 s: the instructor banks no steeper than the wing can lift
+// (AIM_INSTRUCTOR.turnAlpha).
+for (const [hold, minRate, maxRadius] of [[rules.maxSpeed, 42, 85], [40, 48, 50]]) {
+  const s = cruise(hold, 1);
+  let swept = 0, speedSum = 0, height = 0;
   for (let i = 0; i < 16 * 60; i++) {
-    const before = fast.yaw;
-    stepPlaneFlight(fast, { active: true, grounded: false, yaw: fast.yaw - 2, pitch: 0 }, 1 / 60);
-    if (i >= 6 * 60) { swept += Math.abs(Math.atan2(Math.sin(fast.yaw - before), Math.cos(fast.yaw - before))); slowest = Math.min(slowest, fast.speed); }
-    assert(!fast.stalled, 'a sustained top-speed turn never stalls');
+    const before = s.yaw, throttle = s.speed < hold - 1 ? 1 : s.speed > hold + 1 ? -1 : 0;
+    stepPlaneFlight(s, { active: true, grounded: false, yaw: s.yaw - 2, pitch: 0, throttle }, 1 / 60);
+    if (i >= 6 * 60) { swept += Math.abs(Math.atan2(Math.sin(s.yaw - before), Math.cos(s.yaw - before))); speedSum += s.speed; height += s.vy / 60; }
+    assert(!s.stalled, `a sustained ${hold} m/s turn never stalls`);
   }
-  const rate = swept / 10;
-  assert(rate > 27 * Math.PI / 180, `sustained turn ${(rate * 180 / Math.PI).toFixed(1)}°/s`);
-  assert(slowest / rate < 130 && slowest > rules.stallSpeed * 2.5, `turn radius ${(slowest / rate).toFixed(0)} m at ${slowest.toFixed(1)} m/s`);
+  const rate = swept / 10, radius = speedSum / (10 * 60) / rate;
+  assert(rate > minRate * Math.PI / 180, `sustained turn at ${hold} m/s: ${(rate * 180 / Math.PI).toFixed(1)}°/s`);
+  assert(radius < maxRadius, `turn radius at ${hold} m/s: ${radius.toFixed(0)} m`);
+  assert(height > -20, `a held ${hold} m/s turn sinks ${(-height).toFixed(1)} m in 10 s`);
+}
+// Nose response: a 0.4 rad aim-pitch step settles within 0.75 s (2026-10-19:
+// 0.65 s; before 0.95 s), and the nose dives to minPitch (46°, was 31°).
+{
+  for (const aim of [-0.4, 0.4, -1.3]) {
+    const s = { speed: 60, vz: -60, throttle: 1, enginePower: 1 }, target = clamp(aim, rules.minPitch, rules.maxPitch);
+    let settled = null;
+    for (let i = 0; i < 3 * 60; i++) {
+      stepPlaneFlight(s, { active: true, grounded: false, yaw: 0, pitch: aim }, 1 / 60);
+      if (Math.abs(s.pitch - target) < 0.03) settled ??= (i + 1) / 60; else settled = null;
+    }
+    assert(settled !== null && settled < (aim === -1.3 ? 1.2 : 0.75), `aim pitch ${aim} settles in ${settled?.toFixed(2)} s`);
+  }
+}
+// Ground proximity (mouse aim, groundClearance from the server): a 46° dive
+// at 60 m/s held at the ground pulls out on its own (wings level) above 8 m,
+// starting below 100 m so a bomb run still has its dive; without the clearance
+// the same dive hits the ground. A fast low pass climbs back toward 10 m; an
+// idle approach still lands softly.
+{
+  const dive = (agl, clearance) => {
+    const p = -rules.minPitch, s = { speed: 60, pitch: -p, vx: 0, vy: -60 * Math.sin(p), vz: -60 * Math.cos(p), throttle: 1, enginePower: 1 };
+    let y = agl, lowest = Infinity, pull = null;
+    for (let i = 0; i < 10 * 60 && y > 0; i++) {
+      stepPlaneFlight(s, { active: true, grounded: false, yaw: 0, pitch: -1.3, ...(clearance ? { groundClearance: y } : {}) }, 1 / 60);
+      y += s.vy / 60; lowest = Math.min(lowest, y);
+      if (pull === null && s.pitchRate > 0.05) pull = y;
+    }
+    return { lowest, pull, s, y };
+  };
+  for (const agl of [70, 150]) {
+    const assisted = dive(agl, true);
+    assert(assisted.lowest > 8 && Math.abs(assisted.s.roll) < 0.01 && Math.abs(assisted.s.vy) < 1, `a ${agl} m dive bottoms out at ${assisted.lowest.toFixed(1)} m`);
+    assert(assisted.pull < 100, `the pull-up starts at ${assisted.pull.toFixed(0)} m`);
+    assert(dive(agl, false).y <= 0, 'without a clearance the dive reaches the ground');
+  }
+  const low = { speed: 60, vz: -60, throttle: 1, enginePower: 1 };
+  let y = 4;
+  for (let i = 0; i < 6 * 60; i++) { stepPlaneFlight(low, { active: true, grounded: false, yaw: 0, pitch: -0.1, groundClearance: y }, 1 / 60); y += low.vy / 60; }
+  assert(y > 8, `a low pass at full power climbs back to ${y.toFixed(1)} m`);
+  const approach = simulate(16, (state, grounded) => ({ throttle: 0, pitch: grounded ? 0 : -0.09, brake: grounded ? 1 : 0, groundClearance: state.y - ground }),
+    { x: 0, y: 45, z: 0, speed: 45, yaw: 0, pitch: 0, throttle: 0.35, enginePower: 0.35 });
+  assert(approach.touchdown && approach.touchdown.vy > -5 && approach.state.speed === 0, 'an idle mouse-aim approach still lands');
+}
+// Stall guard power: aiming straight up at idle, the instructor spools the
+// engine (the throttle setting stays 0) and the jet climbs without stalling
+// (before: it sank 116 m in 15 s); a closing throttle (S) is never overridden.
+{
+  const zoom = throttle => {
+    const s = { speed: 45, vz: -45, throttle: 0, enginePower: 0 };
+    let height = 0, stalled = false;
+    for (let i = 0; i < 15 * 60; i++) {
+      stepPlaneFlight(s, { active: true, grounded: false, yaw: 0, pitch: 1.3, throttle, groundClearance: 300 }, 1 / 60);
+      height += s.vy / 60; stalled ||= s.stalled;
+    }
+    return { s, height, stalled };
+  };
+  const idle = zoom(0);
+  assert(!idle.stalled && idle.height > 100 && idle.s.throttle === 0 && idle.s.enginePower > 0.3, `idle zoom climbs ${idle.height.toFixed(0)} m`);
+  assert.equal(zoom(-1).s.enginePower, 0, 'S keeps the engine at idle');
+}
+// Alpha limiter (stick flight): a full pull at 30 m/s in a 60° bank stalled
+// for 1.2 s (AoA 0.37) before; now the wing stays below the stall angle.
+{
+  const s = { speed: 30, vz: -30, roll: -1.05, throttle: 0.5, enginePower: 0.5 };
+  let alpha = 0;
+  for (let i = 0; i < 4 * 60; i++) {
+    stepPlaneFlight(s, { ...manual, pitchControl: 1 }, 1 / 60);
+    alpha = Math.max(alpha, s.angleOfAttack);
+    assert(!s.stalled, 'a full stick pull in a slow bank never stalls');
+  }
+  assert(alpha < rules.stallAngle && alpha > PILOT_ASSISTS.alphaFade, `peak angle of attack ${alpha.toFixed(3)}`);
 }
 const down = run(2, { active: true, grounded: false, throttle: 1, pitch: 0, lift: -1 }, { speed: 50, throttle: 1, enginePower: 1 });
 assert(Math.abs(down.pitch + 0.28) < 0.001);

@@ -12,7 +12,7 @@ import { TANK_ARMOR } from '../shared/tank-armor.js';
 import { VEHICLE_DEFS, VEHICLE_WEAPONS, VEHICLE_DAMAGE_RULES, CONQUEST_ROCKET_PROFILE, vehicleLocalPoint, mountPose, seatWeaponList, vehicleMaxHp } from '../shared/vehicle-defs.js';
 import { vehicleWeaponBlast } from '../shared/weapon-aircraft-projectiles.js';
 import { vehicleSeats } from '../shared/vehicle-seats.js';
-import { VEHICLE_STATUS, VEHICLE_TYPE_IDS, VEHICLE_WEAPON_META, isStoreMount, vehicleMountOrder } from '../shared/conquest-contract.js';
+import { VEHICLE_STATUS, VEHICLE_TYPE_IDS, VEHICLE_WEAPON_META, vehicleMountOrder } from '../shared/conquest-contract.js';
 import { playerHullContact } from '../shared/player-vehicle-collision.js';
 
 const TICK = 1000 / 60;
@@ -322,8 +322,7 @@ for (const type of VEHICLE_TYPE_IDS) {
   assert.deepEqual([...covered].sort(), [...vehicleMountOrder(type)].sort(), `${type}: every mount fired`);
   const row = f.frames.at(-1).vehicles.find(r => r.id === 'v');
   assert.equal(row.mounts.length, vehicleMountOrder(type).length, 'mounts[] follows vehicleMountOrder');
-  // A store mount's row adds the loaded store's index (the jet's AA missiles or bombs).
-  for (const [i, mount] of row.mounts.entries()) assert.equal(mount.length, isStoreMount(type, vehicleMountOrder(type)[i].split(':')[1]) ? 6 : 5);
+  for (const mount of row.mounts) assert.equal(mount.length, 5, 'every mount row is [yaw, pitch, ammo, heat, reload]');
 }
 
 // ------------------------------------------- a seat switch moves weapon control within one tick

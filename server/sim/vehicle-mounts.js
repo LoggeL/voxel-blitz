@@ -4,7 +4,7 @@
  * routes shells/rockets/missiles to the projectile system and hitscan guns to
  * combat.fireMountedRay. Every accepted shot emits a `shoot` event.
  */
-import { VEHICLE_DAMAGE_RULES, VEHICLE_WEAPONS, VEHICLE_STORE_RULES, vehicleDef, mountPose, clampMountAim, seatWeaponList, bombReleaseVelocity, storesChangeable } from '../../shared/vehicle-defs.js';
+import { VEHICLE_DAMAGE_RULES, VEHICLE_WEAPONS, vehicleDef, mountPose, clampMountAim, seatWeaponList, bombReleaseVelocity } from '../../shared/vehicle-defs.js';
 import { TANK_SUBSYSTEMS } from '../../shared/tank-armor.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { fireMountedRay } from './combat.js';
@@ -95,23 +95,15 @@ export class VehicleMounts {
     return index >= 0 ? list[index] : null;
   }
   /**
-   * The weapon action: pick an entry of the seat's weapon list. Picking the
-   * stowed store of a store mount (the jet's pylons) changes the load, which
-   * only a landed, stopped hull may do: the new store loads empty and fills
-   * after VEHICLE_STORE_RULES.loadSeconds. In the air the pick is refused.
+   * The weapon action: pick an entry of the seat's weapon list. Every entry
+   * is available at any time, in the air too (the jet's AA missiles and bombs
+   * hang on their own pylons with their own ammo and re-arm).
    */
   select(vehicle, seatId, index) {
     if (isTitanType(vehicle.type)) return selectTitanWeapon(this, vehicle, seatId, index);
     const list = seatWeaponList(vehicle.type, seatId);
     if (!list.length || !Number.isInteger(index) || index < 0 || index >= list.length) return false;
     const { mount, weapon } = list[index], state = this.state(vehicle, mount);
-    if (state && state.weapon !== weapon && vehicleDef(vehicle)?.mounts[mount]?.stores) {
-      if (!storesChangeable(vehicle)) return false;
-      vehicle.sel[seatId] = index;
-      Object.assign(state, { weapon, ammo: 0, rearm: [], cooldown: 0, reloadT: VEHICLE_STORE_RULES.loadSeconds,
-        reloadFull: VEHICLE_STORE_RULES.loadSeconds, side: 0 });
-      return true;
-    }
     vehicle.sel[seatId] = index;
     if (state && state.weapon !== weapon) {
       state.weapon = weapon;
@@ -178,10 +170,7 @@ export class VehicleMounts {
     } else if (weapon.heatPerShot) state.heat = Math.max(0, state.heat - weapon.coolPerSecond * dt);
     if (state.reloadT > 0) {
       state.reloadT = Math.max(0, state.reloadT - dt);
-      if (state.reloadT === 0) {
-        if (Number.isFinite(weapon.magazine)) state.ammo = weapon.magazine;
-        state.reloadFull = 0;
-      }
+      if (state.reloadT === 0 && Number.isFinite(weapon.magazine)) state.ammo = weapon.magazine;
     }
     if (state.rearm.length) {
       for (let i = 0; i < state.rearm.length; i++) state.rearm[i] -= dt;
@@ -235,7 +224,7 @@ export class VehicleMounts {
     if (Number.isFinite(weapon.magazine)) {
       state.ammo--;
       if (weapon.rearmSeconds) state.rearm.push(weapon.rearmSeconds);
-      else if (state.ammo <= 0 && weapon.reloadSeconds) { state.reloadT = weapon.reloadSeconds; state.reloadFull = weapon.reloadSeconds; }
+      else if (state.ammo <= 0 && weapon.reloadSeconds) state.reloadT = weapon.reloadSeconds;
     }
     const side = mount.sides ? state.side : null;
     if (mount.sides) state.side = (state.side + 1) % mount.sides.length;
@@ -250,23 +239,17 @@ export class VehicleMounts {
     return true;
   }
 
-  /**
-   * Snapshot rows: [yaw, pitch, ammo (-1 unlimited), heat100, reload100 (remaining)]; a store
-   * mount adds the loaded weapon's index in the mount; titans add charge100 (titan-mounts.js).
-   */
+  /** Snapshot rows: [yaw, pitch, ammo (-1 unlimited), heat100, reload100 (remaining)]; titans add charge100 (titan-mounts.js). */
   rows(vehicle) {
     if (isTitanType(vehicle.type)) return titanMountRows(vehicle);
-    const mounts = vehicleDef(vehicle)?.mounts ?? {};
     return (vehicle.mounts || []).map(state => {
-      const weapon = VEHICLE_WEAPONS[state.weapon], mount = mounts[state.mountId];
+      const weapon = VEHICLE_WEAPONS[state.weapon];
       let reload = 0;
-      if (state.reloadT > 0) reload = state.reloadT / (state.reloadFull || weapon.reloadSeconds || state.reloadT);
+      if (state.reloadT > 0) reload = state.reloadT / weapon.reloadSeconds;
       else if (state.rearm.length && state.ammo <= 0) reload = state.rearm[0] / weapon.rearmSeconds;
       else if (weapon.cooldown >= 1 && state.cooldown > 0) reload = state.cooldown / weapon.cooldown;
-      const row = [round(state.yaw, 1000), round(state.pitch, 1000), state.ammo,
+      return [round(state.yaw, 1000), round(state.pitch, 1000), state.ammo,
         state.overheated ? 100 : Math.round(clamp(state.heat, 0, 1) * 100), Math.round(clamp(reload, 0, 1) * 100)];
-      if (mount?.stores) row.push(Math.max(0, mount.weapons.indexOf(state.weapon)));
-      return row;
     });
   }
 }

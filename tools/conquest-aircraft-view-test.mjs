@@ -86,8 +86,9 @@ const flatGround = (_x, y) => (y < 10 ? 1 : 0);
 // Jet gear and missiles follow snapshot fields.
 {
   const view = new VehicleView();
-  const rails = mountIndex('plane', 'rails');
-  const mounts = ammo => [[0, 0, 300, 0, 0], [0, 0, ammo, 0, 0]].map((m, i) => (i === rails ? [0, 0, ammo, 0, 0] : m));
+  const rails = mountIndex('plane', 'rails'), bombs = mountIndex('plane', 'bombs');
+  const mounts = (ammo, bombAmmo = 2) => [[0, 0, 300, 0, 0], [0, 0, ammo, 0, 0], [0, 0, bombAmmo, 0, 0]]
+    .map((m, i) => (i === rails ? [0, 0, ammo, 0, 0] : i === bombs ? [0, 0, bombAmmo, 0, 0] : m));
   const jet = { id: 'j', type: 'plane', team: 'alpha', x: 0, y: 40, z: 0, yaw: 0, hp: 450, grounded: false, mounts: mounts(2), st: VEHICLE_STATUS.engine };
   view.sync([jet], [], null);
   for (let i = 0; i < 180; i++) view.update(1 / 30);
@@ -97,6 +98,10 @@ const flatGround = (_x, y) => (y < 10 ? 1 : 0);
   check(() => assert.ok(scale(0) === 1 && scale(1) === 1));
   view.sync([{ ...jet, mounts: mounts(1) }], [], null); view.update(1 / 60);
   check(() => assert.equal(scale(1), 0, 'a launched missile leaves its rail'));
+  const bombScale = i => { const m = new THREE.Matrix4(); item.model.bombs.getMatrixAt(i, m); return new THREE.Vector3().setFromMatrixScale(m).x; };
+  check(() => assert.ok(bombScale(0) === 1 && bombScale(1) === 1, 'both bombs still hang on the inner pylons'));
+  view.sync([{ ...jet, mounts: mounts(1, 0) }], [], null); view.update(1 / 60);
+  check(() => assert.ok(bombScale(0) === 0 && bombScale(1) === 0 && scale(0) === 1, 'dropped bombs leave their pylons, the missile stays'));
   view.sync([{ ...jet, grounded: true, y: 10, mounts: mounts(2) }], [], null);
   for (let i = 0; i < 180; i++) view.update(1 / 30);
   check(() => assert.equal(item.model.noseGear.visible, true, 'gear down on the ground'));

@@ -95,9 +95,11 @@ export class VehicleAudio {
 
   /**
    * rows: snapshot vehicle rows; listenerPosition: camera position;
-   * context.self: the local player row (lock tones, alarm, reload clunks).
+   * context.self: the local player row (lock tones, alarm, reload clunks);
+   * context.groundFires: snapshot fire fields (the jet's bomb fires, the
+   * coarse-grid ones, roar like a burning hull).
    */
-  update(rows, listenerPosition, { self = null, now = clock() } = {}) {
+  update(rows, listenerPosition, { self = null, now = clock(), groundFires = null } = {}) {
     const listener = listenerOf(listenerPosition);
     const audible = listener.every(Number.isFinite);
     const list = Array.isArray(rows) ? rows : [];
@@ -158,6 +160,11 @@ export class VehicleAudio {
     this.active = next;
     if (titans.length || this.titan.loops.size || this.titan.weapon.size || this.titan.bursts.size) this.titan.update(titans, listener, now);
 
+    if (audible) for (const field of Array.isArray(groundFires) ? groundFires : []) {
+      if (!(field?.cellSize > 1) || field.id == null) continue;
+      const pos = [field.x, field.y, field.z], distance = pos.every(Number.isFinite) ? distanceTo(pos, listener) : Infinity;
+      if (distance <= VEHICLE_AUDIO.burnRange) fires.push({ id: `field:${field.id}`, pos, distance, intensity: 1 });
+    }
     fires.sort((a, b) => a.distance - b.distance || a.id.localeCompare(b.id));
     const burning = new Set();
     for (const fire of fires.slice(0, VEHICLE_AUDIO.maxBurnLoops)) {

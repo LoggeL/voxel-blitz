@@ -7,7 +7,7 @@
  */
 import {
   CONQUEST_RULES, KITS, KIT_IDS, SCORE_LABELS, SCORE_POINTS, TEAM_DISPLAY, VEHICLE_TOPOLOGY,
-  VEHICLE_WEAPON_META, COUNTERMEASURES, decodeConquestPlayer, decodeConquestStats, isStoreMount, seatWeaponList,
+  VEHICLE_WEAPON_META, COUNTERMEASURES, decodeConquestPlayer, decodeConquestStats, seatWeaponList,
   vehicleMountOrder, vehicleStatus,
 } from '../../../shared/conquest-contract.js';
 import {
@@ -280,12 +280,9 @@ export function mountState(row, seatId, mountId) {
   const index = order.indexOf(`${seatId}:${mountId}`);
   const raw = index >= 0 && Array.isArray(row?.mounts) ? row.mounts[index] : null;
   if (!Array.isArray(raw)) return null;
-  // A store mount (the jet's pylons) names its loaded weapon (index in the mount) in a sixth entry.
-  const store = isStoreMount(row?.type, mountId) ? Math.max(0, raw[5] | 0) : null;
   return { index, yaw: finite(raw[0]), pitch: finite(raw[1]), ammo: Number.isFinite(raw[2]) ? raw[2] : null,
-    heat: clamp01(finite(raw[3]) / 100), reload: clamp01(finite(raw[4]) / 100), ...(store != null ? { store } : {}) };
+    heat: clamp01(finite(raw[3]) / 100), reload: clamp01(finite(raw[4]) / 100) };
 }
-
 
 /** Selected weapon index of a seat (`sel` is only sent for seats with >1 weapon). */
 export function selectedWeaponIndex(row, seatId) {
@@ -294,24 +291,18 @@ export function selectedWeaponIndex(row, seatId) {
   return list.length ? Math.max(0, Math.min(list.length - 1, raw | 0)) : -1;
 }
 
-/**
- * Weapon list with ammo, heat and reload for one seat. On a store mount only
- * the loaded store carries the mount's state; the other is `stowed` (never
- * ready) with `loadable` set while the hull may change its load.
- */
+/** Weapon list with ammo, heat and reload for one seat. */
 export function seatWeapons(row, seatId) {
   const list = seatWeaponList(row?.type, seatId);
   const selected = selectedWeaponIndex(row, seatId);
   return list.map(({ mount, weapon }, index) => {
     const meta = VEHICLE_WEAPON_META[weapon] || {};
     const state = mountState(row, seatId, mount);
-    const stowed = state?.store != null && list.filter(entry => entry.mount === mount)[state.store]?.weapon !== weapon;
-    const heat = stowed ? 0 : state?.heat ?? 0, reload = stowed ? 0 : state?.reload ?? 0;
+    const heat = state?.heat ?? 0, reload = state?.reload ?? 0;
     return {
       index, mount, weapon, label: meta.label || weapon, kind: meta.kind || null, cls: meta.cls || null,
-      selected: index === selected, ammo: stowed ? null : state?.ammo ?? null, heat, overheated: heat >= 0.999,
-      reload, ready: !stowed && reload <= 0 && heat < 0.999 && (state?.ammo == null || state.ammo !== 0),
-      ...(stowed ? { stowed: true, loadable: vehicleDefs.storesChangeable(row) } : {}),
+      selected: index === selected, ammo: state?.ammo ?? null, heat, overheated: heat >= 0.999,
+      reload, ready: reload <= 0 && heat < 0.999 && (state?.ammo == null || state.ammo !== 0),
       key: `${index + 1}`,
     };
   });

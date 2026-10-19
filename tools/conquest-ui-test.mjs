@@ -216,17 +216,12 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
   const jet = panelOf(byId('jet'));
   assert.deepEqual(jet.weapons.map(w => [w.label, w.selected]), [['20MM CANNON', false], ['AA MISSILE', true], ['BOMB', false]]);
   assert.equal(jet.altitude, 140); assert.equal(jet.speedKmh, Math.round(58 * 3.6));
-  // The pylons carry the AA missiles (store index 0 in the rails row): the bombs are stowed,
-  // and in the air they cannot be loaded (LAND); landed and stopped they can (LOAD).
-  assert.equal(jet.weapons[1].stowed, undefined); assert.equal(jet.weapons[1].ammo, 1);
-  assert.deepEqual([jet.weapons[2].stowed, jet.weapons[2].loadable, jet.weapons[2].ready, jet.weapons[2].ammo], [true, false, false, null]);
-  const parked = { ...seatedOf(byId('jet')), row: { ...seatedOf(byId('jet')).row, grounded: undefined, vx: 0, vy: 0, vz: 0, airspeed: 0, speed: 0 } };
-  assert.equal(state.vehiclePanelModel(parked, { selfId: 'me' }).weapons[2].loadable, true, 'a landed, stopped jet may load the other store');
-  const rolling = { ...parked, row: { ...parked.row, speed: 6 } };
-  assert.equal(state.vehiclePanelModel(rolling, { selfId: 'me' }).weapons[2].loadable, false, 'not while it rolls');
+  // Missiles (rails) and bombs (inner pylons) each read their own mount row, in the air too.
+  assert.deepEqual(jet.weapons.map(w => [w.mount, w.ammo, w.ready]), [['nose', -1, true], ['rails', 1, false], ['bombs', 2, true]]);
+  assert.ok(jet.weapons.every(w => !('stowed' in w)), 'no stowed store any more');
   const strike = panelOf(byId('jet-bomb'));
-  assert.deepEqual(strike.weapons.map(w => [w.label, w.selected, w.stowed === true, w.ammo]),
-    [['20MM CANNON', false, false, -1], ['AA MISSILE', false, true, null], ['BOMB', true, false, 2]], 'STRIKE pylons: bombs loaded, AA stowed');
+  assert.deepEqual(strike.weapons.map(w => [w.label, w.selected, w.ammo, w.ready]),
+    [['20MM CANNON', false, -1, true], ['AA MISSILE', false, 2, true], ['BOMB', true, 2, true]], 'bombs selected, the missiles still ready');
 
   // Seat strip marks bots; zone flashes map hit zones onto the silhouette.
   const botRow = { ...seatedOf(byId('tank-driver')).row };
@@ -368,13 +363,13 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
     const c = model.ccip;
     assert.equal(c.solution, true); assert.equal(c.inside, true, 'the 26° dive puts the impact on screen');
     assert.deepEqual([c.ammo, c.ready, c.airborne], [2, true, true]);
-    const pose = vehicleDefs.mountPose(row, 'driver', 'rails');
+    const pose = vehicleDefs.mountPose(row, 'driver', 'bombs');
     const v = vehicleDefs.bombReleaseVelocity(row), g = VEHICLE_WEAPON_META.jetBomb.gravity;
     const drop = pose.origin[1] - floorY, time = (v[1] + Math.sqrt(v[1] * v[1] + 2 * g * drop)) / g;
     assert.ok(Math.abs(c.time - time) < 0.15, `fall time ${c.time} s vs ${time.toFixed(2)} s`);
     const at = projectorFor(f).project(pose.origin[0] + v[0] * time, floorY, pose.origin[2] + v[2] * time);
     assert.ok(Math.hypot(at.x - c.x, at.y - c.y) < 12, 'the pipper sits on the projected impact');
-    assert.equal(vehicleDefs.VEHICLE_STORE_RULES.eject, 3);
+    assert.equal(vehicleDefs.VEHICLE_WEAPONS.jetBomb.eject, 3);
     const noWorld = state.reticleModel(seated, { projector: projectorFor(f), raycast: null }).ccip;
     assert.deepEqual([noWorld.solution, noWorld.airborne], [false, true], 'no world cast: no solution');
     const onRunway = state.reticleModel({ ...seated, row: { ...row, grounded: undefined } }, { projector: projectorFor(f), raycast: plane }).ccip;

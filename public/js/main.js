@@ -1431,7 +1431,8 @@ class Game {
       this.vehicleFx?.update(dt, this.camera);
       this.particleField?.update(dt, this.camera);
       this.vehicleDestructionFX?.update(dt);
-      this.vehicleAudio?.update(this.net?.latestSnapshots?.at(-1)?.vehicles, this.camera.position, { self: this.selfRow });
+      const latest = this.net?.latestSnapshots?.at(-1);
+      this.vehicleAudio?.update(latest?.vehicles, this.camera.position, { self: this.selfRow, groundFires: latest?.fireFields });
       this.conquestAmbience?.update(dt, this.camera);
       this.conquestSoundscape?.update(dt, this.camera, { match: this.matchState, selfTeam: this.selfRow?.team,
         inVehicle: !!this.vehicleController?.active });

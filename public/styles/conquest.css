@@ -289,8 +289,6 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-weapon[data-state="overheated"] .cq-weapon-meter i { background: var(--cq-danger); }
 .cq-weapon[data-state="reloading"] .cq-weapon-meter i { background: #ffcf5c; }
 .cq-weapon[data-state="ready"] .cq-weapon-meter i { background: #7ef29a; }
-.cq-weapon[data-state="stowed"] { opacity: 0.55; }
-.cq-weapon[data-state="stowed"] .cq-weapon-meter i { width: 0 !important; }
 .cq-weapon-ammo { text-align: right; font-variant-numeric: tabular-nums; }
 .cq-weapon[data-state="overheated"] .cq-weapon-ammo { color: var(--cq-danger); }
 .cq-vehicle-cm { display: grid; grid-template-columns: 1fr 70px auto; gap: 8px; align-items: center; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--cq-sub); }

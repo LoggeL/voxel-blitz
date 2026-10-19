@@ -65,7 +65,9 @@ export class FireFieldFX {
       const cells = (Array.isArray(row.cells) ? row.cells : [[row.x, row.y, row.z]])
         .filter(cell => Array.isArray(cell) && cell.length === 3 && cell.every(Number.isFinite))
         .slice(0, MAX_CELLS);
-      this.fields.set(row.id, { ...row, cells });
+      // A coarser grid (the jet's bomb fire, `cellSize` m apart) burns with proportionally bigger flames.
+      const scale = Number.isFinite(row.cellSize) && row.cellSize > 0 ? Math.min(3, row.cellSize) : 1;
+      this.fields.set(row.id, { ...row, cells, scale });
     }
     this.update(0);
   }
@@ -78,15 +80,15 @@ export class FireFieldFX {
     for (const [id, field] of this.fields) {
       const remaining = (field.expiresAt - this.now) / 1000;
       if (remaining <= 0) { this.fields.delete(id); continue; }
-      const fade = Math.min(1, remaining / 0.6);
+      const fade = Math.min(1, remaining / 0.6), scale = field.scale ?? 1;
       for (let i = 0; i < field.cells.length; i++) {
         const [x, y, z] = field.cells[i];
         for (let layer = 0; layer < 2; layer++) {
           const seed = x * 17.7 + z * 23.1 + layer * 4.2;
           const flicker = Math.sin(this.now / 140 + seed);
-          const height = (layer ? 0.68 : 1.1) + flicker * 0.16;
-          this.centers.setXYZ(count, x + Math.sin(seed) * 0.18, y + height * 0.46, z + Math.cos(seed) * 0.18);
-          this.shapes.setXYZW(count, layer ? 0.58 : 0.9, height, seed, fade);
+          const height = ((layer ? 0.68 : 1.1) + flicker * 0.16) * scale;
+          this.centers.setXYZ(count, x + Math.sin(seed) * 0.18 * scale, y + height * 0.46, z + Math.cos(seed) * 0.18 * scale);
+          this.shapes.setXYZW(count, (layer ? 0.58 : 0.9) * scale, height, seed, fade);
           count++;
         }
       }

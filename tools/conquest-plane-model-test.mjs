@@ -1,5 +1,5 @@
-// Strike jet voxel model: nose gun and wing rails with visible missiles that
-// disappear as they launch, retracting gear, twin afterburner nozzles,
+// Strike jet voxel model: nose gun, outer wing rails with visible missiles and
+// inner pylons with visible bombs that disappear as they launch, retracting gear, twin afterburner nozzles,
 // wingtips, canopy glass, nav lights, flares, budgets.
 import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
@@ -29,6 +29,16 @@ model.animate(1 / 60, { railAmmo: 0 });
 check(() => assert.ok(scaleOf(0) === 0 && scaleOf(1) === 0));
 model.animate(1 / 60, { railAmmo: 2 });
 check(() => assert.ok(scaleOf(0) === 1 && scaleOf(1) === 1, 'rearmed'));
+// Bombs: their own pylons inboard of the rails (mounts[2][2]), hidden on their own count.
+for (const side of [0, 1]) check(() => assert.ok(model.mounts['driver:bombs'].muzzles[side].getWorldPosition(new THREE.Vector3())
+  .distanceTo(new THREE.Vector3(...mountPose(rest, 'driver', 'bombs', { side }).origin)) < 1e-6, `bomb pylon ${side}`));
+const bombScale = i => { const m = new THREE.Matrix4(); model.bombs.getMatrixAt(i, m); return new THREE.Vector3().setFromMatrixScale(m).x; };
+check(() => assert.equal(model.bombs.count, 2));
+model.animate(1 / 60, { railAmmo: 2, bombAmmo: 1 });
+check(() => assert.ok(bombScale(0) === 1 && bombScale(1) === 0 && scaleOf(1) === 1, 'one bomb gone, both missiles still on'));
+model.animate(1 / 60, { railAmmo: 0, bombAmmo: 2 });
+check(() => assert.ok(bombScale(0) === 1 && bombScale(1) === 1 && scaleOf(0) === 0, 'missiles gone, both bombs on'));
+model.animate(1 / 60, { railAmmo: 2, bombAmmo: 2 });
 // Gear retracts in flight and hides when stowed; lowers again on the ground.
 for (let i = 0; i < 120; i++) model.animate(1 / 30, { grounded: false });
 check(() => assert.equal(model.noseGear.visible, false));

@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 4;
+export const CONQUEST_CONTRACT_VERSION = 5;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -155,8 +155,8 @@ export const VEHICLE_WEAPON_META = Object.freeze({
   doorMinigun:      Object.freeze({ label: 'DOOR GUN',   kind: 'hitscan', cls: 'mg',         speed: 0,   gravity: 0, rate: 18,      presentation: 'minigun' }),
   planeCannon:      Object.freeze({ label: '20MM CANNON',kind: 'hitscan', cls: 'autocannon', speed: 0,   gravity: 0, rate: 14,      presentation: 'minigun' }),
   aaMissile:        Object.freeze({ label: 'AA MISSILE', kind: 'missile', cls: 'aa',         speed: 150, gravity: 0, rate: 1 / 7.5, presentation: 'rocket' }),
-  // Jet free-fall bomb (STRIKE pylons): released with the airframe's velocity
-  // (speed 0: no muzzle velocity of its own) and dropping under gravity.
+  // Jet free-fall bomb (the inner `bombs` pylons): released with the airframe's
+  // velocity (speed 0: no muzzle velocity of its own) and dropping under gravity.
   jetBomb:          Object.freeze({ label: 'BOMB',       kind: 'bomb',    cls: 'at',         speed: 0,   gravity: 9.8, rate: 1 / 10,  presentation: 'bomb' }),
   // Sight-guided AT missiles (SACLOS): no lock, the missile rides the gunner's
   // line of sight (the heli's chin gimbal, the AT jeep's launcher) while he
@@ -194,7 +194,8 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
     S('rear-right', 'passenger', false, false, false, []),
   ]),
   plane: Object.freeze([
-    S('driver', 'pilot', true, false, false, [M('nose', ['planeCannon']), M('rails', ['aaMissile', 'jetBomb'])]),
+    // The jet carries both stores at once: AA missiles on the outer rails, bombs on the inner pylons.
+    S('driver', 'pilot', true, false, false, [M('nose', ['planeCannon']), M('rails', ['aaMissile']), M('bombs', ['jetBomb'])]),
   ]),
   // The jeep's seats with a TOW launcher on the pintle instead of the .50.
   jeep_at: Object.freeze([
@@ -204,15 +205,6 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
     S('rear-left', 'passenger', false, true, true, []),
   ]),
 });
-/**
- * Store mounts carry one of their weapons at a time (the jet's pylons: AA
- * missiles or bombs). The other entry in the seat's weapon list is stowed
- * and can only be loaded on the ground (VEHICLE_STORE_RULES); snapshot mount
- * rows of a store mount carry the loaded weapon's index in the mount as a
- * sixth entry.
- */
-export const STORE_MOUNTS = Object.freeze({ plane: Object.freeze(['rails']) });
-export const isStoreMount = (type, mountId) => !!STORE_MOUNTS[type]?.includes(mountId);
 /** Seat topology of a conquest or titan type (titan types: shared/titan-contract.js). */
 const topologyOf = type => VEHICLE_TOPOLOGY[type] || TITAN_TOPOLOGY[type];
 /** META row of a conquest or titan mount weapon, or null. */

@@ -3,10 +3,10 @@ export const PLANE_RULES = Object.freeze({
   hp: 450, width: 9, length: 10, height: 2.8, radius: 6.75, seatHeight: 1.55,
   speed: 60, maxSpeed: 60, reverse: 0, acceleration: 14, brake: 24,
   takeoffSpeed: 24, stallSpeed: 20, ceiling: 180,
-  minPitch: -0.55, maxPitch: 0.65, maxBank: 1.25,
+  minPitch: -0.8, maxPitch: 0.65, maxBank: 1.36,
   rudderRate: 0.25, rateResponse: 5,
-  liftSlope: 4.5, liftIncidence: 0.28, stallAngle: 0.3, maxLiftLoad: 3.2,
-  pitchRate: 0.6, bankRate: 2.4, turn: 0.58, turnAcceleration: 1.4,
+  liftSlope: 4.5, liftIncidence: 0.28, stallAngle: 0.3, maxLiftLoad: 5.5,
+  pitchRate: 1, bankRate: 3, turn: 0.9, turnAcceleration: 1.4,
   taxiTurn: 0.65, throttleRate: 0.75, throttleDownRate: 1.1, spoolRate: 1.2,
   gravity: 9.8, maxFallSpeed: 45, maxClimbSpeed: 32,
   maxStep: 0.25, maxSlope: 0.08, respawnSeconds: 30, fireSeconds: 0.2,
@@ -19,13 +19,39 @@ export const PLANE_RULES = Object.freeze({
  * rudderWindow; below guardHigh x stall speed the stall guard limits the nose
  * to the flight path plus a shrinking angle of attack, guardDive (nose below
  * the path) at guardLow x stall speed. In a bank the nose trims the flight
- * path toward the aim pitch (turnPathGain x the error, at most turnPathMax);
- * rolling out counter-banks at most counterBank; rollDamping damps the roll
- * rate in the bank loop.
+ * path toward the aim pitch (turnPathGain x the error, at most turnPathMax),
+ * and the bank is never steeper than the load the wing lifts at turnAlpha of
+ * the stall angle; rolling out counter-banks at most counterBank; rollDamping
+ * damps the roll rate in the bank loop; pitchGain/pitchDamping drive the
+ * elevator onto the nose target. The guard and ground* numbers are the pilot
+ * assists below.
  */
-export const AIM_INSTRUCTOR = Object.freeze({ turnGain: 2, turnDamping: 0.8, rudderWindow: 0.2, rudderGain: 8,
-  guardLow: 1.05, guardHigh: 1.6, guardDive: -0.08, guardLead: 1.5,
-  turnPathGain: 4, turnPathMax: 0.25, counterBank: 0.05, rollDamping: 1.3 });
+export const AIM_INSTRUCTOR = Object.freeze({ pitchGain: 8, pitchDamping: 0.9, turnGain: 2, turnDamping: 0.8, rudderWindow: 0.2, rudderGain: 8,
+  guardLow: 1.05, guardHigh: 1.6, guardDive: -0.08, guardLead: 1.5, guardPower: 1,
+  turnPathGain: 8, turnPathMax: 0.4, turnAlpha: 0.85, counterBank: 0.05, rollDamping: 1.3,
+  groundLead: 2, groundMargin: 10, groundSink: 4, groundLanding: 1.8, groundIdle: 0.3, groundGain: 4, groundLevel: 0.1 });
+
+/**
+ * Pilot assists (2026-10-19). Mouse aim: the instructor spools the engine up
+ * (to full at guardLow; guardPower is the guard margin where it starts) while
+ * the stall guard works more than groundMargin x 2 above the ground, and in
+ * proportion to the ground pull-up; the throttle setting itself stays, and a
+ * closing throttle, the brake or the airbrake turn it off. It never descends
+ * toward the terrain faster than the clearance allows: input.groundClearance
+ * is the height above the highest terrain under the next seconds of track
+ * (the server's), and the flight path may sink at most (clearance -
+ * groundMargin) / groundLead m/s (a climb below groundMargin), or groundSink
+ * m/s for a landing (slower than groundLanding x takeoff speed, or the
+ * throttle at groundIdle or less); under that floor the instructor levels the
+ * wings (fully groundLevel rad under it) and pulls up with the 1 g nose plus
+ * groundGain x the path error. Stick flight
+ * (mouse stick, keyboard, pad, touch, bots): the alpha limiter fades a
+ * nose-up elevator out between alphaFade and alphaLimit of angle of attack
+ * (the stall is at stallAngle), with alphaLead s of pitch rate lead, so a
+ * held pull bleeds speed instead of stalling the wing. A stalled wing can
+ * still be flown down out of the stall (a nose-down stick is never limited).
+ */
+export const PILOT_ASSISTS = Object.freeze({ alphaFade: 0.18, alphaLimit: 0.27, alphaLead: 0.15 });
 
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, finite(n)));
@@ -66,7 +92,8 @@ function stepFlightDynamics(state, input, dt) {
     remaining -= h;
     if (active && brake === 0) state.throttle = clamp(state.throttle + throttle * (throttle < 0 ? r.throttleDownRate : r.throttleRate) * h, 0, 1);
     else if (brake > 0) state.throttle = approach(state.throttle, 0, r.throttleDownRate * brake * h);
-    state.enginePower = approach(state.enginePower, active ? state.throttle : 0, r.spoolRate * h);
+    // assistPower: the instructor's stall / ground spool-up (mouse aim only).
+    state.enginePower = approach(state.enginePower, active ? Math.max(state.throttle, manual ? 0 : finite(state.assistPower)) : 0, r.spoolRate * h);
     const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch), sy = Math.sin(state.yaw), cy = Math.cos(state.yaw);
     const forwardSpeed = Math.max(0, -sy * cp * state.vx + sp * state.vy - cy * cp * state.vz);
     const authority = clamp(forwardSpeed / r.takeoffSpeed, 0, 1) ** 2;
@@ -74,6 +101,14 @@ function stepFlightDynamics(state, input, dt) {
     // so a nose-up stall can be recovered even after axial flow reverses.
     const pitchAuthority = Math.max(authority, clamp(Math.hypot(state.vx, state.vy, state.vz) / r.takeoffSpeed, 0, 1) ** 2 * 0.35);
     let pitchControl = elevator, rollControl = aileron, yawControl = rudder;
+    if (active && manual && !grounded && pitchControl > 0) {
+      // Alpha limiter (stick flight): a nose-up stick fades out as the angle
+      // of attack, led by the pitch rate, nears the stall.
+      const sr = Math.sin(state.roll), cr = Math.cos(state.roll);
+      const upFlow = (-cy * sr + sy * sp * cr) * state.vx + cp * cr * state.vy + (sy * sr + cy * sp * cr) * state.vz;
+      const alpha = Math.atan2(-upFlow, Math.max(0.001, forwardSpeed)) + state.pitchRate * PILOT_ASSISTS.alphaLead;
+      pitchControl = Math.min(pitchControl, clamp((PILOT_ASSISTS.alphaLimit - alpha) / (PILOT_ASSISTS.alphaLimit - PILOT_ASSISTS.alphaFade), -1, 1));
+    }
     if (active && !manual) {
       // The mouse-aim instructor (and the boundary safety pilot) request an
       // attitude: the nose to a world yaw/pitch. It moves the same control
@@ -86,8 +121,13 @@ function stepFlightDynamics(state, input, dt) {
       const turnRate = yawError * AIM_INSTRUCTOR.turnGain - state.yawRate * AIM_INSTRUCTOR.turnDamping;
       // Rolling out, the wings brake the turn by levelling; only a shallow
       // counter-bank helps, so the nose stops on the aim without a wobble.
-      const braking = turnRate * yawError < 0 ? AIM_INSTRUCTOR.counterBank : r.maxBank;
-      const bankTarget = Math.abs(steer) > 0.01 ? -steer * r.maxBank
+      // Sustainable bank: the steepest bank whose load the wing still lifts
+      // at turnAlpha of the stall angle (and maxLiftLoad), so a held turn at
+      // bomb-run speed stays tight without sinking or stalling.
+      const load = Math.min(r.maxLiftLoad, (forwardSpeed / r.takeoffSpeed) ** 2 * (r.liftIncidence + r.liftSlope * r.stallAngle * AIM_INSTRUCTOR.turnAlpha));
+      const bankLimit = load > 1 ? Math.min(r.maxBank, Math.acos(1 / load)) : AIM_INSTRUCTOR.counterBank;
+      const braking = turnRate * yawError < 0 ? AIM_INSTRUCTOR.counterBank : bankLimit;
+      let bankTarget = Math.abs(steer) > 0.01 ? -steer * bankLimit
         : clamp(Math.atan(turnRate * pathSpeed / r.gravity), -braking, braking);
       // Stall guard: close to the stall speed the nose may rise less and less
       // above the flight path, so a held climb trades height for speed
@@ -100,6 +140,22 @@ function stepFlightDynamics(state, input, dt) {
       // nose for the takeoff instead of rolling off the end of the runway.
       if (grounded && forwardSpeed >= r.takeoffSpeed && targetPitch > -0.05) pitchTarget = Math.max(pitchTarget, 0.12);
       const path = Math.atan2(state.vy, Math.max(1, Math.hypot(state.vx, state.vz)));
+      // Ground proximity: the flight path may sink only as fast as the
+      // terrain clearance allows (PILOT_ASSISTS above). Under that floor the
+      // wings level and the nose pulls the path back up, whatever the aim.
+      const clearance = finite(input?.groundClearance, Infinity);
+      let groundUrgency = 0, groundFloor = -Math.PI / 2;
+      if (!grounded && clearance < Infinity) {
+        const speed = Math.max(1, Math.hypot(state.vx, state.vy, state.vz));
+        // A landing (slow, or the throttle near idle) may sink onto the ground.
+        const landing = Math.max(clamp((r.takeoffSpeed * AIM_INSTRUCTOR.groundLanding - speed) / (r.takeoffSpeed * 0.3), 0, 1),
+          clamp((AIM_INSTRUCTOR.groundIdle + 0.2 - state.throttle) / 0.2, 0, 1) * clamp((r.takeoffSpeed * 2.3 - speed) / (r.takeoffSpeed * 0.4), 0, 1));
+        const climbOut = (clearance - AIM_INSTRUCTOR.groundMargin) / AIM_INSTRUCTOR.groundLead;
+        const allowedSink = climbOut + landing * Math.max(0, AIM_INSTRUCTOR.groundSink - climbOut);
+        groundFloor = Math.asin(clamp(-allowedSink / speed, -1, 1));
+        groundUrgency = clamp((groundFloor - path) / AIM_INSTRUCTOR.groundLevel, 0, 1);
+        bankTarget *= 1 - groundUrgency;
+      }
       // Turn compensation: a steep bank tilts the lift away from the
       // vertical, so in a turn the nose trims toward holding the flight path
       // on the aim pitch (it would sink or balloon otherwise). Straight
@@ -108,14 +164,25 @@ function stepFlightDynamics(state, input, dt) {
         const bankWeight = clamp((1 - Math.cos(state.roll)) / (1 - Math.cos(r.maxBank)), 0, 1);
         pitchTarget += clamp((targetPitch - path) * AIM_INSTRUCTOR.turnPathGain, -AIM_INSTRUCTOR.turnPathMax, AIM_INSTRUCTOR.turnPathMax) * bankWeight;
       }
+      if (groundFloor > -Math.PI / 2) {
+        // The nose that holds the path on the floor (1 g of lift) plus groundGain x the path error.
+        const trim = clamp(((r.takeoffSpeed / Math.max(1, forwardSpeed)) ** 2 - r.liftIncidence) / r.liftSlope, -0.1, r.stallAngle * 0.8);
+        pitchTarget = Math.max(pitchTarget, Math.min(path + r.stallAngle * 0.8, groundFloor + trim + (groundFloor - path) * AIM_INSTRUCTOR.groundGain));
+      }
       const trend = r.acceleration * state.enginePower - r.gravity * Math.sin(path) - (0.6 + forwardSpeed * forwardSpeed * 0.0025);
       const heading = forwardSpeed + Math.min(0, trend) * AIM_INSTRUCTOR.guardLead;
+      let stallPower = 0;
       if (!grounded && forwardSpeed > r.stallSpeed * 0.5 && heading < r.stallSpeed * AIM_INSTRUCTOR.guardHigh) {
         const margin = clamp((heading - r.stallSpeed * AIM_INSTRUCTOR.guardLow)
           / (r.stallSpeed * (AIM_INSTRUCTOR.guardHigh - AIM_INSTRUCTOR.guardLow)), 0, 1);
         pitchTarget = Math.min(pitchTarget, path + AIM_INSTRUCTOR.guardDive + (r.stallAngle * 0.8 - AIM_INSTRUCTOR.guardDive) * margin);
+        // Low over the ground (a landing approach) the guard leaves the power alone.
+        if (clearance > AIM_INSTRUCTOR.groundMargin * 2) stallPower = clamp((AIM_INSTRUCTOR.guardPower - margin) / AIM_INSTRUCTOR.guardPower, 0, 1);
       }
-      pitchControl = clamp(((pitchTarget - state.pitch) * 5 - state.pitchRate * 0.7) / r.pitchRate, -1, 1);
+      // Spool up while the guard or the pull-up works, unless the pilot is
+      // closing the throttle or braking (a landing flare stays at idle).
+      state.assistPower = grounded || throttle < 0 || brake > 0 || speedBrake > 0 ? 0 : Math.max(stallPower, groundUrgency);
+      pitchControl = clamp(((pitchTarget - state.pitch) * AIM_INSTRUCTOR.pitchGain - state.pitchRate * AIM_INSTRUCTOR.pitchDamping) / r.pitchRate, -1, 1);
       rollControl = grounded ? steer : clamp(-((bankTarget - state.roll) * 4 - state.rollRate * AIM_INSTRUCTOR.rollDamping) / r.bankRate, -1, 1);
       yawControl = grounded ? (Math.abs(steer) <= 0.01 ? clamp(-yawError * 1.3 / r.taxiTurn, -1, 1) : 0)
         : Math.abs(yawError) < AIM_INSTRUCTOR.rudderWindow && Math.abs(steer) <= 0.01 ? clamp(-yawError * AIM_INSTRUCTOR.rudderGain, -1, 1) : 0;

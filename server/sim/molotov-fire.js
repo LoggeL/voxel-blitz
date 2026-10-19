@@ -53,11 +53,15 @@ export class MolotovFireSystem {
   }
 
   /**
-   * `override` (titanfall thermite, incendiary trap): { radius?, durationMs?,
-   * damagePerSecond? (pilots), hullDamagePerSecond?, key? (pilot kill key),
-   * maxCells? (at most MOLOTOV_FIRE.maxCells), onHullDamage? (called with the
-   * hull and the damage it took from this field, for the titan core meter) }
-   * over the molotov profile.
+   * `override` (titanfall thermite, incendiary trap, the jet's bomb): { radius?,
+   * durationMs?, damagePerSecond? (pilots), hullDamagePerSecond?, key? (pilot
+   * kill key), maxCells? (at most MOLOTOV_FIRE.maxCells), onHullDamage? (called
+   * with the hull and the damage it took from this field, for the titan core
+   * meter), cellSize? (metres between flame cells, centred on the impact; each
+   * cell's reach and flames scale with it), rise?/drop? (a blast field: each
+   * cell's ground is searched from `rise` m above the blast down into its
+   * crater, and nothing lights without ground within `drop` m below the
+   * blast) } over the molotov profile.
    */
   ignite(projectile, ctx, override = null) {
     if (ctx.canAffectWorld?.() === false) return null;
@@ -65,18 +69,27 @@ export class MolotovFireSystem {
     if (![x, y, z].every(Number.isFinite)) return null;
     const groundY = groundAt(ctx, x, y + 0.01, z);
     if (groundY == null) return null;
+    const blast = Number.isFinite(override?.rise);
+    if (blast && y - groundY > (override.drop ?? Infinity)) return null;
     const cells = [];
     const profile = override ? { ...molotovFireProfile(projectile.chaosLevel), ...override } : molotovFireProfile(projectile.chaosLevel);
-    const radius = profile.radius;
-    const origin = [x, groundY + 0.12, z];
-    for (let iz = Math.floor(z - radius); iz <= Math.floor(z + radius); iz++) {
-      for (let ix = Math.floor(x - radius); ix <= Math.floor(x + radius); ix++) {
-        const cx = ix + 0.5, cz = iz + 0.5;
-        if (Math.hypot(cx - x, cz - z) > radius) continue;
-        const cy = groundAt(ctx, cx, groundY + 0.75, cz, groundY - 1.1);
-        const cell = [cx, cy, cz];
-        if (cy != null && visible(ctx, origin, [cx, cy + 0.12, cz])) cells.push(cell);
+    const radius = profile.radius, cellSize = override?.cellSize > 0 ? override.cellSize : 1;
+    const top = blast ? Math.max(groundY, y) + override.rise : groundY + 0.75;
+    const origin = [x, (blast ? Math.max(groundY, y) : groundY) + 0.12, z];
+    const sites = [];
+    if (cellSize === 1) {
+      for (let iz = Math.floor(z - radius); iz <= Math.floor(z + radius); iz++) {
+        for (let ix = Math.floor(x - radius); ix <= Math.floor(x + radius); ix++) sites.push([ix + 0.5, iz + 0.5]);
       }
+    } else {
+      const steps = Math.floor(radius / cellSize);
+      for (let j = -steps; j <= steps; j++) for (let i = -steps; i <= steps; i++) sites.push([x + i * cellSize, z + j * cellSize]);
+    }
+    for (const [cx, cz] of sites) {
+      if (Math.hypot(cx - x, cz - z) > radius) continue;
+      const cy = groundAt(ctx, cx, top, cz, groundY - 1.1);
+      const cell = [cx, cy, cz];
+      if (cy != null && visible(ctx, origin, [cx, cy + 0.12, cz])) cells.push(cell);
     }
     cells.sort((a, b) => Math.hypot(a[0] - x, a[2] - z) - Math.hypot(b[0] - x, b[2] - z));
     cells.length = Math.min(cells.length, override ? Math.min(MOLOTOV_FIRE.maxCells, profile.maxCells ?? Infinity) : MOLOTOV_FIRE.maxCells);
@@ -87,6 +100,7 @@ export class MolotovFireSystem {
       owner: projectile.owner || ctx.entities.get(projectile.ownerId) || null,
       x, y: groundY, z, radius, createdAt: ctx.now,
       expiresAt: ctx.now + profile.durationMs, damagePerSecond: profile.damagePerSecond, cells };
+    if (cellSize !== 1) field.cellSize = cellSize;
     if (override) {
       if (Number.isFinite(override.hullDamagePerSecond)) field.hullDamagePerSecond = override.hullDamagePerSecond;
       if (typeof override.key === 'string') field.key = override.key;
@@ -98,12 +112,12 @@ export class MolotovFireSystem {
 
   _contact(field, body, ctx) {
     // Exposed crew burn at their crouched seat pose; sealed crew never reach here.
-    const victim = occupantHitPose(body);
-    if (Math.hypot(victim.x - field.x, victim.z - field.z) > field.radius + PLAYER_HALF.x + MOLOTOV_FIRE.cellRadius) return false;
+    const victim = occupantHitPose(body), reach = MOLOTOV_FIRE.cellRadius * (field.cellSize ?? 1);
+    if (Math.hypot(victim.x - field.x, victim.z - field.z) > field.radius + PLAYER_HALF.x + reach) return false;
     const target = [victim.x, victim.y + 0.22, victim.z];
     for (const cell of field.cells) {
       if (victim.y < cell[1] - 0.3 || victim.y > cell[1] + MOLOTOV_FIRE.height) continue;
-      if (Math.hypot(victim.x - cell[0], victim.z - cell[2]) > MOLOTOV_FIRE.cellRadius + PLAYER_HALF.x) continue;
+      if (Math.hypot(victim.x - cell[0], victim.z - cell[2]) > reach + PLAYER_HALF.x) continue;
       if (visible(ctx, [cell[0], cell[1] + 0.12, cell[2]], target)) return true;
     }
     return false;

@@ -14,6 +14,8 @@ export function vehicleWeaponBlast(weapon) {
     terrainRadius: weapon.terrainRadius ?? 0, terrainPower: weapon.terrainPower ?? 0, maxDestroyedBlocks: weapon.maxDestroyedBlocks ?? 0,
     concussMs: 0, concussPanic: 0,
     cls: weapon.cls, splashCls: weapon.splashCls ?? weapon.cls,
+    // A ground fire left on the impact (the jet's bomb): MolotovFireSystem.ignite overrides.
+    burn: weapon.burn ?? null,
   });
 }
 

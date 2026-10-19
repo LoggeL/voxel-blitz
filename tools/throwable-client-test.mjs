@@ -90,6 +90,20 @@ function effectFacade(scene) {
   } finally { fx.dispose(); }
 }
 
+// A coarse-grid field (the jet bomb's fire, `cellSize` 1.5) draws proportionally bigger flames.
+{
+  const scene = new THREE.Scene();
+  const fx = new FireFieldFX(scene);
+  try {
+    const row = serverFieldSnapshot().fireFields[0];
+    fx.sync([{ ...row, cells: [row.cells[0]] }], EPOCH);
+    const molotov = [fx.shapes.getX(0), fx.shapes.getX(1)];
+    fx.sync([{ ...row, cellSize: 1.5, cells: [row.cells[0]] }], EPOCH);
+    assert.deepEqual([fx.shapes.getX(0), fx.shapes.getX(1)].map(n => Math.round(n * 1000)), molotov.map(n => Math.round(n * 1500)),
+      'flame widths scale with the cell size');
+  } finally { fx.dispose(); }
+}
+
 // Oversized/malformed snapshots cannot exceed the shared renderer/server budget.
 {
   const scene = new THREE.Scene();

@@ -870,6 +870,7 @@ export class VehicleSystem {
     const floor = this.placement(v, v.x, v.z);
     v.grounded = floor != null && Math.abs(v.y - floor) < 0.08 && v.vy <= 0.2;
     if (v.grounded) v.y = floor;
+    let groundClearance=Infinity;
     if(fixedWing) {
       const dataHeight=this.engine.world.dimensions?this.columnTop(v.x,v.z):180;
       const terrain=this.ground(v.x,v.z,Math.min(v.y+0.01,dataHeight),0,dataHeight);
@@ -880,6 +881,13 @@ export class VehicleSystem {
       // Deployment adds wheels and struts below the stowed hull. Keep the
       // existing clear configuration until those real boxes fit at this pose.
       if(v.gearDown!==previousGear&&!this.clearHull(v,v.x,v.y,v.z))v.gearDown=previousGear;
+      // Mouse-aim ground proximity (plane.js PILOT_ASSISTS): the height above
+      // the highest terrain under the jet and its next 1-3 s of track.
+      groundClearance=clearance;
+      for(const t of [1,2,3]) {
+        const x=v.x+v.vx*t,z=v.z+v.vz*t,top=this.engine.world.dimensions?this.columnTop(x,z):180,h=this.ground(x,z,top,0,top);
+        if(h!=null)groundClearance=Math.min(groundClearance,v.y-h);
+      }
     }
     const safeAttitude={yaw:v.yaw,pitch:v.pitch,roll:v.roll,y:v.y};
     const power = v.disabled ? VEHICLE_DAMAGE_RULES.disabledPower : 1;
@@ -892,6 +900,7 @@ export class VehicleSystem {
       if (input[field] !== undefined) flightInput[`${axis.toLowerCase()}Control`] = controls.allowed ? clamp(input[field], -1, 1) : 0;
     }
     flightInput.attitudeHold = input.vehicleAttitudeHold === true;
+    if(fixedWing)flightInput.groundClearance=groundClearance;
     // Map-edge guidance has two layers. A soft steer-back blends in only
     // inside a band near the edge while the aircraft moves outward: it pulls a
     // mouse-aim/attitude request toward the map centre, adds a centre turn to a

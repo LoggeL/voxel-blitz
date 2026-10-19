@@ -257,9 +257,11 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       && typeof field.id === 'string'
       && [field.x, field.y, field.z, field.radius, field.createdAt, field.expiresAt].every(Number.isFinite))
       .slice(0, MOLOTOV_FIRE.maxFields)
-      .map(({ id, ownerId, x, y, z, radius, createdAt, expiresAt, cells }) => ({
+      .map(({ id, ownerId, x, y, z, radius, createdAt, expiresAt, cells, cellSize }) => ({
         id, ownerId: String(ownerId || ''), x: round(x, D2), y: round(y, D2), z: round(z, D2),
         radius: round(radius, D2), createdAt: round(createdAt, 1), expiresAt: round(expiresAt, 1),
+        // A coarser flame grid (the jet's bomb fire): bigger flames per cell.
+        ...(Number.isFinite(cellSize) && cellSize !== 1 ? { cellSize: round(cellSize, D2) } : {}),
         cells: (Array.isArray(cells) ? cells : []).filter(cell => Array.isArray(cell)
           && cell.length === 3 && cell.every(Number.isFinite)).slice(0, MOLOTOV_FIRE.maxCells)
           .map(cell => cell.map(value => round(value, D2))),

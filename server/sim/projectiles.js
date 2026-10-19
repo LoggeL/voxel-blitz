@@ -1743,6 +1743,12 @@ export class ProjectileSystem {
       suppressExplosion(owner, origin, rules.damageRadius, hitVictims, ctx);
     }
     if (rules.terrainRadius > 0) this._destroyTerrain(origin, rules, ctx, owner?.id ?? null);
+    // A burning blast (the jet's bomb) lights its crater and rim once the
+    // crater is dug; burn damage and kills carry the weapon's kill key.
+    if (rules.burn) {
+      this.fire.ignite({ id: projectile.id, x: origin[0], y: origin[1], z: origin[2], ownerId, owner, chaosLevel: 0 }, ctx,
+        { ...rules.burn, key: projectile.weaponKey ?? projectile.type });
+    }
     this._chainDetonate(projectile, origin, rules, ctx);
     if (!projectile.child) {
       const count = projectile.type === 'frag' && level >= 1 ? (level >= 2 ? 12 : 6)

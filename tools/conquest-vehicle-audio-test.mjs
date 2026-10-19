@@ -60,6 +60,16 @@ const row = (id, overrides = {}) => ({ id, type: 'jeep', x: 0, y: 0, z: 0, hp: 3
   audio.dispose();
 }
 {
+  // A jet bomb's ground fire (a coarse-grid fire field) roars like a burning hull while it burns; Molotov fields stay silent.
+  const sfx = recordingSfx(), audio = new VehicleAudio(sfx);
+  const field = (id, x, cellSize) => ({ id, x, y: 0, z: 0, radius: 6.5, ...(cellSize ? { cellSize } : {}), cells: [[x, 0, 0]] });
+  audio.update([], [0, 0, 0], { groundFires: [field('fire-r1', 10, 1.5), field('fire-m1', 5), field('fire-r2', 500, 1.5)] });
+  check(() => assert.deepEqual(named(sfx, 'vehicleBurning').map(call => call[1]), ['burn:field:fire-r1']));
+  audio.update([], [0, 0, 0], { groundFires: [] });
+  check(() => assert.deepEqual(named(sfx, 'stopVehicleBurning').map(call => call[1]), ['burn:field:fire-r1'], 'the roar stops when the fire burns out'));
+  audio.dispose();
+}
+{
   // Hatches: boarding and leaving a nearby hull; the local boarder hears it in the head.
   const sfx = recordingSfx(), audio = new VehicleAudio(sfx);
   const self = { id: 'me', team: 'alpha' };

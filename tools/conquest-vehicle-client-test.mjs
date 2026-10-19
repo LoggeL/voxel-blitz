@@ -273,19 +273,20 @@ function keyTarget() {
   check(() => assert.equal(controller.consumeAction(), null, 'the jet rudder key does not cycle weapons'));
   target.fire('keydown', { code: 'Digit2' });
   check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 1 }, 'jet slot 2 picks the missiles'));
-  // Slot 3 loads the bombs onto the pylons (AA missiles loaded: rails row store 0) only while landed and stopped.
+  // Slot 3 picks the bombs, on the ground and in the air alike (the missiles and bombs hang on their own pylons).
   target.fire('keydown', { code: 'Digit3' });
-  check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 2 }, 'a parked jet may load its bombs'));
-  const flying = { ...jet, grounded: false, vx: 0, vy: 0, vz: -50, speed: 50, airspeed: 50, mounts: [[0, 0, -1, 0, 0], [0, 0, 2, 0, 0, 0]] };
+  check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 2 }, 'a parked jet picks its bombs'));
+  const flying = { ...jet, grounded: false, vx: 0, vy: 0, vz: -50, speed: 50, airspeed: 50, mounts: [[0, 0, -1, 0, 0], [0, 0, 2, 0, 0], [0, 0, 2, 0, 0]] };
   controller.sync({ self, vehicles: [flying], enabled: true });
   target.fire('keydown', { code: 'Digit3' });
-  check(() => assert.equal(controller.consumeAction(), null, 'in the air the stowed bombs cannot be picked'));
-  check(() => assert.equal(controller.storeLocked(2), true));
-  check(() => assert.equal(controller.queueWeaponNext(), true, 'touch WEAPON cycles past the stowed store'));
-  check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 1 }));
-  controller.sync({ self, vehicles: [{ ...flying, sel: { driver: 1 } }], enabled: true });
-  check(() => assert.equal(controller.queueWeaponNext(), true));
-  check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 0 }, 'from the missiles the cycle wraps to the cannon, skipping the bombs'));
+  check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: 2 }, 'in the air the bombs are picked too'));
+  check(() => assert.equal('storeLocked' in controller, false));
+  // The touch WEAPON cycle walks cannon -> missiles -> bombs -> cannon.
+  for (const [from, to] of [[0, 1], [1, 2], [2, 0]]) {
+    controller.sync({ self, vehicles: [{ ...flying, sel: { driver: from } }], enabled: true });
+    check(() => assert.equal(controller.queueWeaponNext(), true));
+    check(() => assert.deepEqual(controller.consumeAction(), { type: 'weapon', index: to }, `the cycle goes ${from + 1} -> ${to + 1}`));
+  }
   // Jeep passenger looks around and may fire a personal weapon.
   const jeep = { id: 'jeep', type: 'jeep', team: 'alpha', x: 11, y: 10, z: 10, yaw: 0.7, hp: 320, seatOccupants: { driver: 'd', 'front-passenger': 'p' } };
   controller.sync({ self, vehicles: [jeep], enabled: true });

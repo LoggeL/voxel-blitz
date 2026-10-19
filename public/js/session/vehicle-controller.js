@@ -1,5 +1,4 @@
-import { CONQUEST_RULES, COUNTERMEASURES, isStoreMount, seatWeaponList, vehicleMountOrder } from '../../../shared/conquest-contract.js';
-import { storesChangeable } from '../../../shared/vehicle-defs.js';
+import { CONQUEST_RULES, COUNTERMEASURES, seatWeaponList, vehicleMountOrder } from '../../../shared/conquest-contract.js';
 import { vehicleEnterDistance } from '../../../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleHasFreeSeat, vehicleBoardable } from '../../../shared/vehicle-seats.js';
 import { isBotId } from '../../../shared/conquest.js';
@@ -397,35 +396,18 @@ export class VehicleController {
     return this._queue({ type: 'cm' });
   }
 
-  /**
-   * Whether a seat weapon is the stowed store of a store mount (the jet's
-   * pylons carry AA missiles or bombs) while the hull cannot load it: the
-   * server refuses that pick in the air or rolling (storesChangeable).
-   */
-  storeLocked(index) {
-    const list = seatWeaponList(this.type, this.seatId), entry = list[index];
-    if (!entry || !this.vehicle || !isStoreMount(this.type, entry.mount)) return false;
-    const raw = this.vehicle.mounts?.[vehicleMountOrder(this.type).indexOf(`${this.seatId}:${entry.mount}`)];
-    const loaded = list.filter(item => item.mount === entry.mount)[Array.isArray(raw) ? Math.max(0, raw[5] | 0) : 0]?.weapon;
-    return loaded !== entry.weapon && !storesChangeable(this.vehicle);
-  }
-
-  /** Slot keys: select one weapon of a multi-weapon seat by index (on the ground a stowed pylon store loads). */
+  /** Slot keys: select one weapon of a multi-weapon seat by index (the jet's cannon, missiles or bombs, in the air too). */
   queueWeapon(index) {
     const selected = this.selectedWeapon();
-    if (!selected || selected.count < 2 || !(index >= 0 && index < selected.count) || index === selected.index || this.storeLocked(index)) return false;
+    if (!selected || selected.count < 2 || !(index >= 0 && index < selected.count) || index === selected.index) return false;
     return this._queue({ type: 'weapon', index });
   }
 
-  /** Q: next weapon of a multi-weapon seat (tank AP/HE/coax, jet cannon/missiles/bombs), past a store it cannot load now. */
+  /** Q / touch WEAPON: next weapon of a multi-weapon seat (tank AP/HE/coax, jet cannon/missiles/bombs). */
   queueWeaponNext() {
     const selected = this.selectedWeapon();
     if (!selected || selected.count < 2) return false;
-    for (let step = 1; step < selected.count; step++) {
-      const index = (selected.index + step) % selected.count;
-      if (!this.storeLocked(index)) return this._queue({ type: 'weapon', index });
-    }
-    return false;
+    return this._queue({ type: 'weapon', index: (selected.index + 1) % selected.count });
   }
 
   consumeAction() { return this._actions.shift() || null; }

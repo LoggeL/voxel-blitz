@@ -41,8 +41,10 @@ export const VEHICLE_MODEL_FACTORIES = Object.freeze({
   }])),
 });
 const modelFactories = VEHICLE_MODEL_FACTORIES;
-/** Mounts whose loaded rounds the model shows (`railAmmo`): jet pylons, heli wingtip missiles, the TOW tube. */
+/** Mounts whose loaded rounds the model shows (`railAmmo`): jet missile rails, heli wingtip missiles, the TOW tube. */
 const RAIL_MOUNTS = Object.freeze({ plane: 'rails', helicopter: 'atgm', jeep_at: 'pintle' });
+/** The jet's bomb pylons (`bombAmmo`), shown beside the missiles. */
+const BOMB_MOUNTS = Object.freeze({ plane: 'bombs' });
 /** A row kind VehicleView can present now (walkers only once their presentation is installed). */
 const presentable = kind => Object.hasOwn(modelFactories, kind) && (walkerPresentation !== null || !isWalkerType(kind));
 
@@ -373,11 +375,13 @@ export class VehicleView {
       if (!item.wreck) this._aimMounts(item, row, step);
       this._recoil(item, step);
       const railIndex = RAIL_MOUNTS[item.kind] ? mountIndex(item.kind, RAIL_MOUNTS[item.kind]) : -1;
+      const bombIndex = BOMB_MOUNTS[item.kind] ? mountIndex(item.kind, BOMB_MOUNTS[item.kind]) : -1;
+      const loaded = index => (index >= 0 && Array.isArray(row.mounts?.[index]) ? row.mounts[index][2] : null);
       if (!item.walker) item.model.animate(step, {
         speed: finite(row.speed), visualSteer: finite(row.visualSteer),
         leftTrackSpeed: finite(row.leftTrackSpeed ?? row.speed), rightTrackSpeed: finite(row.rightTrackSpeed ?? row.speed),
         rotorSpeed: this._rotorSpeed(item, row), grounded: row.grounded ?? (row.st != null ? item.status?.grounded : true),
-        wreck: item.wreck, railAmmo: railIndex >= 0 && Array.isArray(row.mounts?.[railIndex]) ? row.mounts[railIndex][2] : null,
+        wreck: item.wreck, railAmmo: loaded(railIndex), bombAmmo: loaded(bombIndex),
       });
       const local = this.localView, inside = !!local && local.id === item.id;
       for (const actor of item.crew.values()) {

@@ -83,7 +83,7 @@ const eq = (a, b, message) => { assert.deepEqual(a, b, message); checks++; };
   ok(CONQUEST_EVENT_KINDS.includes('heal') && CONQUEST_EVENT_KINDS.includes('kit_unlocks'), 'heal and kit_unlocks are Conquest events');
   // Pinned protocol contract.
   eq(CONQUEST_CONTRACT_VERSION, CONQUEST_CONTRACT.version, 'contract version pinned');
-  eq(CONQUEST_CONTRACT_VERSION, 4);
+  eq(CONQUEST_CONTRACT_VERSION, 5);
   eq([...KIT_IDS], CONQUEST_KIT_IDS.split(','), 'KIT_IDS pinned in the protocol contract');
   for (const kind of CONQUEST_CLASS_EVENT_KINDS.split(',')) ok(CONQUEST_EVENT_KINDS.includes(kind), `${kind} pinned`);
 }
