@@ -57,6 +57,21 @@ const MAX_PITCH = (80 * Math.PI) / 180;
 const afterTickQueue = [];
 let afterTickScheduled = false;
 let tickingEngines = 0;
+// GameEngine.step's phases, timed every tick (the long-tick log names the slow ones).
+export const TICK_PHASES = ['mode', 'bots', 'vehicles', 'movement', 'combat', 'structure', 'rules', 'snapshot'];
+/** Time since `since` into phases[index]; returns now (the next phase's start). */
+function endPhase(phases, index, since) {
+  const now = performance.now();
+  phases[index] = now - since;
+  return now;
+}
+/** ' (bots 30.1, vehicles 4.2 ms)': the phases of the last step of at least 0.5 ms, slowest first. */
+function phaseSummary(phases) {
+  const rows = [];
+  for (let i = 0; i < TICK_PHASES.length; i++) if (phases[i] >= 0.5) rows.push([TICK_PHASES[i], phases[i]]);
+  rows.sort((a, b) => b[1] - a[1]);
+  return rows.length ? `; ${rows.map(([name, ms]) => `${name} ${ms.toFixed(1)}`).join(', ')} ms` : '';
+}
 function runAfterTick() {
   afterTickScheduled = false;
   const fn = afterTickQueue.shift();
@@ -131,9 +146,12 @@ export class GameEngine {
     this.intervalMs = TICK_MS;
     this.running = false;
     this.timer = null;
-    // Long ticks are logged with the room's mode, map, bodies and the number of rooms ticking.
+    // Long ticks are logged with the room's mode, map, bodies, the number of rooms
+    // ticking and the step's slow phases (tickPhases: ms per TICK_PHASES entry, last step).
+    this.tickPhases = new Float64Array(TICK_PHASES.length);
     this.tickTiming = new TickTiming({ budgetMs: () => this.intervalMs,
-      describe: () => `${this.mode?.mode}/${this.mapMeta?.id}, ${this.entities.size + this.npcs.size} bodies, ${tickingEngines} rooms` });
+      describe: () => `${this.mode?.mode}/${this.mapMeta?.id}, ${this.entities.size + this.npcs.size} bodies, ${tickingEngines} rooms`
+        + phaseSummary(this.tickPhases) });
     this.blockHp = new Map();
     this.blockMining = new Map();
     this.blockDamage = new Map();
@@ -244,14 +262,18 @@ export class GameEngine {
 
   step(intervalMs = this.intervalMs) {
     const dt = intervalMs / 1000;
+    const phases = this.tickPhases;
+    let phaseAt = performance.now();
     this.now += intervalMs;
     this.spawnSelector.setNow(this.now);
 
     this.mode.beforeTick(dt);
+    phaseAt = endPhase(phases, 0, phaseAt);
 
     for (let i = 0; i < this.tickHooks.length; i++) {
       try { this.tickHooks[i](dt); } catch { /* a broken hook never kills the sim */ }
     }
+    phaseAt = endPhase(phases, 1, phaseAt);
 
     for (const player of this.combatants.values()) updateTimers(player, dt);
     for (const player of this.combatants.values()) player.firing = false;
@@ -263,12 +285,14 @@ export class GameEngine {
       // Personal-weapon seats aim the body with the occupant's own look.
       if (this.vehicles.seatAllowsPersonalWeapons?.(player)) this.aimPersonalWeapon(player, dt);
     }
+    phaseAt = endPhase(phases, 2, phaseAt);
     for (const player of this.combatants.values()) {
       if (player.state === 'alive') this.integrate(player, dt);
     }
     for (const player of this.combatants.values()) {
       if (player.state === 'alive') updateCondition(player, dt);
     }
+    phaseAt = endPhase(phases, 3, phaseAt);
     const combat = this.contexts.combat;
     for (const player of this.combatants.values()) updateBurn(player, dt, combat);
     this.flames.step(dt, combat);
@@ -282,8 +306,10 @@ export class GameEngine {
     for (const player of this.combatants.values()) {
       updateMedkit(player, dt, this.mode.phase === 'live');
     }
+    phaseAt = endPhase(phases, 4, phaseAt);
     // This tick's destruction: support passes, due collapses, falling chunks.
     this.structure.step();
+    phaseAt = endPhase(phases, 5, phaseAt);
     // Clear ended rounds before a policy can reset directly into live play.
     if (this.mode.phase !== 'live') {
       this.powerups.clear();
@@ -299,6 +325,7 @@ export class GameEngine {
       now: this.now, mode: this.mode.mode, phase: this.mode.phase, round: this.mode.round,
       entities: this.entities, pushEvent: (event) => this.tickEvents.push(event),
     });
+    phaseAt = endPhase(phases, 6, phaseAt);
 
     let players = Array.from(this.combatants.values());
     // Titanfall minions ride compactly in match.titanfall.npc, not as player rows.
@@ -323,6 +350,7 @@ export class GameEngine {
     this.tickBlockDamage.clear();
     this.tickEvents.length = 0;
     this.broadcast(snapshot);
+    endPhase(phases, 7, phaseAt);
   }
 
   selectSafestSpawn(pool, player = null, excludeIndex = -1) {

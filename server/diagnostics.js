@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const round = (n) => Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 
-/** A tick this long (ms, at least twice the tick budget) is logged as a long tick. */
+/** A tick at least this long (ms) and at least twice the tick budget (33.3 ms at 60 Hz) is a long tick. */
 export const LONG_TICK_MS = 25;
 /** At most one long-tick line per room per this many ms. */
 const LONG_TICK_LOG_MS = 1000;
@@ -114,6 +114,8 @@ export class ServerDiagnostics {
       queuedBytes: meta.ws.bufferedAmount,
       // Snapshots this socket skipped under backpressure (their deltas rode the next one).
       skippedTicks: meta.skippedTicks ?? 0,
+      // Snapshots sent carrying such held deltas.
+      mergedSends: meta.mergedSends ?? 0,
     };
   }
   dispose() {

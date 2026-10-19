@@ -1053,11 +1053,12 @@ event-loop monitor has 5 ms sampling resolution, so an idle server reads about
 percentiles of all individual ticks. Both RTTs include processing delays. Each
 server sample also carries the window's event-loop utilization (0–1, the busy
 share of the one JS thread), its garbage-collection pauses (`gc: {count,
-totalMs, maxMs}`), the room's `longTicks` count and the socket's `skippedTicks`
-(snapshots dropped under backpressure). They appear in the per-probe samples of a
-copied report. The server log names every room tick of 25 ms or more (at least twice the
-tick budget, at most one line per room per second); see *Server load* in
-[docs/conquest.md](conquest.md).
+totalMs, maxMs}`), the room's `longTicks` count, the socket's `skippedTicks`
+(snapshots dropped under backpressure) and `mergedSends` (snapshots sent carrying
+the dropped ones' deltas). They appear in the per-probe samples of a copied
+report. The server log names every room tick of at least `max(25 ms, 2 × tick
+interval)` (33.3 ms at 60 Hz) with its slow phases, at most one line per room per
+second; see *Server load* in [docs/conquest.md](conquest.md).
 
 Each snapshot also records its relative client reception time, original server
 timestamp, reception gap and consecutive server-clock step. These clocks have

@@ -505,7 +505,7 @@ async function main() {
     if (process.env.VOXEL_NAV_WARM !== '0') {
       const started = performance.now();
       void warmGroundGrids(undefined, { schedule: afterRoomTick, sliceMs: 2 }).then((timings) => {
-        const built = timings.filter(row => row.slices > 1 && !row.error), failed = timings.filter(row => row.error);
+        const built = timings.filter(row => row.built && !row.error), failed = timings.filter(row => row.error);
         console.log(`[voxel-blitz] ground grids warmed: ${built.length} maps by ${Math.round(performance.now() - started)} ms`
           + ` after listening (work ${Math.round(timings.reduce((sum, row) => sum + row.ms, 0))} ms,`
           + ` longest slice ${(Math.max(0, ...timings.map(row => row.longest))).toFixed(1)} ms)`);

@@ -23,6 +23,8 @@ import { prepareFrontier, warmGroundGrids, groundGridMaps, runSliced } from '../
 import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
 import { ServerDiagnostics, TickTiming } from '../server/diagnostics.js';
+import { TICK_PHASES } from '../server/game.js';
+import { coalesceTick } from '../server/protocol/tick-backlog.js';
 
 const realRandom = Math.random;
 
@@ -141,10 +143,12 @@ for (let seed = 1; seed <= 40; seed++) {
     now: 1000, dimensions: world.dims };
   const reference = new ReferenceSelector(options);
   const fast = new SpawnSelector({ ...options, revision: () => world.rev });
+  // A world without mutationCount: no memo may outlive a voxel edit.
+  const unversioned = new SpawnSelector({ ...options, revision: () => undefined });
   let now = 1000;
   for (let step = 0; step < 60; step++) {
     if (rng() < 0.6) now += Math.floor(rng() * 3000);
-    reference.setNow(now); fast.setNow(now);
+    reference.setNow(now); fast.setNow(now); unversioned.setNow(now);
     if (rng() < 0.1) world.toggle(Math.floor(rng() * world.dims.sx), 2 + Math.floor(rng() * 3), Math.floor(rng() * world.dims.sz));
     const ids = [...entities.keys()];
     const player = rng() < 0.15 ? null : entities.get(ids[Math.floor(rng() * ids.length)]);
@@ -157,8 +161,11 @@ for (let seed = 1; seed <= 40; seed++) {
     Math.random = mulberry32(draw);
     const actual = fast.pick(pool, player, exclude, { variety });
     const afterActual = Math.random();
+    Math.random = mulberry32(draw);
+    const plain = unversioned.pick(pool, player, exclude, { variety });
     Math.random = realRandom;
     assert.deepEqual(actual, expected, `seed ${seed} step ${step}: same spawn as the full scan`);
+    assert.deepEqual(plain, expected, `seed ${seed} step ${step}: same spawn without a voxel revision`);
     assert.equal(afterActual, afterExpected, `seed ${seed} step ${step}: the jitter draws Math.random as often`);
     spawnPicks++;
     // The picked body moves there (a room start fills the arena pick by pick).
@@ -239,6 +246,9 @@ console.log(`spawn pick: ${spawnPicks} picks equal to the full scan (variety, pr
   assert.equal(timings.length, 3);
   assert.ok(timings[0].slices > 2 && !timings[0].error, `Depot's grid was swept in slices (${timings[0].slices})`);
   assert.ok(timings.slice(1).every(row => !row.error), 'maps without a flat floor finish at once');
+  // The boot log counts built grids: only Depot's (the trailing empty step charges no task).
+  assert.deepEqual(timings.map(row => row.built), [true, false, false], 'only flat-floor maps count as built');
+  assert.deepEqual(timings.slice(1).map(row => row.slices), [1, 1], 'a map without a flat floor takes one slice');
   const warmed = createMapState('depot');
   let yields = 0; const steps = groundNavigationSteps(warmed);
   while (!steps.next().done) yields++;
@@ -355,17 +365,39 @@ console.log(`spawn pick: ${spawnPicks} picks equal to the full scan (variety, pr
   const plain = new TickTiming(); plain.record(0, 500, 16);
   assert.equal(plain.longTicks, 0, 'a timing without a room label never logs');
 
+  // A room's long-tick line names the step's slow phases.
+  const room = new GameEngine({ mode: 'tdm', world: createMapState('depot'), mapMeta: getMapMeta('depot') });
+  room.step();
+  assert.equal(room.tickPhases.length, TICK_PHASES.length);
+  assert.ok([...room.tickPhases].every(ms => Number.isFinite(ms) && ms >= 0), 'every phase of a step is timed');
+  const roomLines = [];
+  room.tickTiming.log = line => roomLines.push(line);
+  room.tickPhases.fill(0); room.tickPhases[TICK_PHASES.indexOf('bots')] = 30; room.tickPhases[TICK_PHASES.indexOf('snapshot')] = 5.25;
+  room.tickTiming.record(0, 30, 16);
+  assert.equal(roomLines.length, 0, 'at the 60 Hz tick 30 ms is under twice the budget');
+  room.tickTiming.record(10, 40, 16);
+  assert.match(roomLines[0], /^\[voxel-blitz\] long tick 40\.0 ms \(tdm\/depot, 0 bodies, \d+ rooms; bots 30\.0, snapshot 5\.3 ms, 1 so far\)$/);
+
+  // Backpressure counters: a held tick is skipped, the next send merges it.
+  const client = { ticksInFlight: 3 };
+  assert.equal(coalesceTick(client, { t: 'tick', blocks: [], events: [] }), null);
+  client.ticksInFlight = 0;
+  assert.ok(coalesceTick(client, { t: 'tick', blocks: [], events: [] }));
+  coalesceTick(client, { t: 'tick', blocks: [], events: [] });
+  assert.deepEqual([client.skippedTicks, client.mergedSends], [1, 1], 'one skipped tick, one merged send');
+
   const diagnostics = new ServerDiagnostics();
   const garbage = []; for (let i = 0; i < 2e5; i++) garbage.push({ i, s: `x${i}` });
   garbage.length = 0;
   await new Promise(resolve => setTimeout(resolve, 1150));
-  const read = diagnostics.read({ ws: { bufferedAmount: 7 }, skippedTicks: 4 });
+  const read = diagnostics.read({ ws: { bufferedAmount: 7 }, skippedTicks: 4, mergedSends: 2 });
   diagnostics.dispose();
   assert.ok(read.process, 'a one-second window was measured');
   assert.ok(read.process.eventLoopUtilization >= 0 && read.process.eventLoopUtilization <= 1, 'event-loop utilization 0..1');
   assert.ok(read.process.gc && Number.isFinite(read.process.gc.count) && Number.isFinite(read.process.gc.maxMs), 'GC window');
   assert.ok(Number.isFinite(read.process.eventLoopMaxMs));
   assert.equal(read.skippedTicks, 4);
+  assert.equal(read.mergedSends, 2);
   assert.equal(read.queuedBytes, 7);
   console.log(`diagnostics: long ticks, ELU ${read.process.eventLoopUtilization}, GC ${read.process.gc.count} pauses, loop max ${read.process.eventLoopMaxMs} ms`);
 }

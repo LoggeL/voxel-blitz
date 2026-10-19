@@ -55,33 +55,35 @@ export function groundGridMaps(ids = MAP_IDS) {
  * task for at most `sliceMs`, then `schedule` decides when the next slice runs
  * (the server: right after a room tick, or at once while no room runs).
  * `tasks` are [label, () => generator]. Resolves with [{ label, ms, slices,
- * longest, error? }].
+ * longest, built, error? }]; `built` is whether the generator returned a value
+ * (a ground grid; null for a map without one).
  */
 export function runSliced(tasks, { schedule = (fn) => setImmediate(fn), sliceMs = 2, now = () => performance.now() } = {}) {
   const queue = [...tasks];
   const timings = [];
-  let current = null;
+  let current = null, resolved = false;
   return new Promise((resolve) => {
     const step = () => {
       const started = now();
       try {
         if (!current) {
-          if (!queue.length) { resolve(timings); return; }
+          if (!queue.length) { resolved = true; resolve(timings); return; }
           const [label, start] = queue.shift();
-          current = { row: { label, ms: 0, slices: 0, longest: 0 }, steps: null, start };
+          current = { row: { label, ms: 0, slices: 0, longest: 0, built: false }, steps: null, start };
           timings.push(current.row);
         }
         // The first slice also runs the task's setup (a map template build is not sliced).
         current.steps ??= current.start();
-        let done = false;
-        do done = current.steps.next().done; while (!done && now() - started < sliceMs);
-        if (done) current = null;
+        let next;
+        do next = current.steps.next(); while (!next.done && now() - started < sliceMs);
+        if (next.done) { current.row.built = next.value != null; current = null; }
       } catch (error) {
         if (current) current.row.error = error?.message || String(error);
         current = null;
       } finally {
+        // The slice belongs to the task it ran (the final, empty step resolves above and charges none).
         const row = timings[timings.length - 1], ms = now() - started;
-        if (row) { row.ms += ms; row.slices++; if (ms > row.longest) row.longest = ms; }
+        if (row && !resolved) { row.ms += ms; row.slices++; if (ms > row.longest) row.longest = ms; }
       }
       schedule(step);
     };
