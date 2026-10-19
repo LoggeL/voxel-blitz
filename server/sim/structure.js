@@ -716,10 +716,23 @@ export class StructureSystem {
    * falls whatever its support then: `crush` are the bearing blocks that
    * give way under it (they crumble in place), `topple` its lean [x, z].
    */
-  doom(keys, cause, origin, { crush = null, topple = null } = {}) {
+  doom(keys, cause, origin, { crush = null, topple = null, chunkCap = null } = {}) {
     const id = 'k' + (++this.doomSerial);
     for (const key of keys) this.doomed.add(key);
-    this.creakQueue.push({ id, keys, cause, origin, crush, topple });
+    this.creakQueue.push({ id, keys, cause, origin, crush, topple, chunkCap });
+    return id;
+  }
+
+  /**
+   * A mode-scripted demolition (the Conquest Iron Bridge collapse): the
+   * listed blocks creak and fall `creakMs` later whatever their support, as
+   * chunks (at most `chunkCap`, default `maxChunksPerCluster`), credited to
+   * `cause` like any cut. Returns the creak id, or null when inactive.
+   */
+  bringDown(keys, { cause = null, origin = null, chunkCap = null } = {}) {
+    if (!this.field || !keys.length) return null;
+    const live = keys.filter(key => !this.doomed.has(key));
+    return live.length ? this.doom(live, cause == null || cause === '' ? null : String(cause), origin, { crush: new Set(), chunkCap }) : null;
   }
 
   /**
@@ -740,8 +753,8 @@ export class StructureSystem {
       if (!keys.length) continue;
       events++;
       cells += listed;
-      const { id, cause, origin, crush, topple } = next;
-      this.dooms.push({ id, keys, next: 0, at, fallAt: at + rules.creakMs, cause, origin, crush, topple });
+      const { id, cause, origin, crush, topple, chunkCap } = next;
+      this.dooms.push({ id, keys, next: 0, at, fallAt: at + rules.creakMs, cause, origin, crush, topple, chunkCap });
       const { o, b, n } = this.encode(this.cellsOf(keys));
       this.engine.tickEvents.push(evCreak(id, at, rules.creakMs, o, b, n));
       this.stats.creaks++;
@@ -794,7 +807,7 @@ export class StructureSystem {
       groups = [...byCell.values()].sort((a, b) => b.length - a.length);
     }
     // The chunk cap holds per cluster, across the ticks a big cluster is released over.
-    const room = Math.max(0, Math.min(this.rules.maxChunksPerCluster - (doom.spawned ?? 0), this.rules.maxActiveChunks - this.chunks.length));
+    const room = Math.max(0, Math.min((doom.chunkCap ?? this.rules.maxChunksPerCluster) - (doom.spawned ?? 0), this.rules.maxActiveChunks - this.chunks.length));
     groups.forEach((group, i) => {
       if (i < room && this.spawnChunk(doom, group)) doom.spawned = (doom.spawned ?? 0) + 1;
       else crumble.push(...group);

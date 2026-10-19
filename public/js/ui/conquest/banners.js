@@ -3,6 +3,7 @@
  * the restricted / out-of-bounds countdown and the incoming-lock warning.
  */
 import { el } from '../hud-support.js';
+import { bannerCountdown } from './bridge-hud.js';
 
 export const BANNER_MS = 2800;
 const REPEAT_MS = 6000;
@@ -19,6 +20,12 @@ export function scheduleBanner(state, banner, nowMs) {
   for (const [key, at] of next.seen) if (nowMs - at > REPEAT_MS) next.seen.delete(key);
   if (banner) {
     if (next.seen.has(banner.key) && banner.priority < 9) return next;
+    // A later stage of the same story (the bridge going down) drops its earlier banners, shown or queued.
+    if (Array.isArray(banner.supersedes) && banner.supersedes.length) {
+      const gone = new Set(banner.supersedes);
+      next.queue = next.queue.filter(b => !gone.has(b.key));
+      if (next.current && gone.has(next.current.key)) next.current = null;
+    }
     next.seen.set(banner.key, nowMs);
     const entry = { ...banner, at: nowMs };
     if (!next.current || banner.priority > next.current.priority) {
@@ -48,12 +55,26 @@ export class Banners {
     this.root.setAttribute('role', 'alert');
     this.title = el('div', 'cq-banner-title', this.root);
     this.detail = el('div', 'cq-banner-detail', this.root);
+    // Countdown under a timed banner (the Iron Bridge collapse): seconds in the detail, a draining bar.
+    this.bar = el('div', 'cq-banner-bar', this.root);
+    el('i', '', this.bar);
+    this.bar.hidden = true;
     this.state = { current: null, queue: [], seen: new Map() };
     this._shown = null;
   }
 
-  push(banner, nowMs) { this.state = scheduleBanner(this.state, banner, nowMs); this.render(); }
-  update(nowMs) { this.state = tickBanners(this.state, nowMs); this.render(); }
+  push(banner, nowMs) { this.state = scheduleBanner(this.state, banner, nowMs); this.render(); this._countdown(nowMs); }
+  update(nowMs) { this.state = tickBanners(this.state, nowMs); this.render(); this._countdown(nowMs); }
+
+  _countdown(nowMs) {
+    const banner = this.state.current;
+    const cd = bannerCountdown(banner, nowMs);
+    this.bar.hidden = !cd;
+    if (!cd) return;
+    const text = `${banner.detail || ''}${banner.detail ? ' · ' : ''}${cd.seconds} S`;
+    if (this.detail.textContent !== text) this.detail.textContent = text;
+    this.bar.style.setProperty('--left', cd.fraction.toFixed(3));
+  }
 
   /** A persistent banner (match end) that stays until cleared. */
   hold(banner, nowMs) {

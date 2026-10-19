@@ -15,6 +15,7 @@ import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
 import { evHit } from '../protocol/events.js';
 import { interruptMedkit } from '../sim/medkit.js';
+import { IronBridge } from './conquest/bridge.js';
 
 /** Kill key of a fall death (kill feed "FELL"); see shared/conquest-contract.js DEATH_KEYS. */
 export const FALL_KILL_KEY = 'fall';
@@ -55,6 +56,9 @@ export class ConquestPolicy extends TdmPolicy {
     });
     this.finalStats = new Map();
     this.roles = createConquestRoles({ policy: this, engine: this.engine, rules: this.rules });
+    // Frontier's Iron Bridge levolution (inert on worlds without the bridge).
+    this.bridge = new IronBridge({ engine: () => this.engine, now: () => this.now, emit: (kind, fields) => this._emit(kind, fields),
+      award: (id, reason) => this.award(id, reason), canDamage: (a, b) => this.canDamage(a, b) });
     this._resetObjectives();
   }
 
@@ -100,6 +104,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.score.reset();
     this.finalStats = new Map();
     this.roles.reset();
+    this.bridge?.reset();
     // Stable per match: the bot flex kit of each squad (shared/conquest-kits.js botSquadKit).
     this.kitSeed = Math.floor(Math.random() * 2 ** 31);
     for (const state of this._players.values()) state.objectiveId = null;
@@ -159,6 +164,7 @@ export class ConquestPolicy extends TdmPolicy {
       kill: (p, aircraft) => aircraft ? this._loseAircraft(aircraft, p) : this._kill(p, RESTRICTED_WEAPON),
     });
     if (this.phase !== 'live') return;
+    this.bridge.tick(now);
     this.roles.tick(now, dt);
     this.score.tick(now);
     if (this.phase === 'live' && this.ledger.timeExpired(now)) this._finishMatch(this.ledger.timeLimitWinner(this.capture.held()));
@@ -515,6 +521,12 @@ export class ConquestPolicy extends TdmPolicy {
     return false;
   }
 
+  /** An explosion (ProjectileSystem.explode): the Iron Bridge supports take their share. */
+  onBlast(origin, blast) {
+    if (this.phase !== 'live') return;
+    this.bridge.onBlast(origin, blast);
+  }
+
   onVehicleEvent(kind, payload) {
     if (this.phase !== 'live') return;
     this.score.onVehicleEvent(kind, payload);
@@ -560,6 +572,7 @@ export class ConquestPolicy extends TdmPolicy {
       bleed: this.ledger.snapshotBleed(),
       endsAt: this.ledger.endsAt,
       squads: this.squads.map(),
+      bridge: this.bridge.view(),
       teamOf: p => this.teamFor(p),
       deployOptions: p => { const e = this._entity(p); return e && this._state(e) ? this.deploy.options(e) : []; },
     };
@@ -625,6 +638,7 @@ export class ConquestPolicy extends TdmPolicy {
 
   matchSnapshot() {
     const ledger = this.ledger;
+    const bridge = this.bridge.snapshot();
     return {
       ...super.matchSnapshot(),
       scores: { ...ledger.tickets },
@@ -636,6 +650,7 @@ export class ConquestPolicy extends TdmPolicy {
         endsAt: Number.isFinite(ledger.endsAt) ? Math.round(ledger.endsAt) : null,
         flags: this.capture.flags.map(encodeConquestFlag),
         squads: this.squads.tuples(),
+        ...(bridge ? { br: bridge } : {}),
         ...(this.phase === 'post' ? { ticketGraph: ledger.graph.map(row => row.slice()) } : {}),
       },
     };

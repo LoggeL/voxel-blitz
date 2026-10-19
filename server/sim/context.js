@@ -81,6 +81,8 @@ export function createSimulationContexts(engine) {
     pushEvent: combat.pushEvent,
     destroyBlock: (x, y, z, cause = null) => destroyBlockDirect(x, y, z, null, combat, cause),
     damageBlock: (x, y, z, type, damage, cause = null) => damageBlock(x, y, z, type, damage, combat, cause),
+    // Every blast reaches the mode (Conquest wears the Iron Bridge supports down).
+    onBlast: (origin, blast) => engine.mode?.onBlast?.(origin, blast),
   };
   const movement = {
     get vehicles() { return engine.vehicles?.vehicles?.values() ?? []; },

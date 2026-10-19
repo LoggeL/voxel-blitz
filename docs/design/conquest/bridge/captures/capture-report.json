@@ -1,0 +1,56 @@
+{
+  "generated": "2026-10-19T23:19:21.740Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "bridge-failing",
+        "title": "Iron Bridge collapsing · countdown banner, map hazard, C chip badge",
+        "file": "docs/design/conquest/bridge/captures/desktop-bridge-failing.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bridge-down",
+        "title": "Iron Bridge destroyed · full map gap, fords, destroyed banner",
+        "file": "docs/design/conquest/bridge/captures/desktop-bridge-down.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "bridge-failing",
+        "title": "Iron Bridge collapsing · countdown banner, map hazard, C chip badge",
+        "file": "docs/design/conquest/bridge/captures/portrait-bridge-failing.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bridge-down",
+        "title": "Iron Bridge destroyed · full map gap, fords, destroyed banner",
+        "file": "docs/design/conquest/bridge/captures/portrait-bridge-down.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "bridge-failing",
+        "title": "Iron Bridge collapsing · countdown banner, map hazard, C chip badge",
+        "file": "docs/design/conquest/bridge/captures/landscape-bridge-failing.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bridge-down",
+        "title": "Iron Bridge destroyed · full map gap, fords, destroyed banner",
+        "file": "docs/design/conquest/bridge/captures/landscape-bridge-down.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

@@ -11,9 +11,11 @@
 //    front armour toward the threat, move every 6-10 s, and reverse out
 //    below 40 % HP to wait for an engineer.
 //  - Jeeps carry the squad to the staging point and everybody gets out there.
-//  - Routes follow mapMeta.conquest.roads joined at junctions and crossings;
-//    the last leg runs cross-country with a placement-checked detour probe
-//    at 4 Hz (or after the stuck watchdog).
+//  - Routes follow mapMeta.conquest.roads joined at junctions and crossings
+//    (a closed crossing, the falling or fallen Iron Bridge, is never used:
+//    the route takes a ford or another bridge); the last leg runs
+//    cross-country with a placement-checked detour probe at 4 Hz (or after
+//    the stuck watchdog).
 //  - Reflexes: a lock warning (lk >= 2) pops smoke after the difficulty's
 //    reaction time; a disabled hull with no engineer within 20 m is abandoned.
 
@@ -25,6 +27,7 @@ import { mountSystem, seatWeapons } from './bot-vehicle-combat.js';
 import { kitOfPlayer } from './bot-commander.js';
 import { isCombinedArms } from '../shared/modes.js';
 import { navigationWaypoint } from './bot-navigation.js';
+import { avoidSpan, closedCrossings, crossesClosedSpan } from './bot-bridge.js';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -191,7 +194,7 @@ function projection(p, a, b) {
   return { x: a.x + dx * t, y: a.y + (b.y - a.y) * t, z: a.z + dz * t };
 }
 
-function shortestPath(graph, start, end) {
+function shortestPath(graph, start, end, closed = null) {
   const costs = new Map([[start.id, 0]]), parents = new Map(), open = new Set([start.id]), done = new Set();
   while (open.size) {
     let id = null, best = Infinity;
@@ -200,6 +203,7 @@ function shortestPath(graph, start, end) {
     if (id === end.id) break;
     for (const [next, length] of graph.nodes[id].edges) {
       if (done.has(next)) continue;
+      if (closed?.size && next !== end.id && closed.has(graph.nodes[next].crossing)) continue;
       const cost = best + length;
       if (cost < (costs.get(next) ?? Infinity)) { costs.set(next, cost); parents.set(next, id); open.add(next); }
     }
@@ -216,6 +220,9 @@ function shortestPath(graph, start, end) {
  */
 export function vehicleRoute(game, vehicle, goal) {
   const graph = roadGraph(game);
+  const closed = closedCrossings(game);
+  // A goal on a fallen span (flag C's centre) becomes the bridgehead on the hull's bank.
+  goal = avoidSpan(game, goal, vehicle);
   const prefix = [];
   const exit = vehicle.spawn?.exitRoute;
   let from = vehicle;
@@ -223,17 +230,22 @@ export function vehicleRoute(game, vehicle, goal) {
     prefix.push(...exit.map(p => ({ ...p })));
     from = prefix.at(-1);
   }
-  if (!graph.nodes.length || distance(from, goal) < 60) return [...prefix, { x: goal.x, y: goal.y ?? vehicle.y, z: goal.z }];
+  if (!graph.nodes.length || (distance(from, goal) < 60 && !crossesClosedSpan(game, from, goal))) return [...prefix, { x: goal.x, y: goal.y ?? vehicle.y, z: goal.z }];
   let join = null;
   for (const a of graph.nodes) for (const id of a.edges.keys()) {
     const b = graph.nodes[id], projected = projection(from, a, b), d = distance(from, projected);
     if (!join || d < join.d) join = { a, b, projected, d };
   }
-  const start = distance(join.a, goal) < distance(join.b, goal) ? join.a : join.b;
-  const end = graph.nodes.reduce((best, node) => distance(node, goal) < distance(best, goal) ? node : best, graph.nodes[0]);
-  const path = shortestPath(graph, start, end);
+  const open = node => !closed.size || !closed.has(node.crossing);
+  let start = distance(join.a, goal) < distance(join.b, goal) ? join.a : join.b;
+  // Never join the road at a closed crossing (a hull standing at the bridgehead).
+  if (!open(start)) start = start === join.a ? join.b : join.a;
+  const end = graph.nodes.reduce((best, node) => open(node) && (!best || distance(node, goal) < distance(best, goal)) ? node : best, null) ?? graph.nodes[0];
+  const path = shortestPath(graph, start, end, closed);
   // Skip road travel that would lead away from a goal closer than the road.
-  if (distance(from, goal) < distance(from, join.projected) + distance(end, goal)) return [...prefix, { x: goal.x, y: goal.y ?? vehicle.y, z: goal.z }];
+  if (distance(from, goal) < distance(from, join.projected) + distance(end, goal) && !crossesClosedSpan(game, from, goal)) {
+    return [...prefix, { x: goal.x, y: goal.y ?? vehicle.y, z: goal.z }];
+  }
   return [...prefix, join.projected, ...path, { x: goal.x, y: goal.y ?? vehicle.y, z: goal.z }]
     .filter((p, i, list) => !i || distance(p, list[i - 1]) > 0.5);
 }
@@ -368,7 +380,8 @@ export class ConquestVehicleDriving {
 
   driverState(br, v, destination, now) {
     let state = this.drivers.get(br.id);
-    const key = destination ? `${Math.round(destination.x)},${Math.round(destination.z)}` : '';
+    // A crossing closing (the Iron Bridge groan) replans every route.
+    const key = destination ? `${Math.round(destination.x)},${Math.round(destination.z)}${closedCrossings(this.game).size ? ':closed' : ''}` : '';
     if (!state || state.vehicle !== v || state.key !== key) {
       state = { vehicle: v, key, destination, points: destination ? vehicleRoute(this.game, v, destination) : [], index: 0,
         watchAt: now, watchX: v.x, watchZ: v.z, watchYaw: v.yaw, recoveries: 0, reverseUntil: 0,

@@ -30,6 +30,7 @@ import { TopBar } from './conquest/top-bar.js';
 import { VehiclePanel } from './conquest/vehicle-panel.js';
 import { ViewStrip, viewStripModel } from './conquest/view-strip.js';
 import { FlightHint } from './conquest/flight-hint.js';
+import { bridgeBanner, bridgeChipBadge, bridgeMapModel } from './conquest/bridge-hud.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 const MARKER_INSETS_DESKTOP = Object.freeze({ top: 96, bottom: 120, left: 48, right: 48 });
@@ -356,7 +357,7 @@ export class ConquestHud {
     const width = viewport?.width ?? globalThis.innerWidth ?? 1280;
     const height = viewport?.height ?? globalThis.innerHeight ?? 720;
 
-    this.topBar.update(ticketModel(cq, selfTeam, now), flagChipModels(cq, selfTeam));
+    this.topBar.update(ticketModel(cq, selfTeam, now), flagChipModels(cq, selfTeam), { bridge: bridgeChipBadge(cq) });
     this.banners.update(now);
     this.ticker.update(now);
 
@@ -457,8 +458,9 @@ export class ConquestHud {
     if (this.healTick.hidden) this._healSum = 0;
     const prompt = (!seated && chutePromptModel(args.chute)) || interactModel({ self, players, vehicles, nearbyVehicle, seated });
     this.interact.update(prompt, { heldMs: this._heldMs(vehicleController ?? this.vehicleController, interactHeld, clockNow(), interactDown), nowMs: now, touch });
-    this.minimap.draw({ items, center: { x: self.x, z: self.z }, yaw, size: cq.size, meta: cq.meta, nowMs: now });
-    this.bigMap.draw({ items, size: cq.size, meta: cq.meta, nowMs: now });
+    const bridge = bridgeMapModel(cq);
+    this.minimap.draw({ items, center: { x: self.x, z: self.z }, yaw, size: cq.size, meta: cq.meta, nowMs: now, bridge });
+    this.bigMap.draw({ items, size: cq.size, meta: cq.meta, nowMs: now, bridge });
     // A short onboarding hint, not a permanent keybind line: it fades after
     // MAP_HINT_MS in the match or once the player has used M or Y.
     const hintLive = !this._hintUsed && clockNow() - this._shownAt < MAP_HINT_MS;
@@ -574,6 +576,12 @@ export class ConquestHud {
       case 'vehicle_destroyed':
         this.combatHud?.vehicleDestroyed?.(ev);
         break;
+      case 'bridge': {
+        // Iron Bridge collapse: damaged, collapsing (held with its countdown), destroyed.
+        const banner = bridgeBanner(ev, now);
+        if (banner) this.banners.push(banner, now);
+        break;
+      }
       case 'vehicle_hijacked': {
         const banner = hijackBanner(ev, selfTeam, selfId);
         if (banner) this.banners.push(banner, now);

@@ -36,6 +36,7 @@ export { VehicleController } from "../session/vehicle-controller.js";
 export { VehicleFx } from "../vehicles/vehicle-fx.js";
 export { ParticleField } from "../fx/particle-field.js";
 export { StructureFx } from "../fx/structure-fx.js";
+export { BridgeFx } from "../fx/bridge-fx.js";
 export { particleCapacityForTier } from "../fx/presets.js";
 export { CameraShake } from "../engine/camera-shake.js";
 export { ConquestHud } from "../ui/conquest-hud.js";

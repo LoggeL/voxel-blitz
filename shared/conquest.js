@@ -11,6 +11,7 @@ import {
   VEHICLE_STATUS,
   VEHICLE_TOPOLOGY,
 } from './conquest-contract.js';
+import { decodeBridge } from './conquest-bridge.js';
 
 export { CONQUEST_TEAMS };
 
@@ -226,6 +227,8 @@ export function decodeConquestMatch(matchConquest, metaConquest = null) {
     bases: metaConquest?.bases ?? {},
     combatArea: metaConquest?.combatArea ?? null,
     ticketGraph: Array.isArray(match.ticketGraph) ? match.ticketGraph : null,
+    // Iron Bridge levolution (contract v6): intact unless `br` rides the snapshot.
+    bridge: decodeBridge(match.br),
   };
 }
 

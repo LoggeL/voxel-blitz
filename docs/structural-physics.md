@@ -262,6 +262,14 @@ scripted edits are pinned: a player's demolition in the same tick still
 falls. TTT traps are not scripted geometry in this sense: their collapse
 trap and explosions bring structures down like any blast.
 
+The opposite case is a scripted demolition: `structure.bringDown(keys,
+{ cause, origin, chunkCap })` dooms the listed blocks whatever their
+support. They creak once and fall `creakMs` later as chunks (at most
+`chunkCap`, by default `maxChunksPerCluster`; the rest crumble), with rubble
+and damage credited to `cause` like any cut. It returns the creak id, or
+null while the system is inactive. The Conquest Iron Bridge collapse uses it
+for its span (docs/conquest.md "Iron Bridge collapse", 16 chunks).
+
 ## Round resets
 
 Conquest and Bastion rematches and every TTT round (as Garry's Mod TTT cleans
