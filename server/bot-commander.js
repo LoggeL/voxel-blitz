@@ -576,8 +576,10 @@ export class BotCommander {
     push(hulls.filter(v => v.type === 'helicopter'), v => hullSeatIds(v).driver, 1);
     if (brains.length >= 6) push(hulls.filter(v => v.type === 'plane'), v => hullSeatIds(v).driver, 2);
     push(tanks.slice(1), v => hullSeatIds(v).driver, 3);
+    // The AT jeep is a two-bot tank hunter: a driver on overwatch and its TOW gunner.
+    push(hulls.filter(v => v.type === 'jeep_at'), v => hullSeatIds(v).driver, 3);
     push(hulls.filter(v => v.type === 'helicopter'), v => hullSeatIds(v).gunner, 4);
-    push(hulls.filter(v => v.type === 'tank'), v => hullSeatIds(v).gunner, 5);
+    push(hulls.filter(v => v.type === 'tank' || v.type === 'jeep_at'), v => hullSeatIds(v).gunner, 5);
     slots.sort((a, b) => a.prio - b.prio);
     const chosen = [];
     // A bot flying an aircraft keeps it until it lands, dies or the hull goes

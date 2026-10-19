@@ -1,5 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
 import { VEHICLE_RULES } from '../../../shared/vehicles.js';
+import { vehicleHullType } from '../../../shared/conquest-contract.js';
 import { disposeVehicleFragment } from './vehicle-fragments.js';
 
 export const VEHICLE_DEBRIS_CAPACITY = 128;
@@ -138,7 +139,7 @@ export class VehicleDestructionFX {
   }
 
   _spawnDebris(x, y, z, inheritedX, inheritedY, inheritedZ, type, radius) {
-    const count = type === 'jeep' ? 24 : 36;
+    const count = vehicleHullType(type) === 'jeep' ? 24 : 36;
     const size = Math.max(.8, Math.min(1.5, radius / 7));
     for (let i = 0; i < count; i++) {
       const particle = this.debris[this._debrisCursor];
@@ -231,7 +232,7 @@ export class VehicleDestructionFX {
   /** One or two secondary detonations as stored ammunition or fuel cooks off. */
   _scheduleCookoffs(id, type, x, y, z, radius) {
     const style = VEHICLE_DESTRUCTION_STYLE;
-    const count = style.cookoffCount[type] ?? 1;
+    const count = style.cookoffCount[vehicleHullType(type)] ?? 1;
     for (let i = 0; i < count; i++) {
       const delay = style.cookoffDelay[0] + this._rand() * (style.cookoffDelay[1] - style.cookoffDelay[0]);
       const spread = radius * .18;

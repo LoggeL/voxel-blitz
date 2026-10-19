@@ -16,6 +16,8 @@ import { bindingLabel } from '../../keybindings.js';
 import { clampToEdge } from './projection.js';
 
 const AMBER = '#ffcf5c', WHITE = '#f4f7f9', RED = '#ff4b4b', GREEN = '#7ef29a', CYAN = '#4cc3ff';
+/** Sight-guided missile status: `GUIDED MSL ×2 · READY`, the crosshair steers the round in flight. */
+const missileText = m => `${m.label}${Number.isFinite(m.ammo) && m.ammo >= 0 ? ` \u00D7${m.ammo}` : ''} \u00B7 ${m.ready ? 'READY' : m.ammo === 0 ? 'RELOADING' : 'LOADING'}`;
 /** Gimbal sensor symbology: pale phosphor green-white over the monochrome world. */
 const SENSOR = '#dcffe6', SENSOR_DIM = '#dcffe699';
 /** Tank driver's phosphor display: glowing green symbology on smoked glass. */
@@ -666,7 +668,7 @@ export class Reticles {
   }
 
   /** The gun's yaw / pitch envelope with the pointing dot, the heat bar and its label. */
-  _gimbalBox(ctx, m, bx, by, bw, bh, label = '25MM CHIN \u00B7 GIMBAL') {
+  _gimbalBox(ctx, m, bx, by, bw, bh, label = m.missile ? missileText(m.missile) : '25MM CHIN \u00B7 GIMBAL') {
     this.reserved.push({ left: bx - 4, top: by - 20, right: bx + bw + 4, bottom: by + bh + 12 });
     ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffff90';
     shadowed(ctx, () => { ctx.strokeRect(bx, by, bw, bh); });
@@ -733,7 +735,7 @@ export class Reticles {
     ctx.font = `700 ${touch ? 12 : 14}px "Rajdhani", "Barlow Condensed", system-ui, sans-serif`;
     const pad = (value, digits) => String(Math.abs(value)).padStart(digits, '0');
     const range = Number.isFinite(s.range) ? `RNG ${pad(s.range, 4)} M` : 'RNG ---- M';
-    const mode = `SENSOR \u00B7 BW \u00B7 ${s.zoom > 1.5 ? 'NFOV' : 'WFOV'} ${s.zoom.toFixed(1)}x`;
+    const mode = m.missile ? missileText(m.missile) : `SENSOR \u00B7 BW \u00B7 ${s.zoom > 1.5 ? 'NFOV' : 'WFOV'} ${s.zoom.toFixed(1)}x`;
     const elevation = `${s.elevation < 0 ? '-' : s.elevation > 0 ? '+' : ''}${Math.abs(s.elevation)}`;
     const heading = `HDG ${pad(s.heading, 3)} \u00B7 EL ${elevation}`;
     const row = top - 12, stacked = fw < 400;
@@ -783,6 +785,8 @@ export class Reticles {
       ctx.lineWidth = 2.5; ctx.strokeStyle = m.overheated ? RED : m.heat > 0.75 ? AMBER : CYAN;
       shadowed(ctx, () => { ctx.beginPath(); ctx.arc(p.x, p.y, 18, Math.PI * 0.75, Math.PI * 0.75 + Math.PI * 1.5 * m.heat); ctx.stroke(); });
     }
+    // A sight-guided launcher (the AT jeep's TOW): rounds and readiness under the crosshair.
+    if (m.missile) this._text(ctx, missileText(m.missile), p.x, p.y + 34, m.missile.ready ? GREEN : AMBER);
   }
 
   _jet(ctx, m, width, height) {

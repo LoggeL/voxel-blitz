@@ -8,6 +8,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { mergeGeometries } from '../vendor/utils/BufferGeometryUtils.js';
 import { isTitanType } from '../../../shared/titan-contract.js';
+import { VEHICLE_HULL_VARIANTS } from '../../../shared/conquest-contract.js';
 
 const FRAME = 0x1b1f22, PANEL = 0x24282b, COAMING = 0x141618, GRIP = 0x101112, CONSOLE = 0x2c3134;
 /** Display atlas tiles (4 x 2 grid of 128 px squares). */
@@ -228,6 +229,8 @@ function displayAtlas() {
 }
 
 /** True when a hull type has first-person cockpit dressing. */
+// A hull variant (the AT jeep) sits in its hull's cockpit.
+for (const [variant, hull] of Object.entries(VEHICLE_HULL_VARIANTS)) if (BUILDERS[hull]) BUILDERS[variant] = BUILDERS[hull];
 export const hasCockpitOverlay = type => Object.hasOwn(BUILDERS, type) || isTitanType(type);
 
 /**

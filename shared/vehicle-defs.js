@@ -7,7 +7,7 @@
  * Frames: metres, hull-local +X right, +Y up, forward is -Z. World yaw follows
  * vehicleDirection (yaw 0 faces -Z, positive yaw turns toward -X / left).
  */
-import { VEHICLE_TOPOLOGY, COUNTERMEASURES, VEHICLE_TYPE_IDS, vehicleMountOrder, seatWeaponList, vehicleWeaponMeta, isStoreMount } from './conquest-contract.js';
+import { VEHICLE_TOPOLOGY, COUNTERMEASURES, VEHICLE_TYPE_IDS, vehicleMountOrder, seatWeaponList, vehicleWeaponMeta, isStoreMount, vehicleHullType } from './conquest-contract.js';
 import { TITAN_TYPE_IDS, TITAN_TOPOLOGY, isTitanType } from './titan-contract.js';
 import { TITAN_DEFS_INPUT } from './vehicle-handling/titan.js';
 import { TITAN_WEAPONS } from './vehicle-handling/titan-weapons.js';
@@ -48,7 +48,7 @@ export const VEHICLE_LIFECYCLE = freeze({
 });
 
 /** Hull mass in tonnes: momentum transfer when a hull shoves a wreck. */
-export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9,
+export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, TITAN_DEFS_INPUT[type].mass])) });
 
 /**
@@ -69,6 +69,7 @@ export const WRECK_PUSH_RULES = freeze({ friction: 1.2, gravity: 9.81, maxSpeed:
  */
 export const VEHICLE_RAM = freeze({
   jeep: { pushForce: 0, maxPushMass: 3, classes: { brush: 2, wood: 8 }, armor: 12, perTick: 4, burst: 12, refill: 6 },
+  jeep_at: { pushForce: 0, maxPushMass: 3, classes: { brush: 2, wood: 8 }, armor: 12, perTick: 4, burst: 12, refill: 6 },
   tank: { pushForce: 600, maxPushMass: 60, classes: { brush: 1, wood: 2, thin: 3, masonry: 7 }, armor: 55, perTick: 8, burst: 40, refill: 16 },
 });
 /** A hit whose share into the wall is under `glancingNormal` (30°) scrapes along it and breaks only brush. */
@@ -136,6 +137,21 @@ export const VEHICLE_WEAPONS = freeze({
   // A direct hit is AT (a tank's deck takes 500 x 1.3), the blast is HE.
   jetBomb: weapon('jetBomb', { cooldown: 0.5, magazine: 2, rearmSeconds: 20, damage: 500, splash: 420, splashRadius: 9, splashCls: 'he',
     terrainRadius: 6, terrainPower: 300, maxDestroyedBlocks: 300, lifetimeMs: 15000, knockback: 30 }),
+  // Sight-guided AT missiles (SACLOS). `beam` steers the missile onto the
+  // gunner's sight ray (the mount anchor's `sight` mount, else the launcher
+  // itself): after `delay` s of free flight it aims `lead` m beyond its own
+  // projection onto the ray, turning at most `turnRate` rad/s. Guidance ends
+  // when the gunner leaves the seat or dies or the hull is destroyed. AT
+  // numbers like the RX-8: a jeep dies to one hit, a heli to three, a tank to
+  // four on the front plate (360 x ~0.75-0.85), three on the side.
+  guidedMissile: weapon('guidedMissile', { cooldown: 1.5, magazine: 2, rearmSeconds: 12, damage: 300, splash: 60, splashRadius: 3,
+    splashCls: 'at', terrainRadius: 1.5, terrainPower: 120, maxDestroyedBlocks: 20, lifetimeMs: 8000, knockback: 12,
+    beam: { lead: 30, delay: 0.2, turnRate: 1.8 } }),
+  // AT jeep TOW: three in the box, the box reloaded once empty; slower and
+  // longer than the heli's missile, the same warhead.
+  towMissile: weapon('towMissile', { cooldown: 3, magazine: 3, reloadSeconds: 12, damage: 300, splash: 60, splashRadius: 3,
+    splashCls: 'at', terrainRadius: 1.5, terrainPower: 120, maxDestroyedBlocks: 20, lifetimeMs: 9000, knockback: 12,
+    beam: { lead: 30, delay: 0.15, turnRate: 1.5 } }),
   // Titan mount weapons (shared/vehicle-handling/titan-weapons.js, WP3 numbers).
   ...TITAN_WEAPONS,
 });
@@ -249,6 +265,8 @@ const defaultCamera = { mode: 'passenger', distance: 6, height: 2.2, views: ['co
 const T = TANK_RULES;
 const mountAnchors = {
   jeep: { pintle: { pivot: [0, 2.15, 0.75], muzzle: 1, yawLimit: null, pitchLimit: [-0.3, 0.75], yawRate: 3, pitchRate: 2.4 } },
+  // The TOW launcher on the jeep's pintle post: its own tube is the sight.
+  jeep_at: { pintle: { pivot: [0, 2.15, 0.75], muzzle: 1, yawLimit: null, pitchLimit: [-0.3, 0.6], yawRate: 2.2, pitchRate: 1.8 } },
   tank: {
     main: { frame: 'turret', pivot: [0, T.gunPivotHeight, -T.turretForward - T.gunPivotForward], muzzle: T.barrelLength,
       yawLimit: null, pitchLimit: [T.turretMinPitch, T.turretMaxPitch], yawRate: T.turretRate, pitchRate: T.turretPitchRate, turret: true },
@@ -259,6 +277,9 @@ const mountAnchors = {
   helicopter: {
     pods: { fixed: true, sides: [[-1.235, 1.13, -0.742], [1.235, 1.13, -0.742]], pivot: [0, 1.13, -0.742], muzzle: 0, yawRate: 0, pitchRate: 0 },
     chin: { pivot: [0, 0.55, -2.4], muzzle: 0.9, yawLimit: [0, 1.9], pitchLimit: [-1.05, 0.17], yawRate: 2.2, pitchRate: 1.8, gimbal: true },
+    // Wingtip launch rails (missile noses): launched along the nose, then
+    // steered onto the chin gimbal's sight ray (`sight`).
+    atgm: { fixed: true, sides: [[-1.7, 1.3, -1.0], [1.7, 1.3, -1.0]], pivot: [0, 1.3, -1.0], muzzle: 0, yawRate: 0, pitchRate: 0, sight: 'chin' },
   },
   transport: {
     'door-left': { pivot: [-1.25, 1.55, 0.1], muzzle: 1, yawLimit: [Math.PI / 2, 1.4], pitchLimit: [-1, 0.5], yawRate: 3, pitchRate: 2.4, gimbal: true },
@@ -345,14 +366,16 @@ function buildTitanDef(type) {
 
 function buildDef(type) {
   if (isTitanType(type)) return buildTitanDef(type);
-  const rules = handlingRules[type];
+  // A hull variant (the AT jeep) borrows every per-hull table of its hull.
+  const hull = vehicleHullType(type);
+  const rules = handlingRules[type] ?? handlingRules[hull];
   const seats = VEHICLE_TOPOLOGY[type].map((seat, index) => ({
     id: seat.id, index, role: seat.role, drives: seat.drives, exposed: seat.exposed, personalWeapons: seat.personalWeapons,
     mounts: seat.mounts.map(m => m.id), weapons: seat.mounts.length > 0,
-    position: seatHips[type][seat.id],
-    mount: (turretSeats[type] || []).includes(seat.id) ? 'turret' : 'hull',
+    position: (seatHips[type] ?? seatHips[hull])[seat.id],
+    mount: (turretSeats[hull] || []).includes(seat.id) ? 'turret' : 'hull',
     label: seatNames[seat.id] ?? seatLabels[seat.role] ?? seat.role.toUpperCase(),
-    camera: seatCameras[type]?.[seat.id] ?? defaultCamera,
+    camera: (seatCameras[type] ?? seatCameras[hull])?.[seat.id] ?? defaultCamera,
   }));
   const mounts = {};
   for (const seat of VEHICLE_TOPOLOGY[type]) for (const [order, mount] of seat.mounts.entries()) {
@@ -361,11 +384,11 @@ function buildDef(type) {
       weapons: [...mount.weapons], frame: 'hull', fixed: false, slavedTo: null, stores: isStoreMount(type, mount.id), ...mountAnchors[type][mount.id] };
   }
   return {
-    type, ...shapes[type], hp: rules.hp, respawnSeconds: rules.respawnSeconds, rules,
+    type, hull, ...(shapes[type] ?? shapes[hull]), hp: rules.hp, respawnSeconds: rules.respawnSeconds, rules,
     height: rules.height, radius: rules.radius,
     countermeasure: COUNTERMEASURES[type] ?? null,
     seats, mounts, mountOrder: vehicleMountOrder(type),
-    destruction: destruction[type],
+    destruction: destruction[type] ?? destruction[hull],
   };
 }
 

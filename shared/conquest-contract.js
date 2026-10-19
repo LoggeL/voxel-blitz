@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 3;
+export const CONQUEST_CONTRACT_VERSION = 4;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -131,7 +131,15 @@ export const DAMAGE_CLASSES = Object.freeze(['small', 'mg', 'hmg', 'autocannon',
 export const ARMOR_CLASSES = Object.freeze(['light', 'heavy', 'air']);
 export const HIT_ZONES = Object.freeze(['front', 'side', 'rear', 'top', 'bottom']);
 
-export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane']);
+export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at']);
+/**
+ * Hull variants: a type that shares another type's hull (handling, collider,
+ * seats, model and sounds) but arms it differently. The AT jeep is the jeep
+ * with a TOW launcher on the pintle. `vehicleHullType` answers "which hull is
+ * this" for every per-hull table and check; weapons stay keyed by the type.
+ */
+export const VEHICLE_HULL_VARIANTS = Object.freeze({ jeep_at: 'jeep' });
+export const vehicleHullType = type => VEHICLE_HULL_VARIANTS[type] ?? type;
 export const VEHICLE_WEAPON_META = Object.freeze({
   // Tank main gun: real cannon shells (`shell` presentation: tracer streak, no rocket
   // motor or smoke trail) with true ballistic drop (gravity 9.8 m/s^2). The AP sabot
@@ -149,8 +157,13 @@ export const VEHICLE_WEAPON_META = Object.freeze({
   // Jet free-fall bomb (STRIKE pylons): released with the airframe's velocity
   // (speed 0: no muzzle velocity of its own) and dropping under gravity.
   jetBomb:          Object.freeze({ label: 'BOMB',       kind: 'bomb',    cls: 'at',         speed: 0,   gravity: 9.8, rate: 1 / 10,  presentation: 'bomb' }),
+  // Sight-guided AT missiles (SACLOS): no lock, the missile rides the gunner's
+  // line of sight (the heli's chin gimbal, the AT jeep's launcher) while he
+  // stays in the seat. Not IR: flares never decoy them.
+  guidedMissile:    Object.freeze({ label: 'GUIDED MSL', kind: 'missile', cls: 'at',         speed: 75,  gravity: 0, rate: 1 / 1.5, presentation: 'rocket' }),
+  towMissile:       Object.freeze({ label: 'TOW MSL',    kind: 'missile', cls: 'at',         speed: 65,  gravity: 0, rate: 1 / 2,   presentation: 'rocket' }),
 });
-export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null });
+export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null });
 
 /** Seat and mount topology. Order is significant (F1..F5, mounts[] in snapshot rows). Positions/anchors live in shared/vehicle-defs.js. */
 const S = (id, role, drives, exposed, personalWeapons, mounts) => Object.freeze({ id, role, drives, exposed, personalWeapons, mounts: Object.freeze(mounts) });
@@ -168,7 +181,9 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
   ]),
   helicopter: Object.freeze([
     S('driver', 'pilot', true, false, false, [M('pods', ['helicopterRocket'])]),
-    S('gunner', 'gunner', false, false, false, [M('chin', ['chinCannon'])]),
+    // The gunner cycles the chin cannon and the wingtip guided missiles; the
+    // chin gimbal is his sight for both (VEHICLE_WEAPONS.guidedMissile.beam).
+    S('gunner', 'gunner', false, false, false, [M('chin', ['chinCannon']), M('atgm', ['guidedMissile'])]),
   ]),
   transport: Object.freeze([
     S('driver', 'pilot', true, false, false, []),
@@ -179,6 +194,13 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
   ]),
   plane: Object.freeze([
     S('driver', 'pilot', true, false, false, [M('nose', ['planeCannon']), M('rails', ['aaMissile', 'jetBomb'])]),
+  ]),
+  // The jeep's seats with a TOW launcher on the pintle instead of the .50.
+  jeep_at: Object.freeze([
+    S('driver', 'driver', true, true, false, []),
+    S('gunner', 'gunner', false, true, false, [M('pintle', ['towMissile'])]),
+    S('front-passenger', 'passenger', false, true, true, []),
+    S('rear-left', 'passenger', false, true, true, []),
   ]),
 });
 /**

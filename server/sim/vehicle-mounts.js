@@ -220,8 +220,10 @@ export class VehicleMounts {
       result = fireMountedRay(operator, pose.origin, dir, weapon, this.system.combatContext(), { vehicleId: vehicle.id });
     } else {
       const targetId = weapon.key === 'aaMissile' ? this.system.locks.lockedTarget(operator, 'aaMissile') : null;
+      // A sight-guided missile rides its gunner's sight: the mount's `sight` mount (the heli's chin gimbal), else the launcher.
+      const beam = weapon.beam ? { seatId: seat.id, mountId: mount.sight ?? mountId } : null;
       result = engine.projectiles?.launchVehicleProjectile?.(operator,
-        { weapon: weapon.key, origin: pose.origin, dir, vehicleId: vehicle.id, targetId }, this.system.projectileContext());
+        { weapon: weapon.key, origin: pose.origin, dir, vehicleId: vehicle.id, targetId, beam }, this.system.projectileContext());
       if (!result) return false;
     }
     state.shots++;

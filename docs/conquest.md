@@ -81,7 +81,7 @@ To spot, press Y (Z on QWERTZ) to mark the enemy player or hull under your cross
 
 ## Vehicles
 
-Each team has a jeep, a tank, an attack helicopter, a transport helicopter and a jet at its HQ. Each team also has two flag jeeps (A/B for WEST, D/E for EAST). Iron Bridge has one tank, which spawns for whichever team captures C. Flag pads belong to the flag owner, and an empty hull near its pad changes team when its flag is captured.
+Each team has a jeep, an AT jeep, a tank, an attack helicopter, a transport helicopter and a jet at its HQ. Each team also has two flag jeeps (A/B for WEST, D/E for EAST). Iron Bridge has one tank, which spawns for whichever team captures C. Flag pads belong to the flag owner, and an empty hull near its pad changes team when its flag is captured.
 
 **Team livery.** Each hull wears its team's camouflage (WEST woodland, EAST desert) plus saturated recognition panels in the team colour (`recog` in `public/js/vehicles/voxel-model/material.js`: WEST cobalt, EAST signal orange): roof or bonnet panels for aircraft overhead, flank bands, the tank's turret band and rear plate, aircraft fins and wingtips, and rotor blade tips. The roundels stay for close range. The design references and prompts are in `docs/design/conquest/vehicle-identity/` (variant A, recognition panels, was chosen).
 
@@ -90,8 +90,9 @@ Each team has a jeep, a tank, an attack helicopter, a transport helicopter and a
 | Type | HP | Armour | Seats (F1…F5) | Countermeasure | Respawn |
 |---|---|---|---|---|---|
 | Jeep | 320 | light | driver · gunner (.50 HMG, exposed) · 2 passengers (exposed, personal weapons) | – | 15 s |
+| AT jeep (`jeep_at`) | 320 | light | driver · gunner (TOW guided missile on the pintle, exposed) · 2 passengers (exposed, personal weapons) | – | 15 s |
 | Tank | 1000 | heavy | driver (120 mm AP/HE + coax MG) · commander (.50 RWS, exposed) | smoke | 30 s |
-| Helicopter | 650 | air | pilot (rocket pods) · gunner (25 mm chin cannon) | flares | 35 s |
+| Helicopter | 650 | air | pilot (rocket pods) · gunner (25 mm chin cannon + 2 guided missiles) | flares | 35 s |
 | Transport | 600 | air | pilot · 2 door gunners (minigun, exposed) · 2 passengers | flares | 35 s |
 | Jet | 450 | air | pilot (20 mm cannon + 2 AA missiles **or** 2 free-fall bombs) | flares | 40 s |
 
@@ -166,6 +167,19 @@ The server owns all of it: `VehicleMountSystem.fire` launches a `kind:'bomb'` pr
 
 **CCIP bomb sight** (design `docs/design/conquest/flight/bombs/`, captures in `captures/`). With bombs selected the jet's gun funnel gives way to a continuously computed impact point: `bombImpactCue` in `public/js/ui/conquest-hud-state.js` flies the release (`bombReleaseVelocity` of the snapshot row) through the same `ballisticImpact` march the tank's shell marker uses, against the world (`pickSolidRay`), and projects the hit through the posed camera. The reticle draws a dashed fall line from the gun cross to a pipper circle with wings, the fall time and slant range above it (`2.7 S · 177 M`) and the bombs left (amber with REARM while a pylon reloads) under it. An impact off screen becomes an edge arrow reading CCIP · DIVE; on the runway the sight reads BOMBS · AIRBORNE ONLY and without a hit within the fuse BOMBS · NO SOLUTION. Release when the pipper sits on the target. Clamped flag markers keep clear of the pipper, and on phones the exit prompt steps above the aim (portrait) or beside the top bar (landscape) while the sight is up (`data-bomb-sight` on the HUD root), since a dive puts the pipper where the prompt sits.
 
+**Sight-guided missiles (SACLOS).** The attack helicopter's gunner carries two wingtip missiles (`atgm` mount, weapon `guidedMissile`, GUIDED MSL) beside the chin cannon; the AT jeep's gunner has a TOW launcher on the pintle (`towMissile`, TOW MSL). The gunner picks the missile with 2 (1 is the chin cannon) and fires it with LMB, then keeps the crosshair on the target: the missile flies to the point the gunner looks at, not to a lock. The helicopter's sight is the chin gimbal (`sight: 'chin'` on the `atgm` anchor in `VEHICLE_DEFS`), so the missile reticle, the sensor view and the guidance all use the chin aim; the TOW uses its own launcher's aim. On the server (`ProjectileSystem._rideBeam` in `server/sim/projectiles.js`) the missile flies straight for `delay` s, then each tick projects itself onto the sight ray (from the sight pivot along the live mount aim), aims `lead` m past that projection and turns toward it at no more than `turnRate` rad/s. Guidance ends for good when the gunner leaves the seat, dies or switches hull, or the hull is destroyed; the missile then flies straight on. A glance off tank armour also ends it. Flares do nothing to it (there is no lock to break) and the target gets no lock or inbound warning. Beam missiles send a `projectileUpdate` every 100 ms so clients follow the curve; the launch event carries `beam: 1`.
+
+| | GUIDED MSL (helicopter gunner) | TOW MSL (AT jeep gunner) |
+|---|---|---|
+| Speed / life / reach | 75 m/s, 8 s, ~600 m | 65 m/s, 9 s, ~585 m |
+| Guidance | 0.2 s free flight, 30 m lead, 1.8 rad/s | 0.15 s free flight, 30 m lead, 1.5 rad/s |
+| Ammo | 2 rails, 1.5 s between shots, each rail re-arms 12 s after it fires | 3 in the box, 3 s between shots, 12 s reload once empty |
+| Warhead | 300 direct + 60 splash within 3 m, class `at`; 1.5 m crater (power 120, at most 20 blocks) | same |
+
+Like the RX-8: a jeep dies to one hit, a helicopter to three (air ×0.8), a tank to about four on the front plate, three on the side and two in the rear (tank armour model; steep plates bounce it at 72°). The kill feed key is `guidedMissile` / `towMissile` (MISSILE icon). The gunner's reticle reads `GUIDED MSL ×2 · READY` (or `LOADING` / `RELOADING`) in the gimbal box and the sensor view, or under the TOW's crosshair. The client draws a bigger launch puff, a 9 s smoke trail and the `atgm` launch sound; the wingtip rounds and the TOW round on the launcher disappear as they are fired.
+
+**AT jeep.** A variant of the jeep hull (`VEHICLE_HULL_VARIANTS` / `vehicleHullType` in `shared/conquest-contract.js`): it shares the jeep's handling, seats, cameras, collider, crash and ram tables, destruction and sounds (`VEHICLE_DEFS.jeep_at.hull === 'jeep'`) and differs in its gunner mount (TOW on the pintle, yaw unlimited, pitch −0.3…+0.6 rad, 2.2 / 1.8 rad/s) and model (TOW tube with sight box and shield, spare rounds in the bed, `makeAtJeepModel` in `public/js/vehicles/models/jeep.js`). One sits at each Frontier HQ between the jeep and the tank bays (`HQ_LAYOUT.jeep_at` in `shared/world/frontier-sites/hq-airfield.js`, with its own walking route); the map geometry is unchanged.
+
 **Locks and countermeasures.**
 
 - The Engineer's AX-9 STINGER locks onto airborne enemy aircraft: aim down sights within 320 m and a 7° cone for 1.4 s. The RX-8 AT rocket no longer locks.
@@ -208,6 +222,8 @@ Conquest bots miss more, and less evenly, than in the other modes (playtest 2026
 - **Flinch**: every hit taken jolts the view by up to 2.2° in a random direction, recovered by skill like recoil.
 
 Crew gunners and bot pilots (`CQ_MOUNT_AIM` in `server/bot-vehicle-combat.js`, used by `server/bot-aircraft.js`) add 0.35° to their skill-scaled error and hold a burst bias (1.2 × that error) re-rolled every 0.9–1.8 s; the trigger waits for the mount (or the airframe) to sit on the biased point, so the bias lands as a miss. The STINGER and the jet's AA missile keep their seeker on the hull centre. Measured with a pinned rifle bot against an idle enemy on Frontier (8 seeds; first 2.5 s after the first shot → after 7 s): Normal at 40 m 0.50 → 0.32 and 0.87 → 0.66 hits per shot, at 70 m 0.14 → 0.02 and 0.51 → 0.28, at 15 m 0.79 → 0.84 and 0.93 → 0.82. In the action gate (seeds 1–6) the infantry hit rate fell from about 0.37 to 0.24 per shot.
+
+**Bots and guided missiles.** The commander crews the AT jeep like a tank (`planCrews` in `server/bot-commander.js`: driver priority 3, gunner priority 5 alongside the tank gunners); its bot driver uses the tank's overwatch driving (`OVERWATCH` in `server/bot-vehicle-driving.js`: it stands 40–80 m from the focus flag with line of sight, faces the threat, moves every 6–10 s and backs out when hurt) instead of the jeep's squad runs, and like the jeep it reverses rather than turns when its next point lies behind it. A bot gunner (`server/bot-vehicle-combat.js`) scores a beam weapon by target (`BEAM_SUITABILITY`: ground hulls 1.2, aircraft 0.4, infantry 0.35, so the chin cannon keeps infantry and the missile takes armour) and only within `beamMissileRange` (85 % of the missile's flight, about 510 m for GUIDED MSL and 500 m for TOW); an empty launcher scores ×0.25. It aims through the sight mount (the chin gimbal for the helicopter), and after a missile leaves it holds the crosshair on that target for the flight time (`guideUntil`, at most 9 s): no sweeps, no weapon switch and no new target until the missile lands. The AT jeep counts as a light hull with threat 1.7 in target choice.
 
 ### Falling, parachutes and the ejection seat
 
@@ -298,7 +314,7 @@ V (rebindable as *Vehicle camera view* in the vehicle context; on foot the same 
 | Tank driver | HATCH, CHASE, ACTION, DRIVER |
 | Attack helicopter, transport and jet pilot | COCKPIT, CHASE, ACTION, FLYBY |
 | Chin gunner | SIGHT, FIRST PERSON |
-| Jeep HMG, tank commander RWS, door guns | FIRST PERSON, GUN |
+| Jeep HMG, AT jeep TOW, tank commander RWS, door guns | FIRST PERSON, GUN |
 | Passengers | FIRST PERSON, ORBIT |
 
 - **CHASE** is the established camera: ground drivers orbit behind their look (the tank's gun aim), pilots get a lagged chase with a level horizon aimed at the guns' boresight (or, in mouse-aim flight, along the flight aim).
@@ -329,7 +345,7 @@ After a view change the HUD shows the seat's views under the ticket bar for 1.6 
 
 ## Protocol (contract: `shared/conquest-contract.js`, frozen; changes only through integration)
 
-The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 3) in its admission frame. A socket whose frame lacks it or carries another version (an open tab from before a deploy) cannot create or join a Conquest room ("Voxel Blitz was updated. Reload the page to play Conquest.", close 4010), and a host cannot switch a lobby with such a member to Conquest (the error names who must reload, and each such member is told to reload too); the other modes stay open to it. A rejoin refused with 4010 ends the reconnect loop at once with "Voxel Blitz was updated. Reload the page to rejoin lobby X.", and neither the client nor the server treats a 4010 close as a reconnectable drop. Bump the version whenever the kit table or the `cq` row changes meaning.
+The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 4; 4 added the `jeep_at` hull and the helicopter gunner's `atgm` mount, which move vehicle type and mount indices) in its admission frame. A socket whose frame lacks it or carries another version (an open tab from before a deploy) cannot create or join a Conquest room ("Voxel Blitz was updated. Reload the page to play Conquest.", close 4010), and a host cannot switch a lobby with such a member to Conquest (the error names who must reload, and each such member is told to reload too); the other modes stay open to it. A rejoin refused with 4010 ends the reconnect loop at once with "Voxel Blitz was updated. Reload the page to rejoin lobby X.", and neither the client nor the server treats a 4010 close as a reconnectable drop. Bump the version whenever the kit table or the `cq` row changes meaning.
 
 - **Server → client snapshot**
   - `match.conquest = { v:2, tickets, maxTickets, bleed, endsAt, flags:[[id, control100, owner, state, atk, def]], squads:[[team, squadId, leaderId]] }`. The client merges this with the map statics through `decodeConquestMatch(match.conquest, mapMeta.conquest)`.
@@ -399,13 +415,14 @@ Tests must read coordinates from this metadata and never hard-code them.
 
 Node suites (no browser):
 
-- `npm run conquest:test` runs every Conquest Node suite: mode, deploy, score, kits, classes (`tools/conquest-classes-test.mjs`: the nine kits and wire order, unlocks and the `locked` refusal, Medic revive and heal aura, every passive ability, teamplay career XP, bot slots, the deploy picker), class bots (`tools/conquest-class-bots-test.mjs`: a Medic bot revives inside a fight and at panic HP, a Pyro bot draws and burns the flamethrower at close range, a Medic bot walks to a hurt mate and heals it, squad Medics), spotting, vehicles, seats, locks, bots, terrain, sites, rendering, client, HUD and FX. The §9 action gate `tools/conquest-action-test.mjs` runs last. Each suite is also a plain script, so a single area runs on its own, for example `node tools/conquest-vehicle-seats-test.mjs` or `node tools/conquest-ui-test.mjs`.
+- `npm run conquest:test` runs every Conquest Node suite: mode, deploy, score, kits, classes (`tools/conquest-classes-test.mjs`: the nine kits and wire order, unlocks and the `locked` refusal, Medic revive and heal aura, every passive ability, teamplay career XP, bot slots, the deploy picker), class bots (`tools/conquest-class-bots-test.mjs`: a Medic bot revives inside a fight and at panic HP, a Pyro bot draws and burns the flamethrower at close range, a Medic bot walks to a hurt mate and heals it, squad Medics), spotting, vehicles, seats, locks, guided missiles, bots, terrain, sites, rendering, client, HUD and FX. The §9 action gate `tools/conquest-action-test.mjs` runs last. Each suite is also a plain script, so a single area runs on its own, for example `node tools/conquest-vehicle-seats-test.mjs` or `node tools/conquest-ui-test.mjs`.
 - `npm run conquest:action` runs only the action gate: 16 bots for 180 s on Frontier.
   - It requires a first kill within 35 s, a first capture within 60 s, at least 25 infantry kills, vehicle fire with 4 or more weapons, and 3 or more flag transitions.
   - It also requires a tick p95 of at most 10 ms and an average snapshot of at most 27 KB.
   - Pass `--seed N` or `--difficulty easy|normal|hard` to vary the run.
 - `node tools/conquest-airborne-test.mjs` (server) and `node tools/conquest-airborne-ui-test.mjs` (fake DOM) cover fall damage, parachutes, the ejection seat, bot auto-chutes and bail-outs, bot seat takeover (deploy, enter, swap, airborne pilot handover) and the presentation.
 - `node tools/conquest-bot-hitch-test.mjs` covers bots riding with humans: a human-driven jeep, tank and transport get their gunner seats filled, riders stay aboard while the human drives, get out when the human leaves or at a wanted flag, no bot ever holds a human's seat, and a bot holding a threatened flag stays.
+- `node tools/conquest-guided-missile-test.mjs` (in `conquest:test`) covers the sight-guided missiles: the contract (version 4, `atgm` and `pintle` mounts, `jeep_at` as a jeep hull variant), a helicopter gunner who selects GUIDED MSL and steers it onto a tank 35° off the nose by swinging the chin sight after launch (`at`-class hit credited to the gunner), guidance ending when the gunner leaves so the missile flies on past, flares that do not decoy it, and the AT jeep's TOW (a tank hit, a jeep killed by one, the 3-round box and its reload).
 - `node tools/conquest-vehicle-hijack-test.mjs` covers hijacking for every hull type: a crewed enemy hull is refused, an empty one changes team with the `vehicle_hijacked` event, old spots lapse, the old team is locked out, the HQ pad keeps its home team, titans are never hijackable, and the HIJACK prompt and banners.
 - `node tools/conquest-vehicle-ram-test.mjs` covers shoving wrecks (tank pushes a jeep wreck, a jeep only nudges one and can't move a tank wreck, a pushed wreck stops at a wall and sleeps again) and ramming (fence, plank wall, plaster at speed, the per-tick cap, speed loss and damage, stone, concrete and brick for the jeep, flag guard).
 - `node tools/conquest-bot-wait-test.mjs` covers bot drivers waiting for humans: a bot-driven jeep squad ride, tank crew, transport squad ride and attack helicopter hold while a human runs to them and leave after the human boards; no wait for a human walking away or standing 28 m off; the 8 s timeout (12 s for a squad mate) and the 30 s cooldown; a ride already well on its way drives on; an airborne helicopter never waits.

@@ -286,6 +286,7 @@ export class ProjectileSystem {
       }
       if (projectile.chaosHoming && !projectile.stuck) this._home(projectile, dt, ctx);
       if (projectile.guidance) this._guide(projectile, stepSeconds * substeps, ctx);
+      if (projectile.beam) this._rideBeam(projectile, stepSeconds * substeps, ctx);
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 1 && !projectile.child) this._pull(projectile, dt, ctx);
       if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'mgl') this._flyMgl(projectile, stepSeconds, substeps, ctx);
@@ -299,7 +300,7 @@ export class ProjectileSystem {
       // body, so remote presentation needs the same 100 ms correction stream that
       // Chaos projectiles already use. Bubbles never steer and the client runs the
       // same exact integrator, so launch and stick events carry the full state.
-      if (((projectile.chaosLevel && projectile.type !== 'bubble') || projectile.guidance || (projectile.type === 'glaive' && (projectile.phase === 'back' || projectile.seeking)))
+      if (((projectile.chaosLevel && projectile.type !== 'bubble') || projectile.guidance || projectile.beam || (projectile.type === 'glaive' && (projectile.phase === 'back' || projectile.seeking)))
           && ctx.now >= (projectile.syncAt || 0)) {
         projectile.syncAt = ctx.now + GLAIVE_SYNC_MS;
         const update = evProjectileUpdate(projectile.id,
@@ -421,6 +422,8 @@ export class ProjectileSystem {
         projectile.ricochetHullId = hull.id;
         projectile.ricochets = (projectile.ricochets ?? 0) + 1;
         projectile.hit = null;
+        // A glanced sight-guided missile tumbles off the plate: its guidance is lost.
+        projectile.beam = null;
         ctx.pushEvent(evProjectileUpdate(projectile.id, glance.point, glance.velocity));
         return false;
       }
@@ -1158,13 +1161,15 @@ export class ProjectileSystem {
   /**
    * A mounted shell, rocket or missile leaves a vehicle muzzle. `weapon` is a
    * VEHICLE_WEAPONS key; blast and flight come from that table (never Chaos).
-   * `targetId` (a locked hull) adds proportional-navigation guidance. A
-   * dropped store (a jet bomb, which has no muzzle speed) passes its release
+   * `targetId` (a locked hull) adds proportional-navigation guidance;
+   * `beam` ({seatId, mountId}: the gunner's seat and sight mount on hull
+   * `vehicleId`) makes a sight-guided missile ride that seat's sight (see
+   * _rideBeam; its numbers are the weapon's `beam`). A dropped store (a jet bomb, which has no muzzle speed) passes its release
    * `velocity` instead of flying `dir` at the weapon's speed. The launch
    * event type is the weapon's presentation family, plus `vehicleId`,
    * `vehicleWeapon` and the shell gravity `g`.
    */
-  launchVehicleProjectile(owner, { weapon, origin, dir, velocity = null, vehicleId = null, targetId = null } = {}, ctx) {
+  launchVehicleProjectile(owner, { weapon, origin, dir, velocity = null, vehicleId = null, targetId = null, beam = null } = {}, ctx) {
     const rules = typeof weapon === 'string' && Object.hasOwn(VEHICLE_WEAPONS, weapon) ? VEHICLE_WEAPONS[weapon] : null;
     if (!owner || !ctx || !rules || rules.kind === 'hitscan' || !Array.isArray(origin) || !Array.isArray(dir)
       || origin.length !== 3 || dir.length !== 3 || ![...origin, ...dir].every(Number.isFinite)
@@ -1187,10 +1192,15 @@ export class ProjectileSystem {
       ),
     };
     if (targetId) projectile.guidance = { targetId, turnRate: rules.turnRate, navConstant: rules.navConstant, proximity: rules.proximity };
+    if (rules.beam && beam && vehicleId != null) {
+      projectile.beam = { vehicleId, seatId: String(beam.seatId), mountId: String(beam.mountId), operatorId: String(owner.id),
+        lead: rules.beam.lead, turnRate: rules.beam.turnRate, steerAt: ctx.now + rules.beam.delay * 1000 };
+    }
     this.active.set(id, projectile);
     ctx.pushEvent(Object.assign(evProjectileLaunch(owner.id, id, rules.presentation, origin,
       [projectile.vx, projectile.vy, projectile.vz], rules.lifetimeMs),
-    { chaos: 0, vehicleId: String(vehicleId), vehicleWeapon: weapon, g: projectile.gravity, ...(targetId ? { target: targetId } : {}) }));
+    { chaos: 0, vehicleId: String(vehicleId), vehicleWeapon: weapon, g: projectile.gravity, ...(targetId ? { target: targetId } : {}),
+      ...(projectile.beam ? { beam: 1 } : {}) }));
     return projectile;
   }
 
@@ -1234,6 +1244,48 @@ export class ProjectileSystem {
       next = mix.map(n => n / ml);
     }
     projectile.vx = next[0] * speed; projectile.vy = next[1] * speed; projectile.vz = next[2] * speed;
+  }
+
+  /**
+   * Sight guidance (SACLOS): the missile steers onto its gunner's sight ray,
+   * the sight mount's live pose (the chin gimbal the heli gunner looks
+   * through, the TOW tube). The aim point lies `lead` m beyond the missile's
+   * projection onto the ray, so a missile off the ray converges onto it and
+   * then flies down it; the heading turns at most `turnRate` rad/s. Guidance
+   * ends for good (the missile flies straight on) once the gunner left that
+   * seat, died, or the hull is destroyed; a last correction goes out then.
+   * No target id, no lock: flares never touch it.
+   */
+  _rideBeam(projectile, dt, ctx) {
+    const b = projectile.beam;
+    if (!(dt > 0) || ctx.now < b.steerAt) return;
+    const vehicles = ctx.vehicles, v = vehicles?.vehicles?.get?.(b.vehicleId);
+    const gunner = v && v.hp > 0 ? vehicles.seatOccupant?.(v, b.seatId) : null;
+    const pose = gunner && String(gunner.id) === b.operatorId && gunner.state === 'alive' ? vehicles.mountPose?.(v, b.seatId, b.mountId) : null;
+    if (!pose?.pivot || !pose.dir) {
+      projectile.beam = null;
+      ctx.pushEvent(evProjectileUpdate(projectile.id, [projectile.x, projectile.y, projectile.z], [projectile.vx, projectile.vy, projectile.vz]));
+      return;
+    }
+    const speed = Math.hypot(projectile.vx, projectile.vy, projectile.vz);
+    if (!(speed > 0.1)) return;
+    const o = pose.pivot, d = pose.dir, p = [projectile.x - o[0], projectile.y - o[1], projectile.z - o[2]];
+    const along = Math.max(0, p[0] * d[0] + p[1] * d[1] + p[2] * d[2]) + b.lead;
+    const want = [o[0] + d[0] * along - projectile.x, o[1] + d[1] * along - projectile.y, o[2] + d[2] * along - projectile.z];
+    const wl = Math.hypot(...want);
+    if (!(wl > 1e-6)) return;
+    const heading = [projectile.vx / speed, projectile.vy / speed, projectile.vz / speed], next = want.map(n => n / wl);
+    const angle = Math.acos(Math.max(-1, Math.min(1, heading[0] * next[0] + heading[1] * next[1] + heading[2] * next[2])));
+    let out = next;
+    const limit = b.turnRate * dt;
+    if (angle > limit) {
+      // Rotate the heading toward the wanted direction by the turn limit (a
+      // wanted direction straight behind turns about any perpendicular).
+      let side = next.map((n, i) => n - heading[i] * Math.cos(angle)), sl = Math.hypot(...side);
+      if (sl < 1e-6) { side = Math.abs(heading[1]) < 0.9 ? [heading[2], 0, -heading[0]] : [1, 0, 0]; sl = Math.hypot(...side); }
+      out = heading.map((n, i) => n * Math.cos(limit) + side[i] / sl * Math.sin(limit));
+    }
+    projectile.vx = out[0] * speed; projectile.vy = out[1] * speed; projectile.vz = out[2] * speed;
   }
 
   /** Proximity fuse against the guided target hull. */

@@ -54,12 +54,12 @@ export const TANK_OMNI_RANGE = 40;
 export const GUNNER_OMNI_RANGE = 30;
 /** A hull this effective or less is a danger to avoid, not a target to shoot. */
 export const MIN_ARMOR_EFFECT = 0.15;
-const HULL_THREAT = Object.freeze({ tank: 2.2, helicopter: 1.9, transport: 1.25, jeep: 1.4, plane: 0.9,
+const HULL_THREAT = Object.freeze({ tank: 2.2, helicopter: 1.9, transport: 1.25, jeep: 1.4, plane: 0.9, jeep_at: 1.7,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, 2.4])) });
 /** Titanfall AT launchers (docs/titanfall.md §6): ARCHER lock range, THUNDERBOLT orb reach (30 m/s × 2.5 s). */
 const ARCHER_ENGAGE_RANGE = LOCK_RULES.archer?.range ?? 180;
 export const THUNDERBOLT_ENGAGE_RANGE = 68;
-const ARMOR_BY_TYPE = Object.freeze({ jeep: 'light', tank: 'heavy', helicopter: 'air', transport: 'air', plane: 'air' });
+const ARMOR_BY_TYPE = Object.freeze({ jeep: 'light', tank: 'heavy', helicopter: 'air', transport: 'air', plane: 'air', jeep_at: 'light' });
 
 /** Armour class of a hull type from the shared registry (spec 5.1). */
 export function vehicleArmorClass(type) {
@@ -428,11 +428,25 @@ function readMount(v, seatId, mountId, index) {
   return { heat: entry.heat ?? 0, overheated: !!entry.overheated, ammo: entry.ammo, cooldown: entry.cooldown ?? 0, reloadT: entry.reloadT ?? 0 };
 }
 
+/** Reach of a sight-guided missile (VEHICLE_WEAPONS `beam`): most of its flight. */
+export const beamMissileRange = rules => rules.speed * rules.lifetimeMs / 1000 * 0.85;
+/**
+ * Sight-guided missiles (the heli's GUIDED MSL, the AT jeep's TOW) are for
+ * ground hulls: they beat the chin cannon there, are a poor answer to
+ * aircraft and only a last resort against infantry.
+ */
+export const BEAM_SUITABILITY = Object.freeze({ ground: 1.2, air: 0.4, infantry: 0.35 });
+
 /** How suitable a mounted weapon is against a target at a range (0..1). */
-function mountedSuitability(meta, target, distance) {
+function mountedSuitability(meta, target, distance, rules = null) {
   if (!meta) return 0;
   const eff = target.kind === 'hull' ? armorMultiplier(meta.cls, target.armor) : 1;
   let range = 1;
+  if (rules?.beam) {
+    if (distance > beamMissileRange(rules)) return 0;
+    return eff * (target.kind !== 'hull' ? BEAM_SUITABILITY.infantry : target.armor === 'air' && target.vehicle?.grounded !== true
+      ? BEAM_SUITABILITY.air : BEAM_SUITABILITY.ground);
+  }
   if (meta.kind === 'hitscan') range = distance <= (meta.cls === 'autocannon' ? 350 : 140) ? 1 : 0;
   else if (meta.kind === 'missile') range = target.kind === 'hull' && target.armor === 'air' ? 1 : 0;
   else if (meta.speed > 0) range = distance <= meta.speed * 2.2 ? 1 : 0.3;
@@ -489,14 +503,19 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   const omniRange = v.type === 'tank' && seatId === 'driver' ? TANK_OMNI_RANGE : GUNNER_OMNI_RANGE;
   const primary = weapons[0].mount;
   const { observer } = mountedObserver(game, v, seatId, primary, p);
+  // A seat armed only with a sight-guided missile (the AT jeep) hunts hulls first.
   const effectFor = target => target.kind === 'hull'
-    ? Math.max(...weapons.map(w => armorMultiplier(vehicleWeaponMeta(w.weapon)?.cls, target.armor))) : 1;
+    ? Math.max(...weapons.map(w => armorMultiplier(vehicleWeaponMeta(w.weapon)?.cls, target.armor)))
+    : Math.max(...weapons.map(w => VEHICLE_WEAPONS[w.weapon]?.beam ? BEAM_SUITABILITY.infantry : 1));
+  // While its sight-guided missile flies the gunner keeps the sight on that
+  // target: no full sweeps and no weapon change until it has arrived.
+  const guiding = (state.guideUntil ?? 0) > now && state.targetId === state.guideTarget;
   const heldBr = { enemyId: state.targetId, noticeProgress: state.progress, difficulty: br.difficulty, damageFrom: br.damageFrom };
   // Targets the mount just failed to bring to bear are skipped inside the
   // picker, so the next-best visible threat is engaged meanwhile.
   const blacklisted = id => (state.blacklist.get(id) ?? 0) > now;
   const observed = pickBotThreat(game, p, heldBr, { observer, effectFor, omniRange, ignoreVehicleId: v.id,
-    sightRange, scan: (br.index + (game.tickCounter ?? Math.floor(now / 50))) % 2 === 0 || !state.targetId, now,
+    sightRange, scan: !guiding && ((br.index + (game.tickCounter ?? Math.floor(now / 50))) % 2 === 0 || !state.targetId), now,
     exclude: state.blacklist.size ? blacklisted : null });
   const profile = botDifficulty(br.difficulty);
   const pers = BOT_PERSONALITIES[br.personality] ?? BOT_PERSONALITIES[DEFAULT_BOT_PERSONALITY];
@@ -523,17 +542,22 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   // Weapon selection for this target.
   let choice = 0, bestScore = -1;
   weapons.forEach((w, index) => {
-    const score = mountedSuitability(vehicleWeaponMeta(w.weapon), target, sighting.distance) + (index === (v.sel?.[seatId] ?? state.requestedSel ?? 0) ? 0.02 : 0);
+    // A missile rail that is empty (re-arming) hands over to the gun meanwhile.
+    const rules = VEHICLE_WEAPONS[w.weapon];
+    const empty = rules?.beam && (readMount(v, seatId, w.mount, vehicleMountOrder(v.type).indexOf(`${seatId}:${w.mount}`))?.ammo ?? 1) <= 0;
+    const score = mountedSuitability(vehicleWeaponMeta(w.weapon), target, sighting.distance, rules) * (empty ? 0.25 : 1)
+      + (index === (v.sel?.[seatId] ?? state.requestedSel ?? 0) ? 0.02 : 0);
     if (score > bestScore) { bestScore = score; choice = index; }
   });
   const selected = Number.isInteger(v.sel?.[seatId]) ? v.sel[seatId] : (state.requestedSel ?? 0);
-  if (choice !== selected && now >= state.selAt && !inp.vehicleAction) {
+  if (choice !== selected && now >= state.selAt && !inp.vehicleAction && !guiding) {
     inp.vehicleAction = { type: 'weapon', index: choice };
     state.selAt = now + 450; state.requestedSel = choice;
   }
   const active = weapons[Math.min(weapons.length - 1, Math.max(0, selected))];
-  const meta = vehicleWeaponMeta(active.weapon);
-  const { pose } = mountedObserver(game, v, seatId, active.mount, p);
+  const meta = vehicleWeaponMeta(active.weapon), beam = VEHICLE_WEAPONS[active.weapon]?.beam ?? null;
+  // A sight-guided missile is aimed (and judged on target) through its sight mount (the heli's chin gimbal).
+  const { pose } = mountedObserver(game, v, seatId, beam ? VEHICLE_DEFS[v.type]?.mounts?.[active.mount]?.sight ?? active.mount : active.mount, p);
   const origin = pose?.origin ?? [observer.x, observer.eyeY, observer.z];
   const skill = br.skill ?? 0.5;
   const aim = ballisticAim(origin, sighting.aimPoint, target, { speed: meta?.speed ?? 0, gravity: meta?.gravity ?? 0,
@@ -585,7 +609,11 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
     return { target, sighting, recognized: true, fired: release };
   }
   if (error >= tolerance || !lineClear || state.cooling) { state.inBurst = false; return { target, sighting, recognized: true }; }
-  if (!hitscan) { inp.wantFire = true; return { target, sighting, recognized: true, fired: true }; }
+  if (!hitscan) {
+    inp.wantFire = true;
+    if (beam && (mount?.ammo ?? 1) > 0) { state.guideUntil = now + Math.min(aim.flightTime, 9) * 1000 + 400; state.guideTarget = target.id; }
+    return { target, sighting, recognized: true, fired: true };
+  }
   if (now >= state.pauseUntil) {
     // Titan guns (the Predator spins up for 0.6 s) fire longer bursts.
     if (!state.inBurst) { state.burstEnd = now + (titan ? 1600 + br.rng() * 1600 : 900 + br.rng() * 900); state.inBurst = true; }

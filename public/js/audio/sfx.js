@@ -1,4 +1,5 @@
 import { CosmeticAudio } from './cosmetics.js';
+import { vehicleHullType } from '../../../shared/conquest-contract.js';
 import { AnnouncerVoice } from './announcer.js';
 import { PanicBreathCadence } from './panic-breath.js';
 import { PainMoanCadence, PAIN_MOAN_THRESHOLD, painSampleChoice, renderPainMoan } from './pain-moans.js';
@@ -1295,6 +1296,7 @@ export const sfx = {
    * heard. A loop that stops being refreshed fades out on the audio clock.
    */
   vehicleLoop(id, pos, kind = 'buggy', options = null) {
+    kind = vehicleHullType(kind); // a hull variant (the AT jeep) sounds like its hull
     // Refreshed every frame, so a suspended context skips it instead of filling
     // the unlock queue with stale drones that would push out real cues.
     if (!engine.ensure() || engine.ctx.state !== 'running') return;
@@ -2320,14 +2322,14 @@ export const sfx = {
 
   stopVehicleGun(id) { releaseLoop(gunLoops, String(id), gunLoops.get(String(id)), VEHICLE_SOUND.gunFade); },
 
-  /** Missile or rocket launch: an ignition crack and a tearing whoosh. */
+  /** Missile or rocket launch: an ignition crack and a tearing whoosh (kind 'aa', 'pod' or 'atgm': the slower, heavier guided AT round). */
   vehicleMissileLaunch(pos, { self = false, kind = 'aa' } = {}) {
     const at = positionFrom(pos);
     if (!self && listenerDistance(at) > VEHICLE_SOUND.farRange) return false;
-    const pod = kind === 'pod';
+    const pod = kind === 'pod', atgm = kind === 'atgm';
     run('vehicleMissileLaunch', () => {
       if (cqOneShot(pod ? 'cq.pod' : 'cq.aa.launch', { pos: self ? null : at, priority: 2, range: 'far' }, {
-        gain: pod ? 0.85 : 0.95, rate: 0.95 + Math.random() * 0.1, echo: pod ? 0.08 : 0.15 })) return;
+        gain: pod ? 0.85 : atgm ? 1 : 0.95, rate: (atgm ? 0.78 : 0.95) + Math.random() * 0.1, echo: pod ? 0.08 : 0.15 })) return;
       const output = pool.acquire({ pos: self ? null : at, priority: 2, range: 'far' }, pod ? 0.6 : 1.2);
       const t = primitives.nowT();
       primitives.hiss(output, { t0: t, filter: 'bandpass', f: pod ? 1900 : 1400, q: 0.8, dec: 0.05, g: 0.4 });
@@ -2400,6 +2402,7 @@ export const sfx = {
    * deeper, rear and top thinner); ineffective small-arms hits only ping.
    */
   vehicleHullHit(pos, { zone = 'side', eff = 1, dmg = 0, self = false, cls = null, type = null } = {}) {
+    type = vehicleHullType(type);
     const at = positionFrom(pos);
     if (!self && listenerDistance(at) > 170) return false;
     const pitch = { front: 0.8, side: 1, rear: 1.15, top: 1.25, bottom: 0.9 }[zone] ?? 1;
@@ -2481,6 +2484,7 @@ export const sfx = {
 
   /** Hatch slam (enter) or latch and creak (exit). */
   vehicleHatch(pos, { enter = true, self = false } = {}, type = null) {
+    type = vehicleHullType(type);
     const at = positionFrom(pos);
     if (!self && listenerDistance(at) > 60) return false;
     run('vehicleHatch', () => {
@@ -2576,6 +2580,7 @@ export const sfx = {
    * rumble beyond 150 m. Cook-offs (`secondary`) are shorter and sharper.
    */
   vehicleDestruction(pos, type = 'jeep', { secondary = false } = {}) {
+    type = vehicleHullType(type);
     const at = positionFrom(pos);
     if (listenerDistance(at) > VEHICLE_SOUND.farRange) return { near: false, far: false };
     const heavy = type === 'tank' ? 1 : type === 'jeep' ? 0.7 : 0.85;

@@ -1,6 +1,6 @@
 import { vehicleOccupiedSeats } from '../../../shared/vehicle-seats.js';
 import { VEHICLE_WEAPONS, vehicleDef, vehicleMaxHp, mountAim } from '../../../shared/vehicle-defs.js';
-import { vehicleStatus, vehicleMountOrder, decodeConquestPlayer } from '../../../shared/conquest-contract.js';
+import { vehicleStatus, vehicleMountOrder, decodeConquestPlayer, vehicleHullType } from '../../../shared/conquest-contract.js';
 import { isTitanType, decodeTitanRow } from '../../../shared/titan-contract.js';
 import { createVoices } from '../audio/primitives.js';
 import { LocalSampleBank } from '../audio/samples.js';
@@ -231,7 +231,7 @@ export class VehicleAudio {
       turret: null, turretAt: -Infinity, turretRate: 0, wade: false, skidAt: -Infinity }; this.motion.set(id, state); }
     const dt = Math.max(0, now - state.t);
     const self = selfId != null && seats.some(seat => String(seat.occupantId) === selfId);
-    const kind = row.type;
+    const kind = vehicleHullType(row.type);
     if (!alive) { this._stopHullCues(id); state.t = now; return; }
 
     if (ROTORCRAFT.has(kind)) {

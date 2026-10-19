@@ -30,7 +30,7 @@ export const CQ_COLORS = Object.freeze({
   own: '#4cc3ff', enemy: '#ff8a3d', neutral: '#d8d8d8', squad: '#7ef29a', self: '#ffffff',
   spotted: '#ff4b4b', down: '#ff6b6b', contested: '#ffd166',
 });
-export const VEHICLE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET' });
+export const VEHICLE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP' });
 const ROLE_LABELS = Object.freeze({ driver: 'DRIVER', pilot: 'PILOT', gunner: 'GUNNER', passenger: 'PASSENGER' });
 const SEAT_LABELS = Object.freeze({
   driver: 'DRIVER', gunner: 'GUNNER', commander: 'COMMANDER', 'front-passenger': 'PASSENGER', 'rear-left': 'REAR LEFT',
@@ -431,7 +431,7 @@ export function nextFreeSeatIndex(row, seatId) {
 
 /** Tank gunner range ladder: horizontal ranges (m) marked along the shell's arc. */
 export const TANK_RANGE_TICKS = Object.freeze([100, 200, 300, 400, 500]);
-const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1 });
+const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1, jeep_at: 2.15 });
 
 /** Muzzle pose from the shared vehicle registry (mountPose), else from the row mount angles at the hull. */
 export function mountPoseOf(row, seatId, mountId, registry = vehicleDefs) {
@@ -603,17 +603,24 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
     return { ...base, kind: 'pods', pip: pip ? { x: pip.x, y: pip.y } : null, convergence, ammo: selected.ammo, reload: selected.reload };
   }
   // Gimbal limits come from the shared mount definition: yawLimit [centre, half] and pitchLimit are hull-relative.
-  const mountDef = registry?.vehicleDef?.(row)?.mounts?.[selected.mount] ?? null;
+  // A sight-guided missile (the heli's wingtip GUIDED MSL) is aimed through its sight mount (the chin gimbal).
+  const launcherDef = registry?.vehicleDef?.(row)?.mounts?.[selected.mount] ?? null;
+  const sightMount = launcherDef?.sight ?? selected.mount;
+  const mountDef = registry?.vehicleDef?.(row)?.mounts?.[sightMount] ?? null;
   const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
+  // Sight-guided missile readout: rounds, ready, reload (the gunner steers it with the crosshair).
+  const missile = registry?.vehicleWeapon?.(selected.weapon)?.beam
+    ? { label: selected.label, ammo: selected.ammo, ready: selected.ready, reload: selected.reload } : null;
   if (row.type === 'helicopter' && seat.id === 'gunner') {
-    const state = mountState(row, seat.id, selected.mount);
+    const state = mountState(row, seat.id, sightMount);
+    const sightPose = sightMount === selected.mount ? pose : mountPoseOf(row, seat.id, sightMount, registry);
     const [centre, yawLimit] = Array.isArray(mountDef?.yawLimit) ? mountDef.yawLimit : [0, 1.9];
     const [pitchMin, pitchMax] = Array.isArray(mountDef?.pitchLimit) ? mountDef.pitchLimit : [-1.05, 0.17];
     const relYaw = state ? wrapAngle(state.yaw - finite(row.yaw) - centre) : 0;
     // Snapshot pitch is world pitch; a gimbal mount's limits ride the hull pitch.
     return { ...base, kind: 'gimbal', yaw: relYaw, pitch: state ? state.pitch - finite(row.pitch) : 0, yawLimit, pitchMin, pitchMax,
-      heat: selected.heat, overheated: selected.overheated, label: selected.label,
-      sensor: sight ? sensorReadout(sight, { pose, state, raycast, project }) : null };
+      heat: selected.heat, overheated: selected.overheated, label: selected.label, missile,
+      sensor: sight ? sensorReadout(sight, { pose: sightPose, state, raycast, project }) : null };
   }
   if (row.type === 'transport' && (seat.id === 'door-left' || seat.id === 'door-right')) {
     const state = mountState(row, seat.id, selected.mount);
@@ -650,7 +657,7 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
   }
   // Pintle, RWS and other hitscan mounts: barrel crosshair 100 m along the mount.
   const aim = pose ? project([pose.origin[0] + pose.dir[0] * 100, pose.origin[1] + pose.dir[1] * 100, pose.origin[2] + pose.dir[2] * 100]) : null;
-  return { ...base, kind: 'mg', barrel: aim ? { x: aim.x, y: aim.y } : null, heat: selected.heat, overheated: selected.overheated };
+  return { ...base, kind: 'mg', barrel: aim ? { x: aim.x, y: aim.y } : null, heat: selected.heat, overheated: selected.overheated, missile };
 }
 
 /**

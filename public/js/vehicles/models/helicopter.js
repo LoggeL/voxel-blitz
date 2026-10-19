@@ -1,3 +1,4 @@
+import * as THREE from '../../vendor/three.module.js';
 import { VoxelPart } from '../voxel-model/dsl.js';
 import { VEHICLE_DEFS } from '../../../../shared/vehicle-defs.js';
 import { blueprint, createKit, buildSeatAnchors, buildMounts, lightAnchor, finishModel } from './common.js';
@@ -78,15 +79,13 @@ function buildParts() {
   hull.box([0.0, 2.0, 3.2], [0.2, 2.2, 3.4], 'gunmetal', { tag: 'tail' });
   hull.box([-0.2, 3.0, 3.6], [0.2, 3.2, 3.8], 'strobe', { tag: 'tail' });
   // Stub wings with rocket pods (front faces at the def's pod sides) and
-  // wingtip launch rails carrying two missiles each.
+  // wingtip launch rails; their guided missiles are the instanced `missile`.
   for (const [index, pod] of def.mounts.pods.sides.entries()) {
     const side = index === 0 ? -1 : 1, tag = side < 0 ? 'wing-left' : 'wing-right';
     hull.box([side < 0 ? -1.6 : 0.8, 1.4, -1.0], [side < 0 ? -0.8 : 1.6, 1.6, 0.2], 'paint', { tag });
     hull.cyl([pod[0], pod[1], pod[2] + 0.55], 0.3, 1.1, 'z', 'panel', { tag });
     podFace(hull, pod, tag);
     hull.box([side < 0 ? -1.8 : 1.6, 1.4, -0.6], [side < 0 ? -1.6 : 1.8, 1.6, 0.4], 'gunmetal', { tag });
-    hull.box([side < 0 ? -1.8 : 1.6, 1.2, -0.8], [side < 0 ? -1.6 : 1.8, 1.4, 0.2], 'missile', { tag });
-    hull.box([side < 0 ? -1.8 : 1.6, 1.2, -1.0], [side < 0 ? -1.6 : 1.8, 1.4, -0.8], 'warhead', { tag });
     hull.box([side < 0 ? -1.8 : 1.6, 1.4, 0.4], [side < 0 ? -1.6 : 1.8, 1.6, 0.6], side < 0 ? 'navRed' : 'navGreen', { tag });
   }
   // Wheeled gear: trailing-arm mains under the cockpit, a tail wheel aft.
@@ -137,7 +136,15 @@ function buildParts() {
   chinGun.box([cx - 0.1, cy - 0.1, cz - chin.muzzle], [cx + 0.1, cy + 0.1, cz - chin.muzzle + 0.2], 'dark', { tag: 'chin' });
   chinGun.box([cx - 0.3, cy - 0.3, cz - 0.4], [cx + 0.3, cy + 0.1, cz + 0.2], 'dark', { tag: 'chin' });
   chinGun.userData.priority = { chin: 60 };
-  return { hull, rotor, tail, chinYaw, chinGun };
+  // Guided missile under each wingtip rail (gunner's atgm mount; nose at the
+  // def's rail side): body, warhead and tail fins below the rail.
+  const missile = new VoxelPart('helicopter-missile', { grid: [-0.1, -0.1, 0] });
+  missile.box([-0.1, -0.1, 0.0], [0.1, 0.1, 1.0], 'missile');
+  missile.box([-0.1, -0.1, -0.2], [0.1, 0.1, 0.0], 'warhead');
+  missile.box([-0.3, -0.1, 0.8], [0.3, 0.1, 1.0], 'missile');
+  missile.box([-0.1, -0.3, 0.8], [0.1, -0.1, 1.0], 'missile');
+  missile.userData.breaks = true;
+  return { hull, rotor, tail, chinYaw, chinGun, missile };
 }
 
 /**
@@ -156,16 +163,20 @@ export function makeHelicopterModel(options = {}) {
   blur.position.copy(mainRotor.position);
   const tailRotor = kit.node(body, 'helicopter-tail-rotor', HELICOPTER_ROTOR.tail);
   kit.part(tailRotor, parts.tail);
-  const chin = VEHICLE_DEFS.helicopter.mounts.chin, pods = VEHICLE_DEFS.helicopter.mounts.pods;
+  const chin = VEHICLE_DEFS.helicopter.mounts.chin, pods = VEHICLE_DEFS.helicopter.mounts.pods, atgm = VEHICLE_DEFS.helicopter.mounts.atgm;
   const chinYaw = kit.node(body, 'helicopter-chin-yaw', chin.pivot);
   kit.part(chinYaw, parts.chinYaw);
   const chinPitch = kit.node(chinYaw, 'helicopter-chin-pitch', chin.pivot);
   kit.part(chinPitch, parts.chinGun);
   const podRig = kit.node(body, 'helicopter-pods', pods.pivot);
+  const railRig = kit.node(body, 'helicopter-rails', atgm.pivot);
+  const missileTransforms = atgm.sides.map(([x, y, z]) => ({ position: [x, y, z + 0.2] }));
+  const missiles = kit.instances(body, parts.missile, missileTransforms, 'helicopter-missiles');
   const seatAnchors = buildSeatAnchors(kit, 'helicopter', { body });
   const mounts = buildMounts(kit, 'helicopter', {
     pods: { yawNode: podRig, pitchNode: podRig },
     chin: { yawNode: chinYaw, pitchNode: chinPitch },
+    atgm: { yawNode: railRig, pitchNode: railRig },
   });
   const controlAnchors = {
     left: kit.anchor(body, 'collective', [-0.66, 1.55, -1.0]), right: kit.anchor(body, 'cyclic', [-0.36, 1.6, -1.35]),
@@ -185,8 +196,23 @@ export function makeHelicopterModel(options = {}) {
   };
   const contacts = [-1.0, 1.0].map(x => ({ x, z: -1.6, radius: 0.45, stretch: 1, strength: 0.45 }))
     .concat([{ x: 0, z: 3.4, radius: 0.3, stretch: 1, strength: 0.35 }]);
+  // Rail missiles shown per loaded round (the atgm mount's ammo, animate railAmmo).
+  const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), quaternion = new THREE.Quaternion();
+  const unit = new THREE.Vector3(1, 1, 1), zero = new THREE.Vector3(0, 0, 0);
+  let loaded = [true, true];
+  const setMissiles = ammo => {
+    const next = [ammo >= 1, ammo >= 2];
+    if (next[0] === loaded[0] && next[1] === loaded[1]) return;
+    loaded = next;
+    missileTransforms.forEach((transform, i) => {
+      matrix.compose(position.fromArray(transform.position), quaternion.identity(), loaded[i] ? unit : zero);
+      missiles.setMatrixAt(i, matrix);
+    });
+    missiles.instanceMatrix.needsUpdate = true;
+  };
   let rotorAngle = 0, tailAngle = 0;
-  const animate = (dt, { rotorSpeed = 0, wreck = false } = {}) => {
+  const animate = (dt, { rotorSpeed = 0, wreck = false, railAmmo = null } = {}) => {
+    if (Number.isFinite(railAmmo)) setMissiles(railAmmo);
     const spin = wreck ? 0 : Math.max(0, Math.min(1, rotorSpeed));
     const step = Math.max(0, Math.min(0.1, dt || 0));
     rotorAngle = (rotorAngle + spin * 36 * step) % (Math.PI * 2);
@@ -203,7 +229,7 @@ export function makeHelicopterModel(options = {}) {
     body, turret: chinYaw, gun: chinPitch, mainRotor, tailRotor, rotorBlur: blur,
     mounts, seatAnchors, emitters, contacts, animate, wheels: [],
     controlAnchors, gunnerAnchors, cockpitControls: { leftHand: controlAnchors.left, rightHand: controlAnchors.right },
-    muzzle: mounts['gunner:chin'].muzzle, floorTop: 1.0,
+    muzzle: mounts['gunner:chin'].muzzle, floorTop: 1.0, missiles, setMissiles,
     // The wheeled gear breaks away with the wreck: the belly settles this far.
     wreckDrop: 0.5,
   });

@@ -3,7 +3,7 @@ import { vehicleStatus } from '../../../shared/conquest-contract.js';
 import { vehicleDef, mountAim, vehicleDirection } from '../../../shared/vehicle-defs.js';
 import { vehicleOccupiedSeats } from '../../../shared/vehicle-seats.js';
 import { groundAttitude } from '../../../shared/vehicle-attitude.js';
-import { makeJeepModel } from '../vehicles/models/jeep.js';
+import { makeJeepModel, makeAtJeepModel } from '../vehicles/models/jeep.js';
 import { makeTankModel } from '../vehicles/models/tank.js';
 import { makeHelicopterModel } from '../vehicles/models/helicopter.js';
 import { makeTransportModel } from '../vehicles/models/transport.js';
@@ -33,6 +33,7 @@ const finite = value => Number.isFinite(value) ? value : 0;
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 export const VEHICLE_MODEL_FACTORIES = Object.freeze({
   jeep: makeJeepModel, tank: makeTankModel, helicopter: makeHelicopterModel, transport: makeTransportModel, plane: makePlaneModel,
+  jeep_at: makeAtJeepModel,
   // Titanfall walkers: the installed walker presentation picks the model (docs/titanfall.md §7).
   ...Object.fromEntries(TITAN_TYPES.map(type => [type, (options) => {
     if (!walkerPresentation) throw new Error(`vehicle-view: no walker presentation installed for ${type}`);
@@ -40,6 +41,8 @@ export const VEHICLE_MODEL_FACTORIES = Object.freeze({
   }])),
 });
 const modelFactories = VEHICLE_MODEL_FACTORIES;
+/** Mounts whose loaded rounds the model shows (`railAmmo`): jet pylons, heli wingtip missiles, the TOW tube. */
+const RAIL_MOUNTS = Object.freeze({ plane: 'rails', helicopter: 'atgm', jeep_at: 'pintle' });
 /** A row kind VehicleView can present now (walkers only once their presentation is installed). */
 const presentable = kind => Object.hasOwn(modelFactories, kind) && (walkerPresentation !== null || !isWalkerType(kind));
 
@@ -369,7 +372,7 @@ export class VehicleView {
       root.updateMatrixWorld(true);
       if (!item.wreck) this._aimMounts(item, row, step);
       this._recoil(item, step);
-      const railIndex = item.kind === 'plane' ? mountIndex('plane', 'rails') : -1;
+      const railIndex = RAIL_MOUNTS[item.kind] ? mountIndex(item.kind, RAIL_MOUNTS[item.kind]) : -1;
       if (!item.walker) item.model.animate(step, {
         speed: finite(row.speed), visualSteer: finite(row.visualSteer),
         leftTrackSpeed: finite(row.leftTrackSpeed ?? row.speed), rightTrackSpeed: finite(row.rightTrackSpeed ?? row.speed),

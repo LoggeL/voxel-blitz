@@ -30,7 +30,9 @@ const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
 const bearing = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
-const GROUND = new Set(['jeep', 'tank']);
+const GROUND = new Set(['jeep', 'tank', 'jeep_at']);
+/** Armour that holds an overwatch spot on the focus flag (the AT jeep stands off like a tank destroyer). */
+const OVERWATCH = new Set(['tank', 'jeep_at']);
 /**
  * Titanfall walkers (docs/titanfall.md §9): titan hulls walk like ground
  * vehicles but strafe, and the hull yaw follows the aim. `near`/`far` is the
@@ -314,7 +316,7 @@ export class ConquestVehicleDriving {
         if (!mine) this.park(br, p, v, now, inp);
         else if (this.commander?.holdFor?.(v, now)) this.hold(br, v, now, inp);
         else if (mine.role === 'transit') this.transitDrive(br, p, v, mine, now, inp);
-        else if (v.type === 'tank') this.overwatch(br, p, v, mine, now, inp);
+        else if (OVERWATCH.has(v.type)) this.overwatch(br, p, v, mine, now, inp);
         else this.transitDrive(br, p, v, { ...mine, destination: mine.flag ?? goal.target }, now, inp);
       } else {
         botPassengerInput(inp);
@@ -421,7 +423,7 @@ export class ConquestVehicleDriving {
     const error = wrap(desiredYaw - v.yaw), d = distance(v, target);
     const next = state.detour ? (state.detour[1] ?? state.points[state.index]) : state.points[state.index + 1];
     const corner = next ? Math.abs(wrap(bearing(target, next) - desiredYaw)) : 0;
-    const reverse = v.type === 'jeep' && Math.abs(error) > 1.9 && d < 42;
+    const reverse = v.type !== 'tank' && Math.abs(error) > 1.9 && d < 42;
     const steeringError = reverse ? wrap(error + Math.PI) : error;
     const rules = VEHICLE_RULES[v.type];
     inp.vehicleSteer = clamp(-steeringError * (v.type === 'tank' ? 2 : 2.5) * (reverse ? -1 : 1), -1, 1);

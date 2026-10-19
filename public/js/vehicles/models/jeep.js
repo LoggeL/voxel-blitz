@@ -9,10 +9,32 @@ export const JEEP_WHEELS = Object.freeze([
 ]);
 export const JEEP_WHEEL_RADIUS = 0.45;
 
+/**
+ * The AT jeep's TOW launcher on the pintle (pitch part) and the missile nose
+ * that shows in the tube mouth while the box holds a round. The tube mouth is
+ * the def's muzzle; the optical sight hangs on its left, the traverse unit
+ * and grips under its breech.
+ */
+function towLauncher(pintle) {
+  const [px, py, pz] = pintle.pivot, front = pz - pintle.muzzle;
+  const launcher = new VoxelPart('jeep-at-launcher', { pivot: pintle.pivot, grid: [px - 0.2, py - 0.2, pz] });
+  launcher.box([px - 0.2, py - 0.2, front + 0.2], [px + 0.2, py + 0.2, pz + 0.6], 'drab', { tag: 'pintle' });
+  launcher.box([px - 0.2, py - 0.2, front + 0.2], [px + 0.2, py + 0.2, front + 0.4], 'dark', { tag: 'pintle' });
+  launcher.box([px - 0.2, py - 0.2, pz + 0.6], [px + 0.2, py + 0.2, pz + 0.8], 'gunmetal', { tag: 'pintle' });
+  launcher.box([px - 0.4, py - 0.2, pz - 0.4], [px - 0.2, py + 0.2, pz + 0.4], 'gunmetal', { tag: 'pintle' });
+  launcher.box([px - 0.4, py, pz - 0.6], [px - 0.2, py + 0.2, pz - 0.4], 'screen', { tag: 'pintle' });
+  launcher.box([px - 0.2, py - 0.4, pz + 0.2], [px + 0.2, py - 0.2, pz + 0.6], 'dark', { tag: 'pintle' });
+  launcher.userData.priority = { pintle: 85 };
+  const round = new VoxelPart('jeep-at-round', { pivot: pintle.pivot, grid: [px - 0.2, py - 0.2, pz] });
+  round.box([px - 0.2, py - 0.2, front], [px + 0.2, py + 0.2, front + 0.2], 'warhead', { tag: 'pintle' });
+  round.userData.breaks = true;
+  return { launcher, round };
+}
+
 // Hull-frame boxes snap to the 0.2 m grid: symmetric pairs use even tenths.
-function buildParts() {
-  const pintle = VEHICLE_DEFS.jeep.mounts.pintle;
-  const seats = Object.fromEntries(VEHICLE_DEFS.jeep.seats.map(seat => [seat.id, seat.position]));
+function buildParts(type = 'jeep') {
+  const pintle = VEHICLE_DEFS[type].mounts.pintle;
+  const seats = Object.fromEntries(VEHICLE_DEFS[type].seats.map(seat => [seat.id, seat.position]));
   const hull = new VoxelPart('jeep-hull');
   // Chassis rails and the cabin floor (floorTop 0.8).
   hull.box([-0.6, 0.4, -2.0], [0.6, 0.6, 2.0], 'dark');
@@ -87,6 +109,11 @@ function buildParts() {
   hull.box([-0.2, 0.8, 0.8], [0.2, 0.9, 1.4], 'dark');
   // Radio set and two antenna whips at the rear corners.
   hull.box([0.4, 0.8, 1.4], [0.8, 1.2, 1.8], 'drab');
+  // AT jeep: two spare TOW rounds stowed in a rack beside the gunner.
+  if (type === 'jeep_at') {
+    hull.box([0.4, 0.8, 0.4], [0.8, 1.0, 1.4], 'drab');
+    hull.box([0.4, 1.0, 0.4], [0.8, 1.2, 0.6], 'warhead');
+  }
   for (const side of [-1, 1]) {
     for (let y = 1.4; y < 2.4; y += 0.2) hull.box([side < 0 ? -1.0 : 0.8, y, 1.8], [side < 0 ? -0.8 : 1.0, y + 0.2, 2.0], 'dark', { tag: 'antenna' });
   }
@@ -119,6 +146,7 @@ function buildParts() {
   hmg.box([px - 0.5, py - 0.3, pz - 0.2], [px - 0.1, py + 0.1, pz + 0.2], 'drab', { tag: 'pintle' });
   hmg.box([px - 0.3, py - 0.1, pz + 0.2], [px + 0.3, py + 0.1, pz + 0.4], 'dark', { tag: 'pintle' });
   hmg.userData.priority = { pintle: 85 };
+  const tow = type === 'jeep_at' ? towLauncher(pintle) : null;
 
   // Wheels are authored at twice their size and meshed at half scale:
   // 0.1 m voxels give a round tyre, a painted rim and a hub (flush
@@ -131,16 +159,16 @@ function buildParts() {
   wheel.cyl([0, 0, 0], 0.24, 0.8, 'x', 'dark');
   // Charred tyres stay on the wreck: the hull settles onto them.
   wheel.userData.breaks = false;
-  return { hull, windscreen, rollcage, steering, swivel, hmg, wheel };
+  return { hull, windscreen, rollcage, steering, swivel, hmg: tow?.launcher ?? hmg, round: tow?.round ?? null, wheel };
 }
 
 /**
- * Light utility vehicle with an exposed crew and a pintle HMG. Options:
- * { team, material, glass, blur }.
+ * Light utility vehicle with an exposed crew and a pintle HMG (the AT jeep,
+ * `type` 'jeep_at': a TOW launcher). Options: { team, material, glass, blur }.
  */
-export function makeJeepModel(options = {}) {
-  const parts = blueprint('jeep', buildParts);
-  const { kit } = createKit('jeep', options);
+export function makeJeepModel(options = {}, type = 'jeep') {
+  const parts = blueprint(type, () => buildParts(type));
+  const { kit } = createKit(type, options);
   const { group } = kit;
   const body = kit.node(group, 'jeep-body', [0, 0, 0]);
   kit.part(body, parts.hull);
@@ -151,19 +179,22 @@ export function makeJeepModel(options = {}) {
   const steering = kit.node(body, 'steering-wheel', parts.steering.pivot);
   kit.part(steering, parts.steering);
   steering.rotation.x = -0.6;
-  const pintle = VEHICLE_DEFS.jeep.mounts.pintle;
+  const pintle = VEHICLE_DEFS[type].mounts.pintle;
   const swivel = kit.node(body, 'jeep-pintle-yaw', parts.swivel.pivot);
   kit.part(swivel, parts.swivel);
   const cradle = kit.node(swivel, 'jeep-pintle-pitch', pintle.pivot);
   kit.part(cradle, parts.hmg);
+  // The TOW round in the tube mouth: shown while the box holds one (animate railAmmo).
+  const round = parts.round ? kit.node(cradle, 'jeep-at-round', pintle.pivot) : null;
+  if (round) kit.part(round, parts.round);
   const grips = {
     left: kit.anchor(cradle, 'pintle-grip-left', [pintle.pivot[0] - 0.14, pintle.pivot[1] - 0.05, pintle.pivot[2] + 0.28]),
     right: kit.anchor(cradle, 'pintle-grip-right', [pintle.pivot[0] + 0.14, pintle.pivot[1] - 0.05, pintle.pivot[2] + 0.28]),
   };
   const wheelTransforms = JEEP_WHEELS.map(wheel => ({ position: [wheel.x, JEEP_WHEEL_RADIUS + 0.02, wheel.z], ...wheel }));
   const wheels = kit.instances(group, parts.wheel, wheelTransforms, 'jeep-wheels');
-  const seatAnchors = buildSeatAnchors(kit, 'jeep', { body });
-  const mounts = buildMounts(kit, 'jeep', { pintle: { yawNode: swivel, pitchNode: cradle, grips } });
+  const seatAnchors = buildSeatAnchors(kit, type, { body });
+  const mounts = buildMounts(kit, type, { pintle: { yawNode: swivel, pitchNode: cradle, grips } });
   const wheelControls = { left: kit.anchor(steering, 'steering-grip-left', [-0.57, 1.5, -0.3]),
     right: kit.anchor(steering, 'steering-grip-right', [-0.23, 1.5, -0.3]) };
   const emitters = {
@@ -191,7 +222,8 @@ export function makeJeepModel(options = {}) {
     wheels.instanceMatrix.needsUpdate = true;
   };
   write();
-  const animate = (dt, { speed = 0, visualSteer = 0, wreck = false } = {}) => {
+  const animate = (dt, { speed = 0, visualSteer = 0, wreck = false, railAmmo = null } = {}) => {
+    if (round && Number.isFinite(railAmmo)) round.visible = railAmmo > 0;
     if (wreck) return;
     const lastSpin = spin, lastSteer = steer;
     if (dt > 0 && Number.isFinite(speed)) spin = (spin - speed * dt / JEEP_WHEEL_RADIUS) % (Math.PI * 2);
@@ -208,3 +240,6 @@ export function makeJeepModel(options = {}) {
     windscreen, rollcage, firstPersonHidden: [windscreen, rollcage],
   });
 }
+
+/** AT jeep: the jeep hull with a TOW launcher on the pintle. */
+export const makeAtJeepModel = (options = {}) => makeJeepModel(options, 'jeep_at');

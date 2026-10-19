@@ -1,4 +1,4 @@
-// Frontier v2 fleet (spec 4.4): fifteen hulls on terrain-derived pads. Every
+// Frontier v2 fleet (spec 4.4): seventeen hulls on terrain-derived pads. Every
 // parked hull rests on prepared ground with room to pivot, no hull overlaps
 // another, every HQ hull has a clear infantry pickup route, the ground hulls
 // drive out of their bays and every aircraft departs without striking scenery.
@@ -26,13 +26,13 @@ const sample = (route, visit) => {
   }
 };
 
-assert.equal(hulls.length, 15, 'fifteen hulls');
-assert.equal(new Set(hulls.map(v => v.id)).size, 15);
+assert.equal(hulls.length, 17, 'seventeen hulls');
+assert.equal(new Set(hulls.map(v => v.id)).size, 17);
 const seats = {};
 for (const team of ['alpha', 'bravo']) {
   const fleet = hulls.filter(v => v.team === team);
-  assert.equal(fleet.length, 7, `${team}: HQ five plus two flag jeeps`);
-  assert.deepEqual(fleet.map(v => v.type).sort(), ['helicopter', 'jeep', 'jeep', 'jeep', 'plane', 'tank', 'transport']);
+  assert.equal(fleet.length, 8, `${team}: HQ six plus two flag jeeps`);
+  assert.deepEqual(fleet.map(v => v.type).sort(), ['helicopter', 'jeep', 'jeep', 'jeep', 'jeep_at', 'plane', 'tank', 'transport']);
   seats[team] = fleet.reduce((sum, v) => sum + vehicleSeats(v).length, 0);
 }
 const cTank = parked.vehicles.get('flag-C-tank');
