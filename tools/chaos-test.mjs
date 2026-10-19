@@ -4,7 +4,7 @@ import { GameEngine } from '../server/game.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { parseBuyFrame } from '../server/protocol/admission.js';
 import { FREE_WEAPON_IDS, WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
-import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
+import { FREE_GRENADE_TYPE_IDS, GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 import { FLAME_RULES } from '../shared/flame-rules.js';
 import { MOLOTOV_FIRE, molotovFireProfile } from '../shared/molotov-rules.js';
 import { MAP_IDS, isModeMapCompatible, mapForMode } from '../shared/modes.js';
@@ -18,8 +18,8 @@ const SECONDARY_PROJECTILE_CAP = MAX_ACTIVE_PROJECTILES - PRIMARY_PROJECTILE_RES
 assert.equal(CHAOS_START_CREDITS, 600);
 assert.equal(CHAOS_KILL_CREDITS, 300);
 // Every selectable weapon and throwable must have a complete upgrade ladder
-// (kit-only gadgets such as the Conquest STINGER never reach Chaos).
-assert.deepEqual(Object.keys(CHAOS_UPGRADES).sort(), [...FREE_WEAPON_IDS, ...GRENADE_TYPE_IDS].sort());
+// (kit-only gadgets such as the Conquest STINGER and AT MINE never reach Chaos).
+assert.deepEqual(Object.keys(CHAOS_UPGRADES).sort(), [...FREE_WEAPON_IDS, ...FREE_GRENADE_TYPE_IDS].sort());
 for (const id of FREE_WEAPON_IDS) {
   assert.deepEqual(parseChaosPurchase(`chaos:${id}:1`), { item: id, level: 1 });
   assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);

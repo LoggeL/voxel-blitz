@@ -20,7 +20,7 @@ export const KEYBINDING_ACTIONS = Object.freeze([
   // slots and keyCodeLabel names the physical code, not the layout's printed key.
   ['grenadeFrag', 'Quick grenade: frag', []], ['grenadeClaymore', 'Quick grenade: claymore', []],
   ['grenadePulse', 'Quick grenade: pulse', []], ['grenadeMolotov', 'Quick grenade: molotov', []],
-  ['grenadeSmoke', 'Quick grenade: smoke', []],
+  ['grenadeSmoke', 'Quick grenade: smoke', []], ['grenadeAtMine', 'Quick grenade: AT mine (Conquest)', []],
   ['zoom', 'Scope zoom', ['KeyZ']],
   ['weaponWheel', 'Weapon wheel (hold)', ['KeyK']], ['buy', 'Buy menu / armory', ['KeyB']],
   ['build', 'Build mode (Bastion)', ['KeyN']],

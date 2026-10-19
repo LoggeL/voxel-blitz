@@ -334,7 +334,9 @@ try {
     press('grenadePouch', 3000);
     pad.poll(3000 + PAD_WHEEL_HOLD_MS);
     check(pad.isGrenadePouchOpen() && pad.getGrenadePouchHover() === 2, 'holding d-pad down opens the pouch');
-    fake.axes = [0, 0, -0.8, -0.8];
+    // Point the stick at the smoke slot (index 4) of the ring, whatever its slot count.
+    const smokeAngle = (-90 + 360 * 4 / GRENADE_TYPE_IDS.length) * Math.PI / 180;
+    fake.axes = [0, 0, Math.cos(smokeAngle) * 0.8, Math.sin(smokeAngle) * 0.8];
     pad.poll(3300);
     fake.axes = [0, 0, 0, 0];
     check(pad.getGrenadePouchHover() === 4 && pad.consumeDelta().dx === 0, 'the right stick steers the pouch, not the camera');

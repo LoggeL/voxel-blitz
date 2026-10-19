@@ -1,4 +1,7 @@
 import { weaponTurnProfile } from '../shared/weapon-handling.js';
+import { AT_MINE_TRIGGER_HANDLING } from '../shared/at-mine-rules.js';
+import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
+import { vehicleDef } from '../shared/vehicle-defs.js';
 import { groundRoute, groundSegmentClear, navigationWaypoint, surfaceNavigation } from './bot-navigation.js';
 import { canHopObstacle } from './bot-locomotion.js';
 import { boxCollides, findVault, solidBelow } from '../shared/player-movement.js';
@@ -118,6 +121,12 @@ const KEY_DIRS = Object.freeze([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -
 const TERRAIN_POLL_MS = 250;      // surface graph and cover refresh from the changed-block log
 const FLANK_RANGE = 40;           // m: engineers work armour from the side at this stand-off
 const RELOAD_COVER_DIST = 45;     // m: a dry magazine this close to an enemy sends the bot to cover
+// Conquest Engineer AT MINES: laid while holding a flag that enemy ground hulls threaten.
+const ATMINE_SLOT = GRENADE_TYPE_IDS.indexOf('atmine');
+const BOT_MINE_CHECK_MS = 15000;  // a defender considers a mine at most this often
+const BOT_MINE_HULL_RANGE = 150;  // m: an enemy ground hull this close to the flag is a threat
+const BOT_MINE_FLAG_SLACK = 12;   // m: past the flag radius a defender stops mining it
+const BOT_MINE_SPACING = 6;       // m: never stack a second own mine closer than this
 // Free rosters never hold kit-only gadgets (the Conquest STINGER).
 const ALL_WEAPON_SLOTS = Object.freeze(WEAPON_IDS.map((_, slot) => slot).filter(slot => !WEAPONS[WEAPON_IDS[slot]]?.gadgetOnly));
 const PLANT_READY_DIST = 2.0;
@@ -926,6 +935,33 @@ class BotManager {
   }
 
   /** The objective for a bot: the Conquest director when attached, else the mode's own goal. */
+  /**
+   * Conquest Engineer: a defender with no target in sight drops an AT MINE
+   * ahead of it (the human throw path: a `throwGrenade` edge with the pouch
+   * slot and a downward aim) while an enemy ground hull is in reach of the
+   * flag. Checked every BOT_MINE_CHECK_MS; own mines are kept apart.
+   */
+  layMine(br, p, goal, inp, now) {
+    if (ATMINE_SLOT < 0 || !(p.grenades?.[ATMINE_SLOT] > 0) || goal?.stance !== 'defend' || !goal.target
+      || p.vehicleId || !p.grounded || now < (br.mineCheckAt ?? 0)) return false;
+    br.mineCheckAt = now + BOT_MINE_CHECK_MS;
+    const flag = goal.target;
+    if (!Number.isFinite(flag.x) || Math.hypot(p.x - flag.x, p.z - flag.z) > (flag.radius ?? 10) + BOT_MINE_FLAG_SLACK) return false;
+    const team = this.game.mode.teamFor?.(p) ?? p.team;
+    let threat = false;
+    for (const v of this.game.vehicles?.vehicles?.values() ?? []) {
+      if (!(v.hp > 0) || !v.team || v.team === team || !AT_MINE_TRIGGER_HANDLING.includes(vehicleDef(v)?.handling)) continue;
+      if (Math.hypot(v.x - flag.x, v.z - flag.z) <= BOT_MINE_HULL_RANGE) { threat = true; break; }
+    }
+    if (!threat) return false;
+    for (const m of this.game.projectiles?.active?.values() ?? []) {
+      if (m.type === 'atmine' && m.ownerId === String(p.id) && Math.hypot(m.x - p.x, m.z - p.z) < BOT_MINE_SPACING) return false;
+    }
+    Object.assign(inp, { throwGrenade: true, grenadeType: ATMINE_SLOT, grenadeCharge: 0, grenadeCook: 0,
+      grenadeAim: { yaw: p.yaw, pitch: -1.1 } });
+    return true;
+  }
+
   goalFor(p) {
     return this.director?.goalFor(p) ?? this.game.mode.botGoal(p);
   }
@@ -1131,6 +1167,7 @@ class BotManager {
     if (!combatAllowed) { br.resetCombat(); br.danger = null; }
     const enemy = !combatAllowed ? null : cq ? this.pickThreat(p, br, ownedSlots, now) : this.pickTarget(p, br);
     const hullTarget = enemy?.kind === 'hull';
+    if (cq && !tf && !enemy) this.layMine(br, p, goal, inp, now);
 
     if (enemy) {
       if (br.noticeId !== enemy.id) {

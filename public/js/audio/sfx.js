@@ -52,7 +52,8 @@ const SFX_ALIAS = Object.freeze({ stinger: 'rocket',
   // Titanfall AT weapons without a dedicated report borrow the nearest bank.
   chargerifle: 'lance', archer: 'rocket', kraber: 'sniper' });
 /** Titanfall AT blasts reuse a stock blast profile (the THUNDERBOLT orb also crackles). */
-const BLAST_ALIAS = Object.freeze({ archer: 'rocket', arcball: 'pulse' });
+// The AT MINE goes off with the rocket's heavy blast (profile and Conquest bank).
+const BLAST_ALIAS = Object.freeze({ archer: 'rocket', arcball: 'pulse', atmine: 'rocket' });
 const engine = new AudioEngine();
 const cosmeticAudio = new CosmeticAudio(engine);
 let pool = null;
@@ -2050,6 +2051,18 @@ export const sfx = {
       primitives.hiss(output, { t0: at, filter: 'lowpass', f: 900, dec: 0.05, g: 0.14 });
       primitives.hiss(output, { t0: at + 0.06, filter: 'bandpass', f: 2800, q: 4, dec: 0.035, g: 0.16 });
       primitives.tone(output, { t0: at + 0.062, type: 'square', f0: 1400, f1: 900, att: 0.001, dec: 0.025, g: 0.045 });
+    });
+  },
+
+  /** AT MINE goes live: a dry fuze click and a short detent tick at the mine. */
+  atMineArm(pos) {
+    const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : null;
+    run('atMineArm', () => {
+      const output = pool.acquire(deferredPos ? { pos: deferredPos, priority: 2 } : null, 0.25);
+      const at = primitives.nowT();
+      primitives.hiss(output, { t0: at, filter: 'bandpass', f: 3200, q: 5, dec: 0.02, g: 0.2 });
+      primitives.tone(output, { t0: at, type: 'square', f0: 1700, f1: 1100, att: 0.001, dec: 0.02, g: 0.05 });
+      primitives.tone(output, { t0: at + 0.07, type: 'square', f0: 2300, f1: 1900, att: 0.001, dec: 0.015, g: 0.035 });
     });
   },
 

@@ -65,7 +65,7 @@ let groups = 0;
   const assaultAa = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
     nowMs: FIXTURE_NOW, selection: { spawn: 'hq', kit: 'assault', gadget: 1 } });
   assert.deepEqual(assaultAa.choice, { spawn: 'hq', kit: 'assault', variant: 0 }, 'a kit without a gadget choice never sends one');
-  assert.deepEqual(engineer.grenades, Object.entries(KITS.engineer.grenades).map(([t, n]) => `${n}× ${t.toUpperCase()}`));
+  assert.deepEqual(engineer.grenades, Object.entries(KITS.engineer.grenades).map(([t, n]) => `${n}× ${t === 'atmine' ? 'AT MINE' : t.toUpperCase()}`));
 
   // A refused choice, a stale selection and a vehicle seat.
   const refused = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles, nowMs: FIXTURE_NOW,

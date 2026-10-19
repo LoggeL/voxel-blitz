@@ -41,6 +41,7 @@ const BLAST_PARTICLES = Object.freeze({
   limpet: Object.freeze({ count: 44, tint: 0xffc27a, speed: 9.5, size: 1.7, life: 0.8, shake: 1.05, reach: 28 }),
   pulse: Object.freeze({ count: 26, tint: 0x9ff4ff, speed: 11, size: 1.2, life: 0.45, shake: 0.7, reach: 24 }),
   rocket: Object.freeze({ count: 52, tint: 0xffb347, speed: 10.5, size: 1.8, life: 0.85, shake: 1.15, reach: 32 }),
+  atmine: Object.freeze({ count: 50, tint: 0xffb347, speed: 10, size: 1.8, life: 0.85, shake: 1.2, reach: 32 }),
   mgl: Object.freeze({ count: 34, tint: 0xffa443, speed: 9.2, size: 1.3, life: 0.62, shake: 0.72, reach: 24 }),
   // Tank shells: VehicleFx adds the ground shock ring and its own camera shake.
   shell: Object.freeze({ count: 46, tint: 0xffc070, speed: 12, size: 1.7, life: 0.7, shake: 0.9, reach: 30 }),
@@ -67,7 +68,7 @@ const BUBBLE_TRAIL_RANGE = 30;
 export class Effects {
   constructor(scene, camera, worldGetBlockFn, {
     getEntityPosition = null, onBounce = null, onGlaiveFlip = null, onGlaiveFlight = null,
-    getGlaiveSeekBodies = null, onWallImpact = null,
+    getGlaiveSeekBodies = null, onWallImpact = null, onMineArmed = null,
   } = {}) {
     this.scene = scene;
     this.camera = camera;
@@ -122,6 +123,7 @@ export class Effects {
         if (typeof onGlaiveFlip === 'function') onGlaiveFlip(detail);
       },
       onGlaiveFlight: typeof onGlaiveFlight === 'function' ? onGlaiveFlight : null,
+      onMineArmed: typeof onMineArmed === 'function' ? onMineArmed : null,
     });
     /** The local player's queued fabrications as `performance.now()` due times. */
     this._glaiveFabDue = [];
@@ -401,7 +403,7 @@ export class Effects {
       // The flash, film ring and cartoon pop strokes come from ProjectileFX.explode.
     }
     if (event?.type === 'frag' || event?.type === 'limpet' || event?.type === 'rocket' || event?.type === 'shell'
-      || event?.type === 'archer') {
+      || event?.type === 'archer' || event?.type === 'atmine') {
       // Dirt burst: the blast throws soil up around the sparks — slower,
       // longer-lived and soft. Energy blasts (pulse/bolt) throw none.
       this.impacts.spawnParticles(

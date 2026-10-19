@@ -1,8 +1,9 @@
 import { placeClaymore } from './claymore-rules.js';
+import { placeAtMine } from './at-mine-rules.js';
 import { molotovFireProfile } from './molotov-rules.js';
 import { smokeProfile } from './smoke-rules.js';
 /**
- * Shared client/server contract for the throwable roster: five throwable types with
+ * Shared client/server contract for the throwable roster: six throwable types with
  * one inventory, one ready-grenade pouch model (remembered power steps plus a cook
  * measured from the pin pull), and one physics integrator.
  *
@@ -13,8 +14,11 @@ import { smokeProfile } from './smoke-rules.js';
  *                              concussion that slows and panics whoever it lands on.
  * - `molotov` MOLOTOV COCKTAIL shatters on impact and leaves a persistent ground fire.
  * - `smoke`   M-18 SMOKE       timed fuse, then an optical cloud that blocks sight only.
+ * - `atmine`  AT MINE          Conquest Engineer kit only (perLife 0 elsewhere): laid on the
+ *                              floor, detonates under an enemy ground hull
+ *                              (shared/at-mine-rules.js). Appended, so older slots keep their index.
  */
-export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse', 'molotov', 'smoke']);
+export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse', 'molotov', 'smoke', 'atmine']);
 
 /** Hold time (ms) that reaches full throw strength. Cooking continues beyond it. */
 export const GRENADE_CHARGE_MS = 1200;
@@ -44,7 +48,7 @@ export const GRENADE_THROW_COOLDOWN_MS = 450;
 export const GRENADE_THROW_COOLDOWN_CLIENT_SLACK_MS = 100;
 /** HUD grouping, and the auto-ready fallback when the current type runs out. */
 export const GRENADE_ROLES = Object.freeze({
-  frag: 'lethal', molotov: 'lethal', pulse: 'tactical', smoke: 'tactical', limpet: 'gadget',
+  frag: 'lethal', molotov: 'lethal', pulse: 'tactical', smoke: 'tactical', limpet: 'gadget', atmine: 'gadget',
 });
 
 const FRAG_PHYSICS = Object.freeze({
@@ -167,7 +171,41 @@ export const GRENADE_TYPES = Object.freeze({
       radius: 0.16,
     }),
   }),
+  // Infantry splash of the AT MINE; the belly charge on the hull above it is
+  // AT_MINE_RULES.hullDamage. `kitOnly`: never issued per life, so it stays out
+  // of the free rosters (Chaos shop, Bastion armory) and only a kit grants it.
+  atmine: Object.freeze({
+    id: 'atmine',
+    name: 'AT MINE',
+    short: 'ATM',
+    perLife: 0,
+    kitOnly: true,
+    groundMine: true,
+    fuseMs: 0,
+    cook: false,
+    impact: false,
+    damage: 150,
+    damageRadius: 5.5,
+    selfDamage: 0.72,
+    knockback: 10,
+    terrainRadius: 3.2,
+    terrainPower: 190,
+    maxDestroyedBlocks: 120,
+    concussMs: 0,
+    concussPanic: 0,
+    color: '#c9b458',
+    physics: Object.freeze({
+      gravity: 16,
+      bounce: 0,
+      floorFriction: 0,
+      wallDamping: 0,
+      radius: 0.14,
+    }),
+  }),
 });
+
+/** Pouch types any roster may offer; kit-only types (the AT MINE) come from a Conquest kit alone. */
+export const FREE_GRENADE_TYPE_IDS = Object.freeze(GRENADE_TYPE_IDS.filter(id => !GRENADE_TYPES[id].kitOnly));
 
 export const GRENADE_FUSE_MS = GRENADE_TYPES.frag.fuseMs;
 
@@ -292,6 +330,7 @@ export function grenadeThrowProfile(value) {
  */
 export function grenadeLaunch({ x, y, z, eyeY, vx = 0, vy = 0, vz = 0, dir, charge, type = 'frag', solidAt = null }) {
   if (type === 'limpet') return placeClaymore({ x, eyeY, z, dir }, solidAt);
+  if (type === 'atmine') return placeAtMine({ x, eyeY, z, dir }, solidAt);
   const profile = grenadeThrowProfile(charge);
   const d = dir || { x: 0, y: 0, z: -1 };
   const typeId = GRENADE_TYPES[type] ? type : 'frag';
@@ -351,7 +390,7 @@ export function stepGrenade(grenade, dt, isSolid) {
   const physics = physicsFor(grenade);
   grenade.hitFloor = false;
   grenade.hitSolid = false;
-  if (grenade.type === 'limpet' || grenade.stuck || duration === 0) return grenade;
+  if (grenade.type === 'limpet' || grenade.type === 'atmine' || grenade.stuck || duration === 0) return grenade;
   // Small swept steps prevent fast throws from skipping thin voxel walls.
   const speed = Math.hypot(grenade.vx, grenade.vy, grenade.vz) + physics.gravity * duration;
   const count = Math.max(1, Math.ceil(Math.max(duration * 120, speed * duration / physics.radius)));

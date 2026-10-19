@@ -90,6 +90,7 @@ export const THROWABLE_NAMES = Object.freeze({
   pulse: 'PULSE SHOCK',
   molotov: 'MOLOTOV COCKTAIL',
   smoke: 'M-18 SMOKE',
+  atmine: 'AT MINE',
 });
 
 /** One icon per throwable for the Ready Card, pouch, shop and kill feed. */
@@ -99,6 +100,7 @@ export const GRENADE_HUD_ICONS = Object.freeze({
   pulse: './assets/grenades/hud/pulse.png',
   molotov: './assets/grenades/hud/molotov.png',
   smoke: './assets/grenades/hud/smoke.svg',
+  atmine: './assets/grenades/hud/atmine.svg',
 });
 
 export const WEAPON_CLASSES = Object.freeze({

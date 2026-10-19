@@ -20,8 +20,8 @@ import {
 } from '../shared/grenade-rules.js';
 
 // Roster and constants stay stable: ids are wire indices and saved preferences.
-assert.deepEqual([...GRENADE_TYPE_IDS], ['frag', 'limpet', 'pulse', 'molotov', 'smoke']);
-assert.deepEqual(freshGrenadeLoadout(), [2, 1, 2, 1, 1]);
+assert.deepEqual([...GRENADE_TYPE_IDS], ['frag', 'limpet', 'pulse', 'molotov', 'smoke', 'atmine']);
+assert.deepEqual(freshGrenadeLoadout(), [2, 1, 2, 1, 1, 0]);
 assert.equal(GRENADE_TAP_MS, 170);
 assert.equal(GRENADE_PIN_MS, 240);
 assert.equal(GRENADE_POUCH_HOLD_MS, 200);

@@ -86,7 +86,7 @@ function writePref(key, value) {
 
 /** Quick-key action ids -> GRENADE_TYPE_IDS index (limpet is the wall claymore). */
 const GRENADE_QUICK_KEYS = Object.freeze({
-  grenadeFrag: 0, grenadeClaymore: 1, grenadePulse: 2, grenadeMolotov: 3, grenadeSmoke: 4,
+  grenadeFrag: 0, grenadeClaymore: 1, grenadePulse: 2, grenadeMolotov: 3, grenadeSmoke: 4, grenadeAtMine: 5,
 });
 
 const MOVEMENT_KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'prone', 'leanLeft', 'leanRight', 'interact'];
@@ -1741,7 +1741,7 @@ export class Input {
         if (!e.repeat && !this._wheelOpen && !this._buildMode && !this._pouchOpen) this.cycleGrenadeType(-1);
         break;
       case 'grenadeFrag': case 'grenadeClaymore': case 'grenadePulse':
-      case 'grenadeMolotov': case 'grenadeSmoke': {
+      case 'grenadeMolotov': case 'grenadeSmoke': case 'grenadeAtMine': {
         if (e.repeat || this._wheelOpen || this._grenadeHeld) break;
         const type = GRENADE_QUICK_KEYS[action];
         if (this.setGrenadePouchOpen(false)) this._pouchKeySpent = true;

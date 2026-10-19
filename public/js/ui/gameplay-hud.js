@@ -948,7 +948,9 @@ export class GameplayHud {
     const pinBack = now - pinBackAt < GRENADE_PINBACK_MS;
     const readiedVisible = alive && !emptyPouch && (held || now - readiedAt < GRENADE_READIED_MS || pinBack);
 
-    const wallMine = !!type.wallMine;
+    // Placed mines (wall claymore, floor AT MINE) share the mount card; only the words differ.
+    const groundMine = !!type.groundMine;
+    const wallMine = !!type.wallMine || groundMine;
     const power = wallMine ? 0 : clamp01(Number.isFinite(s.grenadePower) ? s.grenadePower : s.grenadeCharge);
     let powerIndex = Number.isInteger(s.grenadePowerIndex) ? s.grenadePowerIndex : -1;
     if (powerIndex < 0) {
@@ -988,7 +990,7 @@ export class GameplayHud {
       d.grenadeFlash.textContent = flash;
     }
     // A claymore let go off a wall is a pin back too, but it reads as the reason.
-    const pinBackNote = s.grenadePinBackReason === 'noWall' ? 'NO WALL' : 'PIN BACK';
+    const pinBackNote = s.grenadePinBackReason === 'noWall' ? 'NO WALL' : s.grenadePinBackReason === 'noGround' ? 'NO GROUND' : 'PIN BACK';
     const note = pinBack && !held ? pinBackNote : advanced && !held ? `→ ${type.name}` : '';
     if (painted.grenadeReadiedNote !== note) {
       painted.grenadeReadiedNote = note;
@@ -1006,7 +1008,8 @@ export class GameplayHud {
     const reach = `${Number(CLAYMORE_RULES.placementRange.toFixed(1))}m`;
     let hint = touch ? 'TAP · THROW' : `TAP ${pad ? 'RB' : bindingLabel('grenade')} · THROW`;
     if (held) {
-      if (wallMine) hint = placeable ? 'RELEASE · MOUNT' : `NO WALL · MAX ${reach}`;
+      if (groundMine) hint = placeable ? 'RELEASE · PLACE' : 'NO GROUND';
+      else if (wallMine) hint = placeable ? 'RELEASE · MOUNT' : `NO WALL · MAX ${reach}`;
       else if (cooking && Number.isFinite(s.grenadeCookLeftMs)) hint = `COOKING · ${(Math.max(0, s.grenadeCookLeftMs) / 1000).toFixed(1)}s`;
       else hint = 'RELEASE · THROW';
     }
@@ -1029,7 +1032,8 @@ export class GameplayHud {
       d.grenadeAimFuseLabel.textContent = type.cook ? fuse.split('|')[0] : '';
       d.grenadeAimFuseRing.style.setProperty('--fuse', type.cook ? fuse.split('|')[1] : '0');
     }
-    const mount = wallMine ? (placeable ? '[ MOUNT ]' : `[ NO WALL · ${reach} ]`) : '';
+    const mount = groundMine ? (placeable ? '[ PLACE ]' : '[ NO GROUND ]')
+      : wallMine ? (placeable ? '[ MOUNT ]' : `[ NO WALL · ${reach} ]`) : '';
     if (painted.grenadeMount !== mount) {
       painted.grenadeMount = mount;
       d.grenadeAimMount.textContent = mount;
@@ -1038,7 +1042,7 @@ export class GameplayHud {
     const cancelKeys = pad ? 'X' : [bindingLabel('reload'), bindingLabel('grenadeCancel')].filter((label) => label !== 'UNBOUND').join(' / ');
     const pinBackHint = touch ? 'SLIDE TO PIN BACK' : `${cancelKeys} · PIN BACK`;
     const aimHint = wallMine
-      ? `${release} · MOUNT   ${pinBackHint}`
+      ? `${release} · ${groundMine ? 'PLACE' : 'MOUNT'}   ${pinBackHint}`
       : `${release} · THROW   ${touch ? 'TAP A STOP · RANGE' : pad ? 'D↕ · RANGE' : 'SCROLL · RANGE'}   ${pinBackHint}`;
     if (painted.grenadeAimHint !== aimHint) {
       painted.grenadeAimHint = aimHint;

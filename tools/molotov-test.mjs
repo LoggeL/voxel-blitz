@@ -25,8 +25,8 @@ function fixture(blockAt = (_x, y) => y === 0 ? 1 : 0) {
   return { system, owner, victim, events, kills, terrain, ctx, ignite, step };
 }
 
-assert.deepEqual(GRENADE_TYPE_IDS, ['frag', 'limpet', 'pulse', 'molotov', 'smoke']);
-assert.deepEqual(freshGrenadeLoadout(), [2, 1, 2, 1, 1]);
+assert.deepEqual(GRENADE_TYPE_IDS, ['frag', 'limpet', 'pulse', 'molotov', 'smoke', 'atmine']);
+assert.deepEqual(freshGrenadeLoadout(), [2, 1, 2, 1, 1, 0]);
 assert.equal(GRENADE_TYPES.molotov.cook, false);
 assert.equal(molotovFireProfile(), MOLOTOV_FIRE);
 assert.equal(molotovFireProfile(NaN), MOLOTOV_FIRE);
@@ -71,7 +71,7 @@ for (const offsetX of [0, 0.13, 0.5, 0.87]) for (const offsetZ of [0, 0.13, 0.5,
   const p = f.system.throw(f.owner, f.ctx, 0.5, 3, 4999);
   assert.equal(p.type, 'molotov');
   assert.equal(p.explodeAt, 5000, 'charging cannot shorten the bottle flight failsafe');
-  assert.deepEqual(f.owner.grenades, [2, 1, 2, 0, 1]);
+  assert.deepEqual(f.owner.grenades, [2, 1, 2, 0, 1, 0]);
   const predicted = predictGrenadePath(p, (x, y, z) => !!f.ctx.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)));
   assert(predicted.rests && predicted.landing[1] < 1.2, 'preview terminates at the same supporting ground');
   for (let i = 0; i < 100 && f.system.active.size; i++) f.step(1 / 60);

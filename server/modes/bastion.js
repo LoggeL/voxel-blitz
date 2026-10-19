@@ -3,7 +3,7 @@ import { BASTION_RULES as R, BASTION_ROLES, BASTION_ENEMIES, BASTION_SHOP, basti
 import { BASTION_LAYOUTS, bastionPlannedWaves } from '../../shared/world/bastion-layouts.js';
 import { BASTION_BREAK_PHASES } from '../../shared/modes.js';
 import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
-import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
+import { FREE_GRENADE_TYPE_IDS, GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
 import { slot } from './bastion/ai-common.js';
 import { BastionEnemies } from './bastion/enemies.js';
 import { BastionStructures } from './bastion/structures.js';
@@ -351,7 +351,7 @@ export class BastionPolicy {
       state.primary = req.item; this.loadout(p); return true;
     }
     if (req.action === 'throwable') {
-      if (!GRENADE_TYPE_IDS.includes(req.item) || req.item === 'smoke') return false;
+      if (!FREE_GRENADE_TYPE_IDS.includes(req.item) || req.item === 'smoke') return false;
       state.throwable = req.item; this.loadout(p); return true;
     }
     const item = BASTION_SHOP[req.action];

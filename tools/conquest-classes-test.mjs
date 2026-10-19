@@ -59,6 +59,7 @@ const eq = (a, b, message) => { assert.deepEqual(a, b, message); checks++; };
   eq(KITS.pyro.primaries, ['flamethrower', 'shotgun']); eq(KITS.pyro.grenades, { molotov: 2, smoke: 1 });
   eq(KITS.grenadier.primaries, ['mgl', 'bubble']); eq(KITS.grenadier.grenades, { frag: 2, smoke: 1 });
   eq(KITS.raider.primaries, ['glaive', 'smg']); eq(KITS.raider.grenades, { frag: 1, limpet: 1 });
+  eq(KITS.engineer.grenades, { smoke: 1, frag: 1, atmine: 3 }, 'the Engineer lays AT mines');
   eq(KITS.marksman.primaries, ['lance', 'longarc']); eq(KITS.marksman.grenades, { pulse: 1, smoke: 1 });
   eq(Object.entries(KITS).filter(([, k]) => k.primaries.includes('rifle')).map(([id]) => id), ['assault'], 'the RAPTOR stays unique to the Assault');
   for (const id of KIT_IDS) {

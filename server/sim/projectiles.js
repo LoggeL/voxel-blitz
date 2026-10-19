@@ -67,6 +67,11 @@ import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
 import { TitanfallProjectiles } from './titanfall/index.js';
 import { CLAYMORE_RULES, rayClaymore, placeClaymore, claymoreProfile, claymoreBeam, crossesClaymore } from '../../shared/claymore-rules.js';
+import { AT_MINE_RULES, placeAtMine, rayAtMine } from '../../shared/at-mine-rules.js';
+import { atMineTriggeredBy } from '../../shared/at-mine-trigger.js';
+
+/** Persistent placed mines: the wall claymore (`limpet`) and the Conquest AT MINE. */
+const isMine = projectile => projectile.type === 'limpet' || projectile.type === 'atmine';
 
 /** Live projectiles per room; launches beyond it are refused. */
 export const MAX_ACTIVE_PROJECTILES = 192;
@@ -98,7 +103,7 @@ export function glaiveDef(player) {
 
 /** Damage class a blast deals to hulls when its rules carry none (shared/vehicle-armor.js). */
 const HULL_BLAST_CLASSES = Object.freeze({ rocket: 'at', mgl: 'explosive', frag: 'explosive', limpet: 'explosive',
-  pulse: 'explosive', bubble: 'explosive' });
+  pulse: 'explosive', bubble: 'explosive', atmine: 'explosive' });
 
 /** Blast profile per projectile type, read by tests and the explosion path alike. */
 export const PROJECTILE_RULES = Object.freeze({
@@ -107,6 +112,8 @@ export const PROJECTILE_RULES = Object.freeze({
   pulse: GRENADE_TYPES.pulse,
   molotov: GRENADE_TYPES.molotov,
   smoke: GRENADE_TYPES.smoke,
+  // Infantry splash from the pouch profile; `cls` is the belly charge's class (AT_MINE_RULES).
+  atmine: Object.freeze({ ...GRENADE_TYPES.atmine, cls: AT_MINE_RULES.hullCls }),
   rocket: Object.freeze({
     id: 'rocket',
     name: 'RX-8 HAVOC',
@@ -279,6 +286,10 @@ export class ProjectileSystem {
         this._stepClaymore(projectile, ctx);
         continue;
       }
+      if (projectile.type === 'atmine') {
+        this._stepAtMine(projectile, ctx);
+        continue;
+      }
       if (projectile.type === 'glaive' && !this._glaiveOwnerLive(projectile, ctx)) {
         // A dead or departed owner loses the disc outright; respawn refills the gun.
         this._endGlaive(projectile, ctx, 'owner');
@@ -322,11 +333,64 @@ export class ProjectileSystem {
   nearestClaymore(origin, direction, limit, minT = 0, radius = 0) {
     let best = null;
     for (const mine of this.active.values()) {
-      if (mine.type !== 'limpet') continue;
-      const t = rayClaymore(mine, origin, direction, best?.t ?? limit, minT, radius);
+      if (!isMine(mine)) continue;
+      const t = (mine.type === 'atmine' ? rayAtMine : rayClaymore)(mine, origin, direction, best?.t ?? limit, minT, radius);
       if (t !== null) best = {mine, t};
     }
     return best;
+  }
+
+  /**
+   * AT MINE: removed with its floor voxel; once armed (and while the round is
+   * live) it detonates under an enemy ground hull. Chained or shot mines go
+   * off through `explodeAt` like any other explosive.
+   */
+  _stepAtMine(mine, ctx) {
+    if (ctx.now >= mine.explodeAt) return this.explode(mine, ctx);
+    if (!mine.mount || ctx.getBlock(...mine.mount) === AIR) {
+      this.active.delete(mine.id);
+      return;
+    }
+    if (ctx.now < mine.armedAt || (ctx.canAffectWorld && !ctx.canAffectWorld())) return;
+    if (this._atMineHull(mine, ctx)) return this.explode(mine, ctx);
+  }
+
+  /** The enemy ground hull over `mine`, recorded as the belly charge's target; else null. */
+  _atMineHull(mine, ctx) {
+    for (const v of ctx.vehicles?.vehicles?.values?.() ?? []) {
+      if (!atMineTriggeredBy(mine, v)) continue;
+      mine.directVehicleId = v.id;
+      mine.directPoint = [mine.x, mine.y, mine.z];
+      mine.directDir = [0, 1, 0];
+      mine.hullDirect = AT_MINE_RULES.hullDamage;
+      return v;
+    }
+    return null;
+  }
+
+  _placeAtMine(player, ctx, direction, index) {
+    const placement = placeAtMine({ x: player.eyeX ?? player.x, eyeY: player.eyeY, z: player.eyeZ ?? player.z, dir: direction },
+      ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR));
+    if (!placement || !(player.grenades[index] > 0)) return null;
+    // Per-owner cap across lives: the oldest live mine makes room (map order is placement order).
+    const owned = [...this.active.values()].filter(p => p.type === 'atmine' && p.ownerId === String(player.id));
+    for (let i = 0; i <= owned.length - AT_MINE_RULES.maxPerOwner; i++) this.active.delete(owned[i].id);
+    const team = ctx.vehicles?.teamOf?.(player) ?? player.team ?? null;
+    const mine = { ...placement, id: `g${this._nextId++}`, ownerId: String(player.id), owner: player, team,
+      stuck: true, launchedAt: ctx.now, armedAt: ctx.now + AT_MINE_RULES.armMs, explodeAt: Infinity, chaosLevel: 0 };
+    player.grenades[index]--;
+    player.spawnProtectedUntil = 0;
+    player.spawnProtected = false;
+    this.active.set(mine.id, mine);
+    ctx.pushEvent(this._mineRow(mine, ctx.now));
+    return mine;
+  }
+
+  /** Launch-shaped row of a persistent mine (placement event and `mineSnapshot`). */
+  _mineRow(mine, now) {
+    if (mine.type === 'limpet') return this._claymoreRow(mine, now);
+    return { ...evProjectileLaunch(mine.ownerId, mine.id, 'atmine', [mine.x, mine.y, mine.z], [0, 0, 0], 0),
+      n: [0, 1, 0], armMs: Math.max(0, mine.armedAt - now), team: mine.team };
   }
 
   _stepClaymore(mine, ctx) {
@@ -378,14 +442,14 @@ export class ProjectileSystem {
   clearMines(ownerId = null) {
     const owner = ownerId == null ? null : String(ownerId);
     for (const [id, projectile] of this.active) {
-      if (projectile.type === 'limpet' && (owner === null || projectile.ownerId === owner)) this.active.delete(id);
+      if (isMine(projectile) && (owner === null || projectile.ownerId === owner)) this.active.delete(id);
     }
   }
 
   /** Full persistent mine state also reaches players who join after placement. */
   mineSnapshot(now) {
-    return [...this.active.values()].filter(p => p.type === 'limpet' && p.mount)
-      .map(p => this._claymoreRow(p, now));
+    return [...this.active.values()].filter(p => isMine(p) && p.mount)
+      .map(p => this._mineRow(p, now));
   }
 
   _flyGrenade(projectile, stepSeconds, substeps, ctx) {
@@ -997,6 +1061,7 @@ export class ProjectileSystem {
     const type = GRENADE_TYPES[GRENADE_TYPE_IDS[index]];
     const direction = fwdFromYawPitch(aim?.yaw ?? player.yaw, aim?.pitch ?? player.pitch);
     if (type.wallMine) return this._placeClaymore(player, ctx, direction, index);
+    if (type.groundMine) return this._placeAtMine(player, ctx, direction, index);
     const launch = grenadeLaunch({
       x: player.eyeX ?? player.x, y: player.y, z: player.eyeZ ?? player.z, eyeY: player.eyeY,
       vx: player.vx, vy: player.vy, vz: player.vz,
@@ -1652,6 +1717,8 @@ export class ProjectileSystem {
       this.fire.ignite(projectile, ctx);
       return true;
     }
+    // A shot or chained AT MINE still lands its belly charge on a hull standing over it.
+    if (projectile.type === 'atmine' && !projectile.directVehicleId) this._atMineHull(projectile, ctx);
     const hitVictims = new Set();
     this._damagePlayers(owner, origin, rules, projectile, ctx, hitVictims);
     if (ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'mgl') {

@@ -809,7 +809,7 @@ export async function runHudContracts(ok, installGlobals) {
       const card = document.getElementById('grenade-count');
       const dots = card.querySelectorAll('.vb-grenade-dot');
       ok(card.querySelectorAll('.vb-grenade-type').length === 0
-        && dots.length === 5
+        && dots.length === 6
         && dots[0].classList.contains('is-stocked') && dots[0].classList.contains('is-ready')
         && dots[1].classList.contains('is-stocked') && !dots[1].classList.contains('is-ready')
         && !dots[2].classList.contains('is-stocked')
@@ -907,8 +907,8 @@ export async function runHudContracts(ok, installGlobals) {
       const pouch = document.getElementById('grenade-pouch');
       const pouchSlots = pouch.querySelectorAll('.vb-pouch-slot');
       const pouchOpen = pouch.getAttribute('aria-hidden') === 'false'
-        && pouchSlots.length === 5
-        && pouchSlots.map((slot) => slot.dataset.type).join(',') === 'frag,limpet,pulse,molotov,smoke'
+        && pouchSlots.length === 6
+        && pouchSlots.map((slot) => slot.dataset.type).join(',') === 'frag,limpet,pulse,molotov,smoke,atmine'
         && pouchSlots[0].style['--vb-pouch-angle'] === '270deg'
         && pouchSlots[1].classList.contains('is-empty') && pouchSlots[2].classList.contains('is-empty')
         && pouchSlots[0].classList.contains('is-ready')
@@ -920,7 +920,7 @@ export async function runHudContracts(ok, installGlobals) {
       const fragRole = pouch.querySelector('.vb-pouch-hub-role').textContent === 'Timed fuse · cookable · 7.5 m blast';
       hud.setState({ grenadePouchOpen: false });
       ok(pouchOpen && fragRole && pouch.getAttribute('aria-hidden') === 'true' && !hud.isGrenadePouchOpen(),
-        'pouch radial lays five fixed wedges, snaps hover off empty slots, and generates the role line from the rules');
+        'pouch radial lays six fixed wedges, snaps hover off empty slots, and generates the role line from the rules');
       // Down-right points at the empty pulse slot and snaps to molotov; the dead zone picks nothing.
       ok(grenadePouchSlotFromVector(0, -1, [1, 0, 0, 1, 1]) === 0
         && grenadePouchSlotFromVector(0.8, 0.6, [1, 0, 0, 1, 1]) === 3

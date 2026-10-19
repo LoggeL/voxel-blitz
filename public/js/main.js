@@ -506,6 +506,8 @@ class Game {
       // RIPTIDE: positional whirr per airborne disc; the local "vwomp" as an own disc turns.
       onGlaiveFlight: (disc) => sfx.glaiveFlight?.(disc.id, [disc.x, disc.y, disc.z],
         { phase: disc.phase, velocity: [disc.vx, disc.vy, disc.vz] }),
+      // AT MINE arming click at the mine.
+      onMineArmed: (mine) => sfx.atMineArm?.([mine.x, mine.y, mine.z]),
       onGlaiveFlip: (detail) => {
         sfx.glaiveCue?.('return');
         // The horns flare and the view leans toward the own disc as it turns home.
@@ -947,8 +949,8 @@ class Game {
     input.setGrenadeCounts?.(this.selfRow?.grenades);
     const pending = input.peekGrenadeThrow?.();
     const type = pending && GRENADE_TYPES[GRENADE_TYPE_IDS[pending.type]];
-    if (type?.wallMine && this.player.alive && !this.player.grenadeLaunchState(pending.charge, type.id)) {
-      input.cancelGrenade('noWall');
+    if ((type?.wallMine || type?.groundMine) && this.player.alive && !this.player.grenadeLaunchState(pending.charge, type.id)) {
+      input.cancelGrenade(type.groundMine ? 'noGround' : 'noWall');
     }
   }
 
@@ -1017,7 +1019,8 @@ class Game {
     if (!canThrow && !this.player.alive) this.rig?.cancelGrenade();
     else this.rig?.grenadeCharge(power, typeIndex, heldMs, charging);
     const preview = charging ? this.player.grenadeLaunchState(power, type.id) : null;
-    this._claymorePlacementValid = type.wallMine && !!preview;
+    // Placed mines (wall claymore, AT MINE) show a ghost only where they would land.
+    this._claymorePlacementValid = (type.wallMine || type.groundMine) && !!preview;
     const mineProfile = claymoreProfile(this.selfRow?.chaosUpgrades?.limpet || 0);
     const level = chaosLevel(this.selfRow, type.id);
     this.effects?.projectilePreview(preview ? { ...preview,
@@ -1892,7 +1895,7 @@ function observeResources(pattern, report, run) {
 
 /** Warm the HTTP cache for the skyboxes and HUD icons the first match will request. */
 async function prefetchArt(report) {
-  const grenadeIcon = (id) => `./assets/grenades/hud/${id}.${['smoke', 'limpet'].includes(id) ? 'svg' : 'png'}`;
+  const grenadeIcon = (id) => `./assets/grenades/hud/${id}.${['smoke', 'limpet', 'atmine'].includes(id) ? 'svg' : 'png'}`;
   const urls = [...new Set([
     ...Object.keys(MAP_LABELS).map((map) => mapAtmosphere(map)?.skybox).filter(Boolean),
     ...WEAPON_IDS.map(weaponImagePath),

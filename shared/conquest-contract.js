@@ -48,7 +48,8 @@ export const KIT_IDS = Object.freeze(['assault', 'engineer', 'support', 'recon',
 /**
  * `gadget` is the default gadget (gadgets[0]); `gadgets` lists the deploy-screen
  * choices, picked by the deploy intent's `gadget` index (0 default). The
- * Engineer carries the RX-8 AT launcher (0) or the AX-9 STINGER AA launcher (1).
+ * Engineer carries the RX-8 AT launcher (0) or the AX-9 STINGER AA launcher (1),
+ * and AT MINES in the grenade pouch (`atmine`, shared/at-mine-rules.js).
  * `unlockLevel` is the career level that opens the kit (1: a base kit); the
  * server refuses a locked kit at deploy (`deploy_refused {reason:'locked'}`),
  * bots ignore it. `aura` marks a passive team aura (the Medic's heal).
@@ -59,7 +60,7 @@ const KIT = (label, ability, primaries, gadgets, grenades, unlockLevel, extra = 
 });
 export const KITS = Object.freeze({
   assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'shotgun'],       [],                    { frag: 2, pulse: 1 },    1),
-  engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger'], { smoke: 1, frag: 1 },    1),
+  engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger'], { smoke: 1, frag: 1, atmine: 3 }, 1),
   support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         [],                    { frag: 2, molotov: 1 },  1),
   recon:     KIT('RECON',     'spot',       ['sniper', 'longarc'],      [],                    { limpet: 2, pulse: 1 },  1),
   medic:     KIT('MEDIC',     'revive',     ['smg', 'longarc'],         [],                    { smoke: 2, frag: 1 },    1, { aura: 'heal' }),

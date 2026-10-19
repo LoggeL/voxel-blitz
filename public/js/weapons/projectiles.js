@@ -1,6 +1,7 @@
 import { isSolidBlock } from '../../../shared/world/blocks.js';
 import * as THREE from '../vendor/three.module.js';
 import { CLAYMORE_RULES, claymoreBeam } from '../../../shared/claymore-rules.js';
+import { AT_MINE_RULES } from '../../../shared/at-mine-rules.js';
 import {
   GRENADE_TYPES,
   grenadeEffectRadius,
@@ -54,6 +55,8 @@ const SHELL_GLOW_WIDTH = 0.3;
 // GRENADES study -> in-world prop. The authored bodies are held-frame sized
 // (0.06-0.12 m); the thrown props have always read a little larger than life so
 // they stay visible mid-flight, so each type keeps its procedural footprint.
+/** Persistent placed mines: the wall claymore (`limpet`) and the Conquest AT MINE. */
+const isMineType = type => type === 'limpet' || type === 'atmine';
 const AUTHORED_WORLD_SCALE = Object.freeze({ frag: 1.9, limpet: 2.2, pulse: 2.0, molotov: 1.5, smoke: 1.85 });
 const MOLOTOV_WICK_TIP = Object.freeze([-0.037, 0.303, 0]);
 const ROCKET_TRAILS_PER_SECOND = 360;
@@ -153,7 +156,7 @@ function glaiveTrailIndex(points) {
 export class ProjectileFX {
   constructor(scene, getBlock = () => 0, {
     getEntityPosition = null, onTrail = null, onBounce = null, onGlaiveFlip = null, onGlaiveFlight = null,
-    getGlaiveSeekBodies = null, camera = null,
+    getGlaiveSeekBodies = null, camera = null, onMineArmed = null,
   } = {}) {
     this.scene = scene;
     this.getBlock = getBlock;
@@ -168,6 +171,8 @@ export class ProjectileFX {
     this.onGlaiveFlight = typeof onGlaiveFlight === 'function' ? onGlaiveFlight : null;
     // `getGlaiveSeekBodies(disc)`: presented feet positions an out-leg disc may seek.
     this.getGlaiveSeekBodies = typeof getGlaiveSeekBodies === 'function' ? getGlaiveSeekBodies : null;
+    // `onMineArmed(mine)`: an AT MINE seen arming in this view went live (the arm click).
+    this.onMineArmed = typeof onMineArmed === 'function' ? onMineArmed : null;
     this.projectiles = new Map();
     /** Embedded RIPTIDE discs waiting for their owner (or the 4 s fabricate), keyed by pid. */
     this.glaivePickups = new Map();
@@ -199,6 +204,9 @@ export class ProjectileFX {
     this.grenadeBandGeometry = new THREE.TorusGeometry(0.19, 0.018, 4, 16);
     this.capGeometry = new THREE.BoxGeometry(0.1, 0.08, 0.13);
     this.limpetGeometry = new THREE.BoxGeometry(0.44, 0.28, 0.14);
+    // AT MINE: a squat 12-sided olive disc with a raised pressure plate (AT_MINE_RULES.half).
+    this.atMineBodyGeometry = new THREE.CylinderGeometry(0.225, 0.24, 0.1, 12);
+    this.atMinePlateGeometry = new THREE.CylinderGeometry(0.11, 0.12, 0.035, 12);
     this.claymoreLaserGeometry = new THREE.BoxGeometry(1, 1, 1);
     this.claymoreLaserMaterial = new THREE.MeshBasicMaterial({ color: 0xff3428,
       transparent: true, opacity: 0.65, depthWrite: false, toneMapped: false });
@@ -224,6 +232,9 @@ export class ProjectileFX {
     this.limpetMaterial = new THREE.MeshStandardMaterial({
       color: 0x526442, roughness: 0.6, metalness: 0.35,
     });
+    // Team-neutral dark olive: a mine reads the same to both sides.
+    this.atMineMaterial = new THREE.MeshStandardMaterial({ color: 0x434a33, roughness: 0.78, metalness: 0.22 });
+    this.atMinePlateMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2e22, roughness: 0.7, metalness: 0.4 });
     this.pulseMaterial = new THREE.MeshStandardMaterial({
       color: 0x0f2a33, roughness: 0.3, metalness: 0.85,
       // HDR: > 1 so the pulse core blooms on HDR tiers.
@@ -448,6 +459,9 @@ export class ProjectileFX {
     this.minePreview = this._buildVisual('limpet');
     this.minePreview.group.visible = false;
     this.scene.add(this.minePreview.group);
+    this.atMinePreview = this._buildVisual('atmine');
+    this.atMinePreview.group.visible = false;
+    this.scene.add(this.atMinePreview.group);
   }
 
   _createRocketBatches(capacity) {
@@ -618,6 +632,20 @@ export class ProjectileFX {
       group.add(laser, dot);
       group.userData.laser = laser;
       group.userData.laserDot = dot;
+    } else if (type === 'atmine') {
+      const body = new THREE.Mesh(this.atMineBodyGeometry, this.atMineMaterial);
+      body.position.y = -0.01;
+      const plate = new THREE.Mesh(this.atMinePlateGeometry, this.atMinePlateMaterial);
+      plate.position.y = 0.057;
+      const handle = new THREE.Mesh(this.capGeometry, this.atMinePlateMaterial);
+      handle.scale.set(0.6, 0.35, 0.9);
+      handle.position.set(0.2, 0.04, 0);
+      // Arming lamp: amber while arming, near-dark once live.
+      capMaterial = new THREE.MeshBasicMaterial({ color: 0xe5ac42, toneMapped: false });
+      const lamp = new THREE.Mesh(this.capGeometry, capMaterial);
+      lamp.scale.set(0.22, 0.2, 0.22);
+      lamp.position.set(-0.13, 0.05, 0.08);
+      group.add(body, plate, handle, lamp);
     } else if (type === 'pulse') {
       const authored = this._authoredGrenade('pulse');
       capMaterial = new THREE.MeshBasicMaterial({
@@ -733,7 +761,7 @@ export class ProjectileFX {
       : 'frag';
     if (type === 'limpet' && (!Array.isArray(event.n) || event.n.length !== 3
       || event.n[1] !== 0 || Math.abs(event.n[0]) + Math.abs(event.n[2]) !== 1)) return false;
-    if (type === 'limpet' && !local && this._mineIds && !this._mineIds.has(String(event.pid))) return false;
+    if (isMineType(type) && !local && this._mineIds && !this._mineIds.has(String(event.pid))) return false;
     const fallbackFuse = type === 'rocket' || type === 'shell' || type === 'bomb'
       ? ROCKET_RULES.lifetimeMs
       : type === 'mgl' ? MGL_RULES.fuseMs
@@ -742,7 +770,7 @@ export class ProjectileFX {
           : type === 'bubble' ? bubbleProfile(Number(event.charge) || 0, !!event.child).lifetimeMs
             : GRENADE_TYPES[type].fuseMs;
     const fuseMs = Number(event.fuse);
-    const fuse = type === 'limpet' ? Infinity
+    const fuse = isMineType(type) ? Infinity
       : Math.max(0.05, (Number.isFinite(fuseMs) && fuseMs > 0 ? fuseMs : fallbackFuse) / 1000);
     // Reflection budget: authority events carry `bn`; otherwise the shared rule applies.
     const bn = Number(event.bn);
@@ -770,7 +798,7 @@ export class ProjectileFX {
           adopted.launchBounceBudget = bouncesLeft;
         } else adopted.bouncesLeft = bouncesLeft;
         adopted.chaos = event.chaos || 0;
-        if (type === 'limpet') this._configureMine(adopted, event);
+        if (isMineType(type)) this._configureMine(adopted, event);
         if (type === 'rocket' && event.chaos) adopted.group.scale.setScalar(2.2);
         // The release charge is authoritative: re-derive the flight, keep the position.
         if (type === 'bubble') this._configureBubble(adopted, event);
@@ -800,13 +828,13 @@ export class ProjectileFX {
       child: !!event.child,
       armAge: type === 'mgl' ? Math.max(0, Number(event.arm) || MGL_RULES.armMs) / 1000 : 0,
       local,
-      stuck: type === 'limpet',
+      stuck: isMineType(type),
       trailAt: 0,
     });
     if (type === 'mgl' && this._mglTrailCount < MGL_TRAIL_LIMIT) {
       this.projectiles.get(id).mglTrail = this._createMglTrail(this.projectiles.get(id));
     }
-    if (type === 'limpet') this._configureMine(this.projectiles.get(id), event);
+    if (isMineType(type)) this._configureMine(this.projectiles.get(id), event);
     if (type === 'glaive') this._configureGlaive(this.projectiles.get(id), event, local || fromSelf);
     if (type === 'bubble') this._configureBubble(this.projectiles.get(id), event);
     if (type === 'rocket' || type === 'shell' || type === 'bomb' || type === 'bolt' || type === 'glaive' || type === 'mgl') this._orientRocket(this.projectiles.get(id));
@@ -1150,6 +1178,7 @@ export class ProjectileFX {
    */
   setPreview(launch) {
     this.minePreview.group.visible = false;
+    this.atMinePreview.group.visible = false;
     if (!launch) {
       if (this.preview) {
         this.preview = null;
@@ -1158,10 +1187,11 @@ export class ProjectileFX {
       return null;
     }
     const type = GRENADE_TYPES[launch.type] ? launch.type : 'frag';
-    if (type === 'limpet') {
+    if (isMineType(type)) {
+      const ghost = type === 'atmine' ? this.atMinePreview : this.minePreview;
       this._hidePreviewArc();
-      this._poseMine(this.minePreview.group, launch, true);
-      this.minePreview.group.visible = true;
+      this._poseMine(ghost.group, launch, true);
+      ghost.group.visible = true;
       this.preview = { rests: true, landing: [launch.x, launch.y, launch.z] };
       return this.preview;
     }
@@ -1231,9 +1261,12 @@ export class ProjectileFX {
 
   _configureMine(mine, event) {
     [mine.x, mine.y, mine.z] = event.o;
-    mine.n = [...event.n];
+    const at = mine.type === 'atmine';
+    mine.n = at ? [0, 1, 0] : [...event.n];
     mine.laserRange = Number.isFinite(event.laserRange) ? event.laserRange : CLAYMORE_RULES.laserRange;
-    mine.armedAge = mine.age + Math.max(0, event.armMs ?? CLAYMORE_RULES.armMs) / 1000;
+    mine.armedAge = mine.age + Math.max(0, event.armMs ?? (at ? AT_MINE_RULES.armMs : CLAYMORE_RULES.armMs)) / 1000;
+    // Only a mine first seen still arming clicks live in this view (no click for late joiners).
+    mine.armCue = at && mine.armedAge > mine.age;
     mine.stuck = true;
     mine.fuse = Infinity;
     this._poseMine(mine.group, mine, mine.age >= mine.armedAge);
@@ -1241,6 +1274,8 @@ export class ProjectileFX {
 
   _poseMine(group, mine, armed) {
     group.position.set(mine.x, mine.y, mine.z);
+    // The AT MINE lies flat and has no laser.
+    if (mine.type === 'atmine') return;
     group.lookAt(mine.x + mine.n[0], mine.y, mine.z + mine.n[2]);
     const beam = claymoreBeam(mine, this.isSolid);
     const length = Math.max(0, beam.length - 0.10);
@@ -1261,12 +1296,12 @@ export class ProjectileFX {
       const id = String(row.pid);
       this.launch(row, { fromSelf: String(row.id) === String(selfId) });
       const mine = this.projectiles.get(id);
-      if (mine?.type !== 'limpet') continue;
+      if (!isMineType(mine?.type)) continue;
       this._configureMine(mine, row);
       active.add(id);
     }
     for (const [id, p] of this.projectiles) {
-      if (p.type === 'limpet' && !p.local && !active.has(id)) this._removeProjectile(id);
+      if (isMineType(p.type) && !p.local && !active.has(id)) this._removeProjectile(id);
     }
   }
 
@@ -1424,6 +1459,11 @@ export class ProjectileFX {
       projectile.age += step;
       if (projectile.type === 'limpet') {
         this._poseMine(projectile.group, projectile, projectile.age >= projectile.armedAge);
+      } else if (projectile.type === 'atmine') {
+        if (projectile.armCue && projectile.age >= projectile.armedAge && !projectile.local) {
+          projectile.armCue = false;
+          this.onMineArmed?.(projectile);
+        }
       } else if (projectile.type === 'shell') {
         // Tank shell: ballistic flight on the shared integrator, a tracer streak, no smoke.
         const px = projectile.x, py = projectile.y, pz = projectile.z;
@@ -1496,6 +1536,10 @@ export class ProjectileFX {
           projectile.group.userData.halo.scale.setScalar(1.4 + Math.sin(projectile.age * 14) * 0.2);
         } else if (projectile.type === 'limpet') {
           projectile.capMaterial.color.setHex(projectile.age >= projectile.armedAge ? 0xff3428 : 0xe5ac42);
+        } else if (projectile.type === 'atmine') {
+          // Arming: a fast amber blink; live: a barely lit lamp, so a laid mine stays hard to spot.
+          projectile.capMaterial.color.setHex(projectile.age >= projectile.armedAge ? 0x2a1a0c
+            : Math.sin(projectile.age * 10 * Math.PI) > 0 ? 0xe5ac42 : 0x3a2a10);
         } else if (projectile.type === 'molotov') {
           projectile.capMaterial.color.setHex(0xffac30);
           projectile.group.userData.flame.scale.setScalar(0.9 + Math.sin(projectile.age * 35) * 0.18);
@@ -1900,6 +1944,8 @@ export class ProjectileFX {
     this.scene.remove(this.previewGhost, this.previewLine, this.previewTail, this.landingRing, ...this.bounceDots);
     this.scene.remove(this.minePreview.group);
     this.minePreview.capMaterial.dispose();
+    this.scene.remove(this.atMinePreview.group);
+    this.atMinePreview.capMaterial.dispose();
     for (const material of this.minePreview.group.userData.authoredMaterials || []) material.dispose();
     this.claymoreLaserGeometry.dispose();
     this.claymoreLaserMaterial.dispose();
@@ -1915,7 +1961,7 @@ export class ProjectileFX {
     this.bounceDotGeometry.dispose();
     this.bounceDotMaterial.dispose();
     for (const geometry of [
-      this.fragGeometry, this.capGeometry, this.limpetGeometry, this.pulseGeometry,
+      this.fragGeometry, this.capGeometry, this.limpetGeometry, this.pulseGeometry, this.atMineBodyGeometry, this.atMinePlateGeometry,
       this.grenadeRibGeometry, this.grenadeBandGeometry,
       this.bottleGeometry, this.bottleNeckGeometry, this.bottleFlameGeometry,
       this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry, this.shellStreakGeometry,
@@ -1925,7 +1971,7 @@ export class ProjectileFX {
       this.glaiveDiscGeometry, this.glaiveHubGeometry, this.glaiveRimGeometry, this.glaiveCrescentGeometry,
     ]) geometry.dispose();
     for (const material of [
-      this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial,
+      this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial, this.atMineMaterial, this.atMinePlateMaterial,
       this.bottleMaterial, this.bottleLabelMaterial,
       this.rocketNoseMaterial, this.exhaustMaterial, this.shellCoreMaterial, this.shellGlowMaterial,
       this.bombMaterial, this.bombBandMaterial,

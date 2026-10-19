@@ -1172,7 +1172,7 @@ export function kitCards(selectedKit, variant = 0, gadget = 0, { unlocked = null
 }
 
 /** Grenade names as the HUD shows them (the limpet charge is the CLAYMORE). */
-const GRENADE_LABEL = Object.freeze({ frag: 'FRAG', limpet: 'CLAYMORE', pulse: 'PULSE', molotov: 'MOLOTOV', smoke: 'SMOKE' });
+const GRENADE_LABEL = Object.freeze({ frag: 'FRAG', limpet: 'CLAYMORE', pulse: 'PULSE', molotov: 'MOLOTOV', smoke: 'SMOKE', atmine: 'AT MINE' });
 
 /** Nearest living, on-foot friendly Medic (revive ability) to a point: {id, name, distance} or null. */
 export function nearestMedic(players = [], self) {

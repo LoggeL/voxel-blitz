@@ -220,7 +220,8 @@ export async function runNetClientContracts(ok, installGlobals) {
         viewAge: 40,
         throwGrenade: true,
         grenadeCharge: 0.625,
-        grenadeType: 4,
+        // Clamped to the last pouch slot (GRENADE_TYPE_IDS.length - 1).
+        grenadeType: 5,
         grenadeCook: 0,
       }),
       'NetClient sends the exact nested held-interaction and clamped grenade charge/type/cook frame');

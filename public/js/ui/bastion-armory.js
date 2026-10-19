@@ -1,6 +1,6 @@
 import { bindingLabel, matchesBinding } from '../keybindings.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
-import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
+import { FREE_GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import { BASTION_RULES, BASTION_SHOP, bastionPurchaseId } from '../../../shared/bastion.js';
 import { BASTION_STRUCTURES } from '../../../shared/bastion-build.js';
 import { el, WEAPON_NAMES, THROWABLE_NAMES } from './hud-support.js';
@@ -24,7 +24,7 @@ export function buildBastionArmory(root, purchase, close, onSelectStructure = nu
   const selectors = {};
   for (const [key,label,values,names] of [
     ['loadout','PRIMARY WEAPON',WEAPON_IDS.filter(id=>!['knife','revolver'].includes(id)&&!WEAPONS[id]?.gadgetOnly),WEAPON_NAMES],
-    ['throwable','OFFENSIVE THROWABLE',GRENADE_TYPE_IDS.filter(id=>id!=='smoke'),THROWABLE_NAMES],
+    ['throwable','OFFENSIVE THROWABLE',FREE_GRENADE_TYPE_IDS.filter(id=>id!=='smoke'),THROWABLE_NAMES],
   ]) {
     const wrap = el('label','vb-menu-field-group',fields);
     el('span','vb-label',wrap).textContent = label;

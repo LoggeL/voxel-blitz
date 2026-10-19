@@ -1,4 +1,4 @@
-// Five-slot grenade pouch radial. The fixed slot angles follow GRENADE_TYPE_IDS
+// Grenade pouch radial, one slot per GRENADE_TYPES entry. The fixed slot angles follow GRENADE_TYPE_IDS
 // (frag on top, then clockwise) so muscle memory builds. The controller mirrors
 // WeaponWheelController: a body-level fixed-id root, an idempotent ensure(), a
 // diffing setState() driven by the input seam's authoritative pouch state, and a
@@ -11,7 +11,7 @@ import { WHEEL_DEAD_ZONE, wheelAngleForSlot, wheelSlotFromVector } from './weapo
 
 const SLOT_COUNT = GRENADE_TYPE_IDS.length;
 /** Quick-key actions in slot order; unbound by default (see keybindings.js). */
-export const GRENADE_QUICK_ACTIONS = Object.freeze(['grenadeFrag', 'grenadeClaymore', 'grenadePulse', 'grenadeMolotov', 'grenadeSmoke']);
+export const GRENADE_QUICK_ACTIONS = Object.freeze(['grenadeFrag', 'grenadeClaymore', 'grenadePulse', 'grenadeMolotov', 'grenadeSmoke', 'grenadeAtMine']);
 /** Taps farther than this (ring radii) from the centre close the touch pouch. */
 const TOUCH_OUTSIDE_RADIUS = 1.3;
 
@@ -39,6 +39,7 @@ export function grenadeRoleLine(typeId, chaosLevel = 0) {
   if (!type) return '';
   const parts = [];
   if (type.wallMine) parts.push('Wall mount', `${formatMetres(CLAYMORE_RULES.placementRange)} reach`);
+  else if (type.groundMine) parts.push('Floor mine', 'enemy vehicles only');
   else parts.push(type.impact ? 'Impact' : 'Timed fuse');
   if (type.cook) parts.push('cookable');
   if (type.concussMs > 0) parts.push('concussion');

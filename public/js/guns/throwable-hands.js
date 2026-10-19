@@ -3,6 +3,9 @@ import { createBlenderParts } from '../engine/blender-assets.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { GRENADE_PIN_MS, GRENADE_POWER_STEPS, GRENADE_TYPE_IDS as IDS } from '../../../shared/grenade-rules.js';
 
+/** Placed, never thrown: no pin, a planting motion and the clamp cue (wall claymore, AT MINE). */
+const placedType = type => type === 'limpet' || type === 'atmine';
+
 // `arm` is the visible pin pull; the shared rules measure the cook from the same instant.
 export const THROWABLE_TIMING = Object.freeze({
   draw: 0.18, arm: GRENADE_PIN_MS / 1000, ready: 0.48, throw: 0.36, return: 0.20, reseat: 0.22,
@@ -134,6 +137,13 @@ export class ThrowableHands {
         for (const side of [-1, 1]) box(model, dark, [0.024, 0.11, 0.074], [side * 0.083, 0.014, 0]);
         box(model, steel, [0.05, 0.024, 0.017], [0, 0.016, 0.037]);
         box(model, orange, [0.018, 0.018, 0.01], [0, 0.016, 0.047]);
+      } else if (id === 'atmine') {
+        // AT MINE: an olive disc held flat in the palm, pressure plate up.
+        const olive = mat(0x434a33, { metalness: 0.22 });
+        mesh(model, new THREE.CylinderGeometry(0.105, 0.112, 0.048, 12), olive, [0, 0, 0]);
+        mesh(model, new THREE.CylinderGeometry(0.05, 0.055, 0.016, 12), dark, [0, 0.031, 0]);
+        box(model, dark, [0.03, 0.014, 0.05], [0.1, 0.012, 0]);
+        box(model, orange, [0.012, 0.01, 0.012], [-0.06, 0.03, 0.04]);
       } else if (id === 'pulse') {
         mesh(model, new THREE.IcosahedronGeometry(0.081, 1), dark);
         for (let i = 0; i < 3; i++) {
@@ -224,7 +234,7 @@ export class ThrowableHands {
     // Quick taps retain the pin/lighter contact and hand follow-through. The object
     // leaves immediately, matching the predicted projectile's authoritative launch.
     // The limpet is planted: its clamp contact replaces both the pin and the whoosh.
-    const placing = this.type === 'limpet';
+    const placing = placedType(this.type);
     const quick = !this._armed;
     if (quick) { this._armed = true; if (!placing) this._cue(this.type === 'molotov' ? 'ignite' : 'pin'); }
     this._poseHeld();
@@ -293,8 +303,8 @@ export class ThrowableHands {
 
   _poseHeld() {
     const draw = smooth(this.elapsed / THROWABLE_TIMING.draw);
-    const pull = this.type === 'limpet' ? 0 : smooth((this.elapsed - THROWABLE_TIMING.arm) / 0.16);
-    const limpet = this.type === 'limpet';
+    const pull = placedType(this.type) ? 0 : smooth((this.elapsed - THROWABLE_TIMING.arm) / 0.16);
+    const limpet = placedType(this.type);
     const molotov = this.type === 'molotov';
     // Cock-back depth follows the selected power; the LOB step dips the hand low
     // and forward for an underhand pitch instead of drawing it over the shoulder.
@@ -343,7 +353,7 @@ export class ThrowableHands {
       this.elapsed = Math.max(this.elapsed + seconds, this._holdSeconds);
       if (!this._armed && this.elapsed >= THROWABLE_TIMING.arm) {
         this._armed = true;
-        if (this.type !== 'limpet') this._cue(this.type === 'molotov' ? 'ignite' : 'pin');
+        if (!placedType(this.type)) this._cue(this.type === 'molotov' ? 'ignite' : 'pin');
       }
       if (!this._ready && this.elapsed >= THROWABLE_TIMING.ready) { this._ready = true; this._cue('ready'); }
       this.blend = smooth(this.elapsed / THROWABLE_TIMING.draw);
@@ -355,7 +365,7 @@ export class ThrowableHands {
       const lower = smooth((t - 0.38) / 0.62);
       this.right.position.copy(this._throwPosition);
       this.right.position.x -= 0.18 * swing;
-      const placing = this.type === 'limpet';
+      const placing = placedType(this.type);
       const under = this._underhand;
       this.right.position.y += (placing ? 0.04 : under ? 0.07 : 0.19) * swing - 0.64 * lower;
       this.right.position.z -= (placing ? 0.30 : under ? 0.28 : 0.20 + this.charge * 0.14) * swing;
@@ -374,7 +384,7 @@ export class ThrowableHands {
       const seat = smooth(t / 0.6);
       const drop = smooth((t - 0.4) / 0.6);
       this._poseHeld();
-      const limpet = this.type === 'limpet';
+      const limpet = placedType(this.type);
       const socket = this._point.set(-0.024, 0.088, 0.019);
       this.grip.localToWorld(socket);
       this.root.worldToLocal(socket);

@@ -60,6 +60,14 @@ export const BLAST_STYLE = Object.freeze({
     light: Object.freeze({ color: 0xffa040, range: 10, intensity: 20, life: 0.55 }),
     scorch: 3.8,
   }),
+  // Conquest AT MINE: a ground-hugging dirt-brown fireball with a dark, heavy column.
+  atmine: Object.freeze({
+    color: 0xffc98a, grow: 0.55, life: 0.55, ring: true, ringColor: 0xff7a1c, ringPeak: 0.85, flash: 3, flashLife: 0.14,
+    fire: Object.freeze({ count: 10, size: 2.1, speed: 6, life: 0.6, tint: FIRE_HOT }),
+    smoke: Object.freeze({ count: 18, size: 2, speed: 3.2, life: 3.2, shade: 0.12 }),
+    light: Object.freeze({ color: 0xffa040, range: 10, intensity: 20, life: 0.55 }),
+    scorch: 4,
+  }),
   // Conquest 120 mm tank shell (AP and HE; the event radius scales it): a hard
   // white-hot flash, a dirtier, darker smoke column and a wide scorch.
   shell: Object.freeze({
