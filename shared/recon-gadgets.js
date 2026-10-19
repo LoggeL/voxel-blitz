@@ -92,6 +92,26 @@ export function placeBeacon({ x, eyeY, z, dir }, solidAt) {
   return { type: 'beacon', x: floor.x, y: my + 1, z: floor.z, vx: 0, vy: 0, vz: 0, charge: 0, n: [0, 1, 0], mount: [mx, my, mz] };
 }
 
+/**
+ * Why a spawn beacon may not stand at `spot` (x, z) for `team`, or null:
+ * 'hq' inside an enemy HQ's restricted radius, 'oob' outside the combat area.
+ * These are the zones whose timer kills infantry (server BoundsSystem, same
+ * map metadata), so a beacon there would deploy its squad into that timer
+ * and keep an enemy HQ open to spawns. `metaConquest` is mapMeta.conquest
+ * (`bases`, `combatArea`); without it nothing is restricted.
+ */
+export function beaconRestricted(spot, team, metaConquest) {
+  if (!spot || !metaConquest || ![spot.x, spot.z].every(Number.isFinite)) return null;
+  for (const [owner, base] of Object.entries(metaConquest.bases || {})) {
+    if (owner === team || !(base?.radius > 0) || ![base.x, base.z].every(Number.isFinite)) continue;
+    if (Math.hypot(spot.x - base.x, spot.z - base.z) <= base.radius) return 'hq';
+  }
+  const area = metaConquest.combatArea;
+  if (area && ['minX', 'maxX', 'minZ', 'maxZ'].every(k => Number.isFinite(area[k]))
+      && (spot.x < area.minX || spot.x > area.maxX || spot.z < area.minZ || spot.z > area.maxZ)) return 'oob';
+  return null;
+}
+
 /** Ray entry distance into a gadget's shot box (`kind` beacon or sensor, feet at x/y/z), or null. */
 export function rayReconGadget(gadget, origin, direction, limit, minT = 0, radius = 0) {
   const rules = RECON_GADGET_RULES[gadget?.kind];

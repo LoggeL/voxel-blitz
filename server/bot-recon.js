@@ -6,7 +6,7 @@
 // in RECON_GADGET_RULES (shared/recon-gadgets.js).
 
 import { GRENADE_TYPE_IDS, grenadeLaunch, stepGrenade } from '../shared/grenade-rules.js';
-import { RECON_GADGET_RULES, reconGadgetCenter, reconLineOpen } from '../shared/recon-gadgets.js';
+import { RECON_GADGET_RULES, beaconRestricted, reconGadgetCenter, reconLineOpen } from '../shared/recon-gadgets.js';
 import { WEAPON_IDS, WEAPONS } from '../shared/combatmath.js';
 import { AIR } from '../shared/worlddata.js';
 
@@ -62,7 +62,9 @@ export class BotRecon {
     const r = RECON_GADGET_RULES;
     const distance = flat(p, flag);
     if (hasBeacon && goal.stance !== 'defend' && distance >= r.botBeaconMin && distance <= r.botBeaconMax
-        && !this._enemyWithin(p, p, r.botBeaconSafe)) {
+        && !this._enemyWithin(p, p, r.botBeaconSafe)
+        // The authority refuses a beacon in an enemy HQ or outside the combat area.
+        && !beaconRestricted(p, this._team(p), this.game.mode?.policy?.mapMeta?.conquest)) {
       const own = gadgets.beaconOf(p.id);
       // Keep a beacon that already stands close to this fight.
       if (!own || flat(own, flag) > r.botBeaconMax) {

@@ -12,7 +12,7 @@ import { KIT_GADGET_LABELS, kitLoadout } from '../shared/conquest-kits.js';
 import { decodeConquestMatch, deployOptions, deployViewFromSnapshot, parseSpawnChoice } from '../shared/conquest.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS, FREE_GRENADE_TYPE_IDS, grenadeLaunch } from '../shared/grenade-rules.js';
 import {
-  RECON_GADGET_RULES, decodeReconGadgets, encodeReconGadgets, placeBeacon, rayReconGadget, sensorDetects,
+  RECON_GADGET_RULES, beaconRestricted, decodeReconGadgets, encodeReconGadgets, placeBeacon, rayReconGadget, sensorDetects,
 } from '../shared/recon-gadgets.js';
 import { attachBots } from '../server/bots.js';
 import { AimSteering } from '../server/bot-aim.js';
@@ -231,6 +231,22 @@ function fixture({ walls = [] } = {}) {
   assert.equal(f.scores(b.id, 'gadget_destroyed').length, 1, 'gadget_destroyed paid');
   assert.equal(f.scores(b.id, 'gadget_destroyed')[0].pts, SCORE_POINTS.gadget_destroyed);
 
+  // Never in an enemy HQ or outside the combat area (the restricted-zone timer would kill whoever deploys
+  // there); the own HQ is fine. A refused beacon spends nothing and keeps the old one.
+  const meta = policy.mapMeta.conquest;
+  assert.equal(beaconRestricted({ x: SX - 9, z: 80 }, 'alpha', meta), 'hq', 'the enemy HQ is restricted');
+  assert.equal(beaconRestricted({ x: 8.5, z: 80 }, 'alpha', meta), null, 'the own HQ is not');
+  assert.equal(beaconRestricted({ x: 100, z: 1 }, 'alpha', meta), 'oob', 'outside the combat area');
+  assert.equal(beaconRestricted({ x: 100, z: 80 }, 'alpha', null), null, 'no map metadata, no restriction');
+  f.place(r, SX - 9, 80, 0);
+  r.grenades[BEACON] = 1; r.nextThrowAt = 0;
+  assert.equal(f.throwOne(r, BEACON, { yaw: 0, pitch: -0.95 }), null, 'no beacon inside the enemy HQ');
+  assert.equal(r.grenades[BEACON], 1, 'the refused beacon is not spent');
+  f.place(r, 100, 2, 0);
+  assert.equal(f.throwOne(r, BEACON, { yaw: 0, pitch: -0.95 }), null, 'no beacon outside the combat area');
+  assert.equal(r.grenades[BEACON], 1);
+  r.grenades[BEACON] = 0;
+
   // Friendly fire never hurts it; the floor voxel blown away drops it; leaving removes it.
   assert.equal(r.state, 'alive');
   f.place(r, 60, 80, 0);
@@ -249,6 +265,36 @@ function fixture({ walls = [] } = {}) {
   assert.equal(policy.reconGadgets.beacon(fourth.id), null, 'the owner leaving removes it');
   assert.equal(wire(), null);
   function wire() { return game.lastSnapshot?.match?.conquest?.recon ?? null; }
+}
+
+// ---------------------------------------------------------------- real blasts on a beacon
+{
+  // An enemy frag through the real projectile system (projectileExplode -> ReconGadgets._blast)
+  // destroys the beacon and pays its thrower; an own-team frag leaves it standing.
+  const f = fixture();
+  const { game, policy, run } = f;
+  const r = f.human('p1_a'), b = f.human('p2_b'), mate = f.human('p3_a');
+  run(TICK_MS);
+  f.place(r, 60, 80, 0); f.place(b, 120, 80); f.place(mate, 6, 90);
+  f.recon(r, 0);
+  const beacon = f.throwOne(r, BEACON, { yaw: 0, pitch: -0.95 });
+  f.place(r, 30, 30);
+  const FRAG = GRENADE_TYPE_IDS.indexOf('frag');
+  // Dropped at the thrower's feet, `back` m from the beacon (inside the 7.5 m blast; past the 3.9 m crater at 5.5 m).
+  const drop = (p, back) => { f.place(p, beacon.x - 0.5, beacon.z + back); p.grenades[FRAG] = 1; p.nextThrowAt = 0;
+    return game.projectiles.throw(p, game.contexts.projectiles, 0, FRAG, 0, { yaw: 0, pitch: -1.55 }); };
+  assert.ok(drop(mate, 5.5), 'own frag thrown');
+  run(GRENADE_TYPES.frag.fuseMs + 300);
+  assert.ok(f.events.some(e => e.kind === 'projectileExplode' && e.type === 'frag'), 'the own frag went off');
+  assert.equal(policy.reconGadgets.beacon(beacon.id)?.hp, B.hp, 'an own-team blast never hurts it');
+  f.place(mate, 6, 90);
+  f.events.length = 0;
+  assert.ok(drop(b, 2.5), 'enemy frag thrown');
+  run(GRENADE_TYPES.frag.fuseMs + 300);
+  assert.ok(f.events.some(e => e.kind === 'projectileExplode' && e.type === 'frag'), 'the frag went off');
+  assert.equal(policy.reconGadgets.beacon(beacon.id), null, 'an enemy frag beside it destroys it');
+  assert.equal(f.recon_events('destroyed', 'beacon')[0]?.by, b.id);
+  assert.equal(f.scores(b.id, 'gadget_destroyed').length, 1, 'the thrower is paid');
 }
 
 // ---------------------------------------------------------------- motion sensor
@@ -351,6 +397,11 @@ function fixture({ walls = [] } = {}) {
   assert.equal(used, 'beacon', 'an attacking Recon 40 m short of the flag lays its beacon');
   assert.equal(inp.grenadeType, BEACON);
   assert.equal(think(attack, 2000, brain).used, null, 'gadget checks are rate limited');
+  // Inside the enemy HQ the bot never tries a beacon the authority would refuse.
+  const hqPos = { x: r.x, z: r.z };
+  f.place(r, SX - 9, 80, Math.PI / 2);
+  assert.equal(think({ ...attack, target: { ...flag, x: SX - 60.5 } }, 1000, {}).used, null, 'no beacon attempt in the enemy HQ');
+  f.place(r, Math.floor(hqPos.x), Math.floor(hqPos.z), Math.PI / 2);
   game.applyInput(r.id, inp);
   run(TICK_MS);
   game.applyInput(r.id, { keys: {}, yaw: r.yaw, pitch: 0 });

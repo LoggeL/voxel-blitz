@@ -991,7 +991,9 @@ export class GameplayHud {
       d.grenadeFlash.textContent = flash;
     }
     // A claymore let go off a wall is a pin back too, but it reads as the reason.
-    const pinBackNote = s.grenadePinBackReason === 'noWall' ? 'NO WALL' : s.grenadePinBackReason === 'noGround' ? 'NO GROUND' : 'PIN BACK';
+    // A Recon SPAWN BEACON aimed into an enemy HQ or out of the combat area reads RESTRICTED.
+    const pinBackNote = s.grenadePinBackReason === 'noWall' ? 'NO WALL' : s.grenadePinBackReason === 'noGround' ? 'NO GROUND'
+      : s.grenadePinBackReason === 'restricted' ? 'RESTRICTED' : 'PIN BACK';
     const note = pinBack && !held ? pinBackNote : advanced && !held ? `→ ${type.name}` : '';
     if (painted.grenadeReadiedNote !== note) {
       painted.grenadeReadiedNote = note;

@@ -8,7 +8,7 @@
 
 import { GRENADE_TYPES } from '../../../shared/grenade-rules.js';
 import {
-  RECON_GADGET_RULES, encodeReconGadgets, placeBeacon, rayReconGadget, reconGadgetCenter, sensorDetects,
+  RECON_GADGET_RULES, beaconRestricted, encodeReconGadgets, placeBeacon, rayReconGadget, reconGadgetCenter, sensorDetects,
 } from '../../../shared/recon-gadgets.js';
 import { AIR } from '../../../shared/worlddata.js';
 import { PROJECTILE_RULES } from '../../sim/projectiles.js';
@@ -82,7 +82,8 @@ export class ReconGadgets {
     if (!team) return null;
     const solidAt = this._solidAt();
     const spot = placeBeacon({ x: player.eyeX ?? player.x, eyeY: player.eyeY, z: player.eyeZ ?? player.z, dir: direction }, solidAt);
-    if (!spot) return null;
+    // Never inside an enemy HQ or outside the combat area: its squad would deploy into the restricted timer.
+    if (!spot || beaconRestricted(spot, team, policy.mapMeta?.conquest)) return null;
     const ownerId = String(player.id);
     const prior = this.beaconOf(ownerId);
     if (prior) this.remove(prior, 'removed');
