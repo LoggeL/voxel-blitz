@@ -1062,6 +1062,8 @@ export class ProjectileSystem {
     const direction = fwdFromYawPitch(aim?.yaw ?? player.yaw, aim?.pitch ?? player.pitch);
     if (type.wallMine) return this._placeClaymore(player, ctx, direction, index);
     if (type.groundMine) return this._placeAtMine(player, ctx, direction, index);
+    // The Conquest spawn beacon is laid by the mode's recon system (null: refused, nothing spent).
+    if (type.reconGadget === 'beacon') return ctx.placeBeacon?.(player, direction, index) ?? null;
     const launch = grenadeLaunch({
       x: player.eyeX ?? player.x, y: player.y, z: player.eyeZ ?? player.z, eyeY: player.eyeY,
       vx: player.vx, vy: player.vy, vz: player.vz,
@@ -1715,6 +1717,11 @@ export class ProjectileSystem {
     }
     if (projectile.type === 'molotov') {
       this.fire.ignite(projectile, ctx);
+      return true;
+    }
+    // A settled motion sensor becomes the Conquest recon system's (no blast).
+    if (projectile.type === 'sensor') {
+      ctx.deploySensor?.(projectile);
       return true;
     }
     // A shot or chained AT MINE still lands its belly charge on a hull standing over it.

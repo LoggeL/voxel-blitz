@@ -34,6 +34,9 @@ export function createSimulationContexts(engine) {
     },
     nearestClaymore: (...args) => engine.projectiles.nearestClaymore(...args),
     shootClaymore: mine => engine.projectiles.explode(mine, projectiles),
+    // Conquest Recon gadgets (server/modes/conquest/recon-gadgets.js); other modes have none.
+    nearestGadget: (...args) => engine.mode?.policy?.reconGadgets?.nearest(...args) ?? null,
+    shootGadget: (hit, shooter, damage) => engine.mode?.policy?.reconGadgets?.damage(hit.gadget, damage, shooter),
     canFire: (player) => engine.mode.canFire(player),
     canMelee: (player) => engine.mode.canMelee(player),
     canBurn: () => engine.mode.phase === 'live',
@@ -79,6 +82,9 @@ export function createSimulationContexts(engine) {
     canDamage: combat.canDamage,
     killPlayer: combat.killPlayer,
     pushEvent: combat.pushEvent,
+    // Conquest Recon gadgets: the pouch beacon is laid and a settled sensor handed over (else refused).
+    placeBeacon: (player, dir, index) => engine.mode?.policy?.reconGadgets?.placeBeacon(player, dir, index) ?? null,
+    deploySensor: (projectile) => engine.mode?.policy?.reconGadgets?.deploySensor(projectile) ?? false,
     destroyBlock: (x, y, z, cause = null) => destroyBlockDirect(x, y, z, null, combat, cause),
     damageBlock: (x, y, z, type, damage, cause = null) => damageBlock(x, y, z, type, damage, combat, cause),
   };

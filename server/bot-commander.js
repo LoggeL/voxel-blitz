@@ -50,6 +50,8 @@ const MAX_TEAM_RIDES = 1;
 const STALEMATE_FLANK_MS = 20000; // a contested frontline flag this long sends a squad to back-cap
 const ATTACK_STALL_MS = 40000;    // an attack with no ownership progress this long also counts as stalled
 const SQUAD_SPAWN_PENALTY = 45;   // m a squad spawn must beat the best flag spawn by
+/** A Recon spawn beacon stands still and never dies under the spawn: a lighter penalty than a squad mate. */
+const BEACON_SPAWN_PENALTY = 6;
 const CREW_WALK_MAX = 200;        // m a living bot walks to man a hull (HQ spawns to runway)
 const MEDIC_CREW_PENALTY = 1000;   // crew score added for a Medic (picked last for a seat)
 const RIDE_COOLDOWN_MS = 60000;
@@ -1026,9 +1028,15 @@ export class BotCommander {
   /**
    * Gadget choice (spec: Engineer AT or STINGER). A stable share of the team's
    * engineers, ranked by id hash, takes the STINGER while enemy aircraft are in
-   * play; the rest keep the AT launcher. Other kits have no choice (0).
+   * play; the rest keep the AT launcher. Recons split between the SPAWN
+   * BEACON (0) and the MOTION SENSOR (1) by id hash, and one whose beacon still
+   * stands keeps it (another gadget would take it down). Other kits have no choice (0).
    */
   gadgetFor(p) {
+    if (this.kitFor(p) === 'recon') {
+      if (this.game.mode?.policy?.reconGadgets?.beaconOf(p.id)) return 0;
+      return stableHash(`${p.id}:recon`) % 2;
+    }
     if (this.kitFor(p) !== 'engineer') return 0;
     const team = this.teamOf(p);
     const share = AA_ENGINEER_SHARE[Math.min(AA_ENGINEER_SHARE.length - 1, this.enemyAirThreat(team))];
@@ -1084,6 +1092,7 @@ export class BotCommander {
       // A squad spawn can still be refused at resolve time (no free cell behind
       // the mate) and a refused bot deploys at HQ: only take it when it clearly wins.
       else if (spawn.startsWith('squad:')) { point = this.game.entities.get(spawn.slice(6)); penalty = SQUAD_SPAWN_PENALTY; }
+      else if (spawn.startsWith('beacon:')) { point = this.game.mode?.policy?.reconGadgets?.beacon(spawn.slice(7)); penalty = BEACON_SPAWN_PENALTY; }
       else continue;
       if (!finitePoint(point) || !target) continue;
       const score = flat(point, target) + penalty;

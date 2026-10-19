@@ -270,6 +270,8 @@ export class DeploySystem {
     if (kind === 'squad') {
       this.squadSpawnAt.set(String(resolved.id), now);
       policy.award(resolved.id, 'squad_spawn');
+    } else if (kind === 'beacon') {
+      policy.reconGadgets?.onSpawn(policy.reconGadgets.beacon(resolved.id), entity);
     } else if (kind === 'vehicle') {
       const vehicles = policy.vehicleSystem;
       const action = { type: 'enter', vehicleId: resolved.id, ...(resolved.seatId ? { seatId: resolved.seatId } : {}) };
@@ -360,6 +362,14 @@ export class DeploySystem {
         : { x: round2(anchor.x + Math.sin(anchor.yaw || 0) * (reach + 2)), y: anchor.y,
           z: round2(anchor.z + Math.cos(anchor.yaw || 0) * (reach + 2)), index: -1 };
       return point ? { ...base, ok: true, reason: null, kind: 'squad', id: String(mate.id), seatId: null, point }
+        : { ...base, ok: false, reason: 'busy' };
+    }
+    if (check.kind === 'beacon') {
+      // A squad Recon's spawn beacon: a free cell beside it, else `busy`.
+      const beacon = policy.reconGadgets?.beacon(check.id);
+      if (!beacon) return { ...base, ok: false, reason: 'invalid' };
+      const point = policy.reconGadgets.spawnCell(beacon, entity);
+      return point ? { ...base, ok: true, reason: null, kind: 'beacon', id: beacon.id, seatId: null, point }
         : { ...base, ok: false, reason: 'busy' };
     }
     const hull = policy.vehicleFor(check.id);

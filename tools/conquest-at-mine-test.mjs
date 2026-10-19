@@ -23,7 +23,7 @@ const near = (a, b, tolerance, message) => assert(Math.abs(a - b) <= tolerance, 
 
 // ---------------------------------------------------------------- roster and kit
 {
-  assert.equal(ATM, GRENADE_TYPE_IDS.length - 1, 'atmine is appended: older pouch slots keep their index');
+  assert.equal(ATM, 5, 'atmine is appended after smoke: older pouch slots keep their index');
   assert.equal(GRENADE_TYPES.atmine.perLife, 0, 'no free AT mines outside a kit');
   assert.equal(freshGrenadeLoadout()[ATM], 0);
   assert.equal(GRENADE_ROLES.atmine, 'gadget');

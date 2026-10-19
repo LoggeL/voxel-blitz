@@ -7,11 +7,14 @@
 import { CONQUEST_RULES, KITS } from '../../../shared/conquest-contract.js';
 import { KIT_ROLE_RULES, isUnsuppressedWeapon } from '../../../shared/conquest-kits.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
+import { reconGadgetCenter } from '../../../shared/recon-gadgets.js';
 import { vehicleHullParts } from '../../../shared/vehicle-collision.js';
 import { VEHICLE_RULES } from '../../../shared/vehicles.js';
 
 const DEFAULT_EYE = 1.6;
 const DEFAULT_HULL_RADIUS = 3;
+/** Angular radius of an enemy Recon spawn beacon in the spot cone (m). */
+const BEACON_SPOT_RADIUS = 0.45;
 /** Rays end this short of the sample point so the target's own cell never occludes it. */
 const LOS_MARGIN = 0.35;
 /** A shot-counter change only counts as fire when the counter was read this recently (consecutive ticks). */
@@ -168,6 +171,10 @@ export class ConquestSpotting {
       const geometry = hullSightGeometry(v);
       consider('vehicle', v, String(v.id), geometry.points, geometry.radius);
     }
+    // Enemy Recon spawn beacons (server/modes/conquest/recon-gadgets.js) can be marked too.
+    for (const beacon of this.policy?.reconGadgets?.spottable?.(team) ?? []) {
+      consider('beacon', beacon, beacon.id, [reconGadgetCenter(beacon)], BEACON_SPOT_RADIUS);
+    }
     out.sort((a, b) => a.score - b.score || a.distance - b.distance);
     return out;
   }
@@ -213,6 +220,7 @@ export class ConquestSpotting {
     actor.lastSpot = now;
     const until = now + this.durationFor(spotter);
     if (best.kind === 'player') this.markPlayer(best.target, { by: id, team, until });
+    else if (best.kind === 'beacon') this.policy?.reconGadgets?.markSpotted?.(best.target, team, until);
     else this.markVehicle(best.target, { by: id, team, until });
     this._emitEvent('spot', { by: id, ids: [best.id] });
     return best.id;

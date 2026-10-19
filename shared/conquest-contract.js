@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 5;
+export const CONQUEST_CONTRACT_VERSION = 6;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -49,7 +49,9 @@ export const KIT_IDS = Object.freeze(['assault', 'engineer', 'support', 'recon',
  * `gadget` is the default gadget (gadgets[0]); `gadgets` lists the deploy-screen
  * choices, picked by the deploy intent's `gadget` index (0 default). The
  * Engineer carries the RX-8 AT launcher (0) or the AX-9 STINGER AA launcher (1),
- * and AT MINES in the grenade pouch (`atmine`, shared/at-mine-rules.js).
+ * and AT MINES in the grenade pouch (`atmine`, shared/at-mine-rules.js). The
+ * Recon's choices are pouch gadgets, not weapons (KIT_POUCH_GADGETS in
+ * shared/conquest-kits.js): the SPAWN BEACON (0) or two MOTION SENSORS (1).
  * `unlockLevel` is the career level that opens the kit (1: a base kit); the
  * server refuses a locked kit at deploy (`deploy_refused {reason:'locked'}`),
  * bots ignore it. `aura` marks a passive team aura (the Medic's heal).
@@ -62,7 +64,7 @@ export const KITS = Object.freeze({
   assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'shotgun'],       [],                    { frag: 2, pulse: 1 },    1),
   engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger'], { smoke: 1, frag: 1, atmine: 3 }, 1),
   support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         [],                    { frag: 2, molotov: 1 },  1),
-  recon:     KIT('RECON',     'spot',       ['sniper', 'longarc'],      [],                    { limpet: 2, pulse: 1 },  1),
+  recon:     KIT('RECON',     'spot',       ['sniper', 'longarc'],      ['beacon', 'sensor'],  { limpet: 2, pulse: 1 },  1),
   medic:     KIT('MEDIC',     'revive',     ['smg', 'longarc'],         [],                    { smoke: 2, frag: 1 },    1, { aura: 'heal' }),
   pyro:      KIT('PYRO',      'fireproof',  ['flamethrower', 'shotgun'], [],                   { molotov: 2, smoke: 1 }, 3),
   grenadier: KIT('GRENADIER', 'ordnance',   ['mgl', 'bubble'],          [],                    { frag: 2, smoke: 1 },    5),
@@ -76,12 +78,15 @@ export const SCORE_POINTS = Object.freeze({
   capture: 250, neutralize: 150, capture_assist: 100, defend: 100,
   vehicle_destroyed: 200, vehicle_crew: 50, vehicle_disabled: 100, vehicle_damage: 50 /* scaled 10..150 */,
   driver_assist: 25, revive: 100, heal: 10, repair: 10, resupply: 10, spot_assist: 25, squad_spawn: 15,
+  // Recon gadgets (shared/recon-gadgets.js): a squad mate deployed on your beacon, an enemy beacon or sensor destroyed.
+  beacon_spawn: 15, gadget_destroyed: 50,
 });
 export const SCORE_LABELS = Object.freeze({
   kill: 'KILL', headshot: 'HEADSHOT', assist: 'KILL ASSIST', attacker_kill: 'ATTACKER KILL', defender_kill: 'DEFENDER KILL',
   capture: 'FLAG CAPTURED', neutralize: 'FLAG NEUTRALIZED', capture_assist: 'CAPTURE ASSIST', defend: 'FLAG DEFENDED',
   vehicle_destroyed: 'VEHICLE DESTROYED', vehicle_crew: 'CREW KILL', vehicle_disabled: 'VEHICLE DISABLED', vehicle_damage: 'VEHICLE DAMAGE',
   driver_assist: 'DRIVER ASSIST', revive: 'REVIVE', heal: 'HEAL', repair: 'REPAIR', resupply: 'RESUPPLY', spot_assist: 'SPOT ASSIST', squad_spawn: 'SQUAD SPAWN',
+  beacon_spawn: 'BEACON SPAWN', gadget_destroyed: 'GADGET DESTROYED',
 });
 
 /** Server -> client event kinds added by Conquest v2 (all `{t:'ev', kind, at, ...}`). */
@@ -102,6 +107,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'vehicle_hijacked',  // {vehicleId, type, by, from, to}  an empty enemy hull boarded: it now belongs to `to`
   'countermeasure',    // {vehicleId, cm:'flares'|'smoke'}  (kind is the event discriminator)
   'ejection',          // {id, vehicleId, pos:[x,y,z], vel:[vx,vy,vz], yaw}  jet pilot left on the ejection seat
+  'recon_gadget',      // {gadget:'beacon'|'sensor', id, owner, team, state:'placed'|'destroyed'|'removed'|'expired', pos:[x,y,z], by?}
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);
@@ -118,7 +124,7 @@ export const CONQUEST_DEATH_KEYS = Object.freeze(['restricted', 'vehicle', 'fall
 
 /** Client -> server Conquest intent frame `{t:'conquest', ...}` (one field per frame is enough). */
 export const CONQUEST_INTENT_SHAPE = Object.freeze({
-  deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>", kit:KIT_ID, variant:0|1, gadget?:0|1}',
+  deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>"|"beacon:<beaconId>", kit:KIT_ID, variant:0|1, gadget?:0|1}',
   spot: '1',
   support: '{type:"revive"|"repair", targetId:string}',
   // In-game menu RESPAWN: die now (1 ticket, kill key `redeploy`) and open the deploy screen.

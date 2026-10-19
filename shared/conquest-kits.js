@@ -20,10 +20,23 @@ export const KIT_GADGET_AMMO = Object.freeze({
   stinger: Object.freeze({ mag: 1, reserve: 2 }),
 });
 
-/** Deploy-screen labels of the gadget choices (role first, then the launcher). */
+/**
+ * Gadget choices that are pouch items rather than weapons (the Recon's): the
+ * gadget id adds `count` of pouch type `grenade` to the kit's grenades.
+ * `resupply: false` keeps a Support aura from handing it back (one beacon per
+ * life; placing it again only moves it).
+ */
+export const KIT_POUCH_GADGETS = Object.freeze({
+  beacon: Object.freeze({ grenade: 'beacon', count: 1, resupply: false }),
+  sensor: Object.freeze({ grenade: 'sensor', count: 2, resupply: true }),
+});
+
+/** Deploy-screen labels of the gadget choices (role first, then the launcher or device). */
 export const KIT_GADGET_LABELS = Object.freeze({
   rocket: Object.freeze({ role: 'AT', name: 'RX-8 HAVOC', hint: 'DUMB-FIRE ANTI-TANK' }),
   stinger: Object.freeze({ role: 'AA', name: 'AX-9 STINGER', hint: 'LOCK-ON ANTI-AIR' }),
+  beacon: Object.freeze({ role: 'BEACON', name: 'SPAWN BEACON', hint: 'SQUAD SPAWN POINT' }),
+  sensor: Object.freeze({ role: 'SENSOR', name: 'MOTION SENSOR', hint: 'REVEALS MOVING ENEMIES' }),
 });
 
 /**
@@ -201,10 +214,22 @@ export function normalizeGadget(kit, value) {
   return index < gadgets.length ? index : 0;
 }
 
-/** Gadget weapon id of a kit and gadget index, or null for kits without one. */
+/** Gadget id of a kit and gadget index (a weapon or a KIT_POUCH_GADGETS id), or null for kits without one. */
 export function kitGadget(kit, gadget = 0) {
   const def = KITS[normalizeKit(kit)];
   return def.gadgets?.[normalizeGadget(kit, gadget)] ?? def.gadget ?? null;
+}
+
+/** The kit's gadget weapon for a gadget index, or null (no gadget, or a pouch gadget such as the beacon). */
+export function kitGadgetWeapon(kit, gadget = 0) {
+  const id = kitGadget(kit, gadget);
+  return id && Object.hasOwn(WEAPONS, id) ? id : null;
+}
+
+/** The pouch gadget `{id, grenade, count, resupply}` of a kit and gadget index, or null. */
+export function kitPouchGadget(kit, gadget = 0) {
+  const id = kitGadget(kit, gadget);
+  return id && Object.hasOwn(KIT_POUCH_GADGETS, id) ? { id, ...KIT_POUCH_GADGETS[id] } : null;
 }
 
 /** `cq[0]` encoding: index into KIT_IDS, -1 for none. */
@@ -216,7 +241,8 @@ export function kitIndex(value) {
 export function kitWeapons(kit, variant = 0, gadgetIndex = 0) {
   const def = KITS[normalizeKit(kit)];
   const primary = def.primaries[normalizeVariant(variant)] ?? def.primaries[0];
-  const gadget = kitGadget(kit, gadgetIndex);
+  // Pouch gadgets (the Recon's beacon and sensors) ride the grenades, never the owned weapons.
+  const gadget = kitGadgetWeapon(kit, gadgetIndex);
   const owned = [...new Set([primary, gadget, KIT_SIDEARM, KIT_MELEE].filter(Boolean))];
   return { primary, gadget, sidearm: KIT_SIDEARM, melee: KIT_MELEE, owned };
 }
@@ -269,13 +295,16 @@ function issuedAmmo(id) {
   };
 }
 
-/** Grenade counts in GRENADE_TYPE_IDS order. */
-export function kitGrenades(kit) {
+/** Grenade counts in GRENADE_TYPE_IDS order, plus the pouch gadget of the gadget choice. */
+export function kitGrenades(kit, gadget = 0) {
   const counts = GRENADE_TYPE_IDS.map(() => 0);
   for (const [type, count] of Object.entries(KITS[normalizeKit(kit)].grenades)) {
     const slot = GRENADE_SLOT.get(type);
     if (slot !== undefined) counts[slot] = Math.max(0, Math.trunc(count));
   }
+  const pouch = kitPouchGadget(kit, gadget);
+  const slot = pouch ? GRENADE_SLOT.get(pouch.grenade) : undefined;
+  if (slot !== undefined) counts[slot] += Math.max(0, Math.trunc(pouch.count));
   return counts;
 }
 
@@ -305,7 +334,7 @@ export function kitLoadout(kit, variant = 0, gadget = 0) {
     weapon: WEAPON_SLOT.get(weapons.primary),
     mag,
     reserve,
-    grenades: kitGrenades(id),
+    grenades: kitGrenades(id, g),
   };
 }
 
@@ -315,8 +344,8 @@ export function kitMaxReserve(kit, variant = 0, gadget = 0) {
 }
 
 /** Grenade caps for resupply, indexed by GRENADE_TYPE_IDS. */
-export function kitMaxGrenades(kit) {
-  return kitGrenades(kit);
+export function kitMaxGrenades(kit, gadget = 0) {
+  return kitGrenades(kit, gadget);
 }
 
 /**
@@ -362,7 +391,9 @@ export function applyResupply(inventory, kit, variant = 0, gadget = 0, { gadgetR
   if (Array.isArray(inventory?.grenades)) {
     let best = -1;
     let bestDeficit = 0;
-    for (const type of Object.keys(KITS[loadout.kit].grenades)) {
+    const pouch = kitPouchGadget(loadout.kit, loadout.gadgetIndex);
+    const types = [...Object.keys(KITS[loadout.kit].grenades), ...(pouch?.resupply ? [pouch.grenade] : [])];
+    for (const type of types) {
       const index = GRENADE_SLOT.get(type);
       if (index === undefined) continue;
       const deficit = loadout.grenades[index] - Math.max(0, Math.trunc(Number(inventory.grenades[index]) || 0));
