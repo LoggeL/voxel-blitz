@@ -67,11 +67,13 @@ function buildParts() {
   // Driver hatch with periscopes (the driver sits sealed below).
   hull.box([-1.0, 1.6, -1.6], [-0.4, 1.8, -1.0], 'panel');
   hull.box([-1.0, 1.6, -1.8], [-0.4, 1.8, -1.6], 'dark');
-  // Team markings: a vertical stripe on each skirt, roundels aft.
+  // Team markings: a wide recognition panel on each skirt, roundels aft and
+  // the rear plate in the recognition colour.
   for (const side of [-1, 1]) {
-    hull.skin([side < 0 ? -2.0 : 1.6, 0.8, -1.0], [side < 0 ? -1.6 : 2.0, 1.4, -0.6], 'stripe', { normal: [side, 0, 0] });
+    hull.skin([side < 0 ? -2.0 : 1.6, 0.8, -1.2], [side < 0 ? -1.6 : 2.0, 1.4, -0.4], 'recog', { normal: [side, 0, 0], where: CAMO });
     hull.roundel([side * 1.8, 1.1, 1.6], 0.34, [side, 0, 0], { depth: 0.2 });
   }
+  hull.skin([-1.6, 1.0, 2.6], [1.6, 1.4, 2.8], 'recog', { normal: [0, 0, 1], where: CAMO });
   hull.userData.priority = { 'skirt-left': 55, 'stowage-rear': 40, 'tools-left': 30, 'tools-right': 30 };
 
   // Turret: low, wide hull with arrow-head add-on cheeks either side of a
@@ -110,12 +112,15 @@ function buildParts() {
     }
     // Side stowage boxes along the bustle flanks.
     turret.box([x0, 1.8, 0.4], [x1, 2.2, 1.6], 'canvas', { tag: side < 0 ? 'stowage-left' : 'stowage-right' });
-    // Vertical team stripe across each flank, roundel on the stowage box.
-    turret.skin([side < 0 ? -1.8 : 1.0, 1.6, -0.2], [side < 0 ? -1.0 : 1.8, 2.6, 0.2], 'stripe', { normal: [side, 0, 0], where: CAMO });
+    // Recognition band round the turret flanks, roundel on the stowage box.
+    turret.skin([side < 0 ? -1.8 : 0.4, 1.8, -2.4], [side < 0 ? -0.4 : 1.8, 2.2, 2.0], 'recog', { normal: [side, 0, 0], where: CAMO });
     turret.roundel([side * 1.6, 2.0, 1.0], 0.3, [side, 0, 0], { depth: 0.2 });
     // Antenna whips at the rear corners.
     for (let y = 2.4; y < 3.4; y += 0.2) turret.box([side < 0 ? -1.0 : 0.8, y, 1.8], [side < 0 ? -0.8 : 1.0, y + 0.2, 2.0], 'dark', { tag: 'turret' });
   }
+  // Air recognition: the band runs on round the bustle and a roof panel carries the roundel.
+  turret.skin([-1.2, 1.8, 1.8], [1.2, 2.2, 2.0], 'recog', { normal: [0, 0, 1], where: CAMO });
+  turret.skin([-1.2, 2.4, 0.8], [1.2, 2.6, 1.6], 'recog', { normal: [0, 1, 0], where: CAMO });
   turret.roundel([-0.5, 2.6, 1.2], 0.36, [0, 1, 0], { depth: 0.2 });
   turret.userData.priority = { turret: 110, 'stowage-left': 45, 'stowage-right': 45 };
 

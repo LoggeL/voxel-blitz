@@ -41,8 +41,8 @@ function buildParts() {
     // Door-gun post on the sill and the nav light ahead of the door.
     hull.box([side < 0 ? -1.4 : 1.2, 0.6, 0.0], [side < 0 ? -1.2 : 1.4, 1.2, 0.2], 'gunmetal');
     hull.box([side < 0 ? -1.4 : 1.2, 1.0, -1.0], [side < 0 ? -1.2 : 1.4, 1.2, -0.8], side < 0 ? 'navRed' : 'navGreen');
-    // Team stripe behind the cockpit.
-    hull.skin([side < 0 ? -1.4 : 0.0, 0.4, -1.6], [side < 0 ? 0.0 : 1.4, 2.8, -1.2], 'stripe', { normal: [side, 0, 0], where: PAINT });
+    // Recognition band behind the cockpit.
+    hull.skin([side < 0 ? -1.4 : 0.0, 0.4, -1.8], [side < 0 ? 0.0 : 1.4, 2.8, -1.0], 'recog', { normal: [side, 0, 0], where: PAINT });
   }
   // Pilot and co-pilot seats, door gunners' jump seats, the rear bench.
   for (const x of [-0.36, 0.36]) {
@@ -82,6 +82,10 @@ function buildParts() {
   hull.box([0.0, 2.4, 4.2], [0.2, 2.6, 4.4], 'gunmetal');
   hull.box([-0.2, 3.6, 4.4], [0.2, 3.8, 4.6], 'strobe');
   for (const side of [-1, 1]) hull.roundel([side * 0.4, 2.15, 2.9], 0.28, [side, 0, 0], { depth: 0.3, ring: 0.14 });
+  // Air recognition: the fin, stabilizer halves and the cabin roof ahead of the mast in the team colour.
+  hull.paint([-0.2, 2.6, 3.8], [0.2, 3.6, 4.6], 'recog', { where: PAINT });
+  hull.paint([-1.2, 2.0, 3.6], [1.2, 2.2, 4.0], 'recog', { where: PAINT });
+  hull.skin([-1.2, 2.2, -2.0], [1.2, 2.8, -0.8], 'recog', { normal: [0, 1, 0], where: PAINT });
   // Wheeled gear: mains under the cockpit, tail wheel under the boom.
   for (const side of [-1, 1]) {
     const tag = side < 0 ? 'gear-left' : 'gear-right';

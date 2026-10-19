@@ -57,8 +57,11 @@ function buildParts() {
     hull.paint([xs[0], 3.2, 3.2], [xs[1], 3.4, 4.0], 'dark', { tag });
   }
   hull.box([-0.8, 3.0, 3.8], [-0.6, 3.2, 4.0], 'strobe', { tag: 'fin-left' });
-  // Team stripe: a full band round the fuselage and intakes behind the cockpit.
-  hull.skin([-1.2, 0.6, -0.2], [1.2, 2.0, 0.4], 'stripe', { where: PAINT });
+  // Recognition band round the fuselage and intakes behind the cockpit, the
+  // fins and the wingtips in the team colour.
+  hull.skin([-1.2, 0.6, -0.4], [1.2, 2.0, 0.6], 'recog', { where: PAINT });
+  hull.paint([-0.8, 2.2, 2.2], [0.8, 3.4, 4.4], 'recog', { where: PAINT });
+  for (const side of [-1, 1]) hull.skin([side < 0 ? -4.6 : 3.6, 1.2, 0.6], [side < 0 ? -3.6 : 4.6, 1.4, 2.2], 'recog', { normal: [0, 1, 0], where: PAINT });
   // Twin nozzles: metal cans with petal rims and dark throats.
   for (const [x, y, z] of PLANE_NOZZLES) {
     hull.cyl([x, y, z - 0.35], 0.38, 0.6, 'z', 'gunmetal');

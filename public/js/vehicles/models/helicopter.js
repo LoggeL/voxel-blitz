@@ -105,13 +105,17 @@ function buildParts() {
   hull.box([-0.2, 0.8, -3.8], [0.2, 1.2, -3.6], 'dark');
   hull.box([-0.2, 1.0, -3.8], [0.0, 1.2, -3.6], 'head');
   hull.box([0.0, 0.8, -3.8], [0.2, 1.0, -3.6], 'screen');
-  // Team markings: a vertical stripe behind the cockpit, roundels on the
-  // nacelles and the boom.
+  // Team markings: a wide recognition band behind the cockpit, roundels on
+  // the nacelles and the boom, the fin, stabilizer and nacelle tops in the
+  // recognition colour for crews looking up or down at it.
   for (const side of [-1, 1]) {
-    hull.skin([side < 0 ? -1.4 : 0.0, 0.4, 0.4], [side < 0 ? 0.0 : 1.4, 2.8, 0.8], 'stripe', { normal: [side, 0, 0], where: PAINT });
+    hull.skin([side < 0 ? -1.4 : 0.0, 0.4, 0.0], [side < 0 ? 0.0 : 1.4, 2.8, 1.0], 'recog', { normal: [side, 0, 0], where: PAINT });
     hull.roundel([side * 1.1, 2.2, 1.25], 0.3, [side, 0, 0], { depth: 0.2, ring: 0.14 });
     hull.roundel([side * 0.4, 1.85, 2.3], 0.3, [side, 0, 0], { depth: 0.3, ring: 0.14 });
   }
+  hull.paint([-0.2, 2.4, 3.0], [0.2, 3.2, 4.0], 'recog', { where: PAINT });
+  hull.paint([-0.8, 1.8, 3.2], [0.8, 2.0, 3.6], 'recog', { where: PAINT });
+  hull.skin([-1.2, 2.4, 0.0], [1.2, 2.8, 1.6], 'recog', { normal: [0, 1, 0], where: PAINT });
   hull.userData.priority = { tail: 100, 'wing-left': 70, 'wing-right': 70, 'engine-left': 60, 'engine-right': 60, 'gear-left': 40, 'gear-right': 40 };
 
   const rotor = rotorPart('helicopter-rotor', HELICOPTER_ROTOR.hub, HELICOPTER_ROTOR.radius);

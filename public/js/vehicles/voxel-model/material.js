@@ -36,7 +36,8 @@ export const VOXEL_MATERIALS = Object.freeze({
   missile: Object.freeze({ color: 0xdedbd0, rough: 0.5, metal: 0.2 }),
   warhead: Object.freeze({ color: 0x5d6a74, rough: 0.5, metal: 0.4 }),
   rotor: Object.freeze({ color: 0x24262a, rough: 0.7, metal: 0.25 }),
-  tip: Object.freeze({ color: 0xe8d23a, rough: 0.6, metal: 0.05 }),
+  // Rotor blade tips carry the team recognition colour.
+  tip: Object.freeze({ team: 'recog', rough: 0.6, metal: 0.05 }),
   head: Object.freeze({ color: 0xfff0c8, rough: 0.3, metal: 0, emissive: 2.6 }),
   tail: Object.freeze({ color: 0xff3a24, rough: 0.4, metal: 0, emissive: 1.8 }),
   navRed: Object.freeze({ color: 0xff2a18, rough: 0.35, metal: 0, emissive: 2.8 }),
@@ -46,6 +47,8 @@ export const VOXEL_MATERIALS = Object.freeze({
   stripe: Object.freeze({ team: 'stripe', rough: 0.6, metal: 0.05 }),
   roundel: Object.freeze({ team: 'roundel', rough: 0.55, metal: 0.05 }),
   ring: Object.freeze({ team: 'ring', rough: 0.55, metal: 0.05 }),
+  // Team recognition panels (roof panel, hull bands, tail): the saturated team colour, read at range and from the air.
+  recog: Object.freeze({ team: 'recog', rough: 0.62, metal: 0.04 }),
   // Plain team base coat (wheel dishes, small fittings): no blots, so it merges.
   drab: Object.freeze({ team: 'drab', rough: 0.8, metal: 0.14 }),
   // Missile warning band.
@@ -92,7 +95,9 @@ export const VOXEL_MATERIALS = Object.freeze({
  * entries paint over earlier ones). `panel` shares the weights so the blots
  * run on across panels in a slightly lighter coat. The stripe (WEST white,
  * EAST black) and the roundel (WEST blue, EAST orange, in a contrasting ring)
- * are the team identity; there are no saturated recognition panels.
+ * mark the team up close; the saturated recognition panels (`recog`: WEST
+ * cobalt, EAST signal orange) on roofs, hull bands, tails and rotor tips carry
+ * it to 150 m and to aircraft overhead (docs/design/conquest/vehicle-identity/).
  */
 export const TEAM_SCHEMES = Object.freeze({
   alpha: Object.freeze({
@@ -101,7 +106,7 @@ export const TEAM_SCHEMES = Object.freeze({
     body: Object.freeze([[0x687341, 1], [0x465a2e, 0.4], [0x5c4b30, 0.15], [0x29361f, 0.25]]),
     panel: Object.freeze([[0x717c47, 1], [0x4c6132, 0.4], [0x635134, 0.15], [0x2e3b23, 0.25]]),
     canvas: Object.freeze([[0x5e6442, 1], [0x4b5236, 0.4]]),
-    stripe: 0xefeee6, roundel: 0x2d5ad8, ring: 0xf2f0e8, drab: 0x5b6136,
+    stripe: 0xefeee6, roundel: 0x2d5ad8, ring: 0xf2f0e8, drab: 0x5b6136, recog: 0x2a5ce6,
     // Titans: a lighter woodland with 1.5-2.5 m blots (titan-common.js samples it coarser).
     titanBody: Object.freeze([[0x7a8650, 1], [0x56703c, 0.3], [0x6b5a3a, 0.15], [0x34422a, 0.15]]),
     titanPanel: Object.freeze([[0x86925a, 1], [0x5f7a43, 0.3], [0x766443, 0.15], [0x3b4a2f, 0.15]]),
@@ -113,7 +118,7 @@ export const TEAM_SCHEMES = Object.freeze({
     body: Object.freeze([[0xc9a066, 1], [0xa57a49, 0.4], [0xdcbf90, 0.14], [0x6b5235, 0.22]]),
     panel: Object.freeze([[0xd1a96f, 1], [0xae8250, 0.4], [0xe2c799, 0.14], [0x725839, 0.22]]),
     canvas: Object.freeze([[0xb59a6e, 1], [0x977c55, 0.4]]),
-    stripe: 0x1b1b19, roundel: 0xec6a22, ring: 0x1b1b19, drab: 0xa98a5b,
+    stripe: 0x1b1b19, roundel: 0xec6a22, ring: 0x1b1b19, drab: 0xa98a5b, recog: 0xf0661c,
     titanBody: Object.freeze([[0xc9a066, 1], [0xa57a49, 0.3], [0xdcbf90, 0.14], [0x6b5235, 0.15]]),
     titanPanel: Object.freeze([[0xd1a96f, 1], [0xae8250, 0.3], [0xe2c799, 0.14], [0x725839, 0.15]]),
     titanDrab: 0xc9a066, accent: 0xc8501e, stripeEdge: 0xd9c49a, stripeRim: 0xc9a066,
@@ -123,7 +128,7 @@ export const TEAM_SCHEMES = Object.freeze({
     body: Object.freeze([[0x7b8079, 1], [0x666b65, 0.4]]),
     panel: Object.freeze([[0x858a83, 1]]),
     canvas: Object.freeze([[0x77786a, 1]]),
-    stripe: 0xd8d8d8, roundel: 0xd8d8d8, ring: 0x4a4a4a, drab: 0x6f736d,
+    stripe: 0xd8d8d8, roundel: 0xd8d8d8, ring: 0x4a4a4a, drab: 0x6f736d, recog: 0xb8bcb6,
     titanDrab: 0x7b8079, accent: 0xb8bcb6, stripeEdge: 0x4a4a4a, stripeRim: 0x4a4a4a,
   }),
 });

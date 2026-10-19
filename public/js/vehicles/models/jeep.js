@@ -37,8 +37,9 @@ function buildParts() {
     hull.box([side < 0 ? -1.2 : 1.0, 0.6, -0.6], [side < 0 ? -1.0 : 1.2, 0.8, 0.6], 'dark');
     hull.box([side < 0 ? -1.2 : 0.8, 1.0, 0.6], [side < 0 ? -0.8 : 1.2, 1.4, 2.0], 'paint', { tag: side < 0 ? 'fender-rear-left' : 'fender-rear-right' });
     hull.box([side < 0 ? -1.2 : 1.0, 1.0, 1.8], [side < 0 ? -1.0 : 1.2, 1.2, 2.0], 'tail', { tag: side < 0 ? 'fender-rear-left' : 'fender-rear-right' });
-    // Team stripe down each door, roundel on each rear quarter.
-    hull.skin([side < 0 ? -1.2 : 0.8, 0.6, -0.2], [side < 0 ? -0.8 : 1.2, 1.2, 0.2], 'stripe', { normal: [side, 0, 0], where: material => material === 'paint' });
+    // Recognition panel on each door and on top of each rear quarter, roundel on its flank.
+    hull.skin([side < 0 ? -1.2 : 0.8, 0.6, -0.6], [side < 0 ? -0.8 : 1.2, 1.2, 0.6], 'recog', { normal: [side, 0, 0], where: material => material === 'paint' });
+    hull.skin([side < 0 ? -1.2 : 0.8, 1.2, 0.6], [side < 0 ? -0.8 : 1.2, 1.4, 1.8], 'recog', { normal: [0, 1, 0], where: material => material === 'paint' });
     hull.roundel([side * 1.2, 1.2, 1.3], 0.3, [side, 0, 0], { depth: 0.2 });
   }
   // Tailgate, spare wheel and jerrycan on the back.
@@ -89,6 +90,8 @@ function buildParts() {
   for (const side of [-1, 1]) {
     for (let y = 1.4; y < 2.4; y += 0.2) hull.box([side < 0 ? -1.0 : 0.8, y, 1.8], [side < 0 ? -0.8 : 1.0, y + 0.2, 2.0], 'dark', { tag: 'antenna' });
   }
+  // Air recognition: the whole bonnet top in the team colour, roundel on it.
+  hull.skin([-0.8, 1.2, -1.8], [0.8, 1.4, -0.6], 'recog', { normal: [0, 1, 0], where: material => material === 'panel' });
   hull.roundel([0, 1.4, -1.2], 0.42, [0, 1, 0]);
   hull.userData.priority = { hood: 80, tailgate: 50, spare: 70, jerrycan: 40, antenna: 20,
     'fender-front-left': 45, 'fender-front-right': 45, 'fender-rear-left': 45, 'fender-rear-right': 45 };

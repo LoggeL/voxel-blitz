@@ -83,6 +83,8 @@ To spot, press Y (Z on QWERTZ) to mark the enemy player or hull under your cross
 
 Each team has a jeep, a tank, an attack helicopter, a transport helicopter and a jet at its HQ. Each team also has two flag jeeps (A/B for WEST, D/E for EAST). Iron Bridge has one tank, which spawns for whichever team captures C. Flag pads belong to the flag owner, and an empty hull near its pad changes team when its flag is captured.
 
+**Team livery.** Each hull wears its team's camouflage (WEST woodland, EAST desert) plus saturated recognition panels in the team colour (`recog` in `public/js/vehicles/voxel-model/material.js`: WEST cobalt, EAST signal orange): roof or bonnet panels for aircraft overhead, flank bands, the tank's turret band and rear plate, aircraft fins and wingtips, and rotor blade tips. The roundels stay for close range. The design references and prompts are in `docs/design/conquest/vehicle-identity/` (variant A, recognition panels, was chosen).
+
 | Type | HP | Armour | Seats (F1…F5) | Countermeasure | Respawn |
 |---|---|---|---|---|---|
 | Jeep | 320 | light | driver · gunner (.50 HMG, exposed) · 2 passengers (exposed, personal weapons) | – | 15 s |
