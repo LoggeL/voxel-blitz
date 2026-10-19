@@ -539,9 +539,9 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .vb-touch-controls.is-aircraft .vb-touch-move-zone.is-sprinting .vb-touch-stick-knob { border-color: #ffffff80; background: #ffffff55; }
 .vb-touch-vehicleSeat { --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); width: 64px; border-radius: 8px; font-size: 10px; }
 .vb-touch-countermeasure { --touch-column: 76px; --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); border-color: #ffcf5caa; color: #ffe6a8; font-size: 9px; }
-/* VIEW (seated): the seat's next camera view, under MAP and SPOT. */
+/* VIEW (seated): the seat's next camera view, under MAP, SPOT and COMMS. */
 .vb-touch-vehicleView {
-  right: auto; bottom: auto; left: calc(max(12px, env(safe-area-inset-left)) + 112px); top: calc(max(10px, env(safe-area-inset-top)) + 218px);
+  right: auto; bottom: auto; left: calc(max(12px, env(safe-area-inset-left)) + 112px); top: calc(max(10px, env(safe-area-inset-top)) + 270px);
   width: 44px; height: 44px; border-radius: 8px; font-size: 10px; border-color: #7ef29aaa; color: #d9ffe3;
 }
 .vb-touch-bigMap, .vb-touch-spot {
@@ -743,7 +743,7 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   top: calc(max(10px, env(safe-area-inset-top)) + 70px);
   max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - 80px);
 }
-body:has(#scoreboard.is-open[data-mode="conquest"]) :is(.vb-conquest-hud :is(.cq-world, .cq-reticles, .cq-ring, .cq-ticker, .cq-minimap, .cq-squad, .cq-vehicle, .cq-view, .cq-interact, .cq-map-hint, .cq-banner, .cq-lock, .cq-lock-bearing, .cq-restricted, .cq-spot-flash, .cq-hit-callout), .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
+body:has(#scoreboard.is-open[data-mode="conquest"]) :is(.vb-conquest-hud :is(.cq-world, .cq-reticles, .cq-ring, .cq-ticker, .cq-minimap, .cq-squad, .cq-order, .cq-radio, .cq-rose, .cq-vehicle, .cq-view, .cq-interact, .cq-map-hint, .cq-banner, .cq-lock, .cq-lock-bearing, .cq-restricted, .cq-spot-flash, .cq-hit-callout), .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
 /* Phone portrait board: drop the ping column and tighten cells so names stay on one line. */
 @media (max-width: 520px) {
   #scoreboard.vb-mode-scoreboard[data-mode="conquest"] { min-width: 0; width: calc(100vw - 20px); max-width: none; padding: 12px 8px 14px; }
@@ -790,3 +790,140 @@ body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conque
 .vb-touch-mode .cq-heal-tick { right: 4px; bottom: 4px; padding: 0 4px; font-size: 10px; }
 .vb-conquest-hud > .cq-heal-tick { left: calc(max(16px, env(safe-area-inset-left)) + 240px); top: auto; bottom: 24px; }
 @media (prefers-reduced-motion: reduce) { .cq-heal-tick { animation: none; } }
+
+/* ------------------------------------------- squad orders + comm rose (docs/design/conquest/orders/, variant A) */
+/* Comm rose: eight wedges round a COMMS hub; the selected wedge lights in own blue. */
+.cq-rose { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 4; }
+.cq-rose-dial { position: relative; width: min(440px, 74vmin); aspect-ratio: 1; pointer-events: auto; }
+.cq-rose-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 8px 22px #000b); }
+.cq-rose-wedge { fill: rgba(12, 19, 25, 0.92); stroke: rgba(150, 176, 196, 0.34); stroke-width: 0.6; cursor: pointer; transition: fill 70ms linear; }
+.cq-rose-wedge[data-enabled="false"] { fill: rgba(12, 19, 25, 0.66); cursor: default; }
+.cq-rose-wedge[data-selected="true"] { fill: rgba(22, 92, 128, 0.92); stroke: var(--cq-own); stroke-width: 1.4; }
+.cq-rose-wedge[data-selected="true"][data-enabled="false"] { fill: rgba(60, 64, 68, 0.9); stroke: #8a949c; }
+.cq-rose-seg {
+  position: absolute; width: 27%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 3px; padding: 0;
+  background: none; border: 0; color: var(--cq-text); font: 700 12px/1.1 var(--font-ui, system-ui, sans-serif); letter-spacing: 1.4px;
+  text-align: center; cursor: pointer; pointer-events: auto; text-shadow: 0 1px 2px #000;
+}
+.cq-rose-icon { display: block; width: 30px; height: 30px; color: #f4f7f9; filter: drop-shadow(0 1px 2px #000); }
+.cq-rose-glyph { display: block; width: 100%; height: 100%; }
+.cq-rose-label { white-space: nowrap; }
+.cq-rose-note { min-height: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; letter-spacing: 1px; color: var(--cq-sub); }
+.cq-rose-seg[data-selected="true"] { color: #c9eeff; }
+.cq-rose-seg[data-selected="true"] .cq-rose-icon { color: var(--cq-own); }
+.cq-rose-seg[data-enabled="false"] { opacity: 0.45; cursor: default; }
+.cq-rose-seg[data-kind="order"][data-enabled="true"] .cq-rose-icon { color: var(--cq-squad); }
+.cq-rose-hub {
+  position: absolute; left: 50%; top: 50%; width: 45%; aspect-ratio: 1; transform: translate(-50%, -50%); padding: 0;
+  display: grid; place-content: center; justify-items: center; gap: 4px; border-radius: 50%; border: 1px solid rgba(150, 176, 196, 0.34);
+  background: radial-gradient(circle, rgba(16, 26, 33, 0.9), rgba(8, 13, 17, 0.96)); color: var(--cq-text); font-family: var(--font-ui, system-ui, sans-serif); cursor: pointer;
+}
+.cq-rose-reticle { position: relative; width: 26px; height: 26px; margin-bottom: 4px; opacity: 0.8;
+  background: linear-gradient(#dfe7ec, #dfe7ec) 50% 0 / 1px 9px no-repeat, linear-gradient(#dfe7ec, #dfe7ec) 50% 100% / 1px 9px no-repeat,
+    linear-gradient(#dfe7ec, #dfe7ec) 0 50% / 9px 1px no-repeat, linear-gradient(#dfe7ec, #dfe7ec) 100% 50% / 9px 1px no-repeat; }
+.cq-rose-title { font-size: 22px; font-weight: 800; letter-spacing: 3px; }
+.cq-rose-sub { font-size: 9px; font-weight: 700; letter-spacing: 2px; color: var(--cq-sub); }
+/* The rose owns the screen centre: the crosshair readouts step aside. */
+.vb-conquest-hud:has(.cq-rose:not([hidden])) :is(.cq-spot-flash, .cq-hit-callout, .cq-ring) { visibility: hidden; }
+
+/* Squad order chip above the minimap: SQUAD ORDER / ATTACK C – IRON BRIDGE 240 M. */
+.cq-order {
+  position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: calc(var(--cq-floor, 104px) + var(--cq-minimap) + 14px);
+  display: grid; grid-template-columns: 20px auto; align-items: center; gap: 9px; max-width: calc(100vw - 44px); padding: 6px 14px 7px 9px;
+  background: linear-gradient(90deg, rgba(9, 15, 20, 0.92), rgba(9, 15, 20, 0.66)); border: 1px solid #ffffff12; border-left: 3px solid var(--cq-squad);
+  border-radius: 2px; text-shadow: 0 1px 2px #000;
+}
+.cq-order-icon { display: block; width: 20px; height: 20px; color: #ffb27a; }
+.cq-order[data-stance="defend"] .cq-order-icon { color: var(--cq-own); }
+.cq-order-glyph { display: block; width: 100%; height: 100%; }
+.cq-order-head { display: block; font-size: 9px; font-weight: 800; letter-spacing: 2px; color: var(--cq-sub); }
+.cq-order-line { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.cq-order-title { font-size: 16px; font-weight: 800; letter-spacing: 1.6px; color: var(--cq-text); }
+.cq-order-name { overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 700; letter-spacing: 1px; color: #dfe7ec; }
+.cq-order-distance { font-style: normal; font-size: 13px; font-weight: 700; color: var(--cq-sub); font-variant-numeric: tabular-nums; }
+.vb-conquest-hud:has(.cq-order:not([hidden])) .cq-map-hint { display: none; }
+
+/* Squad radio: short lines above the order chip (callouts, requests the own kit answers, responders). */
+.cq-radio {
+  position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: calc(var(--cq-floor, 104px) + var(--cq-minimap) + 68px);
+  display: grid; gap: 3px; max-width: 340px; margin: 0; padding: 0; list-style: none;
+}
+.vb-conquest-hud:not(:has(.cq-order:not([hidden]))) .cq-radio { bottom: calc(var(--cq-floor, 104px) + var(--cq-minimap) + 16px); }
+.cq-radio-line {
+  padding-left: 8px; border-left: 2px solid currentColor; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; color: var(--cq-squad);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000, 0 0 4px #000; animation: cq-radio-in 160ms ease-out;
+}
+.cq-radio-line[data-tone="own"] { color: var(--cq-own); }
+.cq-radio-line[data-tone="warn"] { color: #ffb36b; }
+@keyframes cq-radio-in { from { opacity: 0; transform: translateX(-6px); } }
+
+/* World flag marker: the own squad's order tag (ATTACK / DEFEND) above the diamond. */
+.cq-flag-marker-order {
+  position: absolute; bottom: 46px; left: 50%; transform: translateX(-50%); padding: 1px 6px 2px; border-radius: 2px;
+  font-size: 10px; font-weight: 800; letter-spacing: 1.4px; line-height: 12px; white-space: nowrap; color: #06120a; background: var(--cq-squad);
+  box-shadow: 0 0 0 1px #06120a, 0 0 10px #7ef29a55;
+}
+.cq-flag-marker-order::after { content: ''; position: absolute; left: 50%; top: 100%; margin-left: -4px; border: 4px solid transparent; border-top: 4px solid var(--cq-squad); }
+.cq-flag-marker:not([data-order="attack"]):not([data-order="defend"]) .cq-flag-marker-order { display: none; }
+.cq-flag-marker:is([data-order="attack"], [data-order="defend"]) .cq-flag-marker-diamond { stroke-width: 3; }
+.cq-flag-marker:is([data-order="attack"], [data-order="defend"])[data-near="true"] { opacity: 0.6; }
+
+/* Request markers (NEED MEDIC 34 M) over requesters the own kit can answer. */
+.cq-unit-marker[data-kind="request"] .cq-unit-glyph {
+  width: 22px; height: 22px; margin: -11px 0 0; padding: 3px; box-sizing: border-box; border-radius: 50%; color: var(--cq-squad);
+  background: #0b1319e0; box-shadow: 0 0 0 1.5px var(--cq-squad), 0 0 8px #7ef29a66; animation: cq-down 1.2s ease-in-out infinite;
+}
+.cq-unit-marker[data-kind="request"] .cq-unit-label { color: var(--cq-squad); font-weight: 800; letter-spacing: 1px; }
+
+/* Full map: a leader's order cursor (locked pointer / pad) and pickable flags. */
+.cq-bigmap-cursor {
+  position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border: 2px solid #fff; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 1px #000a, inset 0 0 0 1px #000a;
+}
+.cq-bigmap-cursor[data-over="true"] { border-color: var(--cq-squad); box-shadow: 0 0 0 3px #7ef29a55, inset 0 0 0 1px #000a; }
+.cq-bigmap[data-leader="true"] .cq-bigmap-map .cq-northmap-canvas { cursor: pointer; }
+.cq-bigmap[data-leader="true"] .cq-bigmap-hint { color: var(--cq-squad); font-weight: 700; letter-spacing: 1px; }
+
+/* Touch: COMMS under MAP and SPOT (VIEW below it while seated). */
+.vb-touch-comms {
+  right: auto; bottom: auto; left: calc(max(12px, env(safe-area-inset-left)) + 112px); top: calc(max(10px, env(safe-area-inset-top)) + 218px);
+  width: 44px; height: 44px; border-radius: 8px; font-size: 8px; letter-spacing: 0.4px; border-color: #7ef29aaa; color: #d9ffe3;
+}
+.vb-touch-mode .cq-rose-dial { width: min(340px, 88vmin); }
+.vb-touch-mode .cq-rose-seg { font-size: 10px; letter-spacing: 0.8px; gap: 2px; }
+.vb-touch-mode .cq-rose-icon { width: 22px; height: 22px; }
+.vb-touch-mode .cq-rose-note { font-size: 8px; letter-spacing: 0.4px; }
+.vb-touch-mode .cq-rose-title { font-size: 17px; letter-spacing: 2px; }
+.vb-touch-mode .cq-rose-sub { font-size: 8px; letter-spacing: 1px; }
+/* Portrait: the chip and the radio stack under the minimap, as wide as it (MAP / SPOT / COMMS sit beside it);
+   banners step below them. */
+.vb-touch-mode .cq-order {
+  top: calc(max(10px, env(safe-area-inset-top)) + 226px); bottom: auto; left: max(12px, env(safe-area-inset-left));
+  grid-template-columns: 14px auto; gap: 5px; padding: 3px 6px 4px 5px; width: var(--cq-minimap); max-width: none; box-sizing: border-box;
+}
+.vb-touch-mode .cq-order-icon { width: 14px; height: 14px; }
+.vb-touch-mode .cq-order-head { font-size: 7px; letter-spacing: 1px; }
+.vb-touch-mode .cq-order-line { flex-wrap: wrap; column-gap: 5px; row-gap: 0; }
+.vb-touch-mode .cq-order-title { font-size: 12px; letter-spacing: 1px; }
+.vb-touch-mode .cq-order-name { display: none; }
+.vb-touch-mode .cq-order-distance { font-size: 10px; }
+.vb-touch-mode .cq-radio { top: calc(max(10px, env(safe-area-inset-top)) + 276px); bottom: auto; left: max(12px, env(safe-area-inset-left)); width: var(--cq-minimap); max-width: none; }
+.vb-touch-mode .vb-conquest-hud:not(:has(.cq-order:not([hidden]))) .cq-radio { top: calc(max(10px, env(safe-area-inset-top)) + 226px); bottom: auto; }
+.vb-touch-mode .cq-radio-line { font-size: 9px; letter-spacing: 0.4px; white-space: normal; line-height: 11px; }
+.vb-touch-mode .cq-radio-line:not(:nth-last-child(-n + 2)) { display: none; }
+.vb-touch-mode .vb-conquest-hud:has(.cq-order:not([hidden])) .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 340px); }
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Landscape: the order reads under the ticket bar (banners step down), the radio beside MAP / SPOT. */
+  .vb-touch-mode .cq-order { top: calc(max(8px, env(safe-area-inset-top)) + 50px); left: 50%; transform: translateX(-50%); width: auto; }
+  .vb-touch-mode .cq-order-line { flex-wrap: nowrap; }
+  .vb-touch-mode .cq-order-name { display: inline; font-size: 10px; }
+  .vb-touch-mode .vb-conquest-hud:has(.cq-order:not([hidden])) .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 86px); }
+  .vb-touch-mode .cq-radio, .vb-touch-mode .vb-conquest-hud:not(:has(.cq-order:not([hidden]))) .cq-radio {
+    top: calc(max(10px, env(safe-area-inset-top)) + 150px); left: calc(max(12px, env(safe-area-inset-left)) + 166px); width: 150px;
+  }
+  .vb-touch-mode .cq-rose-dial { width: min(280px, 72vmin); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cq-radio-line, .cq-unit-marker[data-kind="request"] .cq-unit-glyph { animation: none; }
+  .cq-rose-wedge { transition: none; }
+}

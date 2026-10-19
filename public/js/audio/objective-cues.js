@@ -153,6 +153,11 @@ export function playStinger(voices, dest, id, at) {
 /** Flag owners at match start from the frozen plan; kept current by events and snapshot syncs. */
 const initialOwners = () => new Map(FRONTIER_PLAN.flags.map(f => [f.id, f.home ?? null]));
 
+/** Comm rose / squad order radio: the conquest bank's squelch, at most once per RADIO_REPEAT_MS. */
+const RADIO_SAMPLE = 'cq.amb.squelch';
+const RADIO_GAIN = 0.32;
+const RADIO_REPEAT_MS = 700;
+
 const defaultClock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
 export function createObjectiveCues({ audioContext = null, announcer = null, fetchImpl = globalThis.fetch?.bind(globalThis),
@@ -276,6 +281,25 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
     progress.source.playbackRate.setTargetAtTime(rate, ctx.currentTime, 0.1);
   };
   const speak = cue => (cue && !disposed && typeof announcer?.play === 'function' ? announcer.play(cue) : false);
+  // Radio squelch for squad orders and comm rose traffic (no voice lines yet: reuses cq.amb.squelch).
+  const radio = () => {
+    if (disposed || hidden() || repeatBlocked('radio', RADIO_REPEAT_MS)) return false;
+    const engine = currentEngine();
+    const buffer = typeof bank?.getBuffer === 'function' ? bank.getBuffer(`${RADIO_SAMPLE}.${1 + (radioCount++ % 2)}`) ?? bank.getBuffer(`${RADIO_SAMPLE}.1`) : null;
+    if (!buffer || engine?.ctx?.state !== 'running' || !ensureVoices(engine)) return false;
+    try {
+      const source = engine.ctx.createBufferSource();
+      const level = engine.ctx.createGain();
+      source.buffer = buffer;
+      level.gain.value = RADIO_GAIN / STINGER_GAIN;
+      source.connect(level).connect(output);
+      source.onended = () => { try { source.disconnect(); level.disconnect(); } catch { /* gone */ } };
+      source.start(engine.ctx.currentTime + 0.01);
+      played.push('radio');
+      return true;
+    } catch { return false; }
+  };
+  let radioCount = 0;
 
   return {
     /** Starts (once) and returns the WAV decode; resolves to the number of calls registered. */
@@ -317,6 +341,8 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
       if (cue) speak(cue);
       return { stinger: id, cue };
     },
+    /** One radio squelch (a squad order, a comm rose call or an answer to one), rate limited. */
+    radio() { return radio(); },
     /** True while the capture progress loop runs (tests and diagnostics). */
     get capturing() { return !!progress; },
     dispose() {

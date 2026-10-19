@@ -1,0 +1,77 @@
+{
+  "generated": "2026-10-19T22:37:40.067Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "orders-rose",
+        "title": "Comm rose · leader aims at C · NEED MEDIC marker",
+        "file": "docs/design/conquest/orders/captures/desktop-orders-rose.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-chip",
+        "title": "Squad order ATTACK C · radio: AFFIRMATIVE, AMMO RESPONDING",
+        "file": "docs/design/conquest/orders/captures/desktop-orders-chip.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-map",
+        "title": "Full map · leader picks a flag for the squad order",
+        "file": "docs/design/conquest/orders/captures/desktop-orders-map.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "orders-rose",
+        "title": "Comm rose · leader aims at C · NEED MEDIC marker",
+        "file": "docs/design/conquest/orders/captures/portrait-orders-rose.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-chip",
+        "title": "Squad order ATTACK C · radio: AFFIRMATIVE, AMMO RESPONDING",
+        "file": "docs/design/conquest/orders/captures/portrait-orders-chip.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-map",
+        "title": "Full map · leader picks a flag for the squad order",
+        "file": "docs/design/conquest/orders/captures/portrait-orders-map.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "orders-rose",
+        "title": "Comm rose · leader aims at C · NEED MEDIC marker",
+        "file": "docs/design/conquest/orders/captures/landscape-orders-rose.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-chip",
+        "title": "Squad order ATTACK C · radio: AFFIRMATIVE, AMMO RESPONDING",
+        "file": "docs/design/conquest/orders/captures/landscape-orders-chip.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-map",
+        "title": "Full map · leader picks a flag for the squad order",
+        "file": "docs/design/conquest/orders/captures/landscape-orders-map.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

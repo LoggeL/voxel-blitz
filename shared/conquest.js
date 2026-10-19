@@ -222,7 +222,8 @@ export function decodeConquestMatch(matchConquest, metaConquest = null) {
     endsAt: Number.isFinite(match.endsAt) ? match.endsAt : null,
     flags,
     squads: (Array.isArray(match.squads) ? match.squads : []).filter(Array.isArray)
-      .map(([team, squadId, leaderId]) => ({ team, squadId: squadId | 0, leaderId: leaderId == null ? null : String(leaderId) })),
+      .map(([team, squadId, leaderId, order]) => ({ team, squadId: squadId | 0, leaderId: leaderId == null ? null : String(leaderId),
+        order: typeof order === 'string' && order ? order : null })),
     bases: metaConquest?.bases ?? {},
     combatArea: metaConquest?.combatArea ?? null,
     ticketGraph: Array.isArray(match.ticketGraph) ? match.ticketGraph : null,

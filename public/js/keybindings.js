@@ -27,6 +27,7 @@ export const KEYBINDING_ACTIONS = Object.freeze([
   ['scoreboard', 'Scoreboard (hold)', ['Tab']],
   // Conquest. KeyY is the physical key printed Z on QWERTZ keyboards.
   ['spot', 'Spot enemy (Conquest)', ['KeyY']], ['bigMap', 'Full map (Conquest)', ['KeyM']],
+  ['commRose', 'Comm rose: requests and squad orders (hold, Conquest)', ['KeyU']],
   ['previousWeapon', 'Previous weapon', []], ['nextWeapon', 'Next weapon', []],
   // Conquest reads slot keys 1-4 kit-relative (KIT_DIGIT_ROLES in shared/conquest-kits.js);
   // slots 5-10 do nothing there. Seated, slot keys pick the seat's weapons.

@@ -73,7 +73,7 @@ export class Minimap {
         // Flags past the rim stay pinned to the edge so direction is always readable.
         const dist = Math.hypot(p.x, p.y), max = R - 12 * scale;
         if (dist > max) { pos.x = R + p.x / dist * max; pos.y = R + p.y / dist * max; }
-        paintFlag(ctx, item, pos, dist > max ? 0 : item.radius * s, { letterSize: 10 * scale, pulse: item.contested ? pulse : 0 });
+        paintFlag(ctx, item, pos, dist > max ? 0 : item.radius * s, { letterSize: 10 * scale, pulse: item.contested || item.order ? pulse : 0 });
       } else if (item.kind === 'hq') {
         const dist = Math.hypot(p.x, p.y);
         if (dist > R - 10 * scale) continue;

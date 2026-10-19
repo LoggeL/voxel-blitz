@@ -39,14 +39,16 @@ function vehicle(id, type, team, x, z, extra = {}) {
     lk: 0, sp: 0, cmr: 100, speed: 0, ...extra };
 }
 
-function baseMatch({ flags, tickets = { alpha: 214, bravo: 187 }, bleed = { alpha: 0, bravo: 0 }, phase = 'live', winner } = {}) {
+function baseMatch({ flags, tickets = { alpha: 214, bravo: 187 }, bleed = { alpha: 0, bravo: 0 }, phase = 'live', winner,
+  squads = [['alpha', 1, 'me'], ['alpha', 2, 'tm1'], ['bravo', 1, 'en1']] } = {}) {
   return {
     mode: 'conquest', map: 'frontier', phase, ...(winner !== undefined ? { winner } : {}),
     scores: { ...tickets },
     conquest: { v: 2, tickets, maxTickets: 300, bleed, endsAt: FIXTURE_NOW + 14 * 60_000 + 32_000,
       flags: flags ?? [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 0, null, 'idle'),
         flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')],
-      squads: [['alpha', 1, 'me'], ['alpha', 2, 'tm1'], ['bravo', 1, 'en1']] },
+      // Squad tuples: [team, squadId, leaderId, orderFlag?] (the 4th entry only while the squad has an order).
+      squads },
   };
 }
 
@@ -76,9 +78,9 @@ function roster(self, more = []) {
 /** A state: everything ConquestHud.update needs plus events to replay and capture hints. */
 function state(id, title, { selfTeam = 'alpha', self, players, vehicles = [], match, camera, events = [], dead = false, killer = null,
   bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null, career = null, viewStrip = null,
-  flight = null, aim = null, groundPlane = null } = {}) {
+  flight = null, aim = null, groundPlane = null, rose = null, mapCursor = null } = {}) {
   return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch, career, viewStrip,
-    flight, aim, ...(groundPlane != null ? { groundPlane } : {}) };
+    flight, aim, ...(groundPlane != null ? { groundPlane } : {}), ...(rose ? { rose } : {}), ...(mapCursor ? { mapCursor } : {}) };
 }
 
 /** Every HUD state the acceptance list names, in capture order. */
@@ -450,6 +452,38 @@ export function conquestHudFixtures() {
     match.conquest.ticketGraph = graph;
     match.results = roster(self).map(p => ({ id: p.id, name: p.name, team: p.team, kills: p.kills, deaths: p.deaths, score: p.score, cqs: p.cqs, squad: p.cq[1], bot: p.id !== 'me' }));
     out.push(state('result', 'Result · ticket graph and MVPs', { self, players: roster(self), match, screen: 'result', camera: cam(C.x, GROUND + 1.6, C.z, 0) }));
+  }
+  // 21. Squad orders and the comm rose (docs/design/conquest/orders/, variant A).
+  // a) A Medic squad leader holds U looking at C: ATTACK C highlighted; a squadmate's NEED MEDIC marker ahead.
+  {
+    const eye = { x: C.x + 6, z: C.z + 232 };
+    const self = meAt(eye.x, eye.z, { cq: { squad: 1, kitId: 'medic' } });
+    const look = yawTo(eye, C);
+    const nova = player('sq4', 'Nova', 'alpha', eye.x - Math.sin(look) * 30.6 - Math.cos(look) * 14.9, eye.z - Math.cos(look) * 30.6 + Math.sin(look) * 14.9,
+      { cq: { squad: 1, kitId: 'assault' }, hp: 38, cqc: [4, 0, null] });
+    out.push(state('orders-rose', 'Comm rose · leader aims at C · NEED MEDIC marker', { self, players: roster(self, [nova]), vehicles: [],
+      match: baseMatch({ squads: [['alpha', 1, 'me', 'C'], ['alpha', 2, 'tm1', 'A'], ['bravo', 1, 'en1']] }),
+      camera: cam(eye.x, GROUND + 1.6, eye.z, look, -0.03), rose: { select: 'order' } }));
+  }
+  // b) A squad member under a bot leader's ATTACK C order: chip, marker tag, minimap ring, radio lines.
+  {
+    const eye = { x: C.x - 10, z: C.z + 238 };
+    const self = meAt(eye.x, eye.z, { cqc: [7, 1, 'sq2'] });
+    out.push(state('orders-chip', 'Squad order ATTACK C · radio: AFFIRMATIVE, AMMO RESPONDING', { self, players: roster(self), vehicles: [],
+      match: baseMatch({ squads: [['alpha', 1, 'sq1', 'C'], ['alpha', 2, 'tm1', 'A'], ['bravo', 1, 'en1']] }),
+      camera: cam(eye.x, GROUND + 1.6, eye.z, yawTo(eye, C) + 0.22, -0.03),
+      events: [{ kind: 'squad_order', team: 'alpha', squad: 1, flag: 'C', by: 'sq1' },
+        { kind: 'comm', team: 'alpha', by: 'sq2', comm: 'yes', squad: 1 },
+        { kind: 'comm', team: 'alpha', by: 'me', comm: 'ammo', squad: 1, seq: 7 },
+        { kind: 'comm_answer', team: 'alpha', seq: 7, comm: 'ammo', by: 'me', responder: 'sq2' }] }));
+  }
+  // c) The leader orders from the full map: DEFEND B stands, the cursor rests on D.
+  {
+    const self = meAt(C.x - 50, C.z + 40);
+    out.push(state('orders-map', 'Full map · leader picks a flag for the squad order', { self, players: roster(self),
+      vehicles: [alphaHeli],
+      match: baseMatch({ squads: [['alpha', 1, 'me', 'B'], ['alpha', 2, 'tm1', 'A'], ['bravo', 1, 'en1']] }),
+      camera: cam(C.x - 50, GROUND + 1.6, C.z + 40, 0), bigMap: true, mapCursor: { u: D.x / 768, v: D.z / 768 + 0.012 } }));
   }
   return out;
 }

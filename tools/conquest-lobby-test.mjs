@@ -10,7 +10,7 @@ import { CONQUEST_CONTRACT_VERSION, decodeConquestPlayer, decodeConquestStats, F
 import { decodeConquestMatch } from '../shared/conquest.js';
 import {
   CONQUEST_CQ_LENGTH, CONQUEST_CQ_MAX_LENGTH, CONQUEST_CQS_LENGTH, CONQUEST_FLAG_TUPLE_LENGTH, CONQUEST_MATCH_BUDGET_BYTES, CONQUEST_MATCH_KEYS,
-  CONQUEST_PLAYER_KEYS, CONQUEST_SQUAD_TUPLE_LENGTH, CONQUEST_STATE_KEYS,
+  CONQUEST_PLAYER_KEYS, CONQUEST_SQUAD_TUPLE_LENGTH, CONQUEST_SQUAD_TUPLE_MAX_LENGTH, CONQUEST_STATE_KEYS,
 } from './lib/protocol-contract.mjs';
 
 const server = startServer();
@@ -58,7 +58,9 @@ try {
   assert.equal(Object.keys(conquest).sort().join(','), CONQUEST_STATE_KEYS, 'slim match.conquest');
   assert(Buffer.byteLength(JSON.stringify(conquest)) <= CONQUEST_MATCH_BUDGET_BYTES, 'match.conquest fits its 400 B budget');
   assert(conquest.flags.every(f => f.length === CONQUEST_FLAG_TUPLE_LENGTH));
-  assert(conquest.squads.every(s => s.length === CONQUEST_SQUAD_TUPLE_LENGTH));
+  // A 4th entry (the squad order flag, contract v6) only rides while a squad has an order.
+  assert(conquest.squads.every(s => s.length === CONQUEST_SQUAD_TUPLE_LENGTH
+    || (s.length === CONQUEST_SQUAD_TUPLE_MAX_LENGTH && /^[A-Z]$/.test(s[3]))));
   assert.equal(conquest.flags.length, meta.flags.length);
   assert.deepEqual(conquest.tickets, tick.match.scores);
   assert(conquest.tickets.alpha > 0 && conquest.tickets.bravo > 0);

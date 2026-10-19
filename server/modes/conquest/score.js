@@ -7,7 +7,7 @@ export const ASSIST_WINDOW_MS = 10000;
 export const VEHICLE_DAMAGE_FLUSH_MS = 1500;
 /** Smallest share of a hull's max HP that earns vehicle-damage points. */
 export const VEHICLE_DAMAGE_MIN_FRACTION = 0.02;
-const OBJECTIVE_REASONS = new Set(['capture', 'neutralize', 'capture_assist', 'defend']);
+const OBJECTIVE_REASONS = new Set(['capture', 'neutralize', 'capture_assist', 'defend', 'order_capture', 'order_defend']);
 const STAT_INDEX = Object.freeze({ objective: 0, vehicles: 1, revives: 2, captures: 3 });
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const idOf = value => (value && typeof value === 'object' ? (value.id == null ? null : String(value.id))

@@ -11,6 +11,8 @@ import { ScoreLedger } from './conquest/score.js';
 import { BoundsSystem, RESTRICTED_WEAPON } from './conquest/bounds.js';
 import { airspaceFor, airspaceRect } from '../../shared/world/airspace.js';
 import { createConquestRoles } from './conquest/roles.js';
+import { SquadOrders } from './conquest/orders.js';
+import { CommSystem } from './conquest/comms.js';
 import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
 import { evHit } from '../protocol/events.js';
@@ -55,6 +57,16 @@ export class ConquestPolicy extends TdmPolicy {
     });
     this.finalStats = new Map();
     this.roles = createConquestRoles({ policy: this, engine: this.engine, rules: this.rules });
+    // Squad orders and the comm rose (shared/conquest-comms.js).
+    this.squadOrders = new SquadOrders({
+      now: () => this.now,
+      emit: (kind, fields) => this._emit(kind, fields),
+      squads: this.squads,
+      flags: () => this.capture.flags,
+      teamFor: p => this.teamFor(p),
+      entity: value => this._entity(value),
+    });
+    this.comms = new CommSystem(this);
     this._resetObjectives();
   }
 
@@ -80,6 +92,13 @@ export class ConquestPolicy extends TdmPolicy {
     return { level: next, unlocked, newly };
   }
 
+  /** Every Conquest event also reaches the comm rose (a heal or revive serves NEED MEDIC; a human order earns a bot AFFIRMATIVE). */
+  _emit(kind, fields = {}) {
+    super._emit(kind, fields);
+    this.comms?.onEvent(kind, fields);
+    if (kind === 'squad_order') this.comms?.orderIssued(fields);
+  }
+
   /** Rich flag rows: id, x, y, z, radius, owner, control, state, mover, alpha, bravo, spawns. */
   get flags() { return this.capture.flags; }
   get tickets() { return this.ledger.tickets; }
@@ -100,6 +119,8 @@ export class ConquestPolicy extends TdmPolicy {
     this.score.reset();
     this.finalStats = new Map();
     this.roles.reset();
+    this.squadOrders?.reset();
+    this.comms?.reset();
     // Stable per match: the bot flex kit of each squad (shared/conquest-kits.js botSquadKit).
     this.kitSeed = Math.floor(Math.random() * 2 ** 31);
     for (const state of this._players.values()) state.objectiveId = null;
@@ -160,6 +181,8 @@ export class ConquestPolicy extends TdmPolicy {
     });
     if (this.phase !== 'live') return;
     this.roles.tick(now, dt);
+    this.squadOrders.sync();
+    this.comms.tick(now);
     this.score.tick(now);
     if (this.phase === 'live' && this.ledger.timeExpired(now)) this._finishMatch(this.ledger.timeLimitWinner(this.capture.held()));
   }
@@ -200,11 +223,23 @@ export class ConquestPolicy extends TdmPolicy {
     } else if (outcome.kind === 'captured') {
       this._emit('flag_captured', { flag: flag.id, team: outcome.team });
       this.vehicleSystem?.setPadOwner?.(flag.id, outcome.team);
-      for (const id of outcome.present) this.award(id, 'capture');
+      for (const id of outcome.present) {
+        this.award(id, 'capture');
+        if (this._onOrder(id, flag)) this.award(id, 'order_capture');
+      }
       for (const id of outcome.assists) if (this.teamFor(id) === outcome.team) this.award(id, 'capture_assist');
     } else if (outcome.kind === 'defended') {
-      for (const id of outcome.defenders) if (this.teamFor(id) === outcome.team) this.award(id, 'defend');
+      for (const id of outcome.defenders) {
+        if (this.teamFor(id) !== outcome.team) continue;
+        this.award(id, 'defend');
+        if (this._onOrder(id, flag)) this.award(id, 'order_defend');
+      }
     }
+  }
+
+  /** True when the player's squad is ordered onto `flag` (the order bonus on a capture or defend). */
+  _onOrder(id, flag) {
+    return this.squadOrders.orderOf(id)?.flagId === flag.id;
   }
 
   /** Combat airspace of the map (its airspace apron's combat gap), or null. */
@@ -278,6 +313,8 @@ export class ConquestPolicy extends TdmPolicy {
     this.deploy.remove(id);
     this.bounds.clear(id);
     this.score.remove(id);
+    this.squadOrders.remove(id);
+    this.comms.remove(id);
     if (entity) { this.score.detach(entity); this.roles.onRemove(entity); }
     return true;
   }
@@ -292,6 +329,8 @@ export class ConquestPolicy extends TdmPolicy {
     this.bounds.rename(priorId, id);
     this.score.rename(priorId, id);
     this.roles.rename(priorId, id);
+    this.squadOrders.rename(priorId, id);
+    this.comms.rename(priorId, id);
     return true;
   }
 
@@ -503,12 +542,17 @@ export class ConquestPolicy extends TdmPolicy {
 
   // --- intents and hooks ---------------------------------------------------
 
-  /** `{type:'deploy', spawn, kit, variant, gadget}` | `{type:'spot'}` | `{type:'support', support, targetId}` | `{type:'redeploy'}`. */
+  /**
+   * `{type:'deploy', spawn, kit, variant, gadget}` | `{type:'spot'}` | `{type:'support', support, targetId}` |
+   * `{type:'redeploy'}` | `{type:'comm', comm}` (a comm rose pick) | `{type:'order', flag}` (a full-map order, '' clears).
+   */
   conquestIntent(player, intent) {
     const entity = this._entity(player);
     if (!entity || !this._state(entity) || !intent || typeof intent !== 'object') return false;
     if (intent.type === 'deploy') return this.deploy.intent(entity, intent);
     if (intent.type === 'redeploy') return this.redeploy(entity);
+    if (intent.type === 'comm') return this.comms.intent(entity, intent.comm);
+    if (intent.type === 'order') return this.phase === 'live' && this.squadOrders.issue(entity, intent.flag);
     if ((intent.type === 'spot' || intent.type === 'support') && this.phase === 'live') {
       return this.roles.intent(entity, intent) === true;
     }
@@ -602,7 +646,7 @@ export class ConquestPolicy extends TdmPolicy {
       conquest: this.conquestFields(entity) };
   }
 
-  /** `p.conquest`: {kit, squad, down, spotted, restrictedMs, actionProgress, stats}; snapshot.js encodes cq/cqs. */
+  /** `p.conquest`: {kit, squad, down, spotted, restrictedMs, actionProgress, stats, comm?}; snapshot.js encodes cq/cqs/cqc. */
   conquestFields(entity) {
     const id = String(entity.id);
     const fields = { kit: this.deploy.kitOf(id).kit, squad: this.squads.squadOf(id), down: false, spotted: false,
@@ -612,6 +656,8 @@ export class ConquestPolicy extends TdmPolicy {
       for (const [key, value] of Object.entries(extra)) if (value !== undefined && key !== 'stats') fields[key] = value;
     }
     fields.stats = this.score.statsRow(id);
+    // A live comm rose request rides the requester's row as `cqc`.
+    if (this.phase === 'live') fields.comm = this.comms.fieldOf(id);
     return fields;
   }
 
@@ -635,7 +681,11 @@ export class ConquestPolicy extends TdmPolicy {
         bleed: ledger.snapshotBleed(),
         endsAt: Number.isFinite(ledger.endsAt) ? Math.round(ledger.endsAt) : null,
         flags: this.capture.flags.map(encodeConquestFlag),
-        squads: this.squads.tuples(),
+        // A squad tuple gains its order flag as a 4th entry while it has one.
+        squads: this.squads.tuples().map(tuple => {
+          const flag = this.squadOrders.flagFor(tuple[0], tuple[1]);
+          return flag ? [...tuple, flag] : tuple;
+        }),
         ...(this.phase === 'post' ? { ticketGraph: ledger.graph.map(row => row.slice()) } : {}),
       },
     };

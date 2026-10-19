@@ -30,6 +30,12 @@ import { TopBar } from './conquest/top-bar.js';
 import { VehiclePanel } from './conquest/vehicle-panel.js';
 import { ViewStrip, viewStripModel } from './conquest/view-strip.js';
 import { FlightHint } from './conquest/flight-hint.js';
+import { CommRose } from './conquest/comm-rose.js';
+import { OrderChip, RadioFeed } from './conquest/order-chip.js';
+import {
+  PAD_ROSE_HOLD_MS, commRoseModel, isSquadLeader, orderFlagOf, radioLine, requestMapItems, requestMarkerModels, squadOrderBanner,
+  squadOrderModel, visibleRequests, withOrderRing,
+} from './conquest/comms-state.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 const MARKER_INSETS_DESKTOP = Object.freeze({ top: 96, bottom: 120, left: 48, right: 48 });
@@ -37,7 +43,7 @@ const MARKER_INSETS_TOUCH = Object.freeze({ top: 124, bottom: 150, left: 28, rig
 /** Phone landscape: HP card, minimap and MAP / SPOT fill the left edge, so left markers clamp right of them. */
 const MARKER_INSETS_TOUCH_LANDSCAPE = Object.freeze({ top: 124, bottom: 150, left: 196, right: 28 });
 /** Fixed HUD panels edge-clamped flag markers keep clear of (re-measured at most every OBSTACLE_MS). */
-const MARKER_OBSTACLES = ['.cq-minimap', '.cq-squad', '.cq-map-hint', '.cq-vehicle', '.cq-top', '.cq-view', '.cq-banner', '.cq-ring', '.cq-interact', '.cq-lock',
+const MARKER_OBSTACLES = ['.cq-minimap', '.cq-squad', '.cq-order', '.cq-radio', '.cq-map-hint', '.cq-vehicle', '.cq-top', '.cq-view', '.cq-banner', '.cq-ring', '.cq-interact', '.cq-lock',
   '.cq-restricted', '#healthbar', '#ammo', '#grenade-count', '.vb-touch-button'].join(', ');
 const OBSTACLE_MS = 400;
 /** The crosshair and its reticle labels (vehicle ammo, lock, pipper): clamped edge markers stay out of it. */
@@ -54,7 +60,14 @@ export class ConquestHud {
     onInteract = () => {}, onDeploy = () => {}, onDeployOpen = () => {}, onSpot = () => {}, onSupport = () => {},
     combatHud = null, eventTarget = typeof window !== 'undefined' ? window : null, inputEnabled = () => true,
     shellRaycast = null, careerProfile = () => null, replayHold = () => false,
+    onComm = () => {}, onOrder = () => {}, onCapture = () => {}, onRadio = () => {},
   } = {}) {
+    // Comm rose picks ({comm: kind}), full-map orders ({order: flagId | ''}), the Input UI capture
+    // (Input.setUiCapture: the rose and the map cursor own the aim while up) and the radio squelch.
+    this.onComm = typeof onComm === 'function' ? onComm : () => {};
+    this.onOrder = typeof onOrder === 'function' ? onOrder : () => {};
+    this.onCapture = typeof onCapture === 'function' ? onCapture : () => {};
+    this.onRadio = typeof onRadio === 'function' ? onRadio : () => {};
     // True while the local killcam replay runs or waits for the death intro: the deploy screen opens after it.
     this.replayHold = typeof replayHold === 'function' ? replayHold : () => false;
     // Solid-block picker for the tank shell impact marker (the camera picker stops on water; shells don't).
@@ -88,6 +101,8 @@ export class ConquestHud {
     this.restricted = new RestrictedOverlay(this.root);
     this.minimap = new Minimap(this.root, { onOpen: () => this.toggleBigMap(true) });
     this.squadList = new SquadList(this.root);
+    this.orderChip = new OrderChip(this.root);
+    this.radio = new RadioFeed(this.root);
     this.vehiclePanel = new VehiclePanel(this.root);
     this.interact = new InteractPrompt(this.root, { onInteract, onSupport });
     this.spotFlash = el('div', 'cq-spot-flash', this.root);
@@ -97,7 +112,14 @@ export class ConquestHud {
     this.hitCallout.setAttribute('aria-live', 'polite');
     this.hitCallout.hidden = true;
     this.bigMapHint = el('div', 'cq-map-hint', this.root);
-    this.bigMap = new BigMap(this.root);
+    this.bigMap = new BigMap(this.root, { onOrder: flagId => this.sendOrder(flagId) });
+    this.rose = new CommRose(this.root, { onPick: segment => this._sendComm(segment), onClose: () => this._syncCapture() });
+    this._capture = null;
+    this._captureKind = '';
+    this._padRoseAt = null;
+    this._padRose = false;
+    this._view = null;
+    this._lastSent = 0;
     this.deploy = new DeployScreen(this.root, { onDeploy, onOpen: onDeployOpen,
       career: typeof careerProfile === 'function' ? careerProfile : () => null });
     // Authoritative kit unlocks (the latest own `kit_unlocks` event).
@@ -147,6 +169,8 @@ export class ConquestHud {
     // it (preventDefault) as an enter/exit tap: a stale start would read as a
     // hold that never ends and keep sending revive or repair intents.
     if (!down && matchesBinding(event, 'interact')) { this._interactDownAt = null; return; }
+    // Releasing the comm rose key sends the highlighted segment (hold mode).
+    if (!down && matchesBinding(event, 'commRose')) { if (this.rose.open && this.rose.mode === 'hold') this.rose.pick(); return; }
     if (!this.active || event.defaultPrevented || isTypingTarget(event.target)) return;
     if (matchesBinding(event, 'interact')) {
       // A hold only starts while gameplay input is live (never behind the pause menu).
@@ -154,11 +178,13 @@ export class ConquestHud {
       return;
     }
     if (!down || event.repeat) return;
+    if (event.key === 'Escape' && this.rose.open) { this.rose.close(); return; }
     if (event.key === 'Escape' && this.bigMap.open) { this.toggleBigMap(false); return; }
     // Enter deploys from the deploy screen (gameplay input is closed while dead).
     if (this.dead && this.deploy.open && event.key === 'Enter') { this.deploy.deploy(); return; }
     if (!this.inputEnabled()) return;
     if (matchesBinding(event, 'bigMap') && !this.dead) { this.toggleBigMap(); return; }
+    if (matchesBinding(event, 'commRose') && !this.dead) { this.openRose('hold'); return; }
     if (matchesBinding(event, 'spot') && !this.dead) this.spot();
   }
 
@@ -169,8 +195,8 @@ export class ConquestHud {
    * the seat weapon and D-pad down the camera view. Deploy screen: D-pad up/down pick the spawn, LB/RB the
    * kit, A deploys. Interact (D-pad left) goes through VehicleController.padInteract.
    */
-  padInput({ pressed = null, scoped = false, blocked = false } = {}) {
-    if (!this.active || !pressed || blocked) return false;
+  padInput({ pressed = null, held = null, scoped = false, blocked = false } = {}) {
+    if (!this.active || !pressed || blocked) { this._padRoseAt = null; return false; }
     if (this.dead) {
       if (!this.deploy.open) return false;
       if (pressed.slotUp) this.deploy.step('spawn', -1);
@@ -180,8 +206,11 @@ export class ConquestHud {
       if (pressed.jump) this.deployNow();
       return true;
     }
-    if (!this.inputEnabled()) return false;
-    if (pressed.buy) this.spot();
+    if (!this.inputEnabled()) { this._padRoseAt = null; return false; }
+    // D-pad right: a tap spots, a hold of PAD_ROSE_HOLD_MS opens the comm rose (the right
+    // stick picks, the release sends). Without `held` (older callers) a press spots at once.
+    if (held) this._padRoseHold(!!pressed.buy, !!held.buy);
+    else if (pressed.buy) this.spot();
     if (pressed.zoom && !scoped) this.toggleBigMap();
     if (this.seated) {
       if (pressed.slotUp) this.conquestAction('vehicleSeat');
@@ -191,6 +220,78 @@ export class ConquestHud {
       if (pressed.grenadePouch) this.vehicleController?.cycleView?.();
     }
     return true;
+  }
+
+  _padRoseHold(pressedNow, heldNow) {
+    const at = clockNow();
+    if (pressedNow) { this._padRoseAt = at; this._padRose = false; }
+    if (this._padRoseAt == null) return;
+    if (heldNow) {
+      if (!this._padRose && at - this._padRoseAt >= PAD_ROSE_HOLD_MS) this._padRose = this.openRose('hold');
+      return;
+    }
+    // Released: the rose sends its pick, a short tap spots.
+    const rose = this._padRose;
+    this._padRoseAt = null;
+    this._padRose = false;
+    if (rose) { if (this.rose.open) this.rose.pick(); } else this.spot();
+  }
+
+  /** The comm rose model for this frame (segments, ORDER flag under the crosshair). */
+  _roseModel() {
+    const args = this._lastArgs;
+    if (!args || !this.cq) return null;
+    return commRoseModel({ cq: this.cq, self: this.self, vehicles: Array.isArray(args.vehicles) ? args.vehicles : [], seated: this.seated, view: this._view });
+  }
+
+  /**
+   * Open the comm rose: 'hold' (U / D-pad right: aim and release) or 'tap'
+   * (touch COMMS: tap a segment). Closed while dead, in menus and on the full map.
+   */
+  openRose(mode = 'hold') {
+    if (!this.active || this.dead || !this.inputEnabled() || this.rose.open) return false;
+    const model = this._roseModel();
+    if (!model) return false;
+    if (this.bigMap.open) this.toggleBigMap(false);
+    this.rose.show(model, { mode });
+    this._syncCapture();
+    return true;
+  }
+
+  /** A rose pick: SPOT runs the ordinary spot, every other segment sends `{comm: kind}`. */
+  _sendComm(segment) {
+    if (!segment || segment.enabled === false) return false;
+    if (segment.kind === 'spot') return this.spot();
+    this.onComm(segment.kind);
+    return true;
+  }
+
+  /** A full-map order pick ('' clears the order). */
+  sendOrder(flagId) {
+    if (!this.active || this.dead) return false;
+    this.onOrder(flagId);
+    return true;
+  }
+
+  /**
+   * Hand the Input UI capture to whichever overlay owns the aim: the rose,
+   * else the full map's order cursor for a squad leader; null when neither.
+   */
+  _syncCapture() {
+    const kind = this.rose.open ? 'rose' : this.bigMap.open && this.active && !this.dead && isSquadLeader(this.cq, this.self) ? 'map' : '';
+    if (kind === this._captureKind) return;
+    this._captureKind = kind;
+    if (kind !== 'map') this.bigMap.showCursor(false);
+    this._capture = kind === 'rose' ? {
+      move: (dx, dy) => this.rose.steer(dx, dy),
+      stick: (x, y) => this.rose.stick(x, y),
+      press: button => (button === 0 ? this.rose.pick() : this.rose.close()),
+    } : kind === 'map' ? {
+      move: (dx, dy) => { this.bigMap.showCursor(true); this.bigMap.steerCursor(dx, dy); },
+      stick: (x, y, dt) => { this.bigMap.showCursor(true); this.bigMap.stickCursor(x, y, dt); },
+      press: button => (button === 0 ? (this.bigMap.showCursor(true), this.bigMap.clickCursor()) : this.toggleBigMap(false)),
+    } : null;
+    this.onCapture(this._capture);
   }
 
   /** Spot along the view (keyboard or touch); the server validates cone, range and line of sight. */
@@ -206,6 +307,9 @@ export class ConquestHud {
     this._hintUsed = true;
     const next = this.bigMap.setOpen(open === undefined ? !this.bigMap.open : !!open);
     this.root.dataset.bigMap = String(next);
+    if (next) this.rose.close();
+    if (next) this.bigMap.setOrders({ leader: isSquadLeader(this.cq, this.self), orderFlag: orderFlagOf(this.cq, this.self)?.flagId ?? null });
+    this._syncCapture();
     return next;
   }
 
@@ -230,6 +334,8 @@ export class ConquestHud {
       case 'bigMap': return this.dead ? false : this.toggleBigMap() || true;
       case 'spot': return this.spot();
       case 'deploy': return this.deployNow();
+      // COMMS: the comm rose in tap mode (a second press closes it).
+      case 'comms': return this.rose.open ? this.rose.close() : this.openRose('tap');
       case 'vehicleSeat': {
         const index = this.seated ? nextFreeSeatIndex(this.seated.row, this.seated.seat.id) : -1;
         return index >= 0 ? !!this.vehicleController?.requestSeat?.(index) : false;
@@ -254,7 +360,10 @@ export class ConquestHud {
     const show = this.dead && this.active && !this.replayHold();
     this.deploy.setOpen(show, this.killerInfo);
     this.root.dataset.dead = String(this.dead);
-    if (this.dead) { this.bigMap.setOpen(false); this.reticles.clear(); this._setSight(''); this.markers.clear(); }
+    if (this.dead) {
+      this.bigMap.setOpen(false); this.rose.close(); this.reticles.clear(); this._setSight(''); this.markers.clear();
+      this._syncCapture();
+    }
   }
 
   /**
@@ -359,6 +468,7 @@ export class ConquestHud {
     this.topBar.update(ticketModel(cq, selfTeam, now), flagChipModels(cq, selfTeam));
     this.banners.update(now);
     this.ticker.update(now);
+    this.radio.update(clockNow());
 
     const alive = !!self && self.state !== 'dead' && self.hp > 0;
     const seated = this.seated;
@@ -376,7 +486,11 @@ export class ConquestHud {
     const eye = cameraPosition(camera);
     const yaw = angles?.yaw ?? (Number.isFinite(self?.yaw) ? self.yaw : 0);
     const projector = alive && camera ? createProjector(camera, width, height) : null;
-    const items = mapItems({ cq, self, players, vehicles, selfTeam });
+    this._view = eye && angles ? { ...eye, yaw: angles.yaw, pitch: angles.pitch } : null;
+    // Squad order (the squad tuple's flag) and the comm requests this player should see.
+    const order = orderFlagOf(cq, self);
+    const requests = alive ? visibleRequests({ self, players, vehicles, seated }) : [];
+    const items = [...withOrderRing(mapItems({ cq, self, players, vehicles, selfTeam }), order), ...requestMapItems(requests)];
 
     if (this.dead || !alive) {
       this.ring.update(null);
@@ -391,6 +505,8 @@ export class ConquestHud {
       this.markers.clear();
       this.minimap.root.hidden = true;
       this.squadList.update(null);
+      this.orderChip.update(null);
+      if (this.rose.open) this.rose.close();
       this.deploy.update({ cq, self, players, vehicles, nowMs: now, mapItems: items, meta: cq.meta });
       // A fresh life restocks the medkit: that is no ADRENALINE re-arm.
       this._medkitLeft = null;
@@ -398,6 +514,12 @@ export class ConquestHud {
     }
     this.minimap.root.hidden = false;
     this.squadList.update(squadListModel({ cq, self, players, vehicles }));
+    this.orderChip.update(squadOrderModel(cq, self));
+    this.root.dataset.order = order ? order.stance : '';
+    // The rose keeps its labels current (ORDER follows the crosshair on touch, where the aim stays live).
+    if (this.rose.open) this.rose.setModel(this._roseModel());
+    if (this.bigMap.open) this.bigMap.setOrders({ leader: isSquadLeader(cq, self), orderFlag: order?.flagId ?? null });
+    this._syncCapture();
     // Airborne aircraft crew never count toward a capture (spec F1), so no ring for them.
     const airborne = !!seated && isAircraftType(seated.row.type) && seated.row.grounded === false;
     this.ring.update(airborne ? null : captureRingModel(cq, self, selfTeam));
@@ -435,8 +557,9 @@ export class ConquestHud {
     const insets = !touch ? MARKER_INSETS_DESKTOP : width > height && height <= 500 ? MARKER_INSETS_TOUCH_LANDSCAPE : MARKER_INSETS_TOUCH;
     this.markers.update(
       projector ? spreadEdgeMarkers(flagMarkerModels(cq, self, selfTeam, projector, insets), { width, height, insets,
-        obstacles: [...this._markerObstacles(width, height, touch), crosshairZone(width, height), ...this.reticles.reserved] }) : [],
-      projector ? unitMarkerModels({ self, players, vehicles, selfTeam, projector, insets }) : [],
+        obstacles: [...this._markerObstacles(width, height, touch), crosshairZone(width, height), ...this.reticles.reserved] })
+        .map(m => (order && m.id === order.flagId ? { ...m, order: order.stance } : m)) : [],
+      projector ? this._unitMarkers(unitMarkerModels({ self, players, vehicles, selfTeam, projector, insets }), requestMarkerModels(requests, { projector })) : [],
     );
     this.restricted.update(restrictedModel(self, cq, { aircraft: !!seated && isAircraftType(seated.row.type) }));
     // Assault ADRENALINE: the spent medkit came back (0 -> 1 on the authoritative row) right
@@ -501,6 +624,13 @@ export class ConquestHud {
     return rects;
   }
 
+  /** Unit markers plus request markers: a requester's squad / team dot gives way to its NEED ... marker. */
+  _unitMarkers(units, requests) {
+    if (!requests.length) return units;
+    const calling = new Set(requests.map(r => r.by ?? r.id));
+    return [...units.filter(m => !((m.kind === 'squad' || m.kind === 'team') && calling.has(m.id))), ...requests];
+  }
+
   /** Kit id of the self row (decoded cq[0]). */
   _selfKit(self) { return decodeConquestPlayer(self)?.kit ?? null; }
 
@@ -547,6 +677,22 @@ export class ConquestHud {
       case 'deploy_refused':
         if (String(ev.id) === String(selfId)) this.deploy.refuse(ev.reason === 'locked' ? { reason: 'locked', level: ev.level } : ev.reason);
         break;
+      case 'squad_order': {
+        // The own squad's new (or cleared) order: a banner and the radio squelch.
+        const squad = decodeConquestPlayer(this.self)?.squad | 0;
+        const flag = ev.flag != null ? this.cq?.flags?.find(f => f.id === ev.flag) ?? null : null;
+        const banner = squadOrderBanner(ev, { selfTeam, squad, flag, now });
+        if (banner) { this.banners.push(banner, now); this.onRadio(ev); }
+        break;
+      }
+      case 'comm':
+      case 'comm_answer': {
+        const info = decodeConquestPlayer(this.self);
+        const line = radioLine(ev, { selfId, selfTeam, squad: info?.squad | 0, kit: info?.kit ?? null,
+          driving: this.seated?.seat?.drives === true, players: this._lastArgs?.players });
+        if (line) { this.radio.push(line, clockNow()); this.onRadio(ev); }
+        break;
+      }
       case 'revive':
         if (String(ev.id) === String(selfId)) this.banners.push({ key: `rev:${ev.by}:${now}`, tone: 'own', title: 'REVIVED', detail: 'BACK IN THE FIGHT', priority: 6 }, now);
         break;
@@ -600,6 +746,9 @@ export class ConquestHud {
     if (this.root.hidden) return;
     this.root.hidden = true;
     this.bigMap.setOpen(false);
+    this.rose.close();
+    this.radio.clear();
+    this._syncCapture();
     this.deploy.setOpen(false);
     this.reticles.clear();
     this.markers.clear();

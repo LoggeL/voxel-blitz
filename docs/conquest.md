@@ -80,7 +80,52 @@ Every kit also carries the revolver and the melee weapon.
 
 To spot, press Y (Z on QWERTZ) to mark the enemy player or hull under your crosshair. Smoke and terrain block line of sight. Firing a weapon that isn't suppressed auto-spots the shooter for 2 s.
 
-**Score.** The ledger in `server/modes/conquest/score.js` emits `score {id, pts, reason}` for every award (points in `SCORE_POINTS`). A kill is worth 100, a capture 250 and destroying a vehicle 200. `defend` (100) pays the owners present when a threat ends with the flag back at full control, but only if the threat took at least 0.1 control off the flag, so an enemy stepping in and out of a full flag pays nothing. A small ticker below the crosshair shows each award. The scoreboard groups players by squad. The result screen shows the ticket graph and the MVPs.
+**Score.** The ledger in `server/modes/conquest/score.js` emits `score {id, pts, reason}` for every award (points in `SCORE_POINTS`). A kill is worth 100, a capture 250 and destroying a vehicle 200. `defend` (100) pays the owners present when a threat ends with the flag back at full control, but only if the threat took at least 0.1 control off the flag, so an enemy stepping in and out of a full flag pays nothing. A squad ordered onto the flag adds `order_capture` (100) or `order_defend` (50) on top (see *Squad orders and the comm rose*). A small ticker below the crosshair shows each award. The scoreboard groups players by squad. The result screen shows the ticket graph and the MVPs.
+
+## Squad orders and the comm rose
+
+(2026-10-20, contract v6.) Data and shared helpers in `shared/conquest-comms.js` (tuning in `COMM_RULES`), authority in `server/modes/conquest/orders.js` (`SquadOrders`) and `server/modes/conquest/comms.js` (`CommSystem`), bot answers in `server/bot-comms.js`, client models in `public/js/ui/conquest/comms-state.js`. Design: variant A of `docs/design/conquest/orders/` (references, prompts and real captures there).
+
+**Squad orders.** Every squad carries at most one order: a flag. The stance is never stored: an own flag is defended, any other attacked (`orderStance`), so a captured attack order turns into a defend order by itself. Only the squad leader orders, in two ways:
+
+- **Full map** (M, R3, the touch MAP button): click or tap a flag. Clicking the flag that is already ordered clears the order. With a locked pointer or a pad, a cursor on the map does the pointing (mouse / right stick move it, LMB / RT picks) and the camera holds still; members keep their aim and the map tells them that leaders order from it.
+- **Comm rose ORDER**: the flag under the crosshair. A flag counts when the view points within 0.18 rad of its pole or inside its zone seen from afar (`atan(radius / distance)`), up to 900 m; of two flags nearly in line the nearer wins. The rose names it ("ATTACK C") and the server resolves it again with the same `flagInSight`.
+
+An order stands only while its giver leads the squad (a new leader starts without one) and every change emits `squad_order`. A squad a bot leads carries the bot commander's flag for that squad, so human members see where their bots are going. Bot members of a human-led squad follow the human's order: the commander takes that squad out of its own flag split and sends it to the ordered flag with the ordinary attack / defend behaviour (staging, squad rides); the first living bot of the squad radios AFFIRMATIVE 0.9 s after the order.
+
+| Order bonus (`SCORE_POINTS`) | Pays | Career XP |
+|---|---|---|
+| `order_capture` (100, "ORDER CAPTURE") | each capturer whose squad is ordered onto the captured flag, on top of `capture` | major objective |
+| `order_defend` (50, "ORDER DEFEND") | each defender whose squad is ordered onto the defended flag, on top of `defend` | major objective |
+
+**Comm rose.** Hold U (Settings → Controls, `commRose`) and push the mouse toward a wedge; releasing U (or LMB) sends it, Escape or RMB closes it. On a pad, hold D-pad right for 0.3 s (a shorter tap still spots), point the right stick and release. On touch, the COMMS button under MAP and SPOT opens it and a tap on a wedge sends (a tap on the hub closes). While the rose is up, look and fire pause (`Input.setUiCapture`). Clockwise from the top:
+
+| Wedge | Sends | Server effect |
+|---|---|---|
+| NEED MEDIC | `{comm:'medic'}` | a request marker on the requester (also while down) |
+| NEED AMMO | `{comm:'ammo'}` | a marker; refused while seated |
+| NEED REPAIR | `{comm:'repair'}` | a marker on the own seat's hull, or the nearest damaged friendly hull within 10 m; refused without one |
+| NEED RIDE | `{comm:'ride'}` | a marker; refused while seated |
+| AFFIRMATIVE / NEGATIVE | `{comm:'yes'}` / `{comm:'no'}` | a `comm` radio line for the squad |
+| SPOT | the ordinary spot intent | spotting as with Y |
+| ATTACK X / DEFEND X | `{comm:'order'}` | the squad order onto the flag in sight (leaders only; dimmed for members and without a flag in sight) |
+
+A player has at most one live request (a new one replaces it) and every comm shares a 1.2 s cooldown. A request lives 15 s unless it is served first: NEED MEDIC once a heal or revive brought the requester to 95 % HP, NEED AMMO once a Support aura refilled it, NEED REPAIR once the named hull is at full HP, NEED RIDE once the requester sits in any hull. A team keeps at most 6 live markers (the oldest gives way).
+
+**Who sees a request.** The requester (on its map), and the kit that can answer it: Medics see NEED MEDIC, Supports NEED AMMO, Engineers NEED REPAIR, players in a driver or pilot seat NEED RIDE, as a world marker ("NEED MEDIC 34 M", replacing that mate's squad dot) within a little more than the bot answer range and as a glyph on the minimap and the full map. The squad radio feed above the order chip shows the own squad's callouts, requests the own kit answers, and "AMMO BRANNOCK RESPONDING" when a bot takes the own request.
+
+**Bots answer.** Every live request gets at most one bot (`planComms`, part of the 2 Hz commander plan), named to the team with `comm_answer`:
+
+| Request | Responder | What it does |
+|---|---|---|
+| NEED MEDIC | nearest Medic bot within 90 m (or the one already reviving / healing the requester) | walks over and stands inside the heal aura; a downed requester is revived |
+| NEED AMMO | nearest Support bot within 70 m | stands 4 m from the requester inside its resupply aura |
+| NEED REPAIR | nearest Engineer bot within 90 m | walks to the hull and repairs it (any damage, not only below the usual threshold) |
+| NEED RIDE | a free bot within 45 m of an empty friendly jeep (90 m of the transport on its pad), the hull within 220 m of the requester | drives (or flies) to the requester, waits up to 20 s, and once the requester is aboard heads for the squad's order flag (else the team's focus flag); a ride without the requester aboard after 60 s is called off |
+
+Bots that crew a hull, ride a squad ride or hitch never answer; a bot that must hold its flag (capturing, holding a threatened flag) only answers a call from inside that flag zone.
+
+**HUD.** The order chip above the minimap ("SQUAD ORDER · ATTACK C – IRON BRIDGE 240 M", "YOUR ORDER" for the leader), an ATTACK / DEFEND tag above the ordered flag's world marker, a pulsing double ring around it on the minimap and the full map, and a banner when the own squad's order changes. Each order change, own-squad callout and answer plays the radio squelch (`cq.amb.squelch` from the Conquest bank). There are no recorded voice lines for the comm rose yet.
 
 ## Vehicles
 
@@ -259,6 +304,7 @@ All values live in `shared/parachute.js`; the server (`server/sim/movement.js`) 
 | C (hold) | crouch | free look |
 | Y | spot | spot |
 | M | full map | full map |
+| U (hold) | comm rose: requests, callouts, spot and the squad order (release sends) | comm rose (NEED RIDE / AMMO dimmed) |
 
 **Kit-relative number keys.** In Conquest the weapon slot keys (Settings → Controls, `slot1`…`slot4`, digits 1–4 by default) pick kit roles instead of the global weapon slots used in other modes: `KIT_DIGIT_ROLES` and `kitDigitWeapon(owned, index)` in `shared/conquest-kits.js` map them over the snapshot's authoritative `owned` list (`WeaponState._directSlot`), so every kit, variant, gadget choice and redeploy is right without a client table. Rebinding a slot key moves that kit role with it. Until the first `owned` list arrives the keys do nothing. The kit weapon wheel shows the same 1–4 badges and a key pressed while it is open picks the matching segment. Seated, the slot keys still pick the seat's weapons and F1…F5 still switch seats (`VehicleController`); infantry key presses are drained while seated.
 
@@ -326,7 +372,7 @@ KEYBOARD FLIGHT (`keyboard`) keeps the older layout: helicopter W/S tilt (assist
 
 **Resting off the gear.** A jet slower than 4 m/s that lies on a wingtip, its nose or its tail within 2 m of the ground (or stands tilted on its gear, wedged in a map corner) has no airflow over its control surfaces, and used to keep that attitude for good. It now tips back toward level at 1.5 rad/s, easing up and toward the map centre (at most 15 cm up and 1 m in) where the levelling wing would meet a voxel or the edge. The dug-in airframe does not slide while it is tilted and settles at no more than 2 m/s.
 
-On a gamepad, D-pad left works like T: a tap enters or exits and a hold revives or repairs. D-pad right spots, and R3 toggles the full map when you are not scoped. In a vehicle, D-pad up switches to the next free seat, LB fires flares or smoke, Y selects the next weapon and D-pad down cycles the camera view (the grenade pouch stays shut while seated). On the deploy screen, D-pad up and down pick the spawn, LB and RB pick the kit and A deploys.
+On a gamepad, D-pad left works like T: a tap enters or exits and a hold revives or repairs. D-pad right spots on a tap and opens the comm rose when held for 0.3 s (the right stick picks, the release sends), and R3 toggles the full map when you are not scoped. In a vehicle, D-pad up switches to the next free seat, LB fires flares or smoke, Y selects the next weapon and D-pad down cycles the camera view (the grenade pouch stays shut while seated). On the deploy screen, D-pad up and down pick the spawn, LB and RB pick the kit and A deploys.
 
 ### Vehicle cameras
 
@@ -360,6 +406,7 @@ After a view change the HUD shows the seat's views under the ticket bar for 1.6 
 - **Below the crosshair**: the capture ring ("CAPTURING 3 vs 1"), the score ticker and the revive or repair hold ring.
 - **World markers**: flags with letter, distance and progress arc, plus squad mates, downed mates and spotted enemies.
 - **Bottom left**: rotating, heading-up minimap (M for the full map). On desktop a short "M MAP · Y SPOT" caption sits above it until you have used both keys or 30 s have passed. On touch the minimap shrinks and moves to the top left, beside the MAP and SPOT buttons.
+- **Squad order and comms**: the order chip above the minimap ("SQUAD ORDER · ATTACK C – IRON BRIDGE 240 M"), the squad radio lines above it, the ATTACK / DEFEND tag on the ordered flag's marker, its double ring on the maps, request markers ("NEED MEDIC 34 M") for the kit that answers them, and the comm rose (U, D-pad right hold, touch COMMS). On touch the chip and the radio stack under the minimap (portrait) or the chip sits under the ticket bar (landscape).
 - **Edge markers**: off-screen flags clamp to the nearest screen edge and are spread along it so they keep clear of each other and of the fixed HUD panels.
 - **Overlays**: the deploy screen while dead, the full map (M), the out-of-bounds countdown, the squad-grouped scoreboard (Tab, which hides the world markers while open) and the result screen.
 - **Bottom right**: the vehicle panel when seated. It shows the seat strip, hull silhouette with hit-zone flash, HP and status badges (DISABLED, BURNING, IMMOBILIZED, TRACKS BROKEN, ENGINE DAMAGED, TURRET DAMAGED, and a green REPAIRING while an Engineer in the crew mends the hull), ammo, heat and reload per weapon, and countermeasure readiness.
@@ -369,11 +416,12 @@ After a view change the HUD shows the seat's views under the ticket bar for 1.6 
 
 ## Protocol (contract: `shared/conquest-contract.js`, frozen; changes only through integration)
 
-The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 5; 4 added the `jeep_at` hull and the helicopter gunner's `atgm` mount, which move vehicle type and mount indices; 5 gave the jet's bombs their own `bombs` mount, a third jet mount row, and dropped the 6th store entry of the old `rails` store mount) in its admission frame. A socket whose frame lacks it or carries another version (an open tab from before a deploy) cannot create or join a Conquest room ("Voxel Blitz was updated. Reload the page to play Conquest.", close 4010), and a host cannot switch a lobby with such a member to Conquest (the error names who must reload, and each such member is told to reload too); the other modes stay open to it. A rejoin refused with 4010 ends the reconnect loop at once with "Voxel Blitz was updated. Reload the page to rejoin lobby X.", and neither the client nor the server treats a 4010 close as a reconnectable drop. Bump the version whenever the kit table or the `cq` row changes meaning.
+The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 6; 4 added the `jeep_at` hull and the helicopter gunner's `atgm` mount, which move vehicle type and mount indices; 5 gave the jet's bombs their own `bombs` mount, a third jet mount row, and dropped the 6th store entry of the old `rails` store mount; 6 added squad orders and the comm rose: the squad tuple's optional order flag, the optional `cqc` player field, the `comm` and `order` intents, the `squad_order`, `comm` and `comm_answer` events and the `order_capture` / `order_defend` score reasons) in its admission frame. A socket whose frame lacks it or carries another version (an open tab from before a deploy) cannot create or join a Conquest room ("Voxel Blitz was updated. Reload the page to play Conquest.", close 4010), and a host cannot switch a lobby with such a member to Conquest (the error names who must reload, and each such member is told to reload too); the other modes stay open to it. A rejoin refused with 4010 ends the reconnect loop at once with "Voxel Blitz was updated. Reload the page to rejoin lobby X.", and neither the client nor the server treats a 4010 close as a reconnectable drop. Bump the version whenever the kit table or the `cq` row changes meaning.
 
 - **Server → client snapshot**
-  - `match.conquest = { v:2, tickets, maxTickets, bleed, endsAt, flags:[[id, control100, owner, state, atk, def]], squads:[[team, squadId, leaderId]] }`. The client merges this with the map statics through `decodeConquestMatch(match.conquest, mapMeta.conquest)`.
+  - `match.conquest = { v:2, tickets, maxTickets, bleed, endsAt, flags:[[id, control100, owner, state, atk, def]], squads:[[team, squadId, leaderId, orderFlag?]] }`. The 4th squad entry (contract v6) is the squad order's flag id and only rides while the squad has an order. The client merges this with the map statics through `decodeConquestMatch(match.conquest, mapMeta.conquest)`.
   - `players[].cq = [kitIndex, squadId, down, spotted, restrictedDs, lockProgress, actionProgress, chute?]` and `players[].cqs = [objective, vehiclesDestroyed, revives, captures]`. Decode them with `decodeConquestPlayer` and `decodeConquestStats`. The 8th `cq` entry is the parachute state (1 canopy, 2 ejection seat) and is only appended while a body is under one, so grounded rows keep 7 entries (2 extra bytes per airborne body). `kitIndex` indexes `KIT_IDS` (contract v3: 0-3 assault, engineer, support, recon as before, then 4 medic, 5 pyro, 6 grenadier, 7 raider, 8 marksman; -1 none). No new player field: the medkit and grenades the abilities change already ride the row.
+  - `players[].cqc = [seq, commKindIndex, responderId | null, vehicleId?]` (contract v6) only rides the row of a player with a live comm rose request (`encodeCommField` / `decodeCommField` / `commRequestsOf` in `shared/conquest-comms.js`; `commKindIndex` indexes `COMM_KINDS`: medic, ammo, repair, ride, yes, no, spot, order). The marker stands at the requester's row, or at the hull named by `vehicleId` (NEED REPAIR); requests never ride `match.conquest`, which keeps its 400 B budget.
   - `vehicles[]` rows are quantized and add these fields:
     - `mounts` (in `vehicleMountOrder` order);
     - `sel`;
@@ -387,19 +435,22 @@ The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 5; 4 added th
 - **Server → client events**: `CONQUEST_EVENT_KINDS`.
   - Objectives: `flag_state`, `flag_neutralized`, `flag_captured`, `ticket_low`.
   - Players: `score`, `deploy_refused`, `revive`, `heal`, `kit_unlocks`, `spot`.
+  - Squads (contract v6): `squad_order {team, squad, flag, by}` (flag null when cleared), `comm {team, by, comm, squad, seq?}` (a rose pick; `seq` on requests) and `comm_answer {team, seq, comm, by, responder}` (a bot took request `seq` of player `by`).
   - Vehicles: `vehicle_hit`, `vehicle_disabled`, `vehicle_repaired`, `countermeasure` (type in `cm`), `ejection` `{id, vehicleId, pos, vel, yaw}` (a jet pilot fired out on the ejection seat).
   - Kills: `kill.w` is the weapon or one of `CONQUEST_DEATH_KEYS` (`restricted`, `vehicle`, `fall`, `crash`, `redeploy`).
   - Existing events gain fields: `vehicle_destroyed` gets `{type, attacker, assists, crewKilled}`, and `shoot` gets `{vehicleId, mount, vehicleWeapon, tracer}`.
 
   `public/js/session/session.js` forwards all of them to the HUD (`ConquestHud`), the vehicle effects (`VehicleFx`) and the objective audio (`createObjectiveCues`).
 - **Client → server**
-  - `{t:'conquest', deploy | spot | support | redeploy}` carries exactly one intent per frame:
+  - `{t:'conquest', deploy | spot | support | redeploy | comm | order}` carries exactly one intent per frame:
     - deploy: `{spawn:'hq'|'flag:A'…|'squad:<id>'|'vehicle:<id>[:<seat>]', kit, variant, gadget?}`; `gadget` is 0 (default, AT) or 1 (STINGER, Engineer only);
     - spot: `1`;
     - support: `{type:'revive'|'repair', targetId}`, re-sent at 4 Hz or more while held;
-    - redeploy: `1` (the in-game menu RESPAWN, see *Deploy, squads and kits*).
+    - redeploy: `1` (the in-game menu RESPAWN, see *Deploy, squads and kits*);
+    - comm: one of `COMM_KINDS` (a comm rose pick);
+    - order: a flag id or `''` (clear), squad leaders only (the full map).
 
-    It is sent with `net.sendConquest()`, which allows 4 deploys, 2 spots, 10 supports and 1 redeploy per second. The lobby enforces the same limits. The route is `server/index.js` → `LobbyManager.conquest` → `GameEngine.conquestIntent` → `ModeController.conquestIntent` → `ConquestPolicy`.
+    It is sent with `net.sendConquest()`, which allows 4 deploys, 2 spots, 10 supports, 1 redeploy, 2 comms and 2 orders per second. The lobby enforces the same limits. The route is `server/index.js` → `LobbyManager.conquest` → `GameEngine.conquestIntent` → `ModeController.conquestIntent` → `ConquestPolicy`.
   - `input.vehicleAction` is one of `enter {vehicleId, seatId?}`, `exit`, `seat {seatId}`, `cm` or `weapon {index}`. `vehicleActionFrame` in `netclient.js` whitelists the same exact-key shapes that `parseVehicleAction` accepts.
 - **Bot director**: `server/bot-commander.js` registers `{goalFor, deployFor}` through `mode.setBotDirector` when bots attach. `deployFor` also returns the Engineer `gadget`: while enemy aircraft are in play (crewed or airborne) a stable share of the team's engineers takes the STINGER (40 % for one aircraft, 60 % for two or more, at least one), the rest keep the AT launcher. AT engineers lead moving hulls with the rocket; AA engineers watch the sky out to the lock range, hold the seeker on the hull and fire only once locked.
 
@@ -440,13 +491,14 @@ Tests must read coordinates from this metadata and never hard-code them.
 Node suites (no browser):
 
 - `npm run conquest:test` runs every Conquest Node suite: mode, deploy, score, kits, classes (`tools/conquest-classes-test.mjs`: the nine kits and wire order, unlocks and the `locked` refusal, Medic revive and heal aura, every passive ability, teamplay career XP, bot slots, the deploy picker), AT mines (`tools/conquest-at-mine-test.mjs`: placement and NO GROUND, arming delay, infantry, aircraft and friendly hulls never trigger, an enemy jeep dies with its crew credited, a tank is disabled by one mine and destroyed by two, a stacked pair chains, the 3-per-player cap, persistence through death and cleanup on leave, shot, chained and unsupported mines, client view, arm click and ghost, the defending Engineer bot), class bots (`tools/conquest-class-bots-test.mjs`: a Medic bot revives inside a fight and at panic HP, a Pyro bot draws and burns the flamethrower at close range, a Medic bot walks to a hurt mate and heals it, squad Medics), spotting, vehicles, seats, locks, guided missiles, bots, terrain, sites, rendering, client, HUD and FX. The §9 action gate `tools/conquest-action-test.mjs` runs last. Each suite is also a plain script, so a single area runs on its own, for example `node tools/conquest-vehicle-seats-test.mjs` or `node tools/conquest-ui-test.mjs`.
+- `node tools/conquest-orders-test.mjs` (in `conquest:test`) covers squad orders and the comm rose on the server: the v6 contract (event kinds, score reasons, career XP), intent parsing, `flagInSight`, leader-only orders from the map and the rose, the squad tuple's order flag, bot squad mates following a human leader's order and radioing AFFIRMATIVE, bot-led squads publishing the commander's flag, the order bonuses, requests (one per player, cap, expiry, serving), Medic / Support / Engineer bots answering, a NEED RIDE pickup driving to the requester and on to the order flag, and the `cqc` field and 400 B `match.conquest` budget. `node tools/conquest-orders-ui-test.mjs` (fake DOM, also in `conquest:test`) covers the client: the order chip, rose segments and wedge pick, request audience and markers, radio lines and banners, U hold / release, the pad tap vs hold, touch COMMS, full-map orders for leaders only and the Input UI capture.
 - `npm run conquest:action` runs only the action gate: 16 bots for 180 s on Frontier.
   - It requires a first kill within 35 s, a first capture within 60 s, at least 25 infantry kills, vehicle fire with 4 or more weapons, and 3 or more flag transitions.
   - It also requires a tick p95 of at most 10 ms and an average snapshot of at most 27 KB.
   - Pass `--seed N` or `--difficulty easy|normal|hard` to vary the run.
 - `node tools/conquest-airborne-test.mjs` (server) and `node tools/conquest-airborne-ui-test.mjs` (fake DOM) cover fall damage, parachutes, the ejection seat, bot auto-chutes and bail-outs, bot seat takeover (deploy, enter, swap, airborne pilot handover) and the presentation.
 - `node tools/conquest-bot-hitch-test.mjs` covers bots riding with humans: a human-driven jeep, tank and transport get their gunner seats filled, riders stay aboard while the human drives, get out when the human leaves or at a wanted flag, no bot ever holds a human's seat, and a bot holding a threatened flag stays.
-- `node tools/conquest-guided-missile-test.mjs` (in `conquest:test`) covers the sight-guided missiles: the contract (version 5, `atgm` and `pintle` mounts, `jeep_at` as a jeep hull variant), a helicopter gunner who selects GUIDED MSL and steers it onto a tank 35° off the nose by swinging the chin sight after launch (`at`-class hit credited to the gunner), guidance ending when the gunner leaves so the missile flies on past, flares that do not decoy it, and the AT jeep's TOW (a tank hit, a jeep killed by one, the 3-round box and its reload).
+- `node tools/conquest-guided-missile-test.mjs` (in `conquest:test`) covers the sight-guided missiles: the contract (version 6, `atgm` and `pintle` mounts, `jeep_at` as a jeep hull variant), a helicopter gunner who selects GUIDED MSL and steers it onto a tank 35° off the nose by swinging the chin sight after launch (`at`-class hit credited to the gunner), guidance ending when the gunner leaves so the missile flies on past, flares that do not decoy it, and the AT jeep's TOW (a tank hit, a jeep killed by one, the 3-round box and its reload).
 - `node tools/conquest-jet-bomb-test.mjs` (in `conquest:test`) covers the jet stores: the v5 contract (separate `rails` and `bombs` mounts, no store mount left), cannon, missiles and bombs picked in the air with separate ammo and re-arm (bombs 10 s, missiles 15 s), the airborne-only release on the predicted impact, the 13 m blast (infantry at 4/8/11 m, jeeps at 3.6 and 12 m, a tank at 7 m), the crater, the burning field (cells on the crater floor and rim, pilot credit with `jetBomb`, a burn kill in about 4 s, no team damage, a jeep's 9/s and no tank damage, out after 8 s) and the AT deck hit.
 - `node tools/conquest-vehicle-hijack-test.mjs` covers hijacking for every hull type: a crewed enemy hull is refused, an empty one changes team with the `vehicle_hijacked` event, old spots lapse, the old team is locked out, the HQ pad keeps its home team, titans are never hijackable, and the HIJACK prompt and banners.
 - `node tools/conquest-vehicle-ram-test.mjs` covers shoving wrecks (tank pushes a jeep wreck, a jeep only nudges one and can't move a tank wreck, a pushed wreck stops at a wall and sleeps again) and ramming (fence, plank wall, plaster at speed, corrugated steel and cobble walls for the tank, the per-tick cap, speed loss and damage, stone, concrete and brick for the jeep, flag guard), and a tank's top-speed crash into stone (at most 10 % hull lost, a rebound).

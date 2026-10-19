@@ -197,6 +197,8 @@ export class Input {
     this._buildRotateQueued = false;
     this._buildExitQueued = false;
     this._zoomStepQueue = 0;   // scope zoom steps (KeyZ, R3)
+    // HUD overlay seam (setUiCapture): the Conquest comm rose and the full-map order cursor.
+    this._uiCapture = null;
     // Radial weapon wheel seam: while open, devices reroute (see setWeaponWheelOpen).
     this._wheelOpen = false;
     this._wheelVecX = 0;       // raw mouse px (pad look scaled) toward full ring deflection
@@ -265,16 +267,29 @@ export class Input {
   /* ----------------------------------------------------------- held intents */
 
   /** LMB / RT / touch fire held; reads false while the weapon wheel or grenade pouch is open. */
-  get wantFireHeld() { return !this._wheelOpen && !this._pouchOpen && !this._buildMode &&
+  get wantFireHeld() { return !this._wheelOpen && !this._pouchOpen && !this._buildMode && !this._uiCapture &&
     (!this._vehicleSeatContext || this._vehicleSeatContext.canFire) &&
     (this._mouseFire || this._keyboardFire || this._touchFire || this._padFire); }
 
   /** RMB / F / LT / touch ADS held or latched; reads false while the weapon wheel or pouch is open. */
-  get wantAdsHeld() { return !this._wheelOpen && !this._pouchOpen && (this._mouseAds || this._keyboardAds || this._adsLatched || this._touchAds || this._padAds); }
+  get wantAdsHeld() { return !this._wheelOpen && !this._pouchOpen && !this._uiCapture && (this._mouseAds || this._keyboardAds || this._adsLatched || this._touchAds || this._padAds); }
   set wantAdsHeld(value) {
     this._mouseAds = !!value;
     if (!value) this._adsLatched = this._touchAds = false;
   }
+
+  /**
+   * A HUD overlay that owns the aim while it is up (the Conquest comm rose and
+   * the full-map order cursor): `{ move(dx, dy, source), stick(x, y, dt), press(button, source) }`.
+   * Locked mouse pixels and the pad look stick steer it instead of the camera;
+   * LMB / RT reach `press` and never fire. Null releases it.
+   */
+  setUiCapture(capture) {
+    this._uiCapture = capture && typeof capture === 'object' ? capture : null;
+    if (this._uiCapture) { this._mouseFire = false; this._fireTapQueued = false; }
+    return !!this._uiCapture;
+  }
+  get uiCaptured() { return !!this._uiCapture; }
 
   /** Back/Select on a pad holds the scoreboard, like Tab. */
   get scoreboardHeld() { return this._padScoreboard; }
@@ -752,7 +767,8 @@ export class Input {
     }
 
     if (frame.pressed.fire && !this._padSeatTriggerBlocked && this._wheelOpen) this._wheelReleaseQueued = true;
-    if (frame.pressed.fire && !this._padSeatTriggerBlocked && !this._wheelOpen && !this._pouchOpen) {
+    if (frame.pressed.fire && this._uiCapture) this._uiCapture.press?.(0, 'pad');
+    else if (frame.pressed.fire && !this._padSeatTriggerBlocked && !this._wheelOpen && !this._pouchOpen) {
       if (this._buildMode) this._placeQueued = true;
       else this._fireTapQueued = true;
     }
@@ -840,7 +856,10 @@ export class Input {
 
     const look = frame.look;
     if (look.magnitude > 0) {
-      if (this._pouchOpen) {
+      if (this._uiCapture) {
+        // Pad look steers the HUD overlay; the camera stays put.
+        this._uiCapture.stick?.(look.x, look.y, dt);
+      } else if (this._pouchOpen) {
         // Pad look steers the pouch hover; the camera stays put.
         this._steerGrenadePouch(look.x * WHEEL_VECTOR_RADIUS_PX, look.y * WHEEL_VECTOR_RADIUS_PX);
       } else if (this._wheelOpen || this._wheelOpenQueued) {
@@ -1569,7 +1588,8 @@ export class Input {
   }
 
   _onTouchLook(dx, dy) {
-    if (!this._canReadDevices() || (!this._gameplayEnabled && !this._spectatorEnabled) || this._wheelOpen || this._pouchOpen) return;
+    // A HUD overlay (comm rose, map order cursor) freezes the touch look while it is up.
+    if (!this._canReadDevices() || (!this._gameplayEnabled && !this._spectatorEnabled) || this._wheelOpen || this._pouchOpen || this._uiCapture) return;
     if (this._vehicleSeatContext?.role === 'passenger') return;
     const scale = this.sens * TOUCH_LOOK_SENSITIVITY_SCALE *
       this._options.touchSensitivity * (this._gameplayEnabled ? this._assistScale() : 1);
@@ -1836,6 +1856,11 @@ export class Input {
       if (this._locked) this._steerGrenadePouch(e.movementX || 0, e.movementY || 0);
       return;
     }
+    if (this._uiCapture) {
+      // A HUD overlay owns the aim (unlocked pointers use its DOM directly).
+      if (this._locked) this._uiCapture.move?.(e.movementX || 0, e.movementY || 0, 'mouse');
+      return;
+    }
     if (this._wheelOpen || this._wheelOpenQueued) {
       if (!this._locked) return; // Unlocked pointers use the overlay coordinates.
       if (this._wheelReleaseQueued || this._wheelCancelQueued) return;
@@ -1864,6 +1889,12 @@ export class Input {
       // The pouch owns the mouse: LMB readies the hovered slot, RMB/MMB close it unchanged.
       this.setGrenadePouchOpen(false, { confirm: e.button === 0 });
       this._pouchKeySpent = true;
+      if (e.button !== 0) e.preventDefault?.();
+      return;
+    }
+    if (this._uiCapture) {
+      // A HUD overlay owns the mouse while it is up: clicks pick, never shoot.
+      if (this._locked) this._uiCapture.press?.(e.button, 'mouse');
       if (e.button !== 0) e.preventDefault?.();
       return;
     }
