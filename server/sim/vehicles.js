@@ -1,9 +1,9 @@
 import { hullFootprint, footprintCells, footprintsOverlap, footprintContact, vehicleHullParts, vehicleSupportOffset, hullBoxesOverlap, voxelHullBox, rayHullPartSpan, nearestHullPoint, solidHull, solidWreck } from '../../shared/vehicle-collision.js';
 import { isSolidBlock } from '../../shared/worlddata.js';
-import { RAM_CLASS, BLOCK_HARDNESS } from '../../shared/world/blocks.js';
+import { RAM_CLASS, RAM_HARDNESS, BLOCK_HARDNESS } from '../../shared/world/blocks.js';
 import { VEHICLE_RULES, isAircraft, vehicleEnterDistance, vehicleDirection, vehicleSeatPose, vehicleLocalPoint } from '../../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleWeaponSeatId, vehicleDriverSeat } from '../../shared/vehicle-seats.js';
-import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, VEHICLE_MASS, WRECK_PUSH_RULES, VEHICLE_RAM, RAM_RULES, HULL_CRASH_RULES, vehicleDef, vehicleMaxHp,
+import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, VEHICLE_MASS, WRECK_PUSH_RULES, VEHICLE_RAM, RAM_RULES, WALL_CRASH_RULES, HULL_CRASH_RULES, vehicleDef, vehicleMaxHp,
   mountPose as sharedMountPose } from '../../shared/vehicle-defs.js';
 import { VEHICLE_STATUS } from '../../shared/conquest-contract.js';
 import { groundAttitude } from '../../shared/vehicle-attitude.js';
@@ -1315,19 +1315,22 @@ export class VehicleSystem {
       const travel = Math.abs(v.speed) * dt;
       if (slide === undefined) slide = travel > 1e-6 ? this.wallSlide(v, x, z) : null;
       const impact=Math.abs(v.speed), threshold=Math.max(8,def.speed*0.55);
+      const crash = WALL_CRASH_RULES[v.type], crashHp = def.hp * (crash?.maxShare ?? 1);
       // Another hull in the way is no wall: the crash is shared by mass.
       const hullHit = this.hullCrash(v, x, z, dir, driver);
       if (slide) {
         const normal = Math.sqrt(Math.max(0, 1 - (slide.length / travel) ** 2)), normalImpact = impact * normal;
         Object.assign(v, { x: slide.x, z: slide.z });
         v.y = this.settle(v, slide.floor, dt);
-        if (!hullHit && !v.scraping && normalImpact > threshold) this.damage(v.id, def.hp*clamp((normalImpact-threshold)/(def.speed-threshold),0,1), null, { cls: 'collision',
+        if (!hullHit && !v.scraping && normalImpact > threshold) this.damage(v.id, crashHp*clamp((normalImpact-threshold)/(def.speed-threshold),0,1), null, { cls: 'collision',
           impactVelocity: { vx: dir[0]*impact, vy: -(this.fallSpeeds.get(v.id)||0), vz: dir[2]*impact } });
         v.speed *= Math.exp(-WALL_SLIDE_RULES.scrape * normal * dt);
         v.scraping = true;
       } else {
-        v.speed=0; v.leftTrackSpeed= -v.yawRate * (def.width || 0) / 2; v.rightTrackSpeed= v.yawRate * (def.width || 0) / 2;
-        if(!hullHit && impact>threshold && !v.scraping)this.damage(v.id,def.hp*clamp((impact-threshold)/(def.speed-threshold),0,1),null,{cls:'collision',
+        // A hard head-on hit rebounds (WALL_CRASH_RULES.bounce); a soft one stops dead.
+        const rebound = !hullHit && impact > threshold ? -v.speed * (crash?.bounce ?? 0) : 0;
+        v.speed=rebound; v.leftTrackSpeed= rebound - v.yawRate * (def.width || 0) / 2; v.rightTrackSpeed= rebound + v.yawRate * (def.width || 0) / 2;
+        if(!hullHit && impact>threshold && !v.scraping)this.damage(v.id,crashHp*clamp((impact-threshold)/(def.speed-threshold),0,1),null,{cls:'collision',
           impactVelocity:{vx:dir[0]*impact,vy:-(this.fallSpeeds.get(v.id)||0),vz:dir[2]*impact}});
         v.scraping = false;
         v.y=this.settle(v,this.placement(v,v.x,v.z),dt);
@@ -1447,7 +1450,7 @@ export class VehicleSystem {
     for (const block of found) {
       if (broken >= allowed) break;
       if (!port.destroyBlock(block.x, block.y, block.z, v.occupantId ?? null)) continue;
-      const h = BLOCK_HARDNESS[block.type] ?? 0;
+      const h = RAM_HARDNESS[block.type] ?? BLOCK_HARDNESS[block.type] ?? 0;
       broken++; hardness += h; harm += Math.max(0, h - ram.armor);
     }
     if (!broken) return null;

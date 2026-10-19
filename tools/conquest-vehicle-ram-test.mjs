@@ -1,8 +1,8 @@
 // Conquest ground hulls: shoving wrecks and ramming through light voxels.
 import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
-import { VEHICLE_RAM, VEHICLE_MASS, RAM_RULES, HULL_CRASH_RULES } from '../shared/vehicle-defs.js';
-import { STONE, CONCRETE, PLANK, TIMBER, LEAVES, BRICK, WHITE_PLASTER, GLASS, BLOCK_HARDNESS } from '../shared/world/blocks.js';
+import { VEHICLE_RAM, VEHICLE_MASS, RAM_RULES, WALL_CRASH_RULES, HULL_CRASH_RULES } from '../shared/vehicle-defs.js';
+import { STONE, CONCRETE, PLANK, TIMBER, LEAVES, BRICK, WHITE_PLASTER, GLASS, CORRUGATED_STEEL, COBBLE_WALL, BLOCK_HARDNESS } from '../shared/world/blocks.js';
 
 const GROUND = STONE;
 function fixture(spawns, { flags = [] } = {}) {
@@ -162,9 +162,22 @@ const between = (n, lo, hi, message) => assert(n > lo && n < hi, `${message}: ${
 {
   const f = fixture([['tank', 'tank', 200, 200]]);
   for (let x = 194; x <= 206; x++) for (let y = 1; y <= 3; y++) f.set(x, y, 193, STONE);
-  f.board('tank'); const tank = f.hull('tank'); tank.speed = 13; f.drive(1); f.tick(60);
+  f.board('tank'); const tank = f.hull('tank'); tank.speed = 13; f.drive(1);
+  let rebound = 0;
+  for (let i = 0; i < 60; i++) { f.tick(); rebound = Math.min(rebound, tank.speed); }
   assert.equal(f.game.tickBlocks.length, 0, 'stone never breaks');
   assert(tank.z > 196 && tank.speed < 1, 'the tank is stopped by stone');
+  assert(tank.hp >= 1000 * (1 - WALL_CRASH_RULES.tank.maxShare) - 1e-9, `a top-speed wall crash costs a tank at most a tenth of its hull (hp ${tank.hp})`);
+  between(-rebound, 13 * WALL_CRASH_RULES.tank.bounce * 0.8, 13 * WALL_CRASH_RULES.tank.bounce * 1.01, 'the tank rocks back off the wall');
+
+  // Corrugated steel sheet and dry-stone field walls give way to a tank at speed.
+  for (const [block, name] of [[CORRUGATED_STEEL, 'corrugated steel'], [COBBLE_WALL, 'a cobble wall']]) {
+    const g = fixture([['tank', 'tank', 200, 200]]);
+    for (let x = 194; x <= 206; x++) for (let y = 1; y <= 3; y++) g.set(x, y, 193, block);
+    g.board('tank'); const t = g.hull('tank'); t.speed = 13; g.drive(1); g.tick(120);
+    assert(t.z < 190, `a tank at speed drives through ${name} (z ${t.z.toFixed(2)})`);
+    assert(t.hp > 850, `ramming ${name} costs the tank little hull (hp ${t.hp})`);
+  }
 
   const slow = fixture([['tank', 'tank', 200, 200]]);
   for (let x = 194; x <= 206; x++) for (let y = 1; y <= 3; y++) slow.set(x, y, 197, BRICK);
@@ -225,4 +238,4 @@ const between = (n, lo, hi, message) => assert(n > lo && n < hi, `${message}: ${
   assert(g.hull('jeep').hp < 320, 'planks scratch a jeep');
 }
 
-console.log('Vehicle ram: tank shoves wrecks (jeep only nudges, tank wreck stops a jeep), wrecks stop at walls and sleep again, tank/jeep break light blocks by class and speed through the block pipeline with per-tick caps, speed loss and small damage; stone, concrete, brick (jeep) and flag pads hold');
+console.log('Vehicle ram: tank shoves wrecks (jeep only nudges, tank wreck stops a jeep), wrecks stop at walls and sleep again, tank/jeep break light blocks by class and speed through the block pipeline with per-tick caps, speed loss and small damage; corrugated steel and cobble walls give way to a tank; stone, concrete, brick (jeep) and flag pads hold, and a tank rebounds off them with at most a tenth of its hull lost');

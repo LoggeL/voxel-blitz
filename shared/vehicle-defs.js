@@ -74,6 +74,14 @@ export const VEHICLE_RAM = freeze({
 });
 /** A hit whose share into the wall is under `glancingNormal` (30°) scrapes along it and breaks only brush. */
 export const RAM_RULES = freeze({ speedLoss: 0.15, damage: 0.5, glancingNormal: 0.5, flagGuardRadius: 5, baseGuardMargin: 0 });
+/**
+ * A ground hull stopped by a wall it cannot break. The crash costs up to
+ * `maxShare` of max hp at top speed (linear from the crash threshold), and the
+ * hull rebounds at `bounce` of its impact speed. A hull missing here takes its
+ * full hp at top speed and stops dead. A 45 t tank rocks back off a wall and
+ * loses at most a tenth of its hull.
+ */
+export const WALL_CRASH_RULES = freeze({ tank: { maxShare: 0.1, bounce: 0.3 } });
 
 /**
  * A ground hull driving into another hull. The contact is perfectly inelastic

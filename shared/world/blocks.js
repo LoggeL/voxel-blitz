@@ -261,12 +261,22 @@ export const RAM_CLASS = Object.freeze({
   // Fences, planks, crates and wooden props.
   [PLANK]: 'wood', [MC_PLANKS]: 'wood', [TIMBER]: 'wood', [DUST_CRATE]: 'wood', [DUST_WOOD]: 'wood',
   [MC_BOOKSHELF]: 'wood', [MC_CHEST]: 'wood', [MC_CRAFTING]: 'wood', [BB_HULL]: 'wood',
-  // Thin painted siding walls.
-  [YELLOW_SIDING]: 'thin', [TEAL_SIDING]: 'thin', [ACCENT]: 'thin',
+  // Thin painted siding walls, and corrugated steel sheet (Frontier sheds,
+  // hangars and roofs), which folds under a hull.
+  [YELLOW_SIDING]: 'thin', [TEAL_SIDING]: 'thin', [ACCENT]: 'thin', [CORRUGATED_STEEL]: 'thin',
   // Plaster, brick and roof tiles (a tank at speed).
   [WHITE_PLASTER]: 'masonry', [DUST_PLASTER]: 'masonry', [BRICK]: 'masonry', [SOOT_BRICK]: 'masonry',
   [MC_BRICK]: 'masonry', [TERRACOTTA_ROOF]: 'masonry', [ROOF]: 'masonry',
+  // Dry-stone field walls and farm footings.
+  [COBBLE_WALL]: 'masonry',
 });
+
+/**
+ * Hardness a ramming hull feels where BLOCK_HARDNESS (bullet penetration)
+ * misleads: a corrugated sheet stops rounds but barely slows a tank, and a
+ * loose dry-stone wall topples like plaster.
+ */
+export const RAM_HARDNESS = Object.freeze({ [CORRUGATED_STEEL]: 30, [COBBLE_WALL]: 60 });
 
 export const SX = 128;
 export const SZ = 96;
