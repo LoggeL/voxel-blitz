@@ -3,7 +3,7 @@
 // not carry. Pure data and pure functions, shared by the server roles module,
 // bots and the client deploy screen, so a kit always means the same inventory.
 
-import { KITS, KIT_IDS, KIT_SIDEARM } from './conquest-contract.js';
+import { KITS, KIT_IDS, KIT_SIDEARM, isDeployableType } from './conquest-contract.js';
 import { WEAPONS, WEAPON_IDS } from './combatmath.js';
 import { GRENADE_TYPE_IDS } from './grenade-rules.js';
 
@@ -24,6 +24,9 @@ export const KIT_GADGET_AMMO = Object.freeze({
 export const KIT_GADGET_LABELS = Object.freeze({
   rocket: Object.freeze({ role: 'AT', name: 'RX-8 HAVOC', hint: 'DUMB-FIRE ANTI-TANK' }),
   stinger: Object.freeze({ role: 'AA', name: 'AX-9 STINGER', hint: 'LOCK-ON ANTI-AIR' }),
+  // The Support's choice: no gadget (null), or the deployable MORTAR (shared/mortar-rules.js).
+  none: Object.freeze({ role: 'NONE', name: 'NO GADGET', hint: 'LIGHTER KIT' }),
+  mortar: Object.freeze({ role: 'MORTAR', name: 'M-81 MORTAR', hint: 'DEPLOYABLE INDIRECT FIRE' }),
 });
 
 /**
@@ -201,10 +204,18 @@ export function normalizeGadget(kit, value) {
   return index < gadgets.length ? index : 0;
 }
 
-/** Gadget weapon id of a kit and gadget index, or null for kits without one. */
+/** Gadget weapon id of a kit and gadget index, or null for kits without one (or a deployable choice). */
 export function kitGadget(kit, gadget = 0) {
   const def = KITS[normalizeKit(kit)];
-  return def.gadgets?.[normalizeGadget(kit, gadget)] ?? def.gadget ?? null;
+  const id = def.gadgets?.length ? def.gadgets[normalizeGadget(kit, gadget)] : def.gadget;
+  return id && Object.hasOwn(WEAPONS, id) ? id : null;
+}
+
+/** Deployable of a kit and gadget index (the Support's 'mortar'), or null. */
+export function kitDeployable(kit, gadget = 0) {
+  const def = KITS[normalizeKit(kit)];
+  const id = def.gadgets?.[normalizeGadget(kit, gadget)] ?? null;
+  return isDeployableType(id) ? id : null;
 }
 
 /** `cq[0]` encoding: index into KIT_IDS, -1 for none. */
@@ -388,7 +399,8 @@ export const KIT_MENU = Object.freeze(KIT_MENU_ORDER.map(id => Object.freeze({
   }))),
   gadget: KITS[id].gadget,
   gadgets: Object.freeze((KITS[id].gadgets ?? []).map(gadget => Object.freeze({
-    gadget, name: WEAPONS[gadget]?.name ?? gadget.toUpperCase(), ...KIT_GADGET_LABELS[gadget],
+    gadget, name: gadget == null ? KIT_GADGET_LABELS.none.name : WEAPONS[gadget]?.name ?? KIT_GADGET_LABELS[gadget]?.name ?? gadget.toUpperCase(),
+    ...KIT_GADGET_LABELS[gadget ?? 'none'],
   }))),
   grenades: Object.freeze({ ...KITS[id].grenades }),
 })));

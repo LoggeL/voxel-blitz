@@ -30,7 +30,8 @@ export const CQ_COLORS = Object.freeze({
   own: '#4cc3ff', enemy: '#ff8a3d', neutral: '#d8d8d8', squad: '#7ef29a', self: '#ffffff',
   spotted: '#ff4b4b', down: '#ff6b6b', contested: '#ffd166',
 });
-export const VEHICLE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP' });
+export const VEHICLE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP',
+  mortar: 'MORTAR' });
 const ROLE_LABELS = Object.freeze({ driver: 'DRIVER', pilot: 'PILOT', gunner: 'GUNNER', passenger: 'PASSENGER' });
 const SEAT_LABELS = Object.freeze({
   driver: 'DRIVER', gunner: 'GUNNER', commander: 'COMMANDER', 'front-passenger': 'PASSENGER', 'rear-left': 'REAR LEFT',
@@ -422,7 +423,7 @@ export function nextFreeSeatIndex(row, seatId) {
 
 /** Tank gunner range ladder: horizontal ranges (m) marked along the shell's arc. */
 export const TANK_RANGE_TICKS = Object.freeze([100, 200, 300, 400, 500]);
-const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1, jeep_at: 2.15 });
+const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1, jeep_at: 2.15, mortar: 0.4 });
 
 /** Muzzle pose from the shared vehicle registry (mountPose), else from the row mount angles at the hull. */
 export function mountPoseOf(row, seatId, mountId, registry = vehicleDefs) {
@@ -1130,7 +1131,7 @@ export function killerCard(ev, selfId, players = []) {
 
 /* ------------------------------------------------------------------ deploy */
 
-const KIT_WEAPON_LABEL = id => WEAPON_NAMES[id] || String(id || '').toUpperCase();
+const KIT_WEAPON_LABEL = id => WEAPON_NAMES[id] || KIT_GADGET_LABELS[id]?.name || String(id || '').toUpperCase();
 /** Gadget index valid for a kit: 1 only where the kit offers a second gadget. */
 export const kitGadgetIndex = (kit, gadget) => (gadget === 1 && (KITS[kit]?.gadgets?.length ?? 0) > 1 ? 1 : 0);
 /**
@@ -1143,9 +1144,12 @@ export function kitCards(selectedKit, variant = 0, gadget = 0, { unlocked = null
   return KIT_MENU_ORDER.map(id => {
     const kit = KITS[id];
     const chosen = id === selectedKit ? kitGadgetIndex(id, gadget) : 0;
-    const gadgets = (kit.gadgets ?? []).length > 1 ? kit.gadgets.map((weapon, index) => ({ index, weapon,
-      role: KIT_GADGET_LABELS[weapon]?.role ?? '', hint: KIT_GADGET_LABELS[weapon]?.hint ?? '',
-      label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === chosen })) : [];
+    // A null entry is "no gadget" (the Support's default next to the MORTAR): shown as 'none'.
+    const gadgets = (kit.gadgets ?? []).length > 1 ? kit.gadgets.map((choice, index) => {
+      const weapon = choice ?? 'none';
+      return { index, weapon, role: KIT_GADGET_LABELS[weapon]?.role ?? '', hint: KIT_GADGET_LABELS[weapon]?.hint ?? '',
+        label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === chosen };
+    }) : [];
     const gadgetId = kit.gadgets?.[chosen] ?? kit.gadget;
     const unlockLevel = kitUnlockLevel(id);
     const isOpen = open.has(id);

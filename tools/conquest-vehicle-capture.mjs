@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { captureReadyBrowserPage } from './lib/browser-capture.mjs';
 import { parseCaptureArgs, runCaptureFlow } from './lib/capture-flow.mjs';
 import { launchCdpSession } from './lib/cdp-session.mjs';
-import { VEHICLE_TYPE_IDS } from '../shared/conquest-contract.js';
+import { DEPLOYABLE_TYPE_IDS, VEHICLE_TYPE_IDS } from '../shared/conquest-contract.js';
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, 'docs', 'design', 'conquest', 'redesign', 'captures', 'vehicles');
@@ -23,7 +23,13 @@ export const VEHICLE_CAPTURE_SHOTS = Object.freeze(VEHICLE_TYPE_IDS.flatMap(type
   { type, team: 'bravo', angle: 'hero', state: 'burning' },
   { type, team: 'alpha', angle: 'hero', state: 'wreck' },
   { type, team: 'alpha', angle: 'range', state: 'intact' },
-]).map(shot => Object.freeze({ ...shot, name: `${shot.type}-${shot.angle}-${shot.state}-${shot.angle === 'range' ? 'pair' : shot.team}` })));
+]).concat(DEPLOYABLE_TYPE_IDS.flatMap(type => [
+  // Deployables (the Support mortar): crewed hero, side and top, the wreck.
+  { type, team: 'alpha', angle: 'hero', state: 'intact', extra: { crew: '1' } },
+  { type, team: 'alpha', angle: 'side', state: 'intact' },
+  { type, team: 'alpha', angle: 'top', state: 'intact' },
+  { type, team: 'alpha', angle: 'hero', state: 'wreck' },
+])).map(shot => Object.freeze({ ...shot, name: `${shot.type}-${shot.angle}-${shot.state}-${shot.angle === 'range' ? 'pair' : shot.team}` })));
 
 function parseArgs(argv) {
   const options = parseCaptureArgs(argv, {

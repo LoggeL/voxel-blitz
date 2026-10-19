@@ -15,6 +15,7 @@ import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
 import { evHit } from '../protocol/events.js';
 import { interruptMedkit } from '../sim/medkit.js';
+import { mortarIntent } from './conquest/mortar-intent.js';
 
 /** Kill key of a fall death (kill feed "FELL"); see shared/conquest-contract.js DEATH_KEYS. */
 export const FALL_KILL_KEY = 'fall';
@@ -503,7 +504,7 @@ export class ConquestPolicy extends TdmPolicy {
 
   // --- intents and hooks ---------------------------------------------------
 
-  /** `{type:'deploy', spawn, kit, variant, gadget}` | `{type:'spot'}` | `{type:'support', support, targetId}` | `{type:'redeploy'}`. */
+  /** `{type:'deploy', spawn, kit, variant, gadget}` | `{type:'spot'}` | `{type:'support', support, targetId}` | `{type:'redeploy'}` | `{type:'mortar'}`. */
   conquestIntent(player, intent) {
     const entity = this._entity(player);
     if (!entity || !this._state(entity) || !intent || typeof intent !== 'object') return false;
@@ -512,6 +513,7 @@ export class ConquestPolicy extends TdmPolicy {
     if ((intent.type === 'spot' || intent.type === 'support') && this.phase === 'live') {
       return this.roles.intent(entity, intent) === true;
     }
+    if (intent.type === 'mortar' && this.phase === 'live') return mortarIntent(this, entity);
     return false;
   }
 

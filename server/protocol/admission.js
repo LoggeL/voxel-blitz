@@ -277,7 +277,7 @@ export function parseTitanfallIntent(raw) {
   }
 }
 
-const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy']);
+const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'mortar']);
 const SUPPORT_TYPES = Object.freeze(['revive', 'repair']);
 
 /**
@@ -286,12 +286,13 @@ const SUPPORT_TYPES = Object.freeze(['revive', 'repair']);
  * - deploy {spawn, kit?, variant?, gadget?}: spawn matches the strict spawn
  *   grammar, kit is a KIT_IDS id (default assault), variant is 0 or 1
  *   (default 0), gadget is 0 or an index into that kit's `gadgets` (default 0:
- *   the Engineer's AT launcher; 1 is the STINGER);
+ *   the Engineer's AT launcher; 1 is the STINGER, the Support's 1 the MORTAR);
  * - spot: 1 (or true);
  * - support {type: 'revive'|'repair', targetId: string <= 64};
- * - redeploy: 1 (or true), the in-game menu RESPAWN.
+ * - redeploy: 1 (or true), the in-game menu RESPAWN;
+ * - mortar: 1 (or true), the Support places and mans his mortar.
  * Returns `{type:'deploy', spawn, kit, variant, gadget}`, `{type:'spot'}`,
- * `{type:'support', support, targetId}`, `{type:'redeploy'}` or null.
+ * `{type:'support', support, targetId}`, `{type:'redeploy'}`, `{type:'mortar'}` or null.
  */
 export function parseConquestIntent(raw) {
   if (!isRecord(raw)) return null;
@@ -302,6 +303,7 @@ export function parseConquestIntent(raw) {
   const key = intents[0], value = raw[key];
   if (key === 'spot') return value === 1 || value === true ? { type: 'spot' } : null;
   if (key === 'redeploy') return value === 1 || value === true ? { type: 'redeploy' } : null;
+  if (key === 'mortar') return value === 1 || value === true ? { type: 'mortar' } : null;
   if (key === 'support') {
     if (!isRecord(value) || !hasExactKeys(value, ['type', 'targetId'])) return null;
     if (!SUPPORT_TYPES.includes(value.type) || !isIdString(value.targetId, 64)) return null;

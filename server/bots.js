@@ -48,6 +48,7 @@ import { FLAME_RULES } from '../shared/flame-rules.js';
 import { ConquestVehicleDriving } from './bot-vehicle-driving.js';
 import { BotCommander, createBotDirector } from './bot-commander.js';
 import { ConquestAircraftDriving } from './bot-aircraft.js';
+import { ConquestMortarBots } from './bot-mortar.js';
 import { TitanfallBots } from './bot-titanfall.js';
 import { isTitanType } from '../shared/titan-contract.js';
 import { PILOT_AT_RULES } from './sim/titanfall/pilot-projectiles.js';
@@ -383,6 +384,8 @@ class BotManager {
     this.tickIndex = 0;                 // staggers idle scans and listening across bots
     this.vehicleDriving = new ConquestVehicleDriving(game, this);
     this.aircraftDriving = new ConquestAircraftDriving(game, this);
+    // Conquest Support bots with the mortar gadget (place, man and fire it).
+    this.mortarBots = new ConquestMortarBots(game, this);
     // Titanfall pilots and titans (inert in every other mode).
     this.titanfall = new TitanfallBots(game, this);
     // Heightfield maps: build the 2.5D surface graph from the world now (spec:
@@ -411,6 +414,7 @@ class BotManager {
     if (this.commander) { this.game.mode.setBotDirector?.(null); this.commander = null; this.director = null; }
     this.vehicleDriving.clear();
     this.aircraftDriving.clear();
+    this.mortarBots.clear();
     this.titanfall.clear();
     if (this._unhook) { this._unhook(); this._unhook = null; }
     for (const br of this.brains) this.game.removeClient(br.id);
@@ -426,6 +430,7 @@ class BotManager {
     brain.resetCombat();
     this.vehicleDriving.release(brain.id);
     this.aircraftDriving.release(brain.id);
+    this.mortarBots.release(brain.id);
     this.titanfall.release(brain.id);
     this.brains.pop();
     return spawnInfo;
@@ -444,6 +449,7 @@ class BotManager {
       const br = this.brains.pop();
       this.vehicleDriving.release(br.id);
       this.aircraftDriving.release(br.id);
+      this.mortarBots.release(br.id);
       this.titanfall.release(br.id);
       br.resetCombat();
       this.game.removeClient(br.id);
@@ -1098,6 +1104,7 @@ class BotManager {
     if (cq) this.trackDamage(br, p, now);
 
     const vehicleIntent = (tf ? this.titanfall.think(br, p, goal, now, dtS, inp) : null)
+      ?? (cq && !tf ? this.mortarBots.think(br, p, goal, now, dtS, inp) : null)
       ?? this.aircraftDriving.think(br, p, goal, now, dtS, inp)
       ?? this.vehicleDriving.think(br, p, goal, now, dtS, inp);
     if (vehicleIntent?.board) {

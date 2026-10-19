@@ -70,8 +70,8 @@ class BlockDamageMap extends Map {
 }
 
 /** Conquest intent fields, one per `{t:'conquest'}` frame, and their minimum send gaps. */
-const CONQUEST_INTENT_FIELDS = Object.freeze(['deploy', 'spot', 'support', 'redeploy']);
-const CONQUEST_INTENT_GAP_MS = Object.freeze({ deploy: 250, spot: 500, support: 100, redeploy: 1000 });
+const CONQUEST_INTENT_FIELDS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'mortar']);
+const CONQUEST_INTENT_GAP_MS = Object.freeze({ deploy: 250, spot: 500, support: 100, redeploy: 1000, mortar: 1000 });
 /** Titanfall intent fields, one per `{t:'titanfall'}` frame (docs/titanfall.md §3.7), and their minimum send gaps (server/lobby.js titanfall()). */
 export const TITANFALL_INTENT_FIELDS = Object.freeze(['loadout', 'call', 'ability', 'eject', 'tac', 'rodeo', 'deploy']);
 const TITANFALL_INTENT_GAP_MS = Object.freeze({ loadout: 250, call: 500, ability: 100, eject: 250, tac: 100, rodeo: 100, deploy: 250 });
@@ -698,10 +698,10 @@ export class NetClient {
   }
 
   /**
-   * Conquest intent frame `{t:'conquest', deploy | spot | support | redeploy}`
+   * Conquest intent frame `{t:'conquest', deploy | spot | support | redeploy | mortar}`
    * (spec 3.4). Exactly one intent per frame; the server's parseConquestIntent
    * rejects the rest. Rate limits per intent: deploy 4/s, spot 2/s, support
-   * 10/s, redeploy 1/s (the lobby enforces the same gaps).
+   * 10/s, redeploy and mortar 1/s (the lobby enforces the same gaps).
    */
   sendConquest(fields) {
     if (!fields || typeof fields !== 'object') return false;

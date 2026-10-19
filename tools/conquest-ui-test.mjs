@@ -44,7 +44,7 @@ const ok = () => { checks++; };
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
   'tank-driver', 'tank-commander', 'tank-periscope', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-bomb', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
-  'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'scoreboard', 'result'];
+  'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'scoreboard', 'result', 'mortar'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
   assert.equal(f.match.mode, 'conquest');
@@ -740,7 +740,8 @@ for (const f of fixtures) {
   assert.equal(hud.topBar.chipNodes.size, 5, `${f.id}: five chips`);
   assert.equal(hud.topBar.own.name.textContent, f.selfTeam === 'bravo' ? 'EAST' : 'WEST', `${f.id}: own team left`);
   assert.equal(hud.topBar.clock.textContent, '14:32');
-  assert.ok(!/MOUSE AIM|CLICK FIRE|T EXIT|COLLECTIVE/.test(hud.root.textContent), `${f.id}: no permanent keybind help line`);
+  // The mortar's key hints fade MORTAR_HINT_MS after the tube is manned (tools/conquest-mortar-test.mjs).
+  if (f.id !== 'mortar') assert.ok(!/MOUSE AIM|CLICK FIRE|T EXIT|COLLECTIVE/.test(hud.root.textContent), `${f.id}: no permanent keybind help line`);
 }
 ok();
 

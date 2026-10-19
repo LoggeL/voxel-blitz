@@ -52,7 +52,7 @@ const GUIDED_MISSILES = new Set(['guidedMissile', 'towMissile']);
 /** Muzzle flash scale per vehicle weapon. */
 const MUZZLE_SCALE = Object.freeze({
   tankAP: 2.4, tankHE: 2.4, coaxMG: 0.55, hmg: 0.75, helicopterRocket: 1.1, chinCannon: 0.9,
-  doorMinigun: 0.6, planeCannon: 0.85, aaMissile: 1.2, jetBomb: 0, guidedMissile: 1.3, towMissile: 1.4,
+  doorMinigun: 0.6, planeCannon: 0.85, aaMissile: 1.2, jetBomb: 0, guidedMissile: 1.3, towMissile: 1.4, mortarHE: 0.9,
   splitter: 1.1, t203: 1.6, railgun: 2.2, leadwall: 2.0, predatorClose: 1.0, predatorLong: 1.1, titanMelee: 0,
 });
 /** Energy and fire tints of the titan muzzles, impacts and light flashes (linear RGB, HDR). */
@@ -431,6 +431,18 @@ export class VehicleFx {
       if (self) this.shake?.add(0.04);
       return true;
     }
+    if (weapon === 'mortarHE') {
+      // Mortar: a short flash up the tube, a smoke puff, the baseplate dust, the thump.
+      this.fx?.emit('muzzle', origin, { count: 1, dir, scale: MUZZLE_SCALE.mortarHE, near: false });
+      this.fx?.emit('smoke', origin, { count: 10, dir, speed: 2.2, scale: 0.8, spread: 0.6 });
+      const below = this.ground(origin[0], origin[1], origin[2], 3);
+      if (below && !below.fluid) this._ring(origin, below.y, 8, 3, blockDustTint(below.block));
+      this.view?.kick(ev.vehicleId, ev.mount, 0.6);
+      this._flashLight(origin, 0.5);
+      if (self) this.shake?.add(0.05);
+      this.sfx?.vehicleMortar?.(origin, { self });
+      return true;
+    }
     const scale = MUZZLE_SCALE[weapon] ?? 0.8;
     const inherit = item?.row && isAircraftType(item.kind) ? [finite(item.row.vx), finite(item.row.vy), finite(item.row.vz)] : null;
     this.fx?.emit('muzzle', origin, { count: weapon.startsWith('tank') ? 3 : 1, dir, scale, near: false, velocity: inherit });
@@ -624,7 +636,8 @@ export class VehicleFx {
     if (!meta) return false;
     this._count('launch');
     if (weapon === 'tankAP' || weapon === 'tankHE') this._shellPass(ev, o, v, weapon);
-    if (meta.kind === 'bomb') this._bombWhistle(ev, o, v);
+    // Bombs and mortar rounds whistle in on whoever stands near the impact.
+    if (meta.kind === 'bomb' || weapon === 'mortarHE') this._bombWhistle(ev, o, v);
     // Shells only flash at the muzzle (ProjectileFX draws their tracer); rockets and missiles carry a smoke trail.
     if (meta.kind !== 'rocket' && meta.kind !== 'missile') return true;
     if (this.missiles.size >= VEHICLE_FX.maxMissileTrails) {
@@ -658,13 +671,14 @@ export class VehicleFx {
     const ended = ev.pid != null && this._endTrail(ev.pid);
     if (typeof ev.vehicleWeapon !== 'string') return ended;
     // A shell that bursts short of its pass point takes its pending whistle or crack with it.
-    if (ev.pid != null && (ev.vehicleWeapon === 'tankAP' || ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'jetBomb')) this.sfx?.cancelShellFlyby?.(ev.pid);
+    if (ev.pid != null && (ev.vehicleWeapon === 'tankAP' || ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'jetBomb'
+      || ev.vehicleWeapon === 'mortarHE')) this.sfx?.cancelShellFlyby?.(ev.pid);
     const pos = [ev.x, ev.y, ev.z];
     if (!pos.every(Number.isFinite)) return ended;
     this._count('explode');
-    const bomb = ev.vehicleWeapon === 'jetBomb';
-    const heavy = bomb || ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'tankAP';
-    const radius = bomb ? 9 : heavy ? (ev.vehicleWeapon === 'tankHE' ? 5.5 : 2.5) : ev.vehicleWeapon === 'helicopterRocket' ? 4 : GUIDED_MISSILES.has(ev.vehicleWeapon) ? 3 : 2;
+    const bomb = ev.vehicleWeapon === 'jetBomb', mortar = ev.vehicleWeapon === 'mortarHE';
+    const heavy = bomb || mortar || ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'tankAP';
+    const radius = bomb ? 9 : mortar ? 5.5 : heavy ? (ev.vehicleWeapon === 'tankHE' ? 5.5 : 2.5) : ev.vehicleWeapon === 'helicopterRocket' ? 4 : GUIDED_MISSILES.has(ev.vehicleWeapon) ? 3 : 2;
     const below = this.ground(pos[0], pos[1] + 0.5, pos[2], 3);
     if (below && !below.fluid) {
       const tint = blockDustTint(below.block);
@@ -710,7 +724,7 @@ export class VehicleFx {
   _bombWhistle(ev, o, v) {
     const eye = this.camera?.position;
     if (!eye || String(ev.id) === this.selfId) return false;
-    const g = finite(ev.g) || 9.8, step = 0.1;
+    const g = finite(ev.g) || vehicleWeaponMeta(ev.vehicleWeapon)?.gravity || 9.8, step = 0.1;
     let prevY = o[1];
     for (let t = step; t <= 15; t += step) {
       const x = o[0] + v[0] * t, y = o[1] + v[1] * t - 0.5 * g * t * t, z = o[2] + v[2] * t;

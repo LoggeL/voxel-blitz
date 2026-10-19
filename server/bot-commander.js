@@ -28,6 +28,7 @@ import { VEHICLE_RULES, vehicleMaxHp } from '../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
 import { CoverIndex, bearing } from './bot-cover.js';
 import { surfaceNavigation } from './bot-surface-nav.js';
+import { MORTAR_BOT_RULES } from '../shared/mortar-rules.js';
 
 export const COMMANDER_PLAN_MS = 500;
 export const STAGE_MIN = 50, STAGE_MAX = 70;
@@ -1026,9 +1027,12 @@ export class BotCommander {
   /**
    * Gadget choice (spec: Engineer AT or STINGER). A stable share of the team's
    * engineers, ranked by id hash, takes the STINGER while enemy aircraft are in
-   * play; the rest keep the AT launcher. Other kits have no choice (0).
+   * play; the rest keep the AT launcher. A stable MORTAR_BOT_RULES.share of
+   * the supports carries the mortar (1, server/bot-mortar.js). Other kits have
+   * no choice (0).
    */
   gadgetFor(p) {
+    if (this.kitFor(p) === 'support') return this.mortarGadgetFor(p);
     if (this.kitFor(p) !== 'engineer') return 0;
     const team = this.teamOf(p);
     const share = AA_ENGINEER_SHARE[Math.min(AA_ENGINEER_SHARE.length - 1, this.enemyAirThreat(team))];
@@ -1041,6 +1045,18 @@ export class BotCommander {
     engineers.sort((a, b) => stableHash(`${a}:aa`) - stableHash(`${b}:aa`) || (a < b ? -1 : 1));
     const aa = Math.max(1, Math.round(engineers.length * share));
     return engineers.indexOf(String(p.id)) < aa ? 1 : 0;
+  }
+
+  /** Support gadget: 1 (the mortar) for a stable share of the team's supports, ranked by id hash. */
+  mortarGadgetFor(p) {
+    const team = this.teamOf(p), supports = [];
+    for (const o of this.game.entities.values()) {
+      if (o.bot && this.teamOf(o) === team && this.kitFor(o) === 'support') supports.push(String(o.id));
+    }
+    if (!supports.includes(String(p.id))) supports.push(String(p.id));
+    supports.sort((a, b) => stableHash(`${a}:mortar`) - stableHash(`${b}:mortar`) || (a < b ? -1 : 1));
+    const mortars = Math.max(1, Math.round(supports.length * MORTAR_BOT_RULES.share));
+    return supports.indexOf(String(p.id)) < mortars ? 1 : 0;
   }
 
   /**

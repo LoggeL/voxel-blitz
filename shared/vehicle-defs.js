@@ -7,7 +7,7 @@
  * Frames: metres, hull-local +X right, +Y up, forward is -Z. World yaw follows
  * vehicleDirection (yaw 0 faces -Z, positive yaw turns toward -X / left).
  */
-import { VEHICLE_TOPOLOGY, COUNTERMEASURES, VEHICLE_TYPE_IDS, vehicleMountOrder, seatWeaponList, vehicleWeaponMeta, vehicleHullType } from './conquest-contract.js';
+import { VEHICLE_TOPOLOGY, COUNTERMEASURES, VEHICLE_TYPE_IDS, DEPLOYABLE_TYPE_IDS, vehicleMountOrder, seatWeaponList, vehicleWeaponMeta, vehicleHullType } from './conquest-contract.js';
 import { TITAN_TYPE_IDS, TITAN_TOPOLOGY, isTitanType } from './titan-contract.js';
 import { TITAN_DEFS_INPUT } from './vehicle-handling/titan.js';
 import { TITAN_WEAPONS } from './vehicle-handling/titan-weapons.js';
@@ -48,7 +48,7 @@ export const VEHICLE_LIFECYCLE = freeze({
 });
 
 /** Hull mass in tonnes: momentum transfer when a hull shoves a wreck. */
-export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7,
+export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, mortar: 0.12,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, TITAN_DEFS_INPUT[type].mass])) });
 
 /**
@@ -166,6 +166,13 @@ export const VEHICLE_WEAPONS = freeze({
   towMissile: weapon('towMissile', { cooldown: 3, magazine: 3, reloadSeconds: 12, damage: 300, splash: 60, splashRadius: 3,
     splashCls: 'at', terrainRadius: 1.5, terrainPower: 120, maxDestroyedBlocks: 20, lifetimeMs: 9000, knockback: 12,
     beam: { lead: 30, delay: 0.15, turnRate: 1.5 } }),
+  // Support mortar (shared/mortar-rules.js): five rounds, then the box reloads.
+  // A light HE bomb on a high arc: a small crater, a blast that kills infantry
+  // only on a near hit (~55 at 2 m, ~20 at 4 m after the Conquest x0.8) and a
+  // jeep in three direct hits; armour shrugs it off (heavy x0.35). `spreadDeg`
+  // scatters each round so a salvo walks around the aim point.
+  mortarHE: weapon('mortarHE', { cooldown: 2, magazine: 5, reloadSeconds: 8, damage: 60, splash: 120, splashRadius: 5.5, splashCls: 'he',
+    terrainRadius: 1.6, terrainPower: 90, maxDestroyedBlocks: 14, lifetimeMs: 14000, knockback: 12, spreadDeg: 0.6 }),
   // Titan mount weapons (shared/vehicle-handling/titan-weapons.js, WP3 numbers).
   ...TITAN_WEAPONS,
 });
@@ -213,11 +220,13 @@ const seatHips = {
   helicopter: { driver: [-0.36, 1.4, -0.95], gunner: [0.36, 1.4, -0.95] },
   transport: { driver: [-0.36, 1.4, -0.95], 'door-left': [-0.95, 1.35, 0.4], 'door-right': [0.95, 1.35, 0.4], 'rear-left': [-0.45, 1.4, 1.2], 'rear-right': [0.45, 1.4, 1.2] },
   plane: { driver: [0, 1.4, -1.17] },
+  // The mortar operator crouches behind the baseplate (hip 0.45 m above the ground).
+  mortar: { operator: [0.25, 0.45, 0.62] },
 };
 /** Seats whose hip anchor rides the turret ring (rotates with turretYaw). */
 const turretSeats = { tank: ['commander'] };
 const seatLabels = { driver: 'DRIVER', pilot: 'PILOT', gunner: 'GUNNER', passenger: 'PASSENGER' };
-const seatNames = { commander: 'COMMANDER', 'door-left': 'LEFT DOOR', 'door-right': 'RIGHT DOOR', 'front-passenger': 'PASSENGER',
+const seatNames = { operator: 'MORTAR', commander: 'COMMANDER', 'door-left': 'LEFT DOOR', 'door-right': 'RIGHT DOOR', 'front-passenger': 'PASSENGER',
   'rear-left': 'REAR LEFT', 'rear-right': 'REAR RIGHT' };
 /**
  * Per-seat camera profile (WP6 reads it). optic = RMB zoom factor. `views` is
@@ -250,6 +259,10 @@ const seatCameras = {
     'door-left': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.38, 0.45], eyeFrame: 'mount' },
     'door-right': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [0.22, 0.38, 0.45], eyeFrame: 'mount' } },
   plane: { driver: { mode: 'chase', distance: 17, height: 4.4, views: FLY_VIEWS } },
+  // Mortar view: a raised camera over the tube looking down the azimuth at the
+  // predicted impact (public/js/session/vehicle-camera.js), or first person.
+  // The mortar's own view (public/js/session/vehicle-camera.js): raised behind the tube, toward the aimed impact.
+  mortar: { operator: { mode: 'mortar', distance: 5.5, height: 3.2, views: ['mortar'], eye: [0.25, 1.0, 0.55] } },
 };
 const defaultCamera = { mode: 'passenger', distance: 6, height: 2.2, views: ['cockpit', 'passenger'] };
 
@@ -289,6 +302,8 @@ const mountAnchors = {
     // Inner wing pylons between the gear and the missile rails: one bomb each.
     bombs: { fixed: true, sides: [[-1.8, 0.8, 0.4], [1.8, 0.8, 0.4]], pivot: [0, 0.8, 0.4], muzzle: 0, yawRate: 0, pitchRate: 0 },
   },
+  // The tube on its bipod: full traverse, elevation 45..85 degrees (shared/mortar-rules.js).
+  mortar: { tube: { pivot: [0, 0.22, 0.12], muzzle: 1.05, yawLimit: null, pitchLimit: [Math.PI / 4, 85 * Math.PI / 180], yawRate: 0.9, pitchRate: 0.5 } },
 };
 
 /** Compound boxes [[lo],[hi]] for aircraft; ground hulls use one box. */
@@ -320,6 +335,8 @@ const handlingRules = {
   helicopter: { ...HELICOPTER_RULES, hp: 650, respawnSeconds: 35, enterDistance: 5.5 },
   transport: { ...TRANSPORT_RULES, hp: 600, respawnSeconds: 35, enterDistance: 6 },
   plane: { ...PLANE_RULES, hp: 450, respawnSeconds: 40, enterDistance: 7.5 },
+  // Deployed, never respawned at a pad (server/sim/mortars.js removes the wreck).
+  mortar: { hp: 150, respawnSeconds: Infinity, enterDistance: 2.6, radius: 0.75, height: 1.15, maxStep: 0.5, maxSlope: 0.6, speed: 0 },
 };
 /**
  * openCrew: the hull is an open cab (jeep) or open cabin (transport doors), so a
@@ -333,6 +350,9 @@ const shapes = {
   helicopter: { handling: 'rotor', armor: 'air', openCrew: false, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   transport: { handling: 'rotor', armor: 'air', openCrew: true, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   plane: { handling: 'fixedwing', armor: 'air', openCrew: false, collider: { halfWidth: 4.5, halfLength: 5 }, hullBoxes: PLANE_BOXES, gearBoxes: [7, 8] },
+  // An emplacement: static, crushed by hulls rather than blocking them, and its
+  // operator survives its loss (crewSurvives: he is put beside it).
+  mortar: { handling: 'emplacement', armor: 'light', openCrew: true, crewSurvives: true, deployable: true, collider: { halfWidth: 0.45, halfLength: 0.55 } },
 };
 /** Wreck blasts keep terrain intact so cover survives chain reactions. */
 const destruction = {
@@ -341,6 +361,7 @@ const destruction = {
   helicopter: { radius: 9, damage: 180, damageFalloffExponent: 1.22 },
   transport: { radius: 9, damage: 190, damageFalloffExponent: 1.22 },
   plane: { radius: 10, damage: 200, damageFalloffExponent: 1.22 },
+  mortar: { radius: 3, damage: 40, damageFalloffExponent: 1.22 },
 };
 
 /** Titan definitions (docs/titanfall.md §2.5) from TITAN_DEFS_INPUT. */
@@ -392,8 +413,8 @@ function buildDef(type) {
   };
 }
 
-/** Conquest roster first (VEHICLE_TYPE_IDS stays conquest-only), then the titans. */
-const DEF_TYPE_IDS = [...VEHICLE_TYPE_IDS, ...TITAN_TYPE_IDS];
+/** Conquest roster first (VEHICLE_TYPE_IDS stays conquest-only), then the titans, then the deployables. */
+const DEF_TYPE_IDS = [...VEHICLE_TYPE_IDS, ...TITAN_TYPE_IDS, ...DEPLOYABLE_TYPE_IDS];
 export const VEHICLE_DEFS = freeze(Object.fromEntries(DEF_TYPE_IDS.map(type => [type, buildDef(type)])));
 export const VEHICLE_HANDLING = freeze(Object.fromEntries(DEF_TYPE_IDS.map(type => [type, VEHICLE_DEFS[type].handling])));
 export const VEHICLE_RULES = freeze(Object.fromEntries(DEF_TYPE_IDS.map(type => [type, VEHICLE_DEFS[type].rules])));
@@ -405,6 +426,8 @@ export function vehicleDef(value) {
   return typeof type === 'string' && Object.hasOwn(VEHICLE_DEFS, type) ? VEHICLE_DEFS[type] : null;
 }
 export const isAircraftType = value => ['rotor', 'fixedwing'].includes(vehicleDef(value)?.handling);
+/** Static emplacements (the Support mortar): handling 'emplacement'. */
+export const isEmplacementType = value => vehicleDef(value)?.handling === 'emplacement';
 /** Titan walkers (handling 'walker'). */
 export const isWalkerType = value => vehicleDef(value)?.handling === 'walker';
 /** Maximum hull points for a row, hull or type. */

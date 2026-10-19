@@ -180,7 +180,7 @@ function boxes() {
     .filter(f => f.box);
   return {
     top: one('.cq-top'), view: one('.cq-view'), banner: one('.cq-banner'), ring: one('.cq-ring'), ticker: one('.cq-ticker'), minimap: one('.cq-minimap'), squad: one('.cq-squad'),
-    'map-hint': one('.cq-map-hint'), vehicle: one('.cq-vehicle'), interact: one('.cq-interact'), lock: one('.cq-lock'), restricted: one('.cq-restricted'),
+    'map-hint': one('.cq-map-hint'), vehicle: one('.cq-vehicle'), mortar: one('.cq-mortar:not([hidden])'), interact: one('.cq-interact'), lock: one('.cq-lock'), restricted: one('.cq-restricted'),
     // Drawn on the reticle canvas: the tank hull indicator.
     hull: conquest?.reticles?.hullBox ?? null,
     'driver-bar': conquest?.reticles?.driverBoxes?.bar ?? null, 'driver-tape': conquest?.reticles?.driverBoxes?.tape ?? null,

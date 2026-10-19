@@ -13,6 +13,7 @@ import {
   vehicleHitMark, vehiclePanelModel,
 } from './conquest-hud-state.js';
 import { KITS, decodeConquestPlayer } from '../../../shared/conquest-contract.js';
+import { kitDeployable } from '../../../shared/conquest-kits.js';
 import { CONQUEST_TOUCH_EVENT } from '../engine/touch-controls.js';
 import { el } from './hud-support.js';
 import { BigMap } from './conquest/big-map.js';
@@ -30,6 +31,7 @@ import { TopBar } from './conquest/top-bar.js';
 import { VehiclePanel } from './conquest/vehicle-panel.js';
 import { ViewStrip, viewStripModel } from './conquest/view-strip.js';
 import { FlightHint } from './conquest/flight-hint.js';
+import { MortarSight, mortarBanner, mortarSightModel } from './conquest/mortar-sight.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 const MARKER_INSETS_DESKTOP = Object.freeze({ top: 96, bottom: 120, left: 48, right: 48 });
@@ -38,7 +40,7 @@ const MARKER_INSETS_TOUCH = Object.freeze({ top: 124, bottom: 150, left: 28, rig
 const MARKER_INSETS_TOUCH_LANDSCAPE = Object.freeze({ top: 124, bottom: 150, left: 196, right: 28 });
 /** Fixed HUD panels edge-clamped flag markers keep clear of (re-measured at most every OBSTACLE_MS). */
 const MARKER_OBSTACLES = ['.cq-minimap', '.cq-squad', '.cq-map-hint', '.cq-vehicle', '.cq-top', '.cq-view', '.cq-banner', '.cq-ring', '.cq-interact', '.cq-lock',
-  '.cq-restricted', '#healthbar', '#ammo', '#grenade-count', '.vb-touch-button'].join(', ');
+  '.cq-restricted', '.cq-mortar', '#healthbar', '#ammo', '#grenade-count', '.vb-touch-button'].join(', ');
 const OBSTACLE_MS = 400;
 /** The crosshair and its reticle labels (vehicle ammo, lock, pipper): clamped edge markers stay out of it. */
 const crosshairZone = (width, height) => ({ left: width / 2 - 70, right: width / 2 + 70, top: height / 2 - 50, bottom: height / 2 + 60 });
@@ -89,6 +91,8 @@ export class ConquestHud {
     this.minimap = new Minimap(this.root, { onOpen: () => this.toggleBigMap(true) });
     this.squadList = new SquadList(this.root);
     this.vehiclePanel = new VehiclePanel(this.root);
+    // Support mortar fire control (right edge, above the vehicle card) and its in-world impact ring.
+    this.mortarSight = new MortarSight(this.root, { hints: `MOUSE AIM · RMB SNAP · LMB FIRE · ${bindingLabel('interact')} LEAVE` });
     this.interact = new InteractPrompt(this.root, { onInteract, onSupport });
     this.spotFlash = el('div', 'cq-spot-flash', this.root);
     this.spotFlash.hidden = true;
@@ -199,6 +203,16 @@ export class ConquestHud {
     this._hintUsed = true;
     this.onSpot();
     return true;
+  }
+
+  /**
+   * The deployable the own kit carries with the gadget picked on the deploy
+   * screen ('mortar' for a Support with the M-81), else null. The server checks
+   * the gadget it actually issued; this only decides what digit 3 asks for.
+   */
+  deployableFor(self) {
+    const kit = decodeConquestPlayer(self)?.kit ?? null;
+    return kit ? kitDeployable(kit, this.deploy?.selection?.gadget ?? 0) : null;
   }
 
   toggleBigMap(open) {
@@ -387,6 +401,7 @@ export class ConquestHud {
       this.lock.update(null);
       this.restricted.update(null);
       this.reticles.clear();
+      this.mortarSight.hide();
       this._setSight('');
       this.markers.clear();
       this.minimap.root.hidden = true;
@@ -421,7 +436,12 @@ export class ConquestHud {
     const periscope = view === 'driver' && seated.row.type === 'tank' && seated.seat?.id === 'driver' && !sight;
     this.root.dataset.vehicleView = periscope ? 'driver' : '';
     const aim = periscope && Number.isFinite(this.vehicleController?.yaw) ? { yaw: this.vehicleController.yaw, pitch: this.vehicleController.pitch } : null;
-    const reticle = seated && projector ? reticleModel(seated, { projector, players, vehicles, selfTeam,
+    // The mortar operator gets the fire-control panel and the ground ring instead of a reticle.
+    const mortar = seated && seated.row.type === 'mortar' ? mortarSightModel(seated, { items, raycast: this.shellRaycast, projector,
+      aim: Number.isFinite(this.vehicleController?.yaw) ? { yaw: this.vehicleController.yaw, pitch: this.vehicleController.pitch } : null,
+      snap: this.vehicleController?.mortarSnap ?? null, nowMs: clockNow() }) : null;
+    this.mortarSight.update(mortar, { items, meta: cq.meta, size: cq.size, viewYaw: angles?.yaw ?? null, nowMs: now, clockMs: clockNow() });
+    const reticle = !mortar && seated && projector ? reticleModel(seated, { projector, players, vehicles, selfTeam,
       raycast: this.shellRaycast, flightAim: this.vehicleController?.aimFlight === true, sight,
       viewYaw: angles?.yaw ?? null, hullYaw: presented?.id === seated.row.id ? presented.yaw : null,
       view: periscope ? 'driver' : null, driverAim: aim }) : null;
@@ -579,6 +599,11 @@ export class ConquestHud {
         if (banner) this.banners.push(banner, now);
         break;
       }
+      case 'mortar': {
+        const banner = mortarBanner(ev, selfId);
+        if (banner) this.banners.push(banner, now);
+        break;
+      }
       case 'kill': {
         // ADRENALINE only re-arms on an own kill: remember when the last one landed.
         if (selfId != null && String(ev.killer) === String(selfId) && String(ev.victim) !== String(selfId)) this._ownKillAt = now;
@@ -602,6 +627,7 @@ export class ConquestHud {
     this.bigMap.setOpen(false);
     this.deploy.setOpen(false);
     this.reticles.clear();
+    this.mortarSight.hide();
     this.markers.clear();
     this.ticker.clear();
     this.banners.clear();

@@ -57,7 +57,11 @@ let groups = 0;
   assert.equal(engineer.gadget, WEAPON_NAMES.rocket, 'the engineer gadget is the AT rocket');
   assert.deepEqual(engineer.gadgets.map(g => [g.weapon, g.role, g.selected]), [['rocket', 'AT', true], ['stinger', 'AA', false]],
     'the engineer card offers the AT launcher and the STINGER');
-  assert.deepEqual(model.kits.filter(k => k.id !== 'engineer').map(k => k.gadgets.length), [0, 0, 0, 0, 0, 0, 0, 0], 'other kits have no gadget choice');
+  assert.deepEqual(model.kits.filter(k => k.id !== 'engineer' && k.id !== 'support').map(k => k.gadgets.length), [0, 0, 0, 0, 0, 0, 0],
+    'other kits have no gadget choice');
+  // The Support picks no gadget (the default) or the deployable M-81 MORTAR.
+  assert.deepEqual(model.kits.find(k => k.id === 'support').gadgets.map(g => [g.weapon, g.role, g.selected]), [['none', 'NONE', false], ['mortar', 'MORTAR', false]],
+    'the support card offers no gadget or the mortar');
   const aa = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
     nowMs: FIXTURE_NOW, selection: { ...deploy.selection, gadget: 1 } });
   assert.deepEqual(aa.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1 });
@@ -280,7 +284,8 @@ let groups = 0;
   assert.deepEqual(hud.touchContextFields(), { ...state.CONQUEST_TOUCH_DEFAULTS, conquest: true, deployOpen: true, deployValid: true, deployLabel: 'DEPLOY 3.2' });
   // Touch DEPLOY (vb-conquest-action) and Enter both deploy.
   dom.window.dispatchEvent({ type: CONQUEST_TOUCH_EVENT, detail: { action: 'deploy' } });
-  assert.deepEqual(sent, [{ spawn: 'hq', kit: 'support', variant: 0 }]);
+  // The Support has a gadget choice now (none / MORTAR): its choice carries gadget 0.
+  assert.deepEqual(sent, [{ spawn: 'hq', kit: 'support', variant: 0, gadget: 0 }]);
   dom.window.dispatchEvent({ type: 'keydown', key: 'Enter', code: 'Enter', repeat: false, target: document.body });
   assert.equal(sent.length, 2);
   hud.handleEvent({ kind: 'deploy_refused', id: 'me', reason: 'cooldown' }, 'me');

@@ -12,7 +12,7 @@ import { LobbyManager } from '../server/lobby.js';
 import { getMapMeta, createMapState } from '../shared/world/templates.js';
 import { isSolidBlock } from '../shared/worlddata.js';
 import { TICK_MS } from '../server/protocol/admission.js';
-import { VEHICLE_TYPE_IDS, VEHICLE_WEAPON_META } from '../shared/conquest-contract.js';
+import { VEHICLE_TYPE_IDS, VEHICLE_WEAPON_META, isDeployableType } from '../shared/conquest-contract.js';
 import { VEHICLE_DEFS, VEHICLE_RULES, VEHICLE_HANDLING, VEHICLE_MASS, VEHICLE_WEAPONS } from '../shared/vehicle-defs.js';
 import { VEHICLE_COLLIDERS } from '../shared/vehicle-collision.js';
 import {
@@ -477,7 +477,8 @@ function teamEngine(map = 'harbor') {
 {
   eq(Object.keys(VEHICLE_DEFS).slice(0, VEHICLE_TYPE_IDS.length), [...VEHICLE_TYPE_IDS], 'conquest defs first');
   for (const registry of [VEHICLE_RULES, VEHICLE_HANDLING, VEHICLE_MASS]) {
-    eq(Object.keys(registry).filter(type => !isTitanType(type)).sort(), [...VEHICLE_TYPE_IDS].sort(), 'derived registry: conquest keys plus titans only');
+    eq(Object.keys(registry).filter(type => !isTitanType(type) && !isDeployableType(type)).sort(), [...VEHICLE_TYPE_IDS].sort(),
+      'derived registry: conquest keys plus titans and deployables only');
   }
   ok([...VEHICLE_TYPE_IDS, ...TITAN_TYPE_IDS].every(type => VEHICLE_COLLIDERS[type]), 'colliders cover conquest and titans');
   for (const type of VEHICLE_TYPE_IDS) {

@@ -210,6 +210,16 @@ export function evVehicleHijacked(vehicleId, type, by, from, to) {
   return { t: 'ev', kind: 'vehicle_hijacked', vehicleId: String(vehicleId), type: String(type), by: String(by), from: from ?? null, to: to ?? null };
 }
 
+/**
+ * Support mortar (shared/mortar-rules.js): `placed` (with the new hull's
+ * vehicleId), `refused` (reason: MORTAR_REFUSALS, waitMs left of a cooldown)
+ * or `lost` (the player's mortar was destroyed; waitMs until the next may go).
+ */
+export function evMortar(id, state, { vehicleId = null, reason = null, waitMs = null } = {}) {
+  return { t: 'ev', kind: 'mortar', id: String(id), state: String(state), ...(vehicleId != null ? { vehicleId: String(vehicleId) } : {}),
+    ...(reason ? { reason: String(reason) } : {}), ...(Number.isFinite(waitMs) ? { waitMs: Math.max(0, Math.round(waitMs)) } : {}) };
+}
+
 /** `kind` is taken by the event kind, so the countermeasure type travels as `cm` (flares|smoke). */
 export function evCountermeasure(vehicleId, kind) {
   return { t: 'ev', kind: 'countermeasure', vehicleId: String(vehicleId), cm: String(kind) };

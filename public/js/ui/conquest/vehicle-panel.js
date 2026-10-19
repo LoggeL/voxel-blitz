@@ -139,7 +139,8 @@ export class VehiclePanel {
     // Aircraft: height above ground (absolute height only without a world cast), the jet's throttle.
     const height = Number.isFinite(model.agl) ? `AGL ${model.agl} M` : `ALT ${model.altitude ?? '--'} M`;
     const tele = model.aircraft ? `${model.speedKmh} KM/H · ${height}${Number.isFinite(model.throttle) ? ` · THR ${model.throttle}%` : ''}`
-      : `${model.speedKmh} KM/H`;
+      // A deployed mortar never moves: its card names the emplacement instead of a speed.
+      : model.type === 'mortar' ? 'DEPLOYED' : `${model.speedKmh} KM/H`;
     this.telemetry.dataset.stall = String(model.stalled === true);
     if (this._changed('tele', tele)) this.telemetry.textContent = tele;
     const weaponSig = model.weapons.map(w => `${w.weapon}:${w.selected}`).join('|');

@@ -58,12 +58,14 @@ export const ICON_PATHS = Object.freeze({
   lock: 'M12 2l2.5 5H20l-4.3 3.7L17.5 17 12 13.5 6.5 17l1.8-6.3L4 7h5.5z',
   flares: 'M12 2c2 4 5 6 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.8 1.2 2.8 2.2 3.2C10.8 8 11 5 12 2z',
   smoke: 'M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 .5 9.5z',
+  // Support mortar: the tube raised over its baseplate, the bipod leg forward.
+  mortar: 'M6.2 15.6L15.6 3.4l2.3 1.8-9.4 12.2zM3 18.2h10.5v2.3H3zM13.6 9.6l1.3-.8 4.6 9.4h-1.6zM12.2 11.8h1.5l-.6 6.4h-1.4z',
 });
 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */
 export const KILL_KEY_ICONS = Object.freeze({
   tankAP: 'shell', tankHE: 'shell', coaxMG: 'mg', hmg: 'mg', doorMinigun: 'mg', planeCannon: 'autocannon',
-  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', guidedMissile: 'missile', towMissile: 'missile', jetBomb: 'bomb', vehicle: 'roadkill', restricted: 'restricted',
+  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', guidedMissile: 'missile', towMissile: 'missile', jetBomb: 'bomb', mortarHE: 'mortar', vehicle: 'roadkill', restricted: 'restricted',
   fall: 'fall', crash: 'crash', redeploy: 'redeploy', collapse: 'collapse',
   // Titanfall kill keys (docs/titanfall.md §2.3) on existing glyphs; WP5 may add titan glyphs later.
   splitter: 'mg', predatorClose: 'mg', predatorLong: 'mg', railgun: 'autocannon', t203: 'shell', leadwall: 'shell',

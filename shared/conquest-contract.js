@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 5;
+export const CONQUEST_CONTRACT_VERSION = 6;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -50,6 +50,9 @@ export const KIT_IDS = Object.freeze(['assault', 'engineer', 'support', 'recon',
  * choices, picked by the deploy intent's `gadget` index (0 default). The
  * Engineer carries the RX-8 AT launcher (0) or the AX-9 STINGER AA launcher (1),
  * and AT MINES in the grenade pouch (`atmine`, shared/at-mine-rules.js).
+ * A gadget that is not a weapon is a deployable (DEPLOYABLE_TYPE_IDS): the
+ * Support picks no gadget (null, 0) or the MORTAR (1), placed with the
+ * `mortar` intent (shared/mortar-rules.js).
  * `unlockLevel` is the career level that opens the kit (1: a base kit); the
  * server refuses a locked kit at deploy (`deploy_refused {reason:'locked'}`),
  * bots ignore it. `aura` marks a passive team aura (the Medic's heal).
@@ -61,7 +64,7 @@ const KIT = (label, ability, primaries, gadgets, grenades, unlockLevel, extra = 
 export const KITS = Object.freeze({
   assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'shotgun'],       [],                    { frag: 2, pulse: 1 },    1),
   engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger'], { smoke: 1, frag: 1, atmine: 3 }, 1),
-  support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         [],                    { frag: 2, molotov: 1 },  1),
+  support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         [null, 'mortar'],      { frag: 2, molotov: 1 },  1),
   recon:     KIT('RECON',     'spot',       ['sniper', 'longarc'],      [],                    { limpet: 2, pulse: 1 },  1),
   medic:     KIT('MEDIC',     'revive',     ['smg', 'longarc'],         [],                    { smoke: 2, frag: 1 },    1, { aura: 'heal' }),
   pyro:      KIT('PYRO',      'fireproof',  ['flamethrower', 'shotgun'], [],                   { molotov: 2, smoke: 1 }, 3),
@@ -102,6 +105,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'vehicle_hijacked',  // {vehicleId, type, by, from, to}  an empty enemy hull boarded: it now belongs to `to`
   'countermeasure',    // {vehicleId, cm:'flares'|'smoke'}  (kind is the event discriminator)
   'ejection',          // {id, vehicleId, pos:[x,y,z], vel:[vx,vy,vz], yaw}  jet pilot left on the ejection seat
+  'mortar',            // {id, state:'placed'|'refused'|'lost', vehicleId?, reason?, waitMs?}  Support mortar (shared/mortar-rules.js)
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);
@@ -123,6 +127,8 @@ export const CONQUEST_INTENT_SHAPE = Object.freeze({
   support: '{type:"revive"|"repair", targetId:string}',
   // In-game menu RESPAWN: die now (1 ticket, kill key `redeploy`) and open the deploy screen.
   redeploy: '1',
+  // Support with the MORTAR gadget: place the mortar ahead and man it (one per player).
+  mortar: '1',
 });
 /** input.vehicleAction types (parsed by parseVehicleAction). */
 export const VEHICLE_ACTION_TYPES = Object.freeze(['enter', 'exit', 'seat', 'cm', 'weapon']);
@@ -139,6 +145,13 @@ export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'tr
  * with a TOW launcher on the pintle. `vehicleHullType` answers "which hull is
  * this" for every per-hull table and check; weapons stay keyed by the type.
  */
+/**
+ * Deployables: hull types a player places in the match (never on a map pad,
+ * never a deploy-screen spawn, never hijacked). They live in the hull tables
+ * (topology, defs, rows) but stay out of VEHICLE_TYPE_IDS, the pad roster.
+ */
+export const DEPLOYABLE_TYPE_IDS = Object.freeze(['mortar']);
+export const isDeployableType = type => typeof type === 'string' && DEPLOYABLE_TYPE_IDS.includes(type);
 export const VEHICLE_HULL_VARIANTS = Object.freeze({ jeep_at: 'jeep' });
 export const vehicleHullType = type => VEHICLE_HULL_VARIANTS[type] ?? type;
 export const VEHICLE_WEAPON_META = Object.freeze({
@@ -163,8 +176,10 @@ export const VEHICLE_WEAPON_META = Object.freeze({
   // stays in the seat. Not IR: flares never decoy them.
   guidedMissile:    Object.freeze({ label: 'GUIDED MSL', kind: 'missile', cls: 'at',         speed: 75,  gravity: 0, rate: 1 / 1.5, presentation: 'rocket' }),
   towMissile:       Object.freeze({ label: 'TOW MSL',    kind: 'missile', cls: 'at',         speed: 65,  gravity: 0, rate: 1 / 2,   presentation: 'rocket' }),
+  // Support mortar: a finned HE bomb (`bomb` presentation) lobbed on a high arc.
+  mortarHE:         Object.freeze({ label: 'MORTAR HE',  kind: 'shell',   cls: 'he',         speed: 59,  gravity: 14, rate: 1 / 2,   presentation: 'bomb' }),
 });
-export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null });
+export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, mortar: null });
 
 /** Seat and mount topology. Order is significant (F1..F5, mounts[] in snapshot rows). Positions/anchors live in shared/vehicle-defs.js. */
 const S = (id, role, drives, exposed, personalWeapons, mounts) => Object.freeze({ id, role, drives, exposed, personalWeapons, mounts: Object.freeze(mounts) });
@@ -203,6 +218,10 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
     S('gunner', 'gunner', false, true, false, [M('pintle', ['towMissile'])]),
     S('front-passenger', 'passenger', false, true, true, []),
     S('rear-left', 'passenger', false, true, true, []),
+  ]),
+  // Deployable (DEPLOYABLE_TYPE_IDS): the Support mortar, one exposed operator.
+  mortar: Object.freeze([
+    S('operator', 'gunner', false, true, false, [M('tube', ['mortarHE'])]),
   ]),
 });
 /** Seat topology of a conquest or titan type (titan types: shared/titan-contract.js). */

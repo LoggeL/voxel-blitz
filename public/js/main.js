@@ -253,6 +253,18 @@ class Game {
   }
 
   /**
+   * Conquest digit 3 with a deployable gadget (the Support MORTAR): the key asks
+   * the server to place it (the `mortar` intent) instead of drawing a weapon.
+   * The server refuses with a `mortar` event when the kit or the ground says no.
+   */
+  conquestGadgetDigit(intents) {
+    if (intents?.slot !== 2 || this.matchState?.mode !== 'conquest' || this.vehicleController?.vehicle) return intents;
+    if (this.conquestHud?.deployableFor?.(this.selfRow) !== 'mortar') return intents;
+    this.net?.sendConquest({ mortar: 1 });
+    return { ...intents, slot: null };
+  }
+
+  /**
    * Send the redeploy intent. The server kills the player and the deploy
    * screen opens on that death (it frees the mouse). A refusal (cooldown)
    * leaves the player alive with the menu closed and the pointer free, so the
@@ -785,7 +797,7 @@ class Game {
       // Titanfall pilot movement hooks (shared/pilot-movement.js).
       this.player.physics.pilotRules = match?.mode === 'titanfall';
     }
-    this.vehicleController?.sync({ self, vehicles: snapshot.vehicles, enabled: match?.mode === 'conquest' || match?.mode === 'titanfall' });
+    this.vehicleController?.sync({ self, vehicles: snapshot.vehicles, players: snapshot.players, enabled: match?.mode === 'conquest' || match?.mode === 'titanfall' });
     // Before this.serverNow advances: the tick's step is the authoritative clock delta.
     this.titanfall?.tick(snapshot, Number.isFinite(snapshot.serverNow) && Number.isFinite(this.serverNow)
       ? Math.max(0, (snapshot.serverNow - this.serverNow) / 1000) : 0);
@@ -1310,7 +1322,7 @@ class Game {
         this.session.toggleBuyMenuFromInput();
         return this.hud.isBuyMenuOpen();
       },
-      onWeaponIntents: (intents, at) => this.weapon.applyIntents(intents, at, {
+      onWeaponIntents: (intents, at) => this.weapon.applyIntents(this.conquestGadgetDigit(intents), at, {
         allowFire: this.isAuthoritativeFireAllowed(),
         allowMelee: this.isAuthoritativeFireAllowed('melee'),
         alive: this.player.alive,
