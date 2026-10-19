@@ -106,7 +106,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'countermeasure',    // {vehicleId, cm:'flares'|'smoke'}  (kind is the event discriminator)
   'ejection',          // {id, vehicleId, pos:[x,y,z], vel:[vx,vy,vz], yaw}  jet pilot left on the ejection seat
   'squad_order',       // {team, squad, flag, by}       flag null clears; stance follows the flag owner (shared/conquest-comms.js orderStance)
-  'comm',              // {team, by, comm, squad, seq?} a comm rose callout (`comm` in COMM_KINDS); requests also ride match.conquest.comms
+  'comm',              // {team, by, comm, squad, seq?} a comm rose callout (`comm` in COMM_KINDS); a request's marker rides the requester's `cqc` player field
   'comm_answer',       // {team, seq, comm, by, responder}  a bot took request `seq` (medic heading over, driver on the way)
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);

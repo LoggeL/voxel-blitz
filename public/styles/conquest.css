@@ -430,6 +430,11 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .cq-deploy-titles { display: grid; }
 .cq-deploy-title { margin: 0; font-size: 34px; line-height: 1; letter-spacing: 6px; font-weight: 800; }
 .cq-deploy-team { font-size: 12px; font-weight: 800; letter-spacing: 2px; color: var(--cq-own); }
+/* Down: CALL MEDIC (the comm rose's NEED MEDIC); green once the own row carries the request. */
+.cq-deploy-medic { min-height: 34px; padding: 6px 14px; border: 1px solid #ff6b6b; border-radius: 3px; background: #2a0f12d9; color: #ffb1a8;
+  font: 800 12px var(--font-ui); letter-spacing: 1.6px; cursor: pointer; white-space: nowrap; }
+.cq-deploy-medic[hidden] { display: none; }
+.cq-deploy-medic[data-state="called"] { border-color: #7ef29a; background: #0d2416d9; color: #7ef29a; cursor: default; }
 .cq-deploy-killer { margin-left: auto; display: grid; grid-template-columns: auto auto; column-gap: 10px; align-items: baseline; padding: 8px 14px;
   border-left: 3px solid var(--cq-enemy); background: #1b0f08d0; border-radius: 3px; }
 .cq-deploy-killer-title { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: var(--cq-sub); }

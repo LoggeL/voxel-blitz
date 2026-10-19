@@ -33,7 +33,7 @@ import { FlightHint } from './conquest/flight-hint.js';
 import { CommRose } from './conquest/comm-rose.js';
 import { OrderChip, RadioFeed } from './conquest/order-chip.js';
 import {
-  PAD_ROSE_HOLD_MS, commRoseModel, isSquadLeader, orderFlagOf, radioLine, requestMapItems, requestMarkerModels, squadOrderBanner,
+  PAD_ROSE_HOLD_MS, commRoseModel, downedMedicModel, isSquadLeader, orderFlagOf, radioLine, requestMapItems, requestMarkerModels, squadOrderBanner,
   squadOrderModel, visibleRequests, withOrderRing,
 } from './conquest/comms-state.js';
 
@@ -119,8 +119,7 @@ export class ConquestHud {
     this._padRoseAt = null;
     this._padRose = false;
     this._view = null;
-    this._lastSent = 0;
-    this.deploy = new DeployScreen(this.root, { onDeploy, onOpen: onDeployOpen,
+    this.deploy = new DeployScreen(this.root, { onDeploy, onOpen: onDeployOpen, onCallMedic: () => this.callMedic(),
       career: typeof careerProfile === 'function' ? careerProfile : () => null });
     // Authoritative kit unlocks (the latest own `kit_unlocks` event).
     this.kitUnlocks = kitUnlockState();
@@ -182,6 +181,8 @@ export class ConquestHud {
     if (event.key === 'Escape' && this.bigMap.open) { this.toggleBigMap(false); return; }
     // Enter deploys from the deploy screen (gameplay input is closed while dead).
     if (this.dead && this.deploy.open && event.key === 'Enter') { this.deploy.deploy(); return; }
+    // Down on the deploy screen: the comm rose key calls a medic (gameplay input is closed while dead).
+    if (this.dead && matchesBinding(event, 'commRose')) { this.callMedic(); return; }
     if (!this.inputEnabled()) return;
     if (matchesBinding(event, 'bigMap') && !this.dead) { this.toggleBigMap(); return; }
     if (matchesBinding(event, 'commRose') && !this.dead) { this.openRose('hold'); return; }
@@ -204,6 +205,8 @@ export class ConquestHud {
       if (pressed.lastWeapon) this.deploy.step('kit', -1);
       if (pressed.grenade) this.deploy.step('kit', 1);
       if (pressed.jump) this.deployNow();
+      // D-pad right (the rose's hold key) calls a medic while down.
+      if (pressed.buy) this.callMedic();
       return true;
     }
     if (!this.inputEnabled()) { this._padRoseAt = null; return false; }
@@ -263,6 +266,19 @@ export class ConquestHud {
     if (!segment || segment.enabled === false) return false;
     if (segment.kind === 'spot') return this.spot();
     this.onComm(segment.kind);
+    return true;
+  }
+
+  /**
+   * NEED MEDIC while down (deploy screen: U, D-pad right, the CALL MEDIC
+   * button). Sent only while the own row reads down and carries no live
+   * medic request yet; the server checks both again.
+   */
+  callMedic() {
+    if (!this.active || !this.dead) return false;
+    const medic = downedMedicModel(this.self, this._lastArgs?.players);
+    if (!medic || medic.requested) return false;
+    this.onComm('medic');
     return true;
   }
 

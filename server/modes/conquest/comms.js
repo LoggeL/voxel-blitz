@@ -8,8 +8,8 @@ const idOf = value => (value && typeof value === 'object' ? String(value.id) : S
  * The comm rose on the server (docs/conquest.md "Squad orders and the comm
  * rose"). One `comm` intent per pick:
  *  - requests (NEED MEDIC / AMMO / REPAIR / RIDE) open a short-lived marker,
- *    one per player, that rides `match.conquest.comms` until it is served or
- *    times out (COMM_RULES.requestMs); the bot commander sends a bot of the
+ *    one per player, that rides the requester's `cqc` player field until it is
+ *    served or times out (COMM_RULES.requestMs); the bot commander sends a bot of the
  *    matching role and names it with `answer` (`comm_answer`);
  *  - AFFIRMATIVE / NEGATIVE are radio callouts (`comm` event, no marker);
  *  - SPOT spots along the view (the ordinary spot intent);
@@ -73,8 +73,8 @@ export class CommSystem {
       if (!hull) return false;
       vehicleId = String(hull.id);
     }
-    if (kind === 'ride' && p.vehicleId) return false;
-    if (kind === 'ammo' && p.vehicleId) return false;
+    // The heal and resupply auras skip seated mates, and a seated player has its ride: on foot only.
+    if ((kind === 'ride' || kind === 'ammo' || kind === 'medic') && p.vehicleId) return false;
     const id = idOf(p);
     const request = { seq: ++this.seq, kind, by: id, team, squad: this.policy.squads.squadOf(id), at: now,
       until: now + this.rules.requestMs, vehicleId, responder: null, served: false };

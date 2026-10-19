@@ -69,6 +69,7 @@ const eq = (a, b, message) => { assert.deepEqual(a, b, message); checks++; };
   const seated = { row: { ...damaged, hp: 400 }, seat: { id: 'driver', drives: true } };
   const inJeep = comms.commRoseModel({ cq: cqOf(rose), self: rose.self, vehicles: [], seated, view: view(rose) }).segments;
   eq([inJeep[1].enabled, inJeep[3].enabled, inJeep[2].enabled], [false, false, false], 'seated: no ammo / ride, an undamaged hull needs no repair');
+  eq([inJeep[0].enabled, inJeep[0].note], [false, 'ON FOOT'], 'seated: no medic (the heal aura skips seated mates)');
 
   // Deflection picks a wedge clockwise from the top; the dead zone picks none.
   eq([comms.roseIndexAt(0, -60), comms.roseIndexAt(60, 0), comms.roseIndexAt(0, 60), comms.roseIndexAt(-45, -45), comms.roseIndexAt(4, -4)], [0, 2, 4, 7, -1]);
@@ -211,6 +212,10 @@ eq([roseCode, bindingLabel('commRose')], ['KeyU', 'U'], 'U holds the comm rose')
   ok(hud.bigMap.map.flagHits.length === 5, 'every drawn flag is pickable');
   const d = hud.bigMap.map.flagHits.find(h => h.id === 'D');
   eq(hud.bigMap.map.flagAt(d.u, d.v), 'D');
+  // Of two flags in reach the nearer wins, even when the farther one's zone is drawn larger.
+  const probe = Object.assign(Object.create(Object.getPrototypeOf(hud.bigMap.map)), {
+    flagHits: [{ id: 'A', u: 0.5, v: 0.5, r: 0.01 }, { id: 'B', u: 0.55, v: 0.5, r: 0.1 }] });
+  eq([probe.flagAt(0.51, 0.5), probe.flagAt(0.6, 0.5), probe.flagAt(0.5, 0.9)], ['A', 'B', null], 'the nearest flag in reach is picked');
   hud.bigMap.cursorAt = { u: d.u + 0.01, v: d.v };
   capture.press(0, 'mouse');
   eq(sent.order, ['D'], 'a click on D orders D');
@@ -292,6 +297,39 @@ eq([roseCode, bindingLabel('commRose')], ['KeyU', 'U'], 'U holds the comm rose')
   ok(!shown.some(n => n.dataset.kind === 'squad' && n.label.textContent === 'Nova'), 'her squad dot gives way to the request');
   const texts = textsDrawn(hud.minimap.context);
   ok(Array.isArray(texts), 'minimap drew');
+  hud.dispose();
+}
+
+// Down on the deploy screen (the rose cannot open there): CALL MEDIC by U, D-pad right or a tap,
+// its label read from the own row's authoritative cqc request.
+{
+  const f = byId('orders-rose');
+  const downSelf = (extra = {}) => ({ ...f.self, hp: 0, state: 'dead', cq: [f.self.cq[0], f.self.cq[1], 1, ...f.self.cq.slice(3)], ...extra });
+  const downArgs = self => args(f, { self, players: f.players.map(p => (p.id === 'me' ? self : p)) });
+  const { hud, sent } = hudFor(f);
+  hud.update(downArgs(downSelf()));
+  ok(hud.dead && hud.deploy.open, 'down: the deploy screen is up');
+  ok(isShown(hud.deploy.medicButton), 'CALL MEDIC shows while down');
+  eq(hud.deploy.medicButton.textContent, 'CALL MEDIC');
+  ok(!hud.openRose('hold'), 'the rose itself stays shut');
+  key(roseCode, 'keydown'); key(roseCode, 'keyup');
+  eq(sent.comm, ['medic'], 'U calls a medic while down');
+  hud.padInput({ pressed: { buy: true }, held: { buy: true } });
+  eq(sent.comm, ['medic', 'medic'], 'so does D-pad right');
+  hud.deploy.medicButton.click();
+  eq(sent.comm, ['medic', 'medic', 'medic'], 'and a tap on the button');
+  const medicIndex = COMM_KINDS.indexOf('medic');
+  hud.update(downArgs(downSelf({ cqc: [5, medicIndex, null] })));
+  eq([hud.deploy.medicButton.textContent, hud.deploy.medicButton.disabled], ['MEDIC CALLED', true], 'the own request reads MEDIC CALLED');
+  key(roseCode, 'keydown'); key(roseCode, 'keyup');
+  eq(sent.comm.length, 3, 'a standing request is not sent again');
+  hud.update(downArgs(downSelf({ cqc: [5, medicIndex, 'sq2'] })));
+  eq(hud.deploy.medicButton.textContent, 'MEDIC BRANNOCK RESPONDING', 'the responder from the cqc row');
+  // Dead for good (not down): no medic to call.
+  hud.update(downArgs({ ...downSelf(), cq: [f.self.cq[0], f.self.cq[1], 0, ...f.self.cq.slice(3)] }));
+  ok(!isShown(hud.deploy.medicButton), 'not down: no CALL MEDIC');
+  key(roseCode, 'keydown'); key(roseCode, 'keyup');
+  eq(sent.comm.length, 3, 'and U sends nothing');
   hud.dispose();
 }
 

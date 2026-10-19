@@ -102,7 +102,7 @@ An order stands only while its giver leads the squad (a new leader starts withou
 
 | Wedge | Sends | Server effect |
 |---|---|---|
-| NEED MEDIC | `{comm:'medic'}` | a request marker on the requester (also while down) |
+| NEED MEDIC | `{comm:'medic'}` | a request marker on the requester, or on its body while down: the deploy screen then offers CALL MEDIC (U, D-pad right or a tap), which reads MEDIC CALLED / MEDIC NAME RESPONDING from the own row's `cqc`; refused while seated (the heal aura skips seated mates) |
 | NEED AMMO | `{comm:'ammo'}` | a marker; refused while seated |
 | NEED REPAIR | `{comm:'repair'}` | a marker on the own seat's hull, or the nearest damaged friendly hull within 10 m; refused without one |
 | NEED RIDE | `{comm:'ride'}` | a marker; refused while seated |
@@ -118,7 +118,7 @@ A player has at most one live request (a new one replaces it) and every comm sha
 
 | Request | Responder | What it does |
 |---|---|---|
-| NEED MEDIC | nearest Medic bot within 90 m (or the one already reviving / healing the requester) | walks over and stands inside the heal aura; a downed requester is revived |
+| NEED MEDIC | nearest Medic bot within 90 m (or the one already reviving / healing the requester); for a downed requester only from as far as a sprint (6.2 m/s) covers before the body bleeds out | walks over and stands inside the heal aura; a downed requester is revived |
 | NEED AMMO | nearest Support bot within 70 m | stands 4 m from the requester inside its resupply aura |
 | NEED REPAIR | nearest Engineer bot within 90 m | walks to the hull and repairs it (any damage, not only below the usual threshold) |
 | NEED RIDE | a free bot within 45 m of an empty friendly jeep (90 m of the transport on its pad), the hull within 220 m of the requester | drives (or flies) to the requester, waits up to 20 s, and once the requester is aboard heads for the squad's order flag (else the team's focus flag); a ride without the requester aboard after 60 s is called off |
@@ -304,7 +304,7 @@ All values live in `shared/parachute.js`; the server (`server/sim/movement.js`) 
 | C (hold) | crouch | free look |
 | Y | spot | spot |
 | M | full map | full map |
-| U (hold) | comm rose: requests, callouts, spot and the squad order (release sends) | comm rose (NEED RIDE / AMMO dimmed) |
+| U (hold) | comm rose: requests, callouts, spot and the squad order (release sends) | comm rose (NEED MEDIC / AMMO / RIDE dimmed) |
 
 **Kit-relative number keys.** In Conquest the weapon slot keys (Settings → Controls, `slot1`…`slot4`, digits 1–4 by default) pick kit roles instead of the global weapon slots used in other modes: `KIT_DIGIT_ROLES` and `kitDigitWeapon(owned, index)` in `shared/conquest-kits.js` map them over the snapshot's authoritative `owned` list (`WeaponState._directSlot`), so every kit, variant, gadget choice and redeploy is right without a client table. Rebinding a slot key moves that kit role with it. Until the first `owned` list arrives the keys do nothing. The kit weapon wheel shows the same 1–4 badges and a key pressed while it is open picks the matching segment. Seated, the slot keys still pick the seat's weapons and F1…F5 still switch seats (`VehicleController`); infantry key presses are drained while seated.
 

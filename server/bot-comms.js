@@ -4,7 +4,8 @@
 // (server/modes/conquest/comms.js) gets at most one bot:
 //  - NEED MEDIC: the nearest Medic bot within respondRange.medic walks to the
 //    requester (a downed body within REVIVE_RANGE becomes the ordinary
-//    revive) and stands by it inside the heal aura;
+//    revive; a downed call is answered only from as far as a sprint covers
+//    before the body bleeds out) and stands by it inside the heal aura;
 //  - NEED AMMO: the nearest Support bot walks to within ammoStand m, inside
 //    its resupply aura, until the aura has refilled the requester;
 //  - NEED REPAIR: the nearest Engineer bot walks to the named hull and holds
@@ -20,6 +21,7 @@
 import { KITS } from '../shared/conquest-contract.js';
 import { COMM_RESPONDER_ABILITY, COMM_RULES } from '../shared/conquest-comms.js';
 import { vehicleSeats, vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
+import { PHYSICS } from '../shared/player-movement.js';
 
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const isAircraftType = type => type === 'helicopter' || type === 'plane' || type === 'transport';
@@ -57,7 +59,10 @@ export function planComms(cmd, ts, view, now) {
     if (!pos) continue;
     const ability = COMM_RESPONDER_ABILITY[r.kind];
     // A bot already on it (a revive, heal or repair walk it claimed) is the answer.
-    let best = alreadyOnIt(cmd, ts, r, next, now), bestD = COMM_RULES.respondRange[r.kind];
+    // A downed requester bleeds out at body.until: only a Medic that can sprint there in time answers.
+    const body = r.kind === 'medic' ? cmd.game.mode?.policy?.roles?.downedBodies?.(ts.team)?.find(b => String(b.id) === r.by) : null;
+    const reachable = body ? Math.max(0, body.until - now) / 1000 * PHYSICS.sprint : Infinity;
+    let best = alreadyOnIt(cmd, ts, r, next, now), bestD = Math.min(COMM_RULES.respondRange[r.kind], reachable);
     for (const br of best ? [] : cmd.teamBrains(ts.team)) {
       const id = br.id, p = cmd.game.entities.get(id);
       if (!p || id === r.by || p.state !== 'alive' || p.vehicleId || next.has(id) || ts.crews.has(id) || ts.hitches.has(id)) continue;

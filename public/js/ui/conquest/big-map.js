@@ -48,10 +48,11 @@ export class NorthUpMap {
 
   /** The flag id drawn nearest to a map point (u, v in 0..1 of the canvas), or null. */
   flagAt(u, v) {
-    let best = null, bestD = FLAG_PICK_RADIUS;
+    // Each flag takes picks within its own reach (its zone, at least FLAG_PICK_RADIUS); of two in reach the nearer wins.
+    let best = null, bestD = Infinity;
     for (const hit of this.flagHits) {
       const d = Math.hypot(hit.u - u, hit.v - v);
-      if (d < Math.max(bestD, hit.r)) { bestD = d; best = hit.id; }
+      if (d < Math.max(FLAG_PICK_RADIUS, hit.r) && d < bestD) { bestD = d; best = hit.id; }
     }
     return best;
   }

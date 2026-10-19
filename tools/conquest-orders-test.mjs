@@ -269,11 +269,45 @@ function fixture(n, { seed = 3, hulls = false } = {}) {
   ok(policy.matchSnapshot().conquest.comms === undefined, 'no comms field without live requests');
   // SPOT through the rose is the ordinary spot intent.
   ok(typeof f.intent({ type: 'comm', comm: 'spot' }) === 'boolean', 'SPOT goes through the spot intent');
-  // A team keeps at most maxPerTeam live requests.
-  for (let i = 0; i < COMM_RULES.maxPerTeam + 2; i++) {
-    policy.comms.request({ id: `ghost${i}`, x: 0, y: 0, z: 0 }, 'medic', f.game.now);
-  }
-  ok(policy.comms.list('alpha').length + policy.comms.list(null).filter(r => r.team !== 'alpha').length <= COMM_RULES.maxPerTeam * 2, 'request cap');
+}
+
+// ---------------------------------------------- NEED MEDIC while down --
+{
+  const f = fixture(1, { seed: 21 });
+  const { policy, me, list, game } = f;
+  const [medic] = list;
+  f.kit(medic, 'medic'); f.kit(me, 'assault');
+  const C = flagOf('C');
+  f.place(me, C.spawns[0]);
+  // A Medic past REVIVE_RANGE (25 m): only the request brings it over.
+  const d0 = flat(C.spawns[0], C), ux = (C.spawns[0].x - C.x) / (d0 || 1), uz = (C.spawns[0].z - C.z) / (d0 || 1);
+  const far = f.bots.commander.walkablePoint({ x: me.x - ux * 34, y: me.y, z: me.z - uz * 34 })
+    ?? f.bots.commander.walkablePoint({ x: me.x + 34, y: me.y, z: me.z });
+  ok(far && flat(far, me) > 26, 'a Medic spot past revive range');
+  f.place(medic, far);
+  f.place(f.enemy, flagOf('E').spawns[0]);
+  game.step(TICK_MS);
+  me.takeDamage(500, false, f.enemy, 'rifle');
+  game.killPlayer(me, f.enemy, 'rifle', false);
+  ok(policy.roles.isDown(me), 'the requester is down');
+  ok(!f.intent({ type: 'comm', comm: 'yes' }), 'a downed body cannot radio');
+  ok(f.intent({ type: 'comm', comm: 'medic' }), 'but it can call a medic');
+  const body = policy.roles.downedBodies('alpha').find(b => String(b.id) === 'me');
+  const row = commRequestsOf(wireRows(game, policy)).find(r => r.by === 'me');
+  eq(row?.kind, 'medic', 'the downed requester row carries the request');
+  ok(flat(policy.comms.position(policy.comms.requests.get('me')), body) < 0.5, 'the request stands at the body');
+  // A Medic that cannot sprint to the body before it bleeds out (reviveWindowMs) does not answer.
+  const distant = f.bots.commander.walkablePoint({ x: me.x - ux * 70, y: me.y, z: me.z - uz * 70 })
+    ?? f.bots.commander.walkablePoint({ x: me.x + 70, y: me.y, z: me.z });
+  ok(distant && flat(distant, body) > 60, 'a Medic spot out of sprint reach');
+  f.place(medic, distant);
+  f.run(600);
+  ok(!f.ofKind('comm_answer').some(e => e.by === 'me'), 'out of reach before the bleed-out: no answer');
+  f.place(medic, far);
+  f.run(1100);
+  ok(f.ofKind('comm_answer').some(e => e.by === 'me' && e.responder === String(medic.id)), 'the Medic bot answers the downed call');
+  const goal = f.bots.commander.goalFor(medic);
+  ok(['heal', 'revive'].includes(goal.kind) && flat(goal.point, body) <= 2, `it heads for the body (${goal.kind})`);
 }
 
 // ------------------------------------------- NEED REPAIR and NEED RIDE --
@@ -346,6 +380,10 @@ function fixture(n, { seed = 3, hulls = false } = {}) {
   f.run(8000);
   const now = flat(game.vehicles.vehicles.get(pickup.vehicleId), flagOf('D'));
   ok(now < start - 10, `the ride drives toward D (${start.toFixed(0)} -> ${now.toFixed(0)} m)`);
+  // Seated, NEED MEDIC is refused like AMMO and RIDE: the heal aura skips seated mates.
+  ok(me.vehicleId === pickup.vehicleId, 'the requester still rides');
+  me.hp = 40;
+  ok(!f.intent({ type: 'comm', comm: 'medic' }) && !policy.comms.requests.has('me'), 'seated: no NEED MEDIC');
 }
 
 // --------------------------------------------------------- budget --
@@ -361,6 +399,11 @@ function fixture(n, { seed = 3, hulls = false } = {}) {
   const rows = wireRows(f.game, f.policy).filter(r => r.cqc);
   eq(rows.length, COMM_RULES.maxPerTeam, 'each requester row carries its cqc');
   ok(rows.every(r => JSON.stringify(r.cqc).length <= 24), 'a cqc field is a few bytes');
+  // A team keeps at most maxPerTeam live requests: the oldest gives way.
+  const first = String(f.list[0].id), extra = f.list[COMM_RULES.maxPerTeam];
+  f.policy.comms.request(extra, 'medic', f.game.now);
+  eq(f.policy.comms.list('alpha').length, COMM_RULES.maxPerTeam, 'request cap per team');
+  ok(!f.policy.comms.requests.has(first) && f.policy.comms.requests.has(String(extra.id)), 'the oldest request gives way');
 }
 
 console.log(`Conquest squad orders and comm rose: ${checks} checks passed (contract, parsing, flag in sight, leader orders from map and rose, bot squads following and publishing orders, order bonuses, comm requests, bot answers for medic, ammo, repair and ride, radio callouts, snapshot budget).`);

@@ -7,7 +7,8 @@
  * (flagInSight is the same shared function the server runs).
  */
 import {
-  COMM_LABELS, COMM_MARKER_LABELS, COMM_REQUESTS, COMM_ROSE, COMM_RULES, commAudience, commRequestsOf, flagInSight, orderStance,
+  COMM_LABELS, COMM_MARKER_LABELS, COMM_REQUESTS, COMM_ROSE, COMM_RULES, commAudience, commRequestsOf, decodeCommField, flagInSight,
+  orderStance,
 } from '../../../../shared/conquest-comms.js';
 import { decodeConquestPlayer } from '../../../../shared/conquest-contract.js';
 import { vehicleMaxHp as hullMaxHp } from '../../../../shared/vehicles.js';
@@ -94,7 +95,8 @@ export function commRoseModel({ cq, self, vehicles = [], seated = null, view = n
   const segments = COMM_ROSE.map(kind => {
     const segment = { kind, label: COMM_LABELS[kind], icon: COMM_ICONS[kind], enabled: living, note: '' };
     switch (kind) {
-      case 'medic': segment.enabled = living || down; break;
+      // The heal aura skips seated mates (server/modes/conquest/roles.js): on foot only, like AMMO and RIDE.
+      case 'medic': segment.enabled = (living || down) && !seated; if (seated) segment.note = 'ON FOOT'; break;
       case 'ammo': if (seated) { segment.enabled = false; segment.note = 'ON FOOT'; } break;
       case 'ride': if (seated) { segment.enabled = false; segment.note = 'ON FOOT'; } break;
       case 'repair': if (!repairTargetOf(self, vehicles, seated)) { segment.enabled = false; segment.note = 'NO DAMAGED HULL'; } break;
@@ -113,6 +115,22 @@ export function commRoseModel({ cq, self, vehicles = [], seated = null, view = n
     return segment;
   });
   return { leader, segments, flagId: sighted?.id ?? null };
+}
+
+/**
+ * The deploy screen's CALL MEDIC button while the local player is down (the
+ * comm rose cannot open on the deploy screen): null when not down, else
+ * {requested, responderName, label}. `requested` and the responder come from
+ * the own row's authoritative `cqc` field, never from the button press.
+ */
+export function downedMedicModel(self, players = []) {
+  if (decodeConquestPlayer(self)?.down !== true) return null;
+  const comm = decodeCommField(self);
+  const requested = comm?.kind === 'medic';
+  const responder = requested && comm.responder ? (players || []).find(p => String(p?.id) === comm.responder) : null;
+  const responderName = responder ? String(responder.name || '').toUpperCase() : '';
+  const label = !requested ? 'CALL MEDIC' : responderName ? `MEDIC ${responderName} RESPONDING` : 'MEDIC CALLED';
+  return { requested, responderName, label };
 }
 
 /**
