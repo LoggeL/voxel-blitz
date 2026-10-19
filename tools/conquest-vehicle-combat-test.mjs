@@ -62,11 +62,11 @@ const near = (a, b, tolerance, message) => assert(Math.abs(a - b) <= tolerance, 
 // ---------------------------------------------------------------- armour matrix
 {
   const expected = {
-    small: [0.2, 0, 0.08], mg: [0.6, 0, 0.3], hmg: [1, 0.03, 0.6], autocannon: [1, 0.12, 1], explosive: [0.8, 0.12, 0.5],
-    he: [1, 0.35, 1], at: [1, 1, 0.8], aa: [0.3, 0.1, 1], fire: [0.3, 0, 0],
+    small: [0.2, 0, 0.08, 0.03], mg: [0.6, 0, 0.3, 0.1], hmg: [1, 0.03, 0.6, 0.3], autocannon: [1, 0.12, 1, 0.45], explosive: [0.8, 0.12, 0.5, 0.35],
+    he: [1, 0.35, 1, 0.6], at: [1, 1, 0.8, 1], aa: [0.3, 0.1, 1, 0.2], fire: [0.3, 0, 0, 0.1],
   };
-  for (const [cls, [light, heavy, air]] of Object.entries(expected)) {
-    assert.deepEqual(ARMOR_MATRIX[cls], { light, heavy, air }, `${cls} row matches spec 5.3`);
+  for (const [cls, [light, heavy, air, medium]] of Object.entries(expected)) {
+    assert.deepEqual(ARMOR_MATRIX[cls], { light, heavy, air, medium }, `${cls} row matches spec 5.3 (+ the AA's medium column)`);
   }
   assert.deepEqual(HEAVY_ZONE_MULTIPLIERS, { front: 0.75, side: 1, rear: 1.5, top: 1.3, bottom: 1.5 });
   assert.equal(armorMultiplier('at', 'heavy', 'rear') / armorMultiplier('at', 'heavy', 'front'), 2);
@@ -75,7 +75,7 @@ const near = (a, b, tolerance, message) => assert(Math.abs(a - b) <= tolerance, 
   assert.equal(armorEffective(armorMultiplier('hmg', 'heavy')), false, 'eff = multiplier >= 0.1');
   assert.equal(armorEffective(armorMultiplier('autocannon', 'heavy')), true);
   assert.equal(armorMultiplier('bogus', 'light'), 0);
-  for (const type of VEHICLE_TYPE_IDS) assert.equal(vehicleMaxHp({ type }), { jeep: 320, tank: 1000, helicopter: 650, transport: 600, plane: 450, jeep_at: 320 }[type]);
+  for (const type of VEHICLE_TYPE_IDS) assert.equal(vehicleMaxHp({ type }), { jeep: 320, tank: 1000, helicopter: 650, transport: 600, plane: 450, jeep_at: 320, aa: 600 }[type]);
 }
 
 // ------------------------------------------- a rifle magazine into the tank: 0 damage, eff:0

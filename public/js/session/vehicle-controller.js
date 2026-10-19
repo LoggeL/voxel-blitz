@@ -5,6 +5,17 @@ import { isBotId } from '../../../shared/conquest.js';
 import { isTypingTarget, matchesBinding } from '../keybindings.js';
 import { VehicleCamera, VEHICLE_CAMERA } from './vehicle-camera.js';
 import { isTitanType } from '../../../shared/titan-contract.js';
+import { vehicleDef } from '../../../shared/vehicle-defs.js';
+/**
+ * Upper look limit of a ground driver: 0.65 rad, or higher when the seat lays
+ * a turret gun that elevates further (the mobile AA's twin 35 mm to 1.35).
+ */
+function driverLookMaxPitch(type, seat) {
+  const mounts = vehicleDef(type)?.mounts ?? {};
+  let max = 0.65;
+  for (const id of seat?.mounts ?? []) if (mounts[id]?.turret && Number.isFinite(mounts[id].pitchLimit?.[1])) max = Math.max(max, mounts[id].pitchLimit[1]);
+  return max;
+}
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
@@ -538,7 +549,7 @@ export class VehicleController {
       if (this.freeLook) this.view.addFreeLook(dx, dy);
       else {
         this.yaw = wrap(finite(this.yaw) - dx);
-        this.pitch = clamp(finite(this.pitch) - dy, -0.35, 0.65);
+        this.pitch = clamp(finite(this.pitch) - dy, -0.35, driverLookMaxPitch(type, this.seat));
       }
       if (ride) this.yaw = wrap(hullYaw + clamp(wrap(this.yaw - hullYaw), -VEHICLE_CAMERA.driverHeadYaw, VEHICLE_CAMERA.driverHeadYaw));
     }

@@ -27,6 +27,7 @@ import { KIT_ROLE_RULES, botSquadKit } from '../shared/conquest-kits.js';
 import { VEHICLE_RULES, vehicleMaxHp } from '../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
 import { CoverIndex, bearing } from './bot-cover.js';
+import { AA_BOT, aaCoverFlag, enemyAirThreats } from './bot-aa.js';
 import { surfaceNavigation } from './bot-surface-nav.js';
 
 export const COMMANDER_PLAN_MS = 500;
@@ -574,6 +575,11 @@ export class BotCommander {
     const tanks = hulls.filter(v => v.type === 'tank').sort(byFront);
     push(tanks.slice(0, 1), v => hullSeatIds(v).driver, 0);
     push(hulls.filter(v => v.type === 'helicopter'), v => hullSeatIds(v).driver, 1);
+    // The mobile AA is crewed only while the enemy has aircraft crewed (bot-aa.js).
+    if (enemyAirThreats(this.game.vehicles?.vehicles, team).length) {
+      push(hulls.filter(v => v.type === 'aa'), v => hullSeatIds(v).driver, AA_BOT.driverPrio);
+      push(hulls.filter(v => v.type === 'aa'), v => hullSeatIds(v).gunner, AA_BOT.gunnerPrio);
+    }
     if (brains.length >= 6) push(hulls.filter(v => v.type === 'plane'), v => hullSeatIds(v).driver, 2);
     push(tanks.slice(1), v => hullSeatIds(v).driver, 3);
     // The AT jeep is a two-bot tank hunter: a driver on overwatch and its TOW gunner.
@@ -953,7 +959,10 @@ export class BotCommander {
     if (!ts) return null;
     const crew = ts.crews.get(String(id));
     if (crew) {
-      const flag = this.focusFlag(ts);
+      const focus = this.focusFlag(ts), hull = this.game.vehicles?.vehicles?.get?.(crew.vehicleId);
+      // An AA crew covers the own flag under the enemy aircraft instead.
+      const flag = hull?.type === 'aa'
+        ? aaCoverFlag(this.view?.flags, ts.team, enemyAirThreats(this.game.vehicles?.vehicles, ts.team), focus) : focus;
       return { role: 'crew', vehicleId: crew.vehicleId, seatId: crew.seatId, prio: crew.prio, flag,
         friendlyYaw: flag ? bearing(flag, this.view?.bases?.[ts.team] ?? flag) : null };
     }

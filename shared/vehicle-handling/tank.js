@@ -17,9 +17,9 @@ const duration = dt => clamp(finite(dt), 0, 0.25);
 
 /** Forward/reverse input first brakes opposing motion. Differential steering
  * remains available at rest; hull turn velocity takes time to build and stop.
- * Mouse aim is deliberately absent from this drive interface. */
-export function stepTankDrive(state, { throttle = 0, steer = 0, brake = 0 } = {}, dt = 0) {
-  const rules = TANK_RULES;
+ * Mouse aim is deliberately absent from this drive interface. `rules` lets
+ * another tracked hull (the mobile AA, AA_RULES) drive on its own numbers. */
+export function stepTankDrive(state, { throttle = 0, steer = 0, brake = 0 } = {}, dt = 0, rules = TANK_RULES) {
   throttle = clamp(finite(throttle), -1, 1);
   steer = clamp(finite(steer), -1, 1);
   brake = clamp(finite(brake), 0, 1);

@@ -162,7 +162,7 @@ export class VehiclePanel {
       const dom = this._weaponRows?.[i];
       if (!dom) return;
       // Reload sweeps 0→1 as it completes; heat weapons show heat, red when locked out.
-      const heatWeapon = w.kind === 'hitscan' || w.weapon === 'chinCannon';
+      const heatWeapon = w.kind === 'hitscan' || w.weapon === 'chinCannon' || w.weapon === 'flak35';
       const value = heatWeapon ? w.heat : 1 - w.reload;
       dom.fill.style.width = `${(Math.max(0, Math.min(1, value)) * 100).toFixed(0)}%`;
       dom.row.dataset.state = w.overheated ? 'overheated' : heatWeapon ? (w.heat > 0.75 ? 'hot' : 'ok') : w.reload > 0 ? 'reloading' : 'ready';

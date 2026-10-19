@@ -74,9 +74,9 @@ assert.ok(c.crossings.filter(x => x.kind === 'bridge').every(x => x.y > plan.riv
 
 // --------------------------------------------------- fleet (spec 4.4)
 const fleet = c.vehicleSpawns;
-assert.equal(fleet.length, 17);
+assert.equal(fleet.length, 19);
 const expected = [
-  ...['alpha', 'bravo'].flatMap(team => ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at'].map(type => [`${team}-${type}`, team, type, undefined])),
+  ...['alpha', 'bravo'].flatMap(team => ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa'].map(type => [`${team}-${type}`, team, type, undefined])),
   ['flag-A-jeep', 'alpha', 'jeep', 'A'], ['flag-B-jeep', 'alpha', 'jeep', 'B'], ['flag-C-tank', null, 'tank', 'C'],
   ['flag-D-jeep', 'bravo', 'jeep', 'D'], ['flag-E-jeep', 'bravo', 'jeep', 'E'],
 ];
@@ -94,7 +94,7 @@ const cTank = fleet.find(v => v.id === 'flag-C-tank');
 assert.ok(cTank.x < plan.river.points[2][0] && cTank.altX > plan.river.points[2][0], 'C tank: west pad for alpha, east alt pad for bravo');
 assert.equal(cTank.altY, feetY(cTank.altX, cTank.altZ));
 // Bravo's HQ fleet is the point mirror of alpha's.
-for (const type of ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at']) {
+for (const type of ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa']) {
   const a = fleet.find(v => v.id === `alpha-${type}`), b = fleet.find(v => v.id === `bravo-${type}`);
   assert.ok(Math.abs(a.x + b.x - plan.dimensions.sx) < 1e-9 && Math.abs(a.z + b.z - plan.dimensions.sz) < 1e-9, `${type} pads are point-mirrored`);
   assert.ok(Math.abs(Math.cos(a.yaw) + Math.cos(b.yaw)) < 1e-9 && Math.abs(Math.sin(a.yaw) + Math.sin(b.yaw)) < 1e-9, `${type} yaw is mirrored`);

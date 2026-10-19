@@ -1286,7 +1286,7 @@ export class VehicleSystem {
     const now = this.nowMs(), tracks = v.subsystems && subsystemBroken(v, 'tracks', now);
     const drive = (v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1)
       * (tracks ? 0 : v.subsystems && subsystemBroken(v, 'engine', now) ? TANK_SUBSYSTEMS.engine.drive : 1);
-    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: tracks ? 0 : controls.steer, brake: controls.brake }, dt);
+    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: tracks ? 0 : controls.steer, brake: controls.brake }, dt, def);
     // A driverless hull at rest with no body in reach: its collision pass is a
     // pure function of the fields, terrain and nearby hulls it reads, so when
     // they all equal the previous pass's inputs, that pass's result is reused.

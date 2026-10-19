@@ -47,6 +47,7 @@ import { vehicleWeaponBlast } from '../../shared/weapon-aircraft-projectiles.js'
 import { VEHICLE_WEAPONS, CONQUEST_ROCKET_PROFILE, STINGER_RULES } from '../../shared/vehicle-defs.js';
 import { infantryDamageClass } from '../../shared/vehicle-armor.js';
 import { nearestHullPoint, vehicleHullParts } from '../../shared/vehicle-collision.js';
+import { flakFuse } from './flak-fuse.js';
 import { occupantShielded, occupantExposed, occupantHitPose, occupantBodyCenter, occupantDamageScale } from './vehicle-damage.js';
 import { MGL_RULES, mglLaunch, stepMgl } from '../../shared/mgl-rules.js';
 import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
@@ -299,6 +300,7 @@ export class ProjectileSystem {
       if (projectile.guidance) this._guide(projectile, stepSeconds * substeps, ctx);
       if (projectile.beam) this._rideBeam(projectile, stepSeconds * substeps, ctx);
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 1 && !projectile.child) this._pull(projectile, dt, ctx);
+      const flakFrom = projectile.flak ? [projectile.x, projectile.y, projectile.z] : null;
       if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'mgl') this._flyMgl(projectile, stepSeconds, substeps, ctx);
       else if (projectile.type === 'bolt') this._flyBolt(projectile, stepSeconds * substeps, ctx);
@@ -307,6 +309,7 @@ export class ProjectileSystem {
       else this._flyGrenade(projectile, stepSeconds, substeps, ctx);
       if (!this.active.has(projectile.id)) continue;
       if (projectile.guidance && this._proximity(projectile, ctx)) continue;
+      if (flakFrom && flakFuse(this, projectile, flakFrom, ctx)) continue;
       // Returning discs steer toward a live owner and seeking discs bend onto a
       // body, so remote presentation needs the same 100 ms correction stream that
       // Chaos projectiles already use. Bubbles never steer and the client runs the
@@ -1257,6 +1260,13 @@ export class ProjectileSystem {
       ),
     };
     if (targetId) projectile.guidance = { targetId, turnRate: rules.turnRate, navConstant: rules.navConstant, proximity: rules.proximity };
+    if (rules.infantrySplashScale != null) projectile.infantrySplashScale = rules.infantrySplashScale;
+    if (rules.flak) {
+      // Radar proximity fuse (flak-fuse.js): armed past armDistance, blind to the firing team's aircraft.
+      projectile.flak = rules.flak;
+      projectile.flakOrigin = [...origin];
+      projectile.flakTeam = ctx.vehicles?.vehicles?.get?.(vehicleId)?.team ?? ctx.vehicles?.teamOf?.(owner) ?? owner.team ?? null;
+    }
     if (rules.beam && beam && vehicleId != null) {
       projectile.beam = { vehicleId, seatId: String(beam.seatId), mountId: String(beam.mountId), operatorId: String(owner.id),
         lead: rules.beam.lead, turnRate: rules.beam.turnRate, steerAt: ctx.now + rules.beam.delay * 1000 };

@@ -1,4 +1,4 @@
-// Frontier v2 fleet (spec 4.4): seventeen hulls on terrain-derived pads. Every
+// Frontier v2 fleet (spec 4.4): nineteen hulls on terrain-derived pads. Every
 // parked hull rests on prepared ground with room to pivot, no hull overlaps
 // another, every HQ hull has a clear infantry pickup route, the ground hulls
 // drive out of their bays and every aircraft departs without striking scenery.
@@ -26,13 +26,13 @@ const sample = (route, visit) => {
   }
 };
 
-assert.equal(hulls.length, 17, 'seventeen hulls');
-assert.equal(new Set(hulls.map(v => v.id)).size, 17);
+assert.equal(hulls.length, 19, 'nineteen hulls');
+assert.equal(new Set(hulls.map(v => v.id)).size, 19);
 const seats = {};
 for (const team of ['alpha', 'bravo']) {
   const fleet = hulls.filter(v => v.team === team);
-  assert.equal(fleet.length, 8, `${team}: HQ six plus two flag jeeps`);
-  assert.deepEqual(fleet.map(v => v.type).sort(), ['helicopter', 'jeep', 'jeep', 'jeep', 'jeep_at', 'plane', 'tank', 'transport']);
+  assert.equal(fleet.length, 9, `${team}: HQ seven plus two flag jeeps`);
+  assert.deepEqual(fleet.map(v => v.type).sort(), ['aa', 'helicopter', 'jeep', 'jeep', 'jeep', 'jeep_at', 'plane', 'tank', 'transport']);
   seats[team] = fleet.reduce((sum, v) => sum + vehicleSeats(v).length, 0);
 }
 const cTank = parked.vehicles.get('flag-C-tank');
@@ -68,7 +68,7 @@ for (const hull of live.filter(v => !v.spawn.flag)) {
 }
 
 // Ground hulls leave their bays along the exit route and drive out.
-for (const hull of live.filter(v => (v.type === 'jeep' || v.type === 'tank') && !v.spawn.flag)) {
+for (const hull of live.filter(v => (v.type === 'jeep' || v.type === 'tank' || v.type === 'aa') && !v.spawn.flag)) {
   const spawn = meta.conquest.vehicleSpawns.find(s => s.id === hull.id);
   assert.ok(spawn.exitRoute?.length >= 3, `${hull.id} exit route`);
   const road = spawn.exitRoute.at(-1);

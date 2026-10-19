@@ -2,18 +2,22 @@
  * plus the lookups the authoritative damage path and the HUD share. */
 import { ARMOR_CLASSES, DAMAGE_CLASSES, HIT_ZONES } from './conquest-contract.js';
 
-/** Multiplier per damage class (rows) and armour class (columns). */
+/**
+ * Multiplier per damage class (rows) and armour class (columns). `medium` is
+ * the mobile AA hull: proof against rifles and machine guns, scratched by the
+ * .50, half the autocannon and HE of a jeep, full AT on its facing zones.
+ */
 export const ARMOR_MATRIX = Object.freeze({
-  small:      Object.freeze({ light: 0.2, heavy: 0,    air: 0.08 }),
-  mg:         Object.freeze({ light: 0.6, heavy: 0,    air: 0.3 }),
-  hmg:        Object.freeze({ light: 1,   heavy: 0.03, air: 0.6 }),
-  autocannon: Object.freeze({ light: 1,   heavy: 0.12, air: 1 }),
-  explosive:  Object.freeze({ light: 0.8, heavy: 0.12, air: 0.5 }),
-  he:         Object.freeze({ light: 1,   heavy: 0.35, air: 1 }),
-  at:         Object.freeze({ light: 1,   heavy: 1,    air: 0.8 }),
-  aa:         Object.freeze({ light: 0.3, heavy: 0.1,  air: 1 }),
+  small:      Object.freeze({ light: 0.2, heavy: 0,    air: 0.08, medium: 0.03 }),
+  mg:         Object.freeze({ light: 0.6, heavy: 0,    air: 0.3,  medium: 0.1 }),
+  hmg:        Object.freeze({ light: 1,   heavy: 0.03, air: 0.6,  medium: 0.3 }),
+  autocannon: Object.freeze({ light: 1,   heavy: 0.12, air: 1,    medium: 0.45 }),
+  explosive:  Object.freeze({ light: 0.8, heavy: 0.12, air: 0.5,  medium: 0.35 }),
+  he:         Object.freeze({ light: 1,   heavy: 0.35, air: 1,    medium: 0.6 }),
+  at:         Object.freeze({ light: 1,   heavy: 1,    air: 0.8,  medium: 1 }),
+  aa:         Object.freeze({ light: 0.3, heavy: 0.1,  air: 1,    medium: 0.2 }),
   // Fire is a damage-per-second dose, scaled by this factor.
-  fire:       Object.freeze({ light: 0.3, heavy: 0,    air: 0 }),
+  fire:       Object.freeze({ light: 0.3, heavy: 0,    air: 0,    medium: 0.1 }),
 });
 
 /**
@@ -28,10 +32,12 @@ export const TITAN_ARMOR = Object.freeze({
 });
 export const TITAN_ZONES = Object.freeze({ rear: 1.3, top: 1.15, front: 1.0, side: 1.0 });
 
-/** Heavy-armour facing multipliers. Only the AT cell of the heavy column uses them. */
+/** Heavy-armour facing multipliers. Only the AT cell of the heavy (and medium) column uses them. */
 export const HEAVY_ZONE_MULTIPLIERS = Object.freeze({ front: 0.75, side: 1, rear: 1.5, top: 1.3, bottom: 1.5 });
 /** Damage classes whose heavy-armour multiplier is scaled by the facing zone. */
 export const ZONED_HEAVY_CLASSES = Object.freeze(['at']);
+/** Armour classes whose AT cell is scaled by HEAVY_ZONE_MULTIPLIERS. */
+export const ZONED_ARMOR_CLASSES = Object.freeze(['heavy', 'medium']);
 /** A multiplier at or above this counts as effective (`vehicle_hit.eff`). */
 export const ARMOR_EFFECTIVE_THRESHOLD = 0.1;
 /** Exposed (open) seat occupants take this share of infantry damage. */
@@ -65,7 +71,7 @@ export function armorMultiplier(cls, armor, zone = 'side') {
   const row = ARMOR_MATRIX[cls];
   if (!row || !isArmorClass(armor)) return 0;
   const base = row[armor];
-  if (armor === 'heavy' && ZONED_HEAVY_CLASSES.includes(cls)) return base * (HEAVY_ZONE_MULTIPLIERS[zone] ?? 1);
+  if (ZONED_ARMOR_CLASSES.includes(armor) && ZONED_HEAVY_CLASSES.includes(cls)) return base * (HEAVY_ZONE_MULTIPLIERS[zone] ?? 1);
   return base;
 }
 

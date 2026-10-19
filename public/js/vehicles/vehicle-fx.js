@@ -51,7 +51,7 @@ const TRACERS = Object.freeze({
 const GUIDED_MISSILES = new Set(['guidedMissile', 'towMissile']);
 /** Muzzle flash scale per vehicle weapon. */
 const MUZZLE_SCALE = Object.freeze({
-  tankAP: 2.4, tankHE: 2.4, coaxMG: 0.55, hmg: 0.75, helicopterRocket: 1.1, chinCannon: 0.9,
+  tankAP: 2.4, tankHE: 2.4, coaxMG: 0.55, hmg: 0.75, helicopterRocket: 1.1, chinCannon: 0.9, flak35: 1.15,
   doorMinigun: 0.6, planeCannon: 0.85, aaMissile: 1.2, jetBomb: 0, guidedMissile: 1.3, towMissile: 1.4,
   splitter: 1.1, t203: 1.6, railgun: 2.2, leadwall: 2.0, predatorClose: 1.0, predatorLong: 1.1, titanMelee: 0,
 });
@@ -470,10 +470,13 @@ export class VehicleFx {
       if (self && weapon === 'planeCannon') this.shake?.add(0.03);
       return true;
     }
-    if (weapon === 'chinCannon') {
-      this.fx?.emit('smoke', origin, { count: 2, dir, speed: 1.5, scale: 0.4 });
+    if (weapon === 'chinCannon' || weapon === 'flak35') {
+      // The AA's 35 mm: a bigger muzzle puff, the hull's gun kicks back (no own sample yet: the chin cannon's).
+      const flak = weapon === 'flak35';
+      this.fx?.emit('smoke', origin, { count: flak ? 3 : 2, dir, speed: 1.5, scale: flak ? 0.55 : 0.4 });
+      if (flak) { this.view?.kick(ev.vehicleId, ev.mount, 0.35); this._flashLight(origin, 0.35); }
       this.sfx?.vehicleAutocannon?.(origin, { self });
-      if (self) this.shake?.add(0.04);
+      if (self) this.shake?.add(flak ? 0.05 : 0.04);
       return true;
     }
     // Rocket pods and missiles: launch puff (the trail follows projectileLaunch).
@@ -674,6 +677,11 @@ export class VehicleFx {
         color0: tint, color1: tint.map(v => v * 0.7), ground: below.y });
     }
     if (bomb) this._flashLight(pos, 1.6);
+    if (ev.vehicleWeapon === 'flak35' && !(below && !below.fluid)) {
+      // Flak airburst: a hanging black puff with a hot core.
+      this.fx?.emit('smoke', pos, { count: 7, dir: [0, 0.2, 0], speed: 1.4, scale: 1.25, spread: 1, color0: [0.07, 0.07, 0.07], color1: [0.16, 0.15, 0.14] });
+      this.fx?.emit('spark', pos, { count: 6, dir: [0, 1, 0], speed: 3, spread: 1 });
+    }
     this.shake?.addExplosion(pos, radius, this.camera);
     return true;
   }

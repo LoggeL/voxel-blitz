@@ -128,7 +128,7 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 - `flags`: `{ id, name, site, x, y, z, radius, home, spawns ×12 }`
 - `bases`: `{ alpha|bravo: { id, name, x, y, z, radius: 56, spawns ×8 } }`
 - `combatArea`
-- `vehicleSpawns`: 15 hulls
+- `vehicleSpawns`: 19 hulls
 - `airfields`: today's shape, with terrain y
 - `roads`: `{ id, kind, width, points: [[x, y, z]] }`, resampled every 10 m or less
 - `crossings`: `{ id, kind, x, y, z, width }`
@@ -150,7 +150,9 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 | Hulls | Pad, WEST (EAST is the point mirror) |
 |---|---|
 | `alpha-jeep` | (126.5, 404.5) |
+| `alpha-jeep_at` | (126.5, 414.5) |
 | `alpha-tank` | (126.5, 424.5) |
+| `alpha-aa` (mobile AA) | south motor-pool bay (126.5, 433.5) |
 | `alpha-helicopter` | helipad (112.5, 300.5) |
 | `alpha-transport` | helipad (112.5, 468.5) |
 | `alpha-plane` | runway start (44, 532), yaw 0 (EAST yaw π) |
@@ -191,7 +193,7 @@ Run each file on its own (on the shared development machine, through `.conquest-
 ```
 node tools/frontier-terrain-test.mjs     # pads, grades, jeep/tank drive along every road and ford, river, sight lines, cover, budgets
 node tools/frontier-sites-test.mjs       # per-flag gameplay contract, landmarks, forests, dressing
-node tools/frontier-map-test.mjs         # §3.2 shape, terrain y everywhere, 15-hull fleet, round trip
+node tools/frontier-map-test.mjs         # §3.2 shape, terrain y everywhere, 19-hull fleet, round trip
 node tools/frontier-airfields-test.mjs   # runway, corridor, helipads, roundel, tower ladder, mirroring
 node tools/frontier-fleet-capacity-test.mjs  # parked hulls, pivots, pickup routes, bay exits, aircraft departures
 node tools/conquest-world-protocol-test.mjs  # V2 RLE header, Frontier payload, client decode
