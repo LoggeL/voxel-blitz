@@ -20,6 +20,8 @@ import { CONQUEST_RULES } from '../shared/conquest-contract.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { mulberry32 } from '../shared/noise.js';
 import { FLUID_BLOCKS } from '../shared/world/blocks.js';
+import { KIT_ROLE_RULES } from '../shared/conquest-kits.js';
+import { kitOfPlayer } from '../server/bot-commander.js';
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => {
@@ -137,6 +139,11 @@ const seatedBefore = new Map();
 const footVictims = [];
 const seatedBy = {}, goalKinds = {}, footEnemyDistances = [], environmentDeaths = [];
 let fightSamples = 0, infantryHits = 0, infantryDamage = 0;
+// Medic uptime: on-foot Medic bot samples with a living on-foot teammate inside the heal aura.
+let medicSamples = 0, medicAuraSamples = 0;
+const medicMateDistances = [];
+// Capture flow: on-foot bot samples counted inside a flag their team does not own.
+let enemyZoneSamples = 0;
 const shotRanges = [];
 const footEnemyDistance = p => { let d = Infinity; for (const o of game.entities.values()) if (o.state === 'alive' && o !== p && teamOf(o) !== teamOf(p)) d = Math.min(d, Math.hypot(o.x - p.x, o.y - p.y, o.z - p.z)); return d; };
 const history = new Map();
@@ -207,6 +214,19 @@ for (tickIndex = 0; tickIndex < totalTicks; tickIndex++) {
     }
     footSamples++;
     if (br.state === 'fight') fightSamples++;
+    for (const f of policy.conquestView().flags) {
+      if (f.owner !== teamOf(p) && flat(p, f) <= f.radius && Math.abs(p.y - f.y) <= 8) { enemyZoneSamples++; break; }
+    }
+    if (kitOfPlayer(game, p) === 'medic') {
+      medicSamples++;
+      let mate = Infinity;
+      for (const o of game.entities.values()) {
+        if (o === p || o.state !== 'alive' || o.vehicleId || teamOf(o) !== teamOf(p)) continue;
+        mate = Math.min(mate, Math.hypot(o.x - p.x, o.y - p.y, o.z - p.z));
+      }
+      if (mate <= KIT_ROLE_RULES.healRadius) medicAuraSamples++;
+      if (Number.isFinite(mate)) medicMateDistances.push(mate);
+    }
     let nearestEnemy = Infinity;
     for (const o of game.entities.values()) if (o.state === 'alive' && teamOf(o) !== teamOf(p)) nearestEnemy = Math.min(nearestEnemy, flat(o, p));
     footEnemyDistances.push(nearestEnemy);
@@ -254,6 +274,12 @@ const report = {
   vehicleShots: vehicleShots.length, vehicleWeaponKeys,
   vehicleHits: vehicleHits.length, vehiclesDestroyed: destroyed.length, tankArmour,
   flagTransitions: transitions.length,
+  captures: captures.length, neutralized: transitions.length - captures.length,
+  captureTimesS: transitions.map(e => `${e.kind === 'flag_captured' ? '+' : '-'}${e.flag ?? e.id ?? '?'}@${Math.round(at(e))}`),
+  enemyZoneFraction: +(enemyZoneSamples / Math.max(1, footSamples)).toFixed(3),
+  medicAuraUptime: +(medicAuraSamples / Math.max(1, medicSamples)).toFixed(3),
+  medicMateMedianM: +median(medicMateDistances).toFixed(1),
+  healHp: Math.round(events.filter(e => e.kind === 'heal' && e.by !== e.id).reduce((sum, e) => sum + (e.hp || 0), 0)),
   flags: (policy.conquestView?.().flags ?? []).map(f => `${f.id}:${f.owner ?? '-'}`).join(' '),
   respawns: respawnDistances.length, respawnKinds,
   medianRespawnEnemyM: +median(respawnDistances).toFixed(1),
