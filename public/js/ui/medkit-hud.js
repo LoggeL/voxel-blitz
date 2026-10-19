@@ -36,6 +36,8 @@ export class MedkitHud {
     this.inventory.textContent = remaining ? `${key} · MEDKIT ×1${hp >= 100 ? ' · FULL HEALTH' : ''}` : 'MEDKIT USED';
     // Touch: no key to name and a 100 px HP card (styles/medkit.css shows this instead).
     this.inventory.dataset.compact = remaining ? 'MEDKIT ×1' : 'MEDKIT USED';
+    // The key on its own, for cards that draw it as a key badge (Conquest health row).
+    this.inventory.dataset.key = remaining ? key : '';
     this.inventory.classList.toggle('is-spent', !remaining);
     this.root.hidden = !active;
     if (!active) return;

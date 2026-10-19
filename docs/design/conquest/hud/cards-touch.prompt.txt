@@ -1,0 +1,15 @@
+Use case: ui-mockup. Asset type: VOXEL BLITZ Conquest phone HUD design reference sheet, browser voxel shooter, Battlefield-style mode. One wide image with three clearly separate, labelled alternatives (ALTERNATIVE A, B, C). Each alternative shows two phone screens side by side: a landscape phone 844 x 390 and a portrait phone 390 x 844, both a first-person view of a blocky 1 m voxel river valley at golden hour with a grey asphalt road.
+
+Existing phone HUD identity that must be kept: charcoal translucent panels rgba(9,15,20,0.86), thin slate border, 6-8 px rounded corners, condensed bold uppercase sans-serif, tabular numbers, own blue #4cc3ff, enemy orange #ff8a3d, amber #ffd166, green #7ef29a. Fixed layout that stays: a pause button top left; a compact ticket bar top centre (WEST 214 blue bar, five diamond flag chips A-E, 14:32, EAST 187 orange bar); a 104 px round minimap at the top left under the cards; MAP and SPOT square 44 px buttons right of the minimap; round touch buttons at the bottom right (FIRE large, AIM, LOAD, JUMP) with a move stick at the bottom left.
+
+The cards to redesign on the top row under the ticket bar (same data in every alternative, nothing invented):
+- health card top left: "HP 74", a bar 74 % full, "MEDKIT x1";
+- grenade card: frag grenade icon and "x2";
+- weapon card top right: "30 / 5", "VK-77 RAPTOR", a weapon-swap arrows icon at its right edge.
+In the landscape screen of every alternative the player sits in a tank: the infantry cards are replaced by a vehicle card at the top right, and a new 44 px VIEW touch button cycles the camera view (chase / action / cockpit). Show it with a small camera glyph, the word VIEW and the active view name under it ("CHASE"), placed in the left column under MAP and SPOT.
+
+ALTERNATIVE A: health, grenade and weapon as three rounded charcoal cards with a 2 px own-blue left accent; the HP card has a cross icon; VIEW button green outline.
+ALTERNATIVE B: one joined top-right strip of grenade + weapon, health as a slim pill with the number inside the bar; VIEW button amber outline.
+ALTERNATIVE C: angled corners; VIEW as a round button.
+
+Clean flat vector UI, practical for HTML/CSS, respects phone safe areas, no chat panels, no real game branding or logos. A one-line caption under each alternative.

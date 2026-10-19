@@ -329,11 +329,26 @@ export class TouchControls {
       this.dom.countermeasure.setAttribute('aria-label', smoke ? 'Fire smoke screen' : 'Release flares');
       this.dom.countermeasure.dataset.ready = String(next?.vehicleCountermeasureReady !== false);
     }
+    this._paintVehicleView(next);
     if (this.dom.flightUp) this.dom.flightUp.setAttribute('aria-label', next?.vehicleType === 'plane' ? 'Pitch aircraft up' : 'Climb helicopter');
     if (this.dom.flightDown) this.dom.flightDown.setAttribute('aria-label', next?.vehicleType === 'plane' ? 'Pitch aircraft down' : 'Descend helicopter');
     this._paintGrenade(next);
     this._paintTitanfall(next?.titanfall ?? null);
     return changed;
+  }
+
+  /**
+   * VIEW face: the active camera view's name (context.vehicleViewLabel, e.g. CHASE)
+   * under a camera glyph (data-view, styles/conquest-cards.css); plain VIEW without one.
+   */
+  _paintVehicleView(next) {
+    const button = this.dom.vehicleView;
+    if (!button) return;
+    const view = typeof next?.vehicleViewLabel === 'string' ? next.vehicleViewLabel : '';
+    if ((button.dataset.view ?? '') === view && button.textContent === (view || 'VIEW')) return;
+    button.textContent = view || 'VIEW';
+    button.dataset.view = view;
+    button.setAttribute('aria-label', view ? `Next camera view (now ${view})` : 'Next camera view');
   }
 
   /** Titanfall button faces: the pilot context label and each ability's readiness (--ready, data-ready). */
