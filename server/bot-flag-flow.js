@@ -30,7 +30,7 @@ export const FLAG_FLOW_RULES = Object.freeze({
   zoneDy: 8,
   /** m beyond a flag's radius where a passing bot detours to take an undefended flag. */
   passRadius: 40,
-  /** A detour takes at most this many bots of a team onto one flag. */
+  /** Once this many bots of a team stand in the zone, further passers keep to their order. */
   passCrew: 2,
 });
 

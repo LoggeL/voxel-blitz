@@ -1297,7 +1297,12 @@ export class BotCommander {
         // A body in the river or on a ledge no walker reaches is left alone.
         if (this.game.fluidAt(Math.floor(body.x), Math.floor(body.y + 0.3), Math.floor(body.z))) continue;
         const d = flat(body, p);
-        if (d > REVIVE_RANGE || !reviveRunInTime(d, body.until, now, CONQUEST_RULES.reviveHoldMs) || this.claimedByOther(`revive:${body.id}`, id, now) || this.supportGivenUp(id, `revive:${body.id}`, now)) continue;
+        // The run-time check only gates a new run: a revive this Medic already holds is finished
+        // while the window lasts (re-checking the full hold mid-hold would drop it short of the end).
+        const claim = this.roleClaims.get(`revive:${body.id}`);
+        const running = claim?.id === id && claim.until > now;
+        if (d > REVIVE_RANGE || (!running && !reviveRunInTime(d, body.until, now, CONQUEST_RULES.reviveHoldMs))
+          || this.claimedByOther(`revive:${body.id}`, id, now) || this.supportGivenUp(id, `revive:${body.id}`, now)) continue;
         if (!this.supportReachable(p, body, `revive:${body.id}`, now)) continue;
         if (!best || d < best.d) best = { body, d };
       }

@@ -242,6 +242,30 @@ function fixture(n, seed = 11) {
   f.bots.dispose(); f.game.stop?.();
 }
 
+// A Medic already holding a revive finishes it although the window left is shorter than a fresh
+// run would need (reviveRunInTime only gates new runs; re-checking it mid-hold dropped the revive).
+{
+  const f = fixture(2, 7);
+  const [medic, mate] = f.list;
+  f.kit(medic, 'medic'); f.kit(mate, 'assault');
+  const C = flagOf('C');
+  f.place(medic, C.spawns[0]); f.place(mate, C.spawns[0]);
+  f.game.step(TICK_MS);
+  mate.takeDamage(500, false, f.enemy, 'rifle');
+  f.game.killPlayer(mate, f.enemy, 'rifle', false);
+  const down = f.policy.roles.states.get(String(mate.id)).down;
+  const left = CONQUEST_RULES.reviveHoldMs + 700;
+  down.until = f.game.now + left;
+  ok(!reviveRunInTime(0, down.until, f.game.now + 200, CONQUEST_RULES.reviveHoldMs + 600), 'the fixture window is too short to re-pass the run check mid-hold');
+  let revived = false;
+  for (let t = 0; t < left + 500 && !revived; t += TICK_MS) {
+    f.game.step(TICK_MS);
+    revived = f.events.some(e => e.kind === 'revive' && e.id === mate.id && e.by === medic.id);
+  }
+  ok(revived, `a Medic on the body finishes a revive with ${left} ms of the down window left`);
+  f.bots.dispose(); f.game.stop?.();
+}
+
 // A bot dropped into a Ridge Bunkers trench the surface graph does not cover climbs out.
 {
   const f = fixture(1, 13);
@@ -255,16 +279,30 @@ function fixture(n, seed = 11) {
   // The route out runs over the rim two voxels up (the graph's vault edge), along a line the trench lip blocks.
   const escape = pitEscape(nav, f.game.solidAt, pit, { x: 486, y: 34.02, z: 222 });
   ok(escape && escape.to.y >= pit.y + 1.5, 'pitEscape finds a vault out of the trench toward the rim the route needs');
+  // Titanfall shares Frontier but keeps the plain side-step (the escape is Conquest's).
+  const br = f.bots.brains.find(b => b.id === bot.id);
+  const tfStub = { game: { mode: { mode: 'titanfall' }, world: f.game.world }, solidAt: f.game.solidAt };
+  ok(f.bots.planEscape.call(tfStub, { surfaceRoute: { points: [{ x: 486, y: 34.02, z: 222 }] } }, { ...pit, state: 'alive' }, f.game.now) === false,
+    'a Titanfall bot never plans a Conquest pit escape');
   f.place(bot, pit);
-  let out = false, redeployed = false;
+  // The stuck watchdog plans the escape when the body has not moved for a window while the
+  // route's next point sits on the rim (the live walk often gets out on its own: forced here).
+  Object.assign(br, { intendsMove: true, watchX: pit.x, watchZ: pit.z, stuckSince: f.game.now - 1500, climbing: false,
+    escape: null, surfaceRoute: { points: [{ x: 486, y: 34.02, z: 222 }] }, trap: { x: pit.x, z: pit.z, since: f.game.now, wedges: 0, wet: 0 } });
+  f.bots.watchStuck(br, bot, f.game.now);
+  ok(br.escape && br.trap.wedges === 1, 'the stuck watchdog plans a pit escape and counts the wedge');
+  const to = br.escape.to;
+  let out = false, redeployed = false, dropped = false;
   for (let t = 0; t < 15000 && !out; t += TICK_MS) {
     f.game.step(TICK_MS);
     redeployed ||= f.events.some(e => e.kind === 'kill' && e.victim === bot.id);
-    out = bot.state === 'alive' && bot.y >= pit.y + 1.5;
+    out = bot.state === 'alive' && bot.y >= to.y - 0.3;
+    if (!out && !br.escape) dropped = true;
   }
   ok(out && !redeployed, 'the bot vaults out of the trench instead of pressing into its wall until the trap redeploy');
+  ok(!dropped, '... driven by the planned escape until it stands on the rim');
   f.bots.dispose(); f.game.stop?.();
 }
 
-console.log(`Conquest bot flow: ${checks} checks passed (attack commitment, zone stay, passing captures, Medic trail and revive timing, pit escape).`);
+console.log(`Conquest bot flow: ${checks} checks passed (attack commitment, zone stay, passing captures, Medic trail and revive timing, late revive, pit escape).`);
 process.exit(0);

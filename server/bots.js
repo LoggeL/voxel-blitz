@@ -737,8 +737,13 @@ class BotManager {
     }
   }
 
-  /** Surface maps: a way out of a pit under the graph (bot-unstick.js), unless one is under way. */
+  /**
+   * Conquest on surface maps: a way out of a pit under the graph (bot-unstick.js), unless one
+   * is under way. Titanfall shares Frontier but drives its pilots and titans itself, so it keeps
+   * the plain side-step.
+   */
   planEscape(br, p, now) {
+    if (this.game.mode.mode !== 'conquest') return false;
     const nav = surfaceNavigation(this.game.world);
     if (!nav || p.vehicleId || (br.escape && now < br.escape.until)) return !!br.escape && now < br.escape.until;
     const escape = pitEscape(nav, this.solidAt, p, br.surfaceRoute?.points?.[0] ?? null);
