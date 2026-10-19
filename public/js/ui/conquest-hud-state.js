@@ -23,6 +23,7 @@ import { relativeTeam, squadName, teamDisplayName } from './conquest/scoring.js'
 import {
   angleTo, ballisticAtTime, ballisticImpact, ballisticPoint, clampToEdge, forwardFromAngles, leadPoint, localPlanar,
 } from './conquest/projection.js';
+import { upgradeBadge, upgradeCards, upgradeChoice, upgradeRefusedText } from './conquest/upgrade-cards.js';
 
 /* ------------------------------------------------------------------ teams */
 
@@ -388,7 +389,8 @@ export function vehiclePanelModel(seated, { selfId, players = [], selfTeam = nul
     seats: seatStrip(row, selfId, players),
     hp, maxHp, fraction: maxHp ? clamp01(hp / maxHp) : null,
     hpText: maxHp ? `${Math.ceil(hp)} / ${Math.ceil(maxHp)}` : `${Math.ceil(hp)}`,
-    badges: [...STATUS_BADGES.filter(([key]) => status[key]).map(([key, label, tone]) => ({ key, label, tone })),
+    // The driver's vehicle upgrade (row `upg`) leads the badges, outlined.
+    badges: [...[upgradeBadge(row)].filter(Boolean), ...STATUS_BADGES.filter(([key]) => status[key]).map(([key, label, tone]) => ({ key, label, tone })),
       ...(status.repairing ? [{ key: 'repairing', label: 'REPAIRING', tone: 'repair' }] : [])],
     // An Engineer in the crew is mending the hull (the snapshot's `repairing` bit).
     repairing: status.repairing === true,
@@ -1227,6 +1229,9 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
   const variant = kit === wanted && selection?.variant === 1 ? 1 : 0;
   const gadget = kit === wanted ? kitGadgetIndex(kit, selection?.gadget) : 0;
   const down = info?.down === true;
+  // Vehicle upgrades (VEHICLES tab): picks above the announced career level drive stock.
+  const upgrades = upgradeChoice(selection?.upgrades, unlockState.level);
+  const spawnType = resolved.option?.kind === 'vehicle' ? resolved.option.type ?? null : null;
   return {
     team, teamName: teamDisplayName(team), options: decorated, spawn, valid: resolved.ok, reason: resolved.reason,
     reasonText: resolved.ok ? '' : DEPLOY_REFUSED_TEXT[resolved.reason] || '',
@@ -1235,11 +1240,13 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
     waitMs, ready: waitMs === 0 && resolved.ok, countdown: waitMs === null ? '' : waitMs > 0 ? `${(waitMs / 1000).toFixed(1)}` : '',
     timeoutMs: respawnAt !== null && Number.isFinite(nowMs) ? Math.max(0, respawnAt + CONQUEST_RULES.deployTimeoutMs - nowMs) : null,
     refused: refused ? { reason: typeof refused === 'object' ? refused.reason : refused,
-      text: typeof refused === 'object' ? deployRefusedText(refused.reason, refused.level) : deployRefusedText(refused) } : null,
+      text: typeof refused === 'object' ? refused.upgrade ? upgradeRefusedText(refused, VEHICLE_LABELS) : deployRefusedText(refused.reason, refused.level)
+        : deployRefusedText(refused) } : null,
     down,
+    upgrades: upgradeCards(upgrades, unlockState.level, { labels: VEHICLE_LABELS, career, spawnType }),
     selectedKey: resolved.option?.spawn ?? 'hq',
     // `gadget` only rides kits that offer a choice, so older servers and the other kits see the old shape.
-    choice: { spawn, kit, variant, ...((KITS[kit]?.gadgets?.length ?? 0) > 1 ? { gadget } : {}) },
+    choice: { spawn, kit, variant, ...((KITS[kit]?.gadgets?.length ?? 0) > 1 ? { gadget } : {}), upgrades },
   };
 }
 

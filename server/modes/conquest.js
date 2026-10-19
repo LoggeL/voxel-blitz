@@ -11,6 +11,7 @@ import { ScoreLedger } from './conquest/score.js';
 import { BoundsSystem, RESTRICTED_WEAPON } from './conquest/bounds.js';
 import { airspaceFor, airspaceRect } from '../../shared/world/airspace.js';
 import { createConquestRoles } from './conquest/roles.js';
+import { ConquestUpgrades } from './conquest/upgrades.js';
 import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
 import { evHit } from '../protocol/events.js';
@@ -55,6 +56,7 @@ export class ConquestPolicy extends TdmPolicy {
     });
     this.finalStats = new Map();
     this.roles = createConquestRoles({ policy: this, engine: this.engine, rules: this.rules });
+    this.upgrades = new ConquestUpgrades(this);
     this._resetObjectives();
   }
 
@@ -100,6 +102,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.score.reset();
     this.finalStats = new Map();
     this.roles.reset();
+    this.upgrades.reset();
     // Stable per match: the bot flex kit of each squad (shared/conquest-kits.js botSquadKit).
     this.kitSeed = Math.floor(Math.random() * 2 ** 31);
     for (const state of this._players.values()) state.objectiveId = null;
@@ -159,6 +162,7 @@ export class ConquestPolicy extends TdmPolicy {
       kill: (p, aircraft) => aircraft ? this._loseAircraft(aircraft, p) : this._kill(p, RESTRICTED_WEAPON),
     });
     if (this.phase !== 'live') return;
+    this.upgrades.tick();
     this.roles.tick(now, dt);
     this.score.tick(now);
     if (this.phase === 'live' && this.ledger.timeExpired(now)) this._finishMatch(this.ledger.timeLimitWinner(this.capture.held()));
@@ -507,12 +511,28 @@ export class ConquestPolicy extends TdmPolicy {
   conquestIntent(player, intent) {
     const entity = this._entity(player);
     if (!entity || !this._state(entity) || !intent || typeof intent !== 'object') return false;
-    if (intent.type === 'deploy') return this.deploy.intent(entity, intent);
+    if (intent.type === 'deploy') return this._deployIntent(entity, intent);
     if (intent.type === 'redeploy') return this.redeploy(entity);
     if ((intent.type === 'spot' || intent.type === 'support') && this.phase === 'live') {
       return this.roles.intent(entity, intent) === true;
     }
     return false;
+  }
+
+  /**
+   * Deploy intent: a vehicle upgrade above the career level is refused like a
+   * locked kit (`deploy_refused {reason:'locked', vehicle, upgrade, level}`);
+   * an accepted deploy stores its `upgrades` for the hulls the player drives.
+   */
+  _deployIntent(entity, intent) {
+    const locked = this.phase === 'live' && entity.state === 'dead' ? this.upgrades.refusal(entity, intent.upgrades) : null;
+    if (locked) {
+      this._emit('deploy_refused', { id: String(entity.id), reason: 'locked', vehicle: locked.type, upgrade: locked.id, level: locked.level });
+      return false;
+    }
+    const accepted = this.deploy.intent(entity, intent);
+    if (accepted) this.upgrades.choose(entity, intent.upgrades);
+    return accepted;
   }
 
   onVehicleEvent(kind, payload) {

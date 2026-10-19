@@ -4,6 +4,7 @@ import { parseChaosPurchase } from '../../shared/chaos.js';
 import { MAX_BOTS } from '../../shared/lobby-limits.js';
 import { KIT_IDS, KITS } from '../../shared/conquest-contract.js';
 import { SPAWN_CHOICE_PATTERN } from '../../shared/conquest.js';
+import { vehicleUpgrade } from '../../shared/vehicle-upgrades.js';
 import { MAP_FINGERPRINT_PATTERN } from '../../shared/world/serialize.js';
 // Wire protocol constants and strict client-frame parsers. Pure data
 // functions only — no engine state or world access.
@@ -308,11 +309,26 @@ export function parseConquestIntent(raw) {
     return { type: 'support', support: value.type, targetId: value.targetId };
   }
   if (!isRecord(value) || typeof value.spawn !== 'string') return null;
-  if (Object.keys(value).some(k => k !== 'spawn' && k !== 'kit' && k !== 'variant' && k !== 'gadget')) return null;
+  if (Object.keys(value).some(k => k !== 'spawn' && k !== 'kit' && k !== 'variant' && k !== 'gadget' && k !== 'upgrades')) return null;
   if (!SPAWN_CHOICE_PATTERN.test(value.spawn)) return null;
   if (Object.hasOwn(value, 'kit') && !KIT_IDS.includes(value.kit)) return null;
   if (Object.hasOwn(value, 'variant') && value.variant !== 0 && value.variant !== 1) return null;
   const kit = value.kit ?? KIT_IDS[0];
   if (Object.hasOwn(value, 'gadget') && value.gadget !== 0 && !(value.gadget === 1 && (KITS[kit].gadgets?.length ?? 0) > 1)) return null;
-  return { type: 'deploy', spawn: value.spawn, kit, variant: value.variant ?? 0, gadget: value.gadget ?? 0 };
+  const upgrades = Object.hasOwn(value, 'upgrades') ? parseUpgradeChoice(value.upgrades) : undefined;
+  if (upgrades === null) return null;
+  return { type: 'deploy', spawn: value.spawn, kit, variant: value.variant ?? 0, gadget: value.gadget ?? 0, ...(upgrades ? { upgrades } : {}) };
+}
+
+/** Most hull types a deploy's `upgrades` map may name (the table has six today; room for new hulls). */
+const MAX_UPGRADE_TYPES = 16;
+/**
+ * Deploy `upgrades`: `{<vehicle type>: <upgrade id>}` (shared/vehicle-upgrades.js);
+ * a type left out drives stock. Unknown types or ids refuse the frame.
+ */
+function parseUpgradeChoice(raw) {
+  if (!isRecord(raw)) return null;
+  const entries = Object.entries(raw);
+  if (entries.length > MAX_UPGRADE_TYPES || entries.some(([type, id]) => !vehicleUpgrade(type, id))) return null;
+  return Object.fromEntries(entries);
 }

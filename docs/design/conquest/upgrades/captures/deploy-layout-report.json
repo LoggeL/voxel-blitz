@@ -1,0 +1,434 @@
+{
+ "d1280x720/deploy-vehicles": {
+  "button": {
+   "l": 930,
+   "t": 610,
+   "r": 1230,
+   "b": 662
+  },
+  "over": [],
+  "side": {
+   "l": 50,
+   "t": 411,
+   "r": 1230,
+   "b": 662
+  },
+  "panel": {
+   "l": 50,
+   "t": 58,
+   "r": 1230,
+   "b": 662
+  },
+  "docScrollW": 1280,
+  "vw": 1280,
+  "chipsClipped": 0
+ },
+ "d1280x720/deploy": {
+  "button": {
+   "l": 930,
+   "t": 602,
+   "r": 1230,
+   "b": 654
+  },
+  "over": [],
+  "side": {
+   "l": 50,
+   "t": 420,
+   "r": 1230,
+   "b": 654
+  },
+  "panel": {
+   "l": 50,
+   "t": 67,
+   "r": 1230,
+   "b": 654
+  },
+  "docScrollW": 1280,
+  "vw": 1280,
+  "chipsClipped": 0
+ },
+ "d1280x720/tank-commander": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "panel": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "docScrollW": 1280,
+  "vw": 1280,
+  "chipsClipped": 0
+ },
+ "d1440x900/deploy-vehicles": {
+  "button": {
+   "l": 1010,
+   "t": 780,
+   "r": 1310,
+   "b": 832
+  },
+  "over": [],
+  "side": {
+   "l": 130,
+   "t": 581,
+   "r": 1310,
+   "b": 832
+  },
+  "panel": {
+   "l": 130,
+   "t": 68,
+   "r": 1310,
+   "b": 832
+  },
+  "docScrollW": 1440,
+  "vw": 1440,
+  "chipsClipped": 0
+ },
+ "d1440x900/deploy": {
+  "button": {
+   "l": 1010,
+   "t": 772,
+   "r": 1310,
+   "b": 824
+  },
+  "over": [],
+  "side": {
+   "l": 130,
+   "t": 590,
+   "r": 1310,
+   "b": 824
+  },
+  "panel": {
+   "l": 130,
+   "t": 77,
+   "r": 1310,
+   "b": 824
+  },
+  "docScrollW": 1440,
+  "vw": 1440,
+  "chipsClipped": 0
+ },
+ "d1440x900/tank-commander": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "panel": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "docScrollW": 1440,
+  "vw": 1440,
+  "chipsClipped": 0
+ },
+ "d1024x768/deploy-vehicles": {
+  "button": {
+   "l": 712,
+   "t": 658,
+   "r": 1012,
+   "b": 710
+  },
+  "over": [],
+  "side": {
+   "l": 12,
+   "t": 459,
+   "r": 1012,
+   "b": 710
+  },
+  "panel": {
+   "l": 12,
+   "t": 58,
+   "r": 1012,
+   "b": 710
+  },
+  "docScrollW": 1024,
+  "vw": 1024,
+  "chipsClipped": 0
+ },
+ "d1024x768/deploy": {
+  "button": {
+   "l": 712,
+   "t": 680,
+   "r": 1012,
+   "b": 732
+  },
+  "over": [],
+  "side": {
+   "l": 12,
+   "t": 438,
+   "r": 1012,
+   "b": 732
+  },
+  "panel": {
+   "l": 12,
+   "t": 37,
+   "r": 1012,
+   "b": 732
+  },
+  "docScrollW": 1024,
+  "vw": 1024,
+  "chipsClipped": 0
+ },
+ "d1024x768/tank-commander": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "panel": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "docScrollW": 1024,
+  "vw": 1024,
+  "chipsClipped": 0
+ },
+ "d1100x700/deploy-vehicles": {
+  "button": {
+   "l": 788,
+   "t": 590,
+   "r": 1088,
+   "b": 642
+  },
+  "over": [],
+  "side": {
+   "l": 12,
+   "t": 391,
+   "r": 1088,
+   "b": 642
+  },
+  "panel": {
+   "l": 12,
+   "t": 58,
+   "r": 1088,
+   "b": 642
+  },
+  "docScrollW": 1100,
+  "vw": 1100,
+  "chipsClipped": 0
+ },
+ "d1100x700/deploy": {
+  "button": {
+   "l": 788,
+   "t": 612,
+   "r": 1088,
+   "b": 664
+  },
+  "over": [],
+  "side": {
+   "l": 12,
+   "t": 370,
+   "r": 1088,
+   "b": 664
+  },
+  "panel": {
+   "l": 12,
+   "t": 37,
+   "r": 1088,
+   "b": 664
+  },
+  "docScrollW": 1100,
+  "vw": 1100,
+  "chipsClipped": 0
+ },
+ "d1100x700/tank-commander": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "panel": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "docScrollW": 1100,
+  "vw": 1100,
+  "chipsClipped": 0
+ },
+ "portrait/deploy-vehicles": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 12,
+   "t": 563,
+   "r": 378,
+   "b": 1179
+  },
+  "panel": {
+   "l": 12,
+   "t": 12,
+   "r": 378,
+   "b": 1179
+  },
+  "docScrollW": 390,
+  "vw": 390,
+  "chipsClipped": 0
+ },
+ "portrait/deploy": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 12,
+   "t": 563,
+   "r": 378,
+   "b": 1128
+  },
+  "panel": {
+   "l": 12,
+   "t": 12,
+   "r": 378,
+   "b": 1128
+  },
+  "docScrollW": 390,
+  "vw": 390,
+  "chipsClipped": 0
+ },
+ "portrait/tank-commander": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "panel": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "docScrollW": 390,
+  "vw": 390,
+  "chipsClipped": 0
+ },
+ "landscape/deploy-vehicles": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 427,
+   "t": 64,
+   "r": 832,
+   "b": 304
+  },
+  "panel": {
+   "l": 12,
+   "t": 12,
+   "r": 832,
+   "b": 304
+  },
+  "docScrollW": 844,
+  "vw": 844,
+  "chipsClipped": 0
+ },
+ "landscape/deploy": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 427,
+   "t": 64,
+   "r": 832,
+   "b": 304
+  },
+  "panel": {
+   "l": 12,
+   "t": 12,
+   "r": 832,
+   "b": 304
+  },
+  "docScrollW": 844,
+  "vw": 844,
+  "chipsClipped": 0
+ },
+ "landscape/tank-commander": {
+  "button": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "over": [],
+  "side": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "panel": {
+   "l": 0,
+   "t": 0,
+   "r": 0,
+   "b": 0
+  },
+  "docScrollW": 844,
+  "vw": 844,
+  "chipsClipped": 0
+ }
+}

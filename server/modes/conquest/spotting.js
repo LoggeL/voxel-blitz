@@ -9,6 +9,7 @@ import { KIT_ROLE_RULES, isUnsuppressedWeapon } from '../../../shared/conquest-k
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { vehicleHullParts } from '../../../shared/vehicle-collision.js';
 import { VEHICLE_RULES } from '../../../shared/vehicles.js';
+import { upgradeSpot } from '../../../shared/vehicle-upgrades.js';
 
 const DEFAULT_EYE = 1.6;
 const DEFAULT_HULL_RADIUS = 3;
@@ -104,21 +105,29 @@ export class ConquestSpotting {
     return actor;
   }
 
+  /** Spotting override of the hull a player crews (a thermal-optics upgrade), or null. */
+  hullSpot(player) {
+    const hull = player?.vehicleId != null ? this.engine?.vehicles?.vehicles?.get?.(String(player.vehicleId)) : null;
+    return hull && hull.hp > 0 ? upgradeSpot(hull) : null;
+  }
+
   rangeFor(player) {
-    return this.kitOf(player) === 'recon' ? this.rules.spotRangeRecon : this.rules.spotRange;
+    const kit = this.kitOf(player) === 'recon' ? this.rules.spotRangeRecon : this.rules.spotRange;
+    return Math.max(kit, this.hullSpot(player)?.range ?? 0);
   }
 
   durationFor(player) {
-    return this.kitOf(player) === 'recon' ? this.rules.spotMsRecon : this.rules.spotMs;
+    const kit = this.kitOf(player) === 'recon' ? this.rules.spotMsRecon : this.rules.spotMs;
+    return Math.max(kit, this.hullSpot(player)?.ms ?? 0);
   }
 
-  /** Whether the line from `from` to `to` is clear of voxels and smoke. */
-  lineOfSight(from, to) {
+  /** Whether the line from `from` to `to` is clear of voxels and (unless `throughSmoke`) smoke. */
+  lineOfSight(from, to, { throughSmoke = false } = {}) {
     const dx = to[0] - from[0], dy = to[1] - from[1], dz = to[2] - from[2];
     const distance = Math.hypot(dx, dy, dz);
     if (!(distance > 0)) return true;
     const smoke = this.engine?.projectiles?.smoke;
-    if (smoke?.blocksSight?.(from, to, this.now)) return false;
+    if (!throughSmoke && smoke?.blocksSight?.(from, to, this.now)) return false;
     const solidAt = this.engine?.solidAt;
     if (typeof solidAt !== 'function') return true;
     const reach = distance - LOS_MARGIN;
@@ -189,8 +198,9 @@ export class ConquestSpotting {
   /** Best visible candidate, or null. */
   bestTarget(spotter) {
     const eye = eyeOf(spotter);
+    const throughSmoke = this.hullSpot(spotter)?.smoke === true;
     for (const candidate of this.candidates(spotter)) {
-      if (candidate.points.some(point => this.lineOfSight(eye, point))) return candidate;
+      if (candidate.points.some(point => this.lineOfSight(eye, point, { throughSmoke }))) return candidate;
     }
     return null;
   }

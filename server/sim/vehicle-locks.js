@@ -12,6 +12,7 @@ import { isTitanType } from '../../shared/titan-contract.js';
 import { isPerceivable } from './titanfall/perception.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evCountermeasure } from '../protocol/events.js';
+import { upgradeCmCharges, upgradeScale } from '../../shared/vehicle-upgrades.js';
 
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 const fwd = (yaw, pitch) => vehicleDirection(yaw, pitch);
@@ -103,12 +104,14 @@ export class VehicleLocks {
       if (current && now - lock.losAt >= LOCK_RULES.losIntervalMs) {
         lock.los = this.lineOfSight(info.eye, current.center, current.distance); lock.losAt = now;
       }
-      if (!current || !lock.los) { lock.progress = 0; if (!current) lock.targetId = null; }
-      else lock.progress = Math.min(rules.seconds, lock.progress + dt);
-      p.lockProgress = lock.targetId ? clamp(lock.progress / rules.seconds, 0, 1) : 0;
-      p.lockTargetId = lock.targetId;
+      // An ECM upgrade on the target stretches the time to a full lock.
       const target = lock.targetId ? this.system.vehicles.get(lock.targetId) : null;
-      if (target && lock.los) target.lk = Math.max(target.lk, lock.progress >= rules.seconds ? 2 : 1);
+      lock.need = rules.seconds * (target ? upgradeScale(target, 'lockTime') : 1);
+      if (!current || !lock.los) { lock.progress = 0; if (!current) lock.targetId = null; }
+      else lock.progress = Math.min(lock.need, lock.progress + dt);
+      p.lockProgress = lock.targetId ? clamp(lock.progress / lock.need, 0, 1) : 0;
+      p.lockTargetId = lock.targetId;
+      if (target && lock.targetId && lock.los) target.lk = Math.max(target.lk, lock.progress >= lock.need ? 2 : 1);
     }
     for (const id of this.lockers.keys()) if (!seen.has(id)) this.lockers.delete(id);
     for (const projectile of this.engine.projectiles?.active?.values?.() ?? []) {
@@ -120,7 +123,7 @@ export class VehicleLocks {
   /** Locked target id for a player and source, or null. */
   lockedTarget(p, source) {
     const lock = this.lockers.get(String(p?.id));
-    return lock && lock.source === source && lock.targetId && lock.progress >= LOCK_RULES[source].seconds ? lock.targetId : null;
+    return lock && lock.source === source && lock.targetId && lock.progress >= (lock.need ?? LOCK_RULES[source].seconds) ? lock.targetId : null;
   }
 
   /** Reset every lock on a hull and break missiles tracking it. */
@@ -138,12 +141,36 @@ export class VehicleLocks {
     }
   }
 
+  /**
+   * Countermeasure salvos of a hull: one ready time per charge (an extra-flares
+   * upgrade adds a charge). `cmReadyAt` stays the soonest of them, so a hull
+   * with a charge in hand reads ready. Charges follow the hull's upgrade: a
+   * lost charge is the readiest one and a gained charge starts as late as the
+   * latest, so leaving and re-entering never refreshes a spent salvo.
+   */
+  cmSlots(vehicle) {
+    const charges = upgradeCmCharges(vehicle);
+    if (!Array.isArray(vehicle.cmSlots) || vehicle.cmSlotsFor !== vehicle.cmReadyAt) vehicle.cmSlots = [vehicle.cmReadyAt ?? 0];
+    while (vehicle.cmSlots.length < charges) vehicle.cmSlots.push(Math.max(...vehicle.cmSlots));
+    if (vehicle.cmSlots.length > charges) vehicle.cmSlots.sort((a, b) => a - b).splice(0, vehicle.cmSlots.length - charges);
+    vehicle.cmReadyAt = vehicle.cmSlotsFor = Math.min(...vehicle.cmSlots);
+    return vehicle.cmSlots;
+  }
+
+  /** Cooldown of the hull's countermeasure in seconds (a flare-reload upgrade shortens it). */
+  cmCooldownSeconds(vehicle, kind) {
+    return COUNTERMEASURE_RULES[kind].cooldownSeconds * upgradeScale(vehicle, 'cmCooldown');
+  }
+
   /** Fire the hull's countermeasure. Returns the kind fired or null. */
   countermeasure(vehicle) {
     const kind = vehicleDef(vehicle)?.countermeasure, now = this.system.nowMs();
-    if (!kind || !(vehicle.hp > 0) || vehicle.cmReadyAt > now) return null;
+    if (!kind || !(vehicle.hp > 0)) return null;
+    const slots = this.cmSlots(vehicle), slot = slots.findIndex(at => !(at > now));
+    if (slot < 0) return null;
     const rules = COUNTERMEASURE_RULES[kind];
-    vehicle.cmReadyAt = now + rules.cooldownSeconds * 1000;
+    slots[slot] = now + this.cmCooldownSeconds(vehicle, kind) * 1000;
+    vehicle.cmReadyAt = vehicle.cmSlotsFor = Math.min(...slots);
     if (kind === 'flares') {
       vehicle.flaresUntil = now + rules.durationSeconds * 1000;
       // The flare cloud falls behind the airframe; missiles that lost the hull chase it.
@@ -169,7 +196,8 @@ export class VehicleLocks {
   readiness(vehicle) {
     const kind = vehicleDef(vehicle)?.countermeasure;
     if (!kind) return null;
+    this.cmSlots(vehicle);
     const remaining = Math.max(0, (vehicle.cmReadyAt ?? 0) - this.system.nowMs());
-    return Math.round(clamp(1 - remaining / (COUNTERMEASURE_RULES[kind].cooldownSeconds * 1000), 0, 1) * 100);
+    return Math.round(clamp(1 - remaining / (this.cmCooldownSeconds(vehicle, kind) * 1000), 0, 1) * 100);
   }
 }

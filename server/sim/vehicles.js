@@ -26,12 +26,15 @@ import { TitanSystem } from './titans.js';
 import { isTitanfall } from '../../shared/modes.js';
 import { isTitanType } from '../../shared/titan-contract.js';
 import { isWalkerType } from '../../shared/vehicle-defs.js';
+import { upgradeCode, upgradeScale } from '../../shared/vehicle-upgrades.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(n) ? n : 0));
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
 const q = (value, scale) => Math.round(finite(value) * scale) / scale;
 /** Handling dispatch: ground drive steppers and flight steppers by def.handling. */
 const GROUND_STEPPERS = Object.freeze({ wheeled: stepJeepDrive, tracked: stepTankDrive });
+/** Drive tuning of a hull's upgrade (a jeep's turbo); the tracked stepper ignores it. */
+const groundTune = v => ({ speed: upgradeScale(v, 'speed'), acceleration: upgradeScale(v, 'acceleration') });
 const FLIGHT_STEPPERS = Object.freeze({
   rotor: (v, input, dt, def) => stepHelicopterFlight(v, input, dt, def.rules),
   fixedwing: (v, input, dt) => stepPlaneFlight(v, input, dt),
@@ -1286,7 +1289,7 @@ export class VehicleSystem {
     const now = this.nowMs(), tracks = v.subsystems && subsystemBroken(v, 'tracks', now);
     const drive = (v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1)
       * (tracks ? 0 : v.subsystems && subsystemBroken(v, 'engine', now) ? TANK_SUBSYSTEMS.engine.drive : 1);
-    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: tracks ? 0 : controls.steer, brake: controls.brake }, dt);
+    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: tracks ? 0 : controls.steer, brake: controls.brake }, dt, groundTune(v));
     // A driverless hull at rest with no body in reach: its collision pass is a
     // pure function of the fields, terrain and nearby hulls it reads, so when
     // they all equal the previous pass's inputs, that pass's result is reused.
@@ -1985,6 +1988,8 @@ export class VehicleSystem {
     if (enemy && v.spotted?.[enemy] > now) row.sp = 1;
     const cmr = this.locks.readiness(v); if (cmr != null) row.cmr = cmr;
     if (v.spawn.flag) row.flag = v.spawn.flag;
+    // The driver's vehicle upgrade (shared/vehicle-upgrades.js): 1-based index in the type's list, omitted when stock.
+    const upg = v.upgrade ? upgradeCode(v.type, v.upgrade) : 0; if (upg) row.upg = upg;
     if (!(v.hp > 0)) row.wreckAge = Number.isFinite(v.wreckAge) ? q(v.wreckAge, 10) : 0;
     this.titans?.rowExtras(v, row);
     return row;

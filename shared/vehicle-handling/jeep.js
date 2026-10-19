@@ -13,11 +13,14 @@ const approach = (value, target, amount) => value < target ? Math.min(target, va
  * Mutates speed/yaw only for motion; the caller owns position and collisions.
  * Positive steer turns right, matching vehicleDirection's negative-Z forward.
  * Optional brake (0..1) overrides throttle. visualSteer and yawRate are derived
- * presentation values, never additional movement inputs.
+ * presentation values, never additional movement inputs. `tune` scales the
+ * forward top speed and the acceleration (a vehicle upgrade's turbo); stock 1.
  */
-export function stepJeepDrive(state, input = {}, dt) {
+export function stepJeepDrive(state, input = {}, dt, tune = null) {
   if (!state || !Number.isFinite(dt) || dt <= 0) return state;
-  state.speed = clamp(state.speed, -JEEP_RULES.reverse, JEEP_RULES.speed);
+  const top = JEEP_RULES.speed * (tune?.speed > 0 ? tune.speed : 1);
+  const acceleration = JEEP_RULES.acceleration * (tune?.acceleration > 0 ? tune.acceleration : 1);
+  state.speed = clamp(state.speed, -JEEP_RULES.reverse, top);
   state.yaw = Number.isFinite(state.yaw) ? state.yaw : 0;
   const throttle = clamp(input?.throttle, -1, 1);
   const steer = clamp(input?.steer, -1, 1);
@@ -34,10 +37,10 @@ export function stepJeepDrive(state, input = {}, dt) {
     } else if (throttle === 0) {
       state.speed = approach(oldSpeed, 0, (JEEP_RULES.drag + Math.abs(oldSpeed) * 0.11) * h);
     } else {
-      const limit = throttle > 0 ? JEEP_RULES.speed : JEEP_RULES.reverse;
+      const limit = throttle > 0 ? top : JEEP_RULES.reverse;
       const target = throttle * limit;
       const taper = 1 - 0.55 * Math.min(1, Math.abs(oldSpeed) / limit);
-      state.speed = approach(oldSpeed, target, JEEP_RULES.acceleration * taper * h);
+      state.speed = approach(oldSpeed, target, acceleration * taper * h);
     }
     const speed = (oldSpeed + state.speed) * 0.5;
     // Bicycle curvature narrows steering at speed. Reversing reverses yaw.

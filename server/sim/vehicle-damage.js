@@ -10,6 +10,7 @@ import { VEHICLE_DAMAGE_RULES, vehicleDef, vehicleWorldToLocal, vehicleMaxHp } f
 import { armorMultiplier, armorEffective, classifyHitZone, EXPOSED_CREW_DAMAGE, isDamageClass, PHYSICAL_DAMAGE_CLASSES } from '../../shared/vehicle-armor.js';
 import { TANK_DISABLE_PARTS, TANK_SUBSYSTEMS, TANK_SUBSYSTEM_IDS, tankArmorHit, tankSubsystemOf } from '../../shared/tank-armor.js';
 import { evVehicleHit, evVehicleDisabled, evVehicleRepaired } from '../protocol/events.js';
+import { upgradeDamageTaken, upgradeScale } from '../../shared/vehicle-upgrades.js';
 
 /** Repaired HP that fixes a broken tank subsystem (an Engineer needs about 1.25 s per subsystem). */
 export const SUBSYSTEM_REPAIR_HP = 100;
@@ -88,7 +89,8 @@ export class VehicleDamageModel {
     const at = point ?? origin;
     const tank = def.armorModel === 'tank' && cls !== 'collision' && at ? tankArmorHit(v, at, { dir: point ? dir : null, cls, weapon }) : null;
     const zone = tank ? tank.facing : point ? hullZoneAt(v, point) : origin ? hullZoneAt(v, origin) : 'side';
-    const multiplier = tank ? tank.multiplier : armorMultiplier(cls, def.armor, zone), dealt = amount * multiplier;
+    // A hull upgrade (reactive armour, a reinforced chassis) scales what the armour lets through.
+    const multiplier = tank ? tank.multiplier : armorMultiplier(cls, def.armor, zone), dealt = amount * multiplier * upgradeDamageTaken(v, cls);
     const sys = tank && dealt > 0 ? this.subsystemHit(v, tank.part, dealt, now) : null;
     if (cls !== 'collision') {
       this.recordHit(v, attacker, dealt, zone, cls, tank ? tank.effective : armorEffective(multiplier),
@@ -198,7 +200,7 @@ export class VehicleDamageModel {
     }
     const cap = max * VEHICLE_DAMAGE_RULES.regenCapFraction;
     if (!v.disabled && v.hp < cap && now - (v.lastDamagedAt ?? -Infinity) >= VEHICLE_DAMAGE_RULES.regenDelaySeconds * 1000) {
-      v.hp = Math.min(cap, v.hp + max * VEHICLE_DAMAGE_RULES.regenFractionPerSecond * dt);
+      v.hp = Math.min(cap, v.hp + max * VEHICLE_DAMAGE_RULES.regenFractionPerSecond * upgradeScale(v, 'repair') * dt);
     }
   }
 
@@ -207,7 +209,8 @@ export class VehicleDamageModel {
   repair(v, amount, by = null) {
     if (!v || !(v.hp > 0) || v.padInactive || !Number.isFinite(amount) || amount <= 0) return 0;
     if (by && v.team != null && this.system.teamOf(by) !== v.team) return 0;
-    const max = vehicleMaxHp(v), added = Math.min(amount, Math.max(0, max - v.hp));
+    // A field-repair upgrade makes every repair point count more.
+    const max = vehicleMaxHp(v), added = Math.min(amount * upgradeScale(v, 'repair'), Math.max(0, max - v.hp));
     if (!(added > 0)) return 0;
     const now = this.system.nowMs();
     if (v.subsystems) {
