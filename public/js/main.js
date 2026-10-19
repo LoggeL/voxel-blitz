@@ -173,7 +173,7 @@ class Game {
           // Conquest HUD (ticker, banners, kill feed, hitmarkers) and objective audio see every event first.
           this.conquestHud?.handleEvent(event, this.myId);
           this.titanfall?.onEvent(event);
-          this.objectiveCues?.handleEvent(event, this.selfRow?.team);
+          this.objectiveCues?.handleEvent(event, this.selfRow?.team, this.myId);
           this.conquestSoundscape?.handleEvent(event);
           if (event.kind === 'vehicle_destroyed' || (event.kind === 'explosion' && event.type === 'vehicle')) {
             this.vehicleDestructionFX?.handleEvent(event);

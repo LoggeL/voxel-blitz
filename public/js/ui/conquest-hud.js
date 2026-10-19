@@ -30,6 +30,7 @@ import { TopBar } from './conquest/top-bar.js';
 import { VehiclePanel } from './conquest/vehicle-panel.js';
 import { ViewStrip, viewStripModel } from './conquest/view-strip.js';
 import { FlightHint } from './conquest/flight-hint.js';
+import { RibbonToast, ribbonToastEntry } from './conquest/ribbons.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 const MARKER_INSETS_DESKTOP = Object.freeze({ top: 96, bottom: 120, left: 48, right: 48 });
@@ -82,6 +83,8 @@ export class ConquestHud {
     this.viewStrip = new ViewStrip(this.root);
     this.flightHint = new FlightHint(this.root);
     this.banners = new Banners(this.root);
+    // RIBBON EARNED toast (server `ribbon` events), under the ticket bar and any banner.
+    this.ribbonToast = new RibbonToast(this.root);
     this.ring = new CaptureRing(this.root);
     this.ticker = new ScoreTicker(this.root);
     this.lock = new LockWarning(this.root);
@@ -358,6 +361,7 @@ export class ConquestHud {
 
     this.topBar.update(ticketModel(cq, selfTeam, now), flagChipModels(cq, selfTeam));
     this.banners.update(now);
+    this.ribbonToast.update(now);
     this.ticker.update(now);
 
     const alive = !!self && self.state !== 'dead' && self.hp > 0;
@@ -538,6 +542,11 @@ export class ConquestHud {
         if (entry) this.ticker.push(entry, now);
         break;
       }
+      case 'ribbon': case 'medal': {
+        const toast = ribbonToastEntry(ev, selfId);
+        if (toast) this.ribbonToast.push(toast, now);
+        break;
+      }
       case 'flag_captured': case 'flag_neutralized': case 'flag_state': case 'ticket_low': {
         const flag = this.cq?.flags?.find(f => f.id === ev.flag);
         const banner = bannerForEvent(ev, selfTeam, { flagOwner: flag?.owner ?? null, flagName: flag?.name ?? null });
@@ -605,6 +614,7 @@ export class ConquestHud {
     this.markers.clear();
     this.ticker.clear();
     this.banners.clear();
+    this.ribbonToast.clear();
     if (this.healTick) this.healTick.hidden = true;
     this._endKey = null;
   }

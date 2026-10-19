@@ -28,12 +28,14 @@ import { createVoices } from './primitives.js';
 import { OBJECTIVE_CUES, objectiveAnnouncerCue, objectiveCueUrl } from '../../../shared/announcer.js';
 import { CONQUEST_RULES, FRONTIER_PLAN } from '../../../shared/conquest-contract.js';
 
-export const OBJECTIVE_STINGERS = Object.freeze(['capture_start', 'neutralized', 'captured', 'lost', 'ticket_low', 'victory', 'defeat']);
+export const OBJECTIVE_STINGERS = Object.freeze(['capture_start', 'neutralized', 'captured', 'lost', 'ticket_low', 'victory', 'defeat', 'ribbon']);
 const STINGER_GAIN = 0.5;
 /** Recorded stinger takes (Conquest bank groups) and their level against the announcer. */
 export const OBJECTIVE_SAMPLE_CUES = Object.freeze({
   capture_start: 'cq.flag.start', neutralized: 'cq.flag.neutralized', captured: 'cq.flag.captured',
   lost: 'cq.flag.lost', ticket_low: 'cq.flag.ticketsLow',
+  // A ribbon earned (own `ribbon` event) reuses the capture-start take; no dedicated sample yet.
+  ribbon: 'cq.flag.start',
 });
 const SAMPLE_GAIN = 1.7;
 export const CAPTURE_LOOP = Object.freeze({ group: 'cq.flag.progress', level: 0.32, fade: 0.25, states: Object.freeze(['capturing', 'neutralizing', 'restoring']) });
@@ -66,8 +68,8 @@ export function flagZonesFrom(metaFlags) {
   return zones;
 }
 
-/** Pure: the stinger an event earns for the local team, or null. */
-export function stingerForEvent(ev, selfTeam) {
+/** Pure: the stinger an event earns for the local team (a ribbon: for the local player), or null. */
+export function stingerForEvent(ev, selfTeam, selfId = null) {
   if (!ev || !selfTeam) return null;
   switch (ev.kind) {
     case 'flag_state':
@@ -81,6 +83,8 @@ export function stingerForEvent(ev, selfTeam) {
       return ev.team === selfTeam ? 'ticket_low' : null;
     case 'match_end':
       return ev.winner == null ? null : ev.winner === selfTeam ? 'victory' : 'defeat';
+    case 'ribbon':
+      return selfId != null && String(ev.id) === String(selfId) ? 'ribbon' : null;
     default:
       return null;
   }
@@ -110,6 +114,8 @@ export const STINGER_SCORES = Object.freeze({
   noise: [[0.56, 'highpass', 2500, 7000, 0.05, 0.9]] },
   defeat: { notes: [[0, 'sawtooth', N.A4, null, 0.12, 0.02, 0.32], [0.3, 'sawtooth', N.E4, null, 0.12, 0.02, 0.32],
     [0.62, 'triangle', N.C4, N.A3, 0.22, 0.03, 1.3], [0.62, 'triangle', N.E4, N.C4, 0.16, 0.03, 1.3], [0.62, 'sine', 55, 40, 0.3, 0.01, 1.2]] },
+  ribbon: { notes: [[0, 'triangle', N.G4, null, 0.14, 0.004, 0.14], [0.08, 'triangle', N.C5, null, 0.14, 0.004, 0.16],
+    [0.16, 'triangle', N.E5, null, 0.16, 0.004, 0.34]] },
 });
 
 /**
@@ -302,11 +308,11 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
         if (key !== endKey) { endKey = key; this.handleEvent({ kind: 'match_end', winner: match.winner ?? null }, selfTeam); }
       } else if (match?.phase && match.phase !== 'post') endKey = null;
     },
-    handleEvent(ev, selfTeam) {
+    handleEvent(ev, selfTeam, selfId = null) {
       if (!ev || disposed) return null;
       load();
       const ownerBefore = typeof ev.flag === 'string' ? owners.get(ev.flag) ?? null : null;
-      let id = stingerForEvent(ev, selfTeam);
+      let id = stingerForEvent(ev, selfTeam, selfId);
       let cue = ev.kind === 'match_end' ? matchEndCue(ev.winner, selfTeam) : objectiveAnnouncerCue(ev, selfTeam, ownerBefore);
       if (id === 'capture_start' && ((selfKnown && !insideFlagZone(ev.flag, selfPos, zones))
         || repeatBlocked(`start:${ev.flag}`, CAPTURE_START_REPEAT_MS))) id = null;

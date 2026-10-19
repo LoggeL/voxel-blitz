@@ -1,0 +1,135 @@
+/* Conquest ribbons, medals and the result debrief (docs/conquest.md "Ribbons and medals").
+   Design docs/design/conquest/ribbons/: toast variant A "service ribbon bar", result variant A "three columns". */
+
+/* ------------------------------------------------------------ RIBBON EARNED toast */
+/* Under the ticket bar in the banner lane; below a flag banner while one shows; the view strip steps below both. */
+.cq-ribbon {
+  --cq-ribbon-top: max(96px, calc(env(safe-area-inset-top) + 90px));
+  position: absolute; top: var(--cq-ribbon-top); left: 50%; transform: translateX(-50%);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 0 14px;
+  width: 372px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 9px 14px 10px 12px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(12, 20, 27, 0.95), rgba(9, 15, 20, 0.9)); border: 1px solid var(--cq-line);
+  border-left: 3px solid var(--cq-contested); border-radius: 4px; box-shadow: 0 4px 18px #0008, inset 0 1px 0 #ffffff0d;
+}
+/* +76 px clears the banner also while its entrance scales it up (1.15 → 1). */
+.vb-conquest-hud:has(.cq-banner:not([hidden])) .cq-ribbon { top: calc(var(--cq-ribbon-top) + 76px); }
+.vb-conquest-hud:has(.cq-ribbon:not([hidden])) .cq-view { top: calc(max(14px, env(safe-area-inset-top)) + 156px); }
+.vb-conquest-hud:has(.cq-ribbon:not([hidden])):has(.cq-banner:not([hidden])) .cq-view { top: calc(max(14px, env(safe-area-inset-top)) + 232px); }
+.vb-conquest-hud:has(.cq-deploy:not([hidden])) .cq-ribbon { visibility: hidden; }
+body:has(#scoreboard.is-open[data-mode="conquest"]) .vb-conquest-hud .cq-ribbon { visibility: hidden; }
+.cq-ribbon.is-in { animation: cq-ribbon-in 380ms cubic-bezier(.2, .9, .3, 1.15); }
+@keyframes cq-ribbon-in { from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(1.04); } to { opacity: 1; transform: translateX(-50%); } }
+.cq-ribbon-slot { display: grid; place-items: center; }
+.cq-ribbon .cq-ribbon-bar { width: 66px; height: 22px; }
+.cq-ribbon .cq-ribbon-glyph { width: 16px; height: 16px; }
+.cq-ribbon-text { display: grid; gap: 1px; min-width: 0; }
+.cq-ribbon-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: 2.4px; color: var(--cq-contested); }
+.cq-ribbon-title { font-size: 20px; line-height: 1.05; font-weight: 800; letter-spacing: 1.4px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px #000a; }
+.cq-ribbon-detail { font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: var(--cq-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cq-ribbon-pts { font-size: 22px; font-weight: 800; color: #ffe08a; font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px #000; }
+.cq-ribbon-count { font-size: 15px; font-weight: 800; color: var(--cq-sub); }
+.cq-ribbon-count:empty { display: none; }
+/* The glint sweeps the bottom edge once while the toast holds (RIBBON_TOAST_MS 3.2 s). */
+.cq-ribbon-glint { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, transparent, #ffd16699 40%, #fff3c4 50%, #ffd16699 60%, transparent) no-repeat; background-size: 40% 100%; animation: cq-ribbon-glint 3.2s linear both; }
+@keyframes cq-ribbon-glint { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+
+/* Touch: smaller, in the banner lane under the card row (portrait) or beside the top bar (landscape). */
+.vb-touch-mode .cq-ribbon { --cq-ribbon-top: calc(max(10px, env(safe-area-inset-top)) + 228px); width: 300px; gap: 0 10px; padding: 6px 10px 7px 9px; }
+.vb-touch-mode .vb-conquest-hud:has(.cq-banner:not([hidden])) .cq-ribbon { top: calc(var(--cq-ribbon-top) + 58px); }
+.vb-touch-mode .cq-ribbon .cq-ribbon-bar { width: 48px; height: 16px; }
+.vb-touch-mode .cq-ribbon-eyebrow { font-size: 8px; letter-spacing: 1.6px; }
+.vb-touch-mode .cq-ribbon-title { font-size: 15px; letter-spacing: 0.8px; }
+.vb-touch-mode .cq-ribbon-detail { font-size: 9px; letter-spacing: 1px; }
+.vb-touch-mode .cq-ribbon-pts { font-size: 17px; }
+.vb-touch-mode .cq-ribbon-count { font-size: 12px; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .vb-touch-mode .cq-ribbon { --cq-ribbon-top: calc(max(10px, env(safe-area-inset-top)) + 52px); }
+  .vb-touch-mode .vb-conquest-hud:has(.cq-banner:not([hidden])) .cq-ribbon { top: calc(var(--cq-ribbon-top) + 58px); }
+}
+@media (prefers-reduced-motion: reduce) { .cq-ribbon.is-in { animation: none; } .cq-ribbon-glint { display: none; } }
+
+/* ------------------------------------------------------------ ribbon bar and medal */
+/* A service ribbon bar: mirrored stripes (--ribbon from ribbons.js), a fabric weave, a thin frame and the glyph. */
+.cq-ribbon-bar {
+  position: relative; display: inline-grid; place-items: center; width: 58px; height: 18px; box-sizing: border-box; flex: 0 0 auto;
+  background: repeating-linear-gradient(0deg, #0000 0 1px, #0000001c 1px 2px), var(--ribbon, #26323a);
+  border: 1px solid #00000080; border-radius: 1px; box-shadow: inset 0 1px 0 #ffffff40, inset 0 -1px 0 #0000004d, 0 1px 3px #0008;
+}
+.cq-ribbon-bar[data-earned="false"] { background: repeating-linear-gradient(135deg, #ffffff0a 0 4px, #0000 4px 8px); border: 1px dashed #8ca6ba55; box-shadow: none; }
+.cq-ribbon-glyph { width: 13px; height: 13px; flex: 0 0 auto; color: #fff; filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 2px #000c); }
+.cq-ribbon-bar[data-earned="false"] .cq-ribbon-glyph { color: #8ca6ba66; filter: none; }
+/* A medal: the suspension ribbon over a round disc in its metal (bronze by default). */
+.cq-medal { position: relative; display: inline-grid; justify-items: center; width: 34px; flex: 0 0 auto; }
+.cq-medal-strap { width: 16px; height: 13px; background: var(--ribbon, #26323a); border: 1px solid #0008; border-bottom: 0; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); }
+.cq-medal-disc { display: grid; place-items: center; width: 30px; height: 30px; margin-top: -2px; border-radius: 50%; box-sizing: border-box;
+  border: 2px solid var(--metal-rim, #8a5a2b); background: radial-gradient(circle at 35% 30%, var(--metal-hi, #f0b779), var(--metal, #b06f35) 55%, var(--metal-lo, #6b3d17));
+  box-shadow: 0 2px 6px #000a, inset 0 0 0 2px #0003; }
+.cq-medal[data-metal="gold"] { --metal: #d8a637; --metal-hi: #ffe59a; --metal-lo: #8a6312; --metal-rim: #a87b1c; }
+.cq-medal[data-metal="silver"] { --metal: #a9b4bc; --metal-hi: #f2f6f8; --metal-lo: #5d686f; --metal-rim: #7c878e; }
+.cq-medal-glyph { width: 15px; height: 15px; color: #2a1a08cc; filter: drop-shadow(0 1px 0 #ffffff55); }
+.cq-medal[data-metal="silver"] .cq-medal-glyph { color: #1e262bcc; }
+
+/* ------------------------------------------------------------ result debrief */
+.vb-result-debrief { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 12px; margin: 0 0 10px; flex: 0 0 auto; }
+.vb-result-debrief[hidden], .vb-result-debrief [hidden] { display: none !important; }
+.vb-debrief-panel { min-width: 0; padding: 8px 10px 10px; background: #0b1319c0; border: 1px solid #8ca6ba33; border-radius: 4px; }
+.vb-debrief-title { margin: 0 0 7px; padding-bottom: 5px; border-bottom: 1px solid #8ca6ba26; font-size: 10px; font-weight: 800; letter-spacing: 2px; color: #9fb0bd; }
+.vb-debrief-eyebrow { font-size: 9px; font-weight: 800; letter-spacing: 1.8px; color: #ffd166; }
+.vb-debrief-name { display: block; font-size: 15px; letter-spacing: 0.6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vb-debrief-value { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #9fb0bd; white-space: nowrap; }
+.vb-debrief-mvp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.vb-debrief-mvp-card, .vb-debrief-squad { display: grid; align-content: start; min-width: 0; padding: 6px 9px; background: #ffffff06; border-left: 3px solid #9fb0bd; border-radius: 3px; }
+:is(.vb-debrief-mvp-card, .vb-debrief-squad)[data-rel="own"] { border-left-color: #4cc3ff; }
+:is(.vb-debrief-mvp-card, .vb-debrief-squad)[data-rel="enemy"] { border-left-color: #ff8a3d; }
+:is(.vb-debrief-mvp-card, .vb-debrief-squad)[data-rel="own"] .vb-debrief-eyebrow { color: #4cc3ff; }
+:is(.vb-debrief-mvp-card, .vb-debrief-squad)[data-rel="enemy"] .vb-debrief-eyebrow { color: #ff8a3d; }
+.vb-debrief-squad { margin-top: 6px; }
+.vb-debrief-squad-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 8px; }
+.vb-debrief-squad-head .vb-debrief-eyebrow { grid-column: 1 / -1; }
+.vb-debrief-squad-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; margin: 4px 0 0; padding: 4px 0 0; border-top: 1px solid #8ca6ba22; list-style: none; }
+.vb-debrief-squad-list li { display: flex; justify-content: space-between; gap: 8px; min-width: 0; font: 11px/1.5 var(--font-mono); color: #c1cdd3; }
+.vb-debrief-squad-list li span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vb-debrief-squad-list li b { font-weight: 700; color: #eef3f6; font-variant-numeric: tabular-nums; }
+.vb-debrief-bars { display: grid; gap: 5px; }
+.vb-debrief-bar { display: grid; grid-template-columns: 76px minmax(0, 1fr) 48px; align-items: center; gap: 8px; }
+.vb-debrief-bar-label { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: #c1cdd3; }
+.vb-debrief-bar-track { height: 9px; background: #ffffff10; border-radius: 2px; overflow: hidden; }
+.vb-debrief-bar-track i { display: block; width: var(--share, 0%); height: 100%; background: linear-gradient(90deg, #c99a2e, #ffd166); border-radius: 2px; }
+.vb-debrief-bar-value { font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
+.vb-debrief-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; padding-top: 6px; border-top: 1px solid #8ca6ba26; }
+.vb-debrief-total span { font-size: 12px; font-weight: 800; letter-spacing: 2.4px; color: #c1cdd3; }
+.vb-debrief-total b { font-size: 22px; color: #ffd166; font-variant-numeric: tabular-nums; }
+.vb-debrief-ribbons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.vb-debrief-ribbon { display: grid; justify-items: center; gap: 1px; min-width: 0; }
+.vb-debrief-ribbon .cq-ribbon-bar { width: 100%; max-width: 62px; height: 18px; }
+.vb-debrief-ribbon-label { max-width: 100%; font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: #c1cdd3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vb-debrief-ribbon[data-earned="false"] .vb-debrief-ribbon-label { color: #8ca6ba66; }
+.vb-debrief-ribbon-count { min-height: 12px; font-size: 10px; line-height: 12px; color: #ffe08a; }
+.vb-debrief-medals { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; min-height: 30px; margin-top: 7px; padding-top: 6px; border-top: 1px solid #8ca6ba22; }
+.vb-debrief-medal { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #eef3f6; }
+.vb-debrief-empty { font: 10px/1.4 var(--font-mono); color: #8da4b0; letter-spacing: 0.4px; }
+.vb-debrief-career { margin-top: 7px; padding-top: 6px; border-top: 1px solid #8ca6ba22; }
+.vb-debrief-career-head .vb-debrief-eyebrow { color: #9fb0bd; }
+.vb-debrief-career[data-state="level-up"] .vb-debrief-career-head .vb-debrief-eyebrow { color: #7ed46a; }
+.vb-debrief-career-levels { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-top: 4px; }
+.vb-debrief-career-levels > b { font-size: 13px; letter-spacing: 0.8px; }
+.vb-debrief-xp { position: relative; height: 10px; background: #ffffff10; border: 1px solid #8ca6ba33; border-radius: 2px; overflow: hidden; }
+.vb-debrief-xp i { position: absolute; top: 0; bottom: 0; }
+.vb-debrief-xp-before { left: 0; width: var(--from, 0%); background: linear-gradient(90deg, #1f8fc4, #4cc3ff); }
+.vb-debrief-xp-gained { left: var(--from, 0%); width: calc(var(--to, 0%) - var(--from, 0%)); background: linear-gradient(90deg, #e0a52a, #ffd166); box-shadow: 0 0 8px #ffd16666; }
+.vb-debrief-xp-text { margin-top: 4px; font: 11px/1.4 var(--font-mono); color: #c1cdd3; }
+/* The Conquest card scrolls as one column of sections (graph, debrief, rosters); the vote footer stays pinned at its bottom. */
+.vb-match-result[data-mode="conquest"] .vb-match-result-panel { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #52646d #10191f; }
+.vb-match-result[data-mode="conquest"] .vb-match-result-panel > * { flex-shrink: 0; }
+.vb-match-result[data-mode="conquest"][data-large-roster="true"] #match-result-scoreboard { flex: 0 0 auto; overflow: visible; }
+.vb-match-result[data-mode="conquest"][data-large-roster="true"] #match-result-scores { height: auto; }
+.vb-match-result[data-mode="conquest"] .vb-match-result-footer { position: sticky; bottom: -28px; z-index: 1; padding-bottom: 6px; background: linear-gradient(180deg, #0b1218f0, #090f13 30%); }
+.vb-match-result[data-mode="conquest"][data-large-roster="true"] .vb-match-result-footer { bottom: -18px; }
+@media (max-width: 1100px) { .vb-result-debrief { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .vb-debrief-awards { grid-column: 1 / -1; } }
+@media (max-width: 700px), (max-height: 500px) {
+  .vb-match-result[data-mode="conquest"] .vb-match-result-footer, .vb-match-result[data-mode="conquest"][data-large-roster="true"] .vb-match-result-footer { bottom: -12px; }
+  /* The pause button sits over the card's top left corner: the title starts below it. */
+  .vb-touch-mode .vb-match-result[data-mode="conquest"] .vb-match-result-hero { padding-top: 16px; }
+  .vb-result-debrief { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .vb-debrief-awards { grid-column: auto; }
+}

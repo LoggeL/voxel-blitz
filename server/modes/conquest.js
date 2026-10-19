@@ -8,6 +8,7 @@ import { TicketLedger } from './conquest/tickets.js';
 import { DeploySystem } from './conquest/deploy.js';
 import { SquadRoster } from './conquest/squads.js';
 import { ScoreLedger } from './conquest/score.js';
+import { RibbonTracker } from './conquest/ribbons.js';
 import { BoundsSystem, RESTRICTED_WEAPON } from './conquest/bounds.js';
 import { airspaceFor, airspaceRect } from '../../shared/world/airspace.js';
 import { createConquestRoles } from './conquest/roles.js';
@@ -52,7 +53,9 @@ export class ConquestPolicy extends TdmPolicy {
       rules: this.rules,
       damageTakenScale: (entity, weapon) => this.roles?.damageTakenScale?.(entity, weapon) ?? 1,
       onInfantryHit: (victim, attacker, weapon, amount) => this.roles?.onInfantryHit?.(victim, attacker, weapon, amount),
+      onAward: (id, reason) => { if (reason !== 'ribbon') this.ribbons.onAward(id, reason); },
     });
+    this.ribbons = new RibbonTracker({ ribbon: (id, ribbon, count) => this._payRibbon(id, ribbon, count) });
     this.finalStats = new Map();
     this.roles = createConquestRoles({ policy: this, engine: this.engine, rules: this.rules });
     this._resetObjectives();
@@ -80,6 +83,25 @@ export class ConquestPolicy extends TdmPolicy {
     return { level: next, unlocked, newly };
   }
 
+  /**
+   * Authoritative career progress of a human for the result screen: `xp` is the
+   * profile total (stamped at admission, then pushed by the career service after
+   * every saved reward), `gained` the XP this match earned so far. XP never drops.
+   */
+  setCareerProgress(player, { xp, gained } = {}) {
+    const entity = this._entity(player);
+    if (!entity || entity.bot || !Number.isFinite(xp)) return false;
+    entity.careerXp = Math.max(Number.isFinite(entity.careerXp) ? entity.careerXp : 0, Math.trunc(xp));
+    if (Number.isFinite(gained)) entity.careerMatchXp = Math.max(0, Math.trunc(gained));
+    return true;
+  }
+
+  /** A ribbon (RibbonTracker): pay SCORE_POINTS.ribbon and announce it. */
+  _payRibbon(id, ribbon, count) {
+    const pts = this.award(id, 'ribbon');
+    this._emit('ribbon', { id: String(id), ribbon, count, pts });
+  }
+
   /** Rich flag rows: id, x, y, z, radius, owner, control, state, mover, alpha, bravo, spawns. */
   get flags() { return this.capture.flags; }
   get tickets() { return this.ledger.tickets; }
@@ -98,6 +120,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.bounds.reset(meta, { airArea: this._airArea() });
     this.deploy.clearChoices?.();
     this.score.reset();
+    this.ribbons.reset();
     this.finalStats = new Map();
     this.roles.reset();
     // Stable per match: the bot flex kit of each squad (shared/conquest-kits.js botSquadKit).
@@ -232,6 +255,8 @@ export class ConquestPolicy extends TdmPolicy {
   _finishMatch(winner) {
     if (this.phase !== 'live') return;
     this.ledger.finish(this.now);
+    // Medals from the match's ribbons, decided before the results rows freeze.
+    for (const [id, medal] of this.ribbons.finish(this._players.keys())) this._emit('medal', { id, medal });
     this.finalStats = new Map([...this._players.keys()].map(id => [id, this.resultExtras(id)]));
     this.phase = 'post';
     this.phaseEndsAt = null; // ModeController sets it once the continuation vote passes
@@ -248,6 +273,7 @@ export class ConquestPolicy extends TdmPolicy {
     else this._resetVehicles();
     this._resetObjectives();
     super.reset();
+    for (const entity of this._entities.values()) if (Number.isFinite(entity.careerMatchXp)) entity.careerMatchXp = 0;
     // A rematch re-sends every human's kit unlocks (the client HUD may have been rebuilt).
     for (const entity of this._entities.values()) if (!entity.bot && this._state(entity)) this.setCareerLevel(entity, entity.careerLevel);
   }
@@ -278,6 +304,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.deploy.remove(id);
     this.bounds.clear(id);
     this.score.remove(id);
+    this.ribbons.remove(id);
     if (entity) { this.score.detach(entity); this.roles.onRemove(entity); }
     return true;
   }
@@ -291,6 +318,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.deploy.rename(priorId, id);
     this.bounds.rename(priorId, id);
     this.score.rename(priorId, id);
+    this.ribbons.rename(priorId, id);
     this.roles.rename(priorId, id);
     return true;
   }
@@ -313,6 +341,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.bounds.clear(dead.id);
     for (const row of this.ledger.charge(state.team, this.rules.deathTicketCost)) this._emit('ticket_low', row);
     this.score.onKill(dead, killer, context);
+    this.ribbons.onDeath(dead.id);
     this.roles.onDeath(dead, killer, context);
     // The deploy screen opens now: restate the human's kit unlocks, so a client that
     // missed the join announcement (still loading the map) never shows stale padlocks.
@@ -615,12 +644,25 @@ export class ConquestPolicy extends TdmPolicy {
     return fields;
   }
 
-  /** Per-player extras for the post-match results rows. */
+  /**
+   * Per-player extras for the post-match results rows: cqs, squad, kit, plus
+   * (contract v6) `cqr` ribbons, `cqm` medals, `cqc` score per category and,
+   * for a human with a career, `cxp` [careerXp, xpGainedThisMatch]. The career
+   * pair stays live after the freeze: the match and medal XP land post-match.
+   */
   resultExtras(id) {
     const key = String(id);
-    if (this.phase === 'post' && this.finalStats.has(key)) return this.finalStats.get(key);
+    const career = this._careerExtras(key);
+    if (this.phase === 'post' && this.finalStats.has(key)) return career ? { ...this.finalStats.get(key), ...career } : this.finalStats.get(key);
     if (!this._players.has(key)) return null;
-    return { cqs: this.score.statsRow(key), squad: this.squads.squadOf(key), kit: this.deploy.kitOf(key).kit };
+    return { cqs: this.score.statsRow(key), squad: this.squads.squadOf(key), kit: this.deploy.kitOf(key).kit,
+      cqr: this.ribbons.ribbonRow(key), cqm: this.ribbons.medalRow(key), cqc: this.score.categoryRow(key), ...career };
+  }
+
+  _careerExtras(id) {
+    const entity = this._entities.get(id);
+    if (!entity || entity.bot || !Number.isFinite(entity.careerXp)) return null;
+    return { cxp: [entity.careerXp, Number.isFinite(entity.careerMatchXp) ? entity.careerMatchXp : 0] };
   }
 
   matchSnapshot() {

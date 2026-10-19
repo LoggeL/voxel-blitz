@@ -1,0 +1,98 @@
+{
+  "generated": "2026-10-19T23:35:46.232Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "ribbon",
+        "title": "Ribbon earned · MEDIC RIBBON ×2 toast and ticker",
+        "file": "docs/design/conquest/ribbons/captures/desktop-ribbon.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "ribbon-banner",
+        "title": "Ribbon earned under a capture banner · CONQUEST RIBBON",
+        "file": "docs/design/conquest/ribbons/captures/desktop-ribbon-banner.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result",
+        "title": "Result · ticket graph, MVPs and debrief",
+        "file": "docs/design/conquest/ribbons/captures/desktop-result.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result-medals",
+        "title": "Result · medals and a level-up in the debrief",
+        "file": "docs/design/conquest/ribbons/captures/desktop-result-medals.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "ribbon",
+        "title": "Ribbon earned · MEDIC RIBBON ×2 toast and ticker",
+        "file": "docs/design/conquest/ribbons/captures/portrait-ribbon.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "ribbon-banner",
+        "title": "Ribbon earned under a capture banner · CONQUEST RIBBON",
+        "file": "docs/design/conquest/ribbons/captures/portrait-ribbon-banner.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result",
+        "title": "Result · ticket graph, MVPs and debrief",
+        "file": "docs/design/conquest/ribbons/captures/portrait-result.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result-medals",
+        "title": "Result · medals and a level-up in the debrief",
+        "file": "docs/design/conquest/ribbons/captures/portrait-result-medals.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "ribbon",
+        "title": "Ribbon earned · MEDIC RIBBON ×2 toast and ticker",
+        "file": "docs/design/conquest/ribbons/captures/landscape-ribbon.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "ribbon-banner",
+        "title": "Ribbon earned under a capture banner · CONQUEST RIBBON",
+        "file": "docs/design/conquest/ribbons/captures/landscape-ribbon-banner.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result",
+        "title": "Result · ticket graph, MVPs and debrief",
+        "file": "docs/design/conquest/ribbons/captures/landscape-result.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result-medals",
+        "title": "Result · medals and a level-up in the debrief",
+        "file": "docs/design/conquest/ribbons/captures/landscape-result-medals.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

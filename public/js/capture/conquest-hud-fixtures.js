@@ -436,6 +436,24 @@ export function conquestHudFixtures() {
       match: deployMatch(), dead: true, killer: { name: 'Rourke', weaponName: 'ROCKET POD', distance: 96 },
       selection: { spawn: 'hq', kit: 'engineer', variant: 0, gadget: 1 }, camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
+  // 18f. Ribbon earned: the toast under the ticket bar (second MEDIC RIBBON, +50) with the score ticker.
+  {
+    const self = meAt(C.x - 40, C.z + 30, { hp: 88, cq: { squad: 1, kitId: 'medic' } });
+    out.push(state('ribbon', 'Ribbon earned · MEDIC RIBBON ×2 toast and ticker', { self, players: roster(self), match: baseMatch(),
+      events: [{ kind: 'score', id: 'me', pts: 100, reason: 'revive' }, { kind: 'score', id: 'me', pts: 50, reason: 'ribbon' },
+        { kind: 'ribbon', id: 'me', ribbon: 'medic', count: 2, pts: 50 }],
+      camera: cam(C.x - 40, GROUND + 1.6, C.z + 30, yawTo({ x: C.x - 40, z: C.z + 30 }, C), -0.06) }));
+  }
+  // 18g. A capture banner and a ribbon at once: the toast steps below the banner.
+  {
+    const self = meAt(C.x + 4, C.z + 6);
+    out.push(state('ribbon-banner', 'Ribbon earned under a capture banner · CONQUEST RIBBON', { self, players: roster(self), vehicles: [spottedTank],
+      match: baseMatch({ flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 1, 'alpha', 'idle'),
+        flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')], bleed: { alpha: 0, bravo: 3000 } }),
+      events: [{ kind: 'flag_captured', flag: 'C', team: 'alpha' }, { kind: 'score', id: 'me', pts: 250, reason: 'capture' },
+        { kind: 'score', id: 'me', pts: 50, reason: 'ribbon' }, { kind: 'ribbon', id: 'me', ribbon: 'conquest', count: 1, pts: 50 }],
+      camera: cam(C.x + 4, GROUND + 1.6, C.z + 6, yawTo(C, D) + 0.35) }));
+  }
   // 19. Scoreboard (squads, objective, vehicles, revives).
   {
     const self = meAt(C.x, C.z);
@@ -448,8 +466,20 @@ export function conquestHudFixtures() {
     const graph = Array.from({ length: 61 }, (_, i) => [i * 10_000, Math.max(0, Math.round(300 - i * 2.1 - (i > 30 ? (i - 30) * 1.4 : 0))), Math.max(0, Math.round(300 - i * 2.6 - (i > 40 ? (i - 40) * 3 : 0)))]);
     const match = baseMatch({ phase: 'post', winner: 'alpha', tickets: { alpha: graph.at(-1)[1], bravo: graph.at(-1)[2] } });
     match.conquest.ticketGraph = graph;
-    match.results = roster(self).map(p => ({ id: p.id, name: p.name, team: p.team, kills: p.kills, deaths: p.deaths, score: p.score, cqs: p.cqs, squad: p.cq[1], bot: p.id !== 'me' }));
-    out.push(state('result', 'Result · ticket graph and MVPs', { self, players: roster(self), match, screen: 'result', camera: cam(C.x, GROUND + 1.6, C.z, 0) }));
+    // Debrief rows (contract v6): ribbons cqr, medals cqm, score per category cqc, career cxp [xp, gained].
+    const debrief = {
+      me: { cqr: [1, 0, 0, 1, 0, 0, 0, 0], cqm: [], cqc: [390, 400, 0, 50, 100], cxp: [3240, 640] },
+      sq1: { cqr: [0, 0, 0, 0, 0, 1, 0, 0], cqc: [310, 350, 0, 150, 50] },
+      en1: { cqr: [1, 0, 0, 1, 0, 0, 0, 0], cqc: [690, 400, 0, 100, 100] },
+    };
+    const results = extra => roster(self).map(p => ({ id: p.id, name: p.name, team: p.team, kills: p.kills, deaths: p.deaths, score: p.score, cqs: p.cqs, squad: p.cq[1], bot: p.id !== 'me',
+      ...debrief[p.id], ...extra[p.id] }));
+    match.results = results({});
+    out.push(state('result', 'Result · ticket graph, MVPs and debrief', { self, players: roster(self), match, screen: 'result', camera: cam(C.x, GROUND + 1.6, C.z, 0) }));
+    // The same match for a top scorer: two SPREE ribbons earn the VALOR MEDAL, five ribbons the SERVICE MEDAL, and the XP crosses LV 6.
+    const medals = { ...match, results: results({ me: { kills: 11, score: 1690, cqs: [400, 1, 6, 2], cqr: [2, 1, 0, 1, 1, 0, 0, 0], cqm: [0, 8],
+      cqc: [640, 400, 0, 400, 250], cxp: [2620, 760] } }) };
+    out.push(state('result-medals', 'Result · medals and a level-up in the debrief', { self, players: roster(self), match: medals, screen: 'result', camera: cam(C.x, GROUND + 1.6, C.z, 0) }));
   }
   return out;
 }
