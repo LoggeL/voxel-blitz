@@ -352,6 +352,10 @@ export class CombatFeedback {
           fluid: this.isFluidAt(ev.x, ev.y, ev.z) });
         break;
       }
+      case 'recon_gadget':
+        // A laid Recon SPAWN BEACON chirps where it stands (a sensor pings on its settle blast).
+        if (ev.gadget === 'beacon' && ev.state === 'placed' && Array.isArray(ev.pos)) this.sfx.reconGadget?.(ev.pos, 'beacon');
+        break;
       case 'glaiveStock': {
         // One owner's embedded RIPTIDE discs and fabrication queue.
         const own = ev.id === myId;

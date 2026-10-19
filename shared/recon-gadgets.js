@@ -65,12 +65,12 @@ export const RECON_GADGET_RULES = Object.freeze({
   /** Bots: an enemy beacon or sensor in sight this close is shot at. */
   botShootRange: 45,
   /** Bots: a Recon lays its beacon between these distances (m, flat) from the flag it assaults. */
-  botBeaconMin: 30,
-  botBeaconMax: 80,
+  botBeaconMin: 25,
+  botBeaconMax: 150,
   /** ... with no living enemy closer than this. */
-  botBeaconSafe: 40,
-  /** Bots: a sensor is thrown at a flag being assaulted from this close (m, flat to the flag centre). */
-  botSensorMax: 34,
+  botBeaconSafe: 30,
+  /** Bots: a sensor is thrown at the flag a bot attacks, stages for or defends from this close (m, flat to the flag centre). */
+  botSensorMax: 60,
   botSensorMin: 8,
   /** A bot considers its gadgets at most this often. */
   botCheckMs: 2500,

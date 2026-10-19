@@ -16,8 +16,9 @@ import {
 import * as vehicleDefs from '../../../shared/vehicle-defs.js';
 import { vehicleHijackable } from '../../../shared/vehicle-seats.js';
 import {
-  KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
+  KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_POUCH_GADGETS, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
 } from '../../../shared/conquest-kits.js';
+import { RECON_GADGET_RULES } from '../../../shared/recon-gadgets.js';
 import { WEAPON_NAMES } from './hud-support.js';
 import { relativeTeam, squadName, teamDisplayName } from './conquest/scoring.js';
 import {
@@ -904,14 +905,48 @@ export function unitMarkerModels({ self, players = [], vehicles = [], selfTeam, 
 /* ----------------------------------------------------------------- minimap */
 
 /**
+ * Recon gadget map items (match.conquest.recon, docs/conquest.md "Recon
+ * gadgets"): own-team spawn beacons and motion sensors (with their sensing
+ * ring), enemy beacons within enemyRevealRange of the viewer or spotted by
+ * its team. Sensed enemies are added by mapItems.
+ */
+export function reconMapItems({ cq, self, selfTeam, players = [] } = {}) {
+  const recon = cq?.recon;
+  if (!recon || !selfTeam) return [];
+  const items = [];
+  const squadOf = new Map((players || []).filter(Boolean).map(p => [String(p.id), decodeConquestPlayer(p)?.squad | 0]));
+  const squad = decodeConquestPlayer(self)?.squad | 0;
+  const near = (g, range) => self && alive(self) && Number.isFinite(self.x) && Math.hypot(g.x - self.x, g.z - self.z) <= range;
+  for (const b of recon.beacons || []) {
+    if (!Number.isFinite(b?.x)) continue;
+    if (b.team === selfTeam) {
+      const mine = String(b.ownerId) === String(self?.id ?? '');
+      const mate = mine || (squad > 0 && squadOf.get(String(b.ownerId)) === squad);
+      items.push({ kind: 'beacon', id: String(b.id), rel: mate ? 'squad' : 'own', own: mine, x: b.x, z: b.z,
+        cooldownMs: finite(b.cooldownMs), hp: finite(b.hp) });
+    } else if (b.spottedBy === selfTeam || near(b, RECON_GADGET_RULES.beacon.enemyRevealRange)) {
+      items.push({ kind: 'beacon', id: String(b.id), rel: 'spotted', x: b.x, z: b.z });
+    }
+  }
+  for (const g of recon.sensors || []) {
+    if (!Number.isFinite(g?.x) || g.team !== selfTeam) continue;
+    items.push({ kind: 'sensor', id: String(g.id), rel: 'own', own: String(g.ownerId) === String(self?.id ?? ''),
+      x: g.x, z: g.z, radius: RECON_GADGET_RULES.sensor.radius, leftMs: finite(g.leftMs) });
+  }
+  return items;
+}
+
+/**
  * Map items in world coordinates with team-relative tones. Enemies appear
- * only while spotted; teammates and own-team hulls always.
+ * only while spotted or revealed by an own motion sensor; teammates and
+ * own-team hulls always.
  */
 export function mapItems({ cq, self, players = [], vehicles = [], selfTeam }) {
   if (!cq) return [];
   const items = [];
   const selfId = String(self?.id ?? '');
   const squad = decodeConquestPlayer(self)?.squad | 0;
+  const sensed = new Set(selfTeam ? cq.recon?.sensed?.[selfTeam] ?? [] : []);
   for (const [team, base] of Object.entries(cq.bases || {})) {
     if (!Number.isFinite(base?.x)) continue;
     items.push({ kind: 'hq', team, rel: relativeTeam(team, selfTeam), x: base.x, z: base.z, radius: finite(base.radius, 56), label: 'HQ', name: base.name || `${teamDisplayName(team)} HQ` });
@@ -939,8 +974,12 @@ export function mapItems({ cq, self, players = [], vehicles = [], selfTeam }) {
       items.push({ kind: mate ? 'squad' : 'team', id: String(p.id), rel: mate ? 'squad' : 'own', x: p.x, z: p.z, yaw: finite(p.yaw), name: p.name || '' });
     } else if (p.team && info?.spotted && alive(p) && !p.vehicleId) {
       items.push({ kind: 'spotted', id: String(p.id), rel: 'spotted', x: p.x, z: p.z });
+    } else if (p.team && sensed.has(String(p.id)) && alive(p) && !p.vehicleId) {
+      // Revealed by an own motion sensor: a pulsing dot, not a spot mark.
+      items.push({ kind: 'sensed', id: String(p.id), rel: 'spotted', x: p.x, z: p.z });
     }
   }
+  items.push(...reconMapItems({ cq, self, selfTeam, players }));
   if (self && alive(self) && Number.isFinite(self.x)) {
     // The Medic's heal aura reach around itself (KIT_ROLE_RULES.healRadius).
     if (KITS[decodeConquestPlayer(self)?.kit]?.aura === 'heal' && !self.vehicleId) items.push({ kind: 'aura', id: `${selfId}:aura`, rel: 'squad', x: self.x, z: self.z, radius: KIT_ROLE_RULES.healRadius });
@@ -973,6 +1012,23 @@ export function hijackBanner(ev, selfTeam, selfId) {
   if (selfId != null && String(ev.by) === String(selfId)) return { key, tone: 'own', title: `${name} HIJACKED`, detail: 'IT FIGHTS FOR YOUR TEAM NOW', priority: 5 };
   if (ev.to === selfTeam) return { key, tone: 'own', title: `ENEMY ${name} HIJACKED`, detail: 'A TEAMMATE TOOK IT', priority: 2 };
   if (ev.from === selfTeam) return { key, tone: 'enemy', title: `${name} HIJACKED`, detail: 'THE ENEMY TOOK AN EMPTY HULL', priority: 3 };
+  return null;
+}
+
+/** Banner for an own Recon gadget event (recon_gadget): beacon laid or lost, sensor live. */
+export function reconGadgetBanner(ev, selfId) {
+  if (ev?.kind !== 'recon_gadget' || selfId == null || String(ev.owner) !== String(selfId)) return null;
+  const key = `rg:${ev.id}:${ev.state}`;
+  if (ev.gadget === 'beacon') {
+    if (ev.state === 'placed') return { key, tone: 'own', title: 'SPAWN BEACON PLACED', detail: 'YOUR SQUAD CAN DEPLOY ON IT', priority: 2 };
+    if (ev.state === 'destroyed') return { key, tone: 'enemy', title: 'SPAWN BEACON DESTROYED', detail: 'REDEPLOY AS RECON FOR A NEW ONE', priority: 3 };
+    return null;
+  }
+  if (ev.gadget === 'sensor' && ev.state === 'placed') {
+    const r = RECON_GADGET_RULES.sensor;
+    return { key, tone: 'own', title: 'MOTION SENSOR ACTIVE', detail: `${r.radius} M · ${Math.round(r.lifeMs / 1000)} S`, priority: 1 };
+  }
+  if (ev.gadget === 'sensor' && ev.state === 'destroyed') return { key, tone: 'enemy', title: 'MOTION SENSOR DESTROYED', detail: '', priority: 1 };
   return null;
 }
 
@@ -1071,6 +1127,8 @@ export const DEPLOY_REFUSED_TEXT = Object.freeze({
   invalid: 'THAT SPAWN IS NOT AVAILABLE', contested: 'FLAG IS CONTESTED OR BEING NEUTRALIZED', enemy: 'ENEMIES IN THE ZONE',
   busy: 'TARGET IS BUSY', cooldown: 'SQUAD SPAWN COOLING DOWN', seat: 'NO FREE SEAT', locked: 'CLASS LOCKED',
 });
+/** Refusals of a Recon spawn beacon option. */
+export const BEACON_REFUSED_TEXT = Object.freeze({ cooldown: 'BEACON COOLING DOWN', enemy: 'ENEMIES NEAR THE BEACON', busy: 'NO ROOM AT THE BEACON' });
 /** Refusal text; a `locked` refusal names the level that opens the kit ('CLASS LOCKED · LV 5'). */
 export function deployRefusedText(reason, level = null) {
   const base = DEPLOY_REFUSED_TEXT[reason] || String(reason || 'invalid').toUpperCase();
@@ -1131,6 +1189,8 @@ export function killerCard(ev, selfId, players = []) {
 /* ------------------------------------------------------------------ deploy */
 
 const KIT_WEAPON_LABEL = id => WEAPON_NAMES[id] || String(id || '').toUpperCase();
+/** A gadget's name: pouch gadgets (the Recon's SPAWN BEACON / MOTION SENSOR) by their label, weapons by the weapon name. */
+const gadgetLabel = id => (KIT_POUCH_GADGETS[id] ? KIT_GADGET_LABELS[id]?.name : null) ?? KIT_WEAPON_LABEL(id);
 /** Gadget index valid for a kit: 1 only where the kit offers a second gadget. */
 export const kitGadgetIndex = (kit, gadget) => (gadget === 1 && (KITS[kit]?.gadgets?.length ?? 0) > 1 ? 1 : 0);
 /**
@@ -1145,7 +1205,7 @@ export function kitCards(selectedKit, variant = 0, gadget = 0, { unlocked = null
     const chosen = id === selectedKit ? kitGadgetIndex(id, gadget) : 0;
     const gadgets = (kit.gadgets ?? []).length > 1 ? kit.gadgets.map((weapon, index) => ({ index, weapon,
       role: KIT_GADGET_LABELS[weapon]?.role ?? '', hint: KIT_GADGET_LABELS[weapon]?.hint ?? '',
-      label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === chosen })) : [];
+      label: gadgetLabel(weapon), selected: id === selectedKit && index === chosen })) : [];
     const gadgetId = kit.gadgets?.[chosen] ?? kit.gadget;
     const unlockLevel = kitUnlockLevel(id);
     const isOpen = open.has(id);
@@ -1157,13 +1217,14 @@ export function kitCards(selectedKit, variant = 0, gadget = 0, { unlocked = null
       abilityId: kit.ability, hint: kitAbilityHint(id, CONQUEST_RULES), selected: id === selectedKit,
       row: unlockLevel > 1 ? 'unlock' : 'base', unlockLevel, unlocked: isOpen, lockText: isOpen ? '' : `LV ${unlockLevel}`, progress,
       primaries: kit.primaries.map((weapon, index) => ({ index, weapon, label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === (variant | 0) })),
-      gadget: gadgetId ? KIT_WEAPON_LABEL(gadgetId) : null, gadgetId: gadgetId ?? null, gadgets,
+      gadget: gadgetId ? gadgetLabel(gadgetId) : null, gadgetId: gadgetId ?? null, gadgets,
       grenades: Object.entries(kit.grenades).map(([type, count]) => `${count}× ${GRENADE_LABEL[type] || type.toUpperCase()}`) };
   });
 }
 
 /** Grenade names as the HUD shows them (the limpet charge is the CLAYMORE). */
-const GRENADE_LABEL = Object.freeze({ frag: 'FRAG', limpet: 'CLAYMORE', pulse: 'PULSE', molotov: 'MOLOTOV', smoke: 'SMOKE', atmine: 'AT MINE' });
+const GRENADE_LABEL = Object.freeze({ frag: 'FRAG', limpet: 'CLAYMORE', pulse: 'PULSE', molotov: 'MOLOTOV', smoke: 'SMOKE', atmine: 'AT MINE',
+  beacon: 'SPAWN BEACON', sensor: 'MOTION SENSOR' });
 
 /** Nearest living, on-foot friendly Medic (revive ability) to a point: {id, name, distance} or null. */
 export function nearestMedic(players = [], self) {
@@ -1195,6 +1256,13 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
     let label, detail, takeoverNames = null;
     if (option.kind === 'hq') { label = `${teamDisplayName(team)} HQ`; detail = cq.bases?.[team]?.name || 'HEADQUARTERS'; }
     else if (option.kind === 'flag') { const f = cq.flags.find(fl => fl.id === option.id); label = `FLAG ${option.id}`; detail = f?.name?.toUpperCase() || ''; }
+    else if (option.kind === 'beacon') {
+      // A squad Recon's SPAWN BEACON: whose it is, and when it opens again.
+      label = 'SPAWN BEACON';
+      const owner = String(names.get(option.ownerId) || 'RECON').toUpperCase();
+      detail = option.reason === 'cooldown' && option.cooldownMs > 0 ? `${owner} · READY IN ${Math.ceil(option.cooldownMs / 1000)} S`
+        : option.reason === 'enemy' ? `${owner} · ENEMIES NEAR THE BEACON` : `${owner} · SQUAD BEACON`;
+    }
     else if (option.kind === 'squad') {
       label = String(names.get(option.id) || 'SQUADMATE').toUpperCase();
       // A mate in an aircraft seats you in it (a free seat, else a bot's).
@@ -1212,7 +1280,9 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
     return { ...option, label, detail, x: option.x ?? base?.x ?? null, z: option.z ?? base?.z ?? null,
       ...(takeoverNames ? { takeoverNames, seatChoices: topology(option.type).map(seat => seat.id)
         .filter(id => option.seats?.includes(id) || option.takeover.includes(id)) } : {}),
-      reasonText: option.reason ? DEPLOY_REFUSED_TEXT[option.reason] || option.reason.toUpperCase() : '' };
+      // A refused beacon row names its owner and the countdown (detail); other rows the refusal.
+      reasonText: !option.reason ? '' : option.kind === 'beacon' ? detail
+        : DEPLOY_REFUSED_TEXT[option.reason] || option.reason.toUpperCase() };
   });
   const parsed = typeof selection?.spawn === 'string' ? parseSpawnChoice(selection.spawn) : null;
   const key = parsed ? (parsed.kind === 'hq' ? 'hq' : `${parsed.kind}:${parsed.id}`) : null;
@@ -1229,13 +1299,14 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
   const down = info?.down === true;
   return {
     team, teamName: teamDisplayName(team), options: decorated, spawn, valid: resolved.ok, reason: resolved.reason,
-    reasonText: resolved.ok ? '' : DEPLOY_REFUSED_TEXT[resolved.reason] || '',
+    reasonText: resolved.ok ? '' : (resolved.option?.kind === 'beacon' && BEACON_REFUSED_TEXT[resolved.reason]) || DEPLOY_REFUSED_TEXT[resolved.reason] || '',
     seatId: resolved.seatId, kit, variant, gadget, kits: kitCards(kit, variant, gadget, { unlocked: unlockState.unlocked, career }),
     level: unlockState.level, medic: down ? nearestMedic(players, self) : null,
     waitMs, ready: waitMs === 0 && resolved.ok, countdown: waitMs === null ? '' : waitMs > 0 ? `${(waitMs / 1000).toFixed(1)}` : '',
     timeoutMs: respawnAt !== null && Number.isFinite(nowMs) ? Math.max(0, respawnAt + CONQUEST_RULES.deployTimeoutMs - nowMs) : null,
     refused: refused ? { reason: typeof refused === 'object' ? refused.reason : refused,
-      text: typeof refused === 'object' ? deployRefusedText(refused.reason, refused.level) : deployRefusedText(refused) } : null,
+      text: (resolved.option?.kind === 'beacon' && BEACON_REFUSED_TEXT[typeof refused === 'object' ? refused.reason : refused])
+        || (typeof refused === 'object' ? deployRefusedText(refused.reason, refused.level) : deployRefusedText(refused)) } : null,
     down,
     selectedKey: resolved.option?.spawn ?? 'hq',
     // `gadget` only rides kits that offer a choice, so older servers and the other kits see the old shape.

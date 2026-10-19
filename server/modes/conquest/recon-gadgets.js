@@ -18,6 +18,8 @@ const idOf = value => value && typeof value === 'object' ? String(value.id ?? ''
 const TELEPORT_SPEED = 60;
 /** Blast types that never hurt a gadget (clouds, fire fields, the gadgets themselves). */
 const HARMLESS_BLASTS = new Set(['smoke', 'molotov', 'sensor', 'beacon', 'glaive']);
+/** A sensor whose fuse ran out in the air drops at most this far (voxels) onto a floor. */
+const SENSOR_DROP_MAX = 24;
 
 export class ReconGadgets {
   /** `policy` is the owning ConquestPolicy (clock, teams, entities, engine, award, emit). */
@@ -105,8 +107,16 @@ export class ReconGadgets {
     const own = [...this.sensors.values()].filter(s => s.ownerId === ownerId);
     for (let i = 0; i <= own.length - r.maxPerOwner; i++) this.remove(own[i], 'removed');
     // The grenade's centre rides its collision radius above the floor; the sensor's feet sit on it.
+    // One still in the air when its fuse runs out drops onto the floor below (within SENSOR_DROP_MAX).
     const radius = GRENADE_TYPES.sensor.physics.radius;
-    const sensor = { kind: 'sensor', id: `rs${this._nextId++}`, ownerId, team, x: projectile.x, y: projectile.y - radius,
+    let y = projectile.y - radius;
+    const solidAt = this._solidAt();
+    if (solidAt && !solidAt(Math.floor(projectile.x), Math.floor(y - 0.05), Math.floor(projectile.z))) {
+      for (let cell = Math.floor(y) - 1; cell >= Math.floor(y) - SENSOR_DROP_MAX; cell--) {
+        if (solidAt(Math.floor(projectile.x), cell, Math.floor(projectile.z))) { y = cell + 1; break; }
+      }
+    }
+    const sensor = { kind: 'sensor', id: `rs${this._nextId++}`, ownerId, team, x: projectile.x, y,
       z: projectile.z, hp: r.hp, until: this.now + r.lifeMs };
     this.sensors.set(sensor.id, sensor);
     this._emit(sensor, 'placed');

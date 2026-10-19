@@ -4,7 +4,7 @@ import { disposeObjectTree } from '../engine/dispose.js';
 import { GRENADE_PIN_MS, GRENADE_POWER_STEPS, GRENADE_TYPE_IDS as IDS } from '../../../shared/grenade-rules.js';
 
 /** Placed, never thrown: no pin, a planting motion and the clamp cue (wall claymore, AT MINE). */
-const placedType = type => type === 'limpet' || type === 'atmine';
+const placedType = type => type === 'limpet' || type === 'atmine' || type === 'beacon';
 
 // `arm` is the visible pin pull; the shared rules measure the cook from the same instant.
 export const THROWABLE_TIMING = Object.freeze({
@@ -144,6 +144,18 @@ export class ThrowableHands {
         mesh(model, new THREE.CylinderGeometry(0.05, 0.055, 0.016, 12), dark, [0, 0.031, 0]);
         box(model, dark, [0.03, 0.014, 0.05], [0.1, 0.012, 0]);
         box(model, orange, [0.012, 0.01, 0.012], [-0.06, 0.03, 0.04]);
+      } else if (id === 'beacon') {
+        // Recon SPAWN BEACON: a grey case with a short mast and a cyan lamp.
+        const grey = mat(0x4a535c, { metalness: 0.3 });
+        box(model, grey, [0.11, 0.07, 0.08], [0, 0, 0]);
+        box(model, dark, [0.08, 0.012, 0.004], [0, 0.012, 0.041]);
+        mesh(model, new THREE.CylinderGeometry(0.008, 0.008, 0.16, 6), steel, [0.03, 0.115, 0]);
+        mesh(model, new THREE.SphereGeometry(0.016, 8, 6), cyan, [0.03, 0.2, 0]);
+      } else if (id === 'sensor') {
+        // Recon MOTION SENSOR: a flat puck with a red lens.
+        const grey = mat(0x56606a, { metalness: 0.3 });
+        mesh(model, new THREE.CylinderGeometry(0.06, 0.064, 0.04, 12), grey, [0, 0, 0]);
+        mesh(model, new THREE.CylinderGeometry(0.022, 0.022, 0.012, 10), mat(0xff4b4b, { roughness: 0.3 }), [0, 0.024, 0]);
       } else if (id === 'pulse') {
         mesh(model, new THREE.IcosahedronGeometry(0.081, 1), dark);
         for (let i = 0; i < 3; i++) {
@@ -170,7 +182,7 @@ export class ThrowableHands {
         wick.rotation.z = 0.43;
         buildWickFlame(model);
       }
-      if (id !== 'molotov') {
+      if (id !== 'molotov' && id !== 'beacon' && id !== 'sensor') {
         box(model, steel, [0.040, 0.032, 0.032], [0, 0.083, 0]);
         const lever = box(model, steel, [0.018, 0.10, 0.023], [0.051, 0.045, 0]);
         lever.rotation.z = 0.19;

@@ -35,8 +35,8 @@ export const KIT_POUCH_GADGETS = Object.freeze({
 export const KIT_GADGET_LABELS = Object.freeze({
   rocket: Object.freeze({ role: 'AT', name: 'RX-8 HAVOC', hint: 'DUMB-FIRE ANTI-TANK' }),
   stinger: Object.freeze({ role: 'AA', name: 'AX-9 STINGER', hint: 'LOCK-ON ANTI-AIR' }),
-  beacon: Object.freeze({ role: 'BEACON', name: 'SPAWN BEACON', hint: 'SQUAD SPAWN POINT' }),
-  sensor: Object.freeze({ role: 'SENSOR', name: 'MOTION SENSOR', hint: 'REVEALS MOVING ENEMIES' }),
+  beacon: Object.freeze({ role: 'BCN', name: 'SPAWN BEACON', hint: 'SQUAD SPAWN POINT' }),
+  sensor: Object.freeze({ role: 'MSN', name: 'MOTION SENSOR', hint: 'REVEALS MOVING ENEMIES' }),
 });
 
 /**

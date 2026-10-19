@@ -2066,6 +2066,25 @@ export const sfx = {
     });
   },
 
+  /**
+   * Recon gadget cue (procedural): a laid SPAWN BEACON chirps two rising beeps,
+   * a MOTION SENSOR going live pings once like sonar.
+   */
+  reconGadget(pos, gadget = 'beacon') {
+    const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : null;
+    run('reconGadget', () => {
+      const output = pool.acquire(deferredPos ? { pos: deferredPos, priority: 2 } : null, 0.5);
+      const at = primitives.nowT();
+      if (gadget === 'sensor') {
+        primitives.tone(output, { t0: at, type: 'sine', f0: 1850, f1: 1620, att: 0.002, dec: 0.32, g: 0.07 });
+        primitives.hiss(output, { t0: at, filter: 'bandpass', f: 3200, q: 5, dec: 0.02, g: 0.12 });
+        return;
+      }
+      primitives.tone(output, { t0: at, type: 'sine', f0: 1180, f1: 1180, att: 0.002, dec: 0.07, g: 0.06 });
+      primitives.tone(output, { t0: at + 0.11, type: 'sine', f0: 1570, f1: 1570, att: 0.002, dec: 0.09, g: 0.06 });
+    });
+  },
+
   /** Release: an arm swing whoosh whose weight scales with the charge. */
   grenadeThrow(charge = 0.5, options) {
     const strength = Math.max(0, Math.min(1, Number(charge) || 0));
@@ -2115,6 +2134,8 @@ export const sfx = {
       });
       return;
     }
+    // A MOTION SENSOR settling is no blast: its live ping.
+    if (type === 'sensor') return this.reconGadget(deferredPos, 'sensor');
     if (type === 'smoke') {
       run('smokeRelease', () => {
         const output = pool.acquire({ pos: deferredPos, priority: 2 }, 2.2);

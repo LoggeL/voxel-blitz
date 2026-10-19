@@ -16,6 +16,13 @@ import {
 } from '../shared/recon-gadgets.js';
 import { attachBots } from '../server/bots.js';
 import { AimSteering } from '../server/bot-aim.js';
+import * as THREE from '../public/js/vendor/three.module.js';
+import { ProjectileFX } from '../public/js/weapons/projectiles.js';
+import { ReconGadgetView } from '../public/js/engine/recon-gadget-view.js';
+import { GRENADE_HUD_ICONS, THROWABLE_NAMES } from '../public/js/ui/hud-support.js';
+import { grenadeRoleLine } from '../public/js/ui/grenade-pouch.js';
+import { ICON_PATHS } from '../public/js/ui/conquest/icons.js';
+import { deployModel, kitCards, mapItems, readConquest, reconGadgetBanner } from '../public/js/ui/conquest-hud-state.js';
 
 const BEACON = GRENADE_TYPE_IDS.indexOf('beacon');
 const SENSOR = GRENADE_TYPE_IDS.indexOf('sensor');
@@ -260,6 +267,12 @@ function fixture({ walls = [] } = {}) {
   assert.equal(sensors.length, 1, 'settled into a live sensor at its fuse');
   const sensor = sensors[0];
   assert.ok(Math.abs(sensor.y - 2) < 0.05, `rests on the floor (${sensor.y.toFixed(3)})`);
+  // A fuse that runs out mid-air drops the sensor onto the floor below; the per-owner cap (2) then removes the oldest.
+  assert.equal(policy.reconGadgets.deploySensor({ ownerId: r.id, x: sensor.x + 3, y: 9.5, z: sensor.z }), true);
+  const dropped = [...policy.reconGadgets.sensors.values()].at(-1);
+  assert.ok(Math.abs(dropped.y - 2) < 0.05, `a mid-air sensor drops onto the floor (${dropped.y.toFixed(3)})`);
+  policy.reconGadgets.remove(dropped, 'removed');
+  assert.equal(policy.reconGadgets.sensors.size, 1);
   assert.ok(!f.events.some(e => e.kind === 'explode' && e.type === 'sensor' && e.damage > 0), 'no damage from a sensor');
   assert.equal(f.wire().s.length, 1, 'match.conquest.recon carries the sensor');
 
@@ -380,6 +393,97 @@ function fixture({ walls = [] } = {}) {
   assert.ok(!policy.reconGadgets.sensors.has(laid.id), 'the bot shot the sensor');
   assert.equal(destroyedBy, shooter.id);
   bots.dispose?.();
+}
+
+// ---------------------------------------------------------------- client presentation
+{
+  const f = fixture();
+  const { game, policy, run } = f;
+  const r = f.human('p1_a'), b = f.human('p2_b'), mate = f.human('p3_a');
+  run(TICK_MS);
+  f.place(r, 60, 80, 0); f.place(b, 120, 80); f.place(mate, 50, 90);
+  f.recon(r, 0);
+  const beacon = f.throwOne(r, BEACON, { yaw: 0, pitch: -0.95 });
+  r.grenades[SENSOR] = 1; r.nextThrowAt = 0;
+  f.throwOne(r, SENSOR, { yaw: -Math.PI / 2, pitch: 0.1 }, 0.4);
+  run(S.fuseMs + 300);
+  const sensor = [...policy.reconGadgets.sensors.values()][0];
+  assert.ok(sensor, 'a sensor settled');
+  // An enemy walks inside the sensor's reach and gets revealed.
+  for (let t = 0; t < 900; t += TICK_MS) { Object.assign(b, { x: sensor.x + 6 + t / 1000 * 4.4, z: sensor.z, vx: 0, vz: 0 }); game.step(TICK_MS); }
+  assert.ok(policy.reconGadgets.isSensed(b, 'alpha'));
+  const snap = game.lastSnapshot;
+  const mapMeta = { dimensions: { sx: SX, sy: SY, sz: SZ }, conquest: game.mode.policy.mapMeta?.conquest ?? null };
+  const cq = readConquest(snap.match, mapMeta);
+  const players = snap.players;
+  const row = id => players.find(p => String(p.id) === id);
+  // Own team: the beacon (squad tone for the owner's squad), the sensor with its ring, the sensed enemy.
+  const own = mapItems({ cq, self: row(mate.id), players, vehicles: [], selfTeam: 'alpha' });
+  const ownBeacon = own.find(i => i.kind === 'beacon');
+  assert.ok(ownBeacon && ownBeacon.rel === 'squad' && ownBeacon.id === beacon.id, 'the squad sees its beacon');
+  assert.ok(own.some(i => i.kind === 'sensor' && i.radius === S.radius), 'the sensor and its ring');
+  assert.ok(own.some(i => i.kind === 'sensed' && i.id === b.id), 'the sensed enemy shows on the own map');
+  // Enemy view: no sensed marks of its own team, the enemy beacon only up close or spotted.
+  const far = mapItems({ cq, self: row(b.id), players, vehicles: [], selfTeam: 'bravo' });
+  assert.ok(!far.some(i => i.kind === 'sensor'), 'enemies never see sensors on the map');
+  assert.ok(!far.some(i => i.kind === 'beacon'), 'an enemy far away does not see the beacon');
+  const nearRow = { ...row(b.id), x: beacon.x + 10, z: beacon.z };
+  assert.ok(mapItems({ cq, self: nearRow, players, vehicles: [], selfTeam: 'bravo' }).some(i => i.kind === 'beacon' && i.rel === 'spotted'),
+    `an enemy within ${B.enemyRevealRange} m sees it`);
+
+  // Deploy model: the beacon row for a dead squad mate, and the refusals.
+  game.killPlayer(mate, b, 'rifle', false);
+  run(TICK_MS);
+  const dead = game.lastSnapshot.players.find(p => String(p.id) === mate.id);
+  const model = deployModel({ cq: readConquest(game.lastSnapshot.match, mapMeta), self: dead, players: game.lastSnapshot.players, vehicles: [], nowMs: policy.now,
+    selection: { spawn: `beacon:${beacon.id}`, kit: 'recon', gadget: 1 } });
+  const option = model.options.find(o => o.kind === 'beacon');
+  assert.ok(option && option.ok && option.label === 'SPAWN BEACON' && option.detail.endsWith('SQUAD BEACON'), `beacon row: ${option?.detail}`);
+  assert.equal(model.spawn, `beacon:${beacon.id}`);
+  assert.equal(model.gadget, 1, 'the Recon gadget choice rides the model');
+  assert.deepEqual(model.choice, { spawn: `beacon:${beacon.id}`, kit: 'recon', variant: 0, gadget: 1 });
+  const cooling = deployModel({ cq: { ...cq, recon: { ...cq.recon, beacons: cq.recon.beacons.map(x => ({ ...x, cooldownMs: 4200 })) } },
+    self: dead, players: game.lastSnapshot.players, vehicles: [], nowMs: policy.now });
+  const coolRow = cooling.options.find(o => o.kind === 'beacon');
+  assert.ok(!coolRow.ok && coolRow.reasonText.endsWith('READY IN 5 S'), `cooldown row: ${coolRow.reasonText}`);
+  const card = kitCards('recon', 0, 1).find(c => c.id === 'recon');
+  assert.deepEqual(card.gadgets.map(g => [g.role, g.label, g.selected]), [['BCN', 'SPAWN BEACON', false], ['MSN', 'MOTION SENSOR', true]]);
+  assert.equal(card.gadget, 'MOTION SENSOR');
+
+  // Banners for the owner.
+  assert.equal(reconGadgetBanner({ kind: 'recon_gadget', gadget: 'beacon', state: 'placed', owner: r.id, id: 'x' }, r.id)?.title, 'SPAWN BEACON PLACED');
+  assert.equal(reconGadgetBanner({ kind: 'recon_gadget', gadget: 'beacon', state: 'destroyed', owner: r.id, id: 'x' }, r.id)?.tone, 'enemy');
+  assert.equal(reconGadgetBanner({ kind: 'recon_gadget', gadget: 'beacon', state: 'placed', owner: r.id, id: 'x' }, b.id), null, 'only the owner');
+
+  // World view: models where the authority put them, team-relative lamps, removal.
+  const scene = new THREE.Scene();
+  const view = new ReconGadgetView(scene);
+  view.setViewerTeam('bravo');
+  view.sync(snap.match.conquest.recon);
+  assert.equal(view.count, 2, 'beacon and sensor drawn');
+  const model3d = view.views.get(beacon.id);
+  assert.ok(Math.abs(model3d.group.position.y - beacon.y) < 0.01 && Math.abs(model3d.group.position.x - beacon.x) < 0.01);
+  assert.equal(model3d.lamp.color.getHex(), 0xff4b4b, 'an enemy beacon lamp is red');
+  view.update(0.1);
+  view.sync(null);
+  assert.equal(view.count, 0, 'gone with the snapshot');
+  view.dispose();
+
+  // Projectile presentation: no blast for a settling sensor, a beacon placement ghost.
+  const getBlock = (x, y, z) => game.world.getBlock(x, y, z);
+  const fx = new ProjectileFX(new THREE.Scene(), getBlock);
+  assert.equal(fx.explode({ pid: 'g1', type: 'sensor', x: 1, y: 2, z: 3, radius: 30 }), true);
+  assert.equal(fx.explosions?.active?.length ?? 0, 0, 'a sensor never blasts');
+  const ghost = fx.setPreview(grenadeLaunch({ x: 30.5, y: 2, z: 30.5, eyeY: 3.6, dir: { x: 0, y: -0.8, z: -0.6 }, type: 'beacon', solidAt: (x, y, z) => getBlock(x, y, z) !== 0 }));
+  assert.ok(ghost?.rests && fx.beaconPreview.group.visible, 'beacon placement ghost');
+  fx.setPreview(null);
+  assert.ok(!fx.beaconPreview.group.visible);
+  fx.dispose?.();
+  assert.equal(THROWABLE_NAMES.beacon, 'SPAWN BEACON'); assert.equal(THROWABLE_NAMES.sensor, 'MOTION SENSOR');
+  assert.ok(GRENADE_HUD_ICONS.beacon.endsWith('beacon.svg') && GRENADE_HUD_ICONS.sensor.endsWith('sensor.svg'));
+  assert.ok(ICON_PATHS.beacon && ICON_PATHS.sensor, 'map glyphs');
+  assert.ok(grenadeRoleLine('sensor').includes('motion reveal'), grenadeRoleLine('sensor'));
+  assert.ok(grenadeRoleLine('beacon').includes('squad spawn'), grenadeRoleLine('beacon'));
 }
 
 console.log('conquest recon gadgets: ok');

@@ -949,7 +949,8 @@ export class GameplayHud {
     const readiedVisible = alive && !emptyPouch && (held || now - readiedAt < GRENADE_READIED_MS || pinBack);
 
     // Placed mines (wall claymore, floor AT MINE) share the mount card; only the words differ.
-    const groundMine = !!type.groundMine;
+    // The Recon SPAWN BEACON is laid on the floor like the AT MINE.
+    const groundMine = !!type.groundMine || type.reconGadget === 'beacon';
     const wallMine = !!type.wallMine || groundMine;
     const power = wallMine ? 0 : clamp01(Number.isFinite(s.grenadePower) ? s.grenadePower : s.grenadeCharge);
     let powerIndex = Number.isInteger(s.grenadePowerIndex) ? s.grenadePowerIndex : -1;

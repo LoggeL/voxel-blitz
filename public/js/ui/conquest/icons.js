@@ -58,6 +58,10 @@ export const ICON_PATHS = Object.freeze({
   lock: 'M12 2l2.5 5H20l-4.3 3.7L17.5 17 12 13.5 6.5 17l1.8-6.3L4 7h5.5z',
   flares: 'M12 2c2 4 5 6 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.8 1.2 2.8 2.2 3.2C10.8 8 11 5 12 2z',
   smoke: 'M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 .5 9.5z',
+  // Recon SPAWN BEACON: a case with a mast and two radio arcs each side (docs/design/conquest/recon).
+  beacon: 'M8 15h8v6H8zM11.2 9.2h1.6V15h-1.6zM12 5.6a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2zM8.75 3.95A4.6 4.6 0 0 0 8.75 10.45L9.6 9.6A3.4 3.4 0 0 1 9.6 4.8zM7.33 2.53A6.6 6.6 0 0 0 7.33 11.87L8.18 11.02A5.4 5.4 0 0 1 8.18 3.38zM15.25 3.95A4.6 4.6 0 0 1 15.25 10.45L14.4 9.6A3.4 3.4 0 0 0 14.4 4.8zM16.67 2.53A6.6 6.6 0 0 1 16.67 11.87L15.82 11.02A5.4 5.4 0 0 0 15.82 3.38z',
+  // Recon MOTION SENSOR: a puck with its lens.
+  sensor: 'M12 7c4.4 0 8 1.6 8 3.5v3c0 1.9-3.6 3.5-8 3.5s-8-1.6-8-3.5v-3C4 8.6 7.6 7 12 7zm0 2c-3.3 0-5.6 .9-5.6 1.5S8.7 12 12 12s5.6-.9 5.6-1.5S15.3 9 12 9z',
 });
 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */

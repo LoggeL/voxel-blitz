@@ -6,7 +6,7 @@
 import { el } from '../hud-support.js';
 import { CQ_COLORS } from '../conquest-hud-state.js';
 import { drawIcon } from './icons.js';
-import { imageReady, overviewImage, paintFlag, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
+import { imageReady, overviewImage, paintFlag, paintSensorRing, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
 
 /** Flag name size on the north-up maps, in CSS px (scaled down from the max on small maps). */
 const LABEL_MIN_PX = 8;
@@ -105,6 +105,8 @@ export class NorthUpMap {
     const spawnBadges = spawnEntries.filter(e => e.spawn.kind !== 'flag' && e.spawn.kind !== 'hq');
     // A hull with a spawn badge on it is the same marker twice: the spawn badge replaces it.
     const spawnHulls = new Set(spawnBadges.filter(b => b.spawn.kind === 'vehicle').map(b => String(b.spawn.id)));
+    // Likewise a spawn beacon offered as a spawn shows as its spawn badge only.
+    const spawnBeacons = new Set(spawnBadges.filter(b => b.spawn.kind === 'beacon').map(b => String(b.spawn.id)));
     const movable = [...badges.filter(b => !spawnHulls.has(String(b.item.id))), ...spawnBadges];
     declutter(movable, fixed, { px, maxShift: 30 * scale });
     for (const item of sorted) {
@@ -122,6 +124,8 @@ export class NorthUpMap {
         leader(ctx, badge, scale);
         paintUnit(ctx, item, { x: badge.x, y: badge.y }, item.yaw ?? 0, 1.1 * scale);
       } else {
+        if (item.kind === 'sensor' && item.radius > 0) paintSensorRing(ctx, c, item.radius * s, toneColor(item.rel), scale);
+        if (item.kind === 'beacon' && spawnBeacons.has(String(item.id))) continue;
         paintUnit(ctx, item, c, item.kind === 'self' ? item.yaw : item.yaw ?? 0, 1.1 * scale);
       }
     }
@@ -136,7 +140,8 @@ export class NorthUpMap {
       ctx.lineWidth = (active ? 3 : 2) * scale;
       ctx.strokeStyle = spawn.ok ? (active ? '#fff7d6' : CQ_COLORS.own) : '#8a5151';
       ctx.stroke();
-      const glyph = spawn.kind === 'hq' ? 'hq' : spawn.kind === 'squad' ? 'squad' : spawn.kind === 'vehicle' ? (spawn.type || 'tank') : null;
+      const glyph = spawn.kind === 'hq' ? 'hq' : spawn.kind === 'squad' ? 'squad' : spawn.kind === 'beacon' ? 'beacon'
+        : spawn.kind === 'vehicle' ? (spawn.type || 'tank') : null;
       if (glyph) drawIcon(ctx, glyph, entry.x, entry.y, r * 1.15, active ? '#101418' : spawn.ok ? CQ_COLORS.own : '#9a7070');
       else {
         ctx.fillStyle = active ? '#101418' : spawn.ok ? CQ_COLORS.own : '#9a7070';
