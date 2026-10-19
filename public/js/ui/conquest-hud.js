@@ -10,7 +10,7 @@ import {
   bannerForEvent, hijackBanner, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
   killerCard, kitUnlockBanner, kitUnlockState, lockerModel, mapItems, matchEndBanner, nextFreeSeatIndex, ownKitUnlocks, readConquest,
   restrictedModel, reticleModel, scoreEntry, seatedVehicle, spreadEdgeMarkers, squadListModel, tankHitCallout, ticketModel, unitMarkerModels,
-  vehicleHitMark, vehiclePanelModel,
+  vehicleHitMark, vehiclePanelModel, weatherChipModel,
 } from './conquest-hud-state.js';
 import { KITS, decodeConquestPlayer } from '../../../shared/conquest-contract.js';
 import { CONQUEST_TOUCH_EVENT } from '../engine/touch-controls.js';
@@ -30,6 +30,7 @@ import { TopBar } from './conquest/top-bar.js';
 import { VehiclePanel } from './conquest/vehicle-panel.js';
 import { ViewStrip, viewStripModel } from './conquest/view-strip.js';
 import { FlightHint } from './conquest/flight-hint.js';
+import { WeatherChip } from './conquest/weather-chip.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 const MARKER_INSETS_DESKTOP = Object.freeze({ top: 96, bottom: 120, left: 48, right: 48 });
@@ -37,7 +38,7 @@ const MARKER_INSETS_TOUCH = Object.freeze({ top: 124, bottom: 150, left: 28, rig
 /** Phone landscape: HP card, minimap and MAP / SPOT fill the left edge, so left markers clamp right of them. */
 const MARKER_INSETS_TOUCH_LANDSCAPE = Object.freeze({ top: 124, bottom: 150, left: 196, right: 28 });
 /** Fixed HUD panels edge-clamped flag markers keep clear of (re-measured at most every OBSTACLE_MS). */
-const MARKER_OBSTACLES = ['.cq-minimap', '.cq-squad', '.cq-map-hint', '.cq-vehicle', '.cq-top', '.cq-view', '.cq-banner', '.cq-ring', '.cq-interact', '.cq-lock',
+const MARKER_OBSTACLES = ['.cq-minimap', '.cq-squad', '.cq-map-hint', '.cq-vehicle', '.cq-top', '.cq-weather', '.cq-view', '.cq-banner', '.cq-ring', '.cq-interact', '.cq-lock',
   '.cq-restricted', '#healthbar', '#ammo', '#grenade-count', '.vb-touch-button'].join(', ');
 const OBSTACLE_MS = 400;
 /** The crosshair and its reticle labels (vehicle ammo, lock, pipper): clamped edge markers stay out of it. */
@@ -79,6 +80,7 @@ export class ConquestHud {
     this.markers = new WorldMarkers(this.root);
     this.reticles = new Reticles(this.root);
     this.topBar = new TopBar(this.root);
+    this.weather = new WeatherChip(this.topBar);
     this.viewStrip = new ViewStrip(this.root);
     this.flightHint = new FlightHint(this.root);
     this.banners = new Banners(this.root);
@@ -357,6 +359,9 @@ export class ConquestHud {
     const height = viewport?.height ?? globalThis.innerHeight ?? 720;
 
     this.topBar.update(ticketModel(cq, selfTeam, now), flagChipModels(cq, selfTeam));
+    const weather = this.weather.update(weatherChipModel(cq, { kit: this._selfKit(self), seatedType: this.seated?.row?.type ?? null }), now);
+    // The weather tab hangs under the ticket bar: banners drop below it (conquest.css).
+    if (this.root.dataset.weather !== String(weather)) this.root.dataset.weather = String(weather);
     this.banners.update(now);
     this.ticker.update(now);
 
@@ -573,6 +578,10 @@ export class ConquestHud {
       }
       case 'vehicle_destroyed':
         this.combatHud?.vehicleDestroyed?.(ev);
+        break;
+      case 'weather_strike':
+        // Lightning: the weather tab flashes with the sky (ConquestWeatherView owns the bolt and the light).
+        this.weather.flash(now);
         break;
       case 'vehicle_hijacked': {
         const banner = hijackBanner(ev, selfTeam, selfId);

@@ -285,7 +285,7 @@ export function stepMovement(p, dt, ctx) {
 
   if (p.chute === CHUTE.open) {
     const vel = { x: p.vx, y: p.vy, z: p.vz };
-    stepChuteVelocity(vel, movementYaw, wx, wz, dt);
+    stepChuteVelocity(vel, movementYaw, wx, wz, dt, ctx.chuteDrift);
     p.vx = vel.x; p.vy = vel.y; p.vz = vel.z;
     p.sprint = false;
   } else if (p.chute === CHUTE.seat) {

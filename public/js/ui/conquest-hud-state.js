@@ -14,6 +14,7 @@ import {
   decodeConquestMatch, deployOptions, deployViewFromSnapshot, isBotId, oppositeTeam, parseSpawnChoice, resolveDeployChoice, teamSign,
 } from '../../../shared/conquest.js';
 import * as vehicleDefs from '../../../shared/vehicle-defs.js';
+import { WEATHER_STATES } from '../../../shared/conquest-weather.js';
 import { vehicleHijackable } from '../../../shared/vehicle-seats.js';
 import {
   KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
@@ -96,6 +97,40 @@ export function ticketModel(cq, selfTeam, nowMs) {
   };
   const timeLeftMs = Number.isFinite(cq.endsAt) && Number.isFinite(nowMs) ? Math.max(0, cq.endsAt - nowMs) : null;
   return { own: side(own, 'own'), enemy: side(enemy, 'enemy'), timeLeftMs, clock: timeLeftMs === null ? '--:--' : clockText(timeLeftMs) };
+}
+
+/* ---------------------------------------------------------------- weather */
+
+/**
+ * The weather tab under the ticket bar (docs/conquest.md, *Weather*), from the
+ * decoded `match.conquest.wx` (cq.weather): the leading state, the spotting
+ * range of the own kit and the lock range of the own launcher (the jet's AA
+ * missile while flying the jet, the STINGER otherwise), both the server's
+ * CONQUEST_RULES / LOCK_RULES × the same multipliers, and the forecast. Null
+ * while the match has no weather.
+ */
+export function weatherChipModel(cq, { kit = null, seatedType = null } = {}) {
+  const wx = cq?.weather;
+  if (!wx) return null;
+  const state = wx.blend >= 0.5 ? wx.to : wx.from;
+  const lead = WEATHER_STATES[state] ?? WEATHER_STATES.golden;
+  const spotBase = kit === 'recon' ? CONQUEST_RULES.spotRangeRecon : CONQUEST_RULES.spotRange;
+  const lockBase = seatedType === 'plane' ? vehicleDefs.LOCK_RULES.aaMissile.range : vehicleDefs.LOCK_RULES.stinger.range;
+  const spot = Math.round(spotBase * wx.spot), lock = Math.round(lockBase * wx.lock);
+  const next = wx.next ? WEATHER_STATES[wx.next] : null;
+  let forecast = '', trend = '';
+  if (next && wx.etaS > 0) {
+    const eta = clockText(wx.etaS * 1000);
+    if (wx.from !== wx.to) { forecast = `\u2192 ${next.label} ${eta}`; trend = next.spot >= (WEATHER_STATES[wx.from] ?? lead).spot ? 'better' : 'worse'; }
+    else if (next.spot > lead.spot) { forecast = `CLEARING ${eta}`; trend = 'better'; }
+    else { forecast = `${next.label} IN ${eta}`; trend = 'worse'; }
+  }
+  return {
+    state, label: wx.label, spot, lock, spotText: `SPOT ${spot} M`, lockText: `LOCK ${lock} M`,
+    spotReduced: spot < spotBase, lockReduced: lock < lockBase, forecast, trend,
+    severity: wx.spot <= 0.8 ? 'bad' : wx.spot < 0.995 ? 'dim' : 'clear',
+    rain: wx.rain, wet: wx.wet, windDeg: wx.windDeg,
+  };
 }
 
 /** One chip per flag: owner colour, progress fill toward the leaning side, contested hatch. */

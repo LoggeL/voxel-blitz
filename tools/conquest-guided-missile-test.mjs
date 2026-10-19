@@ -51,8 +51,8 @@ function hold(f, p, aim, ticks, { fire = false } = {}) {
 }
 const heliSpawns = extra => [{ id: 'heli', type: 'helicopter', team: 'alpha', x: 300, y: 1, z: 400, yaw: 0 }, ...extra];
 
-test('contract: version 5, the gunner cycles chin cannon and guided missile, the AT jeep is a jeep hull with a TOW', () => {
-  assert.equal(CONQUEST_CONTRACT_VERSION, 5);
+test('contract: version 5 or later, the gunner cycles chin cannon and guided missile, the AT jeep is a jeep hull with a TOW', () => {
+  assert.ok(CONQUEST_CONTRACT_VERSION >= 5, 'v5 added the atgm mount and jeep_at');
   assert.deepEqual(seatWeaponList('helicopter', 'gunner'), [{ mount: 'chin', weapon: 'chinCannon' }, { mount: 'atgm', weapon: 'guidedMissile' }]);
   assert.deepEqual(vehicleMountOrder('helicopter'), ['driver:pods', 'gunner:chin', 'gunner:atgm'], 'the new mount is appended');
   assert.ok(VEHICLE_TYPE_IDS.includes('jeep_at'));

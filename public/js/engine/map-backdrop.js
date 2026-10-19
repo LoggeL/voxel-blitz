@@ -930,6 +930,8 @@ export function backdropAirMaterial(cfg, key = 'backdrop-air-v5') {
   const uniform = { value: new THREE.Vector4(air.strength ?? 0.32, air.near ?? 60, air.far ?? 320, air.fog ?? 0.45) };
   const hazeColor = new THREE.Color(cfg.hazeColor || '#ffffff');
   const tint = { value: new THREE.Vector4(hazeColor.r, hazeColor.g, hazeColor.b, cfg.hazeColor ? cfg.hazeTint ?? 0.6 : 0) };
+  // Runtime blends (Conquest weather) move the air fog share (w) and strength (x).
+  material.userData.backdropAir = uniform;
   material.onBeforeCompile = (shader) => {
     shader.uniforms.backdropAir = uniform;
     shader.uniforms.backdropHaze = tint;

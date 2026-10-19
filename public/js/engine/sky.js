@@ -269,6 +269,8 @@ export function installSky(scene, palette = {}, dimensions = DEFAULT_DIMENSIONS,
     }
   };
   update.ready = ready;
+  // The dome's mood uniforms, for runtime blends (Conquest weather: conquest-weather-view.js).
+  update.uniforms = dome.material.uniforms;
   update.dispose = () => {
     if (disposed) return;
     disposed = true;

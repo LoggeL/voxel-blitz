@@ -11,6 +11,7 @@ import {
   VEHICLE_STATUS,
   VEHICLE_TOPOLOGY,
 } from './conquest-contract.js';
+import { decodeConquestWeather } from './conquest-weather.js';
 
 export { CONQUEST_TEAMS };
 
@@ -226,6 +227,8 @@ export function decodeConquestMatch(matchConquest, metaConquest = null) {
     bases: metaConquest?.bases ?? {},
     combatArea: metaConquest?.combatArea ?? null,
     ticketGraph: Array.isArray(match.ticketGraph) ? match.ticketGraph : null,
+    // Dynamic weather (`wx`, shared/conquest-weather.js), null while the server runs none.
+    weather: decodeConquestWeather(match.wx),
   };
 }
 

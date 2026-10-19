@@ -142,6 +142,8 @@ const check = (value, message) => { assert(value, message); checks++; };
   place(a, 100, FLOOR + 50, 80); input(game, a);
   const physics = new PlayerPhysics();
   physics.airRules = true;
+  // main.js feeds the decoded weather's canopy drift (match.conquest.wx), as the server applies it.
+  physics.chuteDrift = game.mode.weatherEffects()?.drift ?? null;
   physics._solidAt = (x, y, z) => game.solidAt(x, y, z);
   physics._fluidAt = () => false;
   physics.pos = { x: a.x, y: a.y, z: a.z }; physics.vel = { x: 0, y: 0, z: 0 }; physics.grounded = false;

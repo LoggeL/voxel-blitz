@@ -104,8 +104,11 @@ export class ConquestSpotting {
     return actor;
   }
 
+  /** Kit range scaled by the weather (`spot`: fog and storms shorten it, shared/conquest-weather.js). */
   rangeFor(player) {
-    return this.kitOf(player) === 'recon' ? this.rules.spotRangeRecon : this.rules.spotRange;
+    const range = this.kitOf(player) === 'recon' ? this.rules.spotRangeRecon : this.rules.spotRange;
+    const scale = this.policy?.weatherEffects?.()?.spot;
+    return Number.isFinite(scale) && scale > 0 ? range * scale : range;
   }
 
   durationFor(player) {

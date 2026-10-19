@@ -1,6 +1,6 @@
 // Conquest scale gate on the real Frontier map with 16 bots and the full fleet
 // (spec §3.3 budgets, F4): average vehicle row <= 260 B, whole tick <= 27 KB,
-// tick p95 <= 10 ms, match.conquest <= 400 B. Every coordinate comes from
+// tick p95 <= 10 ms, match.conquest <= 440 B (with the weather tuple). Every coordinate comes from
 // mapMeta, never from constants.
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
@@ -11,7 +11,7 @@ import { TICK_MS } from '../server/protocol/admission.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { KillcamTerrain } from '../public/js/player/killcam-terrain.js';
 
-const BUDGET = Object.freeze({ rowBytes: 260, tickBytes: 27 * 1024, tickP95Ms: 10, matchConquestBytes: 400 });
+const BUDGET = Object.freeze({ rowBytes: 260, tickBytes: 27 * 1024, tickP95Ms: 10, matchConquestBytes: 440 });
 const seconds = Number(process.argv.find(arg => arg.startsWith('--seconds='))?.slice(10)) || 120;
 
 const importedMemory = process.memoryUsage(), start = performance.now(), world = createMapState('frontier');

@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 5;
+export const CONQUEST_CONTRACT_VERSION = 6;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -102,6 +102,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'vehicle_hijacked',  // {vehicleId, type, by, from, to}  an empty enemy hull boarded: it now belongs to `to`
   'countermeasure',    // {vehicleId, cm:'flares'|'smoke'}  (kind is the event discriminator)
   'ejection',          // {id, vehicleId, pos:[x,y,z], vel:[vx,vy,vz], yaw}  jet pilot left on the ejection seat
+  'weather_strike',    // {x, y, z}                      a lightning strike of the weather timeline (y = ground), shared/conquest-weather.js
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);

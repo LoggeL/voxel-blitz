@@ -22,6 +22,7 @@ import { vehicleSeatOccupantId, vehicleSeats } from '../shared/vehicle-seats.js'
 import { VEHICLE_WEAPON_META, seatWeaponList } from '../shared/conquest-contract.js';
 import { botVehicleSeat, botVehicleDriver, botPassengerInput, boardingGoal, countermeasureReady, maxHullHp, transitRidersMissing } from './bot-vehicle-driving.js';
 import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
+import { weatherSight } from './bot-weather.js';
 import { observeBotVehicle, hullTarget, hullCrew, seatedExposed, mountSystem, seatWeapons, CQ_MOUNT_AIM } from './bot-vehicle-combat.js';
 import { AimSteering } from './bot-aim.js';
 import { botDifficulty, BOT_AIRCRAFT_SIGHT_RANGE } from '../shared/bot-difficulty.js';
@@ -107,7 +108,7 @@ function clearAircraftShot(game, p, v, target, origin, dir, distance, speed, gra
  */
 function observeAircraftTarget(game, br, p, v, { airOnly = false, heldId = null } = {}) {
   const observer = { x: v.x, z: v.z, eyeY: bodyOrigin(v)[1], yaw: v.yaw, pitch: v.pitch || 0 };
-  const options = { sightRange: BOT_AIRCRAFT_SIGHT_RANGE };
+  const options = weatherSight(game, { sightRange: BOT_AIRCRAFT_SIGHT_RANGE });
   const hullSighting = hull => {
     if (hull === v || hull.hp <= 0 || (hull.team && hull.team === (game.mode.teamFor?.(p) ?? p.team))) return null;
     if (airOnly && !aircraft(hull)) return null;

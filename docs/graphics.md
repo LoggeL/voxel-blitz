@@ -109,6 +109,26 @@ apron (`buildMapBackdrop(..., { airspace })`, coarser cells from the config's
 heightfield with the same baked light and aerial fog (Frontier's far plane is
 2.8 km, see docs/conquest.md, Airspace).
 
+Conquest dynamic weather (`conquest-weather-view.js`, docs/conquest.md,
+Weather) blends Frontier's four mood presets (`golden`, `overcast`, `mist`,
+`storm`) at runtime from the server's `match.conquest.wx`, uniforms only: sky
+dome colours, haze, glow, cloud layer, deck and sun disc (`sky.js`
+`update.uniforms`), fog colour and the render-distance fog density (main.js ×
+`fogScale`), hemisphere and sun light, `environmentIntensity`, the voxel
+light's `minSky` and shadow strength, the post grade (exposure, saturation,
+contrast, tints), the water palette (4 Hz) and the backdrop's air fog. The
+baked pieces stay at the load mood: the voxel sun direction, the backdrop's
+vertex colours and the environment map. Rain is a second `map-ambience.js`
+field (`rain` streaks, its count from the tier's ambient particle budget, so
+LOW draws the fewest), faded indoors by the voxel sky light and slanted by the
+wind. Wet ground is the shared `TERRAIN_WET` uniform in the chunk shader
+(open non-glass faces darken, up faces most, with a grazing sky sheen; covered
+cells stay dry), with the far terrain dimmed to match.
+A lightning strike flashes hemisphere, deck and exposure for 0.6 s and draws
+one additive bolt ribbon (`weather-bolt`, fog off). `ambience-rain` and
+`weather-bolt` are in the shader warm-up, so a storm compiles nothing
+mid-match. Captures: `render-map-scenes.mjs --weather storm [--flash]`.
+
 ## Effects
 
 - Muzzle flashes: procedural pixel-art atlas, HDR cores that bloom.

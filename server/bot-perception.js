@@ -13,6 +13,8 @@ const HALF_VERTICAL_FOV = 50 * Math.PI / 180;
  * `options.sightRange` replaces the difficulty's range (aircraft see farther),
  * and inside `options.omniRange` the field-of-view gate is skipped: a crew that
  * checks all around its hull (tank 360 degree check) still needs line of sight.
+ * `options.visionScale` and `options.recognitionScale` (Conquest weather,
+ * server/bot-weather.js) scale that range and the detection rate.
  * `options.titanfall` adds the cloak gate (docs/titanfall.md §9): a cloaked pilot
  * is seen only within the reveal range (or while exposed), and such a sighting
  * carries `aimErrorMul` (×3) for the shooter's aim error.
@@ -23,7 +25,8 @@ export function observeBotTarget(observer, target, solidAt, smoke, now, tracking
   const dx = target.x - origin[0], dz = target.z - origin[2];
   const flat = Math.hypot(dx, dz);
   const distance = Math.hypot(flat, target.eyeY - origin[1]);
-  const maxRange = (options?.sightRange ?? profile.sightRange) + (tracking ? 12 : 0);
+  // Conquest weather (server/bot-weather.js): fog and storms shorten the sight and slow recognition.
+  const maxRange = (options?.sightRange ?? profile.sightRange) * (options?.visionScale ?? 1) + (tracking ? 12 : 0);
   if (distance > maxRange) return null;
   const aimErrorMul = options?.titanfall ? perceptionAimMul(observer, target, now) : 1;
   if (!(aimErrorMul > 0)) return null;
@@ -79,7 +82,7 @@ export function observeBotTarget(observer, target, solidAt, smoke, now, tracking
   // Hazard per second. The square root compresses the distance falloff so a
   // visible player across a large arena is discoverable, with a longer wait.
   const detectionRate = Math.max(0.08, Math.min(5, 4 * Math.sqrt(angularArea / 0.001)))
-    * peripheral * profile.recognition;
+    * peripheral * profile.recognition * (options?.recognitionScale ?? 1);
   const recognitionMs = profile.reactionMs + 1000 / detectionRate;
   const sighting = { aimPoint, exposure, distance, visibleArea, angularArea, detectionRate,
     reactionMs: profile.reactionMs, recognitionMs };

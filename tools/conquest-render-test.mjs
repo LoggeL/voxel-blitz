@@ -261,6 +261,10 @@ console.log('Scorch pool passed: 24 on arenas, 256 on Frontier, resized in place
   assert.equal(url.searchParams.get('weather'), 'mist');
   assert.equal(url.searchParams.get('ambience'), '1', 'Conquest shots carry the battlefield ambience');
   assert.equal(url.searchParams.get('paint'), null, 'the retired paint sheet is never requested');
-  assert.throws(() => parseArgs(['--weather', 'storm']), /invalid --weather/);
-  console.log(`Capture shots passed: ${ids.length} Frontier v2 shots on the terrain, wreck and tank subjects from metadata, --vehicles/--weather passthrough.`);
+  assert.throws(() => parseArgs(['--weather', 'hail']), /invalid --weather/);
+  const storm = parseArgs(['--map', 'frontier', '--shot', 'vista', '--weather', 'storm', '--flash']);
+  const stormUrl = captureUrl('http://127.0.0.1:1/', MAP_CAPTURE_SHOTS.find(shot => shot.id === 'vista'), storm);
+  assert.equal(stormUrl.searchParams.get('weather'), 'storm', 'the Conquest storm is a capture mood');
+  assert.equal(stormUrl.searchParams.get('flash'), '1', '--flash freezes a lightning strike');
+  console.log(`Capture shots passed: ${ids.length} Frontier v2 shots on the terrain, wreck and tank subjects from metadata, --vehicles/--weather/--flash passthrough.`);
 }

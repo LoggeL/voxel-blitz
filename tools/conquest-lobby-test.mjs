@@ -10,7 +10,7 @@ import { CONQUEST_CONTRACT_VERSION, decodeConquestPlayer, decodeConquestStats, F
 import { decodeConquestMatch } from '../shared/conquest.js';
 import {
   CONQUEST_CQ_LENGTH, CONQUEST_CQ_MAX_LENGTH, CONQUEST_CQS_LENGTH, CONQUEST_FLAG_TUPLE_LENGTH, CONQUEST_MATCH_BUDGET_BYTES, CONQUEST_MATCH_KEYS,
-  CONQUEST_PLAYER_KEYS, CONQUEST_SQUAD_TUPLE_LENGTH, CONQUEST_STATE_KEYS,
+  CONQUEST_PLAYER_KEYS, CONQUEST_SQUAD_TUPLE_LENGTH, CONQUEST_STATE_KEYS, CONQUEST_WEATHER_TUPLE_LENGTH,
 } from './lib/protocol-contract.mjs';
 
 const server = startServer();
@@ -56,9 +56,10 @@ try {
   assert.equal(conquest.v, 2);
   assert.equal(Object.keys(tick.match).sort().join(','), CONQUEST_MATCH_KEYS, 'match keys');
   assert.equal(Object.keys(conquest).sort().join(','), CONQUEST_STATE_KEYS, 'slim match.conquest');
-  assert(Buffer.byteLength(JSON.stringify(conquest)) <= CONQUEST_MATCH_BUDGET_BYTES, 'match.conquest fits its 400 B budget');
+  assert(Buffer.byteLength(JSON.stringify(conquest)) <= CONQUEST_MATCH_BUDGET_BYTES, 'match.conquest fits its 440 B budget');
   assert(conquest.flags.every(f => f.length === CONQUEST_FLAG_TUPLE_LENGTH));
   assert(conquest.squads.every(s => s.length === CONQUEST_SQUAD_TUPLE_LENGTH));
+  assert.equal(conquest.wx.length, CONQUEST_WEATHER_TUPLE_LENGTH, 'the weather tuple rides every Conquest tick');
   assert.equal(conquest.flags.length, meta.flags.length);
   assert.deepEqual(conquest.tickets, tick.match.scores);
   assert(conquest.tickets.alpha > 0 && conquest.tickets.bravo > 0);
@@ -131,7 +132,7 @@ try {
   guest.send({ t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', variant: 0 } });
   const again = await guest.waitForJson(m => m.t === 'tick' && rowOf(m, guestWelcome.id)?.state === 'alive', 'the late joiner deploys again', at);
   assert(again.now >= rowOf(died, guestWelcome.id).respawnAt, 'the respawn delay still applies after a death');
-  console.log('Conquest lobby: configure, compressed map decode, authoritative bytes, 16 roster slots, waiting admission and the v2 live snapshot (slim match.conquest within 400 B, home flags, squads, cq/cqs rows, metadata fleet), deploy before the first spawn (start and mid-match join wait unspawned, bots spawn at once, DEPLOY at the chosen flag / HQ, death and deploy again) verified.');
+  console.log('Conquest lobby: configure, compressed map decode, authoritative bytes, 16 roster slots, waiting admission and the v2 live snapshot (slim match.conquest within 440 B, home flags, squads, cq/cqs rows, metadata fleet), deploy before the first spawn (start and mid-match join wait unspawned, bots spawn at once, DEPLOY at the chosen flag / HQ, death and deploy again) verified.');
 } finally {
   await Promise.all(clients.map(c => c.close()));
   await stopServer(server);

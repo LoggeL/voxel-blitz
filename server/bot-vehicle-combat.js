@@ -11,6 +11,7 @@
 
 import { AimSteering } from './bot-aim.js';
 import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
+import { weatherLockScale, weatherSight } from './bot-weather.js';
 import { botDifficulty } from '../shared/bot-difficulty.js';
 import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY } from '../shared/bot-personality.js';
 import { WEAPON_IDS, WEAPONS } from '../shared/combatmath.js';
@@ -38,10 +39,13 @@ const HALF_FOV = 55 * Math.PI / 180;
 const TRACK_FOV = 65 * Math.PI / 180;
 const HALF_VERTICAL_FOV = 50 * Math.PI / 180;
 const RANGED_PRIORITY = ['rocket', 'lance', 'sniper', 'lmg', 'rifle', 'minigun', 'revolver', 'smg', 'shotgun'];
-/** The STINGER only answers airborne aircraft inside its lock range (it cannot fire unlocked). */
+/**
+ * The STINGER only answers airborne aircraft inside its lock range (it cannot fire unlocked);
+ * a hull target carries the weather's `lockScale` (fog and storms shorten the lock range).
+ */
 export const STINGER_ENGAGE_RANGE = LOCK_RULES.stinger.range * 0.92;
 const stingerTarget = (target, distance) => target?.armor === 'air' && target.vehicle?.grounded !== true
-  && distance <= STINGER_ENGAGE_RANGE;
+  && distance <= STINGER_ENGAGE_RANGE * (target.lockScale ?? 1);
 const sightOrigin = p => [p.eyeX ?? p.x, p.eyeY, p.eyeZ ?? p.z];
 const delta = (a, b) => b.map((n, i) => n - a[i]);
 const clearRay = (solidAt, a, b) => {
@@ -113,7 +117,7 @@ export function observeBotVehicle(observer, vehicle, solidAt, smoke, now, tracki
   const profile = botDifficulty(difficulty), origin = sightOrigin(observer);
   const center = [vehicle.x, vehicle.y + def.height * 0.5, vehicle.z];
   const [dx, dy, dz] = delta(origin, center), flat = Math.hypot(dx, dz), distance = Math.hypot(dx, dy, dz);
-  if (distance > (options?.sightRange ?? profile.sightRange) + (tracking ? 12 : 0)) return null;
+  if (distance > (options?.sightRange ?? profile.sightRange) * (options?.visionScale ?? 1) + (tracking ? 12 : 0)) return null;
   const halfFov = tracking ? TRACK_FOV : HALF_FOV;
   const rawOffAxis = Math.abs(wrap(Math.atan2(-dx, -dz) - observer.yaw));
   const omni = distance <= (options?.omniRange ?? 0);
@@ -139,7 +143,7 @@ export function observeBotVehicle(observer, vehicle, solidAt, smoke, now, tracki
     reactionMs: profile.reactionMs, recognitionMs: profile.reactionMs + 1000 / detectionRate };
 }
 
-export function hullTarget(vehicle, occupant) {
+export function hullTarget(vehicle, occupant, lockScale = 1) {
   const def = vehicleHullRules(vehicle.type), direction = vehicleDirection(vehicle.yaw);
   const aircraft = vehicle.type === 'helicopter' || vehicle.type === 'plane' || vehicle.type === 'transport';
   return { id: `vehicle:${vehicle.id}`, kind: 'hull', vehicleId: vehicle.id, vehicle, type: vehicle.type,
@@ -147,7 +151,8 @@ export function hullTarget(vehicle, occupant) {
     vx: aircraft && Number.isFinite(vehicle.vx) ? vehicle.vx : direction[0] * (vehicle.speed || 0),
     vy: aircraft && Number.isFinite(vehicle.vy) ? vehicle.vy : 0,
     vz: aircraft && Number.isFinite(vehicle.vz) ? vehicle.vz : direction[2] * (vehicle.speed || 0),
-    state: 'alive', team: vehicle.team, lives: occupant.lives, occupantId: occupant.id };
+    state: 'alive', team: vehicle.team, lives: occupant.lives, occupantId: occupant.id,
+    ...(lockScale !== 1 ? { lockScale } : {}) };
 }
 
 const teamOf = (game, p) => game.mode.teamFor?.(p) ?? p.team;
@@ -183,9 +188,11 @@ export function pickBotThreat(game, p, br, {
   ignoreVehicleId = null, includeInfantry = true, includeHulls = true, exclude = null, airSightRange = null,
 } = {}) {
   // Titanfall: the cloak gate in observeBotTarget (docs/titanfall.md §9).
-  const options = isTitanfall(game.mode.mode) ? { omniRange, sightRange, titanfall: true } : { omniRange, sightRange };
-  // An AA-armed bot watches the sky farther out (airborne aircraft only).
+  const options = weatherSight(game, isTitanfall(game.mode.mode) ? { omniRange, sightRange, titanfall: true } : { omniRange, sightRange });
+  // An AA-armed bot watches the sky farther out (airborne aircraft only); the
+  // weather already shortened that range with the lock range.
   const airOptions = airSightRange ? { omniRange, sightRange: Math.max(airSightRange, sightRange ?? 0) } : options;
+  const lockScale = weatherLockScale(game);
   const smoke = game.projectiles?.smoke;
   const heldId = br.enemyId;
   const shooterId = br.damageFrom && now - br.damageFrom.at < 3000 ? br.damageFrom.id : null;
@@ -225,7 +232,7 @@ export function pickBotThreat(game, p, br, {
       if ((!sweepAll && id !== heldId) || exclude?.(id)) continue;
       const air = airOptions !== options && !v.grounded && (v.type === 'helicopter' || v.type === 'transport' || v.type === 'plane');
       const sighting = observeBotVehicle(observer, v, game.solidAt, smoke, now, tracked(id), br.difficulty, air ? airOptions : options);
-      if (sighting) consider(hullTarget(v, occupant), sighting, 'hull');
+      if (sighting) consider(hullTarget(v, occupant, lockScale), sighting, 'hull');
     }
   }
   return best ? { ...best, danger } : danger ? { target: null, sighting: null, kind: null, eff: 0, score: 0, danger } : null;
@@ -242,7 +249,8 @@ export function pickConquestVehicleTarget(game, p, br, { tank = null, sightRange
     if (v.occupantId == null) continue;
     const target = hullTarget(v, occupant);
     const held = state?.id === target.id && state.progress >= 1;
-    const sighting = observeBotVehicle(observer, v, game.solidAt, game.projectiles.smoke, game.now, held, br.difficulty, { sightRange, omniRange });
+    const sighting = observeBotVehicle(observer, v, game.solidAt, game.projectiles.smoke, game.now, held, br.difficulty,
+      weatherSight(game, { sightRange, omniRange }));
     if (!sighting) continue;
     if (held) return { target, sighting };
     if (!best || sighting.distance < best.sighting.distance) best = { target, sighting };
@@ -637,7 +645,7 @@ function legacyTankTarget(game, p, br, tank) {
     if (target.state !== 'alive' || target.vehicleId || !game.mode.isEnemy(p, target)
         || game.mode.canDamage?.(p, target) === false) continue;
     const sighting = observeBotTarget(observer, target, game.solidAt, game.projectiles.smoke, game.now,
-      br.vehicleCombat?.id === target.id && br.vehicleCombat.progress >= 1, br.difficulty, { omniRange: TANK_OMNI_RANGE });
+      br.vehicleCombat?.id === target.id && br.vehicleCombat.progress >= 1, br.difficulty, weatherSight(game, { omniRange: TANK_OMNI_RANGE }));
     if (sighting && (!best || sighting.distance < best.sighting.distance)) best = { target, sighting };
   }
   return best;

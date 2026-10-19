@@ -179,6 +179,7 @@ uniform highp sampler2DArray terrainMap;
 uniform highp sampler2DArray terrainNormalMap;
 #endif
 uniform float terrainEmissive;
+uniform float terrainWet;
 varying vec3 vTerrainUv;
 varying vec4 vTerrainAux;
 varying vec3 vVoxelWorld;
@@ -239,6 +240,23 @@ const TERRAIN_NORMAL_MAP = /* glsl */ `
 // (Schlick fresnel). Head-on panes keep their tile alpha, so sight lines
 // through windows stay readable; the alpha lift is capped at +0.25.
 const TERRAIN_GLASS_FRESNEL = /* glsl */ `
+#ifndef TERRAIN_GLASS
+// Rain-soaked ground (Conquest weather, TERRAIN_WET): open faces darken, up
+// faces most, and pick up a grazing sky sheen; covered cells stay dry.
+if ( terrainWet > 0.0 ) {
+  float wetOpen = smoothstep( 0.55, 0.9, voxelLight.sky ) * terrainWet;
+  float wetUp = clamp( vVoxelNormal.y, 0.0, 1.0 );
+  float wetness = wetOpen * ( 0.3 + 0.7 * wetUp );
+  outgoingLight *= 1.0 - 0.32 * wetness;
+  float wetFacing = clamp( abs( dot( normal, normalize( vViewPosition ) ) ), 0.0, 1.0 );
+  #if NUM_HEMI_LIGHTS > 0
+    vec3 wetSky = hemisphereLights[ 0 ].skyColor;
+  #else
+    vec3 wetSky = vec3( 0.5 );
+  #endif
+  outgoingLight += wetSky * voxelLight.sky * pow( 1.0 - wetFacing, 4.0 ) * 0.3 * wetness * wetUp;
+}
+#endif
 #ifdef TERRAIN_GLASS
 {
   float glassFacing = clamp( abs( dot( normal, normalize( vViewPosition ) ) ), 0.0, 1.0 );
@@ -263,6 +281,12 @@ totalEmissiveRadiance += diffuseColor.rgb * vTerrainAux.y * terrainEmissive;
 `;
 
 /**
+ * Ground wetness 0..1 every terrain material reads (one shared uniform):
+ * Conquest weather (conquest-weather-view.js) raises it after rain; 0 skips the term.
+ */
+export const TERRAIN_WET = { value: 0 };
+
+/**
  * Terrain material: MeshLambert lighting with the texture array, edge lip,
  * optional pixel normals and the voxel light volume patched in. One program
  * per bucket kind; the cache key never changes during a match.
@@ -281,6 +305,7 @@ export function createTerrainMaterial(kind, {
     terrainMap: { value: map },
     terrainNormalMap: { value: normalMap },
     terrainEmissive: { value: 1.7 },
+    terrainWet: TERRAIN_WET,
     voxelLightMap: lightUniforms.voxelLightMap,
     voxelLightSize: lightUniforms.voxelLightSize,
     voxelLightParams: lightUniforms.voxelLightParams,

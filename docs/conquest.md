@@ -7,6 +7,7 @@ Every tuning value is data:
 - mode rules: `CONQUEST_RULES` in `shared/conquest-contract.js`;
 - kits: `KITS` (contract) and `shared/conquest-kits.js`;
 - hulls, seats, mounts and anchors: `shared/vehicle-defs.js`;
+- weather states, multipliers and the forecast timeline: `WEATHER_STATES` and `WEATHER_RULES` in `shared/conquest-weather.js`;
 - damage multipliers: `shared/vehicle-armor.js`; the tank's hit parts, slope, ricochets and subsystems: `shared/tank-armor.js`.
 
 Change those tables, not the logic.
@@ -354,9 +355,34 @@ First person hides the local player's head, chest and upper arms (forearms and h
 
 After a view change the HUD shows the seat's views under the ticket bar for 1.6 s with the active one underlined (`public/js/ui/conquest/view-strip.js`; hidden in phone portrait, where that row is taken). Design references: `docs/design/conquest/views/` (view strip alternatives A and B, B chosen; the cockpit reference) with captures in `docs/design/conquest/views/captures/`.
 
+## Weather
+
+The weather changes during a match, and it changes play. The server draws one seeded timeline per match (`weatherTimeline` in `shared/conquest-weather.js`), steps it with the match clock (`server/modes/conquest/weather.js`) and sends the current mix in every snapshot as `match.conquest.wx`. Every gameplay effect is a multiplier of the state, read from that same quantized tuple on the server and in the browser, so the HUD shows the numbers the server uses.
+
+| State | HUD | Spot range | Lock range | Bot sight | Bot recognition | Canopy drift | Look |
+|---|---|---|---|---|---|---|---|
+| `golden` | CLEAR | × 1 | × 1 | × 1 | × 1 | 0.5 m/s | the authored Frontier evening |
+| `overcast` | OVERCAST | × 0.92 | × 0.95 | × 0.92 | × 0.95 | 0.9 m/s | grey deck, flat light |
+| `mist` | FOG | × 0.55 | × 0.7 | × 0.62 | × 0.8 | 0.2 m/s | dense valley fog |
+| `storm` | STORM | × 0.7 | × 0.75 | × 0.72 | × 0.85 | 1.8 m/s | slate deck, rain, wet ground, lightning |
+
+- **Spot range** scales `spotRange` (300 m) and `spotRangeRecon` (400 m): in a storm an Assault spots out to 210 m, a Recon to 280 m.
+- **Lock range** scales the STINGER (320 m) and the jet's AA missile (350 m) in `server/sim/vehicle-locks.js`; the Titanfall Archer is not affected. Countermeasures, lock time and the cone are unchanged.
+- **Bots** see less far and recognise a seen enemy more slowly (`server/bot-weather.js`, read by `observeBotTarget` / `observeBotVehicle` for infantry, crews and pilots). AA Engineers and air crews hold fire beyond the scaled lock range.
+- **Canopy drift**: an open parachute drifts downwind on top of its glide and steering (`stepChuteVelocity`, server and client prediction).
+- **Lightning** is presentation only: a strike never damages anything.
+
+**Timeline** (`WEATHER_RULES`, times in match clock). Every forecast script opens clear for 4 to 5.5 minutes (so the first minutes and the 180 s action gate play as before), then holds each state for its `holdMs` (fog 100 to 160 s, storm 150 to 220 s) with 45 to 75 s smoothstep transitions; the last state holds to the end. The four scripts are `golden → overcast → storm → overcast → golden`, `golden → mist → golden → overcast → storm`, `golden → storm → overcast → golden → mist` and `golden → overcast → mist → overcast → storm → golden`. The wind direction is seeded and veers up to 35° over 5 minutes. Ground wetness rises with rain (soaked after 45 s of full rain) and dries over 150 s.
+
+**Lightning**: one draw every 4 to 13 s, kept with the mix's `lightning` value as the chance (so only while a storm is in the mix). A strike lands anywhere within 160 m of the combat area and becomes a `weather_strike {x, y, z}` event (y is the ground under it). The browser flashes the sky, draws one jagged bolt and plays the thunder delayed by distance; the HUD weather tab flashes with it. A stalled server never fires a backlog.
+
+**Mode rule `weather`**: `false` / `'off'` turns weather off (no `wx`, every multiplier 1); a state id (`'storm'`) pins that state for the whole match (tests and captures); `{ seed, script, state }` fixes them; anything else draws a fresh seed per match. Without the rule the server reads `VB_CONQUEST_WEATHER` (same values).
+
+**Presentation** (`public/js/engine/conquest-weather-view.js`, tiers in `docs/graphics.md`): the view eases toward the server mix and blends the four Frontier mood presets (`map-atmosphere.js`) over the live world through uniforms only, adds a rain streak field, darkens wet ground (`TERRAIN_WET`), and scales the render-distance fog. A mid-match join snaps to the current weather. The soundscape adds a rain bed, storm gusts and thunder (`docs/audio/conquest-sfx.md`). Design and captures: `docs/design/conquest/weather/`.
+
 ## HUD and audio
 
-- **Top centre**: ticket bars with ▼ bleed rate, time left and five flag chips.
+- **Top centre**: ticket bars with ▼ bleed rate, time left and five flag chips. Below them the weather tab: glyph and state, your `SPOT` and `LOCK` ranges (amber while shortened; the lock range is the jet's AA missile while you fly the jet) and the forecast (`CLEARING 2:10`, `STORM IN 1:40`, `→ CLEAR 0:31` during a transition). On touch only the glyph and the state sit beside the clock.
 - **Below the crosshair**: the capture ring ("CAPTURING 3 vs 1"), the score ticker and the revive or repair hold ring.
 - **World markers**: flags with letter, distance and progress arc, plus squad mates, downed mates and spotted enemies.
 - **Bottom left**: rotating, heading-up minimap (M for the full map). On desktop a short "M MAP · Y SPOT" caption sits above it until you have used both keys or 30 s have passed. On touch the minimap shrinks and moves to the top left, beside the MAP and SPOT buttons.
@@ -369,10 +395,11 @@ After a view change the HUD shows the seat's views under the ticket bar for 1.6 
 
 ## Protocol (contract: `shared/conquest-contract.js`, frozen; changes only through integration)
 
-The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 5; 4 added the `jeep_at` hull and the helicopter gunner's `atgm` mount, which move vehicle type and mount indices; 5 gave the jet's bombs their own `bombs` mount, a third jet mount row, and dropped the 6th store entry of the old `rails` store mount) in its admission frame. A socket whose frame lacks it or carries another version (an open tab from before a deploy) cannot create or join a Conquest room ("Voxel Blitz was updated. Reload the page to play Conquest.", close 4010), and a host cannot switch a lobby with such a member to Conquest (the error names who must reload, and each such member is told to reload too); the other modes stay open to it. A rejoin refused with 4010 ends the reconnect loop at once with "Voxel Blitz was updated. Reload the page to rejoin lobby X.", and neither the client nor the server treats a 4010 close as a reconnectable drop. Bump the version whenever the kit table or the `cq` row changes meaning.
+The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 6; 4 added the `jeep_at` hull and the helicopter gunner's `atgm` mount, which move vehicle type and mount indices; 5 gave the jet's bombs their own `bombs` mount, a third jet mount row, and dropped the 6th store entry of the old `rails` store mount; 6 added the weather tuple `match.conquest.wx` and the `weather_strike` event) in its admission frame. A socket whose frame lacks it or carries another version (an open tab from before a deploy) cannot create or join a Conquest room ("Voxel Blitz was updated. Reload the page to play Conquest.", close 4010), and a host cannot switch a lobby with such a member to Conquest (the error names who must reload, and each such member is told to reload too); the other modes stay open to it. A rejoin refused with 4010 ends the reconnect loop at once with "Voxel Blitz was updated. Reload the page to rejoin lobby X.", and neither the client nor the server treats a 4010 close as a reconnectable drop. Bump the version whenever the kit table or the `cq` row changes meaning.
 
 - **Server → client snapshot**
   - `match.conquest = { v:2, tickets, maxTickets, bleed, endsAt, flags:[[id, control100, owner, state, atk, def]], squads:[[team, squadId, leaderId]] }`. The client merges this with the map statics through `decodeConquestMatch(match.conquest, mapMeta.conquest)`.
+  - `match.conquest.wx = [from, to, blend100, etaS, windDeg, wet100, next]` while weather is on (see *Weather*): `from`, `to` and `next` index `WEATHER_IDS` (`next` -1 on the last hold), `etaS` counts down to the next change. `decodeConquestWeather` turns it into the state, the blended multipliers and the drift vector; `decodeConquestMatch` exposes it as `weather`.
   - `players[].cq = [kitIndex, squadId, down, spotted, restrictedDs, lockProgress, actionProgress, chute?]` and `players[].cqs = [objective, vehiclesDestroyed, revives, captures]`. Decode them with `decodeConquestPlayer` and `decodeConquestStats`. The 8th `cq` entry is the parachute state (1 canopy, 2 ejection seat) and is only appended while a body is under one, so grounded rows keep 7 entries (2 extra bytes per airborne body). `kitIndex` indexes `KIT_IDS` (contract v3: 0-3 assault, engineer, support, recon as before, then 4 medic, 5 pyro, 6 grenadier, 7 raider, 8 marksman; -1 none). No new player field: the medkit and grenades the abilities change already ride the row.
   - `vehicles[]` rows are quantized and add these fields:
     - `mounts` (in `vehicleMountOrder` order);
@@ -388,6 +415,7 @@ The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 5; 4 added th
   - Objectives: `flag_state`, `flag_neutralized`, `flag_captured`, `ticket_low`.
   - Players: `score`, `deploy_refused`, `revive`, `heal`, `kit_unlocks`, `spot`.
   - Vehicles: `vehicle_hit`, `vehicle_disabled`, `vehicle_repaired`, `countermeasure` (type in `cm`), `ejection` `{id, vehicleId, pos, vel, yaw}` (a jet pilot fired out on the ejection seat).
+  - Weather: `weather_strike` `{x, y, z}` (a lightning strike, presentation only).
   - Kills: `kill.w` is the weapon or one of `CONQUEST_DEATH_KEYS` (`restricted`, `vehicle`, `fall`, `crash`, `redeploy`).
   - Existing events gain fields: `vehicle_destroyed` gets `{type, attacker, assists, crewKilled}`, and `shoot` gets `{vehicleId, mount, vehicleWeapon, tracer}`.
 
@@ -423,7 +451,7 @@ Measure with `npm run join:profile` (one muted headless browser; through `.conqu
   combatArea: { minX, maxX, minZ, maxZ },
   vehicleSpawns: [{ id, team, type, x, y, z, yaw, flag?, altX?, altZ?, walkingRoute?, exitRoute? }],  // 15 hulls
   airfields: […], roads: [{ id, kind, width, points: [[x,y,z]…] }], crossings: [{ id, kind, x, y, z, width }],
-  weather: 'golden' | 'mist' | 'overcast' }
+  weather: 'golden' | 'mist' | 'overcast' | 'storm' }   // the load mood; Conquest weather blends from it
 ```
 
 The top-level metadata adds these fields:
@@ -446,13 +474,14 @@ Node suites (no browser):
   - Pass `--seed N` or `--difficulty easy|normal|hard` to vary the run.
 - `node tools/conquest-airborne-test.mjs` (server) and `node tools/conquest-airborne-ui-test.mjs` (fake DOM) cover fall damage, parachutes, the ejection seat, bot auto-chutes and bail-outs, bot seat takeover (deploy, enter, swap, airborne pilot handover) and the presentation.
 - `node tools/conquest-bot-hitch-test.mjs` covers bots riding with humans: a human-driven jeep, tank and transport get their gunner seats filled, riders stay aboard while the human drives, get out when the human leaves or at a wanted flag, no bot ever holds a human's seat, and a bot holding a threatened flag stays.
+- `node tools/conquest-weather-test.mjs` (in `conquest:test`) covers the weather: the tables, seeded timeline, phases and forecast, the `wx` tuple, wetness, the stepper and its lightning (no backlog), the snapshot, `weather_strike` and `'off'`, the spot range in a storm, a STINGER that locks a helicopter at 280 m in clear weather but not in fog, bot sight and recognition, canopy drift, the HUD tab's ranges and wording, and the client view on a fake world (snap on join, easing, rain, wet ground, flash and thunder distance).
 - `node tools/conquest-guided-missile-test.mjs` (in `conquest:test`) covers the sight-guided missiles: the contract (version 5, `atgm` and `pintle` mounts, `jeep_at` as a jeep hull variant), a helicopter gunner who selects GUIDED MSL and steers it onto a tank 35° off the nose by swinging the chin sight after launch (`at`-class hit credited to the gunner), guidance ending when the gunner leaves so the missile flies on past, flares that do not decoy it, and the AT jeep's TOW (a tank hit, a jeep killed by one, the 3-round box and its reload).
 - `node tools/conquest-jet-bomb-test.mjs` (in `conquest:test`) covers the jet stores: the v5 contract (separate `rails` and `bombs` mounts, no store mount left), cannon, missiles and bombs picked in the air with separate ammo and re-arm (bombs 10 s, missiles 15 s), the airborne-only release on the predicted impact, the 13 m blast (infantry at 4/8/11 m, jeeps at 3.6 and 12 m, a tank at 7 m), the crater, the burning field (cells on the crater floor and rim, pilot credit with `jetBomb`, a burn kill in about 4 s, no team damage, a jeep's 9/s and no tank damage, out after 8 s) and the AT deck hit.
 - `node tools/conquest-vehicle-hijack-test.mjs` covers hijacking for every hull type: a crewed enemy hull is refused, an empty one changes team with the `vehicle_hijacked` event, old spots lapse, the old team is locked out, the HQ pad keeps its home team, titans are never hijackable, and the HIJACK prompt and banners.
 - `node tools/conquest-vehicle-ram-test.mjs` covers shoving wrecks (tank pushes a jeep wreck, a jeep only nudges one and can't move a tank wreck, a pushed wreck stops at a wall and sleeps again) and ramming (fence, plank wall, plaster at speed, corrugated steel and cobble walls for the tank, the per-tick cap, speed loss and damage, stone, concrete and brick for the jeep, flag guard), and a tank's top-speed crash into stone (at most 10 % hull lost, a rebound).
 - `node tools/conquest-bot-wait-test.mjs` covers bot drivers waiting for humans: a bot-driven jeep squad ride, tank crew, transport squad ride and attack helicopter hold while a human runs to them and leave after the human boards; no wait for a human walking away or standing 28 m off; the 8 s timeout (12 s for a squad mate) and the 30 s cooldown; a ride already well on its way drives on; an airborne helicopter never waits.
 - `node tools/conquest-redeploy-test.mjs` (protocol and policy) and `node tools/conquest-redeploy-ui-test.mjs` (fake DOM) cover the in-game menu RESPAWN.
-- `node tools/conquest-scale-test.mjs` checks the snapshot budgets: at most 260 B per vehicle row, 27 KB per tick and 400 B for `match.conquest`.
+- `node tools/conquest-scale-test.mjs` checks the snapshot budgets: at most 260 B per vehicle row, 27 KB per tick and 440 B for `match.conquest` (400 B before the weather tuple).
 - `node tools/atlastest.mjs` pins the Frontier world fingerprint. Re-pin it after any map geometry change.
 - `node tools/map-loading-test.mjs` covers V3 map frames (template, reference, patch), the admission `mapCache`, the server's per-client frame choice, the browser map cache, and checks that the load-time fast paths (raw-voxel light classification, the distant shell's layer window, far-terrain probes, spawn-ring meshing, primed Frontier metadata) give exactly the old results.
 
@@ -461,7 +490,7 @@ Captures (one muted headless CDP browser at a time, never in parallel, no game a
 - `npm run conquest:capture` (`tools/conquest-capture.mjs [--only world,vehicles,hud]`) runs the three static capture pages in sequence. Output goes to `docs/design/conquest/redesign/captures/<area>/`.
   - World: `node tools/render-map-scenes.mjs --map frontier --shot <id> --vehicles --width 1440 --height 900`; the `overview` shot is 1024 × 1024 and is also the minimap and full-map base.
   - Vehicles: `node tools/conquest-vehicle-capture.mjs [--type tank] [--list]` renders 45 shots on `public/vehicle-capture.html` and fails if the WEST/EAST hues at 150 m are not separated.
-  - HUD: `node tools/conquest-hud-capture.mjs [--only id,id] [--sizes desktop,portrait,landscape]` renders 22 fixture states at 1440 × 900, 390 × 844 and 844 × 390 on `public/conquest-hud-capture.html`. It fails on any page error or any overlap between named HUD panels or edge markers (`capture-report.json`).
+  - HUD: `node tools/conquest-hud-capture.mjs [--only id,id] [--sizes desktop,portrait,landscape]` renders the fixture states (36, among them `weather-storm` and `weather-fog`) at 1440 × 900, 390 × 844 and 844 × 390 on `public/conquest-hud-capture.html`. It fails on any page error or any overlap between named HUD panels or edge markers (`capture-report.json`).
 - Before/after/reference notes for all areas are in `docs/design/conquest/redesign/captures/comparison.md`.
 
 Live smoke:

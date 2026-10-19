@@ -58,6 +58,11 @@ export const ICON_PATHS = Object.freeze({
   lock: 'M12 2l2.5 5H20l-4.3 3.7L17.5 17 12 13.5 6.5 17l1.8-6.3L4 7h5.5z',
   flares: 'M12 2c2 4 5 6 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.8 1.2 2.8 2.2 3.2C10.8 8 11 5 12 2z',
   smoke: 'M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 .5 9.5z',
+  // Weather states (the HUD weather tab, docs/conquest.md *Weather*).
+  'wx-golden': 'M12 7.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9zM11 1.5h2V5h-2zM11 19h2v3.5h-2zM1.5 11H5v2H1.5zM19 11h3.5v2H19zM4.2 5.6l1.4-1.4 2.5 2.5-1.4 1.4zM15.9 17.3l1.4-1.4 2.5 2.5-1.4 1.4zM4.2 18.4l2.5-2.5 1.4 1.4-2.5 2.5zM15.9 6.7l2.5-2.5 1.4 1.4-2.5 2.5z',
+  'wx-overcast': 'M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 .5 9.5z',
+  'wx-mist': 'M3 6h13v2H3zM6 10h15v2H6zM2 14h14v2H2zM8 18h12v2H8z',
+  'wx-storm': 'M7 14a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 4.5a4.75 4.75 0 0 1 .5 9.5h-2.6l1.1-2.4h-5.2L8.9 14zM11.4 12.6h4.1l-2 3.6h2.8L10 23l1.6-5.4H9z',
 });
 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */

@@ -10,6 +10,8 @@ export { graphicsQuality, resolveGraphicsProfile, rendererCapabilities, isTouchD
 export { ShaderErrorMonitor, warmShaders, VEHICLE_WARMUP_MATERIALS, WORLD_WARMUP_MATERIALS } from '../engine/shader-warmup.js';
 export { WorldView, prewarmWorldView } from '../engine/worldview.js';
 export { ConquestAmbience } from '../engine/conquest-ambience.js';
+export { ConquestWeatherView } from '../engine/conquest-weather-view.js';
+export { decodeConquestWeather } from '../../../shared/conquest-weather.js';
 export { ViewmodelRig } from '../guns/viewmodel.js';
 export { WeaponState, shouldShowViewmodel } from '../guns/weapon-state.js';
 export { Effects, attachMuzzleBridge, attachRemoteMuzzleBridge } from '../weapons/effects.js';

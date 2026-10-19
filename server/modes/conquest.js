@@ -11,6 +11,7 @@ import { ScoreLedger } from './conquest/score.js';
 import { BoundsSystem, RESTRICTED_WEAPON } from './conquest/bounds.js';
 import { airspaceFor, airspaceRect } from '../../shared/world/airspace.js';
 import { createConquestRoles } from './conquest/roles.js';
+import { ConquestWeather } from './conquest/weather.js';
 import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
 import { evHit } from '../protocol/events.js';
@@ -55,6 +56,11 @@ export class ConquestPolicy extends TdmPolicy {
     });
     this.finalStats = new Map();
     this.roles = createConquestRoles({ policy: this, engine: this.engine, rules: this.rules });
+    // Dynamic weather (conquest/weather.js): the mode rule `weather`, else VB_CONQUEST_WEATHER
+    // ('off', or a state id such as 'storm' to pin it), else a seeded timeline per match.
+    const envWeather = typeof process !== 'undefined' ? process.env?.VB_CONQUEST_WEATHER || undefined : undefined;
+    this.weather = new ConquestWeather({ option: context.rules?.weather ?? envWeather ?? true,
+      durationMs: this.rules.timeLimitMs, area: this.mapMeta?.conquest?.combatArea ?? null });
     this._resetObjectives();
   }
 
@@ -95,6 +101,7 @@ export class ConquestPolicy extends TdmPolicy {
     const meta = this.mapMeta?.conquest;
     this.capture.reset(meta?.flags ?? []);
     this.ledger.reset(this.now);
+    this.weather?.reset(this.ledger.startedAt);
     this.bounds.reset(meta, { airArea: this._airArea() });
     this.deploy.clearChoices?.();
     this.score.reset();
@@ -159,6 +166,7 @@ export class ConquestPolicy extends TdmPolicy {
       kill: (p, aircraft) => aircraft ? this._loseAircraft(aircraft, p) : this._kill(p, RESTRICTED_WEAPON),
     });
     if (this.phase !== 'live') return;
+    this._stepWeather(now);
     this.roles.tick(now, dt);
     this.score.tick(now);
     if (this.phase === 'live' && this.ledger.timeExpired(now)) this._finishMatch(this.ledger.timeLimitWinner(this.capture.held()));
@@ -228,6 +236,25 @@ export class ConquestPolicy extends TdmPolicy {
     entity.deaths = (entity.deaths | 0) + 1;
     this.onPlayerDeath(entity, null, { weapon });
   }
+
+  /** Advance the weather; each due lightning strike becomes `weather_strike {x, y, z}` (y: the ground under it). */
+  _stepWeather(now) {
+    for (const strike of this.weather.step(now)) {
+      const solidAt = this.engine?.solidAt;
+      let y = 0;
+      if (typeof solidAt === 'function') {
+        for (let probe = 120; probe > 0; probe--) if (solidAt(strike.x, probe - 1, strike.z)) { y = probe; break; }
+      }
+      this._emit('weather_strike', { x: strike.x, y, z: strike.z });
+    }
+  }
+
+  /**
+   * Gameplay multipliers of the current weather (shared/conquest-weather.js
+   * decodeConquestWeather of the snapshot tuple; CALM_WEATHER while off):
+   * spot, lock, vision, recognition and the canopy `drift {x, z}`.
+   */
+  weatherEffects() { return this.weather.effects; }
 
   _finishMatch(winner) {
     if (this.phase !== 'live') return;
@@ -560,6 +587,7 @@ export class ConquestPolicy extends TdmPolicy {
       bleed: this.ledger.snapshotBleed(),
       endsAt: this.ledger.endsAt,
       squads: this.squads.map(),
+      weather: this.weather.effects,
       teamOf: p => this.teamFor(p),
       deployOptions: p => { const e = this._entity(p); return e && this._state(e) ? this.deploy.options(e) : []; },
     };
@@ -636,6 +664,7 @@ export class ConquestPolicy extends TdmPolicy {
         endsAt: Number.isFinite(ledger.endsAt) ? Math.round(ledger.endsAt) : null,
         flags: this.capture.flags.map(encodeConquestFlag),
         squads: this.squads.tuples(),
+        ...(this.weather.tuple ? { wx: this.weather.snapshot() } : {}),
         ...(this.phase === 'post' ? { ticketGraph: ledger.graph.map(row => row.slice()) } : {}),
       },
     };

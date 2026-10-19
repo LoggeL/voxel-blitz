@@ -175,6 +175,8 @@ class Game {
           this.titanfall?.onEvent(event);
           this.objectiveCues?.handleEvent(event, this.selfRow?.team);
           this.conquestSoundscape?.handleEvent(event);
+          // Conquest weather: lightning flash, bolt and (through the soundscape) delayed thunder.
+          if (event.kind === 'weather_strike') { this.weatherView?.strike(event, this.camera?.position ?? null); return; }
           if (event.kind === 'vehicle_destroyed' || (event.kind === 'explosion' && event.type === 'vehicle')) {
             this.vehicleDestructionFX?.handleEvent(event);
             return;
@@ -456,6 +458,11 @@ class Game {
         onArtillery: (pos) => this.conquestSoundscape?.artillery(pos) });
       this.conquestSoundscape = new rt.ConquestSoundscape({ audio: sfx.conquestAudio(), weather: this.worldview.weather || 'golden',
         wrecks: this.conquestAmbience.sources?.wrecks ?? [] });
+      // Dynamic weather (match.conquest.wx): sky, fog, light, rain, wet ground and lightning, uniform-only.
+      if (this.worldview.weather) {
+        this.weatherView = new rt.ConquestWeatherView({ worldview: this.worldview, post: this.post, graphics,
+          onThunder: (strike) => this.conquestSoundscape?.thunder(strike) });
+      }
     }
     this.vehicleController = new rt.VehicleController({ camera: this.camera,
       raycast: (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),
@@ -771,6 +778,10 @@ class Game {
     }
     this.matchState = match;
     this.worldview?.setMatch(match, Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : undefined);
+    // Conquest weather (shared/conquest-weather.js): one decode feeds the view, the soundscape and the canopy.
+    const weather = match?.mode === 'conquest' ? this.rt?.decodeConquestWeather?.(match?.conquest?.wx) ?? null : null;
+    this.weatherView?.set(weather);
+    this.conquestSoundscape?.setWeather?.(weather);
     // Conquest flags draw team-relative colours (own blue, enemy orange).
     this.worldview?.setViewerTeam?.(self?.team ?? null);
     this.worldview?.tttTraps?.sync(self?.ttt?.traps || []);
@@ -782,6 +793,8 @@ class Game {
       this.player.physics.vehicleColliders = Array.isArray(snapshot.vehicles) ? snapshot.vehicles : [];
       // Conquest predicts the parachute and ejection seat (shared/parachute.js).
       this.player.physics.airRules = match?.mode === 'conquest';
+      // Conquest weather: the canopy drifts with the server's wind (shared/conquest-weather.js).
+      this.player.physics.chuteDrift = weather?.drift ?? null;
       // Titanfall pilot movement hooks (shared/pilot-movement.js).
       this.player.physics.pilotRules = match?.mode === 'titanfall';
     }
@@ -1253,7 +1266,8 @@ class Game {
     if (this.mapMeta?.id === 'frontier' && this.worldview?.scene.fog) {
       const row = this.vehicleController?.vehicle;
       const flying = seated && ['helicopter', 'transport', 'plane'].includes(row.type) && row.grounded === false;
-      const density = flying ? this.worldview.renderDistanceProfile.fogAirDensity : this._conquestGroundFogDensity;
+      const density = (flying ? this.worldview.renderDistanceProfile.fogAirDensity : this._conquestGroundFogDensity)
+        * (this.weatherView?.fogScale(flying) ?? 1);
       this.worldview.scene.fog.density += (density - this.worldview.scene.fog.density) * (1 - Math.exp(-Math.max(0, dt) * 2));
     }
     if (seated) {
@@ -1434,6 +1448,7 @@ class Game {
       const latest = this.net?.latestSnapshots?.at(-1);
       this.vehicleAudio?.update(latest?.vehicles, this.camera.position, { self: this.selfRow, groundFires: latest?.fireFields });
       this.conquestAmbience?.update(dt, this.camera);
+      this.weatherView?.update(dt, this.camera);
       this.conquestSoundscape?.update(dt, this.camera, { match: this.matchState, selfTeam: this.selfRow?.team,
         inVehicle: !!this.vehicleController?.active });
       // A replay streams the ground around its own camera (a killer across a large map).
@@ -1626,6 +1641,7 @@ class Game {
     this.vehicleDestructionFX?.dispose(); this.vehicleDestructionFX = null;
     this.vehicleFx?.dispose(); this.vehicleFx = null;
     this.conquestAmbience?.dispose(); this.conquestAmbience = null;
+    this.weatherView?.dispose(); this.weatherView = null;
     if (this.conquestSoundscape) { this.conquestSoundscape.dispose(); this.conquestSoundscape = null; sfx.unloadConquestBank?.(); }
     this.structureFx?.dispose(); this.structureFx = null;
     this.particleField?.dispose(); this.particleField = null;
