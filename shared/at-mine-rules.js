@@ -32,8 +32,16 @@ export const AT_MINE_RULES = Object.freeze({
   /** Belly charge on the hull above the mine. */
   hullDamage: 400,
   hullCls: 'at',
-  /** Footprint slack around the hull collider, and the hull-local height band that counts as "over it" (m). */
+  /** Footprint slack beside the hull collider, and the hull-local height band that counts as "over it" (m). */
   footprintMargin: 0.15,
+  /**
+   * Along the hull the charge goes off only this far inside the leading
+   * (and trailing) edge of the collider: under the first road wheels or the
+   * front axle, so the belly charge meets the hull floor. A trigger at the
+   * very lip met the lower nose plate or the track ends square-on instead
+   * (a driven-over tank took 300-400, not disabled; balance audit 2026-10-20).
+   */
+  triggerInset: 0.6,
   triggerBelow: -0.8,
   triggerAbove: 1.2,
   /** Shot/collision box half extents (x, y, z) of the 0.48 x 0.12 m disc. */

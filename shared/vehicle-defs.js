@@ -154,18 +154,21 @@ export const VEHICLE_WEAPONS = freeze({
   // Sight-guided AT missiles (SACLOS). `beam` steers the missile onto the
   // gunner's sight ray (the mount anchor's `sight` mount, else the launcher
   // itself): after `delay` s of free flight it aims `lead` m beyond its own
-  // projection onto the ray, turning at most `turnRate` rad/s. Guidance ends
+  // projection onto the ray, turning at most `turnRate` rad/s. A crossing
+  // target pulls the missile about lead x crossing speed / missile speed
+  // behind the sight, so `lead` stays short (8 m; 30 m missed every crossing
+  // hull, docs/conquest.md "Vehicle balance"). Guidance ends
   // when the gunner leaves the seat or dies or the hull is destroyed. AT
   // numbers like the RX-8: a jeep dies to one hit, a heli to three, a tank to
   // four on the front plate (360 x ~0.75-0.85), three on the side.
   guidedMissile: weapon('guidedMissile', { cooldown: 1.5, magazine: 2, rearmSeconds: 12, damage: 300, splash: 60, splashRadius: 3,
     splashCls: 'at', terrainRadius: 1.5, terrainPower: 120, maxDestroyedBlocks: 20, lifetimeMs: 8000, knockback: 12,
-    beam: { lead: 30, delay: 0.2, turnRate: 1.8 } }),
+    beam: { lead: 8, delay: 0.2, turnRate: 1.8 } }),
   // AT jeep TOW: three in the box, the box reloaded once empty; slower and
   // longer than the heli's missile, the same warhead.
   towMissile: weapon('towMissile', { cooldown: 3, magazine: 3, reloadSeconds: 12, damage: 300, splash: 60, splashRadius: 3,
     splashCls: 'at', terrainRadius: 1.5, terrainPower: 120, maxDestroyedBlocks: 20, lifetimeMs: 9000, knockback: 12,
-    beam: { lead: 30, delay: 0.15, turnRate: 1.5 } }),
+    beam: { lead: 8, delay: 0.15, turnRate: 1.5 } }),
   // Titan mount weapons (shared/vehicle-handling/titan-weapons.js, WP3 numbers).
   ...TITAN_WEAPONS,
 });

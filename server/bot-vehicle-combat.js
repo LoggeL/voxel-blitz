@@ -428,6 +428,19 @@ function readMount(v, seatId, mountId, index) {
   return { heat: entry.heat ?? 0, overheated: !!entry.overheated, ammo: entry.ammo, cooldown: entry.cooldown ?? 0, reloadT: entry.reloadT ?? 0 };
 }
 
+/**
+ * Whether a sight-guided missile of gunner `p` still rides a sight on hull `v`
+ * short of `reach` m (the held target's range plus a margin): one that has
+ * flown past the target missed and no longer holds the gunner.
+ */
+function beamMissileInFlight(game, p, v, reach) {
+  for (const r of game.projectiles?.active?.values?.() ?? []) {
+    if (r.beam && r.beam.vehicleId === v.id && r.beam.operatorId === String(p.id)
+      && Math.hypot(r.x - v.x, r.y - v.y, r.z - v.z) < reach) return true;
+  }
+  return false;
+}
+
 /** Reach of a sight-guided missile (VEHICLE_WEAPONS `beam`): most of its flight. */
 export const beamMissileRange = rules => rules.speed * rules.lifetimeMs / 1000 * 0.85;
 /**
@@ -508,8 +521,13 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
     ? Math.max(...weapons.map(w => armorMultiplier(vehicleWeaponMeta(w.weapon)?.cls, target.armor)))
     : Math.max(...weapons.map(w => VEHICLE_WEAPONS[w.weapon]?.beam ? BEAM_SUITABILITY.infantry : 1));
   // While its sight-guided missile flies the gunner keeps the sight on that
-  // target: no full sweeps and no weapon change until it has arrived.
-  const guiding = (state.guideUntil ?? 0) > now && state.targetId === state.guideTarget;
+  // target: no full sweeps and no weapon change until it has arrived. A
+  // missile still riding this gunner's sight counts too (one launched on the
+  // tick a weapon switch landed, or still flying past the planned time) until
+  // it has flown past the range the target was last held at.
+  const riding = state.targetId != null && weapons.some(w => VEHICLE_WEAPONS[w.weapon]?.beam)
+    && beamMissileInFlight(game, p, v, (state.targetRange ?? 0) + 15);
+  const guiding = riding || (state.guideUntil ?? 0) > now && state.targetId === state.guideTarget;
   const heldBr = { enemyId: state.targetId, noticeProgress: state.progress, difficulty: br.difficulty, damageFrom: br.damageFrom };
   // Targets the mount just failed to bring to bear are skipped inside the
   // picker, so the next-best visible threat is engaged meanwhile.
@@ -529,6 +547,7 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
     return { target: null, danger: observed?.danger ?? null };
   }
   const { target, sighting } = observed;
+  state.targetRange = sighting.distance;
   if (state.targetId !== target.id) {
     state.targetId = target.id; state.progress = 0; state.evidence = 0; state.elapsed = 0;
     state.threshold = recognitionThreshold(br.rng()); state.trackSince = now; state.inBurst = false; state.lastError = Infinity;
@@ -554,14 +573,17 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
     inp.vehicleAction = { type: 'weapon', index: choice };
     state.selAt = now + 450; state.requestedSel = choice;
   }
-  const active = weapons[Math.min(weapons.length - 1, Math.max(0, selected))];
+  // A riding missile keeps the sight on its launcher's sight mount whatever is selected.
+  const active = riding ? weapons.find(w => VEHICLE_WEAPONS[w.weapon]?.beam) : weapons[Math.min(weapons.length - 1, Math.max(0, selected))];
   const meta = vehicleWeaponMeta(active.weapon), beam = VEHICLE_WEAPONS[active.weapon]?.beam ?? null;
   // A sight-guided missile is aimed (and judged on target) through its sight mount (the heli's chin gimbal).
   const { pose } = mountedObserver(game, v, seatId, beam ? VEHICLE_DEFS[v.type]?.mounts?.[active.mount]?.sight ?? active.mount : active.mount, p);
   const origin = pose?.origin ?? [observer.x, observer.eyeY, observer.z];
   const skill = br.skill ?? 0.5;
+  // A sight-guided missile flies to where the sight looks when it arrives, so
+  // its gunner tracks the hull itself; a lead would steer it past a crosser.
   const aim = ballisticAim(origin, sighting.aimPoint, target, { speed: meta?.speed ?? 0, gravity: meta?.gravity ?? 0,
-    maxSeconds: 6, leadSkill: 0.8 + 0.2 * skill });
+    maxSeconds: 6, leadSkill: beam ? 0 : 0.8 + 0.2 * skill });
   // A cloaked pilot seen only up close is aimed at with a multiplied error (Titanfall, bot-perception.js).
   const cqCrew = game.mode.mode === 'conquest';
   const sigma = (0.9 - 0.6 * skill + (cqCrew ? CQ_MOUNT_AIM.floorDeg : 0)) * profile.aimError * pers.aimError * Math.PI / 180 * (sighting.aimErrorMul ?? 1);
@@ -610,6 +632,8 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   }
   if (error >= tolerance || !lineClear || state.cooling) { state.inBurst = false; return { target, sighting, recognized: true }; }
   if (!hitscan) {
+    // The selected gun (not the missile) holds fire while the sight guides one in.
+    if (riding && weapons[selected]?.weapon !== active.weapon) return { target, sighting, recognized: true };
     inp.wantFire = true;
     if (beam && (mount?.ammo ?? 1) > 0) { state.guideUntil = now + Math.min(aim.flightTime, 9) * 1000 + 400; state.guideTarget = target.id; }
     return { target, sighting, recognized: true, fired: true };
