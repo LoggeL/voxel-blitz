@@ -385,12 +385,71 @@ export function setVehicleMaterialState(material, { soot, lamps, burn, nearFade 
   if (nearFade !== undefined) value.w = nearFade ? 1 : 0;
 }
 
-/** Tinted canopy glass: lit, transparent, sorted after opaque hulls. */
+/**
+ * The hull material's twin for InstancedMesh parts (wheels, cleats, stores).
+ * three.js keys a material's program on instancing, so one material drawn by
+ * plain and instanced meshes re-resolves its program at every switch in the
+ * render list. The twin shares the vehicleState uniform, the patches and
+ * their cache key: the same instanced program, no switch. Disposed with the
+ * hull material.
+ */
+const instancedTwins = new WeakMap();
+export function instancedVehicleMaterial(material) {
+  let twin = instancedTwins.get(material);
+  if (twin) return twin;
+  twin = material.clone();
+  if (material.userData.vehicleState) twin.userData.vehicleState = material.userData.vehicleState;
+  for (const key of ['onBeforeCompile', 'customProgramCacheKey', 'onBeforeRender']) {
+    if (Object.hasOwn(material, key)) twin[key] = material[key];
+  }
+  instancedTwins.set(material, twin);
+  material.addEventListener('dispose', () => twin.dispose());
+  return twin;
+}
+
+/**
+ * three.js draws a transparent DoubleSide material in two passes, back faces
+ * then front faces, flipping `side` with needsUpdate around each, so every
+ * such draw re-resolves its program twice. Canopy glass, rotor blur and the
+ * storm's lightning bolt draw the same two passes with fixed sides instead:
+ * the split material renders the back faces and a FrontSide twin, hung under
+ * each mesh by addFrontFaces(), the front faces right after (same
+ * renderOrder, depth and the next object id). The twin follows the opacity
+ * and colour written to the material and is disposed with it.
+ */
+const frontFaces = new WeakMap();
+export function splitSides(material) {
+  material.side = THREE.BackSide;
+  const front = material.clone();
+  front.name = `${material.name}-front`;
+  front.side = THREE.FrontSide;
+  front.onBeforeRender = () => {
+    front.opacity = material.opacity;
+    front.color.copy(material.color);
+  };
+  frontFaces.set(material, front);
+  material.addEventListener('dispose', () => front.dispose());
+  return material;
+}
+
+/** The front-face pass of a split glass or blur `mesh`, as its child (null for other materials). */
+export function addFrontFaces(mesh) {
+  const front = frontFaces.get(mesh.material);
+  if (!front) return null;
+  const twin = new THREE.Mesh(mesh.geometry, front);
+  twin.name = `${mesh.name}-front`;
+  twin.renderOrder = mesh.renderOrder;
+  twin.userData.frontFaces = true;
+  mesh.add(twin);
+  return twin;
+}
+
+/** Tinted canopy glass: lit, transparent, sorted after opaque hulls; two-sided through addFrontFaces. */
 export function createVehicleGlassMaterial() {
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.08, metalness: 0.35,
-    transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide });
+    transparent: true, opacity: 0.42, depthWrite: false });
   material.name = 'vehicle-glass';
-  return material;
+  return splitSides(material);
 }
 
 /** Spinning-rotor blur disc: an unlit translucent ring texture. */
@@ -417,9 +476,10 @@ export function rotorBlurTexture() {
   return blurTexture;
 }
 
+/** Two-sided through addFrontFaces, like the glass. */
 export function createRotorBlurMaterial() {
   const material = new THREE.MeshBasicMaterial({ color: 0x25272a, map: rotorBlurTexture(), transparent: true,
-    opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+    opacity: 0, depthWrite: false });
   material.name = 'rotor-blur';
-  return material;
+  return splitSides(material);
 }

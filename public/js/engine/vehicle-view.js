@@ -16,7 +16,7 @@ import { JeepDriver } from '../vehicles/jeep-driver.js';
 import { AircraftPilot } from '../vehicles/aircraft-pilot.js';
 import { hasCockpitOverlay, makeCockpitOverlay } from '../vehicles/cockpit-overlay.js';
 import { createVehicleFragments, fragmentMaterial } from '../vehicles/vehicle-fragments.js';
-import { createVehicleMaterial, createVehicleGlassMaterial, createRotorBlurMaterial, setVehicleMaterialState } from '../vehicles/voxel-model/material.js';
+import { addFrontFaces, createVehicleMaterial, createVehicleGlassMaterial, createRotorBlurMaterial, setVehicleMaterialState } from '../vehicles/voxel-model/material.js';
 import { canonicalMountKey, isAircraftType, rowMaxHp, mountIndex, TITAN_TYPES, isWalkerType } from '../vehicles/voxel-model/anchors.js';
 
 // Titanfall walkers (docs/titanfall.md §7): the lazily loaded titanfall client installs its
@@ -169,6 +169,7 @@ export class VehicleView {
     fragment.name = 'vehicle-warmup-fragment';
     const blur = new THREE.Mesh(new THREE.CircleGeometry(1, 8), blurMaterial);
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), glassMaterial);
+    addFrontFaces(blur); addFrontFaces(glass);
     const bar = createHpBar();
     bar.visible = true;
     group.add(model.group, fragment, blur, glass, bar);

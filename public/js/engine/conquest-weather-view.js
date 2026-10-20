@@ -29,6 +29,7 @@ import { buildMapAmbience } from './map-ambience.js';
 import { TERRAIN_WET } from './chunks.js';
 import { resolveGrade } from './combat-post-process.js';
 import { applyWaterPalette } from './fluid-material.js';
+import { addFrontFaces, splitSides } from '../vehicles/voxel-model/material.js';
 
 /** Presentation tuning (no gameplay): easing, flash shape, bolt and rain. */
 export const WEATHER_VIEW = Object.freeze({
@@ -305,12 +306,15 @@ export class ConquestWeatherView {
     geometry.setDrawRange(0, 0);
     geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
     const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 2.5, 3), transparent: true, opacity: 0,
-      blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide, toneMapped: true });
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: true });
     material.name = 'weather-bolt';
+    // Two-sided without a per-frame program flip (material.js splitSides).
+    splitSides(material);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = 'weather-bolt';
     mesh.frustumCulled = false;
     mesh.renderOrder = 5;
+    addFrontFaces(mesh).frustumCulled = false;
     return { mesh, geometry, material, quads, age: Infinity };
   }
 

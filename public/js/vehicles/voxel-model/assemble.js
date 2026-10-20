@@ -5,7 +5,7 @@
 // (one tag only, recentred about its own centre for tumbling).
 import * as THREE from '../../vendor/three.module.js';
 import { meshVoxelPart } from './mesher.js';
-import { createPaletteResolver } from './material.js';
+import { addFrontFaces, createPaletteResolver, instancedVehicleMaterial } from './material.js';
 
 const geometryCache = new Map();
 const resolvers = new Map();
@@ -141,6 +141,7 @@ export class ModelKit {
       entry.glassMesh = new THREE.Mesh(geometry.glass, this.glass);
       entry.glassMesh.name = `${part.name}-glass`;
       entry.glassMesh.renderOrder = 2;
+      addFrontFaces(entry.glassMesh);
       node.add(entry.glassMesh);
     }
     this.parts.push(entry);
@@ -154,7 +155,7 @@ export class ModelKit {
    */
   instances(parent, part, transforms, name = `${part.name}-instances`) {
     const geometry = partGeometry(this.type, this.team, part);
-    const mesh = new THREE.InstancedMesh(geometry.opaque, this.material, transforms.length);
+    const mesh = new THREE.InstancedMesh(geometry.opaque, instancedVehicleMaterial(this.material), transforms.length);
     mesh.name = name;
     mesh.castShadow = true; mesh.receiveShadow = true;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -179,6 +180,7 @@ export class ModelKit {
     const mesh = new THREE.Mesh(geometry, this.blur);
     mesh.name = name;
     mesh.renderOrder = 3;
+    addFrontFaces(mesh);
     mesh.visible = false;
     mesh.userData.ownedGeometry = true;
     parent.add(mesh);

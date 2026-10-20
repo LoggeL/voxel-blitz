@@ -861,9 +861,10 @@ function spawnGhost(item, node = null, color = [0.35, 0.8, 1.9], life = TITAN_AB
   item.root.updateMatrixWorld(true);
   // Only the hull's own cached voxel meshes: never the first-person cockpit overlay (parented
   // under the body) or any geometry that can be disposed while the ghost still draws it.
+  // A glass mesh's front-face pass (addFrontFaces) is the same surface: copied once.
   const walk = object => {
     if (!object.visible || object.userData?.cockpitOverlay || object === item.cockpit?.group) return;
-    if (object.isMesh && object.geometry?.userData?.cached) {
+    if (object.isMesh && object.geometry?.userData?.cached && !object.userData.frontFaces) {
       const copy = new THREE.Mesh(object.geometry, mat);
       copy.matrixAutoUpdate = false;
       copy.matrix.copy(object.matrixWorld);
