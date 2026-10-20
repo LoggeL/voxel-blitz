@@ -54,7 +54,7 @@ Redrock reuses Frontier's architecture instead of copying it:
 
 ### Places
 
-Four named places between the flags carry landmarks of their own: **Coyote Well** (208, 408, windmill), **Juniper Trading Post** (560, 408, sign), **Arch Rock** (340, 470, a natural span) and **Signal Butte** (428, 470, radio mast, rise 35). The mesas are Anvil Mesa, Saddle Butte, Broken Mesa, The Needle and Cairn Butte, mirrored east.
+Four named places between the flags carry landmarks of their own: **Coyote Well** (208, 408, windmill), **Juniper Trading Post** (560, 408, sign), **Arch Rock** (340, 470, a natural span) and **Signal Butte** (428, 470, radio mast, rise 35). Coyote Well and Juniper Trading Post are the two forward service depots (docs/conquest.md *Forward service depots*; `DEPOT_SITES` in `shared/map-events/depot.js`). Juniper (EAST, flag E) has three squat fuel tanks (radius 4.2 on 4.6 m concrete plinths, 6 m tall) at (566.5, 415.5), (577.5, 415.5) and (572, 423.5) south of its pump canopy, pump point (560.5, 403.5). Coyote Well (WEST, flag B) mirrors them at (201.5, 415.5), (190.5, 415.5) and (196, 423.5) on the ground the corral took (the corral is gone) and has a concrete pump island (x 205–211, z 400–406) with two red pumps beside the windmill, pump point (207.5, 403.5). Both place footprints grew 3 m outward to hold the tanks (Coyote Well x from 185, Juniper to x 582). Shot down, a depot's tanks go up in a chain reaction (craters, the canopy or the windmill down, a smoke column, 45 s of fire on the road north of it: Juniper x 548–572, Coyote x 196–220, z 378–391). The mesas are Anvil Mesa, Saddle Butte, Broken Mesa, The Needle and Cairn Butte, mirrored east.
 
 ## River and crossings
 

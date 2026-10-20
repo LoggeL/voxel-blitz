@@ -751,6 +751,21 @@ export function conquestHudFixtures({ map = 'frontier' } = {}) {
         camera: cam(near.x, GROUND + 1.6, near.z, yawTo(near, anchor)) }));
     }
   }
+  // 26. Forward service depot (docs/conquest.md "Forward service depots"; design docs/design/conquest/depot/, A):
+  // the driver's tank on the Kestrel Halt forecourt at 62 %, the SERVICING card, the own-coloured badge pulsing on the maps.
+  {
+    const ids = mapEventsFor('frontier').map(d => d.id), east = ids.indexOf('depot'), west = ids.indexOf('depot-w');
+    if (east >= 0 && west >= 0) {
+      const at = { x: 299.5, z: 337.5 }, pump = { x: 290.5, z: 337.5 };
+      const self = meAt(at.x, at.z, { vehicleId: 'alpha-tank', vehicleSeatId: 'driver', y: 30 });
+      const tank = vehicle('alpha-tank', 'tank', 'alpha', at.x, at.z, { y: 30, hp: 620, yaw: yawTo(at, pump), turretYaw: yawTo(at, pump),
+        seatOccupants: { driver: 'me', commander: null }, st: VEHICLE_STATUS.engine | VEHICLE_STATUS.servicing, sel: { driver: 0 } });
+      const match = baseMatch();
+      match.conquest.ev = [[east, 0], [west, 0, 0, -1, -1, [1]]];
+      out.push(state('depot-service', 'Kestrel Halt depot · SERVICING · hull +5 %/s', { self, players: roster(self), vehicles: [tank], match,
+        camera: cam(at.x + 10, 30 + 4.6, at.z + 6, yawTo({ x: at.x + 10, z: at.z + 6 }, pump), -0.12) }));
+    }
+  }
   // Redrock Dam breach (docs/conquest.md "Redrock Dam breach"; --map redrock only, the `ev` index is Redrock's).
   if (map === 'redrock') out.push(...damFixtures(meAtY));
   return out;

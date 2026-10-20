@@ -35,6 +35,11 @@ const HALT = Object.freeze({
   wagons: Object.freeze([rect(270, 321, 277, 326), rect(279, 321, 286, 326)]),
   derailed: rect(226, 315, 234, 318),
   drive: Object.freeze([[268, 343], [309, 343]]),
+  // The WEST forward service depot (shared/map-events/depot.js DEPOT_SITES): three tank wagons
+  // on the siding west of the boxcars and a pump canopy on the yard beside the elevator.
+  tankWagons: Object.freeze([rect(241, 321, 248, 326), rect(250, 321, 257, 326), rect(259, 321, 266, 326)]),
+  forecourt: rect(283, 332, 298, 341),
+  canopy: rect(284, 334, 296, 340),
 });
 const DEPOT = Object.freeze({
   forecourt: rect(478, 436, 500, 448),
@@ -149,6 +154,19 @@ function boxcar(kit, r, y, body = RUST) {
   kit.feature('cover', { cover: 'wagon', x: (r.minX + r.maxX + 1) / 2, z: (r.minZ + r.maxZ + 1) / 2, height: 4 });
 }
 
+/** A tank wagon along the track: metal chassis, a pale barrel (end plates metal) and a filler dome on top. */
+function tankWagon(kit, r, y) {
+  kit.box(r.minX, y + 1, r.minZ + 1, r.maxX, y + 1, r.maxZ - 1, METAL);
+  const cz = (r.minZ + r.maxZ + 1) / 2, cy = y + 4.5;
+  for (let x = r.minX; x <= r.maxX; x++) for (let z = r.minZ; z <= r.maxZ; z++) for (let yy = y + 2; yy <= y + 6; yy++) {
+    const dz = (z + 0.5 - cz) / 3, dy = (yy + 0.5 - cy) / 2.6;
+    if (dz * dz + dy * dy <= 1) kit.set(x, yy, z, x === r.minX || x === r.maxX ? METAL : PALE);
+  }
+  const mx = (r.minX + r.maxX) >> 1, mz = (r.minZ + r.maxZ) >> 1;
+  kit.box(mx, y + 7, mz, mx + 1, y + 7, mz + 1, METAL);
+  kit.feature('cover', { cover: 'tank wagon', x: (r.minX + r.maxX + 1) / 2, z: cz, height: 6 });
+}
+
 // --------------------------------------------------------- Kestrel Halt
 
 function kestrelHalt(kit) {
@@ -201,6 +219,16 @@ function kestrelHalt(kit) {
   crateStack(kit, 271, 337, 2, 2, 2);
   sandbags(kit, [[246, 341], [252, 341]], { height: 2 });
   drive(kit, HALT.drive);
+  // Service depot: the tank wagons, a concrete forecourt and a pump canopy as at Hollin.
+  for (const w of HALT.tankWagons) tankWagon(kit, w, kit.maxTop(w.minX, w.minZ, w.maxX, w.maxZ));
+  const f = HALT.forecourt;
+  kit.paintRect(f.minX, f.minZ, f.maxX, f.maxZ, CONCRETE);
+  const c = HALT.canopy, cy = kit.maxTop(c.minX, c.minZ, c.maxX, c.maxZ);
+  for (const [x, z] of [[c.minX, c.minZ], [c.maxX, c.minZ], [c.minX, c.maxZ], [c.maxX, c.maxZ]]) kit.box(x, kit.top(x, z) + 1, z, x, cy + 5, z, METAL);
+  kit.box(c.minX - 1, cy + 6, c.minZ - 1, c.maxX + 1, cy + 6, c.maxZ + 1, CORRUGATED_STEEL);
+  kit.box(c.minX - 1, cy + 6, c.minZ - 1, c.maxX + 1, cy + 6, c.minZ - 1, ACCENT);
+  eavePlinth(kit, c, CONCRETE);
+  for (const x of [288, 292]) { const g = kit.top(x, 337); kit.box(x, g + 1, 336, x, g + 2, 338, PALE); kit.feature('cover', { cover: 'pump', x, z: 337, height: 2 }); }
 }
 
 // ---------------------------------------------------- Hollin Fuel Depot

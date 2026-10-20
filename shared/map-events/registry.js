@@ -9,7 +9,7 @@
 // slot dam (Redrock dam breach):
 import { DAM_EVENT } from './dam.js';
 // slot depot (forward service depots; today the Frontier Hollin Fuel Depot):
-import { DEPOT_EVENT } from './depot.js';
+import { DEPOT_EVENT, DEPOT_WEST_EVENT } from './depot.js';
 // slot sluice (Frontier ford sluices, reserved):
 // slot radar (flag radars on both maps, reserved):
 import { RADAR_EVENTS } from './radar.js';
@@ -23,7 +23,7 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot dam:
   DAM_EVENT,
   // slot depot:
-  DEPOT_EVENT,
+  DEPOT_EVENT, DEPOT_WEST_EVENT,
   // slot sluice:
   // slot radar:
   ...RADAR_EVENTS,

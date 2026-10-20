@@ -65,6 +65,8 @@ export class VehiclePanel {
     const hp = el('div', 'cq-vehicle-hp', stats);
     this.hpFill = el('i', '', el('div', 'cq-vehicle-hp-track', hp));
     this.hpText = el('span', 'cq-vehicle-hp-text', hp);
+    this.service = el('div', 'cq-vehicle-service', stats);
+    this.service.hidden = true;
     this.badges = el('div', 'cq-vehicle-badges', stats);
     this.telemetry = el('div', 'cq-vehicle-telemetry', stats);
     this.weapons = el('div', 'cq-vehicle-weapons', this.root);
@@ -127,6 +129,9 @@ export class VehiclePanel {
     this.hpFill.style.width = `${(fraction * 100).toFixed(1)}%`;
     this.root.dataset.hp = fraction < 0.25 ? 'critical' : fraction < 0.5 ? 'damaged' : 'ok';
     this.root.dataset.repairing = String(model.repairing === true);
+    this.root.dataset.servicing = String(model.servicing === true);
+    this.service.hidden = !model.service;
+    if (this._changed('service', model.service ?? '')) this.service.textContent = model.service ?? '';
     if (this._changed('hp', model.hpText)) this.hpText.textContent = model.hpText;
     const badgeSig = model.badges.map(b => b.key).join(',');
     if (this._changed('badges', badgeSig)) {
@@ -134,6 +139,8 @@ export class VehiclePanel {
       for (const badge of model.badges) {
         const b = el('span', `cq-badge cq-badge-${badge.tone}`, this.badges);
         b.textContent = badge.label;
+        const icon = badge.icon ? svgIcon(globalThis.document, badge.icon, 'cq-badge-icon') : null;
+        if (icon) b.insertBefore(icon, b.firstChild);
         if (badge.title) b.title = badge.title;
       }
     }

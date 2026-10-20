@@ -21,7 +21,7 @@ export const MAP_EVENT_CONTROLLERS = Object.freeze({
   // slot dam:
   dam: DamController,
   // slot depot:
-  depot: DepotController,
+  depot: DepotController, 'depot-w': DepotController,
   // slot sluice:
   // slot radar:
   ...RADAR_CONTROLLERS,

@@ -359,6 +359,15 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-vehicle[data-repairing="true"] .cq-vehicle-hp-track { box-shadow: 0 0 0 1px #7ef29a99, 0 0 8px #7ef29a66; animation: cq-repair-pulse 1.2s ease-in-out infinite; }
 @keyframes cq-repair-pulse { 50% { box-shadow: 0 0 0 1px #7ef29a44, 0 0 2px #7ef29a22; } }
 @media (prefers-reduced-motion: reduce) { .cq-vehicle[data-repairing="true"] .cq-vehicle-hp-track { animation: none; } }
+/* Forward service depot (docs/design/conquest/depot/, variant A): a green glow and a light sweep along the HP bar, one line under it. */
+.cq-vehicle[data-servicing="true"] .cq-vehicle-hp-track { position: relative; box-shadow: 0 0 0 1px #7ef29acc, 0 0 10px #7ef29a80; }
+.cq-vehicle[data-servicing="true"] .cq-vehicle-hp-track i { background: linear-gradient(90deg, #3fbf6b, #7ef29a); }
+.cq-vehicle[data-servicing="true"] .cq-vehicle-hp-track::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, #ffffff66, transparent); width: 30%; animation: cq-service-sweep 1.4s linear infinite; }
+@keyframes cq-service-sweep { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .cq-vehicle[data-servicing="true"] .cq-vehicle-hp-track::after { animation: none; display: none; } }
+.cq-vehicle-service { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: var(--cq-sub); font-variant-numeric: tabular-nums; }
+.cq-vehicle-service[hidden] { display: none; }
+.cq-badge-icon { width: 11px; height: 11px; display: inline-block; vertical-align: -2px; margin-right: 3px; fill: currentColor; }
 .cq-vehicle-hp-text { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .cq-vehicle-badges { display: flex; gap: 4px; flex-wrap: wrap; min-height: 0; }
 .cq-badge { padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
@@ -758,6 +767,7 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .vb-touch-mode .cq-weapon { grid-template-columns: 1fr 34px 48px; gap: 5px; padding: 1px 4px; font-size: 10px; }
 .vb-touch-mode .cq-vehicle-cm { grid-template-columns: 1fr 40px; font-size: 9px; }
 .vb-touch-mode .cq-vehicle-badges .cq-badge { font-size: 8px; }
+.vb-touch-mode .cq-vehicle-service { font-size: 9px; letter-spacing: 0.5px; }
 .vb-touch-mode .cq-interact { bottom: auto; top: calc(50% + 120px); font-size: 11px; padding: 4px 10px 4px 6px; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; }
 /* A jet's bomb pipper falls below the aim in a dive: the exit prompt steps up, under the vehicle card and clear of VIEW. */
 .vb-touch-mode .vb-conquest-hud[data-bomb-sight="true"] .cq-interact { top: auto; bottom: calc(50% + 132px); left: calc(50% + 30px); }

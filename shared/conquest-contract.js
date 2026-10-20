@@ -411,7 +411,9 @@ export const seatWeaponList = (type, seatId) => ((topologyOf(type) || []).find(s
 /** Vehicle row status bitfield `st`. */
 export const VEHICLE_STATUS = Object.freeze({ engine: 1, disabled: 2, burning: 4, immobilized: 8, flares: 16, smoke: 32, grounded: 64, wreck: 128, repairing: 256,
   // Tank subsystems (shared/tank-armor.js TANK_SUBSYSTEMS): broken tracks, damaged engine, damaged turret ring.
-  tracksHit: 512, engineHit: 1024, turretHit: 2048 });
+  tracksHit: 512, engineHit: 1024, turretHit: 2048,
+  // A forward service depot repairs and rearms the hull now (v7, shared/map-events/depot.js).
+  servicing: 4096 });
 export const vehicleStatus = row => Object.fromEntries(Object.entries(VEHICLE_STATUS).map(([k, bit]) => [k, ((row?.st | 0) & bit) !== 0]));
 
 /** Player row field `cq` (Conquest only): [kitIndex(-1 none), squadId(0 none), down(0/1), spotted(0/1), restrictedDs (tenths of s left, 0 none), lockProgress(0..100), actionProgress(0..100), chute?]

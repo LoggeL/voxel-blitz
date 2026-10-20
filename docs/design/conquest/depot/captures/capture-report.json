@@ -1,0 +1,35 @@
+{
+  "generated": "2026-10-20T18:43:16.031Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "depot-service",
+        "title": "Kestrel Halt depot · SERVICING · hull +5 %/s",
+        "file": "docs/design/conquest/depot/captures/desktop-depot-service.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "depot-service",
+        "title": "Kestrel Halt depot · SERVICING · hull +5 %/s",
+        "file": "docs/design/conquest/depot/captures/portrait-depot-service.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "depot-service",
+        "title": "Kestrel Halt depot · SERVICING · hull +5 %/s",
+        "file": "docs/design/conquest/depot/captures/landscape-depot-service.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}
