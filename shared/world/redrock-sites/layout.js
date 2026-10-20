@@ -14,8 +14,8 @@ import { REDROCK_ROAD_PLAN, REDROCK_CROSSINGS, redrockTopY, redrockSurfaceY } fr
 import { OASIS_SITE } from './oasis.js';
 import { MINE_SITE } from './mine.js';
 import { DAM_SITE } from './dam.js';
-import { RADAR_SITE } from './radar.js';
-import { RAILHEAD_SITE } from './railhead.js';
+import { DISH_TOWER, RADAR_SITE, dishLadder } from './radar.js';
+import { RAILHEAD_SITE, WATER_TOWER, waterTowerLadder } from './railhead.js';
 import { REDROCK_LOCATIONS } from './locations.js';
 import { battlefieldLayoutKit, battlefieldMetadata, battlefieldReservedCells, deepFreeze } from '../battlefield-layout.js';
 
@@ -51,7 +51,11 @@ function redrockBundle() {
     weather: 'desert',
     dressing: [],
   };
-  const ladders = airfields.map(f => f.tower.ladder);
+  const ladders = [
+    ...airfields.map(f => f.tower.ladder),
+    dishLadder(redrockTopY(DISH_TOWER.x, DISH_TOWER.z)),
+    waterTowerLadder(redrockTopY(WATER_TOWER.x, WATER_TOWER.z)),
+  ];
   bundle = deepFreeze({ conquest, landmarks: LAYOUT.buildLandmarks(flags, REDROCK_SITES, REDROCK_LOCATIONS), ladders });
   return bundle;
 }

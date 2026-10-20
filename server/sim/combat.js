@@ -335,7 +335,7 @@ function meleeSwing(p, ctx, def = p.def, aim = p, quick = false) {
   const victim = best.victim;
   const vFwd = fwdFromYawPitch(victim.yaw, victim.pitch);
   const backstab = vFwd.x * dirX + vFwd.y * dirY + vFwd.z * dirZ > melee.backstabDot;
-  const hit = meleeHitProfile(def, p, { backstab, ladder: ladderContact(ctx.mapMeta, p.x, p.y, p.z) });
+  const hit = meleeHitProfile(def, p, { backstab, ladder: ladderContact(ctx.mapMeta, p.x, p.y, p.z, 0, ctx.solidAt) });
   const dmg = meleeDamage(def, hit.mult) * occupantDamageScale(victim);
   const lethal = victim.takeDamage(dmg, false, p, def.id);
   // `w`/`mk`/`q` let clients pick the pickaxe attack cue; fully armored hits keep

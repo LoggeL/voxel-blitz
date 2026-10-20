@@ -117,7 +117,11 @@ function buildLadderVisuals(mapMeta) {
     mesh.setMatrixAt(instance++, matrix);
   };
 
+  // Per ladder: its instance range and matrices, so a ladder whose `support`
+  // column is gone can be hidden (refreshLadderSupport).
+  const spans = [];
   for (const ladder of ladders) {
+    const first = instance;
     // Rails run along the wall the ladder hangs on: -Z by default (foundry).
     const face = ladder.face || 'z-';
     const alongX = face === 'z-' || face === 'z+';
@@ -140,6 +144,11 @@ function buildLadderVisuals(mapMeta) {
       const y = ladder.minY + LADDER_RUNG_BOTTOM_INSET + i * LADDER_RUNG_SPACING;
       place((low + high) * 0.5, y, wall + inward * 0.008, rungWidth, 0.065, 0.085);
     }
+    if (ladder.support) {
+      const matrices = [];
+      for (let i = first; i < instance; i++) { const m = new THREE.Matrix4(); mesh.getMatrixAt(i, m); matrices.push(m); }
+      spans.push({ ladder, first, matrices, shown: true });
+    }
   }
 
   mesh.instanceMatrix.needsUpdate = true;
@@ -147,7 +156,33 @@ function buildLadderVisuals(mapMeta) {
   const group = new THREE.Group();
   group.name = 'ladder-group';
   group.add(mesh);
-  return { group, mesh, geometry, material };
+  return { group, mesh, geometry, material, spans };
+}
+
+/**
+ * Hide the rails and rungs of every ladder whose `support` column
+ * (mapMeta.ladders[].support {x, z, y0, y1}: the rungs or the post it hangs
+ * on, ladderContact's climb rule) is less than a third standing, and show
+ * them again once it is back (a rematch). `cells` (block deltas) limits the
+ * check to the ladders whose column they touch; null checks every one.
+ */
+function refreshLadderSupport(visuals, solidAt, cells = null) {
+  if (!visuals?.spans?.length) return false;
+  let changed = false;
+  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+  for (const span of visuals.spans) {
+    const s = span.ladder.support;
+    if (cells && !cells.some(d => d.x === s.x && d.z === s.z && d.y >= s.y0 && d.y <= s.y1)) continue;
+    let solid = 0;
+    for (let y = s.y0; y <= s.y1; y++) if (solidAt(s.x, y, s.z)) solid++;
+    const shown = solid * 3 >= s.y1 - s.y0 + 1;
+    if (shown === span.shown) continue;
+    span.shown = shown;
+    span.matrices.forEach((m, i) => visuals.mesh.setMatrixAt(span.first + i, shown ? m : zero));
+    changed = true;
+  }
+  if (changed) visuals.mesh.instanceMatrix.needsUpdate = true;
+  return changed;
 }
 
 export class WorldView {
@@ -323,6 +358,8 @@ export class WorldView {
 
     this.ladderVisuals = buildLadderVisuals(mapMeta || storeRef.meta || null);
     if (this.ladderVisuals) this.scene.add(this.ladderVisuals.group);
+    this._ladderSolid = (x, y, z) => isSolidBlock(this.store.getBlock(x, y, z));
+    refreshLadderSupport(this.ladderVisuals, this._ladderSolid);
     this.siteMarkers = new SiteMarkers((mapMeta || storeRef.meta || null)?.sites);
     this.scene.add(this.siteMarkers.group);
     this.tttSupplies = new TttSupplyView();
@@ -442,6 +479,7 @@ export class WorldView {
     this.conquest?.applyDeltas(deltas);
     this.lightVolume.applyDeltas(deltas);
     if (deltas.length) {
+      refreshLadderSupport(this.ladderVisuals, this._ladderSolid, deltas);
       this.contactShadows.invalidate();
       this.mapSigns.refresh();
       const lit = this.mapLights.stats.visible;

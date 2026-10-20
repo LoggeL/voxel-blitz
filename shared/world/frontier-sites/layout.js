@@ -11,7 +11,7 @@ import {
 } from '../frontier-terrain.js';
 import { BOAT_RULES } from '../../vehicle-handling/boat.js';
 import { FARM_SITE } from './farm.js';
-import { VILLAGE_SITE } from './village.js';
+import { CHURCH_RECT, VILLAGE_SITE, belfryLadder } from './village.js';
 import { BRIDGE_SITE } from './bridge.js';
 import { BUNKERS_SITE, OBSERVATION_TOWER, observationTowerLadder } from './bunkers.js';
 import { WORKS_SITE } from './works.js';
@@ -122,9 +122,12 @@ function frontierBundle() {
     dressing: buildDressing(),
   };
   const towerTop = frontierTopY(OBSERVATION_TOWER.x, OBSERVATION_TOWER.z);
+  let churchFloor = -Infinity;
+  for (let z = CHURCH_RECT.minZ; z <= CHURCH_RECT.maxZ; z++) for (let x = CHURCH_RECT.minX; x <= CHURCH_RECT.maxX; x++) churchFloor = Math.max(churchFloor, frontierTopY(x, z));
   const ladders = [
     ...airfields.map(f => f.tower.ladder),
     observationTowerLadder(towerTop),
+    belfryLadder(churchFloor),
   ];
   bundle = deepFreeze({ conquest, landmarks: LAYOUT.buildLandmarks(flags, FRONTIER_SITES, FRONTIER_LOCATIONS), ladders });
   return bundle;

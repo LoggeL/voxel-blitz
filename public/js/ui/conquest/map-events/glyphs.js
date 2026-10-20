@@ -12,6 +12,8 @@ export const MAP_EVENT_GLYPHS = Object.freeze({
   'event-depot': 'M12 1.5c1.9 2.2 3.4 3.9 3.4 5.9a3.4 3.4 0 0 1-6.8 0c0-1.1.5-2.1 1.3-2.9.1 1.1.7 1.9 1.5 2.2-.2-1.8.1-3.5.6-5.2zM4 13.2C4 11.4 7.6 10 12 10s8 1.4 8 3.2V20c0 1.5-3.6 2.5-8 2.5S4 21.5 4 20zM6 14.6v1.6c1.5.6 3.6.9 6 .9s4.5-.3 6-.9v-1.6c-1.5.6-3.6.9-6 .9s-4.5-.3-6-.9z',
   // slot sluice:
   // slot radar:
+  // Flag radar: a scope ring with its sweep wedge, the centre and a blip.
+  'event-radar': 'M12 2a10 10 0 1 1 0 20a10 10 0 1 1 0-20zM12 4.3a7.7 7.7 0 1 0 0 15.4a7.7 7.7 0 1 0 0-15.4zM12 12V5.5a6.5 6.5 0 0 1 5.6 3.25zM12 10.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3zM7.6 14.2a1.4 1.4 0 1 1 0 2.8a1.4 1.4 0 1 1 0-2.8z',
   // slot trestle:
   // slot comeback:
   // Call-in: a target reticle with its four ticks around a falling bomb.

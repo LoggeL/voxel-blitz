@@ -12,6 +12,7 @@ import { FPV_RULES, fpvSignal, fpvStatic } from '../../../shared/fpv-rules.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
 import { comebackHudFixtures } from './comeback-hud-fixtures.js';
+import { radarHudFixtures } from './radar-hud-fixtures.js';
 import { encodeMapEventPoint, encodeMapEventRow, mapEventsFor } from '../../../shared/conquest-map-events.js';
 import { DAM_EVENT, DAM_TUNING } from '../../../shared/map-events/dam.js';
 
@@ -726,6 +727,7 @@ export function conquestHudFixtures({ map = 'frontier' } = {}) {
       camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
   out.push(...comebackHudFixtures({ state, roster, baseMatch, meAt, cam, yawTo, C, D, GROUND, meta: fixtureMapMeta(), now: FIXTURE_NOW }));
+  out.push(...radarHudFixtures({ state, roster, baseMatch, meAt, cam, yawTo, vehicle, GROUND, now: FIXTURE_NOW }));
   // 25. Hollin Fuel Depot (docs/conquest.md "Hollin Fuel Depot"): the chain reaction 2 s from the last burst, then
   // ablaze 10 s into the active phase (fire on the tanks and the canopy, the smoke column on the maps).
   {

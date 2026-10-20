@@ -52,6 +52,8 @@ export class PlayerPhysics {
       const wet = LOCAL_FLOOD.fields.length ? LOCAL_FLOOD.wetCell(x, y, z) : undefined;
       return wet ?? FLUID_BLOCKS.has(getBlock(x, y, z));
     };
+    // A ladder's support column (ladderContact): plain voxels.
+    this._voxelAt = (x, y, z) => isSolidBlock(getBlock(x, y, z));
     this.swimming = false;
     // Conquest parachute / ejection seat (shared/parachute.js), predicted like the authority.
     this.airRules = false;
@@ -267,7 +269,7 @@ export class PlayerPhysics {
   step(dt, wish, speedTarget, wantJump, climbAxis = 0, yaw = null) {
     const jumpPressed = !!wantJump && !this.jumpWasHeld;
     this.jumpWasHeld = !!wantJump;
-    const onLadderNow = ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z);
+    const onLadderNow = ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z, 0, this._voxelAt);
     const swimming = fluidContact(this._fluidAt, this.pos.x, this.pos.y, this.pos.z);
     const ride = swimming && !this.slide ? null
       : slideContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z, this.slide);
@@ -417,12 +419,12 @@ export class PlayerPhysics {
     // Climbing crosses the solid deck; descending bypasses only while the
     // destination stays in-volume, so the foot of the ladder still lands.
     const ladderBypass = ladderVy > 0
-      || (ladderVy < 0 && ladderContact(this.mapMeta, this.pos.x, this.pos.y + this.vel.y * dt, this.pos.z));
+      || (ladderVy < 0 && ladderContact(this.mapMeta, this.pos.x, this.pos.y + this.vel.y * dt, this.pos.z, 0, this._voxelAt));
     if (ladderBypass) {
       const start = this.pos.y;
       this.pos.y += this.vel.y * dt;
       if (slidePlayerVehicleAxis(this.pos, 'y', start, this.vehicleColliders, stanceHeight(PHYSICS.height, this.proneT))) this.vel.y = 0;
-      if (ladderVy > 0 && !ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z)) this.vel.y = 0;
+      if (ladderVy > 0 && !ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z, 0, this._voxelAt)) this.vel.y = 0;
     } else {
       hitY = this.moveAxis('y', this.vel.y * dt);
     }

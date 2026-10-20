@@ -1,0 +1,7 @@
+Game UI design mockup, 1536x1024 top-down full-screen tactical map of a voxel battlefield (blocky green terrain, a blue river running north to south through the middle, roads, five lettered flag diamonds A B C D E: A and B blue on the west, C blue at the river bridge, D and E orange on the east), drawn in the style of a browser voxel shooter's full map overlay: dark navy frame rgba(9,15,20,0.86) with 1px light border and 6px radius, header "FRONTIER · MAP" in condensed bold uppercase sans-serif with wide letter spacing, cyan #4cc3ff friendly, orange #ff8a3d enemy, grey #9fb0bd sub text.
+NEW FLAG RADAR UI TO SHOW (variant B, owner's map):
+1) Around the blue flag B (west bank, south) a large cyan circle of 240 m ground range with a dashed edge and a much fainter outer dashed circle of 400 m labelled "AIR 400 M"; a bright cyan sweep line rotating from the flag with a fading wedge trail like an air-traffic radar scope.
+2) A small cyan hexagon badge at the church tower next to B with a radar-dish glyph and a thin progress arc; caption "RADAR B · SWEEP 9 S".
+3) Two orange enemy vehicle glyphs (a tank silhouette and a helicopter silhouette) inside the cyan ring, each with a bright blinking outline ring (spotted by the sweep).
+4) Around the orange flag D on the east bank an orange ring of the same size, thinner and only outlined (the enemy's radar), with a small orange hexagon "RADAR D".
+Crisp flat game UI, no extra decorations, no watermark, legible text.

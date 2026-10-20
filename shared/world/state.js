@@ -222,7 +222,22 @@ function freeSpotNear(world, px, pz) {
   return null;
 }
 
-function ladderAt(mapMeta, x, y, z, margin = 0) {
+/**
+ * True while a ladder's `support` column ({x, z, y0, y1}: the rungs, a post
+ * the ladder hangs on) still holds it at height `y`: a solid support cell
+ * within two below to one above the climber's feet cell (clamped into the
+ * column). A ladder without `support`, or a caller without `solidAt`, is
+ * always held, so a tower that is blown away takes its climb with it.
+ */
+export function ladderSupported(ladder, y, solidAt) {
+  const s = ladder?.support;
+  if (!s || typeof solidAt !== 'function') return true;
+  const c = Math.min(s.y1, Math.max(s.y0, Math.floor(y)));
+  for (let cy = Math.max(s.y0, c - 2); cy <= Math.min(s.y1, c + 1); cy++) if (solidAt(s.x, cy, s.z)) return true;
+  return false;
+}
+
+function ladderAt(mapMeta, x, y, z, margin = 0, solidAt = null) {
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null;
   const ladders = Array.isArray(mapMeta?.ladders) ? mapMeta.ladders : [];
   const pad = Number.isFinite(margin) ? Math.max(0, margin) : 0;
@@ -234,6 +249,7 @@ function ladderAt(mapMeta, x, y, z, margin = 0) {
       && y <= ladder.maxY + pad
       && z >= ladder.minZ - pad
       && z <= ladder.maxZ + pad
+      && ladderSupported(ladder, y, solidAt)
     ) {
       return ladder;
     }
@@ -241,9 +257,13 @@ function ladderAt(mapMeta, x, y, z, margin = 0) {
   return null;
 }
 
-/** True when a world-space point lies within one of the map's climb volumes. */
-export function ladderContact(mapMeta, x, y, z, margin = 0) {
-  return ladderAt(mapMeta, x, y, z, margin) !== null;
+/**
+ * True when a world-space point lies within one of the map's climb volumes.
+ * `solidAt(x, y, z)` (integer cells) lets a ladder with a `support` column
+ * end where that column was destroyed (ladderSupported).
+ */
+export function ladderContact(mapMeta, x, y, z, margin = 0, solidAt = null) {
+  return ladderAt(mapMeta, x, y, z, margin, solidAt) !== null;
 }
 
 /** The authored teleport portal whose trigger volume holds a world-space point, if any. */

@@ -1,0 +1,32 @@
+/* Flag radar chip (public/js/ui/conquest/map-events/radar.js; design docs/design/conquest/radar/,
+   variant A, C's red SWEPT state): top right, only in a hull inside an enemy radar's ring. */
+.cq-radar-chip {
+  position: absolute; top: 14px; right: 18px; z-index: 3; display: flex; align-items: center; gap: 10px;
+  min-width: 232px; box-sizing: border-box; padding: 8px 14px 9px 9px; pointer-events: none;
+  background: var(--cq-panel); border: 1px solid var(--cq-line); border-left: 4px solid #ff8a3d; border-radius: 6px;
+  box-shadow: 0 2px 10px #0008;
+}
+.cq-radar-chip[hidden] { display: none; }
+.cq-radar-glyph { width: 30px; height: 30px; color: #ff8a3d; flex: none; }
+.cq-radar-text { display: grid; gap: 5px; flex: 1; min-width: 0; }
+.cq-radar-head { color: #ff8a3d; font: 800 15px/1 var(--font-ui); letter-spacing: 2px; white-space: nowrap; }
+.cq-radar-line { color: var(--cq-text); font: 700 13px/1 var(--font-ui); letter-spacing: 1.5px; white-space: nowrap; }
+.cq-radar-track { display: block; height: 4px; border-radius: 2px; background: #ffffff1f; overflow: hidden; }
+.cq-radar-bar { display: block; width: 100%; height: 100%; background: #ff8a3d; }
+.cq-radar-chip[data-state="swept"] { border-left-color: var(--cq-danger); background: rgba(40, 10, 12, 0.9); }
+.cq-radar-chip[data-state="swept"] :is(.cq-radar-glyph, .cq-radar-head) { color: var(--cq-danger); }
+.cq-radar-chip[data-state="swept"] .cq-radar-bar { background: var(--cq-danger); }
+.cq-radar-chip[data-state="swept"] .cq-radar-head { animation: cq-radar-blink 0.5s steps(2, jump-none) infinite alternate; }
+@keyframes cq-radar-blink { to { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .cq-radar-chip[data-state="swept"] .cq-radar-head { animation: none; } }
+/* The career badge and the network meter sit at the top right: the chip drops under them. */
+html:not(.vb-touch-mode) .cq-radar-chip { top: max(112px, calc(var(--vb-net-meter-clear, 0px) + 44px)); }
+html:not(.vb-touch-mode) body:has(.cq-radar-chip:not([hidden])) #killfeed { margin-top: 64px; }
+/* Phones: under the vehicle card on the right, narrower. */
+.vb-touch-mode .cq-radar-chip {
+  top: calc(max(10px, env(safe-area-inset-top)) + 150px); right: max(12px, env(safe-area-inset-right));
+  min-width: 0; width: 196px; gap: 7px; padding: 5px 9px 6px 6px;
+}
+.vb-touch-mode .cq-radar-glyph { width: 22px; height: 22px; }
+.vb-touch-mode .cq-radar-head { font-size: 12px; letter-spacing: 1px; }
+.vb-touch-mode .cq-radar-line { font-size: 11px; letter-spacing: 1px; }
