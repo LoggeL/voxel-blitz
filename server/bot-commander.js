@@ -607,7 +607,9 @@ export class BotCommander {
    * with both seats or not at all, only while they fit under the cap: it may
    * take the crew count one past the budget, and the crews ranked after it get
    * what budget is left. It sails in sorties of BOAT_PATROL.sortieMs with
-   * BOAT_PATROL.restMs at the mooring between them.
+   * BOAT_PATROL.restMs at the mooring between them. The mobile AA driver
+   * (while enemy aircraft are crewed, AA_BOT.driverPrio) may likewise take
+   * one slot past the budget inside the cap.
    */
   planCrews(ts, view, now) {
     const team = ts.team, brains = this.teamBrains(team);
@@ -632,12 +634,16 @@ export class BotCommander {
     push(hulls.filter(v => v.type === 'helicopter'), v => hullSeatIds(v).driver, 1);
     // The mobile AA is crewed while the enemy has aircraft crewed; one with a
     // bot in the driver seat keeps its crew for AA_BOT.holdMs after that (bot-aa.js).
+    // Its driver may run past the budget inside the ceil(teamBots / 3) cap
+    // (`headroom`), so a small team still answers the enemy's aircraft once its
+    // tank and helicopter, ranked before it, are crewed.
     const airThreat = enemyAirThreats(this.game.vehicles?.vehicles, team).length > 0;
     if (airThreat) ts.aaThreatAt = now;
     const aaHeld = now - (ts.aaThreatAt ?? -Infinity) < AA_BOT.holdMs;
     const botDriven = v => { const id = vehicleSeatOccupantId(v, hullSeatIds(v).driver); return id != null && this.isBot(id); };
     const aas = hulls.filter(v => v.type === 'aa' && (airThreat || (aaHeld && botDriven(v))));
     push([...aas], v => hullSeatIds(v).driver, AA_BOT.driverPrio);
+    for (const slot of slots) if (slot.v.type === 'aa') slot.headroom = true;
     push([...aas], v => hullSeatIds(v).gunner, AA_BOT.gunnerPrio);
     if (brains.length >= 6) push(hulls.filter(v => v.type === 'plane'), v => hullSeatIds(v).driver, 2);
     push(tanks.slice(1), v => hullSeatIds(v).driver, 3);
@@ -673,6 +679,9 @@ export class BotCommander {
         const driver = slot.seat === hullSeatIds(slot.v).driver;
         if (driver ? chosen.length + 2 > cap || !this.patrolCrewInReach(ts, brains, slot.v, view) : !chosen.some(c => c.v === slot.v)) continue;
         if (chosen.length >= cap) continue;
+      } else if (slot.headroom) {
+        // One AA driver past the budget, never past the cap.
+        if (chosen.length >= cap || (chosen.length >= budget && chosen.some(c => c.headroom))) continue;
       } else if (chosen.length >= budget) break;
       const occupant = vehicleSeatOccupantId(slot.v, slot.seat);
       const human = occupant != null && !this.isBot(occupant);

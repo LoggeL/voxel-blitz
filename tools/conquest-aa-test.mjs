@@ -306,6 +306,27 @@ test('bots on Frontier: no AA crew without enemy aircraft, an AA crew (before th
   bots.dispose(); game.stop();
 });
 
+test('bots on Frontier, 8 a side: the AA driver takes the crew headroom past the budget, after the tank and the helicopter', () => {
+  const meta = getMapMeta('frontier');
+  const game = new GameEngine({ mode: 'conquest', world: undefined, mapMeta: meta, broadcast: () => {} });
+  // 16 bots: a budget of ceil(8 / 4) = 2 (the tank and the attack helicopter), a cap of ceil(8 / 3) = 3.
+  const bots = attachBots(game, 16);
+  game.step(TICK);
+  const replan = () => { game.mode.policy._view = null; bots.commander.viewAt = -1; bots.commander.plan(game.now); };
+  const crewTypes = team => [...bots.commander.teams.get(team).crews.values()].map(c => `${game.vehicles.vehicles.get(c.vehicleId)?.type}:${c.seatId}`).sort();
+  replan();
+  assert.deepEqual(crewTypes('alpha'), ['helicopter:driver', 'tank:driver'], 'no air threat: the budget goes to the tank and the helicopter');
+  const heli = game.vehicles.vehicles.get('bravo-helicopter');
+  const pilot = [...game.entities.values()].find(e => e.bot && game.mode.teamFor(e) === 'bravo');
+  Object.assign(pilot, { x: heli.x, y: heli.y, z: heli.z });
+  assert(game.vehicles.enter(pilot, heli.id, 'driver'));
+  replan();
+  assert.deepEqual(crewTypes('alpha'), ['aa:driver', 'helicopter:driver', 'tank:driver'], 'the enemy flies: the AA driver joins them inside the cap');
+  assert.equal(bots.commander.teams.get('alpha').crewBudget, 2, 'the budget itself is unchanged');
+  assert.ok(!crewTypes('alpha').includes('aa:commander') && !crewTypes('alpha').includes('plane:driver'), 'no gunner or jet beyond the headroom');
+  bots.dispose(); game.stop();
+});
+
 test('client: radar scope, track and lead from snapshot rows; the model builds both guns', () => {
   const self = { id: 'aa', type: 'aa', team: 'alpha', x: 0, y: 1, z: 0, yaw: 0, turretYaw: 0, turretPitch: 0.3, hp: 600,
     mounts: [[0, 0.3, -1, 46, 0], [0, 0, -1, 0, 0]], seatOccupants: { driver: 'me' } };
