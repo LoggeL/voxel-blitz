@@ -43,7 +43,7 @@ const GROUND_STEPPERS = Object.freeze({
   wheeled: (v, input, dt, rules, tune) => stepJeepDrive(v, input, dt, tune),
   tracked: (v, input, dt, rules) => stepTankDrive(v, input, dt, rules),
 });
-/** Drive tuning of a hull's upgrade (a jeep's turbo); the tracked stepper ignores it. */
+/** Drive tuning of a hull's upgrade (a jeep's turbo); the tracked stepper ignores it (the boat's waterjet: server/sim/boat.js). */
 const groundTune = v => ({ speed: upgradeScale(v, 'speed'), acceleration: upgradeScale(v, 'acceleration') });
 const FLIGHT_STEPPERS = Object.freeze({
   rotor: (v, input, dt, def) => stepHelicopterFlight(v, input, dt, def.rules),

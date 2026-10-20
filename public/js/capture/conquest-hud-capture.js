@@ -152,6 +152,8 @@ async function render(id, { touch: touchMode = false } = {}) {
   lastArgs = args;
   conquest.update(args);
   if (state.dead) conquest.setDead(true, state.killer);
+  // The gamepad / keyboard focus ring on a VEHICLES hull card (`padHull`; opening the screen clears it).
+  if (state.selection) { conquest.deploy.padHull = state.selection.padHull ?? null; conquest.deploy._kitSig = ''; }
   if (state.bigMap) conquest.toggleBigMap(true);
   applyOrderStates(conquest, state);
   for (const ev of state.events) {

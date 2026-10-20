@@ -15,12 +15,13 @@ import {
 import { CONQUEST_CONTRACT_VERSION, CONQUEST_INTENT_SHAPE, VEHICLE_TYPE_IDS } from '../shared/conquest-contract.js';
 import { COUNTERMEASURE_RULES, LOCK_RULES, VEHICLE_WEAPONS, vehicleMaxHp } from '../shared/vehicle-defs.js';
 import { JEEP_RULES, stepJeepDrive } from '../shared/vehicle-handling/jeep.js';
+import { BOAT_RULES, stepBoatDrive } from '../shared/vehicle-handling/boat.js';
 import { setHullUpgrade, upgradedHitscan } from '../server/sim/vehicle-upgrades.js';
 import { installFakeDom } from './lib/conquest-ui-dom.mjs';
 
 const TICK = 1000 / 60;
 let passed = 0;
-const test = (name, fn) => { fn(); passed++; console.log(`ok - ${name}`); };
+const test = async (name, fn) => { await fn(); passed++; console.log(`ok - ${name}`); };
 const near = (a, b, eps, message) => assert.ok(Math.abs(a - b) <= eps, `${message} (${a} vs ${b})`);
 
 function fixture(spawns) {
@@ -62,7 +63,7 @@ const pad = (id, type, team = 'alpha', x = 300, z = 300) => ({ id, type, team, x
 
 /* ------------------------------------------------------------- table */
 
-test('table: keyed by vehicle type, unique ids, career levels, bot defaults, row codes', () => {
+await test('table: keyed by vehicle type, unique ids, career levels, bot defaults, row codes', () => {
   assert.deepEqual(upgradeTypes(), UPGRADE_MENU_ORDER, 'every hull type of the table is on the deploy screen');
   for (const [type, list] of Object.entries(VEHICLE_UPGRADES)) {
     assert.ok(VEHICLE_TYPE_IDS.includes(type), `${type} is a Conquest hull type`);
@@ -76,7 +77,8 @@ test('table: keyed by vehicle type, unique ids, career levels, bot defaults, row
     assert.ok(vehicleUpgrade(type, BOT_VEHICLE_UPGRADES[type]), `bots drive a real ${type} upgrade`);
   }
   assert.equal(upgradeCode('tank', 'reactive'), 1); assert.equal(upgradeCode('tank', null), 0); assert.equal(upgradeFromCode('tank', 0), null);
-  assert.deepEqual(upgradesFor('aa'), [], 'a hull type without a table entry has no upgrades (added later by key)');
+  assert.deepEqual(upgradesFor('mortar'), [], 'a hull type without a table entry has no upgrades (added later by key)');
+  for (const type of ['aa', 'boat']) assert.equal(upgradesFor(type).length, 2, `the ${type} hull offers two upgrades`);
   assert.ok(!upgradeUnlocked('tank', 'thermal', 7) && upgradeUnlocked('tank', 'thermal', 8), 'THERMAL OPTICS opens at LV 8');
   assert.deepEqual(normalizeUpgradeChoice({ tank: 'reactive', jeep: 'nope', boat: 'x' }), { tank: 'reactive' });
   assert.deepEqual(lockedUpgrades({ tank: 'thermal', jeep: 'reinforced' }, 4), [{ type: 'tank', id: 'thermal', level: 8 }]);
@@ -84,7 +86,7 @@ test('table: keyed by vehicle type, unique ids, career levels, bot defaults, row
   assert.ok(CONQUEST_INTENT_SHAPE.deploy.includes('upgrades'));
 });
 
-test('table: the hint numbers match the hull rules they describe', () => {
+await test('table: the hint numbers match the hull rules they describe', () => {
   const hint = (type, id) => vehicleUpgrade(type, id).hint;
   const fx = (type, id) => vehicleUpgrade(type, id).effects;
   const s = n => String(Math.round(n * 100) / 100);
@@ -112,9 +114,15 @@ test('table: the hint numbers match the hull rules they describe', () => {
   assert.ok(hint('plane', 'quick_rearm').includes(`BOMBS ${s(VEHICLE_WEAPONS.jetBomb.rearmSeconds)} → ${s(VEHICLE_WEAPONS.jetBomb.rearmSeconds * rearm.bombs)} S`));
   const thermal = fx('tank', 'thermal').spot;
   assert.ok(hint('tank', 'thermal').includes(`${thermal.range} M, LAST ${thermal.ms / 1000} S`));
+  assert.ok(hint('aa', 'reactive').includes(`${Math.round((1 - fx('aa', 'reactive').damageTaken.at) * 100)} % LESS`));
+  const radar = fx('aa', 'search_radar').spot;
+  assert.ok(hint('aa', 'search_radar').includes(`${radar.range} M IN ANY WEATHER AND LAST ${radar.ms / 1000} S`) && !radar.smoke);
+  assert.ok(hint('boat', 'reinforced').includes(`${Math.round((1 - fx('boat', 'reinforced').damageTaken.all) * 100)} % LESS`));
+  assert.ok(hint('boat', 'waterjet').includes(`${s(BOAT_RULES.speed)} → ${Math.round(BOAT_RULES.speed * fx('boat', 'waterjet').speed)} M/S`));
+  assert.ok(hint('boat', 'waterjet').includes(`${Math.round((fx('boat', 'waterjet').acceleration - 1) * 100)} % MORE ACCELERATION`));
 });
 
-test('protocol: the deploy intent carries an exact upgrades map', () => {
+await test('protocol: the deploy intent carries an exact upgrades map', () => {
   const deploy = upgrades => parseConquestIntent({ t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', variant: 0, upgrades } });
   assert.deepEqual(deploy({ tank: 'reactive', plane: 'ecm' }).upgrades, { tank: 'reactive', plane: 'ecm' });
   assert.deepEqual(deploy({}).upgrades, {}, 'an empty map means every hull stock');
@@ -127,7 +135,7 @@ test('protocol: the deploy intent carries an exact upgrades map', () => {
 
 /* -------------------------------------------------------------- gate */
 
-test('gate: a locked upgrade is refused like a locked kit; an accepted deploy stores the picks', () => {
+await test('gate: a locked upgrade is refused like a locked kit; an accepted deploy stores the picks', () => {
   const f = fixture([]);
   const h = f.player('h', 'alpha'), foe = f.player('foe', 'bravo');
   f.policy.setCareerLevel(h, 3);
@@ -151,7 +159,7 @@ test('gate: a locked upgrade is refused like a locked kit; an accepted deploy st
 
 /* -------------------------------------------------------------- sync */
 
-test('sync: the driver\'s pick rides the hull while they drive; a gunner\'s pick never does', () => {
+await test('sync: the driver\'s pick rides the hull while they drive; a gunner\'s pick never does', () => {
   const f = fixture([pad('tank', 'tank')]);
   const tank = f.vehicle('tank');
   const driver = f.human('d', 'alpha', 4, { tank: 'autoloader' }), gunner = f.human('g', 'alpha', 9, { tank: 'thermal' });
@@ -172,7 +180,7 @@ test('sync: the driver\'s pick rides the hull while they drive; a gunner\'s pick
   assert.equal(tank.upgrade, null, 'a locked stored pick is never applied');
 });
 
-test('sync: bots drive the fixed default upgrade', () => {
+await test('sync: bots drive the fixed default upgrade', () => {
   const f = fixture([pad('tank', 'tank'), pad('jet', 'plane', 'alpha', 340, 300)]);
   const bot = f.player('bot-1', 'alpha'); bot.bot = true;
   const pilot = f.player('bot-2', 'alpha'); pilot.bot = true;
@@ -183,7 +191,7 @@ test('sync: bots drive the fixed default upgrade', () => {
 
 /* ----------------------------------------------------------- effects */
 
-test('reactive armour: AT hits deal 15 % less; other classes unchanged', () => {
+await test('reactive armour: AT hits deal 15 % less; other classes unchanged', () => {
   const f = fixture([pad('a', 'tank', 'alpha', 300, 300), pad('b', 'tank', 'alpha', 340, 300)]);
   const foe = f.player('foe', 'bravo', { x: 320, y: 1, z: 360 });
   const d = f.human('d', 'alpha', 2, { tank: 'reactive' });
@@ -195,7 +203,7 @@ test('reactive armour: AT hits deal 15 % less; other classes unchanged', () => {
   assert.equal(upgradeDamageTaken(a, 'he'), 1, 'HE is unchanged');
 });
 
-test('reinforced chassis: 25 % less from bullets, blasts, fire and crashes; AT still kills', () => {
+await test('reinforced chassis: 25 % less from bullets, blasts, fire and crashes; AT still kills', () => {
   const f = fixture([pad('a', 'jeep', 'alpha', 300, 300), pad('b', 'jeep', 'alpha', 340, 300)]);
   const foe = f.player('foe', 'bravo', { x: 320, y: 1, z: 360 });
   const d = f.human('d', 'alpha', 2, { jeep: 'reinforced' });
@@ -209,7 +217,7 @@ test('reinforced chassis: 25 % less from bullets, blasts, fire and crashes; AT s
   assert.equal(a.hp, 0, 'an AT mine still kills the reinforced jeep');
 });
 
-test('autoloader: the tank main gun reloads in 2.8 s', () => {
+await test('autoloader: the tank main gun reloads in 2.8 s', () => {
   const f = fixture([pad('tank', 'tank')]);
   const d = f.human('d', 'alpha', 4, { tank: 'autoloader' });
   f.board(d, 'tank', 'driver'); f.step(2);
@@ -219,7 +227,7 @@ test('autoloader: the tank main gun reloads in 2.8 s', () => {
   assert.equal(f.game.vehicles.mounts.rows(tank)[0][4], 100, 'the row reports a full reload bar against the upgraded time');
 });
 
-test('quick TOW reload: the AT jeep\'s box reloads in 7.2 s', () => {
+await test('quick TOW reload: the AT jeep\'s box reloads in 7.2 s', () => {
   const f = fixture([pad('atj', 'jeep_at')]);
   const d = f.human('d', 'alpha', 6, { jeep_at: 'tow_reload' }), g = f.player('g', 'alpha');
   f.board(d, 'atj', 'driver'); f.board(g, 'atj', 'gunner'); f.step(2);
@@ -229,7 +237,7 @@ test('quick TOW reload: the AT jeep\'s box reloads in 7.2 s', () => {
   near(pintle.reloadT, VEHICLE_WEAPONS.towMissile.reloadSeconds * 0.6, 1e-9, 'box reload 12 → 7.2 s');
 });
 
-test('extra missile: the attack heli carries 3 guided missiles while its pilot drives', () => {
+await test('extra missile: the attack heli carries 3 guided missiles while its pilot drives', () => {
   const f = fixture([pad('heli', 'helicopter')]);
   const heli = f.vehicle('heli'), atgm = () => f.game.vehicles.mounts.state(heli, 'atgm');
   assert.equal(atgm().ammo, VEHICLE_WEAPONS.guidedMissile.magazine);
@@ -262,7 +270,7 @@ test('extra missile: the attack heli carries 3 guided missiles while its pilot d
   assert.equal(state.heldRearm, undefined);
 });
 
-test('flare reload and extra flares: countermeasure cooldown and charges', () => {
+await test('flare reload and extra flares: countermeasure cooldown and charges', () => {
   const f = fixture([pad('heli', 'helicopter'), pad('jet', 'plane', 'alpha', 360, 300)]);
   const heliPilot = f.human('hp', 'alpha', 3, { helicopter: 'flare_reload' }), jetPilot = f.human('jp', 'alpha', 3, { plane: 'extra_flares' });
   f.board(heliPilot, 'heli', 'driver'); f.board(jetPilot, 'jet', 'driver'); f.step(2);
@@ -291,7 +299,7 @@ test('flare reload and extra flares: countermeasure cooldown and charges', () =>
   assert.equal(locks.countermeasure(jet), null, 'the spent one came back on its own cooldown, not refreshed');
 });
 
-test('ECM jammer: an enemy AA lock on the jet takes 50 % longer', () => {
+await test('ECM jammer: an enemy AA lock on the jet takes 50 % longer', () => {
   const f = fixture([pad('own', 'plane', 'alpha', 200, 200), pad('foe', 'plane', 'bravo', 200, 420)]);
   const target = f.vehicle('foe');
   const ecm = f.human('ecm', 'bravo', 6, { plane: 'ecm' });
@@ -317,7 +325,7 @@ test('ECM jammer: an enemy AA lock on the jet takes 50 % longer', () => {
   assert.equal(upgradeScale(target, 'lockTime'), 1.5);
 });
 
-test('quick rearm: the jet\'s AA missiles and bombs re-arm 40 % faster', () => {
+await test('quick rearm: the jet\'s AA missiles and bombs re-arm 40 % faster', () => {
   const f = fixture([pad('jet', 'plane')]);
   const pilot = f.human('p', 'alpha', 8, { plane: 'quick_rearm' });
   f.board(pilot, 'jet', 'driver'); f.step(2);
@@ -329,7 +337,7 @@ test('quick rearm: the jet\'s AA missiles and bombs re-arm 40 % faster', () => {
   near(mounts.state(jet, 'bombs').rearm[0], VEHICLE_WEAPONS.jetBomb.rearmSeconds * 0.6, 1e-9, 'bomb 10 → 6 s');
 });
 
-test('transport: field repair restores 50 % faster, heavy door guns hit 30 % harder', () => {
+await test('transport: field repair restores 50 % faster, heavy door guns hit 30 % harder', () => {
   const f = fixture([pad('t', 'transport'), pad('s', 'transport', 'alpha', 340, 300)]);
   const pilot = f.human('p', 'alpha', 5, { transport: 'field_repair' });
   f.board(pilot, 't', 'driver'); f.step(2);
@@ -351,7 +359,7 @@ test('transport: field repair restores 50 % faster, heavy door guns hit 30 % har
 /** A changed pick applies at once to the hull the player already drives (the next deploy stores it the same way). */
 function policySwap(f, p, upgrades) { f.policy.upgrades.choose(p, upgrades); }
 
-test('turbo: the jeep tops out at 28.8 m/s and accelerates faster', () => {
+await test('turbo: the jeep tops out at 28.8 m/s and accelerates faster', () => {
   const run = tune => { const s = { speed: 0, yaw: 0 }; for (let i = 0; i < 60 * 12; i++) stepJeepDrive(s, { throttle: 1 }, 1 / 60, tune); return s.speed; };
   near(run(null), JEEP_RULES.speed, 1e-6, 'stock top speed');
   near(run({ speed: 1.2, acceleration: 1.25 }), JEEP_RULES.speed * 1.2, 1e-6, 'turbo top speed');
@@ -366,7 +374,7 @@ test('turbo: the jeep tops out at 28.8 m/s and accelerates faster', () => {
   assert.ok(jeep.speed > JEEP_RULES.speed + 3, `the driven jeep passes the stock top speed (${jeep.speed.toFixed(1)} m/s)`);
 });
 
-test('thermal optics: the tank crew spots at 450 m for 8 s and through smoke', () => {
+await test('thermal optics: the tank crew spots at 450 m for 8 s and through smoke', () => {
   const f = fixture([pad('tank', 'tank')]);
   const d = f.human('d', 'alpha', 8, { tank: 'thermal' }), g = f.player('g', 'alpha');
   f.board(d, 'tank', 'driver'); f.board(g, 'tank', 'commander'); f.step(2);
@@ -383,6 +391,43 @@ test('thermal optics: the tank crew spots at 450 m for 8 s and through smoke', (
   assert.equal(spotting.rangeFor(g), f.policy.rules.spotRange, 'stock again without the driver');
 });
 
+await test('mobile AA: reactive armour on the AA hull, the search radar spots at 450 m for 8 s (no smoke)', () => {
+  const f = fixture([pad('aa', 'aa', 'alpha', 300, 300), pad('aa2', 'aa', 'alpha', 340, 300)]);
+  const foe = f.player('foe', 'bravo', { x: 320, y: 1, z: 360 });
+  const d = f.human('d', 'alpha', 5, { aa: 'reactive' });
+  f.board(d, 'aa', 'driver'); f.step(2);
+  const a = f.vehicle('aa'), b = f.vehicle('aa2');
+  const hit = v => { const before = v.hp; f.game.vehicles.damage(v.id, 200, foe, { cls: 'at', origin: [v.x, v.y + 1, v.z + 6] }); return before - v.hp; };
+  near(hit(a) / hit(b), 0.85, 1e-6, 'the AA takes 0.85 of the stock AT hit');
+  policySwap(f, d, { aa: 'search_radar' });
+  const g = f.player('g', 'alpha');
+  f.board(g, 'aa', 'commander'); f.step(2);
+  assert.equal(a.upgrade, 'search_radar');
+  const spotting = f.policy.roles.spotting;
+  assert.equal(spotting.rangeFor(g), 450); assert.equal(spotting.durationFor(d), 8000, 'both crew seats work the radar');
+  assert.notEqual(spotting.hullSpot(g)?.smoke, true, 'radar spots never see through smoke');
+  assert.equal(f.row('aa').upg, 2, 'the row carries the radar code');
+});
+
+await test('patrol boat: the waterjet tops out at 24 m/s; the reinforced hull takes 25 % less', () => {
+  const run = tune => { const s = { speed: 0, yaw: 0 }; for (let i = 0; i < 60 * 20; i++) stepBoatDrive(s, { throttle: 1 }, 1 / 60, undefined, tune); return s.speed; };
+  near(run(null), BOAT_RULES.speed, 1e-6, 'stock top speed');
+  near(run({ speed: 1.2, acceleration: 1.25 }), BOAT_RULES.speed * 1.2, 1e-6, 'waterjet top speed');
+  const two = tune => { const s = { speed: 0, yaw: 0 }; for (let i = 0; i < 120; i++) stepBoatDrive(s, { throttle: 1 }, 1 / 60, undefined, tune); return s.speed; };
+  assert.ok(two({ speed: 1.2, acceleration: 1.25 }) > two(null), 'faster off the line');
+  const f = fixture([pad('b1', 'boat', 'alpha', 300, 300), pad('b2', 'boat', 'alpha', 340, 300)]);
+  const foe = f.player('foe', 'bravo', { x: 320, y: 1, z: 360 });
+  const d = f.human('d', 'alpha', 4, { boat: 'reinforced' });
+  f.board(d, 'b1', 'driver'); f.step(2);
+  const a = f.vehicle('b1'), b = f.vehicle('b2');
+  const hit = (v, cls, amount) => { const before = v.hp; f.game.vehicles.damage(v.id, amount, foe, { cls, origin: [v.x, v.y + 1, v.z + 4] }); return before - v.hp; };
+  near(hit(a, 'hmg', 40) / hit(b, 'hmg', 40), 0.75, 1e-6, 'an HMG burst');
+  assert.equal(upgradeDamageTaken(a, 'at'), 1, 'AT is unchanged');
+  policySwap(f, d, { boat: 'waterjet' }); f.step(2);
+  assert.equal(a.upgrade, 'waterjet');
+  assert.equal(upgradeScale(a, 'speed'), 1.2, 'the waterjet rides the driven hull (server/sim/boat.js tunes the drive with it)');
+});
+
 /* ------------------------------------------------------------ client */
 
 const dom = installFakeDom({ width: 1440, height: 900 });
@@ -393,7 +438,7 @@ const fixtures = conquestHudFixtures(), mapMeta = fixtureMapMeta();
 const vehiclesFixture = fixtures.find(x => x.id === 'deploy-vehicles');
 const cqOf = x => state.readConquest(x.match, mapMeta);
 
-test('deploy model: hull cards from the table, picks gated by the announced level', () => {
+await test('deploy model: hull cards from the table, picks gated by the announced level', () => {
   const model = state.deployModel({ cq: cqOf(vehiclesFixture), self: vehiclesFixture.self, players: vehiclesFixture.players, vehicles: vehiclesFixture.vehicles,
     nowMs: FIXTURE_NOW, selection: vehiclesFixture.selection, unlocks: { level: 4, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'] } });
   assert.deepEqual(model.upgrades.map(c => c.type), UPGRADE_MENU_ORDER);
@@ -410,7 +455,7 @@ test('deploy model: hull cards from the table, picks gated by the announced leve
   assert.deepEqual(low.choice.upgrades, {}, 'without an announced level (LV 1) every hull is stock');
 });
 
-test('deploy screen: VEHICLES tab, chip picks are stored and ride the deploy intent', () => {
+await test('deploy screen: VEHICLES tab, chip picks are stored and ride the deploy intent', () => {
   dom.storage.clear();
   const sent = [];
   const screen = new DeployScreen(dom.document.body, { onDeploy: choice => { sent.push(choice); return true; } });
@@ -440,7 +485,75 @@ test('deploy screen: VEHICLES tab, chip picks are stored and ride the deploy int
   assert.equal(dom.storage.getItem('vb-conquest-deploy-tab'), 'vehicles', 'the tab is remembered');
 });
 
-test('vehicle panel: the driver\'s upgrade badge from the row', () => {
+await test('deploy screen: the VEHICLES tab works from a gamepad and the keyboard', async () => {
+  dom.storage.clear();
+  const sent = [];
+  const screen = new DeployScreen(dom.document.body, { onDeploy: choice => { sent.push(choice); return true; } });
+  screen.setUnlocks({ level: 4, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'] });
+  screen.selection = { ...screen.selection, spawn: vehiclesFixture.selection.spawn, upgrades: {} };
+  screen.setOpen(true);
+  const args = { cq: cqOf(vehiclesFixture), self: vehiclesFixture.self, players: vehiclesFixture.players, vehicles: vehiclesFixture.vehicles, nowMs: FIXTURE_NOW };
+  screen.update(args);
+  assert.equal(screen.step('hull', 1), false, 'no hull focus on the CLASSES tab');
+  assert.equal(screen.step('tab', 1), true); assert.equal(screen.tab, 'vehicles', 'the tab step flips to VEHICLES');
+  const focused = () => [...screen.kits.querySelectorAll('.cq-upg-hull')].filter(n => n.classList.contains('is-focus')).map(n => n.dataset.type);
+  assert.deepEqual(focused(), [], 'no focus ring before the first step');
+  screen.step('upgrade', 1);
+  assert.deepEqual(focused(), ['tank'], 'the first step focuses the hull the picked spawn seats you in');
+  assert.deepEqual(screen.selection.upgrades, { tank: 'reactive' }, 'and steps its pick off STOCK');
+  screen.step('upgrade', 1); screen.step('upgrade', 1);
+  assert.deepEqual(screen.selection.upgrades, {}, 'the locked THERMAL OPTICS (LV 8) is skipped: AUTOLOADER, then STOCK again');
+  screen.step('upgrade', -1);
+  assert.equal(screen.selection.upgrades.tank, 'autoloader', 'backwards wraps to the last open upgrade');
+  assert.ok(screen.kitInfo.textContent.startsWith('TANK · AUTOLOADER'), `the info line follows the pad pick (${screen.kitInfo.textContent})`);
+  const order = upgradeTypes(), tankAt = order.indexOf('tank');
+  screen.step('hull', 1);
+  assert.deepEqual(focused(), [order[tankAt + 1]], 'the hull step moves to the next card');
+  screen.step('hull', -1); screen.step('hull', -1);
+  assert.deepEqual(focused(), [order[tankAt - 1]]);
+  for (let i = 0; i < order.length; i++) screen.step('hull', 1);
+  assert.deepEqual(focused(), [order[tankAt - 1]], 'the hull focus wraps');
+  assert.ok(screen.deploy(), 'deploy');
+  assert.deepEqual(sent.at(-1).upgrades, { tank: 'autoloader' }, 'the pad pick rides the deploy intent');
+  screen.setOpen(false); screen.setOpen(true); screen.update(args);
+  assert.deepEqual(focused(), [], 'a fresh deploy screen drops the focus ring');
+  screen.root.remove?.();
+
+  // The HUD maps the pad (Y, LB / RB, LT / RT) and the keys (C / V, arrows, Q / E) onto those steps.
+  const { ConquestHud } = await import('../public/js/ui/conquest-hud.js');
+  const hud = new ConquestHud(dom.document.body, { eventTarget: dom.window, onDeploy: () => true });
+  hud.deploy.setUnlocks({ level: 4, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'] });
+  hud.deploy.selection = { ...hud.deploy.selection, spawn: vehiclesFixture.selection.spawn, upgrades: {} };
+  hud.deploy.setTab('class');
+  const hudArgs = { match: vehiclesFixture.match, mapMeta, self: vehiclesFixture.self, players: vehiclesFixture.players, vehicles: vehiclesFixture.vehicles, nowMs: FIXTURE_NOW };
+  hud.update(hudArgs); hud.setDead(true, null); hud.update(hudArgs);
+  assert.equal(hud.deploy.open, true, 'the deploy screen is open');
+  const kit = hud.deploy.selection.kit;
+  hud.padInput({ pressed: { weapon: true } });
+  assert.equal(hud.deploy.tab, 'vehicles', 'pad Y flips to VEHICLES');
+  hud.padInput({ pressed: { grenade: true } });
+  assert.equal(hud.deploy.selection.upgrades.tank, 'reactive', 'RB steps the focused hull\'s upgrade');
+  assert.equal(hud.deploy.selection.kit, kit, 'not the class');
+  hud.padInput({ pressed: { fire: true } });
+  assert.equal(hud.deploy.padHull, order[tankAt + 1], 'RT moves the hull focus');
+  hud.padInput({ pressed: { ads: true } });
+  const key = (code, k = '') => dom.window.dispatchEvent({ type: 'keydown', code, key: k, repeat: false, target: dom.document.body });
+  key('ArrowRight', 'ArrowRight');
+  assert.equal(hud.deploy.selection.upgrades.tank, 'autoloader', 'the right arrow steps it as well');
+  key('KeyE', 'e');
+  assert.equal(hud.deploy.padHull, order[tankAt + 1], 'E moves the hull focus');
+  key('KeyC', 'c');
+  assert.equal(hud.deploy.tab, 'class', 'C opens CLASSES');
+  key('ArrowRight', 'ArrowRight');
+  assert.notEqual(hud.deploy.selection.kit, kit, 'on CLASSES the arrows step the class');
+  key('KeyV', 'v');
+  assert.equal(hud.deploy.tab, 'vehicles', 'V opens VEHICLES');
+  hud.padInput({ pressed: { weapon: true } });
+  assert.equal(hud.deploy.tab, 'class', 'Y flips back');
+  hud.dispose();
+});
+
+await test('vehicle panel: the driver\'s upgrade badge from the row', () => {
   const commander = fixtures.find(x => x.id === 'tank-commander');
   const row = commander.vehicles.find(v => v.id === 'alpha-tank');
   const model = state.vehiclePanelModel({ row, seat: { id: 'commander', role: 'gunner', drives: false } }, { selfId: 'me', players: commander.players });

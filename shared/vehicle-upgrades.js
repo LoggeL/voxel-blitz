@@ -3,8 +3,8 @@
 // the effect hooks in server/sim) and the client deploy screen and vehicle
 // panel, so an upgrade always means the same numbers on both sides.
 //
-// The table is keyed by vehicle type name (not the wire index), so hull types
-// added later (an AA vehicle, a boat) only add a key. Within a type the list
+// The table is keyed by vehicle type name (not the wire index), so a hull
+// type added later only adds a key (the mobile AA and the patrol boat did). Within a type the list
 // order is the wire order of the vehicle row's `upg` (1-based, 0 stock):
 // append new upgrades at the end of a type's list.
 
@@ -29,7 +29,7 @@ const freeze = value => {
  * - `cmCharges` +n: extra countermeasure salvos, each on its own cooldown.
  * - `cmCooldown` scale: the countermeasure cooldown.
  * - `lockTime` scale: how long an enemy seeker needs to lock this hull.
- * - `speed` / `acceleration` scale: ground drive top speed and acceleration.
+ * - `speed` / `acceleration` scale: wheeled and boat drive top speed and acceleration.
  * - `spot` {range, ms, smoke}: manual spots by the hull's crew reach `range` m,
  *   last `ms` and (`smoke: true`) see through smoke.
  *
@@ -66,6 +66,15 @@ export const VEHICLE_UPGRADES = freeze({
     U('ecm', 'ECM JAMMER', 'ECM', 6, 'ENEMY LOCKS TAKE 50 % LONGER (STINGER 1.4 → 2.1 S, AA MISSILE 1.5 → 2.25 S)', { lockTime: 1.5 }),
     U('quick_rearm', 'QUICK REARM', 'QUICK REARM', 8, 'AA MISSILES RE-ARM 15 → 9 S · BOMBS 10 → 6 S', { rearm: { rails: 0.6, bombs: 0.6 } }),
   ],
+  aa: [
+    U('reactive', 'REACTIVE ARMOUR', 'REACTIVE', 2, 'AT HITS DEAL 15 % LESS (ROCKETS, SHELLS, MISSILES, MINES)', { damageTaken: { at: 0.85 } }),
+    U('search_radar', 'SEARCH RADAR', 'RADAR', 5, 'CREW SPOTS REACH 450 M IN ANY WEATHER AND LAST 8 S', { spot: { range: 450, ms: 8000 } }),
+  ],
+  boat: [
+    U('reinforced', 'REINFORCED HULL', 'REINFORCED', 2, 'TAKES 25 % LESS DAMAGE FROM BULLETS, BLASTS, FIRE AND CRASHES · AT STILL KILLS',
+      { damageTaken: { all: 0.75, at: 1 } }),
+    U('waterjet', 'TUNED WATERJET', 'WATERJET', 4, 'TOP SPEED 20 → 24 M/S · 25 % MORE ACCELERATION', { speed: 1.2, acceleration: 1.25 }),
+  ],
 });
 
 /**
@@ -74,10 +83,11 @@ export const VEHICLE_UPGRADES = freeze({
  */
 export const BOT_VEHICLE_UPGRADES = freeze({
   jeep: 'reinforced', jeep_at: 'reinforced', tank: 'reactive', helicopter: 'flare_reload', transport: 'field_repair', plane: 'extra_flares',
+  aa: 'reactive', boat: 'reinforced',
 });
 
 /** Deploy-screen order of the hull rows. Types missing here follow in table order. */
-export const UPGRADE_MENU_ORDER = freeze(['jeep', 'jeep_at', 'tank', 'helicopter', 'transport', 'plane']);
+export const UPGRADE_MENU_ORDER = freeze(['jeep', 'jeep_at', 'tank', 'aa', 'helicopter', 'transport', 'plane', 'boat']);
 
 /** Hull types that offer upgrades, in UPGRADE_MENU_ORDER. */
 export function upgradeTypes() {

@@ -11,6 +11,7 @@ import { VEHICLE_RULES, vehicleDirection } from '../../shared/vehicles.js';
 import { VEHICLE_DAMAGE_RULES, WALL_CRASH_RULES, vehicleDef } from '../../shared/vehicle-defs.js';
 import { stepBoatDrive, boatAttitude } from '../../shared/vehicle-handling/boat.js';
 import { PHYSICS } from '../../shared/player-movement.js';
+import { upgradeScale } from '../../shared/vehicle-upgrades.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(n) ? n : 0));
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
@@ -85,7 +86,9 @@ export function advanceBoat(system, v, p, controls, dt) {
     && !system.fallSpeeds.has(v.id) && !system.infantryNear(v)) return;
   const here = boatSupport(system, v, v.x, v.z) ?? { wet: 0, aground: 1, shallow: 0 };
   const drive = v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1;
-  stepBoatDrive(v, { throttle: controls.throttle * drive, steer: controls.steer, brake: controls.brake }, dt, here);
+  // A waterjet upgrade on the driver's hull (shared/vehicle-upgrades.js) raises the top speed and the acceleration.
+  stepBoatDrive(v, { throttle: controls.throttle * drive, steer: controls.steer, brake: controls.brake }, dt, here,
+    { speed: upgradeScale(v, 'speed'), acceleration: upgradeScale(v, 'acceleration') });
   v.boatWet = here.wet; v.boatAground = here.aground; v.boatShallow = here.shallow;
   if (!system.clearHull(v, v.x, v.y, v.z)) { v.yaw = previous.yaw; v.course = previous.yaw; v.yawRate = 0; }
   const course = vehicleDirection(v.course ?? v.yaw), x = v.x + course[0] * v.speed * dt, z = v.z + course[2] * v.speed * dt;

@@ -215,6 +215,7 @@ export class ConquestHud {
     if (event.key === 'Escape' && this.bigMap.open) { this.toggleBigMap(false); return; }
     // Enter deploys from the deploy screen (gameplay input is closed while dead).
     if (this.dead && this.deploy.open && event.key === 'Enter') { this.deploy.deploy(); return; }
+    if (this.dead && this.deploy.open && this._deployKey(event)) { event.preventDefault?.(); return; }
     // Down on the deploy screen: the comm rose key calls a medic (gameplay input is closed while dead).
     if (this.dead && matchesBinding(event, 'commRose')) { this.callMedic(); return; }
     if (!this.inputEnabled()) return;
@@ -224,11 +225,35 @@ export class ConquestHud {
   }
 
   /**
+   * Deploy screen keys (gameplay input is closed while dead): the arrows up and
+   * down pick the spawn, left and right the class (CLASSES) or the focused
+   * hull's upgrade (VEHICLES); C / V open the CLASSES / VEHICLES tab and Q / E
+   * move the hull focus. Physical codes, like the gameplay bindings.
+   */
+  _deployKey(event) {
+    const vehicles = this.deploy.tab === 'vehicles';
+    switch (event.key) {
+      case 'ArrowUp': return this.deploy.step('spawn', -1);
+      case 'ArrowDown': return this.deploy.step('spawn', 1);
+      case 'ArrowLeft': return this.deploy.step(vehicles ? 'upgrade' : 'kit', -1);
+      case 'ArrowRight': return this.deploy.step(vehicles ? 'upgrade' : 'kit', 1);
+    }
+    switch (event.code) {
+      case 'KeyC': if (!vehicles) return false; this.deploy.setTab('class'); return true;
+      case 'KeyV': if (vehicles) return false; this.deploy.setTab('vehicles'); return true;
+      case 'KeyQ': return vehicles && this.deploy.step('hull', -1);
+      case 'KeyE': return vehicles && this.deploy.step('hull', 1);
+    }
+    return false;
+  }
+
+  /**
    * Gamepad Conquest actions from this frame's press edges (Input.padButtons).
    * Alive: D-pad right spots and R3 (unscoped) toggles the full map; seated,
    * D-pad up takes the next free seat, LB fires countermeasures, Y cycles
    * the seat weapon and D-pad down the camera view. Deploy screen: D-pad up/down pick the spawn, LB/RB the
-   * kit, A deploys. Interact (D-pad left) goes through VehicleController.padInteract.
+   * kit, Y flips CLASSES / VEHICLES, A deploys; in VEHICLES LT/RT move the hull focus and LB/RB step its
+   * upgrade. Interact (D-pad left) goes through VehicleController.padInteract.
    */
   padInput({ pressed = null, held = null, scoped = false, blocked = false } = {}) {
     if (!this.active || !pressed || blocked) { this._padRoseAt = null; return false; }
@@ -236,8 +261,12 @@ export class ConquestHud {
       if (!this.deploy.open) return false;
       if (pressed.slotUp) this.deploy.step('spawn', -1);
       if (pressed.grenadePouch) this.deploy.step('spawn', 1);
-      if (pressed.lastWeapon) this.deploy.step('kit', -1);
-      if (pressed.grenade) this.deploy.step('kit', 1);
+      const vehicles = this.deploy.tab === 'vehicles';
+      if (pressed.lastWeapon) this.deploy.step(vehicles ? 'upgrade' : 'kit', -1);
+      if (pressed.grenade) this.deploy.step(vehicles ? 'upgrade' : 'kit', 1);
+      if (vehicles && pressed.ads) this.deploy.step('hull', -1);
+      if (vehicles && pressed.fire) this.deploy.step('hull', 1);
+      if (pressed.weapon) this.deploy.step('tab', 1);
       if (pressed.jump) this.deployNow();
       // D-pad right (the rose's hold key) calls a medic while down.
       if (pressed.buy) this.callMedic();

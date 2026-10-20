@@ -60,6 +60,8 @@ export class DeployScreen {
     this.focusKit = null;
     /** Upgrade chip under the pointer or focus (`{type, id}`), and the strip tab on show. */
     this.focusUpgrade = null;
+    /** Hull card the gamepad / keyboard works on in the VEHICLES tab (a type, null until the first step). */
+    this.padHull = null;
     this.tab = loadPref(TAB_PREF, 'class') === 'vehicles' ? 'vehicles' : 'class';
     this.root = el('section', 'cq-deploy', parent);
     this.root.hidden = true;
@@ -138,7 +140,7 @@ export class DeployScreen {
 
   setOpen(open, killerInfo = null) {
     const next = !!open;
-    if (next && !this.open) { this.readied = false; this.refused = null; this._resend = false; this.lockNote = null; this.focusKit = null; this.focusUpgrade = null; this.announceKits.clear(); }
+    if (next && !this.open) { this.readied = false; this.refused = null; this._resend = false; this.lockNote = null; this.focusKit = null; this.focusUpgrade = null; this.padHull = null; this.announceKits.clear(); }
     const opening = next && !this.open;
     this.open = next;
     this.root.hidden = !next;
@@ -250,10 +252,17 @@ export class DeployScreen {
     if (this.readied) this._resend = true;
   }
 
-  /** Gamepad: step the spawn (deployable options only) or the kit by `delta`, wrapping. */
+  /**
+   * Gamepad and keyboard: step the spawn (deployable options only) or the kit
+   * by `delta`, wrapping. In the VEHICLES tab `hull` moves the focus between
+   * the hull cards and `upgrade` steps the focused hull's pick through STOCK
+   * and its unlocked upgrades; `tab` flips CLASSES / VEHICLES.
+   */
   step(field, delta) {
     const model = this.model;
     if (!this.open || !model) return false;
+    if (field === 'tab') { this.setTab(this.tab === 'vehicles' ? 'class' : 'vehicles'); return true; }
+    if (field === 'hull' || field === 'upgrade') return this._stepUpgrade(field, delta);
     // Locked classes are skipped: LB / RB only step through classes the server accepts.
     const list = field === 'spawn' ? model.options.filter(option => option.ok) : field === 'kit' ? (model.kits || []).filter(card => card.unlocked !== false) : [];
     if (list.length < 2) return false;
@@ -262,6 +271,30 @@ export class DeployScreen {
     this.select(field === 'spawn' ? { spawn: next.spawn } : { kit: next.id });
     // Show the pick now; the next snapshot update rebuilds the model.
     this.model = deployModel({ ...this._modelArgs, selection: this.selection, refused: this.refused, unlocks: this.unlocks, career: this._careerView() }) || model;
+    this._render(this.model);
+    return true;
+  }
+
+  /** The VEHICLES half of step(): focus starts on the hull the picked spawn seats you in, else the first card. */
+  _stepUpgrade(field, delta) {
+    const cards = this.model.upgrades || [];
+    if (this.tab !== 'vehicles' || !cards.length) return false;
+    let index = cards.findIndex(card => card.type === this.padHull);
+    if (index < 0) index = Math.max(0, cards.findIndex(card => card.spawn));
+    else if (field === 'hull') index = (index + delta + cards.length) % cards.length;
+    const card = cards[index];
+    this.padHull = card.type;
+    this.focusUpgrade = null;
+    if (field === 'upgrade') {
+      // Locked chips are skipped, as LB / RB skip locked classes.
+      const options = card.options.filter(option => option.unlocked);
+      if (options.length < 2) { this._kitSig = ''; this._render(this.model); return true; }
+      const current = options.findIndex(option => option.selected);
+      const next = options[((current < 0 ? 0 : current) + delta + options.length) % options.length];
+      this.select({ upgrade: { type: card.type, id: next.id } });
+      this.model = deployModel({ ...this._modelArgs, selection: this.selection, refused: this.refused, unlocks: this.unlocks, career: this._careerView() }) || this.model;
+    }
+    this._kitSig = '';
     this._render(this.model);
     return true;
   }
@@ -360,7 +393,7 @@ export class DeployScreen {
       }
     }
     const upgradeSig = (model.upgrades || []).map(card => [card.type, card.selected, card.spawn, card.options.map(o => o.unlocked)]);
-    const kitSig = JSON.stringify([this.tab, model.kit, model.variant, model.gadget, model.kits.map(card => [card.unlocked, card.progress?.xp ?? null]), [...this.newKits], upgradeSig]);
+    const kitSig = JSON.stringify([this.tab, this.padHull, model.kit, model.variant, model.gadget, model.kits.map(card => [card.unlocked, card.progress?.xp ?? null]), [...this.newKits], upgradeSig]);
     if (kitSig !== this._kitSig) {
       this._kitSig = kitSig;
       this.kits.textContent = '';
@@ -417,6 +450,7 @@ export class DeployScreen {
       node.setAttribute('role', 'listitem');
       node.classList.toggle('is-spawn', card.spawn);
       node.classList.toggle('is-upgraded', !!card.selected);
+      node.classList.toggle('is-focus', card.type === this.padHull);
       const head = el('div', 'cq-upg-head', node);
       const icon = svgIcon(globalThis.document, card.type, 'cq-upg-icon');
       if (icon) head.appendChild(icon);
@@ -581,8 +615,9 @@ export class DeployScreen {
 
   /**
    * VEHICLES info line: a fresh locked-upgrade note, else the hovered or
-   * focused chip, else the hull the picked spawn seats you in, else the first
-   * hull carrying an upgrade. Every number comes from the upgrade table.
+   * focused chip, else the pick of the gamepad / keyboard hull, else the hull
+   * the picked spawn seats you in, else the first hull carrying an upgrade.
+   * Every number comes from the upgrade table.
    */
   _renderUpgradeInfo(model) {
     const cards = model.upgrades || [];
@@ -590,7 +625,8 @@ export class DeployScreen {
     if (this.lockNote) { text = this.lockNote; tone = 'warn'; }
     else {
       const focus = this.focusUpgrade;
-      const card = (focus && cards.find(c => c.type === focus.type)) || cards.find(c => c.spawn) || cards.find(c => c.selected) || null;
+      const card = (focus && cards.find(c => c.type === focus.type)) || cards.find(c => c.type === this.padHull) || cards.find(c => c.spawn)
+        || cards.find(c => c.selected) || null;
       const option = card && (focus && focus.type === card.type ? card.options.find(o => o.id === focus.id) : card.options.find(o => o.selected));
       text = card ? upgradeInfoText(card, option) : '';
     }

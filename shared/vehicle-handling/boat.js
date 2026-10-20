@@ -44,10 +44,12 @@ export const boatPlaning = speed => clamp((Math.abs(finite(speed)) - BOAT_RULES.
  * on the bed or a bank, `shallow` (0..1) the share over water shallower than
  * `shallowDepth`. Positive steer turns right, like the jeep.
  */
-export function stepBoatDrive(state, input = {}, dt, { wet = 1, aground = 0, shallow = 0 } = {}) {
+export function stepBoatDrive(state, input = {}, dt, { wet = 1, aground = 0, shallow = 0 } = {}, tune = null) {
   if (!state || !Number.isFinite(dt) || dt <= 0) return state;
   const R = BOAT_RULES;
-  state.speed = clamp(state.speed, -R.reverse, R.speed);
+  // `tune` scales the top speed and the acceleration (a waterjet upgrade, shared/vehicle-upgrades.js).
+  const top = R.speed * (tune?.speed > 0 ? tune.speed : 1), acceleration = R.acceleration * (tune?.acceleration > 0 ? tune.acceleration : 1);
+  state.speed = clamp(state.speed, -R.reverse, top);
   state.yaw = wrap(finite(state.yaw));
   state.course = wrap(finite(state.course, state.yaw));
   state.yawRate = clamp(finite(state.yawRate), -R.turn, R.turn);
@@ -65,13 +67,13 @@ export function stepBoatDrive(state, input = {}, dt, { wet = 1, aground = 0, sha
     if (brake > 0 || reversing) state.speed = approach(speed, 0, (R.brake * (brake || 1) + drag) * h);
     else if (throttle === 0) state.speed = approach(speed, 0, drag * h);
     else {
-      const limit = (throttle > 0 ? R.speed : R.reverse) * (1 - ground) + R.creep * ground;
+      const limit = (throttle > 0 ? top : R.reverse) * (1 - ground) + R.creep * ground;
       const hump = Math.abs(speed) > R.planeSpeed * 0.35 && Math.abs(speed) < R.planeSpeed ? R.humpAcceleration : 1;
       // Scraping over a ford caps the speed (part throttle below the cap is unchanged).
       const cap = limit + (Math.min(limit, R.shallowSpeed) - limit) * scrape;
       const target = Math.sign(throttle) * Math.min(Math.abs(throttle) * limit, cap);
       state.speed = Math.abs(speed) > Math.abs(target) ? approach(speed, target, drag * h)
-        : approach(speed, target, R.acceleration * hump * h);
+        : approach(speed, target, acceleration * hump * h);
     }
     // Waterjet steering: authority grows with the flow, a slow pivot at rest.
     const flow = clamp(Math.abs(state.speed) / R.turnSpeed, 0, 1) * (1 - ground);

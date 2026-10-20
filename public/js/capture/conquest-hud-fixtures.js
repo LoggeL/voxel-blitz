@@ -544,7 +544,8 @@ export function conquestHudFixtures() {
     const self = meAt(C.x, C.z, { hp: 0, state: 'dead', respawnAt: FIXTURE_NOW + 3200, cq: { squad: 1, kitId: 'engineer' } });
     out.push(state('deploy-vehicles', 'Deploy · VEHICLES tab, LV 4, hull upgrades, tank spawn', { self, players: deployRoster(self), vehicles: [tankRow, heliRow],
       match: deployMatch(), dead: true, killer: { name: 'Rourke', weaponName: '120MM AP', distance: 142 },
-      selection: { spawn: 'vehicle:alpha-tank:driver', kit: 'engineer', variant: 0, tab: 'vehicles', upgrades: { tank: 'reactive', jeep: 'turbo', plane: 'extra_flares', helicopter: 'extra_missile' } },
+      selection: { spawn: 'vehicle:alpha-tank:driver', kit: 'engineer', variant: 0, tab: 'vehicles', padHull: 'aa',
+        upgrades: { tank: 'reactive', jeep: 'turbo', plane: 'extra_flares', helicopter: 'extra_missile', aa: 'reactive' } },
       career: { xp: 1240, level: 4, levelStart: 900, nextLevel: 1600 },
       events: [{ kind: 'kit_unlocks', id: 'me', level: 4, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'], newly: [] }],
       camera: cam(C.x, 40, C.z, 0, -0.5) }));

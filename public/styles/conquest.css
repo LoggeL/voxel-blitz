@@ -630,6 +630,8 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .cq-upg-hull { display: grid; align-content: start; gap: 5px; min-width: 0; padding: 6px 8px; border: 1px solid var(--cq-line); border-radius: 4px; background: #0e1820e6; }
 /* The hull the picked spawn seats you in. */
 .cq-upg-hull.is-spawn { border-color: #ffd16699; box-shadow: inset 3px 0 0 #ffd166; }
+/* The hull card the gamepad / keyboard steps (LT / RT or Q / E; LB / RB or the arrows pick its upgrade). */
+.cq-upg-hull.is-focus { outline: 2px solid var(--cq-own); outline-offset: -1px; }
 .cq-upg-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .cq-upg-icon { flex: none; width: 26px; height: 20px; color: var(--cq-sub); }
 .cq-upg-hull.is-upgraded .cq-upg-icon { color: var(--cq-own); }
