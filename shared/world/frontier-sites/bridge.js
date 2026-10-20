@@ -8,7 +8,7 @@ import {
   DIRT, TIMBER,
 } from '../blocks.js';
 import { FRONTIER_PLAN } from '../../conquest-contract.js';
-import { FRONTIER_CROSSINGS, FRONTIER_CELL_KIND as KIND, riverOffset } from '../frontier-terrain.js';
+import { FRONTIER_CROSSINGS, FRONTIER_CELL_KIND as KIND, BRIDGEHEAD, frontierDeckBox, riverOffset } from '../frontier-terrain.js';
 import { rect, pickSpawnCells } from './plan.js';
 import { sandbags, fieldWall, crateStack } from './props.js';
 import { IRON_ARCH } from '../../conquest-bridge.js';
@@ -24,7 +24,7 @@ const WAREHOUSE = rect(403, 394, 413, 403);
 const RUIN_W = rect(352, 396, 362, 406);
 const RUIN_E = rect(405, 361, 415, 371);
 const WATER_TOWER = { x: 346.5, z: 362.5, rise: 25 };
-const TANK_WEST = { x: 344.5, z: 392.5 }, TANK_EAST = { x: 423.5, z: 375.5 };
+const TANK_WEST = { x: 346.5, z: 392.5 }, TANK_EAST = { x: 421.5, z: 375.5 };
 export const IRON_ARCH_TOP_Y = IRON.deckY + 1 + ARCH.rise;
 
 export const BRIDGE_SITE = Object.freeze({
@@ -49,7 +49,7 @@ export const BRIDGE_SITE = Object.freeze({
     Object.freeze({ x: 414.5, z: 372.5, faces: 'axis' }),
   ]),
   spawns: pickSpawnCells(FLAG.x, FLAG.z, {
-    exclude: [TOLL, WAREHOUSE, RUIN_W, RUIN_E, rect(340, 388, 349, 397), rect(419, 371, 428, 380),
+    exclude: [TOLL, WAREHOUSE, RUIN_W, RUIN_E, rect(342, 388, 351, 397), rect(417, 371, 426, 380),
       rect(358, 374, 369, 377), rect(358, 390, 369, 393), rect(398, 374, 409, 377), rect(398, 390, 409, 393)],
     radii: [14, 16, 18, 20, 22, 24, 25],
     accept: (x, z) => Math.abs(riverOffset(x, z)) > 13 && x > 338 && x < 430,
@@ -77,6 +77,18 @@ function decks(kit) {
       if (isDeck.has(`${nx},${nz}`) || kind[nz * kit.SX + nx] !== KIND.RIVER) continue;
       kit.box(nx, c.deckY - 1, nz, nx, c.deckY, nz, METAL);
       if (c.id !== 'iron-bridge') kit.set(nx, c.deckY + 1, nz, (nx + nz) % 3 ? METAL : RUST);
+    }
+    // Wing walls: the railing turns along the water edge of the bridgehead
+    // banks, which stand flush with the deck (frontier-terrain.js BRIDGEHEAD).
+    // Two voxels high, so nobody steps up onto one and off into the river.
+    const box = c.id !== 'iron-bridge' && frontierDeckBox(kind, c);
+    if (box) {
+      for (let z = box.minZ - BRIDGEHEAD; z <= box.maxZ + BRIDGEHEAD; z++) for (let x = box.minX - BRIDGEHEAD; x <= box.maxX + BRIDGEHEAD; x++) {
+        const k = kind[z * kit.SX + x];
+        if (k === KIND.RIVER || k === KIND.BRIDGE || kit.top(x, z) !== c.deckY) continue;
+        if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => kind[(z + dz) * kit.SX + x + dx] === KIND.RIVER)) continue;
+        kit.box(x, c.deckY + 1, z, x, c.deckY + 2, z, (x + z) % 3 ? METAL : RUST);
+      }
     }
     // Mid-river piers.
     const pierX = Math.round(c.x) - 1;
@@ -213,8 +225,8 @@ export function buildBridgeSite(kit) {
   for (const lane of BRIDGE_SITE.lanes) kit.feature('lane', { flag: 'C', ...lane });
   crateStack(kit, 352, 380, 2, 2, 2);
   crateStack(kit, 414, 386, 2, 2, 2);
-  kit.paintRect(340, 388, 349, 397, DIRT);
-  kit.paintRect(419, 371, 428, 380, DIRT);
+  kit.paintRect(342, 388, 351, 397, DIRT);
+  kit.paintRect(417, 371, 426, 380, DIRT);
   for (const a of BRIDGE_SITE.ambush) kit.feature('ambush', { flag: 'C', ...a });
   for (const p of [TANK_WEST, TANK_EAST]) kit.reserve(p.x - 4.5, p.z - 4.5, p.x + 3.5, p.z + 3.5, 5, 'flag-C-tank');
 }

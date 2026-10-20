@@ -232,6 +232,18 @@ export const FRONTIER_CROSSINGS = Object.freeze(FRONTIER_PLAN.crossings.map(c =>
   ...c, deckY: c.kind === 'bridge' ? DECK_Y[c.id] : null, bedY: c.kind === 'ford' ? FORD_BED : null,
   halfSpan: c.kind === 'bridge' ? RIVER_HALF + 3 : RIVER_HALF + 1,
 })));
+/** Bank cells flush with the deck beyond each side of a bridge's deck rectangle. */
+export const BRIDGEHEAD = 2;
+/** Bounding rectangle (inclusive cells) of a bridge's deck cells, or null. */
+export function frontierDeckBox(kind, c) {
+  const r = c.halfSpan + c.width;
+  let minX = INF, minZ = INF, maxX = -INF, maxZ = -INF;
+  for (let z = Math.floor(c.z - r); z <= Math.ceil(c.z + r); z++) for (let x = Math.floor(c.x - r); x <= Math.ceil(c.x + r); x++) {
+    if (kind[z * SX + x] !== KIND.BRIDGE) continue;
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+  }
+  return minX === INF ? null : { minX, minZ, maxX, maxZ };
+}
 
 /** Forests: Ashgrove (south-west) and its point mirror Blackwood (north-east). */
 const ASHGROVE = { id: 'ashgrove', name: 'Ashgrove', x: 196, z: 660, rx: 118, rz: 64, angle: -0.18 };
@@ -659,6 +671,33 @@ function buildTerrain() {
     }
     roads.push({ ...plan, index: index + 1, length, step, level });
   });
+
+  // Bridgeheads: a bent road leaves a stepped deck edge and a notch of open
+  // water at the deck ends, so every deck is squared to the rectangle of its
+  // cells. The bank beside each deck end stands flush with the deck for
+  // BRIDGEHEAD m either side (frontier-sites/bridge.js rails its water edge).
+  for (const c of FRONTIER_CROSSINGS) {
+    if (c.kind !== 'bridge') continue;
+    const box = frontierDeckBox(kind, c);
+    if (!box) continue;
+    let road = 0;
+    for (let z = box.minZ; z <= box.maxZ && !road; z++) for (let x = box.minX; x <= box.maxX; x++) {
+      const i = z * SX + x;
+      if (kind[i] === KIND.BRIDGE) { road = roadIndex[i]; break; }
+    }
+    for (let z = box.minZ; z <= box.maxZ; z++) for (let x = box.minX; x <= box.maxX; x++) {
+      const i = z * SX + x;
+      if (kind[i] !== KIND.RIVER) continue;
+      kind[i] = KIND.BRIDGE; fixedY[i] = c.deckY; roadIndex[i] = road; roadDist[i] = 0;
+    }
+    for (let z = box.minZ - BRIDGEHEAD; z <= box.maxZ + BRIDGEHEAD; z++) {
+      for (let x = box.minX - BRIDGEHEAD; x <= box.maxX + BRIDGEHEAD; x++) {
+        const i = z * SX + x;
+        if (fixed[i] || kind[i] === KIND.RIVER || kind[i] === KIND.BRIDGE || kind[i] === KIND.FORD) continue;
+        fixed[i] = 1; fixedY[i] = c.deckY; raw[i] = c.deckY;
+      }
+    }
+  }
 
   // 5. Drivability clamp: neighbour steps <= 1 everywhere except the
   // mountains outside the combat area and authored rock outcrops. All values
