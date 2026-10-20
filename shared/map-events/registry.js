@@ -11,6 +11,7 @@ import { DAM_EVENT } from './dam.js';
 // slot depot (forward service depots; today the Frontier Hollin Fuel Depot):
 import { DEPOT_EVENT } from './depot.js';
 // slot sluice (Frontier ford sluices, reserved):
+import { SLUICE_NORTH_EVENT, SLUICE_SOUTH_EVENT } from './sluice.js';
 // slot radar (flag radars on both maps, reserved):
 // slot trestle (Redrock canyon trestle collapse, reserved):
 // slot comeback (both maps, trailing team call-in):
@@ -24,6 +25,7 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot depot:
   DEPOT_EVENT,
   // slot sluice:
+  SLUICE_NORTH_EVENT, SLUICE_SOUTH_EVENT,
   // slot radar:
   // slot trestle:
   // slot comeback:

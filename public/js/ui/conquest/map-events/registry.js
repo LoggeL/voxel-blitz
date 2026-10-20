@@ -24,6 +24,7 @@ import { DAM_PRESENTER } from './dam.js';
 // slot depot:
 import { DEPOT_PRESENTER } from './depot.js';
 // slot sluice:
+import { SLUICE_PRESENTER } from './sluice.js';
 // slot radar:
 // slot trestle:
 // slot comeback:
@@ -36,6 +37,7 @@ export const MAP_EVENT_PRESENTERS = Object.freeze({
   // slot depot:
   depot: DEPOT_PRESENTER,
   // slot sluice:
+  'sluice-north': SLUICE_PRESENTER, 'sluice-south': SLUICE_PRESENTER,
   // slot radar:
   // slot trestle:
   // slot comeback:

@@ -26,6 +26,7 @@ import { DAM_FX } from './dam.js';
 // slot depot:
 import { DEPOT_FX } from './depot.js';
 // slot sluice:
+import { SLUICE_FX } from './sluice.js';
 // slot radar:
 // slot trestle:
 // slot comeback:
@@ -38,6 +39,7 @@ export const MAP_EVENT_FX = Object.freeze({
   // slot depot:
   depot: DEPOT_FX,
   // slot sluice:
+  'sluice-north': SLUICE_FX, 'sluice-south': SLUICE_FX,
   // slot radar:
   // slot trestle:
   // slot comeback:

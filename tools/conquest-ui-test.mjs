@@ -48,7 +48,7 @@ const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restor
   'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'recon-deploy', 'recon-sensor', 'ribbon',
   'ribbon-banner', 'deploy-vehicles', 'weather-storm', 'weather-fog', 'scoreboard', 'result', 'result-medals', 'orders-rose', 'orders-chip',
   'orders-map', 'mortar', 'mortar-ready', 'fpv', 'bt-attack', 'bt-fallback', 'bt-overtime', 'bt-deploy', 'callin-ready', 'callin-map',
-  'callin-incoming', 'depot-chain', 'depot-ablaze'];
+  'callin-incoming', 'depot-chain', 'depot-ablaze', 'sluice-washed', 'sluice-map'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
   assert.equal(f.match.mode, 'conquest');

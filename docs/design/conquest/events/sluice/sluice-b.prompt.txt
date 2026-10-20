@@ -1,0 +1,8 @@
+Game UI design mockup, 1536x1024 screenshot of the full-screen tactical map of a browser voxel shooter (top-down map of a green river valley: a blue river running north to south through the middle, gravel roads, five flag diamonds A B C D E, WEST cyan on the left, EAST orange on the right).
+Existing HUD style (keep exactly this style: dark translucent navy panels rgba(9,15,20,0.86) with 1px light borders and 6px radius, condensed bold uppercase sans-serif labels with wide letter spacing, cyan #4cc3ff friendly, orange #ff8a3d enemy, amber #ffb020 hazard, red #ff4b4b danger, grey #9fb0bd sub text): map header "FRONTIER · TACTICAL MAP" top left, the ticket bar at the top centre.
+NEW FORD SLUICE UI TO SHOW (variant B, "crossings on the map"):
+1) Each river crossing gets a small road-crossing tag on the map: the five crossings labelled "BRIDGE-NORTH", "FORD-NORTH", "IRON BRIDGE", "FORD-SOUTH", "BRIDGE-SOUTH" in small grey caps next to the river.
+2) The north ford is washed out: its tag turns red, struck through, reading "FORD-NORTH · NO HULLS"; the ford itself is painted as a darker deep-water blue patch with a red X over the road where it meets the river.
+3) The south sluice (a small concrete weir a little upstream of the south ford) is damaged: an amber outline box across the river with the amber tag "S SLUICE · 40 %".
+4) A red hexagon badge with a white three-wave glyph at the broken north weir.
+Crisp flat game HUD, no extra decorations, no watermark, legible text.
