@@ -886,7 +886,7 @@ function keyTarget() {
   const savedRaf = globalThis.requestAnimationFrame;
   const savedDocument = globalThis.document;
   globalThis.requestAnimationFrame = () => 0;
-  globalThis.document = { hidden: false };
+  globalThis.document = { hidden: false, body: { dataset: {} } };
   const frame = () => { now += 20; assert.throws(() => game.loop(1, now), error => error === stopAfterPlayer); };
   try {
     input._onMouseDown({ button: 0 });
