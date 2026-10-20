@@ -10,6 +10,7 @@ import { FRONTIER_ROADS, FRONTIER_CONQUEST, FRONTIER_AIRFIELDS, frontierSurfaceY
 import * as layoutModule from '../shared/world/frontier-layout.js';
 import { frontierTopY } from '../shared/world/frontier-terrain.js';
 import { BEDROCK, MC_WATER, isSolidBlock } from '../shared/world/blocks.js';
+import { SLUICES } from '../shared/map-events/weir.js';
 import { getMapDimensions, KNOWN_DIMENSIONS, FRONTIER_DIMENSIONS } from '../shared/world/dimensions.js';
 import { boxCollides, solidBelow } from '../shared/player-movement.js';
 
@@ -84,8 +85,10 @@ const expected = [
 assert.deepEqual(fleet.map(v => [v.id, v.team, v.type, v.flag]).sort(), expected.sort());
 for (const v of fleet) {
   assert.ok(VEHICLE_TYPE_IDS.includes(v.type));
-  // A boat floats: its pad height is the water face less the draft (plus the 0.02 m pad gap).
-  if (v.type === 'boat') assert.equal(v.y, plan.river.surfaceY + 1 - 0.45 + 0.02, `${v.id} floats on the river`);
+  // A boat floats: its pad height is the water face less the draft (plus the 0.02 m pad gap); a
+  // mooring on a ford sluice's pond (alpha-boat-north) rides the pond's face, one voxel up.
+  const pond = v.type === 'boat' ? SLUICES.map(s => s.pond).find(o => v.x >= o.x0 && v.x <= o.x1 && v.z >= o.z0 && v.z <= o.z1) : null;
+  if (v.type === 'boat') assert.equal(v.y, +((pond ? pond.faceY : plan.river.surfaceY + 1) - 0.45 + 0.02).toFixed(2), `${v.id} floats on the river`);
   else assert.equal(v.y, feetY(v.x, v.z), `${v.id} rests on the terrain`);
   assert.ok(Number.isFinite(v.yaw));
   if (v.flag) {

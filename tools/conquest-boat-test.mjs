@@ -24,6 +24,7 @@ import { hullSeatIds } from '../server/bot-commander.js';
 import { BOAT_PATROL, boatLane, laneDistance, laneProgress, lanePoint, patrolStations, riverPatrolSlots } from '../server/bot-boat-driving.js';
 import { vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
 import { mulberry32 } from '../shared/noise.js';
+import { SLUICES } from '../shared/map-events/weir.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { VEHICLE_MODEL_FACTORIES } from '../public/js/engine/vehicle-view.js';
 import { BOAT_TOP } from '../public/js/vehicles/models/boat.js';
@@ -33,6 +34,10 @@ const meta = getMapMeta('frontier'), world = createMapState('frontier');
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const WATER_FACE = meta.conquest.waterways[0].points[0][1];
 const FLOAT = WATER_FACE - BOAT_RULES.draft;
+// The north ford sluice's pond (docs/conquest.md "Ford sluices") holds the reach above ford-north one voxel higher.
+const faceAt = p => SLUICES.map(s => s.pond).find(o => p.x >= o.x0 && p.x <= o.x1 && p.z >= o.z0 && p.z <= o.z1)?.faceY ?? WATER_FACE;
+const floatAt = p => faceAt(p) - BOAT_RULES.draft;
+const POND_FLOAT = Math.max(...SLUICES.map(s => s.pond.faceY)) - BOAT_RULES.draft;
 let checks = 0;
 const ok = (value, message) => { assert.ok(value, message); checks++; };
 const eq = (a, b, message) => { assert.deepEqual(a, b, message); checks++; };
@@ -117,8 +122,8 @@ const run = (vehicles, seconds, each = null) => { for (let i = 0; i < Math.round
   const boats = [...vehicles.vehicles.values()].filter(v => v.type === 'boat');
   eq(boats.map(v => v.id).sort(), ['alpha-boat-north', 'alpha-boat-south', 'bravo-boat-north', 'bravo-boat-south']);
   for (const v of boats) {
-    ok(waterSurfaceAt(world, v.x, v.z, v.y) === WATER_FACE, `${v.id} moors on the river`);
-    eq(vehicles.placement(v, v.x, v.z), FLOAT, `${v.id} floats the draft under the water face`);
+    ok(waterSurfaceAt(world, v.x, v.z, v.y) === faceAt(v), `${v.id} moors on the river (or the north sluice's pond)`);
+    eq(vehicles.placement(v, v.x, v.z), floatAt(v), `${v.id} floats the draft under the water face`);
     ok(flat(v, lanePoint(boatLane({ mapMeta: meta }), laneProgress(boatLane({ mapMeta: meta }), v))) < 12, `${v.id} moors beside the boat lane`);
   }
   // Moored and crewless: it settles, then publishes the same level row every tick.
@@ -126,7 +131,7 @@ const run = (vehicles, seconds, each = null) => { for (let i = 0; i < Math.round
   const rows = boats.map(v => JSON.stringify(vehicles.row(v, 0)));
   run(vehicles, 3);
   eq(boats.map(v => JSON.stringify(vehicles.row(v, 0))), rows, 'moored boats publish an unchanging row');
-  for (const v of boats) { eq([v.pitch, v.roll, v.speed].map(Math.abs), [0, 0, 0], `${v.id} rests level`); eq(v.y, FLOAT); }
+  for (const v of boats) { eq([v.pitch, v.roll, v.speed].map(Math.abs), [0, 0, 0], `${v.id} rests level`); eq(v.y, floatAt(v)); }
   void engine;
 }
 
@@ -158,7 +163,8 @@ const run = (vehicles, seconds, each = null) => { for (let i = 0; i < Math.round
   const bridge = meta.conquest.crossings.find(cr => cr.kind === 'bridge' && Math.abs(cr.z - 390) < 20) ?? { z: 390 };
   ok(laneProgress(lane, v) > 200 && v.z > bridge.z + 10, `it covers the lane and passes under the Iron Bridge (${laneProgress(lane, v).toFixed(0)} m, z ${v.z.toFixed(0)})`);
   ok(maxPitch <= BOAT_RULES.maxPitch + 1e-9 && maxRoll <= BOAT_RULES.maxRoll + 1e-9 && maxRoll > 0.01, `trim ${maxPitch.toFixed(3)} and heel ${maxRoll.toFixed(3)} stay inside the clamp`);
-  ok(minY >= FLOAT - 1e-6 && maxY <= FLOAT + BOAT_RULES.maxStep + 1e-6, `it stays afloat (${minY.toFixed(2)}..${maxY.toFixed(2)})`);
+  // It starts on the north sluice's pond and runs the boat chute down to the river's face.
+  ok(minY >= FLOAT - 1e-6 && maxY <= POND_FLOAT + BOAT_RULES.maxStep + 1e-6, `it stays afloat (${minY.toFixed(2)}..${maxY.toFixed(2)})`);
   eq(v.hp, startHp, 'a well-steered run never touches a bank');
 }
 
@@ -219,7 +225,7 @@ const run = (vehicles, seconds, each = null) => { for (let i = 0; i < Math.round
   ok(hits.every(h => h.amount <= VEHICLE_RULES.boat.hp * WALL_CRASH_RULES.boat.maxShare + 1e-9), `each strike costs at most ${WALL_CRASH_RULES.boat.maxShare * 100}% of the hull`);
   ok(hits.every((h, i) => i === 0 || h.at - hits[i - 1].at >= WALL_CRASH_RULES.boat.crashSeconds - 1e-9), 'one strike per crashSeconds');
   ok(v.hp > VEHICLE_RULES.boat.hp * 0.5, `the boat survives a bank strike (${v.hp.toFixed(0)} hp)`);
-  ok(maxY <= FLOAT + BOAT_RULES.maxStep + 1e-6, 'and stays in the water');
+  ok(maxY <= floatAt(v) + BOAT_RULES.maxStep + 1e-6, 'and stays in the water');
 }
 
 // ------------------------------------------------------------------ crew exits into the water
@@ -233,8 +239,8 @@ const run = (vehicles, seconds, each = null) => { for (let i = 0; i < Math.round
   ok(vehicles.enter(rider, v.id, 'rear-left'), 'a passenger boards');
   vehicles.exit(rider);
   ok(!rider.vehicleId, 'the passenger is out');
-  ok(Math.abs(rider.y - (WATER_FACE - BOAT_SWIM_EXIT_DEPTH)) < 1e-6, `mid-river the exit is into the water (y ${rider.y.toFixed(2)})`);
-  ok(flat(rider, v) < 4 && rider.y < FLOAT + 1, 'beside the hull, never on its roof');
+  ok(Math.abs(rider.y - (faceAt(v) - BOAT_SWIM_EXIT_DEPTH)) < 1e-6, `mid-river the exit is into the water (y ${rider.y.toFixed(2)})`);
+  ok(flat(rider, v) < 4 && rider.y < floatAt(v) + 1, 'beside the hull, never on its roof');
 }
 
 // ------------------------------------------------------------------ wreck sinks, pad respawns in 20 s

@@ -10,6 +10,7 @@ import {
   FRONTIER_ROAD_PLAN, FRONTIER_CROSSINGS, frontierTopY, frontierSurfaceY, frontierWaterY, riverCentreX,
 } from '../frontier-terrain.js';
 import { BOAT_RULES } from '../../vehicle-handling/boat.js';
+import { SLUICES } from '../../map-events/weir.js';
 import { FARM_SITE } from './farm.js';
 import { CHURCH_RECT, VILLAGE_SITE, belfryLadder } from './village.js';
 import { BRIDGE_SITE } from './bridge.js';
@@ -60,8 +61,15 @@ export const FRONTIER_BOAT_PADS = Object.freeze([
   Object.freeze({ id: 'north', x: 373, z: 236, yaw: -2.83 }),
   Object.freeze({ id: 'south', x: 361, z: 464, yaw: 0.28 }),
 ]);
-/** Moored hull height: the water face, less the draft, plus the 0.02 m pad gap every hull has. */
-const boatPadY = (x, z) => round2(frontierWaterY(x, z) + 1 - BOAT_RULES.draft + 0.02);
+/**
+ * Moored hull height: the water face, less the draft, plus the 0.02 m pad gap
+ * every hull has. A mooring inside a ford sluice's pond (the north one) rides
+ * the pond's face, one voxel over the river's.
+ */
+const boatPadY = (x, z) => {
+  const pond = SLUICES.map(s => s.pond).find(p => x >= p.x0 && x <= p.x1 && z >= p.z0 && z <= p.z1);
+  return round2(Math.max(frontierWaterY(x, z) + 1, pond?.faceY ?? -Infinity) - BOAT_RULES.draft + 0.02);
+};
 
 /**
  * The boat lane: the whole navigable river, from the north end of the combat

@@ -186,7 +186,7 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 | `alpha-boat-north` / `bravo-boat-south` | moored at (373, 236), yaw −2.83, above ford-north / EAST mirror (395, 532) |
 | `alpha-boat-south` / `bravo-boat-north` | moored at (361, 464), yaw 0.28, below the Iron Bridge / EAST mirror (407, 304) |
 
-Boats float at y 21.57 (water face 22 minus the 0.45 m draft, plus 0.02). Each mooring lies where a reach narrows toward a crossing, about 5 m off the west bank (boarding range from the bank) and 9 m beside the boat lane. Each boat pad is named for where it sits on the river, so the EAST mirror of WEST's north boat is `bravo-boat-south`. Every pad clears a full pivot (32 yaws), and a boat crewed from the bank gets under way (`frontier-fleet-capacity-test`). Boats are left out of the HQ walking-route checks.
+Boats float at y 21.57 (water face 22 minus the 0.45 m draft, plus 0.02); `alpha-boat-north` moors on the north sluice's pond and floats at y 22.57 (face 23) until the sluice falls and the pond drains. Each mooring lies where a reach narrows toward a crossing, about 5 m off the west bank (boarding range from the bank) and 9 m beside the boat lane. Each boat pad is named for where it sits on the river, so the EAST mirror of WEST's north boat is `bravo-boat-south`. Every pad clears a full pivot (32 yaws), and a boat crewed from the bank gets under way (`frontier-fleet-capacity-test`). Boats are left out of the HQ walking-route checks.
 
 **Crossings:**
 
