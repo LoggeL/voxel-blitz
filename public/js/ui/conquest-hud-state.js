@@ -21,6 +21,7 @@ import {
   KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
 } from '../../../shared/conquest-kits.js';
 import { RECON_GADGET_RULES } from '../../../shared/recon-gadgets.js';
+import { SUPPLY_CRATE_RULES } from '../../../shared/supply-crates.js';
 import { MAP_EVENT_SUPPORT, mapEventPointKey, usableMapEventPoint } from '../../../shared/conquest-map-events.js';
 import { DEPOT_EVENT } from '../../../shared/map-events/depot.js';
 import { WEAPON_NAMES } from './hud-support.js';
@@ -1066,6 +1067,38 @@ export function reconMapItems({ cq, self, selfTeam, players = [] } = {}) {
   return items;
 }
 
+/** The glyph of a supply crate kind (icons.js): the ammo box or the medical cross. */
+export const CRATE_GLYPHS = Object.freeze({ ammocrate: 'ammo', medcrate: 'revive' });
+/** World markers over own-team supply crates are drawn within this range (m). */
+export const CRATE_MARKER_RANGE = 60;
+
+/**
+ * Supply crate map items (match.conquest.crates, docs/conquest.md "Infantry
+ * supply"): the own team's crates only, with their reach ring. Enemy crates
+ * never reach the map.
+ */
+export function crateMapItems({ cq, self, selfTeam } = {}) {
+  if (!selfTeam || !Array.isArray(cq?.crates)) return [];
+  return cq.crates.filter(c => c && c.team === selfTeam && Number.isFinite(c.x)).map(c => ({ kind: 'crate', crate: c.kind,
+    glyph: CRATE_GLYPHS[c.kind] ?? 'ammo', id: String(c.id), rel: String(c.ownerId) === String(self?.id ?? '') ? 'self' : 'own',
+    x: c.x, z: c.z, radius: SUPPLY_CRATE_RULES.radius, lingerMs: finite(c.lingerMs) }));
+}
+
+/** Screen markers (a small glyph and the distance) over own-team crates in view within CRATE_MARKER_RANGE. */
+export function crateMarkerModels({ cq, self, selfTeam, projector } = {}) {
+  if (!projector || !self || !selfTeam || !Array.isArray(cq?.crates)) return [];
+  const out = [];
+  for (const c of cq.crates) {
+    if (!c || c.team !== selfTeam || ![c.x, c.y, c.z].every(Number.isFinite)) continue;
+    const distance = Math.hypot(c.x - finite(self.x), c.y - finite(self.y), c.z - finite(self.z));
+    if (distance > CRATE_MARKER_RANGE) continue;
+    const p = projector.project(c.x, c.y + 1.1, c.z);
+    if (!p?.inside) continue;
+    out.push({ kind: 'crate', crate: c.kind, glyph: CRATE_GLYPHS[c.kind] ?? 'ammo', id: `crate:${c.id}`, name: '', distance: Math.round(distance), x: p.x, y: p.y });
+  }
+  return out;
+}
+
 /**
  * Map items in world coordinates with team-relative tones. Enemies appear
  * only while spotted or revealed by an own motion sensor; teammates and
@@ -1111,6 +1144,7 @@ export function mapItems({ cq, self, players = [], vehicles = [], selfTeam }) {
     }
   }
   items.push(...reconMapItems({ cq, self, selfTeam, players }));
+  items.push(...crateMapItems({ cq, self, selfTeam }));
   if (self && alive(self) && Number.isFinite(self.x)) {
     // The Medic's heal aura reach around itself (KIT_ROLE_RULES.healRadius).
     if (KITS[decodeConquestPlayer(self)?.kit]?.aura === 'heal' && !self.vehicleId) items.push({ kind: 'aura', id: `${selfId}:aura`, rel: 'squad', x: self.x, z: self.z, radius: KIT_ROLE_RULES.healRadius });
@@ -1183,6 +1217,23 @@ export function reconGadgetBanner(ev, selfId) {
     return { key, tone: 'own', title: 'MOTION SENSOR ACTIVE', detail: `${r.radius} M · ${Math.round(r.lifeMs / 1000)} S`, priority: 1 };
   }
   if (ev.gadget === 'sensor' && ev.state === 'destroyed') return { key, tone: 'enemy', title: 'MOTION SENSOR DESTROYED', detail: '', priority: 1 };
+  return null;
+}
+
+const CRATE_NAMES = Object.freeze({ ammocrate: 'AMMO CRATE', medcrate: 'MEDICAL CRATE' });
+const CRATE_REFUSED_TEXT = Object.freeze({ ground: 'NO GROUND AHEAD', blocked: 'NO ROOM AHEAD', cooldown: 'MOVED TOO RECENTLY', state: 'NOT ON FOOT' });
+
+/** A banner for an own `supply_crate` event (placed, moved, refused, destroyed), or null. */
+export function supplyCrateBanner(ev, selfId) {
+  if (ev?.kind !== 'supply_crate' || selfId == null || String(ev.owner) !== String(selfId)) return null;
+  const name = CRATE_NAMES[ev.crate] ?? 'SUPPLY CRATE', key = `sc:${ev.id}:${ev.state}:${ev.at ?? ''}`;
+  const reach = `MATES WITHIN ${SUPPLY_CRATE_RULES.radius} M`;
+  if (ev.state === 'placed' || ev.state === 'moved') {
+    return { key, tone: 'own', title: `${name} ${ev.state === 'moved' ? 'MOVED' : 'PLACED'}`,
+      detail: ev.crate === 'medcrate' ? `HEALS ${reach}` : `RESUPPLIES ${reach}`, priority: 1 };
+  }
+  if (ev.state === 'refused' && ev.reason !== 'kit') return { key, tone: 'neutral', title: `CAN'T PLACE ${name}`, detail: CRATE_REFUSED_TEXT[ev.reason] ?? '', priority: 1 };
+  if (ev.state === 'destroyed') return { key, tone: 'enemy', title: `${name} DESTROYED`, detail: 'PLACE A NEW ONE', priority: 2 };
   return null;
 }
 
@@ -1374,7 +1425,8 @@ export function kitCards(selectedKit, variant = 0, gadget = 0, { unlocked = null
     const kit = KITS[id];
     const chosen = id === selectedKit ? kitGadgetIndex(id, gadget) : 0;
     // A null entry is "no gadget" (the Support's default next to the MORTAR): shown as 'none'.
-    const gadgets = (kit.gadgets ?? []).length > 1 ? kit.gadgets.map((choice, index) => {
+    // A lone gadget (the Medic's MEDICAL CRATE) still shows its toggle, so its art and hint read on the card.
+    const gadgets = (kit.gadgets ?? []).length > 0 ? kit.gadgets.map((choice, index) => {
       const weapon = choice ?? 'none';
       return { index, weapon, role: KIT_GADGET_LABELS[weapon]?.role ?? '', hint: KIT_GADGET_LABELS[weapon]?.hint ?? '',
         label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === chosen };
@@ -1601,8 +1653,9 @@ export function conquestTouchFields({ active = false, dead = false, deployOpen =
   fields.conquest = true;
   // MORTAR button: alive on foot with the Support's M-81 picked (`deployable` from the kit and gadget).
   // The Engineer's FPV drone takes the same button: FPV launches, CUT (while flying) drops it.
-  fields.canMortar = !dead && !seated?.row && (deployable === 'mortar' || deployable === 'fpv' || piloting === true);
-  fields.mortarLabel = piloting ? 'CUT' : deployable === 'fpv' ? 'FPV' : 'MORTAR';
+  // The supply crates (Support AMMO, Medic MED) take it too: the button places (moves) the crate.
+  fields.canMortar = !dead && !seated?.row && (['mortar', 'fpv', 'ammocrate', 'medcrate'].includes(deployable) || piloting === true);
+  fields.mortarLabel = piloting ? 'CUT' : deployable === 'fpv' ? 'FPV' : deployable === 'ammocrate' ? 'AMMO' : deployable === 'medcrate' ? 'MED' : 'MORTAR';
   fields.deployOpen = !!(dead && deployOpen);
   if (fields.deployOpen) {
     const valid = deploy?.valid !== false;

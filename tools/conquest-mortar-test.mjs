@@ -43,8 +43,8 @@ ok(isDeployableType('mortar') && !VEHICLE_TYPE_IDS.includes('mortar'), 'the mort
 ok(isEmplacementType('mortar'), 'emplacement handling');
 eq(VEHICLE_TOPOLOGY.mortar.map(s => [s.id, s.role, s.drives, s.exposed]), [['operator', 'gunner', false, true]]);
 eq(VEHICLE_WEAPON_META.mortarHE.kind, 'shell');
-eq(KITS.support.gadgets, [null, 'mortar']);
-eq([kitGadget('support', 1), kitDeployable('support', 1), kitDeployable('support', 0), kitDeployable('engineer', 1)], [null, 'mortar', null, null]);
+eq(KITS.support.gadgets, ['ammocrate', 'mortar']);
+eq([kitGadget('support', 1), kitDeployable('support', 1), kitDeployable('support', 0), kitDeployable('engineer', 1)], [null, 'mortar', 'ammocrate', null]);
 eq(KIT_GADGET_LABELS.mortar.name, 'M-81 MORTAR');
 eq(parseConquestIntent({ mortar: 1 }), { type: 'mortar' });
 eq(parseConquestIntent({ mortar: 2 }), null, 'only mortar:1 places');

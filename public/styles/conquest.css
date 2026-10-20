@@ -269,6 +269,10 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-unit-marker[data-kind="squad"] .cq-unit-glyph { width: 9px; height: 9px; margin: -4px 0 0; border-radius: 50%; background: var(--cq-squad); box-shadow: 0 0 0 1.5px #071016; }
 .cq-unit-marker[data-kind="spotted"] .cq-unit-glyph { width: 11px; height: 11px; margin: -5px 0 0; transform: rotate(45deg); background: var(--cq-danger); box-shadow: 0 0 0 1.5px #1a0505, 0 0 8px #ff4b4b99; }
 .cq-unit-marker[data-kind="down"] .cq-unit-glyph, .cq-unit-marker[data-kind="spotted-vehicle"] .cq-unit-glyph { width: 22px; height: 22px; margin: -11px 0 0; }
+/* Own supply crates (docs/conquest.md "Infantry supply"): a small glyph on a dark chip, the ammo stencil yellow or the medical red. */
+.cq-unit-marker[data-kind="crate"] .cq-unit-glyph { width: 15px; height: 15px; margin: -8px 0 0; padding: 2px; border-radius: 3px; background: #0b1218cc; color: #ffd166; box-shadow: 0 0 0 1px #ffd16666; }
+.cq-unit-marker[data-kind="crate"][data-comm="medcrate"] .cq-unit-glyph { color: #ff6b6b; box-shadow: 0 0 0 1px #ff6b6b66; }
+.cq-unit-marker[data-kind="crate"] .cq-unit-label { font-size: 9px; opacity: 0.8; }
 .cq-unit-marker[data-kind="down"] .cq-unit-glyph { color: #ff6b6b; filter: drop-shadow(0 0 3px #000); animation: cq-down 1s ease-in-out infinite; }
 .cq-unit-marker[data-kind="spotted-vehicle"] .cq-unit-glyph { color: var(--cq-danger); border: 1.5px solid var(--cq-danger); border-radius: 4px; background: #1a0505b0; padding: 2px; }
 .cq-unit-icon { width: 100%; height: 100%; display: block; }
@@ -1086,6 +1090,8 @@ body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conque
   background: center / contain no-repeat url('../assets/weapons/hud/mortar.png'); filter: drop-shadow(0 1px 1px #000a);
 }
 .vb-touch-mortar[data-art="fpv"]::before { background-image: url('../assets/weapons/hud/fpv.png'); }
+.vb-touch-mortar[data-art="ammocrate"]::before { background-image: url('../assets/weapons/hud/ammocrate.png'); }
+.vb-touch-mortar[data-art="medcrate"]::before { background-image: url('../assets/weapons/hud/medcrate.png'); }
 .vb-touch-mode .cq-rose-dial { width: min(340px, 88vmin); }
 .vb-touch-mode .cq-rose-seg { font-size: 10px; letter-spacing: 0.8px; gap: 2px; }
 .vb-touch-mode .cq-rose-icon { width: 22px; height: 22px; }

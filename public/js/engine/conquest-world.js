@@ -5,6 +5,7 @@ import { patchVoxelLitMaterial } from './voxel-light.js';
 import { disposeObjectTree } from './dispose.js';
 import { ReconGadgetView } from './recon-gadget-view.js';
 import { PouchView } from './pouch-view.js';
+import { SupplyCrateView } from './supply-crate-view.js';
 
 // Conquest objectives in the world, Battlefield style: a mast whose cloth is
 // hoisted and lowered with the authoritative control scalar, a slim tall beam
@@ -374,6 +375,9 @@ export class ConquestWorld {
     // Ammo pouches of the fallen (match.conquest.pch, change and keyframe ticks only).
     this.pouches = new PouchView(scene);
     this.pouches.group.visible = false;
+    // Support ammo crates and Medic medical crates (match.conquest.crates).
+    this.crates = new SupplyCrateView(scene);
+    this.crates.group.visible = false;
   }
 
   build(lightUniforms, windYaw) {
@@ -544,6 +548,7 @@ export class ConquestWorld {
     this.group.visible = !this.disposed && mode === 'conquest' && this.flags.size > 0;
     if (this.recon) this.recon.group.visible = !this.disposed && mode === 'conquest';
     if (this.pouches) this.pouches.group.visible = !this.disposed && mode === 'conquest';
+    if (this.crates) this.crates.group.visible = !this.disposed && mode === 'conquest';
   }
 
   sync(match) {
@@ -552,6 +557,7 @@ export class ConquestWorld {
       this.recon?.sync(match?.conquest?.recon);
       // An absent `pch` keeps the shown pouches; no conquest block at all clears them.
       this.pouches?.sync(match?.conquest ? match.conquest.pch : []);
+      this.crates?.sync(match?.conquest?.crates);
     }
     const states = conquestFlagStates(match, this.layout);
     if (!states) return;
@@ -671,6 +677,7 @@ export class ConquestWorld {
     this.disposed = true; this.group.visible = false;
     this.recon?.dispose();
     this.pouches?.dispose();
+    this.crates?.dispose();
     this.group.removeFromParent();
     for (const mesh of [this.masts, this.cloths, this.beams]) mesh?.dispose();
     disposeObjectTree(this.group);

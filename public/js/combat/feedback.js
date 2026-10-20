@@ -1,7 +1,7 @@
 // Combat event routing and presentation. Simulation and resource ownership stay
 // with the injected player, roster, world, effects, HUD, and audio collaborators.
 import * as THREE from '../vendor/three.module.js';
-import { worldDimensions } from '../../../shared/worlddata.js';
+import { DUST_CRATE, MC_WOOL_WHITE, worldDimensions } from '../../../shared/worlddata.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { blockSoundFor } from '../weapons/effects.js';
 import { THROWABLE_NAMES, WEAPON_NAMES } from '../ui/hud-support.js';
@@ -363,6 +363,12 @@ export class CombatFeedback {
       case 'recon_gadget':
         // A laid Recon SPAWN BEACON chirps where it stands (a sensor pings on its settle blast).
         if (ev.gadget === 'beacon' && ev.state === 'placed' && Array.isArray(ev.pos)) this.sfx.reconGadget?.(ev.pos, 'beacon');
+        break;
+      case 'supply_crate':
+        // A destroyed supply crate bursts into a puff of its own colour (olive crate wood, the white medical box).
+        if (ev.state === 'destroyed' && Array.isArray(ev.pos) && ev.pos.every(Number.isFinite)) {
+          this.effects.explodeBlock?.(Math.floor(ev.pos[0]), Math.floor(ev.pos[1]), Math.floor(ev.pos[2]), ev.crate === 'medcrate' ? MC_WOOL_WHITE : DUST_CRATE);
+        }
         break;
       case 'glaiveStock': {
         // One owner's embedded RIPTIDE discs and fabrication queue.

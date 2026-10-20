@@ -279,7 +279,7 @@ export function parseTitanfallIntent(raw) {
   }
 }
 
-const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'comm', 'order', 'mortar', 'fpv']);
+const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'comm', 'order', 'mortar', 'fpv', 'crate']);
 // `use` (contract v7): hold a map event's interaction point (shared/conquest-map-events.js).
 const SUPPORT_TYPES = Object.freeze(['revive', 'repair', 'use']);
 const ORDER_FLAG_PATTERN = /^[A-Z]$/;
@@ -295,9 +295,10 @@ const ORDER_FLAG_PATTERN = /^[A-Z]$/;
  * - support {type: 'revive'|'repair'|'use', targetId: string <= 64} (`use`: a map event point `<eventId>:<index>`);
  * - redeploy: 1 (or true), the in-game menu RESPAWN;
  * - mortar: 1 (or true), the Support places and mans his mortar;
- * - fpv: 1 (or true), the FPV Engineer launches his drone or cuts its link.
+ * - fpv: 1 (or true), the FPV Engineer launches his drone or cuts its link;
+ * - crate: 1 (or true), the Support or Medic places (moves) his supply crate (v8).
  * Returns `{type:'deploy', spawn, kit, variant, gadget}`, `{type:'spot'}`,
- * `{type:'support', support, targetId}`, `{type:'redeploy'}`, `{type:'mortar'}`, `{type:'fpv'}` or null.
+ * `{type:'support', support, targetId}`, `{type:'redeploy'}`, `{type:'mortar'}`, `{type:'fpv'}`, `{type:'crate'}` or null.
  */
 export function parseConquestIntent(raw) {
   if (!isRecord(raw)) return null;
@@ -313,6 +314,7 @@ export function parseConquestIntent(raw) {
   if (key === 'order') return typeof value === 'string' && (value === '' || ORDER_FLAG_PATTERN.test(value)) ? { type: 'order', flag: value } : null;
   if (key === 'mortar') return value === 1 || value === true ? { type: 'mortar' } : null;
   if (key === 'fpv') return value === 1 || value === true ? { type: 'fpv' } : null;
+  if (key === 'crate') return value === 1 || value === true ? { type: 'crate' } : null;
   if (key === 'support') {
     if (!isRecord(value) || !hasExactKeys(value, ['type', 'targetId'])) return null;
     if (!SUPPORT_TYPES.includes(value.type) || !isIdString(value.targetId, 64)) return null;

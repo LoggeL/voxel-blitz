@@ -481,6 +481,9 @@ export class ConquestRoles {
   /** When a Support aura (or the kit's own resupply) last refilled this player (NEED AMMO is served by it). */
   refilledAt(entity) { return this._state(entity, false)?.lastRefilledAt ?? -Infinity; }
 
+  /** When this player last took damage (the heal aura's and the medical crate's pause). */
+  damagedAt(entity) { return this._state(entity, false)?.lastDamagedAt ?? -Infinity; }
+
   isDown(entity) {
     const p = this._entity(entity);
     const down = this._state(entity, false)?.down;

@@ -331,7 +331,7 @@ export class TouchControls {
       const label = typeof next?.mortarLabel === 'string' && next.mortarLabel ? next.mortarLabel : 'MORTAR';
       if (this.dom.mortar.textContent !== label) this.dom.mortar.textContent = label;
       // Its art (CSS keyed on data-art): the mortar, or the drone for FPV and CUT.
-      const art = label === 'MORTAR' ? 'mortar' : 'fpv';
+      const art = label === 'MORTAR' ? 'mortar' : label === 'AMMO' ? 'ammocrate' : label === 'MED' ? 'medcrate' : 'fpv';
       if (this.dom.mortar.dataset.art !== art) this.dom.mortar.dataset.art = art;
     }
     if (this.dom.countermeasure) {

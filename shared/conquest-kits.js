@@ -3,7 +3,7 @@
 // not carry. Pure data and pure functions, shared by the server roles module,
 // bots and the client deploy screen, so a kit always means the same inventory.
 
-import { KITS, KIT_IDS, KIT_SIDEARM, isDeployableType } from './conquest-contract.js';
+import { KITS, KIT_IDS, KIT_SIDEARM, isCrateType, isDeployableType } from './conquest-contract.js';
 import { WEAPONS, WEAPON_IDS } from './combatmath.js';
 import { GRENADE_TYPE_IDS } from './grenade-rules.js';
 
@@ -37,8 +37,11 @@ export const KIT_GADGET_LABELS = Object.freeze({
   stinger: Object.freeze({ role: 'AA', name: 'AX-9 STINGER', hint: 'LOCK-ON ANTI-AIR' }),
   beacon: Object.freeze({ role: 'BCN', name: 'SPAWN BEACON', hint: 'SQUAD SPAWN POINT' }),
   sensor: Object.freeze({ role: 'MSN', name: 'MOTION SENSOR', hint: 'REVEALS MOVING ENEMIES' }),
-  // The Support's choice: no gadget (null), or the deployable MORTAR (shared/mortar-rules.js).
+  // A kit without a gadget choice (kept for older choices and fixtures).
   none: Object.freeze({ role: 'NONE', name: 'NO GADGET', hint: 'LIGHTER KIT' }),
+  // Supply crates (shared/supply-crates.js, contract v8): the Support's default and the Medic's gadget.
+  ammocrate: Object.freeze({ role: 'AMMO', name: 'AMMO CRATE', hint: 'RESUPPLIES MATES WITHIN 5 M' }),
+  medcrate: Object.freeze({ role: 'MED', name: 'MEDICAL CRATE', hint: 'HEALS MATES WITHIN 5 M' }),
   mortar: Object.freeze({ role: 'MORTAR', name: 'M-81 MORTAR', hint: 'DEPLOYABLE INDIRECT FIRE' }),
   // The Engineer's third choice: the FPV kamikaze drone (shared/fpv-rules.js), no launcher.
   fpv: Object.freeze({ role: 'FPV', name: 'FPV DRONE', hint: 'KAMIKAZE DRONE · 2 PER LIFE' }),
@@ -226,11 +229,17 @@ export function kitGadget(kit, gadget = 0) {
   return id && (Object.hasOwn(WEAPONS, id) || Object.hasOwn(KIT_POUCH_GADGETS, id)) ? id : null;
 }
 
-/** Deployable of a kit and gadget index (the Support's 'mortar'), or null. */
+/** Deployable of a kit and gadget index (the Support's 'mortar' or 'ammocrate', the Medic's 'medcrate'), or null. */
 export function kitDeployable(kit, gadget = 0) {
   const def = KITS[normalizeKit(kit)];
   const id = def.gadgets?.[normalizeGadget(kit, gadget)] ?? null;
-  return isDeployableType(id) ? id : null;
+  return isDeployableType(id) || isCrateType(id) ? id : null;
+}
+
+/** The supply crate a kit and gadget index carries ('ammocrate' | 'medcrate', shared/supply-crates.js), or null. */
+export function kitCrate(kit, gadget = 0) {
+  const id = kitDeployable(kit, gadget);
+  return isCrateType(id) ? id : null;
 }
 
 /** The kit's gadget weapon for a gadget index, or null (no gadget, or a pouch gadget such as the beacon). */

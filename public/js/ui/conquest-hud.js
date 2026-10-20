@@ -7,7 +7,7 @@
  */
 import { bindingLabel, isTypingTarget, matchesBinding } from '../keybindings.js';
 import {
-  bannerForEvent, hijackBanner, reconGadgetBanner, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
+  bannerForEvent, hijackBanner, reconGadgetBanner, supplyCrateBanner, crateMarkerModels, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
   killerCard, kitUnlockBanner, kitUnlockState, lockerModel, mapItems, matchEndBanner, nextFreeSeatIndex, ownKitUnlocks, readConquest,
   restrictedModel, reticleModel, scoreEntry, seatedVehicle, spreadEdgeMarkers, squadListModel, tankHitCallout, ticketModel, unitMarkerModels,
   vehicleHitMark, vehiclePanelModel, weatherChipModel,
@@ -450,7 +450,8 @@ export class ConquestHud {
       case 'vehicleView': return this.seated ? !!this.vehicleController?.cycleView?.() : false;
       // MORTAR: a Support with the M-81 on foot places and mans it (the server checks kit and ground).
       // FPV: an Engineer with the drone launches it, or cuts the link of the one he flies.
-      case 'mortar': return !this.dead && !this.seated && (['mortar', 'fpv'].includes(this.deployableFor(this.self)) || this.fpvPilot?.active === true)
+      // AMMO / MED: a Support or Medic places (moves) the supply crate ahead.
+      case 'mortar': return !this.dead && !this.seated && (['mortar', 'fpv', 'ammocrate', 'medcrate'].includes(this.deployableFor(this.self)) || this.fpvPilot?.active === true)
         ? this.onMortar() !== false : false;
       default: return false;
     }
@@ -712,6 +713,7 @@ export class ConquestHud {
     this.markers.update(
       spread.filter(m => m.kind !== 'event').map(m => (order && m.id === order.flagId ? { ...m, order: order.stance } : m)),
       projector ? [...this._unitMarkers(unitMarkerModels({ self, players, vehicles, selfTeam, projector, insets }), requestMarkerModels(requests, { projector })),
+        ...crateMarkerModels({ cq, self, selfTeam, projector }),
         ...spread.filter(m => m.kind === 'event'), ...eventMarkers.filter(m => m.kind !== 'event')] : [],
     );
     this.restricted.update(restrictedModel(self, cq, { aircraft: !!seated && isAircraftType(seated.row.type), nowMs: now }));
@@ -924,6 +926,11 @@ export class ConquestHud {
       }
       case 'recon_gadget': {
         const banner = reconGadgetBanner(ev, selfId);
+        if (banner) this.banners.push(banner, now);
+        break;
+      }
+      case 'supply_crate': {
+        const banner = supplyCrateBanner(ev, selfId);
         if (banner) this.banners.push(banner, now);
         break;
       }

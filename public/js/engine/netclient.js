@@ -70,8 +70,8 @@ class BlockDamageMap extends Map {
 }
 
 /** Conquest intent fields, one per `{t:'conquest'}` frame, and their minimum send gaps. */
-const CONQUEST_INTENT_FIELDS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'comm', 'order', 'mortar', 'fpv']);
-const CONQUEST_INTENT_GAP_MS = Object.freeze({ deploy: 250, spot: 500, support: 100, redeploy: 1000, comm: 500, order: 500, mortar: 1000, fpv: 1000 });
+const CONQUEST_INTENT_FIELDS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'comm', 'order', 'mortar', 'fpv', 'crate']);
+const CONQUEST_INTENT_GAP_MS = Object.freeze({ deploy: 250, spot: 500, support: 100, redeploy: 1000, comm: 500, order: 500, mortar: 1000, fpv: 1000, crate: 500 });
 /** Titanfall intent fields, one per `{t:'titanfall'}` frame (docs/titanfall.md §3.7), and their minimum send gaps (server/lobby.js titanfall()). */
 export const TITANFALL_INTENT_FIELDS = Object.freeze(['loadout', 'call', 'ability', 'eject', 'tac', 'rodeo', 'deploy']);
 const TITANFALL_INTENT_GAP_MS = Object.freeze({ loadout: 250, call: 500, ability: 100, eject: 250, tac: 100, rodeo: 100, deploy: 250 });

@@ -16,6 +16,7 @@ import { SquadOrders } from './conquest/orders.js';
 import { CommSystem } from './conquest/comms.js';
 import { ReconGadgets } from './conquest/recon-gadgets.js';
 import { AmmoPouches } from './conquest/pouches.js';
+import { SupplyCrates } from './conquest/supply-crates.js';
 import { ConquestUpgrades } from './conquest/upgrades.js';
 import { ConquestWeather, weatherOptionFromEnv } from './conquest/weather.js';
 import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
@@ -72,6 +73,8 @@ export class ConquestPolicy extends TdmPolicy {
     this.reconGadgets = new ReconGadgets(this);
     // Ammo pouches dropped by the fallen (docs/conquest.md "Infantry supply").
     this.pouches = new AmmoPouches(this);
+    // Support AMMO CRATE and Medic MEDICAL CRATE (docs/conquest.md "Infantry supply").
+    this.supplyCrates = new SupplyCrates(this);
     this.roles = createConquestRoles({ policy: this, engine: this.engine, rules: this.rules });
     // Squad orders and the comm rose (shared/conquest-comms.js).
     this.squadOrders = new SquadOrders({
@@ -193,6 +196,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.comms?.reset();
     this.reconGadgets.reset();
     this.pouches?.reset();
+    this.supplyCrates.reset();
     this.upgrades.reset();
     this.bridge?.reset();
     this.mapEvents?.reset();
@@ -267,6 +271,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.comms.tick(now);
     this.reconGadgets.tick(now);
     this.pouches.tick(now, this._entities.values());
+    this.supplyCrates.tick(now);
     this.score.tick(now);
     if (this.phase === 'live' && this.ledger.timeExpired(now)) this._finishMatch(this.ledger.timeLimitWinner(this.capture.held()));
   }
@@ -372,6 +377,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.ledger.finish(this.now);
     this.reconGadgets.reset();
     this.pouches.reset();
+    this.supplyCrates.reset();
     // Medals from the match's ribbons, decided before the results rows freeze.
     for (const [id, medal] of this.ribbons.finish(this._players.keys())) this._emit('medal', { id, medal });
     this.finalStats = new Map([...this._players.keys()].map(id => [id, this.resultExtras(id)]));
@@ -424,6 +430,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.squadOrders.remove(id);
     this.comms.remove(id);
     this.reconGadgets.removeOwner(id);
+    this.supplyCrates.removeOwner(id);
     fpvRemoveOwner(this, id);
     this.ribbons.remove(id);
     this.mapEvents.remove(id);
@@ -445,6 +452,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.squadOrders.rename(priorId, id);
     this.comms.rename(priorId, id);
     this.reconGadgets.rename(priorId, id);
+    this.supplyCrates.rename(priorId, id);
     this.mapEvents.rename(priorId, id);
     fpvRename(this, priorId, id);
     return true;
@@ -455,6 +463,7 @@ export class ConquestPolicy extends TdmPolicy {
     const entity = this._entity(player);
     this.squads.add(String(entity.id), this.teamFor(entity));
     this.reconGadgets.removeOwner(entity.id);
+    this.supplyCrates.removeOwner(entity.id);
     fpvRemoveOwner(this, entity.id);
     return true;
   }
@@ -469,6 +478,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.deploy.onDeath(dead);
     this.bounds.clear(dead.id);
     fpvRemoveOwner(this, dead.id);
+    this.supplyCrates.onDeath(dead);
     for (const row of this.ledger.charge(state.team, this.rules.deathTicketCost)) this._emit('ticket_low', row);
     this.score.onKill(dead, killer, context);
     this.ribbons.onDeath(dead.id);
@@ -685,6 +695,7 @@ export class ConquestPolicy extends TdmPolicy {
       return this.roles.intent(entity, intent) === true;
     }
     if (intent.type === 'mortar' && this.phase === 'live') return mortarIntent(this, entity);
+    if (intent.type === 'crate' && this.phase === 'live') return this.supplyCrates.place(entity) !== null;
     if (intent.type === 'fpv' && this.phase === 'live') return fpvIntent(this, entity);
     return false;
   }
@@ -873,6 +884,7 @@ export class ConquestPolicy extends TdmPolicy {
   matchSnapshot() {
     const ledger = this.ledger;
     const recon = this.phase === 'live' ? this.reconGadgets.snapshot() : null;
+    const crates = this.phase === 'live' ? this.supplyCrates.snapshot() : null;
     const bridge = this.bridge.snapshot();
     const events = this.phase === 'live' ? this.mapEvents.snapshot() : null;
     const pouches = this.pouches.snapshot(this.now);
@@ -893,6 +905,8 @@ export class ConquestPolicy extends TdmPolicy {
           return flag ? [...tuple, flag] : tuple;
         }),
         ...(recon ? { recon } : {}),
+        // Supply crates (contract v8, shared/supply-crates.js): rows while any stands.
+        ...(crates ? { crates } : {}),
         ...(this.weather.tuple ? { wx: this.weather.snapshot() } : {}),
         ...(bridge ? { br: bridge } : {}),
         // Map events (contract v7): `ev` rows of the events that are not plain idle, `evp` the usable points.

@@ -35,8 +35,17 @@ export function createSimulationContexts(engine) {
     nearestClaymore: (...args) => engine.projectiles.nearestClaymore(...args),
     shootClaymore: mine => engine.projectiles.explode(mine, projectiles),
     // Conquest Recon gadgets (server/modes/conquest/recon-gadgets.js); other modes have none.
-    nearestGadget: (...args) => engine.mode?.policy?.reconGadgets?.nearest(...args) ?? null,
-    shootGadget: (hit, shooter, damage) => engine.mode?.policy?.reconGadgets?.damage(hit.gadget, damage, shooter),
+    // Supply crates (server/modes/conquest/supply-crates.js) stop rounds too: the nearer of the two wins.
+    nearestGadget: (shooter, origin, d, limit, minT, radius) => {
+      const policy = engine.mode?.policy;
+      const recon = policy?.reconGadgets?.nearest(shooter, origin, d, limit, minT, radius) ?? null;
+      return policy?.supplyCrates?.nearest(shooter, origin, d, recon?.t ?? limit, minT, radius) ?? recon;
+    },
+    shootGadget: (hit, shooter, damage) => (hit.gadget?.kind === 'ammocrate' || hit.gadget?.kind === 'medcrate'
+      ? engine.mode?.policy?.supplyCrates?.damage(hit.gadget, damage, shooter)
+      : engine.mode?.policy?.reconGadgets?.damage(hit.gadget, damage, shooter)),
+    // A melee swing that meets no body may strike an enemy supply crate.
+    meleeGadget: (shooter, origin, d, reach) => engine.mode?.policy?.supplyCrates?.nearest(shooter, origin, d, reach, 0, 0.15) ?? null,
     canFire: (player) => engine.mode.canFire(player),
     canMelee: (player) => engine.mode.canMelee(player),
     canBurn: () => engine.mode.phase === 'live',
