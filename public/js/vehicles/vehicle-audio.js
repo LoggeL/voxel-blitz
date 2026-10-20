@@ -289,10 +289,11 @@ export class VehicleAudio {
       } else if (this.turrets.delete(id)) this.sfx.vehicleTurret?.(`turret:${id}`, pos, 0, { self });
     }
 
-    if ((kind === 'tank' || kind === 'jeep') && this.river) {
+    if ((kind === 'tank' || kind === 'jeep' || kind === 'boat') && this.river) {
       const speed = Math.abs(finite(row.speed));
-      const inWater = finite(row.y) <= this.river.surfaceY + VEHICLE_AUDIO.wadeDepth
-        && polylineDistance(pos[0], pos[2], this.river.points) <= this.river.width / 2 + 1.5;
+      // A boat is always in the water: its hull rush is this loop (no boat bank yet).
+      const near = polylineDistance(pos[0], pos[2], this.river.points) <= this.river.width / 2 + (kind === 'boat' ? 12 : 1.5);
+      const inWater = near && (kind === 'boat' || finite(row.y) <= this.river.surfaceY + VEHICLE_AUDIO.wadeDepth);
       const audible = self || distance <= VEHICLE_AUDIO.wadeRange;
       if (inWater && audible && speed > 0.4) {
         if (!state.wade) this.sfx.vehicleWadeSplash?.(pos, { self });

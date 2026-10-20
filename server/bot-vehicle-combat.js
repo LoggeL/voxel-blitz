@@ -55,12 +55,12 @@ export const TANK_OMNI_RANGE = 40;
 export const GUNNER_OMNI_RANGE = 30;
 /** A hull this effective or less is a danger to avoid, not a target to shoot. */
 export const MIN_ARMOR_EFFECT = 0.15;
-const HULL_THREAT = Object.freeze({ tank: 2.2, helicopter: 1.9, transport: 1.25, jeep: 1.4, plane: 0.9, jeep_at: 1.7, mortar: 0.8, aa: 1.6,
+const HULL_THREAT = Object.freeze({ tank: 2.2, helicopter: 1.9, transport: 1.25, jeep: 1.4, plane: 0.9, jeep_at: 1.7, mortar: 0.8, aa: 1.6, boat: 1.5,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, 2.4])) });
 /** Titanfall AT launchers (docs/titanfall.md §6): ARCHER lock range, THUNDERBOLT orb reach (30 m/s × 2.5 s). */
 const ARCHER_ENGAGE_RANGE = LOCK_RULES.archer?.range ?? 180;
 export const THUNDERBOLT_ENGAGE_RANGE = 68;
-const ARMOR_BY_TYPE = Object.freeze({ jeep: 'light', tank: 'heavy', helicopter: 'air', transport: 'air', plane: 'air', jeep_at: 'light', mortar: 'light', aa: 'medium' });
+const ARMOR_BY_TYPE = Object.freeze({ jeep: 'light', tank: 'heavy', helicopter: 'air', transport: 'air', plane: 'air', jeep_at: 'light', mortar: 'light', aa: 'medium', boat: 'light' });
 
 /** Armour class of a hull type from the shared registry (spec 5.1). */
 export function vehicleArmorClass(type) {

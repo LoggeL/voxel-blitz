@@ -17,6 +17,7 @@ import { AA_RULES } from './vehicle-handling/aa.js';
 import { HELICOPTER_RULES } from './vehicle-handling/helicopter.js';
 import { TRANSPORT_RULES } from './vehicle-handling/transport.js';
 import { PLANE_RULES } from './vehicle-handling/plane.js';
+import { BOAT_RULES } from './vehicle-handling/boat.js';
 
 const freeze = value => {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -49,7 +50,7 @@ export const VEHICLE_LIFECYCLE = freeze({
 });
 
 /** Hull mass in tonnes: momentum transfer when a hull shoves a wreck. */
-export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, mortar: 0.12, aa: 30,
+export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, mortar: 0.12, aa: 30, boat: 3.5,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, TITAN_DEFS_INPUT[type].mass])) });
 
 /**
@@ -84,7 +85,10 @@ export const RAM_RULES = freeze({ speedLoss: 0.15, damage: 0.5, glancingNormal: 
  * full hp at top speed and stops dead. A 45 t tank rocks back off a wall and
  * loses at most a tenth of its hull.
  */
-export const WALL_CRASH_RULES = freeze({ tank: { maxShare: 0.1, bounce: 0.3 }, aa: { maxShare: 0.15, bounce: 0.25 } });
+export const WALL_CRASH_RULES = freeze({ tank: { maxShare: 0.1, bounce: 0.3 }, aa: { maxShare: 0.15, bounce: 0.25 },
+  // A boat driven into a bank, a pier or an island at speed: a quarter of its hull at most, a short
+  // rebound, and one strike per `crashSeconds` (a hull glancing back into the same bank pays once).
+  boat: { maxShare: 0.25, bounce: 0.25, crashSeconds: 1 } });
 
 /**
  * A ground hull driving into another hull. The contact is perfectly inelastic
@@ -239,6 +243,8 @@ const seatHips = {
   plane: { driver: [0, 1.4, -1.17] },
   // The mortar operator crouches behind the baseplate (hip 0.45 m above the ground).
   mortar: { operator: [0.25, 0.45, 0.62] },
+  // Helm console amidships, the bow tub gunner standing, two benches in the aft cockpit.
+  boat: { driver: [-0.35, 1.35, -0.3], gunner: [0, 1.35, -2.3], 'rear-left': [-0.6, 1.0, 1.7], 'rear-right': [0.6, 1.0, 1.7] },
 };
 /** Seats whose hip anchor rides the turret ring (rotates with turretYaw). */
 const turretSeats = { tank: ['commander'] };
@@ -283,6 +289,10 @@ const seatCameras = {
   plane: { driver: { mode: 'chase', distance: 17, height: 4.4, views: FLY_VIEWS } },
   // The mortar's own view (public/js/session/vehicle-camera.js): raised behind the tube, toward the aimed impact.
   mortar: { operator: { mode: 'mortar', distance: 5.5, height: 3.2, views: ['mortar'], eye: [0.25, 1.0, 0.55] } },
+  boat: { driver: { mode: 'chase', distance: 9, height: 3, views: DRIVE_VIEWS, eye: [-0.35, 2.1, -0.4] },
+    gunner: { mode: 'mount', distance: 4.5, height: 1.6, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.62, 0.62], eyeFrame: 'mount' },
+    'rear-left': { mode: 'passenger', distance: 7, height: 2.4, views: ['cockpit', 'passenger'], eye: [-0.6, 1.75, 1.55] },
+    'rear-right': { mode: 'passenger', distance: 7, height: 2.4, views: ['cockpit', 'passenger'], eye: [0.6, 1.75, 1.55] } },
 };
 const defaultCamera = { mode: 'passenger', distance: 6, height: 2.2, views: ['cockpit', 'passenger'] };
 
@@ -333,6 +343,8 @@ const mountAnchors = {
   },
   // The tube on its bipod: full traverse, elevation 45..85 degrees (shared/mortar-rules.js).
   mortar: { tube: { pivot: [0, 0.22, 0.12], muzzle: 1.05, yawLimit: null, pitchLimit: [Math.PI / 4, 85 * Math.PI / 180], yawRate: 0.9, pitchRate: 0.5 } },
+  // The bow tub's .50 on its ring: 270 degrees ahead and abeam (the helm console is behind it).
+  boat: { bow: { pivot: [0, 1.95, -2.75], muzzle: 1, yawLimit: [0, 2.35], pitchLimit: [-0.3, 0.7], yawRate: 3, pitchRate: 2.4 } },
 };
 
 /** Compound boxes [[lo],[hi]] for aircraft; ground hulls use one box. */
@@ -367,6 +379,7 @@ const handlingRules = {
   plane: { ...PLANE_RULES, hp: 450, respawnSeconds: 40, enterDistance: 7.5 },
   // Deployed, never respawned at a pad (server/sim/mortars.js removes the wreck).
   mortar: { hp: 150, respawnSeconds: Infinity, enterDistance: 2.6, radius: 0.75, height: 1.15, maxStep: 0.5, maxSlope: 0.6, speed: 0 },
+  boat: { ...BOAT_RULES, hp: 360, respawnSeconds: 20, enterDistance: 5 },
 };
 /**
  * openCrew: the hull is an open cab (jeep) or open cabin (transport doors), so a
@@ -385,6 +398,8 @@ const shapes = {
   // An emplacement: static, crushed by hulls rather than blocking them, and its
   // operator survives its loss (crewSurvives: he is put beside it).
   mortar: { handling: 'emplacement', armor: 'light', openCrew: true, crewSurvives: true, deployable: true, collider: { halfWidth: 0.45, halfLength: 0.55 } },
+  // Floats (shared/vehicle-handling/boat.js, server/sim/boat.js): an open fibreglass hull, light armour.
+  boat: { handling: 'boat', armor: 'light', openCrew: true, collider: { halfWidth: 1.25, halfLength: 3.4 } },
 };
 /** Wreck blasts keep terrain intact so cover survives chain reactions. */
 const destruction = {
@@ -395,6 +410,7 @@ const destruction = {
   transport: { radius: 9, damage: 190, damageFalloffExponent: 1.22 },
   plane: { radius: 10, damage: 200, damageFalloffExponent: 1.22 },
   mortar: { radius: 3, damage: 40, damageFalloffExponent: 1.22 },
+  boat: { radius: 7, damage: 140, damageFalloffExponent: 1.22 },
 };
 
 /** Titan definitions (docs/titanfall.md §2.5) from TITAN_DEFS_INPUT. */
@@ -463,6 +479,8 @@ export const isAircraftType = value => ['rotor', 'fixedwing'].includes(vehicleDe
 export const isEmplacementType = value => vehicleDef(value)?.handling === 'emplacement';
 /** Titan walkers (handling 'walker'). */
 export const isWalkerType = value => vehicleDef(value)?.handling === 'walker';
+/** Floating hulls (handling 'boat'): they ride the water surface, never the bed. */
+export const isBoatType = value => vehicleDef(value)?.handling === 'boat';
 /** Maximum hull points for a row, hull or type. */
 export const vehicleMaxHp = value => vehicleDef(value)?.hp ?? 0;
 export const vehicleSeatList = value => vehicleDef(value)?.seats ?? [];

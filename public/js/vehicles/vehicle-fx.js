@@ -32,6 +32,8 @@ export const VEHICLE_FX = Object.freeze({
   flashSeconds: 0.09,
   cannonShake: 0.35, cannonShakeNear: 0.18, hitShakePerFraction: 2.2,
   dustSpeed: 2.2, exhaustIdle: 6, exhaustMoving: 22,
+  // Patrol boat: wake from this speed, bow spray once it planes (m/s).
+  wakeSpeed: 1.2, spraySpeed: 8,
   maxMissileTrails: 24,
 });
 
@@ -906,7 +908,7 @@ export class VehicleFx {
     let state = this.state.get(item.id);
     if (!state) {
       state = { travel: [], last: null, smoke: null, fire: null, column: null, columnUntil: 0, wreck: false,
-        agl: null, aglAt: -1, vel: null, life: 0, carry: { dust: 0, exhaust: 0, wash: 0, contrail: 0, vortex: 0, burner: 0 } };
+        agl: null, aglAt: -1, vel: null, life: 0, carry: { dust: 0, exhaust: 0, wash: 0, contrail: 0, vortex: 0, burner: 0, wake: 0, spray: 0 } };
       this.state.set(item.id, state);
     }
     return state;
@@ -1012,8 +1014,48 @@ export class VehicleFx {
       }
     } else if (handling === 'fixedwing') {
       this._jet(item, state, step);
+    } else if (handling === 'boat') {
+      this._boatWake(item, state, step, finite(row.speed), engine);
     }
     this._lights(item, engine);
+  }
+
+  /**
+   * Patrol boat: a foaming wake off the stern and the outboards that grows with
+   * speed, white spray off the bow shoulders on the plane, outboard exhaust.
+   */
+  _boatWake(item, state, step, signed, engine) {
+    const emitters = item.model.emitters || {}, speed = Math.abs(signed);
+    const back = this._w.set(0, 0, signed >= 0 ? 1 : -1).applyQuaternion(item.root.quaternion).toArray();
+    if (speed > VEHICLE_FX.wakeSpeed) {
+      const wake = emitters.wake || [];
+      const count = this._rate(state, 'wake', (speed - VEHICLE_FX.wakeSpeed) * 3.4, step);
+      for (let i = 0; i < count && wake.length; i++) {
+        const at = this._anchorPos(wake[(i + Math.floor(this.time * 11)) % wake.length]);
+        this.fx?.emit('water', at, { count: 1, dir: [back[0] * 0.6, 1, back[2] * 0.6], speed: 0.6 + speed * 0.09,
+          scale: 0.7 + speed * 0.05, alpha: 0.45, ground: at[1] - 0.05 });
+      }
+    }
+    if (speed > VEHICLE_FX.spraySpeed) {
+      const spray = emitters.spray || [];
+      const count = this._rate(state, 'spray', (speed - VEHICLE_FX.spraySpeed) * 2.6, step);
+      const right = this._v.set(1, 0, 0).applyQuaternion(item.root.quaternion).toArray();
+      for (let i = 0; i < count && spray.length; i++) {
+        const k = (i + Math.floor(this.time * 13)) % spray.length, side = k === 0 ? -1 : 1;
+        const at = this._anchorPos(spray[k]);
+        this.fx?.emit('water', at, { count: 1, dir: [right[0] * side + back[0] * 0.4, 0.8, right[2] * side + back[2] * 0.4],
+          speed: 1.5 + speed * 0.12, scale: 0.5 + speed * 0.03, alpha: 0.55, ground: at[1] - 0.1 });
+      }
+    }
+    if (engine) {
+      const count = this._rate(state, 'exhaust', VEHICLE_FX.exhaustIdle * 0.6 + Math.min(1, speed / 10) * VEHICLE_FX.exhaustMoving * 0.5, step);
+      for (let i = 0; i < count; i++) {
+        const source = emitters.exhaust?.[i % Math.max(1, emitters.exhaust.length)];
+        if (!source) break;
+        const dir = this._w.fromArray(source.direction).applyQuaternion(item.root.quaternion).toArray();
+        this.fx?.emit('exhaust', this._anchorPos(source.node), { count: 1, dir, speed: 0.5 + speed * 0.04, scale: 0.7 });
+      }
+    }
   }
 
   /** Keep or drop a continuous emitter bound to an anchor's world position. */

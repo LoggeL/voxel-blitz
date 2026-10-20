@@ -122,13 +122,13 @@ export function vehicleViewLabel(type, seatId, view) {
 
 /**
  * First-person look of a seat in the cockpit view: 'hull' (the head rides the
- * hull attitude: jeep driver and pilots) or 'aim' (the view follows the seat's
+ * hull attitude: jeep and boat drivers and pilots) or 'aim' (the view follows the seat's
  * world aim: the tank hatch, gunners and passengers).
  */
 export function cockpitLook(type, seatId) {
   const def = vehicleDef(type), seat = def?.seats.find(entry => entry.id === seatId);
   if (!seat?.drives) return 'aim';
-  return AIRCRAFT.has(def.handling) || def.handling === 'wheeled' ? 'hull' : 'aim';
+  return AIRCRAFT.has(def.handling) || def.handling === 'wheeled' || def.handling === 'boat' ? 'hull' : 'aim';
 }
 
 /**

@@ -34,6 +34,7 @@ import { surfaceNavigation } from './bot-surface-nav.js';
 import { MEDIC_BOT_RULES, medicTrailMate, medicTrailSpot, reviveRunInTime } from './bot-medic.js';
 import { committedFlag, keepAttackOrder, passingFlag } from './bot-flag-flow.js';
 import { MORTAR_BOT_RULES } from '../shared/mortar-rules.js';
+import { BOAT_PATROL, riverPatrolSlots } from './bot-boat-driving.js';
 
 export const COMMANDER_PLAN_MS = 500;
 export const STAGE_MIN = 50, STAGE_MAX = 70;
@@ -591,7 +592,12 @@ export class BotCommander {
    * helicopter pilot > (jeeps ride with squads, see planTransit) > plane pilot
    * (only with >= 6 bots) > a second tank > helicopter gunner > tank commander.
    * The budget is ceil(teamBots / 4), inside the spec's ceil(teamBots / 3)
-   * cap, so most of the team stays on foot around the flags.
+   * cap, so most of the team stays on foot around the flags. The river patrol
+   * boat (driver and gunner, after the helicopter and before the jet) is booked
+   * with both seats or not at all, only while they fit under the cap: it may
+   * take the crew count one past the budget, and the crews ranked after it get
+   * what budget is left. It sails in sorties of BOAT_PATROL.sortieMs with
+   * BOAT_PATROL.restMs at the mooring between them.
    */
   planCrews(ts, view, now) {
     const team = ts.team, brains = this.teamBrains(team);
@@ -629,6 +635,13 @@ export class BotCommander {
     push(hulls.filter(v => v.type === 'jeep_at'), v => hullSeatIds(v).driver, 3);
     push(hulls.filter(v => v.type === 'helicopter'), v => hullSeatIds(v).gunner, 4);
     push(hulls.filter(v => v.type === 'tank' || v.type === 'jeep_at'), v => hullSeatIds(v).gunner, 5);
+    // The river patrol (server/bot-boat-driving.js): a two-bot boat crew that
+    // must fit under the ceil(teamBots / 3) cap (it may run past the budget).
+    const cap = Math.ceil(brains.length / 3);
+    const patrol = riverPatrolSlots(this.game, hulls, brains.length, this.focusFlag(ts), hullSeatIds, id => this.isBot(id));
+    // Sortie duty cycle (BOAT_PATROL.sortieMs / restMs): between sorties the boat rests at its mooring.
+    const duty = ts.boatDuty ??= { since: null, restUntil: 0 };
+    if (now >= duty.restUntil) slots.push(...patrol.slots);
     slots.sort((a, b) => a.prio - b.prio);
     const chosen = [];
     // A bot flying an aircraft keeps it until it lands, dies or the hull goes
@@ -642,7 +655,15 @@ export class BotCommander {
     }
     for (const slot of slots) {
       if (chosen.includes(slot)) continue;
-      if (chosen.length >= budget) break;
+      if (slot.patrol) {
+        // The boat sails with both seats or not at all, inside the cap, and
+        // only with a crew in reach (a dead bot deploys aboard, a living one
+        // walks at most BOAT_PATROL.walkMax): an unmannable boat never holds
+        // a slot the jet could use.
+        const driver = slot.seat === hullSeatIds(slot.v).driver;
+        if (driver ? chosen.length + 2 > cap || !this.patrolCrewInReach(ts, brains, slot.v, view) : !chosen.some(c => c.v === slot.v)) continue;
+        if (chosen.length >= cap) continue;
+      } else if (chosen.length >= budget) break;
       const occupant = vehicleSeatOccupantId(slot.v, slot.seat);
       const human = occupant != null && !this.isBot(occupant);
       if (human) continue;
@@ -650,6 +671,18 @@ export class BotCommander {
       if (slot.prio >= 4 && !chosen.some(c => c.v === slot.v) && !vehicleSeatOccupantId(slot.v, hullSeatIds(slot.v).driver)) continue;
       chosen.push(slot);
     }
+    // A bot crew still out on the river when the patrol is not sailing (the
+    // headroom closed, the focus moved) is recalled: it sails home and gets out
+    // at the mooring instead of bailing into the river.
+    const sailing = chosen.some(c => c.patrol && !c.recall);
+    if (!sailing) duty.since = null;
+    else if (duty.since == null) duty.since = now;
+    else if (now - duty.since >= BOAT_PATROL.sortieMs) {
+      // The sortie is over: drop the booking and recall the crew below.
+      duty.since = null; duty.restUntil = now + BOAT_PATROL.restMs;
+      for (let i = chosen.length - 1; i >= 0; i--) if (chosen[i].patrol) chosen.splice(i, 1);
+    }
+    if (patrol.recall.length && !chosen.some(c => c.v === patrol.recall[0].v)) chosen.push(...patrol.recall);
     const keyOf = slot => `${slot.v.id}:${slot.seat}`;
     const wanted = new Map(chosen.map(slot => [keyOf(slot), slot]));
     const crews = new Map();
@@ -673,7 +706,7 @@ export class BotCommander {
         // Dead bots deploy straight into the seat; living ones walk if close.
         let score;
         if (p.state !== 'alive') score = view.deployOptions ? 5 : 400 + flat(view.bases?.[team] ?? p, slot.v);
-        else { const d = flat(p, slot.v); if (d > CREW_WALK_MAX) continue; score = d + (p.vehicleId === slot.v.id ? -50 : 0); }
+        else { const d = flat(p, slot.v); if (d > (slot.patrol ? BOAT_PATROL.walkMax : CREW_WALK_MAX)) continue; score = d + (p.vehicleId === slot.v.id ? -50 : 0); }
         // Medics are the squads' revivers: they man a hull only when nobody else can.
         if (KITS[p.state === 'alive' ? this.kitOf(p) : this.kitFor(p)]?.ability === 'revive') score += MEDIC_CREW_PENALTY;
         if (score < bestScore) { bestScore = score; best = id; }
@@ -684,6 +717,27 @@ export class BotCommander {
     for (const transit of ts.transits.values()) for (const id of crews.keys()) transit.seats.delete(id);
     ts.crews = crews;
     ts.crewBudget = budget;
+  }
+
+  /**
+   * Two bots that can man the patrol boat now: already aboard or booked, dead
+   * (they deploy aboard) or a short walk away. A bot booked on a crew, a hitch
+   * or a squad ride is not free: the seat assignment in planCrews skips it too,
+   * so counting it would book an unmannable boat in the jet's place.
+   */
+  patrolCrewInReach(ts, brains, v, view) {
+    let count = 0;
+    const riding = new Set([...ts.transits.values()].flatMap(t => [...t.seats.keys()].map(String)));
+    for (const br of brains) {
+      const id = br.id, p = this.game.entities.get(id);
+      if (!p) continue;
+      const booked = ts.crews.get(String(id));
+      if (p.vehicleId === v.id || booked?.vehicleId === v.id) count++;
+      else if (booked || ts.hitches.has(String(id)) || riding.has(String(id))) continue;
+      else if (p.state !== 'alive' ? !!view.deployOptions : !p.vehicleId && flat(p, v) <= BOAT_PATROL.walkMax) count++;
+      if (count >= 2) return true;
+    }
+    return false;
   }
 
   /** Squad rides: a free jeep or transport near a squad that has far to go. */
@@ -1012,7 +1066,7 @@ export class BotCommander {
         if (cover.held) ts.aaCover.set(hull.id, cover.held); else ts.aaCover.delete(hull.id);
         flag = cover.flag;
       }
-      return { role: 'crew', vehicleId: crew.vehicleId, seatId: crew.seatId, prio: crew.prio, flag,
+      return { role: 'crew', vehicleId: crew.vehicleId, seatId: crew.seatId, prio: crew.prio, flag, ...(crew.slot?.recall ? { recall: true } : {}),
         friendlyYaw: flag ? bearing(flag, this.view?.bases?.[ts.team] ?? flag) : null };
     }
     for (const transit of ts.transits.values()) {

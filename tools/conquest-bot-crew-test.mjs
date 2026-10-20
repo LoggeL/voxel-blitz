@@ -1,5 +1,6 @@
 // Conquest crew allocation (BotCommander.planCrews / planTransit) on the real
-// Frontier v2 map: the crew budget (<= ceil(teamBots/3)), the spec priority
+// Frontier v2 map: the crew budget (<= ceil(teamBots/3), the river patrol boat
+// included; only a recalled boat crew may run past it), the spec priority
 // (tank > attack helicopter > jeep rides > transport > plane with >= 6 bots),
 // unique seats, human-held seats, airborne pilots staying put, squad rides of
 // at most 40 s, rides called off when their driver is lost, passive
@@ -10,6 +11,7 @@ import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
 import { TICK_MS } from '../server/protocol/admission.js';
 import { TRANSIT_MAX_MS, hullSeatIds } from '../server/bot-commander.js';
+import { BOAT_PATROL } from '../server/bot-boat-driving.js';
 import { vehicleSeatOccupantId, vehicleSeats } from '../shared/vehicle-seats.js';
 import { mulberry32 } from '../shared/noise.js';
 
@@ -35,7 +37,13 @@ function assertCrewsValid(f) {
   for (const team of ['alpha', 'bravo']) {
     const ts = f.bots.commander.teams.get(team);
     const budget = Math.ceil(f.teamBots(team) / 3);
-    assert(ts.crews.size <= budget, `${team}: ${ts.crews.size} crews within ceil(${f.teamBots(team)}/3)`);
+    // The river patrol (one boat, driver and gunner) is booked inside the cap
+    // too; only a crew recalled to its mooring may run past it until it is home.
+    const boat = [...ts.crews.values()].filter(c => f.game.vehicles.vehicles.get(c.vehicleId)?.type === 'boat');
+    const recalled = boat.filter(c => c.slot?.recall).length;
+    assert(ts.crews.size - recalled <= budget, `${team}: ${ts.crews.size - recalled} booked crews within ceil(${f.teamBots(team)}/3)`);
+    assert(boat.length <= 2 && new Set(boat.map(c => c.vehicleId)).size <= 1, `${team}: at most one patrol boat crew`);
+    assert(!boat.length || f.teamBots(team) >= BOAT_PATROL.minTeamBots, `${team}: no river patrol below ${BOAT_PATROL.minTeamBots} bots`);
     const seats = new Set();
     const transit = new Set([...ts.transits.values()].flatMap(t => [...t.seats.keys()]));
     for (const [id, crew] of ts.crews) {
@@ -60,7 +68,7 @@ function assertCrewsValid(f) {
 {
   const f = fixture(16);
   f.replan(); assertCrewsValid(f);
-  for (const team of ['alpha', 'bravo']) assert.deepEqual(f.crewTypes(team), ['helicopter:driver', 'tank:driver'], `8 bots: ${team} crews the tank, then the attack helicopter`);
+  for (const team of ['alpha', 'bravo']) assert.deepEqual(f.crewTypes(team), ['helicopter:driver', 'tank:driver'], `8 bots: ${team} crews the tank, then the attack helicopter (the boat lies beyond a walk from HQ)`);
   f.bots.dispose(); f.game.stop();
 }
 {
@@ -106,7 +114,8 @@ function assertCrewsValid(f) {
   f.replan(); assertCrewsValid(f);
   const crew = f.bots.commander.teams.get('alpha').crews.get(pilot.id);
   assert.equal(crew?.vehicleId, plane.id, 'the airborne jet pilot stays on its crew order');
-  assert(f.bots.commander.teams.get('alpha').crews.size <= 3, 'and still counts against the budget');
+  const land = [...f.bots.commander.teams.get('alpha').crews.values()].filter(c => f.game.vehicles.vehicles.get(c.vehicleId)?.type !== 'boat');
+  assert(land.length <= 3, 'and still counts against the budget');
   f.bots.dispose(); f.game.stop();
 }
 {

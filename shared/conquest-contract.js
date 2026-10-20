@@ -215,7 +215,7 @@ export const DAMAGE_CLASSES = Object.freeze(['small', 'mg', 'hmg', 'autocannon',
 export const ARMOR_CLASSES = Object.freeze(['light', 'heavy', 'air', 'medium']);
 export const HIT_ZONES = Object.freeze(['front', 'side', 'rear', 'top', 'bottom']);
 
-export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa']);
+export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa', 'boat']);
 /**
  * Hull variants: a type that shares another type's hull (handling, collider,
  * seats, model and sounds) but arms it differently. The AT jeep is the jeep
@@ -263,7 +263,7 @@ export const VEHICLE_WEAPON_META = Object.freeze({
   // `aa` class (strong on aircraft, weak on ground armour), the left and right gun in turn.
   flak35:           Object.freeze({ label: '35MM FLAK',  kind: 'shell',   cls: 'aa',         speed: 320, gravity: 4, rate: 8,       presentation: 'mgl' }),
 });
-export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, mortar: null, aa: 'smoke' });
+export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, mortar: null, aa: 'smoke', boat: null });
 
 /** Seat and mount topology. Order is significant (F1..F5, mounts[] in snapshot rows). Positions/anchors live in shared/vehicle-defs.js. */
 const S = (id, role, drives, exposed, personalWeapons, mounts) => Object.freeze({ id, role, drives, exposed, personalWeapons, mounts: Object.freeze(mounts) });
@@ -312,6 +312,14 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
   aa: Object.freeze([
     S('driver', 'driver', true, false, false, [M('main', ['flak35'])]),
     S('commander', 'gunner', false, true, false, [M('rws', ['hmg'])]),
+  ]),
+  // River patrol boat (contract v6): a helmsman at the console, a .50 in the
+  // bow tub and two passengers in the open aft cockpit; every seat is exposed.
+  boat: Object.freeze([
+    S('driver', 'driver', true, true, false, []),
+    S('gunner', 'gunner', false, true, false, [M('bow', ['hmg'])]),
+    S('rear-left', 'passenger', false, true, true, []),
+    S('rear-right', 'passenger', false, true, true, []),
   ]),
 });
 /** Seat topology of a conquest or titan type (titan types: shared/titan-contract.js). */

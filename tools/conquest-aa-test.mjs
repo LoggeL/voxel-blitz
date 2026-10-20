@@ -69,7 +69,8 @@ const hover = (v, x, y, z) => Object.assign(v, { x, y, z, vx: 0, vy: 0, vz: 0, s
 
 test('contract v6: `aa` appended, a tank hull variant with its own seats, mounts, medium armour and smoke', () => {
   assert.equal(CONQUEST_CONTRACT_VERSION, 6);
-  assert.equal(VEHICLE_TYPE_IDS.at(-1), 'aa');
+  // Appended after `jeep_at`; later v6 hulls (the patrol boat) come after it.
+  assert.equal(VEHICLE_TYPE_IDS.indexOf('aa'), VEHICLE_TYPE_IDS.indexOf('jeep_at') + 1);
   assert.equal(ARMOR_CLASSES.at(-1), 'medium');
   assert.equal(vehicleHullType('aa'), 'tank');
   assert.deepEqual(vehicleMountOrder('aa'), ['driver:main', 'commander:rws']);

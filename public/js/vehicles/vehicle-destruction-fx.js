@@ -32,7 +32,7 @@ export const VEHICLE_DESTRUCTION_STYLE = Object.freeze({
   tossTags: Object.freeze(['turret', 'gun', 'barrel', 'rws', 'rotor', 'pintle']),
   tossSpeed: Object.freeze([11, 15]),
   cookoffDelay: Object.freeze([0.7, 2.4]),
-  cookoffCount: Object.freeze({ jeep: 1, tank: 2, helicopter: 2, transport: 2, plane: 1 }),
+  cookoffCount: Object.freeze({ jeep: 1, tank: 2, helicopter: 2, transport: 2, plane: 1, boat: 1 }),
   smokingFragments: 3,
   ringParticles: 26,
   cookoff: Object.freeze({
@@ -139,7 +139,7 @@ export class VehicleDestructionFX {
   }
 
   _spawnDebris(x, y, z, inheritedX, inheritedY, inheritedZ, type, radius) {
-    const count = vehicleHullType(type) === 'jeep' ? 24 : 36;
+    const count = vehicleHullType(type) === 'jeep' || type === 'boat' ? 24 : 36;
     const size = Math.max(.8, Math.min(1.5, radius / 7));
     for (let i = 0; i < count; i++) {
       const particle = this.debris[this._debrisCursor];
