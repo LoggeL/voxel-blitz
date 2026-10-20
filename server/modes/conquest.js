@@ -802,6 +802,30 @@ export class ConquestPolicy extends TdmPolicy {
       cqr: this.ribbons.ribbonRow(key), cqm: this.ribbons.medalRow(key), cqp: this.score.categoryRow(key), ...career };
   }
 
+  /**
+   * One recipient's tick (server/lobby.js): the results rows' `cxp` (career XP
+   * and this match's gain) is private, so only its owner's row keeps it. The
+   * stripped tick is built once per tick and shared by every recipient
+   * without a career row of their own; null (the tick itself) outside the
+   * post phase or when no row carries `cxp`.
+   */
+  viewFor(recipientId, tick) {
+    const results = tick?.match?.results;
+    if (!Array.isArray(results) || !results.some(row => row?.cxp)) return null;
+    if (this._viewTick !== tick) {
+      this._viewTick = tick;
+      this._viewStripped = { ...tick, match: { ...tick.match, results: results.map(row => {
+        if (!row?.cxp) return row;
+        const { cxp, ...rest } = row;
+        return rest;
+      }) } };
+    }
+    const stripped = this._viewStripped, self = String(recipientId);
+    const own = results.findIndex(row => row?.cxp && String(row.id) === self);
+    if (own < 0) return stripped;
+    return { ...stripped, match: { ...stripped.match, results: stripped.match.results.map((row, i) => (i === own ? results[own] : row)) } };
+  }
+
   _careerExtras(id) {
     const entity = this._entities.get(id);
     if (!entity || entity.bot || !Number.isFinite(entity.careerXp)) return null;

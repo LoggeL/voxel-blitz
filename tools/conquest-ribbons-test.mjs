@@ -183,6 +183,18 @@ ok(!('cxp' in aRow), 'bots have no career row');
 policy.setCareerProgress(h1, { xp: 3270, gained: 390 });
 run(game, TICK_MS);
 eq(decodeConquestResult(results().find(r => r.id === 'h1')).career, { xp: 3270, gained: 390 }, 'the career pair stays live after the freeze');
+// The career pair is private: each recipient's tick (server/lobby.js viewFor) keeps only their own `cxp`.
+{
+  const tick = { t: 'tick', match: { ...game.lastSnapshot.match, results: [...results(), { id: 'h9', name: 'Other', team: 'bravo', score: 0, cxp: [900, 40] }] } };
+  const own = policy.viewFor('h1', tick), other = policy.viewFor('h9', tick), bot = policy.viewFor(a3.id, tick), guest = policy.viewFor('spectator', tick);
+  const cxpOf = (view, id) => view.match.results.find(r => r.id === id)?.cxp;
+  eq([cxpOf(own, 'h1'), cxpOf(own, 'h9')], [[3270, 390], undefined], 'h1 sees its own career pair only');
+  eq([cxpOf(other, 'h1'), cxpOf(other, 'h9')], [undefined, [900, 40]], 'and h9 only its own');
+  ok(bot === guest && bot.match.results.every(r => !('cxp' in r)), 'everyone without a career row shares one stripped tick');
+  eq(cxpOf(tick, 'h9'), [900, 40], 'the authoritative tick (career rewards) is untouched');
+  eq(own.match.results.map(r => r.id), tick.match.results.map(r => r.id), 'every row stays, in order');
+  eq(policy.viewFor('h1', { t: 'tick', match: { phase: 'live' } }), null, 'no results: the tick goes out as it is');
+}
 
 // Rematch: ribbons, medals and the match XP start over.
 const vote = game.lastSnapshot.match.continuation;
