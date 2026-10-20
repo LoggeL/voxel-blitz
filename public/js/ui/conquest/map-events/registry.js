@@ -33,7 +33,7 @@
 // slot comeback:
 import { COMEBACK_PRESENTER } from './comeback.js';
 // slot airdrop:
-// import { AIRDROP_PRESENTER } from './airdrop.js';
+import { AIRDROP_PRESENTER } from './airdrop.js';
 // end of import slots
 
 export const MAP_EVENT_PRESENTERS = Object.freeze({
@@ -52,6 +52,6 @@ export const MAP_EVENT_PRESENTERS = Object.freeze({
   // slot comeback:
   comeback: COMEBACK_PRESENTER,
   // slot airdrop:
-  // airdrop: AIRDROP_PRESENTER,
+  airdrop: AIRDROP_PRESENTER,
   // end of map slots
 });

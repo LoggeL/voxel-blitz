@@ -134,14 +134,15 @@ const trim = (row, defaults) => {
 
 /**
  * `match.conquest.ev` row of one event that is not plain idle:
- *   [index, phase, progress100?, team?, leftDs?, extra?, x?, z?]
+ *   [index, phase, progress100?, team?, leftDs?, extra?, x?, z?, y?]
  * `progress100` is the event's own 0..100 gauge (integrity, fill, hold),
  * `team` the side that set it off (TEAM codes, -1 none), `leftDs` the
  * deciseconds to the phase's end (-1 open-ended), `extra` up to
  * MAP_EVENT_RULES.wire.extraMax small integers of the event's own (a gauge
  * per fuel tank, a water level; 0 when absent but an anchor follows), `x` /
  * `z` only for an anchor the event moved at runtime (an airdrop's landing
- * point). Trailing defaults are left out: a finished event is `[i, 4]`.
+ * point), `y` after them when that anchor has a height. Trailing defaults
+ * are left out: a finished event is `[i, 4]`.
  */
 export function encodeMapEventRow(index, state) {
   const left = Number.isFinite(state.leftMs) ? Math.max(0, Math.round(state.leftMs / 100)) : -1;
@@ -149,7 +150,11 @@ export function encodeMapEventRow(index, state) {
   const extra = Array.isArray(state.extra) && state.extra.length
     ? state.extra.slice(0, MAP_EVENT_RULES.wire.extraMax).map(v => Math.round(Number(v) || 0)) : null;
   const a = state.anchor;
-  if (a && Number.isFinite(a.x) && Number.isFinite(a.z)) row.push(extra ?? 0, Math.round(a.x), Math.round(a.z));
+  if (a && Number.isFinite(a.x) && Number.isFinite(a.z)) {
+    row.push(extra ?? 0, Math.round(a.x), Math.round(a.z));
+    // A runtime anchor with a height (an airdrop's landing cell) adds it last.
+    if (Number.isFinite(a.y)) row.push(Math.round(a.y));
+  }
   else if (extra) row.push(extra);
   else trim(row, EV_TRAIL);
   return row;
@@ -183,7 +188,7 @@ export function decodeMapEvents(ev, evp, mapId, defs = MAP_EVENT_DEFS) {
     if (!def) continue;
     const fixed = mapEventAnchor(def, mapId);
     const moved = Number.isFinite(row[6]) && Number.isFinite(row[7]);
-    const anchor = moved ? { x: row[6], y: fixed?.y ?? null, z: row[7] } : fixed;
+    const anchor = moved ? { x: row[6], y: Number.isFinite(row[8]) ? row[8] : fixed?.y ?? null, z: row[7] } : fixed;
     const left = Number(row[4] ?? -1);
     events.push({ index: row[0] | 0, id: def.id, def, phase: MAP_EVENT_PHASES[row[1] | 0] ?? 'idle',
       progress: Math.max(0, Math.min(1, (Number(row[2]) || 0) / 100)), team: codeTeam(row[3] ?? -1),

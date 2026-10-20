@@ -14,6 +14,8 @@
 //                               the event leaves the snapshot, clear() or `until` s
 //   sound.blast / creak / impact  the existing explosion and structure voices
 //   anchor(id)                  the event's marker point on this map
+//   scene()                     the world scene, for an event's own meshes (an
+//                               airdrop's transport and crate); null in tests
 //
 // Without a hook an event gets the generic strike: as a `levolution` or
 // `callin` event goes active, a shake, a ring of dust and the structure
@@ -45,11 +47,12 @@ export class MapEventFx {
    * @param {object|null} options.cameraShake  CameraShake bus
    * @param {() => object|null} options.getCamera
    * @param {object|null} options.fx           ParticleField
+   * @param {object|null} [options.scene]      THREE.Scene for an event's own meshes
    * @param {object} [options.hooks]           id -> FX hook (default: the registry)
    * @param {Array} [options.defs]             event definitions (default: the registry)
    */
-  constructor({ audio = null, cameraShake = null, getCamera = () => null, fx = null, hooks = MAP_EVENT_FX, defs = MAP_EVENT_DEFS } = {}) {
-    this.audio = audio; this.cameraShake = cameraShake; this.getCamera = getCamera; this.fx = fx;
+  constructor({ audio = null, cameraShake = null, getCamera = () => null, fx = null, scene = null, hooks = MAP_EVENT_FX, defs = MAP_EVENT_DEFS } = {}) {
+    this.audio = audio; this.cameraShake = cameraShake; this.getCamera = getCamera; this.fx = fx; this._scene = scene;
     this.hooks = hooks ?? {}; this.defs = defs;
     this.mapId = null;
     this.emitters = new Map();
@@ -76,6 +79,8 @@ export class MapEventFx {
   }
 
   camera() { return this.getCamera?.() ?? null; }
+
+  scene() { return this._scene ?? null; }
 
   /** Shake falloff 0..1 by the camera's distance to `at`. */
   falloff(at, rangeM) {

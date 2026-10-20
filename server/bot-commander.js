@@ -1102,7 +1102,9 @@ export class BotCommander {
       return { role: 'crew', vehicleId: crew.vehicleId, seatId: crew.seatId, prio: crew.prio, flag, ...(crew.slot?.recall ? { recall: true } : {}),
         friendlyYaw: flag ? bearing(flag, this.view?.bases?.[ts.team] ?? flag) : null };
     }
-    for (const transit of ts.transits.values()) {
+    // A bot on foot booked for a map event task (a crate, a charge) walks to it instead of a squad ride's seat.
+    const evented = !p?.vehicleId && ts.eventAssign?.has(String(id));
+    for (const transit of evented ? [] : ts.transits.values()) {
       const seatId = transit.seats.get(String(id));
       if (seatId) return { role: 'transit', vehicleId: transit.vehicleId, seatId, transit, destination: transit.destination };
     }

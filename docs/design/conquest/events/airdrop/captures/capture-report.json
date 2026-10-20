@@ -1,0 +1,98 @@
+{
+  "generated": "2026-10-20T16:07:37.388Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "airdrop-inbound",
+        "title": "Supply drop inbound · banner countdown, crate marker, flight line on the maps",
+        "file": "docs/design/conquest/events/airdrop/captures/desktop-airdrop-inbound.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "airdrop-map",
+        "title": "Supply drop inbound · full map with the flight line and the landing ring",
+        "file": "docs/design/conquest/events/airdrop/captures/desktop-airdrop-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "airdrop-claim",
+        "title": "Supply crate down · HOLD CLAIM CRATE 60 %, crate marker with its time left",
+        "file": "docs/design/conquest/events/airdrop/captures/desktop-airdrop-claim.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "airdrop-claimed",
+        "title": "Supply crate claimed · the claimer's KRABER banner",
+        "file": "docs/design/conquest/events/airdrop/captures/desktop-airdrop-claimed.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "airdrop-inbound",
+        "title": "Supply drop inbound · banner countdown, crate marker, flight line on the maps",
+        "file": "docs/design/conquest/events/airdrop/captures/portrait-airdrop-inbound.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "airdrop-map",
+        "title": "Supply drop inbound · full map with the flight line and the landing ring",
+        "file": "docs/design/conquest/events/airdrop/captures/portrait-airdrop-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "airdrop-claim",
+        "title": "Supply crate down · HOLD CLAIM CRATE 60 %, crate marker with its time left",
+        "file": "docs/design/conquest/events/airdrop/captures/portrait-airdrop-claim.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "airdrop-claimed",
+        "title": "Supply crate claimed · the claimer's KRABER banner",
+        "file": "docs/design/conquest/events/airdrop/captures/portrait-airdrop-claimed.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "airdrop-inbound",
+        "title": "Supply drop inbound · banner countdown, crate marker, flight line on the maps",
+        "file": "docs/design/conquest/events/airdrop/captures/landscape-airdrop-inbound.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "airdrop-map",
+        "title": "Supply drop inbound · full map with the flight line and the landing ring",
+        "file": "docs/design/conquest/events/airdrop/captures/landscape-airdrop-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "airdrop-claim",
+        "title": "Supply crate down · HOLD CLAIM CRATE 60 %, crate marker with its time left",
+        "file": "docs/design/conquest/events/airdrop/captures/landscape-airdrop-claim.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "airdrop-claimed",
+        "title": "Supply crate claimed · the claimer's KRABER banner",
+        "file": "docs/design/conquest/events/airdrop/captures/landscape-airdrop-claimed.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

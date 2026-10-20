@@ -25,7 +25,7 @@ const chuteOf = row => {
 };
 
 /** Merge boxes ({w,h,d, x,y,z, rz, color}) into one vertex-coloured geometry. */
-function mergedBoxes(boxes) {
+export function mergedBoxes(boxes) {
   const positions = [], normals = [], colors = [];
   const matrix = new THREE.Matrix4(), color = new THREE.Color(), rotation = new THREE.Matrix4();
   for (const box of boxes) {

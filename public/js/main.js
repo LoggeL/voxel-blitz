@@ -580,7 +580,7 @@ class Game {
       getCamera: () => this.camera, fx: this.particleField });
     // Conquest map events (docs/conquest.md "Map events"): each event's world effects and the generic strike.
     if (welcome.gameMode === 'conquest') this.mapEventFx = new rt.MapEventFx({ audio: sfx, cameraShake: this.cameraShake,
-      getCamera: () => this.camera, fx: this.particleField });
+      getCamera: () => this.camera, fx: this.particleField, scene: this.worldview.scene });
     this.worldview.scene.add(this.camera);
     this.ownBody = rt.makeFirstPersonBody();
     this.worldview.scene.add(this.ownBody.group);
