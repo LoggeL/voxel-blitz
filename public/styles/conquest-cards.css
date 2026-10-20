@@ -134,7 +134,7 @@ body:has(> .vb-conquest-hud:not([hidden])) #healthbar.critical::before { --cqc-h
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 13'%3E%3Cpath d='M6 0h6l1.5 2H16a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h2.5zM9 3.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 13'%3E%3Cpath d='M6 0h6l1.5 2H16a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h2.5zM9 3.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
-/* Phone portrait: VIEW stands under MAP and SPOT, where the out-of-bounds countdown starts; the countdown steps below it. */
+/* Phone portrait: VIEW stands under MAP, SPOT and COMMS (270 + 44 px), where the out-of-bounds countdown starts; the countdown steps below it. */
 @media (orientation: portrait) {
-  .vb-touch-mode body:has(.vb-touch-vehicleView:not(.is-hidden)) .cq-restricted { top: max(calc(50% - 168px), calc(max(10px, env(safe-area-inset-top)) + 266px)); }
+  .vb-touch-mode body:has(.vb-touch-vehicleView:not(.is-hidden)) .cq-restricted { top: max(calc(50% - 168px), calc(max(10px, env(safe-area-inset-top)) + 322px)); }
 }

@@ -713,10 +713,14 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .vb-touch-mode .cq-sector-mark { width: 8px; height: 8px; right: 1px; top: 1px; }
 .vb-touch-mode .cq-team[data-role] .cq-bleed, .vb-touch-mode .cq-team[data-role] .cq-team-name { font-size: 8px; letter-spacing: 0; }
 .vb-touch-mode .cq-sector-tag { font-size: 9px; line-height: 12px; padding: 0 4px; }
-/* Portrait: the card row (HP, grenade, ammo) and the minimap fill the top 228 px, so banners sit just below them. */
-.vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 228px); min-width: 0; width: max-content; max-width: calc(100vw - 40px); padding: 6px 14px; }
+/* Portrait: the card row (HP, grenade, ammo) and the minimap fill the top 228 px and COMMS (beside the minimap, under
+   MAP / SPOT) reaches 262 px, so banners sit just below it; while seated, below VIEW (270 + 44 px). */
+.vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 270px); min-width: 0; width: max-content; max-width: calc(100vw - 40px); padding: 6px 14px; }
 .vb-touch-mode .cq-banner-title { font-size: 15px; letter-spacing: 1px; }
 .vb-touch-mode .cq-banner-detail { font-size: 10px; }
+@media (orientation: portrait) {
+  .vb-touch-mode body:has(.vb-touch-vehicleView:not(.is-hidden)) .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 322px); }
+}
 /* Breakthrough fall-back on phones: the restricted card already says SECTOR LOST, so the banner gives way to it. */
 .vb-touch-mode .vb-conquest-hud:has(.cq-restricted:not([hidden])) .cq-banner { display: none; }
 .vb-touch-mode .cq-minimap { top: calc(max(10px, env(safe-area-inset-top)) + 114px); bottom: auto; left: max(12px, env(safe-area-inset-left)); }
@@ -754,7 +758,8 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .vb-touch-mode .vb-conquest-hud:has(.cq-interact:not([hidden])) .cq-ticker { top: auto; bottom: calc(50% + 70px); }
 .vb-touch-mode .cq-lock { top: calc(50% - 96px); font-size: 12px; }
 .vb-touch-mode .cq-lock-bearing { width: 130px; height: 130px; }
-.vb-touch-mode .cq-restricted { top: calc(50% - 168px); }
+/* At most 168 px above the centre, never over COMMS (MAP / SPOT / COMMS end at 262 px). */
+.vb-touch-mode .cq-restricted { top: max(calc(50% - 168px), calc(max(10px, env(safe-area-inset-top)) + 270px)); }
 .vb-touch-mode .cq-restricted-seconds { font-size: 44px; }
 /* The touch DEPLOY button (touch-controls) stands in for the panel button only while it is really usable. */
 .vb-touch-deploying .cq-deploy-button { display: none; }
@@ -1127,6 +1132,11 @@ body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conque
 .vb-touch-mode .cq-mortar {
   top: calc(max(10px, env(safe-area-inset-top)) + 284px); bottom: auto; right: max(12px, env(safe-area-inset-right));
   width: 176px; gap: 4px; padding: 6px 8px;
+}
+/* Portrait banner (270 px, under COMMS): the panel steps below it, and the EXIT prompt below the panel. */
+@media (orientation: portrait) {
+  .vb-touch-mode .vb-conquest-hud:has(.cq-banner:not([hidden])) .cq-mortar { top: calc(max(10px, env(safe-area-inset-top)) + 318px); }
+  .vb-touch-mode .vb-conquest-hud:has(.cq-banner:not([hidden])):has(.cq-mortar:not([hidden])) .cq-interact { top: calc(50% + 152px); }
 }
 .vb-touch-mode .cq-mortar-title { font-size: 8px; letter-spacing: 0.8px; white-space: nowrap; }
 .vb-touch-mode .cq-mortar-status { font-size: 8px; letter-spacing: 0.8px; }

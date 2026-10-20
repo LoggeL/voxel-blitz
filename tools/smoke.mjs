@@ -295,7 +295,8 @@ function runDirectContracts() {
   const grenade = grenadeEngine.projectiles.throw(thrower, grenadeContext);
   Object.assign(grenade, { x: 44.5, y: 21.5, z: 50.5 });
   grenadeEngine.projectiles.explode(grenade, grenadeContext);
-  ok(thrower.grenades.join(',') === '1,1,2,1,1,0'
+  // One slot per GRENADE_TYPE_IDS entry; the kit-only Conquest gadgets (atmine, beacon, sensor) start empty.
+  ok(thrower.grenades.join(',') === '1,1,2,1,1,0,0,0'
     && blastTarget.hp < 100
     && grenadeEngine.world.getBlock(44, 20, 50) === AIR
     && grenadeEngine.world.getBlock(45, 20, 50) === METAL

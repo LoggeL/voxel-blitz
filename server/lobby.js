@@ -423,7 +423,8 @@ export class LobbyManager {
     duelKillLimit ??= room.duelKillLimit;
     if (!DUEL_KILL_LIMITS.includes(duelKillLimit)) return this._error(meta, 'Invalid 1v1 kill target');
     // Conquest rule variant (Conquest or Breakthrough): the policy is built with the engine.
-    conquestVariant ??= room.conquestVariant;
+    // Rooms made by _createRoom always carry one; fall back to the default for any other room shape.
+    conquestVariant ??= room.conquestVariant ?? DEFAULT_CONQUEST_VARIANT;
     if (!CONQUEST_VARIANTS.includes(conquestVariant)) return this._error(meta, 'Invalid Conquest variant');
     bots = modeAllowsBots(gameMode) ? bots : 0;
     const limit = lobbyCapacity(gameMode, map);

@@ -498,6 +498,10 @@ function teamEngine(map = 'harbor') {
   const run = (mode, map, ticks) => {
     Math.random = seeded(1234);
     Date.now = () => 1_700_000_000_000;
+    // The Conquest weather draws its match seed from the CSPRNG (server/modes/conquest/weather.js),
+    // so pin that too: both runs must see the same timeline (wind, strikes) on the wire.
+    const cryptoRandom = seeded(5678);
+    globalThis.crypto.getRandomValues = cells => { for (let i = 0; i < cells.length; i++) cells[i] = Math.floor(cryptoRandom() * 2 ** 32); return cells; };
     const hash = createHash('sha256');
     const rowBytes = [];
     const engine = new GameEngine({ mode, mapMeta: getMapMeta(map), world: createMapState(map), broadcast: s => {
@@ -527,6 +531,7 @@ function teamEngine(map = 'harbor') {
       engine.stop();
       Math.random = realRandom;
       Date.now = realNow;
+      delete globalThis.crypto.getRandomValues;
     }
     return { hash: hash.digest('hex'), rowBytes: rowBytes.reduce((a, b) => a + b, 0) };
   };

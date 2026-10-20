@@ -12,9 +12,9 @@ clients that present it. Shared rules and the motion model live in
 
 * **Anchors.** Natural ground never needs support and fully supports what
   rests on it. Ground is a material (`STRUCTURE_GROUND`: bedrock, grass,
-  dirt, stone, sand, rock, the Minecraft island and Nether materials, Bikini
-  Bottom sand and reef rock, and the Frontier meadow, field, mud, gravel and
-  needle ground) *and* a place: only ground material that forms the map's
+  dirt, stone, sand, rock, sandstone, the Minecraft island and Nether
+  materials, Bikini Bottom sand and reef rock, and the Frontier meadow, field,
+  mud, gravel and needle ground) *and* a place: only ground material that forms the map's
   natural ground mass is an anchor (see *Natural ground* below). The same
   materials used to build (a stone wall, a sandbag line, a dirt bunker, the
   Minecraft B5 lighthouse lantern, the Citadel bell tower's stone cornices)
