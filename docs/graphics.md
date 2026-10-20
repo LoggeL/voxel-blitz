@@ -143,6 +143,12 @@ mid-match. Captures: `render-map-scenes.mjs --weather storm [--flash]`.
   voxel-light position, identity for chunks); live chunk meshes are capped per
   tier (6 / 12 / 24 / 32), LOW draws 35 % of the grit, dust and chips and no
   falling dust trails.
+- Floods (`fx/flood-surface.js`, the Redrock Dam breach in `docs/conquest.md`):
+  one transparent grid mesh over a flood field's columns, heights and foam
+  written from the field on the CPU each frame. The chunk water material
+  always carries the flood clip uniforms (`setFloodClip`, off by default), so
+  a running flood only changes uniforms: voxel water over the draining basin
+  above the field's level is discarded, never remeshed.
 - Contact shadows (`contact-shadows.js`): one instanced draw of soft blobs under
   avatars, vehicles and pickups; HIGH/ULTRA add a camera-following sun shadow
   map for dynamic casters only (`dynamic-shadows.js`).

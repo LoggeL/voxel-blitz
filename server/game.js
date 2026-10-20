@@ -114,7 +114,12 @@ export class GameEngine {
     this.world = callbacks.world || createMapState(fallbackMapId);
     this.mapMeta = callbacks.mapMeta || this.world.meta || getMapMeta(fallbackMapId);
     this.solidAt = (x, y, z) => isSolidBlock(this.world.getBlock(x, y, z));
-    this.fluidAt = (x, y, z) => FLUID_BLOCKS.has(this.world.getBlock(x, y, z));
+    // A running flood field (world.flood, shared/world/flood-field.js) answers for the cells it covers.
+    this.fluidAt = (x, y, z) => {
+      const flood = this.world.flood;
+      if (flood?.fields.length) { const wet = flood.wetCell(x, y, z); if (wet !== undefined) return wet; }
+      return FLUID_BLOCKS.has(this.world.getBlock(x, y, z));
+    };
     this.teleportSerial = 0;
 
     // Bastion defenders collide with the layout's invisible gates; a bare {id} meta falls back to the registry.
@@ -690,23 +695,29 @@ export class GameEngine {
     const body = this.world.getBlock(Math.floor(player.x), Math.floor(player.y + 0.9), Math.floor(player.z));
     const inLava = feet === MC_LAVA || body === MC_LAVA;
     // Drowning runs independent of lava: a submerged head ticks even in shallow surfs.
-    const head = this.world.getBlock(Math.floor(player.x), Math.floor(player.y + 1.35), Math.floor(player.z));
-    if (head === MC_WATER) {
+    const hx = Math.floor(player.x), hy = Math.floor(player.y + 1.35), hz = Math.floor(player.z);
+    const head = this.world.getBlock(hx, hy, hz);
+    // A flood field's water drowns like a voxel's (world.flood answers for the cells it covers).
+    const floodHead = this.world.flood?.fields.length ? this.world.flood.wetCell(hx, hy, hz) : undefined;
+    if (floodHead ?? head === MC_WATER) {
       player.drownT = (player.drownT || 0) + dt;
       if (player.drownT >= DROWN_GRACE_S) {
         player.drownHold = (player.drownHold || 0) + dt;
         if (player.drownHold >= DROWN_INTERVAL_S) {
           player.drownHold -= DROWN_INTERVAL_S;
-          const drowned = player.takeDamage(DROWN_DAMAGE, false, null, 'water');
-          this.tickEvents.push(evHit('', player.id, DROWN_DAMAGE, false,
-            [player.x, player.y + 1.2, player.z], player.lastDamage));
-          if (drowned) this.killPlayer(player, null, 'water', false, null);
+          // A flood's owner may take the drowning over (its kill credit goes to whoever set it off).
+          if (!(floodHead && this.world.flood.at(hx + 0.5, hz + 0.5)?.hooks?.drown?.(player, DROWN_DAMAGE))) {
+            const drowned = player.takeDamage(DROWN_DAMAGE, false, null, 'water');
+            this.tickEvents.push(evHit('', player.id, DROWN_DAMAGE, false,
+              [player.x, player.y + 1.2, player.z], player.lastDamage));
+            if (drowned) this.killPlayer(player, null, 'water', false, null);
+          }
         }
       }
     } else player.drownT = 0;
     if (!inLava) {
       player.lavaT = 0;
-      if (feet === MC_WATER || body === MC_WATER) extinguish(player);
+      if (feet === MC_WATER || body === MC_WATER || floodHead !== undefined && this.world.flood.wetCell(hx, Math.floor(player.y + 0.1), hz)) extinguish(player);
       return;
     }
     igniteFromLava(player, LAVA_BURN_S);

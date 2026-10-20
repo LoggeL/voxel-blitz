@@ -1,23 +1,27 @@
-// Redrock Dam breach, the precomputed voxel plan (docs/conquest.md "Redrock
-// Dam breach"; tuning in shared/map-events/dam.js DAM_TUNING). Pure and
+// Redrock Dam breach, the precomputed plan (docs/conquest.md "Redrock Dam
+// breach"; tuning in shared/map-events/dam.js DAM_TUNING). Pure and
 // deterministic: it reads only the pristine template voxels
 // (world.templateBlock), so every room on the same template shares one plan
 // (cached per template), whatever the live world went through first.
 //
 //   breach   solid cells of the breach box (the structural fall) and the
-//            spillway water in it (turned to air)
-//   flood    one timeline of block changes, sorted by when they are due (ms
-//            after the breach): the reservoir cells above the new level turn
-//            to air top layer first, nearest the breach first, spread evenly
-//            over the drain; the canyon cells at y20..21 that join the stream
-//            turn to water as the wave front passes their z
+//            spillway's water in it (turned to air)
+//   field    the flood field (shared/world/flood-field.js buildDamFlood): the
+//            moving water every client evaluates from the same start time
+//   commits  the voxel changes the water leaves once it has settled, as jobs
+//            of one 16 x 16 column tile each, sorted by when they are due (s
+//            after the breach): the basin's water cells above its level as the
+//            level passes their centres, the canyon's new water cells up to its
+//            final level once their row has settled. Nothing changes while the
+//            water moves; the clients' clip hides voxel water above the field.
 import { AIR, FLUID_BLOCKS, MC_WATER, isSolidBlock } from '../../../../shared/world/blocks.js';
+import { FLOOD_KIND, buildDamFlood } from '../../../../shared/world/flood-field.js';
 
 const PLANS = new WeakMap();
 
 /**
  * The plan of a world (cached per template): {breachSolids, breachWater,
- * flood: {cells: Int32Array [x, y, z, v, ...], at: Float64Array ms}, counts}.
+ * field, commits: [{t, tile, cells: Int32Array [x, y, z, v, ...]}], counts, buildMs}.
  */
 export function damPlan(world, tuning) {
   const key = world?.templateBlocks ?? world;
@@ -28,10 +32,16 @@ export function damPlan(world, tuning) {
   return plan;
 }
 
+/** Seconds after the breach once the basin's level stands at or below `y` (H(t) = sill + h0/(1 + t/tau)^2). */
+export function lakeTimeAt(lake, y) {
+  if (y >= lake.top) return 0;
+  if (y <= lake.sill) return Infinity;
+  return lake.tauS * (Math.sqrt(lake.h0 / (y - lake.sill)) - 1);
+}
+
 function buildDamPlan(world, tuning) {
   const t0 = performance.now();
   const tb = typeof world.templateBlock === 'function' ? (x, y, z) => world.templateBlock(x, y, z) : (x, y, z) => world.getBlock(x, y, z);
-  const water = b => FLUID_BLOCKS.has(b);
 
   // Breach: the solid cells fall (top down), the spillway's water goes.
   const b = tuning.breach;
@@ -39,86 +49,54 @@ function buildDamPlan(world, tuning) {
   for (let y = b.y1; y >= b.y0; y--) for (let z = b.z0; z <= b.z1; z++) for (let x = b.x0; x <= b.x1; x++) {
     const block = tb(x, y, z);
     if (isSolidBlock(block)) solids.push(x, y, z, AIR);
-    else if (water(block)) wet.push(x, y, z, AIR);
+    else if (FLUID_BLOCKS.has(block)) wet.push(x, y, z, AIR);
   }
 
-  // Drain: water above the new level connected to the upstream face.
-  const d = tuning.drain;
-  const drained = [];
-  const seen = new Set();
-  const k = (x, y, z) => (y << 20) | (z << 10) | x;
-  const queue = [];
-  for (let y = d.level + 1; y <= 40; y++) for (let x = d.x0; x <= d.x1; x++) {
-    if (water(tb(x, y, d.face))) { seen.add(k(x, y, d.face)); queue.push(x, y, d.face); }
-  }
-  for (let i = 0; i < queue.length; i += 3) {
-    const x = queue[i], y = queue[i + 1], z = queue[i + 2];
-    drained.push(x, y, z);
-    for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]]) {
-      const nx = x + dx, ny = y + dy, nz = z + dz;
-      if (ny <= d.level || nx < d.x0 || nx > d.x1 || nz < d.z0 || nz > d.z1) continue;
-      const key2 = k(nx, ny, nz);
-      if (seen.has(key2) || !water(tb(nx, ny, nz))) continue;
-      seen.add(key2); queue.push(nx, ny, nz);
-    }
-  }
-  // Top layer first, nearest the breach first within a layer.
-  const cx = (b.x0 + b.x1 + 1) / 2, cz = b.z0;
-  const drainOrder = [];
-  for (let i = 0; i < drained.length; i += 3) drainOrder.push(i);
-  drainOrder.sort((i, j) => (drained[j + 1] - drained[i + 1])
-    || (Math.hypot(drained[i] - cx, drained[i + 2] - cz) - Math.hypot(drained[j] - cx, drained[j + 2] - cz)) || (i - j));
-
-  // Canyon: air cells at y from..level over water (or a cell flooded below) or solid
-  // ground, horizontally connected to the stream, inside the canyon box.
-  const c = tuning.canyon;
-  const filled = new Set();
-  const flooded = [];
-  const inBox = (x, z) => x >= c.x0 && x <= c.x1 && z >= c.z0 && z <= c.z1;
-  for (let y = c.from; y <= c.level; y++) {
-    const below = (x, z) => water(tb(x, y - 1, z)) || filled.has(k(x, y - 1, z));
-    const open = (x, z) => tb(x, y, z) === AIR;
-    const front = [];
-    const layer = new Set();
-    for (let z = c.z0; z <= c.z1; z++) for (let x = c.x0; x <= c.x1; x++) {
-      if (open(x, z) && below(x, z)) { layer.add(k(x, y, z)); front.push(x, z); }
-    }
-    for (let i = 0; i < front.length; i += 2) {
-      const x = front[i], z = front[i + 1];
-      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = x + dx, nz = z + dz;
-        if (!inBox(nx, nz)) continue;
-        const key2 = k(nx, y, nz);
-        if (layer.has(key2) || !open(nx, nz)) continue;
-        const under = tb(nx, y - 1, nz);
-        if (!isSolidBlock(under) && !water(under) && !filled.has(k(nx, y - 1, nz))) continue;
-        layer.add(key2); front.push(nx, nz);
+  const field = buildDamFlood(tb, tuning.flood);
+  const { lake, canyon } = tuning.flood;
+  const size = tuning.commit.tile;
+  const tiles = new Map();
+  const job = (x, z, t) => {
+    const key = `${Math.floor(x / size)},${Math.floor(z / size)},${t}`;
+    let j = tiles.get(key);
+    if (!j) tiles.set(key, j = { t, tile: [Math.floor(x / size), Math.floor(z / size)], cells: [] });
+    return j;
+  };
+  let drained = 0, filled = 0;
+  const { x0, z0, x1, z1 } = field.bounds;
+  // The settled canyon level: the lowest final of its rows (the south edge), one level for every committed cell.
+  let canyonFinal = Infinity;
+  for (let r = 0; r < field.rows; r++) canyonFinal = Math.min(canyonFinal, field.run.final[r]);
+  for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+    const kind = field.kindAt(x, z), floor = field.floorAt(x, z);
+    if (kind === FLOOD_KIND.lake) {
+      // Water cells whose centre ends above the basin's settled level go once the level passes them.
+      const final = field.lakeFinal(z);
+      for (let y = Math.max(floor, Math.floor(final - 0.5)); y < lake.top; y++) {
+        if (y + 0.5 < final || tb(x, y, z) !== MC_WATER) continue;
+        const t = Math.round(lakeTimeAt(lake, y + 0.5) * 10) / 10;
+        if (!Number.isFinite(t)) continue;
+        job(x, z, t).cells.push(x, y, z, AIR); drained++;
+      }
+    } else if ((kind === FLOOD_KIND.canyon || kind === FLOOD_KIND.gap) && z >= canyon.z0) {
+      // New water up to the settled level, once the row has settled.
+      const t = Math.ceil(field.settled(x, z));
+      for (let y = floor; y + 0.5 < canyonFinal; y++) {
+        if (tb(x, y, z) !== AIR) continue;
+        job(x, z, t).cells.push(x, y, z, MC_WATER); filled++;
       }
     }
-    for (let i = 0; i < front.length; i += 2) { filled.add(k(front[i], y, front[i + 1])); flooded.push(front[i], y, front[i + 1]); }
   }
-
-  // One timeline: drain cells evenly over d.ms, canyon cells when the front passes them.
-  const w = tuning.wave;
-  const n = drainOrder.length + flooded.length / 3;
-  const rows = new Array(n);
-  let r = 0;
-  drainOrder.forEach((i, rank) => { rows[r++] = [rank / Math.max(1, drainOrder.length) * d.ms, drained[i], drained[i + 1], drained[i + 2], AIR]; });
-  for (let i = 0; i < flooded.length; i += 3) {
-    const z = flooded[i + 2];
-    rows[r++] = [w.delayMs + Math.max(0, z - w.z0) / w.speed * 1000 + (flooded[i + 1] - c.from) * 400, flooded[i], flooded[i + 1], z, MC_WATER];
-  }
-  rows.sort((p, q) => p[0] - q[0] || p[3] - q[3] || p[1] - q[1] || p[2] - q[2]);
-  const cells = new Int32Array(n * 4), at = new Float64Array(n);
-  rows.forEach((row, i) => { at[i] = row[0]; cells[i * 4] = row[1]; cells[i * 4 + 1] = row[2]; cells[i * 4 + 2] = row[3]; cells[i * 4 + 3] = row[4]; });
-  const exposed = new Set();
-  for (let i = 0; i < drained.length; i += 3) exposed.add((drained[i + 2] << 10) | drained[i]);
+  const commits = [...tiles.values()].sort((p, q) => p.t - q.t || p.tile[1] - q.tile[1] || p.tile[0] - q.tile[0])
+    .map(j => Object.freeze({ t: j.t, tile: j.tile, cells: Int32Array.from(j.cells) }));
   return {
-    tuning,
+    tuning, field,
     breachSolids: Int32Array.from(solids), breachWater: Int32Array.from(wet),
-    flood: { cells, at, endMs: n ? at[n - 1] : 0 },
-    counts: { breach: solids.length / 4, breachWater: wet.length / 4, drained: drainOrder.length, canyon: flooded.length / 3,
-      drainedColumns: exposed.size, total: solids.length / 4 + wet.length / 4 + n },
-    buildMs: performance.now() - t0,
+    commits, canyonFinal,
+    counts: { breach: solids.length / 4, breachWater: wet.length / 4, drained, canyon: filled, jobs: commits.length,
+      lakeColumns: count(field, FLOOD_KIND.lake), canyonColumns: count(field, FLOOD_KIND.canyon) },
+    buildMs: performance.now() - t0, fieldMs: field.buildMs,
   };
 }
+
+const count = (field, kind) => field.kind.reduce((n, k) => n + (k === kind), 0);

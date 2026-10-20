@@ -13,6 +13,8 @@ let waterSky = {};
 // 0 Low = sky reflection and shallow tint only, 1 Medium = one foam octave,
 // 2 High/Ultra = + fine foam octave and bubble cells.
 let waterDetail = 2;
+// The running flood's clip (setFloodClip), or null.
+let floodClip = null;
 
 /**
  * Pick the water shader detail for a graphics profile. WorldView calls it
@@ -34,6 +36,9 @@ export function tickFluidMaterials(dt) {
 }
 
 export function fluidClock() { return clock; }
+
+/** The water palette the map set (applyWaterPalette), for surfaces outside the chunk buckets. */
+export function waterPalette() { return waterSky; }
 
 const VERT = /* glsl */`
 #include <common>
@@ -95,6 +100,14 @@ uniform vec3 horizonColor;
 uniform float reflection;
 uniform float foamStrength;
 uniform float foamLight;
+// A running flood (shared/world/flood-field.js, public/js/fx/flood-surface.js):
+// voxel water over the draining basin above the field's level is not drawn,
+// so the lake falls smoothly under the flood surface instead of in steps.
+uniform float floodClipOn;
+uniform vec4 floodClipBox;     // x0, z0, x1 + 1, z1 + 1 (world cells)
+uniform vec4 floodClipLake;    // level now, sill, head h0, old top
+uniform vec2 floodClipRiffle;  // z0, z1 of the basin head's riffle
+uniform sampler2D floodClipMask;
 #endif
 #ifdef FLUID_FOAM
 float foamHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -113,6 +126,14 @@ float ripple(vec2 p, float t) {
 }
 
 void main() {
+#ifdef FLUID_WATER
+  if (floodClipOn > 0.5 && vWorldPos.x >= floodClipBox.x && vWorldPos.z >= floodClipBox.y
+    && vWorldPos.x < floodClipBox.z && vWorldPos.z < floodClipBox.w && vWorldPos.y < floodClipLake.w + 0.2) {
+    vec2 cell = (vWorldPos.xz - floodClipBox.xy) / (floodClipBox.zw - floodClipBox.xy);
+    float riffle = floodClipLake.y + floodClipLake.z * (1.0 - clamp((vWorldPos.z - floodClipRiffle.x) / (floodClipRiffle.y - floodClipRiffle.x), 0.0, 1.0));
+    if (texture2D(floodClipMask, cell).r > 0.5 && vWorldPos.y > max(floodClipLake.x, riffle) + 0.04) discard;
+  }
+#endif
   // Sample the block tile with a wrapped, drifting offset so the pixel art
   // itself moves; the rect keeps the lookup inside this tile of the atlas.
   vec2 size = tileRect.zw - tileRect.xy;
@@ -298,6 +319,11 @@ export function createFluidMaterial(kind, { map = null, tileRect = { u0: 0, v0: 
         reflection: { value: waterSky.reflection ?? preset.reflection },
         foamStrength: { value: waterSky.foam ?? preset.foamStrength },
         foamLight: { value: waterSky.foamLight ?? preset.foamLight },
+        floodClipOn: { value: floodClip ? 1 : 0 },
+        floodClipBox: { value: new THREE.Vector4() },
+        floodClipLake: { value: new THREE.Vector4() },
+        floodClipRiffle: { value: new THREE.Vector2(0, 1) },
+        floodClipMask: { value: null },
       } : {}),
     }]),
     vertexShader: VERT,
@@ -310,6 +336,7 @@ export function createFluidMaterial(kind, { map = null, tileRect = { u0: 0, v0: 
     defines: kind === 'water' ? waterDefines(waterDetail) : {},
   });
   material.uniforms.map.value = map;
+  if (kind === 'water') applyFloodClip(material);
   material.name = `fluid-${kind}`;
   material.userData.fluid = kind;
   registry.add(material);
@@ -353,6 +380,37 @@ export function applyWaterPalette(palette = {}) {
     u.specularStrength.value = waterSky.specular;
   }
   return waterSky;
+}
+
+/**
+ * The flood clip on every voxel water material (chunk buckets, later ones
+ * too): `clip` {box: {x0, z0, x1, z1}, level, sill, h0, top, riffle: {z0, z1},
+ * mask: THREE.Texture over the box (red > 0.5 on the basin's columns)}, or
+ * null to switch it off. `level` alone may change every frame.
+ */
+export function setFloodClip(clip) {
+  floodClip = clip ?? null;
+  for (const material of registry) if (material.userData.fluid === 'water') applyFloodClip(material);
+  return floodClip;
+}
+
+/** Update only the basin level of the running clip (per frame). */
+export function setFloodClipLevel(level) {
+  if (!floodClip || !Number.isFinite(level)) return;
+  floodClip.level = level;
+  for (const material of registry) if (material.userData.fluid === 'water') material.uniforms.floodClipLake.value.x = level;
+}
+
+function applyFloodClip(material) {
+  const u = material.uniforms;
+  if (!u.floodClipOn) return;
+  const c = floodClip;
+  u.floodClipOn.value = c && c.mask ? 1 : 0;
+  if (!c) return;
+  u.floodClipBox.value.set(c.box.x0, c.box.z0, c.box.x1 + 1, c.box.z1 + 1);
+  u.floodClipLake.value.set(c.level, c.sill, c.h0, c.top);
+  u.floodClipRiffle.value.set(c.riffle.z0, c.riffle.z1);
+  u.floodClipMask.value = c.mask;
 }
 
 /** Live material count, for tests and leak checks. */
