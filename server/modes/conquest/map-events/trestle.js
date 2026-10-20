@@ -57,7 +57,8 @@ export class TrestleController extends LevolutionController {
   onTimer(phase) {
     if (phase !== 'warning') return false;
     const alternate = this.def.tuning.alternate;
-    const cut = !!alternate && this.system.instances.some(i => i !== this.event && (i.controller.closedCrossings?.() ?? []).includes(alternate));
+    // closedCrossings() is any iterable (the dam's is its live Set), as MapEventSystem reads it.
+    const cut = !!alternate && this.system.instances.some(i => i !== this.event && [...(i.controller.closedCrossings?.() ?? [])].includes(alternate));
     this.event.setPhase('active', cut ? { reason: 'cut' } : {});
     return true;
   }

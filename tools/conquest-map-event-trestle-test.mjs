@@ -29,7 +29,8 @@ assert.equal(redrockIds.at(-1), 'trestle', 'Redrock wire order: the trestle sort
 
 // A stand-in for the dam: closes the crest when told (the `cut` banner).
 let crestClosed = false;
-class CrestStub extends MapEventController { closedCrossings() { return crestClosed ? ['redrock-dam'] : null; } }
+// A Set, as the dam's closedCrossings() returns.
+class CrestStub extends MapEventController { closedCrossings() { return crestClosed ? new Set(['redrock-dam']) : null; } }
 const STUB = fixtureMapEvent({ id: 'crest-stub', maps: ['redrock'], anchor: { x: 100, y: 40, z: 100 }, big: false });
 const defs = [TRESTLE_EVENT, STUB];
 const F = eventFixture({ map: 'redrock', defs, controllers: { trestle: TrestleController, 'crest-stub': CrestStub } });
