@@ -25,7 +25,7 @@ import { DEPOT_PRESENTER } from './depot.js';
 // slot weir:
 // import { WEIR_PRESENTER } from './weir.js';
 // slot relay:
-// import { RELAY_PRESENTER } from './relay.js';
+import { RELAY_PRESENTER } from './relay.js';
 // slot elevator:
 // import { ELEVATOR_PRESENTER } from './elevator.js';
 // slot quarry:
@@ -44,7 +44,7 @@ export const MAP_EVENT_PRESENTERS = Object.freeze({
   // slot weir:
   // weir: WEIR_PRESENTER,
   // slot relay:
-  // relay: RELAY_PRESENTER,
+  relay: RELAY_PRESENTER,
   // slot elevator:
   // elevator: ELEVATOR_PRESENTER,
   // slot quarry:

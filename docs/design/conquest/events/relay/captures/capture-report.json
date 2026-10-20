@@ -1,0 +1,77 @@
+{
+  "generated": "2026-10-20T16:08:15.247Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "relay-held",
+        "title": "Signal Rock relay held · scan circle and sweep, owner marker, RELAY SECURED",
+        "file": "docs/design/conquest/events/relay/captures/desktop-relay-held.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "relay-enemy",
+        "title": "Signal Rock relay held by EAST · RELAY LOST, HOLD · PLANT CHARGE at the mast",
+        "file": "docs/design/conquest/events/relay/captures/desktop-relay-enemy.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "relay-failing",
+        "title": "Signal Rock mast failing · fall line on the map, MAST FAILING countdown",
+        "file": "docs/design/conquest/events/relay/captures/desktop-relay-failing.jpg",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "relay-held",
+        "title": "Signal Rock relay held · scan circle and sweep, owner marker, RELAY SECURED",
+        "file": "docs/design/conquest/events/relay/captures/portrait-relay-held.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "relay-enemy",
+        "title": "Signal Rock relay held by EAST · RELAY LOST, HOLD · PLANT CHARGE at the mast",
+        "file": "docs/design/conquest/events/relay/captures/portrait-relay-enemy.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "relay-failing",
+        "title": "Signal Rock mast failing · fall line on the map, MAST FAILING countdown",
+        "file": "docs/design/conquest/events/relay/captures/portrait-relay-failing.jpg",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "relay-held",
+        "title": "Signal Rock relay held · scan circle and sweep, owner marker, RELAY SECURED",
+        "file": "docs/design/conquest/events/relay/captures/landscape-relay-held.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "relay-enemy",
+        "title": "Signal Rock relay held by EAST · RELAY LOST, HOLD · PLANT CHARGE at the mast",
+        "file": "docs/design/conquest/events/relay/captures/landscape-relay-enemy.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "relay-failing",
+        "title": "Signal Rock mast failing · fall line on the map, MAST FAILING countdown",
+        "file": "docs/design/conquest/events/relay/captures/landscape-relay-failing.jpg",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

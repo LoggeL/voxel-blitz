@@ -43,7 +43,7 @@ const ok = () => { checks++; };
 /* ------------------------------------------------------------ fixtures */
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
-  'tank-driver', 'tank-commander', 'tank-periscope', 'aa-driver', 'aa-overheat', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-bomb', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'bridge-failing', 'bridge-down', 'deploy',
+  'tank-driver', 'tank-commander', 'tank-periscope', 'aa-driver', 'aa-overheat', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-bomb', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'bridge-failing', 'bridge-down', 'relay-held', 'relay-enemy', 'relay-failing', 'deploy',
   'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'recon-deploy', 'recon-sensor', 'ribbon', 'ribbon-banner', 'deploy-vehicles', 'weather-storm', 'weather-fog', 'scoreboard', 'result', 'result-medals',
   'orders-rose', 'orders-chip', 'orders-map', 'mortar', 'mortar-ready', 'bt-attack', 'bt-fallback', 'bt-overtime', 'bt-deploy',
   'callin-ready', 'callin-map', 'callin-incoming'];

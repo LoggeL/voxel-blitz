@@ -3,10 +3,11 @@
 //
 // Tasks: every 2 Hz commander plan, each event's controller posts tasks per
 // team (`botTasks(team)`: {id, kind, point, pointKey?, radius, priority,
-// squad, range?, arrive?, until?}). `planMapEventTasks` books the nearest
+// squad, range?, arrive?, until?, kits?}). `planMapEventTasks` books the nearest
 // free bots for each task, highest priority first, up to its squad size:
 // bots on foot that crew no hull, ride no hitch and are not bound by a human
-// leader's order (unless the task's priority reaches HUMAN_ORDER_PRIORITY).
+// leader's order (unless the task's priority reaches HUMAN_ORDER_PRIORITY)
+// and, for a task with `kits`, carry one of those kits.
 // A booked bot keeps its task while it stays posted. Kinds:
 //   use     walk to the interaction point and hold the `use` intent (plant,
 //           defuse, turn the wheel, claim the crate) through the bots' support
@@ -107,6 +108,7 @@ export function planMapEventTasks(commander, ts, now) {
     const id = String(p.id);
     if (ts.crews?.has?.(id) || ts.hitches?.has?.(id)) return false;
     if (humanSquads.has(ts.memberSquad?.get(id)?.id) && task.priority < HUMAN_ORDER_PRIORITY) return false;
+    if (Array.isArray(task.kits) && !task.kits.includes(commander.kitOf(p))) return false;
     return flat(p, task.point) <= (task.range ?? TASK_RANGE);
   };
   const bots = commander.teamBrains(ts.team).map(br => commander.game.entities.get(String(br.id))).filter(Boolean);

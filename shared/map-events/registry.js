@@ -12,7 +12,7 @@ import { DEPOT_EVENT } from './depot.js';
 // slot weir (Frontier sluice gate):
 // import { WEIR_EVENT } from './weir.js';
 // slot relay (Frontier Signal Rock radio mast):
-// import { RELAY_EVENT } from './relay.js';
+import { RELAY_EVENT } from './relay.js';
 // slot elevator (Frontier Kestrel Halt grain elevator):
 // import { ELEVATOR_EVENT } from './elevator.js';
 // slot quarry (Frontier Aldric Quarry rockslide):
@@ -32,7 +32,7 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot weir:
   // WEIR_EVENT,
   // slot relay:
-  // RELAY_EVENT,
+  RELAY_EVENT,
   // slot elevator:
   // ELEVATOR_EVENT,
   // slot quarry:
