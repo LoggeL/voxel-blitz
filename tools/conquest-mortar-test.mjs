@@ -16,7 +16,7 @@ import { createMapState, getMapMeta } from '../shared/worlddata.js';
 import { mulberry32 } from '../shared/noise.js';
 import {
   CONQUEST_CONTRACT_VERSION, CONQUEST_EVENT_KINDS, CONQUEST_INTENT_SHAPE, DEPLOYABLE_TYPE_IDS, KITS, VEHICLE_TOPOLOGY,
-  VEHICLE_TYPE_IDS, VEHICLE_WEAPON_META, isDeployableType,
+  SCORE_CATEGORY_IDS, SCORE_POINTS, VEHICLE_TYPE_IDS, VEHICLE_WEAPON_META, isDeployableType,
 } from '../shared/conquest-contract.js';
 import { kitDeployable, kitGadget, KIT_GADGET_LABELS } from '../shared/conquest-kits.js';
 import {
@@ -175,6 +175,13 @@ eq(f.mortarEvents('s').at(-1).reason, 'state');
   const lost = f.mortarEvents('s').find(e => e.state === 'lost');
   ok(lost && lost.waitMs === MORTAR_RULES.lostCooldownMs, 'lost, with the cooldown');
   ok(f.events().some(e => e.kind === 'vehicle_destroyed' && e.vehicleId === m.id && e.attacker === 't'), 'the jeep driver gets the kill');
+  // A mortar is a gadget, not a vehicle: gadget_destroyed (50), no vehicle award, stat or ribbon progress.
+  f.step(Math.ceil(2000 / TICK_MS));
+  const paid = f.events().filter(e => e.kind === 'score' && e.id === 't');
+  eq(paid.filter(e => e.reason === 'gadget_destroyed').map(e => e.pts), [SCORE_POINTS.gadget_destroyed], 'the destroyer earns gadget_destroyed');
+  ok(!paid.some(e => ['vehicle_destroyed', 'vehicle_crew', 'vehicle_disabled', 'vehicle_damage'].includes(e.reason)), 'no vehicle points for a mortar');
+  eq(f.policy.score.statsRow('t')[1], 0, 'a mortar never counts as a vehicle destroyed');
+  eq(f.policy.score.categoryRow('t')[SCORE_CATEGORY_IDS.indexOf('vehicles')], 0, 'nothing in the vehicles category');
   Object.assign(s, { x: 60.5, y: 1, z: 60.5, yaw: 0, grounded: true });
   f.policy.conquestIntent(s, { type: 'mortar' });
   f.step();

@@ -1,4 +1,4 @@
-import { SCORE_CATEGORY_IDS, SCORE_POINTS, scoreCategory } from '../../../shared/conquest-contract.js';
+import { SCORE_CATEGORY_IDS, SCORE_POINTS, isDeployableType, scoreCategory } from '../../../shared/conquest-contract.js';
 import { VEHICLE_RULES } from '../../../shared/vehicles.js';
 
 /** Damage older than this no longer earns an assist. */
@@ -145,18 +145,31 @@ export class ScoreLedger {
     }
   }
 
-  /** Mode hook from the VehicleSystem: hits, disables and destructions. */
+  /**
+   * Mode hook from the VehicleSystem: hits, disables and destructions. A
+   * deployable (the Support mortar, DEPLOYABLE_TYPE_IDS) is a gadget, not a
+   * vehicle: its destroyer earns `gadget_destroyed` (like a Recon beacon), and
+   * its hits, disables and crew pay nothing extra (the operator's death is an
+   * ordinary kill), so a 150 HP emplacement that comes back after 20 s never
+   * pays like a tank or feeds the vehicle stat and the ANTI-VEHICLE ribbon.
+   */
   onVehicleEvent(kind, payload = {}) {
     const now = this.host.now();
     const vehicleId = payload?.vehicleId == null ? null : String(payload.vehicleId);
     if (!vehicleId) return;
     const attackerId = idOf(payload.attacker);
-    const vehicleTeam = this.host.vehicleFor(vehicleId)?.team ?? payload.team ?? null;
+    const hull = this.host.vehicleFor(vehicleId);
+    const vehicleTeam = hull?.team ?? payload.team ?? null;
+    const deployable = isDeployableType(payload.vehicleType ?? payload.type ?? hull?.type);
     const hostile = id => {
       const entity = id ? this.host.entity(id) : null;
       const team = entity ? this.host.teamFor(entity) : null;
       return !!entity && !!team && !!vehicleTeam && team !== vehicleTeam;
     };
+    if (deployable) {
+      if (kind === 'vehicle_destroyed' && hostile(attackerId)) this.award(attackerId, 'gadget_destroyed');
+      return;
+    }
     if (kind === 'vehicle_hit') {
       const dmg = Number(payload.dmg);
       if (!(dmg > 0) || payload.eff === 0 || !hostile(attackerId)) return;
