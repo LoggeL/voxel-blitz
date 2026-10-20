@@ -10,6 +10,7 @@ import { makeHelicopterModel } from '../vehicles/models/helicopter.js';
 import { makeTransportModel } from '../vehicles/models/transport.js';
 import { makePlaneModel } from '../vehicles/models/plane.js';
 import { makeMortarModel } from '../vehicles/models/mortar.js';
+import { makeFpvModel } from '../vehicles/models/fpv.js';
 import { makeBoatModel } from '../vehicles/models/boat.js';
 import { boatSwell } from '../../../shared/vehicle-handling/boat.js';
 import { JeepDriver } from '../vehicles/jeep-driver.js';
@@ -40,6 +41,8 @@ export const VEHICLE_MODEL_FACTORIES = Object.freeze({
   jeep_at: makeAtJeepModel, aa: makeAaModel, boat: makeBoatModel,
   // Support mortar (deployable, shared/mortar-rules.js).
   mortar: makeMortarModel,
+  // Engineer FPV drone (deployable, shared/fpv-rules.js).
+  fpv: makeFpvModel,
   // Titanfall walkers: the installed walker presentation picks the model (docs/titanfall.md §7).
   ...Object.fromEntries(TITAN_TYPES.map(type => [type, (options) => {
     if (!walkerPresentation) throw new Error(`vehicle-view: no walker presentation installed for ${type}`);
@@ -360,7 +363,8 @@ export class VehicleView {
     for (const item of this.items.values()) {
       const row = item.row; if (!row) continue;
       if (item.pendingDestruction) { this._billboard(item, camera); continue; }
-      const root = item.root, aircraft = isAircraftType(item.kind);
+      // The FPV drone flies like an aircraft: the row's pitch and roll tilt it.
+      const root = item.root, aircraft = isAircraftType(item.kind) || item.kind === 'fpv';
       // A predicted pose (own titan) is already smooth: it is presented as is.
       const predicted = item.walker && !item.wreck ? this.predicted.get(item.id) : null;
       if (predicted) root.position.set(predicted.x, predicted.y, predicted.z);

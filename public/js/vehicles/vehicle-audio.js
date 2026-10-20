@@ -19,6 +19,8 @@ export const VEHICLE_AUDIO = Object.freeze({
   turretRange: 40, turretFullRate: 0.9, turretHold: 0.2,
   // Wading: hull within the river corridor near the surface; jeep skid on hard turns.
   wadeRange: 70, wadeDepth: 2.6, skidSpeed: 7, skidYawRate: 1.1, skidCooldown: 2.5,
+  // FPV drone buzz: heard this far (the defender's warning).
+  droneRange: 80,
 });
 const AIRCRAFT = new Set(['helicopter', 'transport', 'plane']);
 const ROTORCRAFT = new Set(['helicopter', 'transport']);
@@ -141,6 +143,11 @@ export class VehicleAudio {
       const handling = def.handling;
       // A deployed mortar has no engine: no loop.
       if (handling === 'emplacement') continue;
+      // An FPV drone buzzes while its motors run (a cut link falls silent).
+      if (handling === 'drone') {
+        if (row.engineOn !== false && distance <= VEHICLE_AUDIO.droneRange) candidates.push({ row, id, pos, distance, speed, trackSpeed: 0, occupied: true, rotorSpeed: 1, enginePower: 1 });
+        continue;
+      }
       const flying = handling === 'rotor' || handling === 'fixedwing';
       if (handling === 'rotor' ? rotorSpeed <= 0.01
         : handling === 'fixedwing' ? !occupied || row.engineOn === false || enginePower <= 0.01

@@ -35,6 +35,7 @@ import { surfaceNavigation } from './bot-surface-nav.js';
 import { MEDIC_BOT_RULES, medicTrailMate, medicTrailSpot, reviveRunInTime } from './bot-medic.js';
 import { committedFlag, keepAttackOrder, passingFlag } from './bot-flag-flow.js';
 import { MORTAR_BOT_RULES } from '../shared/mortar-rules.js';
+import { FPV_BOT_RULES } from '../shared/fpv-rules.js';
 import { BOAT_PATROL, riverPatrolSlots } from './bot-boat-driving.js';
 import { avoidSpan, spanEscape } from './bot-bridge.js';
 import { goalOutOfHazards, hazardEscape, mapEventGoal, planMapEventTasks } from './bot-map-events.js';
@@ -1177,7 +1178,10 @@ export class BotCommander {
    * BEACON (0) and the MOTION SENSOR (1) by id hash, and one whose beacon still
    * stands keeps it (another gadget would take it down). A stable
    * MORTAR_BOT_RULES.share of the supports carries the mortar (1,
-   * server/bot-mortar.js). Other kits have no choice (0).
+   * server/bot-mortar.js). Of the engineers left on the AT launcher a stable
+   * FPV_BOT_RULES.share (ranked by id hash, at least one while two or more are
+   * left; a lone one by its id hash) takes the FPV drone (2, server/bot-fpv.js).
+   * Other kits have no choice (0).
    */
   gadgetFor(p) {
     if (this.kitFor(p) === 'recon') {
@@ -1188,15 +1192,21 @@ export class BotCommander {
     if (this.kitFor(p) !== 'engineer') return 0;
     const team = this.teamOf(p);
     const share = AA_ENGINEER_SHARE[Math.min(AA_ENGINEER_SHARE.length - 1, this.enemyAirThreat(team))];
-    if (!(share > 0)) return 0;
     const engineers = [];
     for (const o of this.game.entities.values()) {
       if (o.bot && this.teamOf(o) === team && this.kitFor(o) === 'engineer') engineers.push(String(o.id));
     }
     if (!engineers.includes(String(p.id))) engineers.push(String(p.id));
     engineers.sort((a, b) => stableHash(`${a}:aa`) - stableHash(`${b}:aa`) || (a < b ? -1 : 1));
-    const aa = Math.max(1, Math.round(engineers.length * share));
-    return engineers.indexOf(String(p.id)) < aa ? 1 : 0;
+    const aa = share > 0 ? Math.max(1, Math.round(engineers.length * share)) : 0;
+    const rank = engineers.indexOf(String(p.id));
+    if (rank < aa) return 1;
+    // The rest: FPV_BOT_RULES.share fly the drone (at least one while two or more remain), the others keep the AT launcher.
+    const rest = engineers.slice(aa).sort((a, b) => stableHash(`${a}:fpv`) - stableHash(`${b}:fpv`) || (a < b ? -1 : 1));
+    // A lone one (the team still filling up at the first deploy) rolls by its id hash.
+    if (rest.length < 2) return stableHash(`${p.id}:fpv`) % 1000 < FPV_BOT_RULES.share * 1000 ? 2 : 0;
+    const fpv = Math.max(1, Math.round(rest.length * FPV_BOT_RULES.share));
+    return rest.indexOf(String(p.id)) < fpv ? 2 : 0;
   }
 
   /** Support gadget: 1 (the mortar) for a stable share of the team's supports, ranked by id hash. */

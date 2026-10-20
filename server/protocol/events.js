@@ -220,6 +220,19 @@ export function evMortar(id, state, { vehicleId = null, reason = null, waitMs = 
     ...(reason ? { reason: String(reason) } : {}), ...(Number.isFinite(waitMs) ? { waitMs: Math.max(0, Math.round(waitMs)) } : {}) };
 }
 
+/**
+ * Engineer FPV drone (shared/fpv-rules.js): `launched` (vehicleId, drones `left`),
+ * `refused` (reason: state|kit|busy|empty|cooldown|blocked, waitMs), `cut`
+ * (reason: released|hit|battery|signal|lost: the drone falls, the fuse burns),
+ * `detonated` (pos), `lost` (shot down; `by`) or `removed` (taken off quietly).
+ */
+export function evFpv(id, state, { vehicleId = null, reason = null, waitMs = null, left = null, pos = null, by = null } = {}) {
+  return { t: 'ev', kind: 'fpv', id: String(id), state: String(state), ...(vehicleId != null ? { vehicleId: String(vehicleId) } : {}),
+    ...(reason ? { reason: String(reason) } : {}), ...(Number.isFinite(waitMs) ? { waitMs: Math.max(0, Math.round(waitMs)) } : {}),
+    ...(Number.isInteger(left) ? { left } : {}), ...(Array.isArray(pos) ? { pos: pos.map(n => Math.round(n * 100) / 100) } : {}),
+    ...(by ? { by: String(by) } : {}) };
+}
+
 /** `kind` is taken by the event kind, so the countermeasure type travels as `cm` (flares|smoke). */
 export function evCountermeasure(vehicleId, kind) {
   return { t: 'ev', kind: 'countermeasure', vehicleId: String(vehicleId), cm: String(kind) };

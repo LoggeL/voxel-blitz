@@ -26,7 +26,7 @@ import { Input } from './engine/input.js';
 import { HUD } from './ui/hud.js';
 import { bastionEventBanner } from './ui/bastion-hud.js';
 import { displaySettings } from './ui/display-settings.js';
-import { MAP_LABELS, weaponImagePath } from './ui/hud-support.js';
+import { DEPLOYABLE_ART, MAP_LABELS, weaponImagePath } from './ui/hud-support.js';
 import { mapAtmosphere } from './engine/map-atmosphere.js';
 import { GrenadePouchSessionController, WeaponWheelController } from './session/weapon-wheel-controller.js';
 import { RunHud } from './ui/run-hud.js';
@@ -122,7 +122,7 @@ class Game {
         // The Support's MORTAR takes the kit wheel's gadget segment.
         deployable: this.conquestDeployable(),
       }),
-      onDeployable: (id) => { if (id === 'mortar') this.requestMortar(); },
+      onDeployable: () => this.requestDeployable(),
     });
     this.grenadePouch = new GrenadePouchSessionController({
       input: this.input,
@@ -262,29 +262,37 @@ class Game {
   }
 
   /**
-   * Conquest digit 3 with a deployable gadget (the Support MORTAR): the key asks
-   * the server to place it (the `mortar` intent) instead of drawing a weapon.
-   * The server refuses with a `mortar` event when the kit or the ground says no.
+   * Conquest digit 3 with a deployable gadget (the Support MORTAR, the
+   * Engineer's FPV drone): the key asks the server to place or launch it (the
+   * `mortar` / `fpv` intent) instead of drawing a weapon. The server refuses
+   * with a `mortar` / `fpv` event when the kit or the ground says no.
    */
   conquestGadgetDigit(intents) {
     if (intents?.slot !== 2 || !this.conquestDeployable()) return intents;
-    this.requestMortar();
+    this.requestDeployable();
     return { ...intents, slot: null };
   }
 
-  /** The deployable gadget the own kit carries while alive on foot in Conquest ('mortar'), else null. */
+  /**
+   * The deployable gadget the own kit carries while alive on foot in Conquest
+   * ('mortar', 'fpv'), else null. Flying the drone it is 'fpv' (the key cuts the link).
+   */
   conquestDeployable() {
     if (this.matchState?.mode !== 'conquest' || this.vehicleController?.vehicle || this.selfRow?.state !== 'alive') return null;
+    if (this.fpvPilot?.active) return 'fpv';
     return this.conquestHud?.deployableFor?.(this.selfRow) ?? null;
   }
 
   /**
-   * Place the Support mortar: slot key 3, the kit wheel's MORTAR segment (mouse,
-   * pad Y hold, touch) and the touch MORTAR button all send this one intent.
+   * Place the Support mortar or launch / cut the Engineer's FPV drone: slot key
+   * 3, the kit wheel's gadget segment (mouse, pad Y hold, touch) and the touch
+   * MORTAR / FPV button all send this one intent.
    */
-  requestMortar() {
-    if (this.conquestDeployable() !== 'mortar') return false;
-    return !!this.net?.sendConquest({ mortar: 1 });
+  requestDeployable() {
+    const id = this.conquestDeployable();
+    if (id === 'mortar') return !!this.net?.sendConquest({ mortar: 1 });
+    if (id === 'fpv') return !!this.net?.sendConquest({ fpv: 1 });
+    return false;
   }
 
   /**
@@ -503,13 +511,14 @@ class Game {
       raycast: (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),
       cameraShake: this.cameraShake, getBaseFov: () => this.session.baseFov,
     });
+    this.fpvPilot = new rt.FpvPilot({ getBlock });
     this.conquestHud = new rt.ConquestHud(document.body, {
       mapId: this.mapMeta?.id ?? welcome.map,
       onInteract: () => this.session.gameplayInputEnabled && this.vehicleController?.queueInteract(),
       onDeploy: (choice) => this.net?.sendConquest({ deploy: choice }),
       onDeployOpen: () => this.input.exit(),
       onSpot: () => this.net?.sendConquest({ spot: 1 }),
-      onMortar: () => this.requestMortar(),
+      onMortar: () => this.requestDeployable(),
       onSupport: (intent) => this.net?.sendConquest({ support: intent }),
       // Comm rose picks and full-map squad orders (docs/conquest.md "Squad orders and the comm rose").
       onComm: (comm) => this.net?.sendConquest({ comm }),
@@ -848,11 +857,13 @@ class Game {
       this.player.physics.pilotRules = match?.mode === 'titanfall';
     }
     this.vehicleController?.sync({ self, vehicles: snapshot.vehicles, players: snapshot.players, enabled: match?.mode === 'conquest' || match?.mode === 'titanfall' });
+    // The own FPV drone in the air (Conquest Engineer): the camera and the keys go to it.
+    this.fpvPilot?.sync({ self, vehicles: snapshot.vehicles, myId: this.myId, enabled: match?.mode === 'conquest' && !this.vehicleController?.active });
     // Before this.serverNow advances: the tick's step is the authoritative clock delta.
     this.titanfall?.tick(snapshot, Number.isFinite(snapshot.serverNow) && Number.isFinite(this.serverNow)
       ? Math.max(0, (snapshot.serverNow - this.serverNow) / 1000) : 0);
     this.conquestHud?.update({ match, mapMeta: this.mapMeta, self, players, vehicles: snapshot.vehicles, camera: this.camera,
-      nearbyVehicle: this.vehicleController?.nearest, vehicleController: this.vehicleController,
+      nearbyVehicle: this.vehicleController?.nearest, vehicleController: this.vehicleController, fpvPilot: this.fpvPilot,
       nowMs: Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : undefined });
     this.objectiveCues?.syncMatch(match, self?.team, self);
     if (match?.mode === 'ttt') this.tttControls ??= new this.rt.TttControls(this);
@@ -1330,6 +1341,8 @@ class Game {
     this.conquestHud?.padInput({ pressed: pad?.pressed, held: pad?.held, blocked: !!this.hud.settingsOpen,
       scoped: this.vehicleController?.active !== true && !!this.weapon?.scopeActive });
     const seated = this.vehicleController?.active === true;
+    // Flying the FPV drone: the body stands still on the server, the keys and the look fly the drone.
+    const piloting = !seated && this.fpvPilot?.active === true;
     if (this._battlefieldFog && this.worldview?.scene.fog) {
       const row = this.vehicleController?.vehicle;
       const flying = seated && ['helicopter', 'transport', 'plane'].includes(row.type) && row.grounded === false;
@@ -1374,6 +1387,24 @@ class Game {
         this._seatReloadQueued = false;
       }
       // Drain infantry one-shot actions so leaving a seat cannot replay them.
+      for (const method of ['consumeQuickMelee', 'consumeMedkit', 'consumeFireTap',
+        'consumeWeaponSwitch', 'consumeWeaponSlot', 'consumeLastWeaponRequest', 'consumeGrenadeThrow']) this.input[method]?.();
+    } else if (piloting) {
+      this._vehicleControlSample = null;
+      this.input.cancelGrenade?.('vehicle');
+      const enabled = this.session.gameplayInputEnabled;
+      const controls = this.fpvPilot.controls(enabled ? this.input.getKeys() : {}, this.input.consumeDelta(),
+        enabled && this.input.wantFireHeld && this.matchState?.phase === 'live');
+      Object.assign(this.player.physics.vel, { x: 0, y: 0, z: 0 });
+      // A click shorter than the send interval still reaches the server as a trigger edge.
+      this._fpvFireLatch = this._fpvFireLatch || controls.wantFire;
+      if (now >= (this._vehicleSendAt || 0)) {
+        this._vehicleSendAt = now + 50;
+        this.net?.sendInput({ ...controls, wantFire: this._fpvFireLatch || controls.wantFire, weapon: this.weapon.slot });
+        this._fpvFireLatch = false;
+      }
+      // Slot key 3 again cuts the link (the drone drops and fires a second later).
+      if (enabled && this.input.consumeWeaponSlot?.() === 2) this.requestDeployable();
       for (const method of ['consumeQuickMelee', 'consumeMedkit', 'consumeFireTap',
         'consumeWeaponSwitch', 'consumeWeaponSlot', 'consumeLastWeaponRequest', 'consumeGrenadeThrow']) this.input[method]?.();
     } else {
@@ -1443,8 +1474,13 @@ class Game {
     // The vehicle camera applies the shake bus itself; the infantry camera applies it below.
     // Seated, the hulls are presented first so the camera rides this frame's
     // pose (a cockpit eye a frame behind a 100 m/s jet would sit metres back).
-    if (!seated) this.vehicleView?.setLocalView(null);
-    if (seated) {
+    if (!seated && !piloting) this.vehicleView?.setLocalView(null);
+    if (piloting) {
+      // The drone's own frame would fill the lens: it hides like a mount sight's hull.
+      this.vehicleView?.setLocalView({ id: this.fpvPilot.vehicleId, seatId: 'fpv', sight: true });
+      try { this.vehicleView?.update(dt, this.camera); } catch (error) { this.phaseError('fx/rig', error); }
+      this.fpvPilot.updateCamera(this.camera, this.vehicleView?.presentedRow(this.fpvPilot.vehicleId));
+    } else if (seated) {
       const sight = this.vehicleController.sightActive === true;
       const fp = sight || this.vehicleController.view?.firstPerson === true;
       this.vehicleView?.setLocalView(fp ? { id: this.vehicleController.vehicle?.id, seatId: this.vehicleController.seatId, sight } : null);
@@ -1465,7 +1501,8 @@ class Game {
     }
     // Markers and reticles follow the camera every frame; snapshots only ingest.
     this.conquestHud?.refresh({ camera: this.camera, nowMs: (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now)),
-      interactDown: !!this.player?.keys?.interact, chute: this.player?.alive ? this.player.physics.chutePrompt?.() ?? null : null });
+      interactDown: !!this.player?.keys?.interact, chute: this.player?.alive ? this.player.physics.chutePrompt?.() ?? null : null,
+      fpv: piloting ? this.fpvPilot.telemetry(this.player.physics.pos) : null });
     this.titanfall?.frame(dt, { camera: this.camera, nowMs: (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now)) });
     try {
       // Body velocity in the camera frame: +x strafing right, +z backing up. The rig uses
@@ -1508,7 +1545,7 @@ class Game {
         [flameDirection.x, flameDirection.y, flameDirection.z],
         [this.camera.position.x, this.camera.position.y, this.camera.position.z]);
       this.effects.update(dt, frameDt);
-      if (!seated) this.vehicleView?.update(dt, this.camera);
+      if (!seated && !piloting) this.vehicleView?.update(dt, this.camera);
       this.vehicleFx?.update(dt, this.camera);
       this.particleField?.update(dt, this.camera);
       this.vehicleDestructionFX?.update(dt);
@@ -1557,7 +1594,7 @@ class Game {
     this.syncDeviceInfo(now);
     if (this.rig?.root) {
       this.rig.root.visible = this.rt.shouldShowViewmodel({
-        spectating: spectating || dying || seated,
+        spectating: spectating || dying || seated || piloting,
         scopeActive: this.weapon?.scopeActive,
       });
     }
@@ -1706,6 +1743,7 @@ class Game {
     this._lastConsumedSnapSeq = null;
     this.titanfall?.dispose(); this.titanfall = null;
     this.vehicleController?.dispose(); this.vehicleController = null;
+    this.fpvPilot?.clear(); this.fpvPilot = null;
     this.vehicleView?.dispose(); this.vehicleView = null;
     this.vehicleDestructionFX?.dispose(); this.vehicleDestructionFX = null;
     this.vehicleFx?.dispose(); this.vehicleFx = null;
@@ -1987,6 +2025,7 @@ async function prefetchArt(report) {
   const urls = [...new Set([
     ...Object.keys(MAP_LABELS).map((map) => mapAtmosphere(map)?.skybox).filter(Boolean),
     ...WEAPON_IDS.map(weaponImagePath),
+    ...Object.values(DEPLOYABLE_ART),
     ...GRENADE_TYPE_IDS.map(grenadeIcon),
   ])];
   let done = 0;

@@ -200,6 +200,8 @@ function playerRow(p, nowMs) {
     row.cq = conquestPlayerRow(p, nowMs); row.cqs = conquestStatsRow(p);
     // A live comm rose request (shared/conquest-comms.js encodeCommField), only while one stands.
     if (Array.isArray(p.conquest.comm)) row.cqc = p.conquest.comm.slice();
+    // An FPV Engineer's drones left this life (shared/fpv-rules.js fpvDronesOf), only on his row.
+    if (Number.isInteger(p.conquest.fpv)) row.cqf = p.conquest.fpv;
   }
   if (isRecord(p.titanfall)) row.tf = encodeTitanfallPlayer(p.titanfall);
   if (p.bastion) { row.bastion = { ...p.bastion }; row.bastionUpgrades = { ...p.bastionUpgrades }; }

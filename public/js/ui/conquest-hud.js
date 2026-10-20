@@ -40,6 +40,7 @@ import {
   squadOrderModel, visibleRequests, withOrderRing,
 } from './conquest/comms-state.js';
 import { MortarSight, mortarBanner, mortarSightModel } from './conquest/mortar-sight.js';
+import { FpvFeed, fpvBanner, fpvFeedModel } from './conquest/fpv-feed.js';
 import { RibbonToast, ribbonToastEntry } from './conquest/ribbons.js';
 import { WeatherChip } from './conquest/weather-chip.js';
 import { bridgeBanner, bridgeChipBadge, bridgeMapModel, bridgeStateBanner } from './conquest/bridge-hud.js';
@@ -148,6 +149,9 @@ export class ConquestHud {
     this.vehiclePanel = new VehiclePanel(this.root);
     // Support mortar fire control (right edge, above the vehicle card) and its in-world impact ring.
     this.mortarSight = new MortarSight(this.root, { hints: `MOUSE AIM · RMB SNAP · LMB FIRE · ${bindingLabel('interact')} LEAVE` });
+    // Engineer FPV drone feed (docs/design/conquest/fpv/): the goggle view while the own drone flies.
+    // (Crouch lists every key bound to it; the hint names the last, C by default.)
+    this.fpvFeed = new FpvFeed(this.root, { hints: `MOUSE AIM · ${bindingLabel('forward')} FLY · ${bindingLabel('jump')} / ${String(bindingLabel('crouch')).split(' / ').pop()} CLIMB / SINK · LMB DETONATE · ${bindingLabel('slot3')} CUT` });
     this._watchVehiclePanel();
     this.interact = new InteractPrompt(this.root, { onInteract, onSupport });
     this.spotFlash = el('div', 'cq-spot-flash', this.root);
@@ -445,7 +449,9 @@ export class ConquestHud {
       // VIEW: the seat's next camera view, like V and the pad's D-pad down.
       case 'vehicleView': return this.seated ? !!this.vehicleController?.cycleView?.() : false;
       // MORTAR: a Support with the M-81 on foot places and mans it (the server checks kit and ground).
-      case 'mortar': return !this.dead && !this.seated && this.deployableFor(this.self) === 'mortar' ? this.onMortar() !== false : false;
+      // FPV: an Engineer with the drone launches it, or cuts the link of the one he flies.
+      case 'mortar': return !this.dead && !this.seated && (['mortar', 'fpv'].includes(this.deployableFor(this.self)) || this.fpvPilot?.active === true)
+        ? this.onMortar() !== false : false;
       default: return false;
     }
   }
@@ -453,7 +459,7 @@ export class ConquestHud {
   /** Conquest fields the integrator merges into the TouchControls context. */
   touchContextFields() {
     return conquestTouchFields({ active: this.active, dead: this.dead, deployOpen: this.deploy.open,
-      deploy: this.deploy.model, seated: this.seated, deployable: this.dead ? null : this.deployableFor(this.self),
+      deploy: this.deploy.model, seated: this.seated, deployable: this.dead ? null : this.deployableFor(this.self), piloting: !this.dead && this.fpvPilot?.active === true,
       viewLabel: this.seated ? viewButtonLabel(this.vehicleController?.viewState?.()) : '' });
   }
 
@@ -492,9 +498,11 @@ export class ConquestHud {
    * frame so screen-space markers and reticles track the camera between
    * snapshots). Values still come only from the last authoritative snapshot.
    */
-  refresh({ camera = undefined, nowMs = undefined, viewport = undefined, interactHeld = undefined, interactDown = undefined, chute = undefined } = {}) {
+  refresh({ camera = undefined, nowMs = undefined, viewport = undefined, interactHeld = undefined, interactDown = undefined, chute = undefined, fpv = undefined } = {}) {
     if (!this._lastArgs || !this.active) return;
     const args = { ...this._lastArgs };
+    // FPV drone telemetry (FpvPilot.telemetry), null while no own drone flies.
+    if (fpv !== undefined) args.fpv = fpv;
     // Predicted parachute prompt ('ready' / 'open', see chutePromptModel).
     if (chute !== undefined) args.chute = chute;
     if (camera !== undefined) args.camera = camera;
@@ -525,6 +533,7 @@ export class ConquestHud {
     if (mapMeta?.id && mapMeta.id !== this._overviewMap) { this._overviewMap = mapMeta.id; setOverviewMap(mapMeta.id); }
     this._lastArgs = args;
     if (vehicleController) this.vehicleController = vehicleController;
+    if (args.fpvPilot) this.fpvPilot = args.fpvPilot;
     const now = Number.isFinite(nowMs) ? nowMs : Date.now();
     this._lastNow = now;
     const wasHidden = this.root.hidden;
@@ -621,6 +630,9 @@ export class ConquestHud {
     }
     setData(this.root, 'seated', seated ? seated.row.type : '');
     setData(this.root, 'touch', String(touch));
+    const fpvFeed = living && !seated ? fpvFeedModel(args.fpv ?? null) : null;
+    this.fpvFeed.update(fpvFeed, { clockMs: clockNow() });
+    setData(this.root, 'fpv', String(!!fpvFeed));
 
     // Map event presenters' own HUD parts (a call-in's READY pill and full-map designator).
     mapEventHud({ hud: this, cq, self, selfTeam, leader: isSquadLeader(cq, self), living, touch, nowMs: now });
@@ -920,6 +932,11 @@ export class ConquestHud {
         if (banner) this.banners.push(banner, now);
         break;
       }
+      case 'fpv': {
+        const banner = fpvBanner(ev, selfId);
+        if (banner) this.banners.push(banner, now);
+        break;
+      }
       case 'kill': {
         // ADRENALINE only re-arms on an own kill: remember when the last one landed.
         if (selfId != null && String(ev.killer) === String(selfId) && String(ev.victim) !== String(selfId)) this._ownKillAt = now;
@@ -947,6 +964,7 @@ export class ConquestHud {
     this.deploy.setOpen(false);
     this.reticles.clear();
     this.mortarSight.hide();
+    this.fpvFeed.hide();
     this.markers.clear();
     this.ticker.clear();
     this.banners.clear();
@@ -1015,6 +1033,7 @@ export class ConquestHud {
     this.eventTarget?.removeEventListener?.('keyup', this._onKeyUp, true);
     this.eventTarget?.removeEventListener?.('blur', this._onBlur);
     this.healTick?.remove();
+    this.fpvFeed.dispose();
     this.root.remove();
   }
 }

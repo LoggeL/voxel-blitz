@@ -22,6 +22,7 @@ import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js
 import { evHit } from '../protocol/events.js';
 import { interruptMedkit } from '../sim/medkit.js';
 import { mortarIntent } from './conquest/mortar-intent.js';
+import { fpvField, fpvIntent, fpvLoadout, fpvOperating, fpvRemoveOwner, fpvRename } from './conquest/fpv-intent.js';
 import { IronBridge } from './conquest/bridge.js';
 import { MapEventSystem, mapEventsOptionFromEnv } from './conquest/map-events/system.js';
 import { MAP_EVENT_SUPPORT } from '../../shared/conquest-map-events.js';
@@ -417,6 +418,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.squadOrders.remove(id);
     this.comms.remove(id);
     this.reconGadgets.removeOwner(id);
+    fpvRemoveOwner(this, id);
     this.ribbons.remove(id);
     this.mapEvents.remove(id);
     if (entity) { this.score.detach(entity); this.roles.onRemove(entity); }
@@ -438,6 +440,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.comms.rename(priorId, id);
     this.reconGadgets.rename(priorId, id);
     this.mapEvents.rename(priorId, id);
+    fpvRename(this, priorId, id);
     return true;
   }
 
@@ -446,6 +449,7 @@ export class ConquestPolicy extends TdmPolicy {
     const entity = this._entity(player);
     this.squads.add(String(entity.id), this.teamFor(entity));
     this.reconGadgets.removeOwner(entity.id);
+    fpvRemoveOwner(this, entity.id);
     return true;
   }
 
@@ -458,6 +462,7 @@ export class ConquestPolicy extends TdmPolicy {
     dead.respawnAt = this.now + this.respawnDelay();
     this.deploy.onDeath(dead);
     this.bounds.clear(dead.id);
+    fpvRemoveOwner(this, dead.id);
     for (const row of this.ledger.charge(state.team, this.rules.deathTicketCost)) this._emit('ticket_low', row);
     this.score.onKill(dead, killer, context);
     this.ribbons.onDeath(dead.id);
@@ -519,9 +524,9 @@ export class ConquestPolicy extends TdmPolicy {
     return entity.state !== 'alive';
   }
 
-  /** No weapon fires under an open canopy or on the ejection seat. */
+  /** No weapon fires under an open canopy, on the ejection seat or while flying an FPV drone. */
   canFire(player) {
-    return !(this._entity(player)?.chute > 0) && super.canFire(player);
+    return !(this._entity(player)?.chute > 0) && !fpvOperating(this, this._entity(player)) && super.canFire(player);
   }
 
   canTimedRespawn(player) {
@@ -640,6 +645,8 @@ export class ConquestPolicy extends TdmPolicy {
     const issued = this.roles.applyLoadout(entity, kit, variant, gadget);
     // A Recon that comes back on another kit or gadget loses its beacon.
     if (issued) this.reconGadgets.onLoadout(entity, issued.kit, issued.gadget);
+    // The FPV Engineer's drones for this life (any drone of the last one goes).
+    fpvLoadout(this, entity, issued);
     return true;
   }
 
@@ -656,7 +663,7 @@ export class ConquestPolicy extends TdmPolicy {
   /**
    * `{type:'deploy', spawn, kit, variant, gadget}` | `{type:'spot'}` | `{type:'support', support, targetId}` |
    * `{type:'redeploy'}` | `{type:'comm', comm}` (a comm rose pick) | `{type:'order', flag}` (a full-map order, '' clears) |
-   * `{type:'mortar'}` (place the Support mortar).
+   * `{type:'mortar'}` (place the Support mortar) | `{type:'fpv'}` (launch or cut the Engineer's FPV drone).
    */
   conquestIntent(player, intent) {
     const entity = this._entity(player);
@@ -671,6 +678,7 @@ export class ConquestPolicy extends TdmPolicy {
       return this.roles.intent(entity, intent) === true;
     }
     if (intent.type === 'mortar' && this.phase === 'live') return mortarIntent(this, entity);
+    if (intent.type === 'fpv' && this.phase === 'live') return fpvIntent(this, entity);
     return false;
   }
 
@@ -803,6 +811,8 @@ export class ConquestPolicy extends TdmPolicy {
     fields.stats = this.score.statsRow(id);
     // A live comm rose request rides the requester's row as `cqc`.
     if (this.phase === 'live') fields.comm = this.comms.fieldOf(id);
+    // An FPV Engineer's drones left ride the row as `cqf` (shared/fpv-rules.js).
+    fields.fpv = fpvField(this, entity);
     return fields;
   }
 

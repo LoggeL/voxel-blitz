@@ -78,6 +78,8 @@ const BASE_PATHS = {
   sensor: 'M12 7c4.4 0 8 1.6 8 3.5v3c0 1.9-3.6 3.5-8 3.5s-8-1.6-8-3.5v-3C4 8.6 7.6 7 12 7zm0 2c-3.3 0-5.6 .9-5.6 1.5S8.7 12 12 12s5.6-.9 5.6-1.5S15.3 9 12 9z',
   // Support mortar: the tube raised over its baseplate, the bipod leg forward.
   mortar: 'M6.2 15.6L15.6 3.4l2.3 1.8-9.4 12.2zM3 18.2h10.5v2.3H3zM13.6 9.6l1.3-.8 4.6 9.4h-1.6zM12.2 11.8h1.5l-.6 6.4h-1.4z',
+  // Engineer FPV drone: the quad from above, four rotor discs on an X frame round the body.
+  fpv: 'M9.5 9.5h5v5h-5zM5.6 7 7 5.6 18.4 17 17 18.4zM17 5.6 18.4 7 7 18.4 5.6 17zM6 2.8a3.2 3.2 0 1 1 0 6.4a3.2 3.2 0 1 1 0-6.4zM18 2.8a3.2 3.2 0 1 1 0 6.4a3.2 3.2 0 1 1 0-6.4zM6 14.8a3.2 3.2 0 1 1 0 6.4a3.2 3.2 0 1 1 0-6.4zM18 14.8a3.2 3.2 0 1 1 0 6.4a3.2 3.2 0 1 1 0-6.4z',
   // Ribbons and medals (ribbons.js): a reticle, a flag on its pole and a shield.
   target: 'M11 2h2v3.1A7 7 0 0 1 18.9 11H22v2h-3.1A7 7 0 0 1 13 18.9V22h-2v-3.1A7 7 0 0 1 5.1 13H2v-2h3.1A7 7 0 0 1 11 5.1zm1 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4z',
   flag: 'M5 2h2v20H5zM8 3h11l-3 4 3 4H8z',
@@ -102,7 +104,7 @@ export const ICON_PATHS = Object.freeze({ ...BASE_PATHS, fire: BASE_PATHS.pyro, 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */
 export const KILL_KEY_ICONS = Object.freeze({
   tankAP: 'shell', tankHE: 'shell', coaxMG: 'mg', hmg: 'mg', doorMinigun: 'mg', planeCannon: 'autocannon',
-  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', guidedMissile: 'missile', towMissile: 'missile', jetBomb: 'bomb', mortarHE: 'mortar', flak35: 'autocannon', vehicle: 'roadkill', restricted: 'restricted',
+  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', guidedMissile: 'missile', towMissile: 'missile', jetBomb: 'bomb', mortarHE: 'mortar', fpv: 'fpv', flak35: 'autocannon', vehicle: 'roadkill', restricted: 'restricted',
   fall: 'fall', crash: 'crash', redeploy: 'redeploy', collapse: 'collapse',
   // Titanfall kill keys (docs/titanfall.md §2.3) on existing glyphs; WP5 may add titan glyphs later.
   splitter: 'mg', predatorClose: 'mg', predatorLong: 'mg', railgun: 'autocannon', t203: 'shell', leadwall: 'shell',

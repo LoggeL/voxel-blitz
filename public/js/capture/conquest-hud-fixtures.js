@@ -8,6 +8,7 @@ import { BREAKTHROUGH_RULES, FRONTIER_PLAN, KIT_IDS, VEHICLE_STATUS, vehicleMoun
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { encodeConquestFlag } from '../../../shared/conquest.js';
 import { mortarPitchForRange } from '../../../shared/mortar-rules.js';
+import { FPV_RULES, fpvSignal, fpvStatic } from '../../../shared/fpv-rules.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
 import { comebackHudFixtures } from './comeback-hud-fixtures.js';
@@ -89,12 +90,24 @@ function roster(self, more = []) {
   ];
 }
 
+/**
+ * FpvPilot.telemetry of the fixture drone (26 s battery, 24 m/s) over a link
+ * `distance` m long: the signal and the static from the shared curves, as the
+ * live feed reads them off the row's link length.
+ */
+export function fpvFixtureTelemetry(distance, { altitude = 22, occluded = false } = {}) {
+  const signal = fpvSignal(distance), noise = fpvStatic(distance, occluded);
+  return { battery: 0.64, seconds: 26, bars: signal.bars, maxBars: FPV_RULES.signal.bars, quality: signal.quality, degraded: signal.degraded,
+    speed: 24, altitude, distance, range: FPV_RULES.signal.range, noise: noise.level, tear: noise.tear, bleed: noise.bleed, drop: noise.drop,
+    left: 1, roll: 0.06, pitch: -0.32 };
+}
+
 /** A state: everything ConquestHud.update needs plus events to replay and capture hints. */
 function state(id, title, { selfTeam = 'alpha', self, players, vehicles = [], match, camera, events = [], dead = false, killer = null,
   bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null, career = null, viewStrip = null,
-  flight = null, aim = null, groundPlane = null, rose = null, mapCursor = null, toolKind = null } = {}) {
+  flight = null, aim = null, groundPlane = null, rose = null, mapCursor = null, toolKind = null, fpv = null } = {}) {
   return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch, career, viewStrip,
-    flight, aim, ...(groundPlane != null ? { groundPlane } : {}), ...(rose ? { rose } : {}), ...(mapCursor ? { mapCursor } : {}), ...(toolKind ? { toolKind } : {}) };
+    flight, aim, ...(groundPlane != null ? { groundPlane } : {}), ...(rose ? { rose } : {}), ...(mapCursor ? { mapCursor } : {}), ...(toolKind ? { toolKind } : {}), ...(fpv ? { fpv } : {}) };
 }
 
 /** Every HUD state the acceptance list names, in capture order. */
@@ -735,6 +748,22 @@ export function conquestHudFixtures({ map = 'frontier' } = {}) {
     out.push(state('mortar-ready', 'Support on foot · M-81 MORTAR ready to place', { self, players: roster(self), vehicles: [spottedTank],
       match: baseMatch(), selection: { kit: 'support', variant: 0, gadget: 1 },
       camera: cam(C.x - 24, GROUND + 1.6, C.z + 150, yawTo({ x: C.x - 24, z: C.z + 150 }, C)) }));
+  }
+  // Engineer FPV drone: 22 m over the field, 268 m from the crouched operator, closing on the spotted tank by C.
+  // `fpv` is FpvPilot.telemetry of that row (the battery from the row, the signal and the static from its link length).
+  // The kill feed shows an earlier drone's kill and a mate's mortar kill in the deployables' slot art.
+  {
+    const op = { x: C.x - 40, z: C.z + 260 }, tank = spottedTank;
+    const at = { x: tank.x - 40, z: tank.z + 60 }, yaw = yawTo(at, tank), up = 22;
+    const self = meAt(op.x, op.z, { cq: { squad: 1, kitId: 'engineer' }, cqf: 1, crouch: true });
+    const drone = vehicle('fpv-me', 'fpv', 'alpha', at.x, at.z, { y: GROUND + up, hp: 8, yaw, pitch: -0.18, roll: 0.1, speed: 24, own: 'me',
+      fpv: [64, 0, -32, 268, 0], mounts: [], st: VEHICLE_STATUS.engine });
+    out.push(state('fpv', 'Engineer FPV drone · 26 s battery · 3 / 4 signal · closing on the tank', { self, players: roster(self),
+      vehicles: [drone, spottedTank], match: baseMatch(), selection: { kit: 'engineer', variant: 0, gadget: 2 },
+      camera: { ...cam(at.x, GROUND + up + 0.14, at.z, yaw, Math.atan2(GROUND + 1 - (GROUND + up), Math.hypot(tank.x - at.x, tank.z - at.z))), fov: 104 },
+      fpv: fpvFixtureTelemetry(268, { altitude: up }),
+      events: [{ kind: 'kill', killer: 'me', victim: 'en1', w: 'fpv' }, { kind: 'kill', killer: 'sq2', victim: 'en2', w: 'mortarHE' },
+        { kind: 'fpv', id: 'me', state: 'launched', vehicleId: 'fpv-me', left: 1 }] }));
   }
   // 21. Breakthrough (docs/conquest.md, Breakthrough): WEST attacks, sector 1 (A B) fell, C is active, D E locked.
   const E = FRONTIER_PLAN.flags.find(f => f.id === 'E');

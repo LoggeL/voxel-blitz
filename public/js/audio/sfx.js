@@ -83,7 +83,9 @@ const vehicleLoops = new Map();
 const glaiveLoops = new Map();
 
 /** Bastion vehicle drones: sawtooth fundamental per hull; the walker adds a stride thud. */
-const VEHICLE_DRONE = Object.freeze({ buggy: 140, apc: 90, walker: 60, jeep: 115, tank: 48, boat: 130 });
+const VEHICLE_DRONE = Object.freeze({ buggy: 140, apc: 90, walker: 60, jeep: 115, tank: 48, boat: 130, fpv: 190 });
+/** FPV drone buzz (procedural, no bank): the motor pitch climbs this many Hz per m/s. */
+const FPV_BUZZ_HZ_PER_MS = 7;
 const VEHICLE_HOLD = 0.6;
 const VEHICLE_FADE = 0.3;
 const VEHICLE_LEVEL = 0.16;
@@ -1330,8 +1332,9 @@ export const sfx = {
         Number.isFinite(options?.speed) ? Math.abs(options.speed) : 0);
       const trackSpeed = Math.min(24, Math.max(speed, Math.abs(options?.trackSpeed || 0)));
       const rpm = ground ? 1 + speed / (kind === 'tank' ? 15 : 12) : 1;
-      const hz = (VEHICLE_DRONE[kind] ?? 100) * rpm;
-      let targetLevel = ground ? VEHICLE_LEVEL * (0.28 + Math.min(1, speed / 12) * 0.55) : VEHICLE_LEVEL;
+      const fpv = kind === 'fpv';
+      const hz = fpv ? VEHICLE_DRONE.fpv + speed * FPV_BUZZ_HZ_PER_MS : (VEHICLE_DRONE[kind] ?? 100) * rpm;
+      let targetLevel = ground ? VEHICLE_LEVEL * (0.28 + Math.min(1, speed / 12) * 0.55) : fpv ? VEHICLE_LEVEL * 0.7 : VEHICLE_LEVEL;
       // Conquest bank loops replace the drone once every layer has decoded; the
       // crew (self) hears its own hull in the head through the interior layers.
       const sampled = sampledVehicleReady(kind);
@@ -1361,11 +1364,12 @@ export const sfx = {
           osc.type = 'sawtooth';
           osc.frequency.value = hz;
           const sub = ctx.createOscillator();
-          sub.type = kind === 'tank' ? 'square' : 'triangle';
-          sub.frequency.value = kind === 'tank' ? 24 + trackSpeed * 2.8 : hz / 2;
+          sub.type = kind === 'tank' || fpv ? 'square' : 'triangle';
+          // The drone's second motor pair beats against the first: a rough, high buzz.
+          sub.frequency.value = kind === 'tank' ? 24 + trackSpeed * 2.8 : fpv ? hz * 1.02 : hz / 2;
           const filter = ctx.createBiquadFilter();
           filter.type = 'lowpass';
-          filter.frequency.value = kind === 'tank' ? 180 : kind === 'walker' ? 260 : 420;
+          filter.frequency.value = kind === 'tank' ? 180 : kind === 'walker' ? 260 : fpv ? 2600 : 420;
           filter.Q.value = 1.2;
           const gain = ctx.createGain();
           gain.gain.value = 0;
@@ -1398,7 +1402,7 @@ export const sfx = {
       for (const source of voice.sources ?? [voice.osc, voice.sub]) source.stop(voice.end + 0.05);
       if (!aircraft && !voice.sampled) {
         voice.osc.frequency.setTargetAtTime(hz, at, 0.12);
-        voice.sub.frequency.setTargetAtTime(kind === 'tank' ? 24 + trackSpeed * 2.8 : hz / 2, at, 0.12);
+        voice.sub.frequency.setTargetAtTime(kind === 'tank' ? 24 + trackSpeed * 2.8 : fpv ? hz * 1.02 : hz / 2, at, 0.12);
       }
       if (kind === 'walker' && !voice.sampled && at >= voice.thudAt) {
         voice.thudAt = at + 0.7;

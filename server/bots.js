@@ -51,6 +51,7 @@ import { ConquestVehicleDriving } from './bot-vehicle-driving.js';
 import { BotCommander, createBotDirector } from './bot-commander.js';
 import { ConquestAircraftDriving } from './bot-aircraft.js';
 import { ConquestMortarBots } from './bot-mortar.js';
+import { ConquestFpvBots } from './bot-fpv.js';
 import { TitanfallBots } from './bot-titanfall.js';
 import { BotRecon } from './bot-recon.js';
 import { mapEventShoot } from './bot-map-events.js';
@@ -391,6 +392,7 @@ class BotManager {
     this.aircraftDriving = new ConquestAircraftDriving(game, this);
     // Conquest Support bots with the mortar gadget (place, man and fire it).
     this.mortarBots = new ConquestMortarBots(game, this);
+    this.fpvBots = new ConquestFpvBots(game, this);
     // Titanfall pilots and titans (inert in every other mode).
     this.titanfall = new TitanfallBots(game, this);
     // Conquest Recon gadgets: lay the beacon, throw sensors, shoot enemy gadgets.
@@ -422,6 +424,7 @@ class BotManager {
     this.vehicleDriving.clear();
     this.aircraftDriving.clear();
     this.mortarBots.clear();
+    this.fpvBots.clear();
     this.titanfall.clear();
     if (this._unhook) { this._unhook(); this._unhook = null; }
     for (const br of this.brains) this.game.removeClient(br.id);
@@ -438,6 +441,7 @@ class BotManager {
     this.vehicleDriving.release(brain.id);
     this.aircraftDriving.release(brain.id);
     this.mortarBots.release(brain.id);
+    this.fpvBots.release(brain.id);
     this.titanfall.release(brain.id);
     this.brains.pop();
     return spawnInfo;
@@ -457,6 +461,7 @@ class BotManager {
       this.vehicleDriving.release(br.id);
       this.aircraftDriving.release(br.id);
       this.mortarBots.release(br.id);
+      this.fpvBots.release(br.id);
       this.titanfall.release(br.id);
       br.resetCombat();
       this.game.removeClient(br.id);
@@ -1160,6 +1165,7 @@ class BotManager {
 
     const vehicleIntent = (tf ? this.titanfall.think(br, p, goal, now, dtS, inp) : null)
       ?? (cq && !tf ? this.mortarBots.think(br, p, goal, now, dtS, inp) : null)
+      ?? (cq && !tf ? this.fpvBots.think(br, p, goal, now, dtS, inp) : null)
       ?? this.aircraftDriving.think(br, p, goal, now, dtS, inp)
       ?? this.vehicleDriving.think(br, p, goal, now, dtS, inp);
     if (vehicleIntent?.board) {
@@ -1887,15 +1893,17 @@ class BotManager {
     // the capacitor through the combat system when visual fire permission ends.
     if (p.charging && !canShoot) cancelCharge(p);
 
-    // Conquest map events: a launcher at a posted shoot target (a fuel tank with enemies around it), over the fight.
+    // Conquest map events: a launcher at a posted shoot target, over the fight.
     if (cq && !tf && combatAllowed && !inp.throwGrenade
         && mapEventShoot(this.game, br, p, inp, now, dtS, ownedSlots, turnRate, pitchTurnRate, this.game.mode.teamFor?.(p) ?? p.team)) {
       moving = false; br.moveWish = null;
       inp.keys.f = inp.keys.b = inp.keys.l = inp.keys.r = false;
       inp.keys.sprint = false;
-    // Conquest: with nobody to fight, an enemy spawn beacon or motion sensor in sight is shot.
-    } else if (cq && !tf && combatAllowed && !fightNow && !objectiveUrgent && !inp.throwGrenade
-        && this.recon.shoot(br, p, inp, now, dtS, ownedSlots, turnRate, pitchTurnRate)) {
+    // Conquest: an enemy FPV drone in reach is shot down (even mid-fight when it is close);
+    // with nobody to fight, an enemy spawn beacon or motion sensor in sight is shot.
+    } else if (cq && !tf && combatAllowed && !inp.throwGrenade
+        && ((!objectiveUrgent && this.fpvBots.shoot(br, p, inp, now, dtS, ownedSlots, turnRate, pitchTurnRate, fightNow))
+          || (!fightNow && !objectiveUrgent && this.recon.shoot(br, p, inp, now, dtS, ownedSlots, turnRate, pitchTurnRate)))) {
       moving = false; br.moveWish = null;
       inp.keys.f = inp.keys.b = inp.keys.l = inp.keys.r = false;
       inp.keys.sprint = false;

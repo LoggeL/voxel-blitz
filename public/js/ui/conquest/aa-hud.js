@@ -12,6 +12,7 @@ import { VEHICLE_WEAPON_META, vehicleStatus } from '../../../../shared/conquest-
 import { isAircraftType } from '../../../../shared/vehicle-defs.js';
 import { AA_RADAR } from '../../../../shared/vehicle-handling/aa.js';
 import { angleTo, leadPoint } from './projection.js';
+import { FPV_RULES } from '../../../../shared/fpv-rules.js';
 
 const AMBER = '#ffcf5c', WHITE = '#f4f7f9', RED = '#ff4b4b', GREEN = '#7ef29a', CYAN = '#4cc3ff', ORANGE = '#ff8a3d';
 const SCOPE = '#7ef29a', SCOPE_DIM = '#7ef29a55', SCOPE_FAINT = '#7ef29a26', SCOPE_GLASS = '#04140bd0';
@@ -27,6 +28,11 @@ export function rowAirborne(row) {
   return row.st != null && !vehicleStatus(row).grounded;
 }
 
+/** A live FPV drone row: the radar paints it only inside FPV_RULES.radarRange (small, low and slow). */
+const droneRow = row => row?.type === FPV_RULES.type && row.hp > 0;
+/** Radar reach for one contact row. */
+const radarReach = row => (droneRow(row) ? Math.min(FPV_RULES.radarRange, AA_RADAR.range) : AA_RADAR.range);
+
 /**
  * Radar picture around an AA hull: every airborne aircraft within
  * AA_RADAR.range of `origin` (default the hull), nearest first, at most
@@ -41,9 +47,9 @@ export function aaRadarModel(row, vehicles, { selfTeam = null, viewYaw = null, o
   const view = Number.isFinite(viewYaw) ? viewYaw : turret;
   const contacts = [];
   for (const v of vehicles || []) {
-    if (!v || v.id === row.id || !rowAirborne(v)) continue;
+    if (!v || v.id === row.id || (!rowAirborne(v) && !droneRow(v))) continue;
     const dx = v.x - o[0], dz = v.z - o[2], range = Math.hypot(dx, finite(v.y) - o[1], dz);
-    if (!(range <= AA_RADAR.range)) continue;
+    if (!(range <= radarReach(v))) continue;
     const bearing = Math.atan2(-dx, -dz);
     contacts.push({ id: String(v.id), type: v.type, team: v.team ?? null, enemy: selfTeam != null && v.team != null && v.team !== selfTeam,
       rel: wrap(bearing - view), range: Math.round(range), altitude: Math.round(finite(v.y) - o[1]) });
@@ -62,9 +68,9 @@ export function aaTrackTarget(row, pose, vehicles, selfTeam) {
   if (!pose?.origin || !pose?.dir) return null;
   let best = null, bestAngle = AA_RADAR.trackCone;
   for (const v of vehicles || []) {
-    if (!v || v.id === row?.id || !rowAirborne(v) || v.team == null || v.team === selfTeam) continue;
+    if (!v || v.id === row?.id || (!rowAirborne(v) && !droneRow(v)) || v.team == null || v.team === selfTeam) continue;
     const point = [v.x, finite(v.y), v.z];
-    if (Math.hypot(point[0] - pose.origin[0], point[1] - pose.origin[1], point[2] - pose.origin[2]) > AA_RADAR.range) continue;
+    if (Math.hypot(point[0] - pose.origin[0], point[1] - pose.origin[1], point[2] - pose.origin[2]) > radarReach(v)) continue;
     const angle = angleTo(pose.dir, pose.origin, point);
     if (angle < bestAngle) { bestAngle = angle; best = v; }
   }

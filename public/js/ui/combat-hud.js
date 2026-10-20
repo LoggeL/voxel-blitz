@@ -11,6 +11,7 @@ import {
   resolveKey,
   weaponImagePath,
   isVehicleKillKey,
+  DEPLOYABLE_KILL_ART,
 } from './hud-support.js';
 import { KILL_KEY_ICONS, svgIcon } from './conquest/icons.js';
 import { TITAN_LABELS } from '../../../shared/titan-contract.js';
@@ -26,7 +27,7 @@ const KILLMARK_MS = 520;
 
 const EMPTY = Object.freeze({});
 const VEHICLE_TYPE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP',
-  aa: 'MOBILE AA', mortar: 'MORTAR', boat: 'PATROL BOAT' });
+  aa: 'MOBILE AA', mortar: 'MORTAR', boat: 'PATROL BOAT', fpv: 'FPV DRONE' });
 const TITANFALL_MINION_ID = /^tfg\d+$/;
 /** Armour hit confirmations: yellow when the hit did damage, a white spark when the armour shrugged it off. */
 const ARMOR_MARKS = Object.freeze({ armor: 'vb-armor-hit', spark: 'vb-armor-spark' });
@@ -150,7 +151,14 @@ export class CombatHudController {
     const weaponKey = resolveKey(ev.w);
     const throwable = !!(weaponKey && THROWABLE_NAMES[weaponKey]);
     const weapon = el('span', `kf-weapon kf-weapon-${weaponKey || 'world'}`, row);
-    if (isVehicleKillKey(weaponKey)) {
+    if (DEPLOYABLE_KILL_ART[weaponKey]) {
+      // The FPV drone and the mortar shell: the deployable's slot art, tinted like the weapons'.
+      const icon = el('img', 'kf-weapon-icon vb-weapon-art', weapon);
+      icon.src = DEPLOYABLE_KILL_ART[weaponKey];
+      icon.dataset.weaponId = weaponKey;
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+    } else if (isVehicleKillKey(weaponKey)) {
       // Mounted weapons, roadkills and the restricted-area timer have no slot art.
       const icon = svgIcon(globalThis.document, KILL_KEY_ICONS[weaponKey], 'kf-vehicle-icon');
       if (icon) weapon.appendChild(icon);

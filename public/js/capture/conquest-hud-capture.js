@@ -12,7 +12,7 @@ import { readConquest, seatedVehicle, vehiclePanelModel } from '../ui/conquest-h
 import { KIT_IDS, KITS, seatWeaponList } from '../../../shared/conquest-contract.js';
 import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
-import { conquestHudFixtures, fixtureMapMeta, FIXTURE_NOW } from './conquest-hud-fixtures.js';
+import { conquestHudFixtures, fixtureMapMeta, fpvFixtureTelemetry, FIXTURE_NOW } from './conquest-hud-fixtures.js';
 import { WeaponWheelController as WheelSession } from '../session/weapon-wheel-controller.js';
 import { wheelAngleForSlot } from '../ui/weapon-wheel.js';
 import { kitDeployable, kitLoadout } from '../../../shared/conquest-kits.js';
@@ -101,9 +101,11 @@ function applyOrderStates(hud, state) {
   if (state.toolKind) hud.bigMap.tool?.setKind?.(state.toolKind);
 }
 
-async function render(id, { touch: touchMode = false } = {}) {
-  const state = fixtures.find(f => f.id === id);
-  if (!state) throw new Error(`unknown fixture ${id}`);
+/** `linkM` re-flies an FPV fixture over that link length (the static captures at several distances). */
+async function render(id, { touch: touchMode = false, linkM = null } = {}) {
+  const fixture = fixtures.find(f => f.id === id);
+  if (!fixture) throw new Error(`unknown fixture ${id}`);
+  const state = fixture.fpv && Number.isFinite(linkM) ? { ...fixture, fpv: fpvFixtureTelemetry(linkM, { altitude: fixture.fpv.altitude }) } : fixture;
   const h = ensureHud();
   conquest?.dispose();
   h.setScoreboard?.(false);
@@ -143,6 +145,8 @@ async function render(id, { touch: touchMode = false } = {}) {
   }
   const args = { match: state.match, mapMeta, self: state.self, players: state.players, vehicles: state.vehicles, camera,
     nearbyVehicle: state.nearbyVehicle, nowMs: FIXTURE_NOW, interactHeld: state.interactHeld, viewport: { width, height },
+    // An FPV fixture flies the own drone: its telemetry and an active pilot (the touch CUT face).
+    fpv: state.fpv ?? null, fpvPilot: { active: !!state.fpv },
     // A fixture's camera view strip shows as if V was just pressed.
     // (A tank periscope fixture also carries the gun's aim, as VehicleController.yaw / pitch.)
     ...(state.viewStrip ? { vehicleController: { viewState: () => ({ ...state.viewStrip, changedAt: performance.now() }),

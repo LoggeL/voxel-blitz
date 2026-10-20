@@ -93,7 +93,7 @@ const TICK = 1000 / 60;
 
 // ------------------------------------------------- engineer gadget choice --
 {
-  assert.deepEqual(KITS.engineer.gadgets, ['rocket', 'stinger'], 'the engineer picks the AT launcher or the STINGER');
+  assert.deepEqual(KITS.engineer.gadgets, ['rocket', 'stinger', 'fpv'], 'the engineer picks the AT launcher or the STINGER');
   assert.equal(KITS.engineer.gadget, 'rocket', 'the AT launcher stays the default gadget');
   for (const kit of ['assault', 'medic']) {
     assert.equal(normalizeGadget(kit, 1), 0, `${kit} has no gadget choice`);

@@ -8,16 +8,16 @@ import { ARMOR_CLASSES, DAMAGE_CLASSES, HIT_ZONES } from './conquest-contract.js
  * .50, half the autocannon and HE of a jeep, full AT on its facing zones.
  */
 export const ARMOR_MATRIX = Object.freeze({
-  small:      Object.freeze({ light: 0.2, heavy: 0,    air: 0.08, medium: 0.03 }),
-  mg:         Object.freeze({ light: 0.6, heavy: 0,    air: 0.3,  medium: 0.1 }),
-  hmg:        Object.freeze({ light: 1,   heavy: 0.03, air: 0.6,  medium: 0.3 }),
-  autocannon: Object.freeze({ light: 1,   heavy: 0.12, air: 1,    medium: 0.45 }),
-  explosive:  Object.freeze({ light: 0.8, heavy: 0.12, air: 0.5,  medium: 0.35 }),
-  he:         Object.freeze({ light: 1,   heavy: 0.35, air: 1,    medium: 0.6 }),
-  at:         Object.freeze({ light: 1,   heavy: 1,    air: 0.8,  medium: 1 }),
-  aa:         Object.freeze({ light: 0.3, heavy: 0.1,  air: 1,    medium: 0.2 }),
+  small:      Object.freeze({ light: 0.2, heavy: 0,    air: 0.08, medium: 0.03, drone: 1 }),
+  mg:         Object.freeze({ light: 0.6, heavy: 0,    air: 0.3,  medium: 0.1, drone: 1 }),
+  hmg:        Object.freeze({ light: 1,   heavy: 0.03, air: 0.6,  medium: 0.3, drone: 1 }),
+  autocannon: Object.freeze({ light: 1,   heavy: 0.12, air: 1,    medium: 0.45, drone: 1 }),
+  explosive:  Object.freeze({ light: 0.8, heavy: 0.12, air: 0.5,  medium: 0.35, drone: 1 }),
+  he:         Object.freeze({ light: 1,   heavy: 0.35, air: 1,    medium: 0.6, drone: 1 }),
+  at:         Object.freeze({ light: 1,   heavy: 1,    air: 0.8,  medium: 1, drone: 1 }),
+  aa:         Object.freeze({ light: 0.3, heavy: 0.1,  air: 1,    medium: 0.2, drone: 1 }),
   // Fire is a damage-per-second dose, scaled by this factor.
-  fire:       Object.freeze({ light: 0.3, heavy: 0,    air: 0,    medium: 0.1 }),
+  fire:       Object.freeze({ light: 0.3, heavy: 0,    air: 0,    medium: 0.1, drone: 1 }),
 });
 
 /**

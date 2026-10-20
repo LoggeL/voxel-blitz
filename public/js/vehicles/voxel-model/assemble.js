@@ -9,7 +9,7 @@ import { addFrontFaces, createPaletteResolver, instancedVehicleMaterial } from '
 
 const geometryCache = new Map();
 const resolvers = new Map();
-const SEEDS = Object.freeze({ jeep: 3, tank: 7, helicopter: 11, transport: 13, plane: 17, jeep_at: 3, mortar: 19, aa: 19, boat: 19 });
+const SEEDS = Object.freeze({ jeep: 3, tank: 7, helicopter: 11, transport: 13, plane: 17, jeep_at: 3, mortar: 19, aa: 19, boat: 19, fpv: 23 });
 
 function resolverFor(type, team) {
   const key = `${type}|${team}`;

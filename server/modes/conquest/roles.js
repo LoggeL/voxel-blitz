@@ -23,6 +23,7 @@ import { infantryDamageClass } from '../../../shared/vehicle-armor.js';
 import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import * as sharedVehicles from '../../../shared/vehicles.js';
 import { ConquestSpotting } from './spotting.js';
+import { fpvResupply } from './fpv-intent.js';
 
 const DEFAULT_MAX_HP = 100;
 const DEFAULT_HULL_REACH = 3;
@@ -771,7 +772,9 @@ export class ConquestRoles {
         const gadgetRound = now - mateState.lastGadgetRefillAt >= KIT_ROLE_RULES.gadgetResupplyMs;
         const given = applyResupply(mate, mateState.kit, mateState.variant, mateState.gadget, { gadgetRound });
         if (given.gadget) mateState.lastGadgetRefillAt = now;
-        if (!given.reserve && !given.grenade && !given.gadget) continue;
+        // An FPV Engineer gets a drone back (FPV_RULES.resupplyMs apart, server/sim/fpv-drones.js).
+        const drone = fpvResupply(this.policy, mate, now);
+        if (!given.reserve && !given.grenade && !given.gadget && !drone) continue;
         mateState.lastRefilledAt = now;
         if (mate === supporter || idOf(mate) === idOf(supporter)) continue;
         const last = state.resupplyAwards.get(idOf(mate)) ?? -Infinity;

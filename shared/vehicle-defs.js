@@ -18,6 +18,7 @@ import { HELICOPTER_RULES } from './vehicle-handling/helicopter.js';
 import { TRANSPORT_RULES } from './vehicle-handling/transport.js';
 import { PLANE_RULES } from './vehicle-handling/plane.js';
 import { BOAT_RULES } from './vehicle-handling/boat.js';
+import { FPV_RULES } from './fpv-rules.js';
 
 const freeze = value => {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -50,7 +51,7 @@ export const VEHICLE_LIFECYCLE = freeze({
 });
 
 /** Hull mass in tonnes: momentum transfer when a hull shoves a wreck. */
-export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, mortar: 0.12, aa: 30, boat: 3.5,
+export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, mortar: 0.12, aa: 30, boat: 3.5, fpv: 0.002,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, TITAN_DEFS_INPUT[type].mass])) });
 
 /**
@@ -393,6 +394,9 @@ const handlingRules = {
   // Deployed, never respawned at a pad (server/sim/mortars.js removes the wreck).
   mortar: { hp: 150, respawnSeconds: Infinity, enterDistance: 2.6, radius: 0.75, height: 1.15, maxStep: 0.5, maxSlope: 0.6, speed: 0 },
   boat: { ...BOAT_RULES, hp: 360, respawnSeconds: 20, enterDistance: 5 },
+  // Deployed and flown by its operator (server/sim/fpv-drones.js), never boarded or respawned.
+  fpv: { hp: FPV_RULES.hp, respawnSeconds: Infinity, enterDistance: 0, radius: 0.4, height: 0.3, maxStep: 0, maxSlope: 0,
+    speed: FPV_RULES.flight.topSpeed, gravity: FPV_RULES.flight.gravity },
 };
 /**
  * openCrew: the hull is an open cab (jeep) or open cabin (transport doors), so a
@@ -413,6 +417,9 @@ const shapes = {
   mortar: { handling: 'emplacement', armor: 'light', openCrew: true, crewSurvives: true, deployable: true, collider: { halfWidth: 0.45, halfLength: 0.55 } },
   // Floats (shared/vehicle-handling/boat.js, server/sim/boat.js): an open fibreglass hull, light armour.
   boat: { handling: 'boat', armor: 'light', openCrew: true, collider: { halfWidth: 1.25, halfLength: 3.4 } },
+  // The FPV drone: a 0.7 m frame (a little over the drawn props, so rounds can find it) that
+  // flies itself (handling 'drone'), blocks no hull and breaks to any round (armour 'drone').
+  fpv: { handling: 'drone', armor: 'drone', openCrew: false, deployable: true, collider: { halfWidth: 0.36, halfLength: 0.36 } },
 };
 /** Wreck blasts keep terrain intact so cover survives chain reactions. */
 const destruction = {
@@ -424,6 +431,8 @@ const destruction = {
   plane: { radius: 10, damage: 200, damageFalloffExponent: 1.22 },
   mortar: { radius: 3, damage: 40, damageFalloffExponent: 1.22 },
   boat: { radius: 7, damage: 140, damageFalloffExponent: 1.22 },
+  // A drone shot down only pops: the shaped charge fires on impact or the trigger (shared/fpv-rules.js).
+  fpv: { radius: 1.5, damage: 20, damageFalloffExponent: 1.22 },
 };
 
 /** Titan definitions (docs/titanfall.md §2.5) from TITAN_DEFS_INPUT. */
@@ -488,6 +497,8 @@ export function vehicleDef(value) {
   return typeof type === 'string' && Object.hasOwn(VEHICLE_DEFS, type) ? VEHICLE_DEFS[type] : null;
 }
 export const isAircraftType = value => ['rotor', 'fixedwing'].includes(vehicleDef(value)?.handling);
+/** The Engineer's FPV drone (handling 'drone', shared/fpv-rules.js). */
+export const isDroneType = value => vehicleDef(value)?.handling === 'drone';
 /** Static emplacements (the Support mortar): handling 'emplacement'. */
 export const isEmplacementType = value => vehicleDef(value)?.handling === 'emplacement';
 /** Titan walkers (handling 'walker'). */

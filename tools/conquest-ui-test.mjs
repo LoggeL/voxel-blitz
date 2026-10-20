@@ -25,7 +25,7 @@ const { FlightHint, FLIGHT_HINT, flightHintItems } = await import('../public/js/
 const { declutter } = await import('../public/js/ui/conquest/big-map.js');
 const { KILL_KEY_ICONS, ICON_PATHS } = await import('../public/js/ui/conquest/icons.js');
 const { conquestHudFixtures, fixtureMapMeta, FIXTURE_NOW } = await import('../public/js/capture/conquest-hud-fixtures.js');
-const { WEAPON_NAMES, VEHICLE_KILL_KEYS, isVehicleKillKey } = await import('../public/js/ui/hud-support.js');
+const { WEAPON_NAMES, VEHICLE_KILL_KEYS, DEPLOYABLE_KILL_ART, isVehicleKillKey } = await import('../public/js/ui/hud-support.js');
 const { CombatHudController } = await import('../public/js/ui/combat-hud.js');
 const { Scoreboard, groupBySquad, squadName } = await import('../public/js/ui/scoreboard.js');
 const { MatchResultOverlay } = await import('../public/js/ui/match-result-overlay.js');
@@ -47,7 +47,7 @@ const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restor
   'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'bridge-failing', 'bridge-down', 'relay-held', 'relay-enemy',
   'relay-failing', 'elevator-warning', 'elevator-down', 'weir-flooded', 'weir-flooded-map', 'deploy', 'deploy-refused', 'deploy-classes',
   'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'recon-deploy', 'recon-sensor', 'ribbon', 'ribbon-banner', 'deploy-vehicles',
-  'weather-storm', 'weather-fog', 'scoreboard', 'result', 'result-medals', 'orders-rose', 'orders-chip', 'orders-map', 'mortar', 'mortar-ready',
+  'weather-storm', 'weather-fog', 'scoreboard', 'result', 'result-medals', 'orders-rose', 'orders-chip', 'orders-map', 'mortar', 'mortar-ready', 'fpv',
   'bt-attack', 'bt-fallback', 'bt-overtime', 'bt-deploy', 'callin-ready', 'callin-map', 'callin-incoming', 'airdrop-inbound', 'airdrop-map',
   'airdrop-claim', 'airdrop-claimed', 'depot-chain', 'depot-ablaze', 'quarry-warning', 'quarry-plunger', 'quarry-done'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
@@ -642,7 +642,9 @@ function quietCombat(domParts) {
     const row = kf.firstChild;
     assert.ok(!row.textContent.includes('ENVIRONMENT'), `${key}: no ENVIRONMENT kill-feed row`);
     assert.ok(row.textContent.includes(WEAPON_NAMES[key]), `${key}: row names ${WEAPON_NAMES[key]}`);
-    if (key !== 'rocket') assert.equal(row.querySelectorAll('.kf-vehicle-icon').length, 1, `${key}: vector icon`);
+    // The drone's charge and the mortar shell show the deployables' slot art instead.
+    if (DEPLOYABLE_KILL_ART[key]) assert.equal(row.querySelector('.kf-weapon-icon')?.src, DEPLOYABLE_KILL_ART[key], `${key}: slot art`);
+    else if (key !== 'rocket') assert.equal(row.querySelectorAll('.kf-vehicle-icon').length, 1, `${key}: vector icon`);
   }
   combat.vehicleDestroyed({ kind: 'vehicle_destroyed', vehicleId: 'bravo-tank', type: 'tank', attacker: 'me', assists: [], crewKilled: 2 });
   const destroyed = kf.querySelectorAll('.kf-vehicle-destroyed').at(-1);

@@ -37,7 +37,7 @@ export const CQ_COLORS = Object.freeze({
   spotted: '#ff4b4b', down: '#ff6b6b', contested: '#ffd166',
 });
 export const VEHICLE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP',
-  aa: 'MOBILE AA', mortar: 'MORTAR', boat: 'PATROL BOAT' });
+  aa: 'MOBILE AA', mortar: 'MORTAR', boat: 'PATROL BOAT', fpv: 'FPV DRONE' });
 const ROLE_LABELS = Object.freeze({ driver: 'DRIVER', pilot: 'PILOT', gunner: 'GUNNER', passenger: 'PASSENGER' });
 const SEAT_LABELS = Object.freeze({
   driver: 'DRIVER', gunner: 'GUNNER', commander: 'COMMANDER', 'front-passenger': 'PASSENGER', 'rear-left': 'REAR LEFT',
@@ -1355,8 +1355,8 @@ export function killerCard(ev, selfId, players = []) {
 
 /** A primary's or gadget's name: weapons by the weapon name, the rest (pouch gadgets, the mortar, none) by KIT_GADGET_LABELS. */
 const KIT_WEAPON_LABEL = id => WEAPON_NAMES[id] || KIT_GADGET_LABELS[id]?.name || String(id || '').toUpperCase();
-/** Gadget index valid for a kit: 1 only where the kit offers a second gadget. */
-export const kitGadgetIndex = (kit, gadget) => (gadget === 1 && (KITS[kit]?.gadgets?.length ?? 0) > 1 ? 1 : 0);
+/** Gadget index valid for a kit: 1 or 2 only where the kit offers that many gadgets (the Engineer's FPV is 2). */
+export const kitGadgetIndex = (kit, gadget) => (Number.isInteger(gadget) && gadget > 0 && gadget < (KITS[kit]?.gadgets?.length ?? 0) ? gadget : 0);
 /**
  * Kit cards for the picker; variant 0/1 selects the primary and `gadget` 0/1
  * the gadget of kits that offer a choice (Engineer: AT launcher or STINGER;
@@ -1582,7 +1582,7 @@ export function chutePromptModel(state) {
 export const CONQUEST_TOUCH_DEFAULTS = Object.freeze({
   conquest: false, deployOpen: false, deployValid: true, deployLabel: 'DEPLOY',
   vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false, vehicleViewCount: 0,
-  vehicleViewLabel: '', canMortar: false,
+  vehicleViewLabel: '', canMortar: false, mortarLabel: 'MORTAR',
 });
 
 /**
@@ -1590,12 +1590,14 @@ export const CONQUEST_TOUCH_DEFAULTS = Object.freeze({
  * this into one persistent context object, so an omitted key would keep a
  * stale value from an earlier seat or deploy screen.
  */
-export function conquestTouchFields({ active = false, dead = false, deployOpen = false, deploy = null, seated = null, viewLabel = '', deployable = null } = {}) {
+export function conquestTouchFields({ active = false, dead = false, deployOpen = false, deploy = null, seated = null, viewLabel = '', deployable = null, piloting = false } = {}) {
   const fields = { ...CONQUEST_TOUCH_DEFAULTS };
   if (!active) return fields;
   fields.conquest = true;
   // MORTAR button: alive on foot with the Support's M-81 picked (`deployable` from the kit and gadget).
-  fields.canMortar = !dead && !seated?.row && deployable === 'mortar';
+  // The Engineer's FPV drone takes the same button: FPV launches, CUT (while flying) drops it.
+  fields.canMortar = !dead && !seated?.row && (deployable === 'mortar' || deployable === 'fpv' || piloting === true);
+  fields.mortarLabel = piloting ? 'CUT' : deployable === 'fpv' ? 'FPV' : 'MORTAR';
   fields.deployOpen = !!(dead && deployOpen);
   if (fields.deployOpen) {
     const valid = deploy?.valid !== false;

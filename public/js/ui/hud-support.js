@@ -72,10 +72,12 @@ export const WEAPON_NAMES = Object.freeze({
   collapse: 'COLLAPSE',
   // Conquest map event hazards (shared/map-events/<id>.js killKeys), credited to the event's trigger.
   ...Object.fromEntries(Object.entries(MAP_EVENT_KILL_KEYS).map(([key, meta]) => [key, meta.label])),
+  // The Engineer's FPV kamikaze drone (shared/fpv-rules.js killKey).
+  fpv: 'FPV DRONE',
 });
 
 /** Kill keys that have no weapon-slot art; the kill feed draws a vector icon for them. */
-export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted', 'fall', 'crash', 'redeploy', 'collapse',
+export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted', 'fall', 'crash', 'redeploy', 'collapse', 'fpv',
   // Titanfall (WP0 region): titan mounts, then the remaining titan kill keys.
   ...new Set([...Object.keys(TITAN_WEAPON_META), ...Object.keys(TITAN_KILL_KEYS)]),
   // Conquest map event hazards (drawn with their definition's glyph).
@@ -86,6 +88,16 @@ export function weaponImagePath(weaponId) {
   const suffix = weaponId === 'minigun' || weaponId === 'flamethrower' ? '-illustrated' : '';
   return `./assets/weapons/hud/${weaponId}${suffix}.png`;
 }
+
+/**
+ * Slot art of the Conquest deployables (the Support's M-81 MORTAR, the
+ * Engineer's FPV drone): they are no weapon slots, but the weapon wheel, the
+ * deploy-screen gadget toggles, the touch button and the kill feed show them
+ * in the weapon art's style (docs/design/conquest/fpv/icons/, .../mortar/icons/).
+ */
+export const DEPLOYABLE_ART = Object.freeze({ mortar: weaponImagePath('mortar'), fpv: weaponImagePath('fpv') });
+/** Kill keys drawn with a deployable's art in the kill feed (the drone's charge, the mortar's shell). */
+export const DEPLOYABLE_KILL_ART = Object.freeze({ fpv: DEPLOYABLE_ART.fpv, mortarHE: DEPLOYABLE_ART.mortar });
 
 /** Kill-feed / recap names for explosives that are not weapon slots. */
 export const THROWABLE_NAMES = Object.freeze({

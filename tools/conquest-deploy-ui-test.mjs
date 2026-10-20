@@ -55,8 +55,8 @@ let groups = 0;
   const engineer = model.kits.find(k => k.id === 'engineer');
   assert.equal(engineer.selected, true); assert.deepEqual(engineer.primaries.map(p => p.selected), [false, true]);
   assert.equal(engineer.gadget, WEAPON_NAMES.rocket, 'the engineer gadget is the AT rocket');
-  assert.deepEqual(engineer.gadgets.map(g => [g.weapon, g.role, g.selected]), [['rocket', 'AT', true], ['stinger', 'AA', false]],
-    'the engineer card offers the AT launcher and the STINGER');
+  assert.deepEqual(engineer.gadgets.map(g => [g.weapon, g.role, g.selected]), [['rocket', 'AT', true], ['stinger', 'AA', false], ['fpv', 'FPV', false]],
+    'the engineer card offers the AT launcher, the STINGER and the FPV drone');
   assert.deepEqual(model.kits.find(k => k.id === 'recon').gadgets.map(g => [g.weapon, g.role, g.selected]), [['beacon', 'BCN', false], ['sensor', 'MSN', false]],
     'the recon card offers the SPAWN BEACON and the MOTION SENSOR');
   assert.deepEqual(model.kits.filter(k => !['engineer', 'recon', 'support'].includes(k.id)).map(k => k.gadgets.length), [0, 0, 0, 0, 0, 0],
@@ -192,7 +192,7 @@ let groups = 0;
   assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0, upgrades: {} }], 'Deploy sends {spawn, kit, variant, gadget, upgrades}');
   // The gadget toggle (AT / AA) on the engineer card re-sends the choice with the STINGER.
   const gadgetButtons = screen.kits.querySelectorAll('.cq-kit-gadget');
-  assert.deepEqual(gadgetButtons.map(b => b.dataset.gadget), ['rocket', 'stinger'], 'only the engineer card shows the gadget toggle');
+  assert.deepEqual(gadgetButtons.map(b => b.dataset.gadget), ['rocket', 'stinger', 'fpv'], 'only the engineer card shows the gadget toggle');
   gadgetButtons[1].click();
   update();
   assert.deepEqual(sent.at(-1), { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1, upgrades: {} }, 'picking the STINGER re-sends gadget 1');
@@ -431,7 +431,7 @@ let groups = 0;
   assert.deepEqual(shapes.assault.loadout, ['cq-kit-loadout-name', 'cq-kit-variants', 'cq-kit-gadgets', 'cq-kit-gear'],
     'a class without a gadget choice keeps a (hidden) gadget row while the Engineer is open');
   screen.select({ kit: 'engineer' }); update();
-  assert.equal(screen.kits.querySelectorAll('.cq-kit-loadout .cq-kit-gadget').length, 2);
+  assert.equal(screen.kits.querySelectorAll('.cq-kit-loadout .cq-kit-gadget').length, 3, 'AT, AA and FPV');
   assert.equal(screen.kits.querySelector('.cq-kit-loadout .cq-kit-gadgets').classList.contains('is-placeholder'), false);
   const css = readFileSync(new URL('../public/styles/conquest.css', import.meta.url), 'utf8');
   assert.doesNotMatch(css, /\.cq-kit\.is-selected \{ grid-column/, 'the picked card never spans the row on phones (no reflow)');

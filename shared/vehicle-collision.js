@@ -16,7 +16,9 @@ export function solidWreck(vehicle) {
 export const solidHull = vehicle => !!vehicle && ((vehicle.hp > 0 && !vehicle.dropping && vehicle.tw?.[5] !== 1) || solidWreck(vehicle));
 /** Hulls that block other hulls: every solid hull but an emplacement (the Support mortar), which a hull
  * rolls over and crushes instead (server/sim/mortars.js). Bodies and rays still meet it (solidHull). */
-export const blocksHulls = vehicle => solidHull(vehicle) && VEHICLE_DEFS[vehicle.type]?.handling !== 'emplacement';
+export const blocksHulls = vehicle => solidHull(vehicle) && VEHICLE_DEFS[vehicle.type]?.handling !== 'emplacement'
+  // The FPV drone flies into hulls on purpose (server/sim/fpv-drones.js): it never blocks one.
+  && VEHICLE_DEFS[vehicle.type]?.handling !== 'drone';
 
 // Pose caches. Footprints and hull boxes are pure functions of the hull type
 // and pose, and every caller treats them as read-only, so one computed shape

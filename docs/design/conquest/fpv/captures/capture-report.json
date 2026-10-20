@@ -1,0 +1,26 @@
+{
+  "generated": "2026-10-20T16:18:36.315Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "fpv",
+        "title": "Engineer FPV drone · 26 s battery · 3 / 4 signal · closing on the tank",
+        "file": "docs/design/conquest/fpv/captures/desktop-fpv.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "fpv",
+        "title": "Engineer FPV drone · 26 s battery · 3 / 4 signal · closing on the tank",
+        "file": "docs/design/conquest/fpv/captures/portrait-fpv.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

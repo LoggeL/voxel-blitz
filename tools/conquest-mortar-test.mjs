@@ -38,7 +38,7 @@ const flat = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]);
 eq(CONQUEST_CONTRACT_VERSION, 7, 'contract v6 carries the mortar');
 eq(CONQUEST_EVENT_KINDS[CONQUEST_EVENT_KINDS.indexOf('recon_gadget') + 1], 'mortar', 'the mortar event kind is appended after the recon kind');
 eq(CONQUEST_INTENT_SHAPE.mortar, '1');
-eq(DEPLOYABLE_TYPE_IDS, ['mortar']);
+eq(DEPLOYABLE_TYPE_IDS, ['mortar', 'fpv']);
 ok(isDeployableType('mortar') && !VEHICLE_TYPE_IDS.includes('mortar'), 'the mortar is a deployable, no pad hull');
 ok(isEmplacementType('mortar'), 'emplacement handling');
 eq(VEHICLE_TOPOLOGY.mortar.map(s => [s.id, s.role, s.drives, s.exposed]), [['operator', 'gunner', false, true]]);
