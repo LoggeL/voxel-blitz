@@ -27,6 +27,15 @@ export const AA_BOT = Object.freeze({
   airSightRange: AA_RADAR.range, airOmniRange: AA_RADAR.range,
   /** Flak against soft targets: worth a burst, never the first choice. */
   infantryEffect: 0.3,
+  /**
+   * The driver's slot past the crew budget (planCrews headroom) opens only while
+   * an enemy aircraft flies within this range (m) of the hull, well inside the
+   * flak's reach, and a bot already at the wheel keeps it `headroomHoldMs` after
+   * the last one: a crewed enemy aircraft anywhere on the map would keep that
+   * extra bot off the flags all match (flag transitions in the action gate,
+   * seeds 1-16: 5.4 before the headroom, 3.6 with it, 6.0 with this range).
+   */
+  headroomRange: 300, headroomHoldMs: 30000,
 });
 
 /** Live enemy aircraft with anyone aboard (parked or flying): the AA's reason to crew. */
@@ -38,6 +47,11 @@ export function enemyAirThreats(vehicles, team) {
     out.push(v);
   }
   return out;
+}
+
+/** Whether one of `threats` (enemyAirThreats) is airborne within `range` m of the hull `aa`. */
+export function airThreatNear(aa, threats, range = AA_BOT.headroomRange) {
+  return threats.some(v => v.grounded === false && Math.hypot(v.x - aa.x, v.z - aa.z) <= range);
 }
 
 /**

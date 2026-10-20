@@ -30,7 +30,7 @@ import { vehicleSeats, vehicleSeatOccupantId } from '../shared/vehicle-seats.js'
 import { CoverIndex, bearing } from './bot-cover.js';
 import { commGoal, planComms } from './bot-comms.js';
 import { orderStance } from '../shared/conquest-comms.js';
-import { AA_BOT, enemyAirThreats, stickyAaCover } from './bot-aa.js';
+import { AA_BOT, airThreatNear, enemyAirThreats, stickyAaCover } from './bot-aa.js';
 import { surfaceNavigation } from './bot-surface-nav.js';
 import { MEDIC_BOT_RULES, medicTrailMate, medicTrailSpot, reviveRunInTime } from './bot-medic.js';
 import { committedFlag, keepAttackOrder, passingFlag } from './bot-flag-flow.js';
@@ -609,7 +609,8 @@ export class BotCommander {
    * what budget is left. It sails in sorties of BOAT_PATROL.sortieMs with
    * BOAT_PATROL.restMs at the mooring between them. The mobile AA driver
    * (while enemy aircraft are crewed, AA_BOT.driverPrio) may likewise take
-   * one slot past the budget inside the cap.
+   * one slot past the budget inside the cap while an enemy aircraft flies
+   * within AA_BOT.headroomRange of it.
    */
   planCrews(ts, view, now) {
     const team = ts.team, brains = this.teamBrains(team);
@@ -636,14 +637,24 @@ export class BotCommander {
     // bot in the driver seat keeps its crew for AA_BOT.holdMs after that (bot-aa.js).
     // Its driver may run past the budget inside the ceil(teamBots / 3) cap
     // (`headroom`), so a small team still answers the enemy's aircraft once its
-    // tank and helicopter, ranked before it, are crewed.
-    const airThreat = enemyAirThreats(this.game.vehicles?.vehicles, team).length > 0;
+    // tank and helicopter, ranked before it, are crewed; only while an enemy
+    // aircraft flies within AA_BOT.headroomRange of the hull (a bot at the wheel
+    // keeps it AA_BOT.headroomHoldMs), so the extra bot is back on the flags
+    // while the enemy flies elsewhere.
+    const threats = enemyAirThreats(this.game.vehicles?.vehicles, team);
+    const airThreat = threats.length > 0;
     if (airThreat) ts.aaThreatAt = now;
     const aaHeld = now - (ts.aaThreatAt ?? -Infinity) < AA_BOT.holdMs;
     const botDriven = v => { const id = vehicleSeatOccupantId(v, hullSeatIds(v).driver); return id != null && this.isBot(id); };
     const aas = hulls.filter(v => v.type === 'aa' && (airThreat || (aaHeld && botDriven(v))));
     push([...aas], v => hullSeatIds(v).driver, AA_BOT.driverPrio);
-    for (const slot of slots) if (slot.v.type === 'aa') slot.headroom = true;
+    const nearAt = ts.aaNearAt ??= new Map();
+    for (const v of aas) if (airThreatNear(v, threats)) nearAt.set(v.id, now);
+    for (const slot of slots) {
+      if (slot.v.type !== 'aa') continue;
+      const since = now - (nearAt.get(slot.v.id) ?? -Infinity);
+      if (since === 0 || (since < AA_BOT.headroomHoldMs && botDriven(slot.v))) slot.headroom = true;
+    }
     push([...aas], v => hullSeatIds(v).gunner, AA_BOT.gunnerPrio);
     if (brains.length >= 6) push(hulls.filter(v => v.type === 'plane'), v => hullSeatIds(v).driver, 2);
     push(tanks.slice(1), v => hullSeatIds(v).driver, 3);

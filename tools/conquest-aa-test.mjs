@@ -306,7 +306,7 @@ test('bots on Frontier: no AA crew without enemy aircraft, an AA crew (before th
   bots.dispose(); game.stop();
 });
 
-test('bots on Frontier, 8 a side: the AA driver takes the crew headroom past the budget, after the tank and the helicopter', () => {
+test('bots on Frontier, 8 a side: the AA driver takes the crew headroom past the budget, after the tank and the helicopter, while the enemy flies near', () => {
   const meta = getMapMeta('frontier');
   const game = new GameEngine({ mode: 'conquest', world: undefined, mapMeta: meta, broadcast: () => {} });
   // 16 bots: a budget of ceil(8 / 4) = 2 (the tank and the attack helicopter), a cap of ceil(8 / 3) = 3.
@@ -321,7 +321,14 @@ test('bots on Frontier, 8 a side: the AA driver takes the crew headroom past the
   Object.assign(pilot, { x: heli.x, y: heli.y, z: heli.z });
   assert(game.vehicles.enter(pilot, heli.id, 'driver'));
   replan();
-  assert.deepEqual(crewTypes('alpha'), ['aa:driver', 'helicopter:driver', 'tank:driver'], 'the enemy flies: the AA driver joins them inside the cap');
+  assert.deepEqual(crewTypes('alpha'), ['helicopter:driver', 'tank:driver'], 'a crewed enemy helicopter on its pad: no AA past the budget');
+  const aa = game.vehicles.vehicles.get('alpha-aa') ?? [...game.vehicles.vehicles.values()].find(v => v.type === 'aa' && v.team === 'alpha');
+  Object.assign(heli, { x: aa.x + AA_BOT.headroomRange + 40, z: aa.z, y: aa.y + 60, grounded: false });
+  replan();
+  assert.deepEqual(crewTypes('alpha'), ['helicopter:driver', 'tank:driver'], 'the enemy flies out of AA range: still no AA past the budget');
+  Object.assign(heli, { x: aa.x + AA_BOT.headroomRange - 40 });
+  replan();
+  assert.deepEqual(crewTypes('alpha'), ['aa:driver', 'helicopter:driver', 'tank:driver'], 'the enemy flies within AA range: the AA driver joins them inside the cap');
   assert.equal(bots.commander.teams.get('alpha').crewBudget, 2, 'the budget itself is unchanged');
   assert.ok(!crewTypes('alpha').includes('aa:commander') && !crewTypes('alpha').includes('plane:driver'), 'no gunner or jet beyond the headroom');
   bots.dispose(); game.stop();
