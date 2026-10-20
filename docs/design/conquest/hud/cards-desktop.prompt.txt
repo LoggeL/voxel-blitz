@@ -1,0 +1,14 @@
+Use case: ui-mockup. Asset type: VOXEL BLITZ Conquest HUD design reference sheet, browser voxel shooter, Battlefield-style mode. One wide image with three clearly separate, labelled alternatives (ALTERNATIVE A, B, C) for the bottom part of the 1440 x 900 desktop in-match HUD. Each alternative is a crop of the lower half of a first-person view: a blocky 1 m voxel river valley at golden hour, a grey asphalt road, olive grass, dark voxel pine trees, a blocky voxel assault rifle in the lower right of the view.
+
+Existing HUD identity that must be kept: charcoal translucent panels rgba(9,15,20,0.86) with a thin 1 px slate border and 6 px rounded corners, soft drop shadow, condensed bold uppercase sans-serif typography with wide letter spacing, tabular numbers, own team blue #4cc3ff, amber highlight #ffd166, heal green #7ef29a, danger red #ff4b4b. The existing HUD already has: a round heading-up minimap 184 px at the bottom left with N/E/S/W on the rim, and right of it a squad list (header "ALPHA SQUAD", three rows with a small kit glyph and the names BRANNOCK, HALDEN, KESTREL). Keep those exactly as they are in every alternative.
+
+The cards to redesign (the same data in every alternative, nothing invented):
+- weapon card: weapon name "VK-77 RAPTOR", fire mode "AUTO", magazine 30 large, "/ 5" spare magazines small, a small grey side-view silhouette of the rifle;
+- grenade: key badge "G", a small frag grenade icon, "M-4 FRAG", count "x2", five tiny pouch dots (one lit), key badge "H POUCH";
+- health: "74 HP" with a horizontal bar 74 % full (green fading to amber), a small cross icon, and the medkit line "J  MEDKIT x1".
+
+ALTERNATIVE A, "unified loadout stack": one bottom-right card 360 px wide: top row weapon name and AUTO tag, then the big 30 / 5 with the rifle silhouette on the left, a grenade tile on the right edge of the same card with x2, and a full-width health row docked under it (cross icon, bar, 74 HP, a small "J MEDKIT x1" chip). Minimap and squad list sit lower, on the bottom edge.
+ALTERNATIVE B, "split rail": weapon card bottom right with a slim 4 px HP bar running along its bottom edge and the HP number in its corner; the grenade as a small attached tab above its left end; the medkit as a tiny chip.
+ALTERNATIVE C, "matched pair": health stays bottom left under the minimap but as a short rounded charcoal card with a cross icon, the bar and a large 74; weapon and grenade bottom right as two rounded cards of equal height in the same style.
+
+Clean, practical HTML/CSS implementable shapes, crisp flat vector UI over the game view, readable at desktop size, no chat panels, no currencies, no real game branding or logos. A small caption under each alternative describing it in one line.

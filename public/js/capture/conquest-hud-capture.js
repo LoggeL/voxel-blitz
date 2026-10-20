@@ -17,6 +17,7 @@ import { WeaponWheelController as WheelSession } from '../session/weapon-wheel-c
 import { wheelAngleForSlot } from '../ui/weapon-wheel.js';
 import { kitLoadout } from '../../../shared/conquest-kits.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
+import { seatViews, vehicleViewLabel } from '../session/vehicle-camera.js';
 
 const fixtures = conquestHudFixtures();
 const mapMeta = fixtureMapMeta();
@@ -73,6 +74,13 @@ function localHudState(state) {
   };
 }
 
+/** VehicleCamera.viewState() of a seat in its default view, last changed long before the fixture clock. */
+function defaultViewState(type, seatId) {
+  const views = seatViews(type, seatId);
+  return { type, seatId, view: views[0], label: vehicleViewLabel(type, seatId, views[0]),
+    views: views.map(view => ({ id: view, label: vehicleViewLabel(type, seatId, view) })), changedAt: -1e9 };
+}
+
 async function render(id, { touch: touchMode = false } = {}) {
   const state = fixtures.find(f => f.id === id);
   if (!state) throw new Error(`unknown fixture ${id}`);
@@ -115,6 +123,9 @@ async function render(id, { touch: touchMode = false } = {}) {
     ...(state.viewStrip ? { vehicleController: { viewState: () => ({ ...state.viewStrip, changedAt: performance.now() }),
       ...(state.aim ? { yaw: state.aim.yaw, pitch: state.aim.pitch } : {}) } } : {}),
     ...(flight ? { vehicleController: { aimFlight: flight.aim === true, flight: { mode: flight.mode }, viewState: () => null } } : {}) };
+  // Any other seat sits in its default (first) camera view, changed long ago: the touch VIEW face names it, no strip shows.
+  const seatedNow = seatedVehicle(state.self, state.vehicles);
+  if (seatedNow && !args.vehicleController) args.vehicleController = { viewState: () => defaultViewState(seatedNow.row.type, seatedNow.seat.id) };
   lastArgs = args;
   conquest.update(args);
   if (state.dead) conquest.setDead(true, state.killer);

@@ -18,6 +18,19 @@ export function viewStripModel(state, nowMs, keyLabel = 'V') {
   return { key: keyLabel, view: state.view, views: state.views.map(view => ({ id: view.id, label: view.label, active: view.id === state.view })) };
 }
 
+/** Short faces for the 44 px touch VIEW button where the strip's label would not fit. */
+export const VIEW_BUTTON_LABELS = Object.freeze({ 'FIRST PERSON': 'POV' });
+
+/**
+ * The active view's name for the touch VIEW button face (VehicleCamera.viewState()),
+ * or '' when the seat has fewer than two views or no view is set.
+ */
+export function viewButtonLabel(state) {
+  if (!state || !Array.isArray(state.views) || state.views.length < 2) return '';
+  const label = state.views.find(view => view.id === state.view)?.label ?? state.label ?? '';
+  return VIEW_BUTTON_LABELS[label] ?? String(label);
+}
+
 export class ViewStrip {
   constructor(parent) {
     this.root = el('div', 'cq-view', parent);

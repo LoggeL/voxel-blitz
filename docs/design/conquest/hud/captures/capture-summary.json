@@ -1,0 +1,20 @@
+{
+  "generated": "2026-10-19T22:06:33.957Z",
+  "page": "public/conquest-hud-capture.html",
+  "states": 102,
+  "overlaps": [],
+  "errors": [],
+  "before": {
+    "generated": "2026-10-19T21:56:13.527Z",
+    "overlaps": [
+      {
+        "size": "portrait",
+        "id": "jet-oob",
+        "hits": [
+          "restricted \u00d7 touch:vehicleView"
+        ]
+      }
+    ],
+    "errors": []
+  }
+}

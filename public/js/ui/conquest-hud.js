@@ -28,7 +28,7 @@ import { ScoreTicker } from './conquest/score-ticker.js';
 import { SquadList } from './conquest/squad-list.js';
 import { TopBar } from './conquest/top-bar.js';
 import { VehiclePanel } from './conquest/vehicle-panel.js';
-import { ViewStrip, viewStripModel } from './conquest/view-strip.js';
+import { ViewStrip, viewButtonLabel, viewStripModel } from './conquest/view-strip.js';
 import { FlightHint } from './conquest/flight-hint.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
@@ -48,6 +48,22 @@ const FRAME_DRIVEN_MS = 250;
 const ADRENALINE_KILL_WINDOW_MS = 1500;
 /** How long the M / Y hint above the minimap stays after the HUD appears (until first use). */
 export const MAP_HINT_MS = 30000;
+
+/** Lowest minimap floor over a health card in the left column, and the floor once the card docks at the right. */
+export const HEALTH_FLOOR = Object.freeze({ left: 104, docked: 22, gap: 18 });
+
+/**
+ * Where the minimap stands and how tall the health card is, from the card's
+ * box: a card whose centre lies right of the screen centre is docked under
+ * the weapon card (desktop Conquest), so the minimap drops to the bottom edge.
+ */
+export function healthCardLayout(rect, viewportWidth, viewportHeight) {
+  const height = rect?.height > 0 ? Math.round(rect.height) : 0;
+  if (!height) return { floor: HEALTH_FLOOR.left, height: 0, docked: false };
+  const docked = (rect.left + rect.width / 2) > viewportWidth / 2;
+  const floor = docked ? HEALTH_FLOOR.docked : Math.max(HEALTH_FLOOR.left, Math.round(viewportHeight - rect.top + HEALTH_FLOOR.gap));
+  return { floor, height, docked };
+}
 
 export class ConquestHud {
   constructor(parent = globalThis.document?.body, {
@@ -244,7 +260,8 @@ export class ConquestHud {
   /** Conquest fields the integrator merges into the TouchControls context. */
   touchContextFields() {
     return conquestTouchFields({ active: this.active, dead: this.dead, deployOpen: this.deploy.open,
-      deploy: this.deploy.model, seated: this.seated });
+      deploy: this.deploy.model, seated: this.seated,
+      viewLabel: this.seated ? viewButtonLabel(this.vehicleController?.viewState?.()) : '' });
   }
 
   setDead(dead, killerInfo = null) {
@@ -610,17 +627,23 @@ export class ConquestHud {
   }
 
   /**
-   * The minimap and squad list stand on the health card, which grows upward
-   * when the pain / panic meters appear: track its top edge as --cq-floor.
+   * The health card grows upward when the pain / panic meters appear. On a
+   * phone the minimap and squad list stand on it (--cq-floor); on desktop it
+   * docks under the weapon and grenade cards at the bottom right, which stand
+   * on its height (--cq-health-h on the body, styles/conquest-cards.css).
    */
   _watchHealthPanel() {
     const doc = this.root.ownerDocument, win = doc?.defaultView;
     const card = doc?.getElementById?.('healthbar');
     if (!card || !win || typeof win.ResizeObserver !== 'function') return;
     const sync = () => {
-      const rect = card.getBoundingClientRect();
-      const floor = rect.height > 0 ? Math.max(104, Math.round(win.innerHeight - rect.top + 18)) : 104;
+      const { floor, height } = healthCardLayout(card.getBoundingClientRect(), win.innerWidth, win.innerHeight);
       if (floor !== this._floor) { this._floor = floor; this.root.style.setProperty('--cq-floor', `${floor}px`); }
+      if (height !== this._healthHeight) {
+        this._healthHeight = height;
+        if (height > 0) doc.body?.style?.setProperty?.('--cq-health-h', `${height}px`);
+        else doc.body?.style?.removeProperty?.('--cq-health-h');
+      }
     };
     this._healthObserver = new win.ResizeObserver(sync);
     this._healthObserver.observe(card);
@@ -631,6 +654,7 @@ export class ConquestHud {
 
   dispose() {
     this._healthObserver?.disconnect();
+    this.root.ownerDocument?.body?.style?.removeProperty?.('--cq-health-h');
     if (this._onViewportResize) this.root.ownerDocument?.defaultView?.removeEventListener('resize', this._onViewportResize);
     this.hide();
     this._lastArgs = null;

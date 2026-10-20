@@ -398,6 +398,8 @@ export class GameplayHud {
       } else {
         d.weaponIcon.removeAttribute('data-weapon-id');
       }
+      // Trigger mode from the weapon table (auto, semi, pump, bolt, charge, melee); the Conquest card shows it as a tag.
+      d.ammo.dataset.fireMode = WEAPONS[key]?.mode ?? '';
       d.res.title = WEAPONS[key]?.spareRounds != null ? 'Spare shells' : 'Spare magazines';
       d.res.setAttribute('aria-label', d.res.title);
       const discs = !!WEAPONS[key]?.glaive;

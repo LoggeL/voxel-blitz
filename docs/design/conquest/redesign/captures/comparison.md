@@ -103,7 +103,7 @@ The final live run (`live/live-smoke-report.json`, after the reference pass) had
 
 **Reference parity**
 - The sun disc only shows looking west (lowering the sun lights bunker and church interiors). Far peaks stay under the backdrop height cap, so they are lower than in `vista-reference.jpg`. Slopes still read as terraces.
-- The weapon and health cards were not restyled toward `gameplay-hud-reference.jpg`, because every game mode shares them.
+- The weapon and health cards were restyled toward `gameplay-hud-reference.jpg` Alt 2 on 2026-10-20 (Conquest-only sheet `public/styles/conquest-cards.css`; references, prompts and captures in `docs/design/conquest/hud/`).
 - The vehicle weapon effects were not compared against `effects-board-reference.jpg`.
 
 **World**

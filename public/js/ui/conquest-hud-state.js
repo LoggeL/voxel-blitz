@@ -1330,6 +1330,7 @@ export function chutePromptModel(state) {
 export const CONQUEST_TOUCH_DEFAULTS = Object.freeze({
   conquest: false, deployOpen: false, deployValid: true, deployLabel: 'DEPLOY',
   vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false, vehicleViewCount: 0,
+  vehicleViewLabel: '',
 });
 
 /**
@@ -1337,7 +1338,7 @@ export const CONQUEST_TOUCH_DEFAULTS = Object.freeze({
  * this into one persistent context object, so an omitted key would keep a
  * stale value from an earlier seat or deploy screen.
  */
-export function conquestTouchFields({ active = false, dead = false, deployOpen = false, deploy = null, seated = null } = {}) {
+export function conquestTouchFields({ active = false, dead = false, deployOpen = false, deploy = null, seated = null, viewLabel = '' } = {}) {
   const fields = { ...CONQUEST_TOUCH_DEFAULTS };
   if (!active) return fields;
   fields.conquest = true;
@@ -1356,6 +1357,8 @@ export function conquestTouchFields({ active = false, dead = false, deployOpen =
     // Camera views of the seat (the VIEW button), as authored on the shared seat camera.
     const views = vehicleDefs.vehicleDef?.(row)?.seats?.find(entry => entry.id === seated.seat?.id)?.camera?.views;
     fields.vehicleViewCount = Array.isArray(views) ? views.length : 0;
+    // The active view's name on the VIEW button face (client camera state, view-strip.js viewButtonLabel).
+    fields.vehicleViewLabel = fields.vehicleViewCount > 1 && typeof viewLabel === 'string' ? viewLabel : '';
   }
   return fields;
 }
