@@ -442,7 +442,7 @@ await test('deploy model: hull cards from the table, picks gated by the announce
   const model = state.deployModel({ cq: cqOf(vehiclesFixture), self: vehiclesFixture.self, players: vehiclesFixture.players, vehicles: vehiclesFixture.vehicles,
     nowMs: FIXTURE_NOW, selection: vehiclesFixture.selection, unlocks: { level: 4, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'] } });
   assert.deepEqual(model.upgrades.map(c => c.type), UPGRADE_MENU_ORDER);
-  assert.deepEqual(model.choice.upgrades, { tank: 'reactive', jeep: 'turbo', plane: 'extra_flares' }, 'a stored LV 6 pick (EXTRA MISSILE) drives stock at LV 4');
+  assert.deepEqual(model.choice.upgrades, { tank: 'reactive', jeep: 'turbo', plane: 'extra_flares', aa: 'reactive' }, 'a stored LV 6 pick (EXTRA MISSILE) drives stock at LV 4');
   const tank = model.upgrades.find(c => c.type === 'tank');
   assert.equal(tank.spawn, true, 'the tank spawn marks the tank card');
   assert.deepEqual(tank.options.map(o => [o.id, o.unlocked, o.selected]), [[null, true, false], ['reactive', true, true], ['autoloader', true, false], ['thermal', false, false]]);
