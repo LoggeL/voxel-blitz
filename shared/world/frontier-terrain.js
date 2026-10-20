@@ -426,23 +426,24 @@ export const FRONTIER_CELL_KIND = KIND;
 /**
  * Chamfer passes with Chebyshev unit cost over active cells until stable.
  * In-place forward then backward raster sweeps over the four already-visited
- * neighbours (unrolled: this runs three times on every Frontier load).
+ * neighbours (unrolled: this runs three times on every Frontier load). Shared
+ * with shared/world/redrock-terrain.js (`sx`, `sz`: the grid, Frontier's by default).
  */
-function relax(values, active, mode) {
-  const N = SX * SZ, last = SX - 1;
+export function relax(values, active, mode, sx = SX, sz = SZ) {
+  const N = sx * sz, last = sx - 1;
   // mode < 0 lowers a cell to (neighbour + 1); mode > 0 raises it to
   // (neighbour - 1): a candidate c improves v when (c - v) * step < 0.
   const step = mode < 0 ? 1 : -1;
   for (let iter = 0; iter < 12; iter++) {
     let changed = false;
-    for (let z = 0, i = 0; z < SZ; z++) {
-      for (let x = 0; x < SX; x++, i++) {
+    for (let z = 0, i = 0; z < sz; z++) {
+      for (let x = 0; x < sx; x++, i++) {
         if (!active[i]) continue;
         const v0 = values[i];
         let v = v0, c;
         if (x > 0 && active[i - 1] && ((c = values[i - 1] + step) - v) * step < 0) v = c;
         if (z > 0) {
-          const k = i - SX;
+          const k = i - sx;
           if (x > 0 && active[k - 1] && ((c = values[k - 1] + step) - v) * step < 0) v = c;
           if (active[k] && ((c = values[k] + step) - v) * step < 0) v = c;
           if (x < last && active[k + 1] && ((c = values[k + 1] + step) - v) * step < 0) v = c;
@@ -450,14 +451,14 @@ function relax(values, active, mode) {
         if (v !== v0) { values[i] = v; changed = true; }
       }
     }
-    for (let z = SZ - 1, i = N - 1; z >= 0; z--) {
+    for (let z = sz - 1, i = N - 1; z >= 0; z--) {
       for (let x = last; x >= 0; x--, i--) {
         if (!active[i]) continue;
         const v0 = values[i];
         let v = v0, c;
         if (x < last && active[i + 1] && ((c = values[i + 1] + step) - v) * step < 0) v = c;
-        if (z < SZ - 1) {
-          const k = i + SX;
+        if (z < sz - 1) {
+          const k = i + sx;
           if (x < last && active[k + 1] && ((c = values[k + 1] + step) - v) * step < 0) v = c;
           if (active[k] && ((c = values[k] + step) - v) * step < 0) v = c;
           if (x > 0 && active[k - 1] && ((c = values[k - 1] + step) - v) * step < 0) v = c;
@@ -469,11 +470,46 @@ function relax(values, active, mode) {
   }
 }
 
-function polylineLength(points) {
+export function polylineLength(points) {
   let length = 0;
   for (let i = 1; i < points.length; i++) length += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
   return length;
 }
+/**
+ * Whole-voxel levels of a graded road from its samples `step` m apart: the
+ * terrain `target` smoothed over +-14 m, held to `grade` (rise per metre) and
+ * passing every `pin` (NaN: free) exactly. Shared with redrock-terrain.js.
+ */
+export function gradedRoadLevels(target, pin, step, grade) {
+  const n = target.length;
+  // Smooth the target over +-14 m so rolling relief does not ripple the grade.
+  const smooth = new Float64Array(n);
+  for (let k = 0; k < n; k++) {
+    let sum = 0, count = 0;
+    for (let m = Math.max(0, k - 14); m <= Math.min(n - 1, k + 14); m++) { sum += target[m]; count++; }
+    smooth[k] = sum / count;
+  }
+  // A third under the limit: cells are rasterised from their own projection,
+  // so two cells three metres apart can be up to 3 + sqrt(2) samples apart
+  // and rounding to whole voxels must still never exceed one voxel.
+  const lim = grade * step * 0.66;
+  // Envelopes from pins keep every pin reachable at the limiting grade.
+  const lo = new Float64Array(n).fill(-INF), hi = new Float64Array(n).fill(INF);
+  for (let k = 0; k < n; k++) if (!Number.isNaN(pin[k])) { lo[k] = hi[k] = pin[k]; }
+  for (let k = 1; k < n; k++) { lo[k] = Math.max(lo[k], lo[k - 1] - lim); hi[k] = Math.min(hi[k], hi[k - 1] + lim); }
+  for (let k = n - 2; k >= 0; k--) { lo[k] = Math.max(lo[k], lo[k + 1] - lim); hi[k] = Math.min(hi[k], hi[k + 1] + lim); }
+  const prof = new Float64Array(n);
+  for (let k = 0; k < n; k++) prof[k] = Number.isNaN(pin[k]) ? clamp(smooth[k], lo[k], hi[k]) : pin[k];
+  for (let iter = 0; iter < 8; iter++) {
+    for (let k = 1; k < n; k++) prof[k] = clamp(prof[k], prof[k - 1] - lim, prof[k - 1] + lim);
+    for (let k = n - 2; k >= 0; k--) prof[k] = clamp(prof[k], prof[k + 1] - lim, prof[k + 1] + lim);
+  }
+  // Integer grade: never more than one voxel per three metres.
+  const level = new Int16Array(n);
+  for (let k = 0; k < n; k++) level[k] = Number.isNaN(pin[k]) ? Math.round(prof[k]) : pin[k];
+  return level;
+}
+
 /** Point and tangent at arc length s along a polyline. */
 export function polylineAt(points, s) {
   let rest = s;
@@ -608,31 +644,8 @@ function buildTerrain() {
         else if (fixed[i] && kind[i] !== KIND.FORD) pin[k] = fixedY[i];
       }
     }
-    // Smooth the target over +-14 m so rolling relief does not ripple the grade.
-    const smooth = new Float64Array(n);
-    for (let k = 0; k < n; k++) {
-      let sum = 0, count = 0;
-      for (let m = Math.max(0, k - 14); m <= Math.min(n - 1, k + 14); m++) { sum += target[m]; count++; }
-      smooth[k] = sum / count;
-    }
-    // A third under the limit: cells are rasterised from their own projection,
-    // so two cells three metres apart can be up to 3 + sqrt(2) samples apart
-    // and rounding to whole voxels must still never exceed one voxel.
-    const step = length / (n - 1), lim = grade * step * 0.66;
-    // Envelopes from pins keep every pin reachable at the limiting grade.
-    const lo = new Float64Array(n).fill(-INF), hi = new Float64Array(n).fill(INF);
-    for (let k = 0; k < n; k++) if (!Number.isNaN(pin[k])) { lo[k] = hi[k] = pin[k]; }
-    for (let k = 1; k < n; k++) { lo[k] = Math.max(lo[k], lo[k - 1] - lim); hi[k] = Math.min(hi[k], hi[k - 1] + lim); }
-    for (let k = n - 2; k >= 0; k--) { lo[k] = Math.max(lo[k], lo[k + 1] - lim); hi[k] = Math.min(hi[k], hi[k + 1] + lim); }
-    const prof = new Float64Array(n);
-    for (let k = 0; k < n; k++) prof[k] = Number.isNaN(pin[k]) ? clamp(smooth[k], lo[k], hi[k]) : pin[k];
-    for (let iter = 0; iter < 8; iter++) {
-      for (let k = 1; k < n; k++) prof[k] = clamp(prof[k], prof[k - 1] - lim, prof[k - 1] + lim);
-      for (let k = n - 2; k >= 0; k--) prof[k] = clamp(prof[k], prof[k + 1] - lim, prof[k + 1] + lim);
-    }
-    // Integer grade: never more than one voxel per three metres.
-    const level = new Int16Array(n);
-    for (let k = 0; k < n; k++) level[k] = Number.isNaN(pin[k]) ? Math.round(prof[k]) : pin[k];
+    const step = length / (n - 1);
+    const level = gradedRoadLevels(target, pin, step, grade);
     // Rasterise: nearest centreline sample sets each cell inside the half width.
     const hw = plan.width / 2, shoulder = 5;
     for (let s = 1; s < plan.points.length; s++) {

@@ -1,7 +1,8 @@
 // Redrock Canyon terrain: a pure, deterministic heightfield for the
 // 768 x 80 x 768 desert (docs/maps/redrock.md). It follows the Frontier
 // pipeline (shared/world/frontier-terrain.js: relief, pads and plateaus,
-// water, graded roads, the drivability clamp, cliffs, surfaces) and returns
+// water, graded roads, the drivability clamp, cliffs, surfaces; the noise,
+// chamfer relax and graded-road solve are Frontier's own) and returns
 // the same arrays and cell kinds, so the site kit, the generator helpers, the
 // map metadata, bot navigation and the far-terrain renderer read it the same
 // way. Everything is derived from REDROCK_PLAN (shared/world/redrock-plan.js)
@@ -17,7 +18,7 @@
 // river's meander is not, and it stays more than 100 m from every flag.
 
 import { REDROCK_PLAN } from './redrock-plan.js';
-import { valueNoise, fbm, polylineAt, FRONTIER_CELL_KIND } from './frontier-terrain.js';
+import { valueNoise, fbm, polylineAt, polylineLength, relax, gradedRoadLevels, FRONTIER_CELL_KIND } from './frontier-terrain.js';
 import {
   ASPHALT, CONCRETE, DIRT, DUST_ROCK, DUST_SANDSTONE, MC_WATER, MC_CLAY, SAND, MEADOW, DRY_GRASS, MUD,
   SCORCHED_EARTH, GRAVEL, DUST_FLOOR,
@@ -269,52 +270,6 @@ const SENTINEL = 30000;
 const KIND = FRONTIER_CELL_KIND;
 export const REDROCK_CELL_KIND = KIND;
 
-/** Chamfer relaxation with unit cost over active cells (as frontier-terrain.js). */
-function relax(values, active, mode) {
-  const N = SX * SZ, last = SX - 1;
-  const step = mode < 0 ? 1 : -1;
-  for (let iter = 0; iter < 12; iter++) {
-    let changed = false;
-    for (let z = 0, i = 0; z < SZ; z++) {
-      for (let x = 0; x < SX; x++, i++) {
-        if (!active[i]) continue;
-        const v0 = values[i];
-        let v = v0, c;
-        if (x > 0 && active[i - 1] && ((c = values[i - 1] + step) - v) * step < 0) v = c;
-        if (z > 0) {
-          const k = i - SX;
-          if (x > 0 && active[k - 1] && ((c = values[k - 1] + step) - v) * step < 0) v = c;
-          if (active[k] && ((c = values[k] + step) - v) * step < 0) v = c;
-          if (x < last && active[k + 1] && ((c = values[k + 1] + step) - v) * step < 0) v = c;
-        }
-        if (v !== v0) { values[i] = v; changed = true; }
-      }
-    }
-    for (let z = SZ - 1, i = N - 1; z >= 0; z--) {
-      for (let x = last; x >= 0; x--, i--) {
-        if (!active[i]) continue;
-        const v0 = values[i];
-        let v = v0, c;
-        if (x < last && active[i + 1] && ((c = values[i + 1] + step) - v) * step < 0) v = c;
-        if (z < SZ - 1) {
-          const k = i + SX;
-          if (x < last && active[k + 1] && ((c = values[k + 1] + step) - v) * step < 0) v = c;
-          if (active[k] && ((c = values[k] + step) - v) * step < 0) v = c;
-          if (x > 0 && active[k - 1] && ((c = values[k - 1] + step) - v) * step < 0) v = c;
-        }
-        if (v !== v0) { values[i] = v; changed = true; }
-      }
-    }
-    if (!changed) break;
-  }
-}
-
-function polylineLength(points) {
-  let length = 0;
-  for (let i = 1; i < points.length; i++) length += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
-  return length;
-}
-
 /** The bridge-deck rectangle of a crossing: every cell the deck spans (roads run along x). */
 function deckRect(c) {
   return rect(Math.floor(c.x - c.halfSpan), Math.floor(c.z - c.width / 2), Math.ceil(c.x + c.halfSpan) - 1, Math.ceil(c.z + c.width / 2) - 1);
@@ -459,25 +414,8 @@ function buildTerrain() {
         else if (fixed[i] && kind[i] !== KIND.FORD) pin[k] = fixedY[i];
       }
     }
-    const smooth = new Float64Array(n);
-    for (let k = 0; k < n; k++) {
-      let sum = 0, count = 0;
-      for (let m = Math.max(0, k - 14); m <= Math.min(n - 1, k + 14); m++) { sum += target[m]; count++; }
-      smooth[k] = sum / count;
-    }
-    const step = length / (n - 1), lim = grade * step * 0.66;
-    const lo = new Float64Array(n).fill(-INF), hi = new Float64Array(n).fill(INF);
-    for (let k = 0; k < n; k++) if (!Number.isNaN(pin[k])) { lo[k] = hi[k] = pin[k]; }
-    for (let k = 1; k < n; k++) { lo[k] = Math.max(lo[k], lo[k - 1] - lim); hi[k] = Math.min(hi[k], hi[k - 1] + lim); }
-    for (let k = n - 2; k >= 0; k--) { lo[k] = Math.max(lo[k], lo[k + 1] - lim); hi[k] = Math.min(hi[k], hi[k + 1] + lim); }
-    const prof = new Float64Array(n);
-    for (let k = 0; k < n; k++) prof[k] = Number.isNaN(pin[k]) ? clamp(smooth[k], lo[k], hi[k]) : pin[k];
-    for (let iter = 0; iter < 8; iter++) {
-      for (let k = 1; k < n; k++) prof[k] = clamp(prof[k], prof[k - 1] - lim, prof[k - 1] + lim);
-      for (let k = n - 2; k >= 0; k--) prof[k] = clamp(prof[k], prof[k + 1] - lim, prof[k + 1] + lim);
-    }
-    const level = new Int16Array(n);
-    for (let k = 0; k < n; k++) level[k] = Number.isNaN(pin[k]) ? Math.round(prof[k]) : pin[k];
+    const step = length / (n - 1);
+    const level = gradedRoadLevels(target, pin, step, grade);
     const hw = plan.width / 2, shoulder = 5;
     for (let s = 1; s < plan.points.length; s++) {
       const a = plan.points[s - 1], b = plan.points[s];
@@ -520,15 +458,15 @@ function buildTerrain() {
     U[i] = fixed[i] ? fixedY[i] : SENTINEL;
     L[i] = fixed[i] ? fixedY[i] : -SENTINEL;
   }
-  relax(U, active, -1);
-  relax(L, active, 1);
+  relax(U, active, -1, SX, SZ);
+  relax(L, active, 1, SX, SZ);
   const natural = raw;
   const heights = new Int16Array(N);
   for (let i = 0; i < N; i++) {
     natural[i] = Math.round(raw[i]);
     heights[i] = fixed[i] ? fixedY[i] : clamp(natural[i], L[i], U[i]);
   }
-  relax(heights, active, -1);
+  relax(heights, active, -1, SX, SZ);
   for (let i = 0; i < N; i++) {
     if (active[i]) heights[i] = Math.max(L[i], heights[i]);
     else if (kind[i] === KIND.BRIDGE) heights[i] = fixedY[i];
