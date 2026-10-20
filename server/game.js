@@ -165,7 +165,7 @@ export class GameEngine {
     this.flames = new FlameSystem();
     this.killAnnouncer = new KillAnnouncer();
 
-    this.mode = new ModeController(this, { mode: callbacks.mode, mapMeta: this.mapMeta });
+    this.mode = new ModeController(this, { mode: callbacks.mode, mapMeta: this.mapMeta, variant: callbacks.conquestVariant });
     const trainingAmmo = this.mode.mode === 'training' && this.mapMeta?.id === 'killhouse';
     this.powerups = new PowerupSystem({
       solidAt: this.solidAt,
@@ -186,7 +186,7 @@ export class GameEngine {
       rules: CHAOS_CASH_RULES, types: ['cash'], prefix: 'cash',
     });
     this.vehicles = new VehicleSystem(this);
-    this.vehicles?.reset(this.mode.mode === 'conquest' ? this.mapMeta?.conquest?.vehicleSpawns ?? [] : []);
+    this.vehicles?.reset(this.mode.mode === 'conquest' ? this.mode.policy.vehicleSpawns?.() ?? this.mapMeta?.conquest?.vehicleSpawns ?? [] : []);
     this.contexts = createSimulationContexts(this);
     // Structural integrity is on in every mode; `structural: false`, a mode's
     // `rules.structural === false` or VOXEL_STRUCTURAL=0 turn it off.
@@ -408,7 +408,7 @@ export class GameEngine {
     this.blockJournal.length = 0;
     // Pristine voxels again: template support, nothing creaking or falling.
     this.structure.reset();
-    this.vehicles?.reset(this.mode.mode === 'conquest' ? this.mapMeta?.conquest?.vehicleSpawns ?? [] : []);
+    this.vehicles?.reset(this.mode.mode === 'conquest' ? this.mode.policy.vehicleSpawns?.() ?? this.mapMeta?.conquest?.vehicleSpawns ?? [] : []);
     // Damage that never removed a voxel must also reset between runs.
     for (const row of this.blockDamage.values()) {
       this.tickBlockDamage.set(`${row.x},${row.y},${row.z}`, { ...row, progress: 0 });

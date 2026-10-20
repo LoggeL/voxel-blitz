@@ -56,7 +56,7 @@ export class SquadOrders {
     const squadId = this.host.squads.squadOf(id);
     if (!squadId || this.host.squads.leaderOf(team, squadId) !== id) return false;
     const clear = flagId == null || flagId === '';
-    if (!clear && !this.host.flags().some(f => f.id === flagId)) return false;
+    if (!clear && !this._open(flagId)) return false;
     const current = this.get(team, squadId);
     if (clear ? !current : current?.flagId === flagId && current.by === id) return true;
     const now = this.host.now();
@@ -73,17 +73,26 @@ export class SquadOrders {
     if (!leader?.bot) return false;
     const current = this.get(team, squadId);
     if ((current?.flagId ?? null) === (flagId ?? null) && (!current || current.by === String(leaderId))) return true;
-    if (flagId != null && !this.host.flags().some(f => f.id === flagId)) return false;
+    if (flagId != null && !this._open(flagId)) return false;
     this._set(team, squadId, flagId ?? null, String(leaderId), false);
     return true;
   }
 
-  /** Drop orders whose squad is gone or whose giver no longer leads it (a leader left or was replaced). */
+  /** An order can name this flag: it exists and is not locked (Breakthrough locks every flag outside the active sector). */
+  _open(flagId) {
+    const flag = this.host.flags().find(f => f.id === flagId);
+    return !!flag && !this.host.locked?.(flag);
+  }
+
+  /**
+   * Drop orders whose squad is gone, whose giver no longer leads it (a leader
+   * left or was replaced) or whose flag locked (a Breakthrough sector fell).
+   */
   sync() {
     for (const [key, order] of this.orders) {
       const leaderId = this.host.squads.leaderOf(order.team, order.squadId);
       const leader = leaderId != null ? this.host.entity(leaderId) : null;
-      if (leaderId === order.by && leader && !!leader.bot === !order.human) continue;
+      if (leaderId === order.by && leader && !!leader.bot === !order.human && this._open(order.flagId)) continue;
       this.orders.delete(key);
       this.host.emit('squad_order', { team: order.team, squad: order.squadId, flag: null, by: order.by });
     }

@@ -55,7 +55,7 @@ const strip = ev => Object.fromEntries(Object.entries(ev).filter(([k]) => !['at'
   assert.equal(CONQUEST_CONTRACT_VERSION, 6, 'the bridge is contract v6');
   assert.equal(CONQUEST_CONTRACT.version, 6);
   assert.equal(CONQUEST_BRIDGE_KEY, 'br');
-  assert.equal(CONQUEST_EVENT_KINDS.at(-1), 'bridge', 'the bridge event kind is appended');
+  assert.equal(CONQUEST_EVENT_KINDS.indexOf('bridge'), CONQUEST_EVENT_KINDS.indexOf('weather_strike') + 1, 'the bridge event kind is appended after the weather');
   assert.equal(SCORE_POINTS.bridge_destroyed, 200);
   assert.equal(SCORE_LABELS.bridge_destroyed, 'BRIDGE DESTROYED');
   assert(S.y1 >= IRON_ARCH_TOP_Y, 'the falling box reaches over the arch crown of the voxel site');

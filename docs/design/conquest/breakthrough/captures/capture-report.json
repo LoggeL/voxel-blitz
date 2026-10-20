@@ -1,0 +1,98 @@
+{
+  "generated": "2026-10-20T00:10:32.860Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "bt-attack",
+        "title": "Breakthrough · attacking sector 2 · sector 1 captured, +20 tickets",
+        "file": "docs/design/conquest/breakthrough/captures/desktop-bt-attack.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-fallback",
+        "title": "Breakthrough · defending · sector lost, fall back inside the grace",
+        "file": "docs/design/conquest/breakthrough/captures/desktop-bt-fallback.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-overtime",
+        "title": "Breakthrough · attacking the last sector · overtime at 0 tickets",
+        "file": "docs/design/conquest/breakthrough/captures/desktop-bt-overtime.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-deploy",
+        "title": "Breakthrough · deploy · forward HQ on the taken sector",
+        "file": "docs/design/conquest/breakthrough/captures/desktop-bt-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "bt-attack",
+        "title": "Breakthrough · attacking sector 2 · sector 1 captured, +20 tickets",
+        "file": "docs/design/conquest/breakthrough/captures/portrait-bt-attack.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-fallback",
+        "title": "Breakthrough · defending · sector lost, fall back inside the grace",
+        "file": "docs/design/conquest/breakthrough/captures/portrait-bt-fallback.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-overtime",
+        "title": "Breakthrough · attacking the last sector · overtime at 0 tickets",
+        "file": "docs/design/conquest/breakthrough/captures/portrait-bt-overtime.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-deploy",
+        "title": "Breakthrough · deploy · forward HQ on the taken sector",
+        "file": "docs/design/conquest/breakthrough/captures/portrait-bt-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "bt-attack",
+        "title": "Breakthrough · attacking sector 2 · sector 1 captured, +20 tickets",
+        "file": "docs/design/conquest/breakthrough/captures/landscape-bt-attack.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-fallback",
+        "title": "Breakthrough · defending · sector lost, fall back inside the grace",
+        "file": "docs/design/conquest/breakthrough/captures/landscape-bt-fallback.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-overtime",
+        "title": "Breakthrough · attacking the last sector · overtime at 0 tickets",
+        "file": "docs/design/conquest/breakthrough/captures/landscape-bt-overtime.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-deploy",
+        "title": "Breakthrough · deploy · forward HQ on the taken sector",
+        "file": "docs/design/conquest/breakthrough/captures/landscape-bt-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

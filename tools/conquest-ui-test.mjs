@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installFakeDom, isShown, textsDrawn } from './lib/conquest-ui-dom.mjs';
 import {
-  CONQUEST_RULES, SCORE_LABELS, TEAM_DISPLAY, VEHICLE_STATUS, VEHICLE_TOPOLOGY, VEHICLE_WEAPON_META,
+  BREAKTHROUGH_RULES, CONQUEST_RULES, SCORE_LABELS, TEAM_DISPLAY, VEHICLE_STATUS, VEHICLE_TOPOLOGY, VEHICLE_WEAPON_META,
 } from '../shared/conquest-contract.js';
 import { LOCK_RULES, vehicleWeapon } from '../shared/vehicle-defs.js';
 
@@ -45,7 +45,7 @@ const ok = () => { checks++; };
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
   'tank-driver', 'tank-commander', 'tank-periscope', 'aa-driver', 'aa-overheat', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-bomb', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'bridge-failing', 'bridge-down', 'deploy',
   'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'recon-deploy', 'recon-sensor', 'ribbon', 'ribbon-banner', 'deploy-vehicles', 'weather-storm', 'weather-fog', 'scoreboard', 'result', 'result-medals',
-  'orders-rose', 'orders-chip', 'orders-map', 'mortar'];
+  'orders-rose', 'orders-chip', 'orders-map', 'mortar', 'bt-attack', 'bt-fallback', 'bt-overtime', 'bt-deploy'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
   assert.equal(f.match.mode, 'conquest');
@@ -686,6 +686,16 @@ function quietCombat(domParts) {
   assert.equal(overlay.dom.mvps.children.length, 5);
   assert.ok(overlay.dom.detail.textContent.includes('WEST HOLDS THE FRONTIER'));
   assert.equal(overlay.dom.score.textContent, `${result.match.conquest.tickets.alpha}:${result.match.conquest.tickets.bravo}`);
+  // Breakthrough results read in sectors: broken through, or held with the sectors lost so far.
+  const bt = structuredClone(result.match);
+  delete bt.conquest.bleed;
+  bt.conquest.bt = ['alpha', 3, 'AB.C.DE', 0, 0];
+  overlay.update(bt, result.self, result.players, FIXTURE_NOW);
+  assert.equal(overlay.dom.detail.textContent, 'WEST BROKE THROUGH · 3 OF 3 SECTORS'); assert.equal(overlay.dom.score.textContent, '3 / 3');
+  bt.conquest.bt = ['alpha', 1, 'AB.C.DE', 0, 0]; bt.winner = 'bravo';
+  overlay.update(bt, result.self, result.players, FIXTURE_NOW);
+  assert.equal(overlay.dom.detail.textContent, 'EAST HELD THE LINE · 1 OF 3 SECTORS LOST'); assert.equal(overlay.dom.score.textContent, '1 / 3');
+  assert.equal(overlay.dom.title.textContent, 'DEFEAT');
   ok();
 }
 
@@ -739,10 +749,97 @@ for (const f of fixtures) {
   const { hud } = r;
   assert.equal(hud.root.hidden, false, `${f.id}: HUD visible in Conquest`);
   assert.equal(hud.topBar.chipNodes.size, 5, `${f.id}: five chips`);
-  assert.equal(hud.topBar.own.name.textContent, f.selfTeam === 'bravo' ? 'EAST' : 'WEST', `${f.id}: own team left`);
-  assert.equal(hud.topBar.clock.textContent, '14:32');
+  // Breakthrough names the sides by their job (only the attackers count tickets).
+  const bt = f.match.conquest.bt;
+  const ownName = bt ? (bt[0] === (f.selfTeam === 'bravo' ? 'bravo' : 'alpha') ? 'ATTACKERS' : 'DEFENDERS') : f.selfTeam === 'bravo' ? 'EAST' : 'WEST';
+  assert.equal(hud.topBar.own.name.textContent, ownName, `${f.id}: own team left`);
+  assert.equal(hud.topBar.clock.textContent, bt ? '24:18' : '14:32');
   // The mortar's key hints fade MORTAR_HINT_MS after the tube is manned (tools/conquest-mortar-test.mjs).
   if (f.id !== 'mortar') assert.ok(!/MOUSE AIM|CLICK FIRE|T EXIT|COLLECTIVE/.test(hud.root.textContent), `${f.id}: no permanent keybind help line`);
+}
+ok();
+
+/* ---------------------------------------------------------- breakthrough */
+
+{
+  // Attacker: the sector track groups the chips (S1 captured, S2 active, S3 locked), the side shows 22 tickets.
+  const attack = rendered.get('bt-attack').hud;
+  const top = attack.topBar;
+  assert.equal(top.root.dataset.variant, 'breakthrough'); assert.equal(top.root.dataset.side, 'attack');
+  const boxes = top.sectorNodes.filter(n => n.classList.contains('cq-sector'));
+  assert.deepEqual(boxes.map(b => b.dataset.role), ['captured', 'active', 'locked']);
+  assert.deepEqual(boxes.map(b => b.label.textContent), ['S1', 'S2', 'S3']);
+  assert.deepEqual(boxes.map(b => b.flags.children.filter(c => c.classList.contains('cq-chip')).map(c => c.letter.textContent).join('')), ['AB', 'C', 'DE'], 'chips live in their sector box');
+  assert.equal(top.own.tickets.textContent, '22'); assert.equal(top.enemy.tickets.textContent, '', 'defenders count no tickets');
+  assert.equal(top.own.bleed.textContent, 'REINFORCEMENTS'); assert.equal(top.enemy.bleed.textContent, 'HOLD THE LINE');
+  assert.equal(top.own.fill.style.width, `${(22 / BREAKTHROUGH_RULES.tickets * 100).toFixed(1)}%`, '22 of the pool');
+  assert.equal(top.chipNodes.get('D').dataset.role, 'locked'); assert.equal(top.chipNodes.get('A').dataset.role, 'captured');
+  assert.equal(attack.markers.flags.get('E').dataset.role, 'locked', 'locked flag markers dim with a padlock');
+  assert.ok(attack.markers.flags.get('E').querySelector('.cq-flag-marker-lock'), 'padlock glyph on the marker');
+  assert.equal(shownText(attack.banners.title), 'SECTOR 1 CAPTURED'); assert.equal(attack.banners.detail.textContent, `+${BREAKTHROUGH_RULES.refillPerSector} TICKETS · PUSH TO SECTOR 2`);
+  assert.equal(top.tag.hidden, true, 'no grace tag without a grace');
+  const model = state.breakthroughModel(cqOf(byId('bt-attack')), 'alpha', FIXTURE_NOW);
+  assert.equal(model.headline, 'ATTACK SECTOR 2 OF 3');
+  assert.ok(Math.abs(model.sectors[1].progress - 0) < 1e-9, 'C still leans to the defenders: no attacker progress');
+  // The maps draw the attackers' own bound (lead, red) and the line behind the active sector.
+  const fronts = state.mapItems({ cq: cqOf(byId('bt-attack')), self: byId('bt-attack').self, selfTeam: 'alpha' }).filter(i => i.kind === 'front');
+  assert.deepEqual(fronts.map(i => `${i.edge}:${i.tone}`), ['rear:border', 'lead:danger']);
+  assert.equal(Math.round(fronts[1].x), 72 + 408, 'lead line 40 m past the C|D line (Frontier line 368 + 40)');
+  // Plain Conquest has none of it.
+  assert.equal(state.breakthroughModel(cqOf(byId('capturing')), 'alpha', FIXTURE_NOW), null);
+  assert.equal(state.mapItems({ cq: cqOf(byId('capturing')), self: byId('capturing').self, selfTeam: 'alpha' }).some(i => i.kind === 'front'), false);
+  assert.equal(rendered.get('capturing').hud.topBar.root.dataset.variant, '');
+}
+{
+  // Defender behind the lost line inside the grace: the fall-back card and the tag count the grace down.
+  const fall = rendered.get('bt-fallback').hud;
+  assert.equal(fall.topBar.root.dataset.side, 'defend');
+  assert.equal(fall.topBar.own.name.textContent, 'DEFENDERS'); assert.equal(fall.topBar.enemy.tickets.textContent, '26');
+  assert.equal(fall.topBar.tag.hidden, false); assert.equal(fall.topBar.tag.textContent, 'FALL BACK 13');
+  assert.equal(fall.restricted.root.hidden, false); assert.equal(fall.restricted.root.dataset.kind, 'grace');
+  assert.equal(fall.restricted.title.textContent, 'SECTOR LOST · FALL BACK'); assert.equal(fall.restricted.seconds.textContent, '13');
+  assert.equal(shownText(fall.banners.title), 'SECTOR 1 LOST'); assert.equal(fall.banners.detail.textContent, 'FALL BACK TO SECTOR 2');
+  const boxes = fall.topBar.sectorNodes.filter(n => n.classList.contains('cq-sector'));
+  assert.deepEqual(boxes.map(b => b.flags.children.filter(c => c.classList.contains('cq-chip')).map(c => c.letter.textContent).join('')), ['ED', 'C', 'BA'], 'sector order from the attackers\' side');
+  // Once the grace ran out the server's timer (cq[4]) takes over with the front wording.
+  const self = { ...byId('bt-fallback').self, cq: [...byId('bt-fallback').self.cq] };
+  self.cq[4] = 64;
+  const late = state.restrictedModel(self, cqOf(byId('bt-fallback')), { nowMs: FIXTURE_NOW + 20_000 });
+  assert.equal(late.kind, 'front'); assert.equal(late.title, 'SECTOR LOST · OUT OF BOUNDS'); assert.equal(late.detail, 'RETREAT TO SECTOR 2');
+  // Standing on the right side of the line: nothing.
+  const safe = { ...self, x: 300, cq: [...byId('bt-fallback').self.cq] };
+  assert.equal(state.restrictedModel(safe, cqOf(byId('bt-fallback')), { nowMs: FIXTURE_NOW }), null);
+}
+{
+  const ot = rendered.get('bt-overtime').hud;
+  assert.equal(ot.topBar.tag.textContent, 'OVERTIME'); assert.equal(ot.topBar.tag.dataset.kind, 'overtime');
+  assert.equal(ot.topBar.own.tickets.textContent, '0'); assert.equal(ot.topBar.own.bleed.textContent, 'OVERTIME'); assert.equal(ot.topBar.own.box.dataset.low, 'true');
+  assert.equal(shownText(ot.banners.title), 'OVERTIME');
+  assert.deepEqual(ot.topBar.sectorNodes.filter(n => n.classList.contains('cq-sector')).map(b => b.dataset.role), ['captured', 'captured', 'active']);
+  // Banners from both sides of each Breakthrough event.
+  const cap = { kind: 'sector_captured', sector: 1, next: 2, team: 'alpha', flags: ['C'], refill: 30, tickets: 50 };
+  assert.equal(state.bannerForEvent(cap, 'alpha').title, 'SECTOR 2 CAPTURED'); assert.equal(state.bannerForEvent(cap, 'bravo').title, 'SECTOR 2 LOST');
+  const last = { ...cap, sector: 2, next: -1, refill: 0 };
+  assert.equal(state.bannerForEvent(last, 'alpha').title, 'BROKEN THROUGH'); assert.equal(state.bannerForEvent(last, 'bravo').title, 'LINE BROKEN');
+  assert.equal(state.bannerForEvent({ kind: 'sector_overtime', team: 'alpha' }, 'bravo').title, 'ATTACKERS OUT OF TICKETS');
+  // Match end names how the round was decided.
+  const end = (winner, bt) => state.matchEndBanner({ mode: 'conquest', phase: 'post', winner, conquest: { v: 2, flags: [], bt } }, 'alpha');
+  assert.equal(end('alpha', ['alpha', 3, 'AB.C.DE', 0, 0]).detail, 'ATTACKERS BROKE THROUGH');
+  assert.equal(end('bravo', ['alpha', 1, 'AB.C.DE', 0, 0]).detail, 'DEFENDERS HELD THE LINE');
+  assert.equal(end('bravo', undefined).detail, 'EAST WINS');
+}
+{
+  // Deploy: the HQ entry is the forward HQ on the taken sector, A and B are forward flags; no tickets refuses everything.
+  const f = byId('bt-deploy');
+  const model = state.deployModel({ cq: cqOf(f), self: f.self, players: f.players, vehicles: f.vehicles, nowMs: FIXTURE_NOW, selection: f.selection });
+  const hq = model.options.find(o => o.kind === 'hq');
+  assert.equal(hq.label, 'FORWARD HQ'); assert.equal(hq.detail, 'FLAGS A B'); assert.equal(hq.forward, true);
+  assert.ok(Math.abs(hq.x - (232 + 272) / 2) < 1e-6, 'forward HQ centred between A and B');
+  assert.deepEqual(model.options.filter(o => o.kind === 'flag').map(o => `${o.id}:${o.detail.endsWith('FORWARD')}`), ['A:true', 'B:true']);
+  const broke = cqOf(f); broke.tickets = { alpha: 0, bravo: 0 };
+  const refused = state.deployModel({ cq: broke, self: f.self, players: f.players, vehicles: f.vehicles, nowMs: FIXTURE_NOW, selection: f.selection });
+  assert.ok(refused.options.every(o => !o.ok && o.reason === 'tickets')); assert.equal(refused.reasonText, 'NO REINFORCEMENTS LEFT');
+  assert.equal(state.deployRefusedText('tickets'), 'NO REINFORCEMENTS LEFT');
 }
 ok();
 

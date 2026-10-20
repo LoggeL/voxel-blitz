@@ -22,7 +22,8 @@
 // deployFor(player). Everything it reads is authoritative mode, entity and
 // vehicle state plus what the team's own bots have seen or heard.
 
-import { CONQUEST_RULES, CONQUEST_TEAMS, KIT_IDS, KITS, VEHICLE_TOPOLOGY } from '../shared/conquest-contract.js';
+import { BREAKTHROUGH_RULES, CONQUEST_RULES, CONQUEST_TEAMS, KIT_IDS, KITS, VEHICLE_TOPOLOGY } from '../shared/conquest-contract.js';
+import { outsideFront } from '../shared/breakthrough.js';
 import { KIT_ROLE_RULES, botSquadKit } from '../shared/conquest-kits.js';
 import { VEHICLE_RULES, vehicleMaxHp } from '../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
@@ -177,13 +178,19 @@ export function readConquestView(game) {
   const homeOf = f => f.home !== undefined ? f.home : axis ? (axis.t(f) < 0.4 ? 'alpha' : axis.t(f) > 0.6 ? 'bravo' : null) : null;
   if (typeof policy?.conquestView === 'function') {
     const view = policy.conquestView();
-    const flags = (view?.flags ?? []).map(f => {
+    // Breakthrough: the commander plans with the active sector's flags only (the rest
+    // are locked) and no flag is a "home" flag; spawn lookups and cover use every flag.
+    const breakthrough = view?.breakthrough ?? null;
+    const allFlags = (view?.flags ?? []).map(f => {
       const s = statics.get(f.id) ?? {};
       const x = f.x ?? s.x, y = f.y ?? s.y, z = f.z ?? s.z;
       return { id: f.id, x, y, z, radius: f.radius ?? s.radius ?? 20, owner: f.owner ?? null,
-        control: Number.isFinite(f.control) ? f.control : 0, state: f.state ?? 'idle', home: f.home ?? homeOf({ ...s, x, z }) };
+        control: Number.isFinite(f.control) ? f.control : 0, state: f.state ?? 'idle',
+        home: breakthrough ? null : f.home ?? homeOf({ ...s, x, z }), ...(breakthrough ? { role: f.role ?? null } : {}) };
     });
-    return { flags, tickets: view?.tickets ?? { alpha: 0, bravo: 0 }, maxTickets: view?.maxTickets ?? policy.rules?.tickets ?? 300,
+    const flags = breakthrough ? allFlags.filter(f => f.role === 'active') : allFlags;
+    return { flags, allFlags, breakthrough, front: view?.front ?? null, hqAnchors: view?.hqAnchors ?? null,
+      tickets: view?.tickets ?? { alpha: 0, bravo: 0 }, maxTickets: view?.maxTickets ?? policy.rules?.tickets ?? 300,
       squads: view?.squads instanceof Map ? view.squads : null,
       deployOptions: typeof view?.deployOptions === 'function' ? p => view.deployOptions(p) : null, bases };
   }
@@ -265,14 +272,14 @@ export class BotCommander {
   /** Attach time: precompute the per-flag cover sets from the objective layout. */
   prepare() {
     const view = this.readView(this.game.now);
-    if (view.flags.length) this.cover.ensure(view.flags);
+    if ((view.allFlags ?? view.flags).length) this.cover.ensure(view.allFlags ?? view.flags);
   }
 
   /** Called once per bot tick. */
   update(now) {
     if (this.game.mode.mode !== 'conquest') return;
     const view = this.readView(now);
-    if (!this.cover.sets.size && view.flags.length) this.cover.ensure(view.flags);
+    if (!this.cover.sets.size && (view.allFlags ?? view.flags).length) this.cover.ensure(view.allFlags ?? view.flags);
     this.cover.refresh(now);
     if (now >= this.nextPlanAt) { this.plan(now); this.nextPlanAt = now + COMMANDER_PLAN_MS; }
   }
@@ -384,7 +391,9 @@ export class BotCommander {
     ts.attackFlags = attackFlags;
     ts.threatened = threatened;
     const lead = ((view.tickets?.[team] ?? 0) - (view.tickets?.[enemy] ?? 0)) / Math.max(1, view.maxTickets);
-    const attackShare = Math.max(0.35, Math.min(0.85, ATTACK_SHARE - lead * 0.8));
+    // Breakthrough: the share follows the side's role (attackers push, defenders mostly hold), not a ticket lead.
+    const roleShare = view.breakthrough ? BREAKTHROUGH_RULES.botAttackShare[team === view.breakthrough.attackers ? 'attacker' : 'defender'] : null;
+    const attackShare = Number.isFinite(roleShare) ? roleShare : Math.max(0.35, Math.min(0.85, ATTACK_SHARE - lead * 0.8));
     const centroid = squad => this.squadCentroid(squad) ?? view.bases?.[team] ?? view.flags[0];
     const orders = new Map();
     // A human squad leader's order (comm rose or full map) binds the squad's bots; such squads
@@ -1210,11 +1219,12 @@ export class BotCommander {
     }
     const target = this.objectivePoint(p) ?? view.bases?.[this.teamOf(p)];
     let best = { spawn: 'hq', score: Infinity };
-    const base = view.bases?.[this.teamOf(p)];
+    // Breakthrough moves the HQ with the front: score the HQ entry where it spawns now.
+    const base = view.hqAnchors?.[this.teamOf(p)] ?? view.bases?.[this.teamOf(p)];
     if (base && target) best.score = flat(base, target) + 5;
     for (const spawn of options) {
       let point = null, penalty = 0;
-      if (spawn.startsWith('flag:')) point = view.flags.find(f => f.id === spawn.slice(5));
+      if (spawn.startsWith('flag:')) point = (view.allFlags ?? view.flags).find(f => f.id === spawn.slice(5));
       // A squad spawn can still be refused at resolve time (no free cell behind
       // the mate) and a refused bot deploys at HQ: only take it when it clearly wins.
       // A Medic deploys on its squad whenever that is about as close: the aura needs mates around.
@@ -1276,6 +1286,17 @@ export class BotCommander {
     return goal;
   }
 
+  /** Breakthrough fall-back goal (see computeGoal), or null on the right side of the front. */
+  frontFallback(p, team, view) {
+    const bt = view.breakthrough;
+    if (!bt || !view.front || p.vehicleId || !outsideFront(view.front, p, team, bt.attackers)) return null;
+    const flag = view.flags.slice().sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
+    if (!flag) return null;
+    const target = { id: flag.id, x: flag.x, y: flag.y, z: flag.z, radius: flag.radius, owner: flag.owner, state: flag.state };
+    return { kind: 'capture', target, interact: false, stance: team === bt.attackers ? 'attack' : 'defend',
+      point: this.walkablePoint({ x: flag.x, y: flag.y, z: flag.z }) ?? target, arrive: flag.radius * 0.5, fallback: true };
+  }
+
   computeGoal(p, now) {
     const spectate = { kind: 'spectate', target: null, interact: false };
     if (this.game.mode.phase !== 'live' || p?.state !== 'alive') return spectate;
@@ -1285,10 +1306,16 @@ export class BotCommander {
     const team = this.teamOf(p);
     const ts = this.teams.get(team);
     if (!ts) return spectate;
-    const kit = this.kitOf(p);
-    // The Iron Bridge groans: anyone on the span runs for the bank first.
+    // The Iron Bridge groans: anyone on the span runs for the bank first (the fall kills
+    // at once, the front's out-of-bounds timer below only after its grace).
     const escape = spanEscape(this.game, p);
     if (escape) return { kind: 'capture', target: null, interact: false, stance: 'attack', point: escape, arrive: 1.5, lookYaw: bearing(p, escape) };
+    // Breakthrough: a body on the wrong side of the front (a defender behind the
+    // lost sector's line, an attacker past the lead) walks back to the nearest
+    // active flag first, shooting on the move, before the out-of-bounds timer runs out.
+    const fallback = this.frontFallback(p, team, view);
+    if (fallback) return fallback;
+    const kit = this.kitOf(p);
     const role = this.roleGoal(p, kit, ts, now);
     if (role) return role;
     const squad = ts.memberSquad?.get(String(p.id));

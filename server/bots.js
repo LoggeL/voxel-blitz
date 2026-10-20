@@ -1305,7 +1305,8 @@ class BotManager {
     const panicFrom = enemy && (p.hp <= RETREAT_HP * pers.retreatHp || dryNearEnemy) ? enemy : evadeHull;
     // A Medic holding a revive in reach finishes it (1.2 s) before falling back.
     const supportHold = cq && supportInReach && goal.kind === 'revive';
-    if (panicFrom && !objectiveUrgent && !supportHold && now >= br.retreatReadyAt && !retreating) {
+    // Breakthrough's front fall-back never stops for cover: the out-of-bounds timer runs.
+    if (panicFrom && !objectiveUrgent && !supportHold && !goal.fallback && now >= br.retreatReadyAt && !retreating) {
       const cover = cq ? this.director?.coverFrom(p, panicFrom, goal) : null;
       if (cover) {
         br.roamTarget = cover;
@@ -1402,7 +1403,8 @@ class BotManager {
       // Support goals (revive/repair intents, a Medic standing by a hurt mate) hold their spot.
       const supportGoal = !!goal.support || goal.kind === 'heal';
       const holdPoint = objectiveArrived && (HOLD_STANCES.has(goalStance(goal)) || supportGoal);
-      if (fallingBack) cqMotion = 'travel';
+      // Breakthrough's front fall-back walks on with the gun up (the out-of-bounds timer runs).
+      if (fallingBack || goal.fallback) cqMotion = 'travel';
       // Titanfall: an embark, rodeo or battery run keeps walking while the gun stays up.
       else if (tf && goal.rush && objective) cqMotion = 'travel';
       else if (hullTarget && !(goal.kind === 'perch' && objectiveArrived)) cqMotion = 'combat';
@@ -1518,6 +1520,8 @@ class BotManager {
       // Walk the route while the aim stays on the enemy: world-space wish.
       const d = Math.hypot(ndx, ndz);
       if (d > 0.35) { br.moveWish = { x: ndx / d, z: ndz / d }; moving = true; }
+      // Breakthrough's front fall-back runs: the out-of-bounds timer does not wait.
+      if (goal.fallback && moving && enemyFlat > ADVANCE_FIGHT_DIST) sprint = true;
     } else if (cqMotion === 'approach') {
       // Close a far contact along the surface route (its own route cache, so
       // the objective route survives), weaving a little while the aim holds.

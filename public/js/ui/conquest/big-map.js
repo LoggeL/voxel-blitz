@@ -6,7 +6,7 @@
 import { el } from '../hud-support.js';
 import { CQ_COLORS } from '../conquest-hud-state.js';
 import { drawIcon } from './icons.js';
-import { imageReady, overviewImage, paintFlag, paintSensorRing, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
+import { imageReady, overviewImage, paintFlag, paintFrontLine, paintSensorRing, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
 import { paintBridge, paintBridgeFlag } from './bridge-hud.js';
 
 /** Flag name size on the north-up maps, in CSS px (scaled down from the max on small maps). */
@@ -134,6 +134,7 @@ export class NorthUpMap {
     declutter(movable, fixed, { px, maxShift: 30 * scale });
     this.flagHits = [];
     for (const item of sorted) {
+      if (item.kind === 'front') { paintFrontLine(ctx, item, toCanvas(item.a.x, item.a.z), toCanvas(item.b.x, item.b.z), scale); continue; }
       const c = place(item);
       if (item.kind === 'flag') {
         paintFlag(ctx, item, c, item.radius * s, { letterSize: 15 * scale, pulse: item.contested || item.order ? pulse : 0 });

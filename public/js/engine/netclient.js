@@ -736,8 +736,8 @@ export class NetClient {
     return this._sendJson({ t: 'continue', roundId });
   }
 
-  configureLobby({ gameMode, map, bots, duelKillLimit, traitorPercent }) {
-    return this._sendJson({ t: 'configure', gameMode, map, bots, duelKillLimit, traitorPercent });
+  configureLobby({ gameMode, map, bots, duelKillLimit, traitorPercent, conquestVariant }) {
+    return this._sendJson({ t: 'configure', gameMode, map, bots, duelKillLimit, traitorPercent, conquestVariant });
   }
 
   setBotDifficulty(id, difficulty) {
@@ -926,6 +926,7 @@ export class NetClient {
           duelKillLimit: msg.duelKillLimit,
           traitorPercent: msg.traitorPercent,
           traitorCount: msg.traitorCount,
+          conquestVariant: msg.conquestVariant,
           gameMode: msg.gameMode,
           map: msg.map,
           members,

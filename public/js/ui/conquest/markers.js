@@ -37,6 +37,7 @@ function flagNode(parent) {
   node.arrow = el('i', 'cq-flag-marker-arrow', node);
   // The own squad's order on this flag: an ATTACK / DEFEND tag above the diamond.
   node.order = el('span', 'cq-flag-marker-order', node);
+  node.appendChild(svgIcon(doc, 'padlock', 'cq-flag-marker-lock'));
   return node;
 }
 
@@ -61,6 +62,8 @@ export class WorldMarkers {
       n.dataset.lean = m.lean;
       n.dataset.contested = String(m.contested);
       n.dataset.edge = String(m.edge);
+      // Breakthrough: captured | active | locked (a locked flag dims and shows a padlock).
+      if (n.dataset.role !== (m.role || '')) n.dataset.role = m.role || '';
       // A world-anchored flag behind the crosshair dims so the reticle and its readouts stay legible.
       const near = !m.edge && viewWidth > 0 && Math.abs(m.x - viewWidth / 2) < NEAR_CROSSHAIR_PX && Math.abs(m.y - viewHeight / 2) < NEAR_CROSSHAIR_PX;
       if (n.dataset.near !== String(near)) n.dataset.near = String(near);

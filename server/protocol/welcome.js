@@ -2,6 +2,7 @@ import { DEFAULT_TRAITOR_PERCENT, tttTraitorCount } from '../../shared/ttt.js';
 import { DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../../shared/bot-difficulty.js';
 import { getMapDimensions } from '../../shared/world/dimensions.js';
 import { DEFAULT_DUEL_KILL_LIMIT, isTeamId } from '../../shared/modes.js';
+import { DEFAULT_CONQUEST_VARIANT, normalizeConquestVariant } from '../../shared/conquest-contract.js';
 // Welcome and full lobby-state replacement factories. Returned frames retain no
 // caller-owned objects or arrays.
 import { copyBlockDamage } from './block-damage.js';
@@ -76,6 +77,7 @@ export function makeLobbyState({
   members,
   duelKillLimit = DEFAULT_DUEL_KILL_LIMIT,
   traitorPercent = DEFAULT_TRAITOR_PERCENT,
+  conquestVariant = DEFAULT_CONQUEST_VARIANT,
   gameMode,
   map,
 } = {}) {
@@ -85,6 +87,7 @@ export function makeLobbyState({
     t: 'lobbyState',
     ...(selected.gameMode === 'ttt' ? { traitorPercent, traitorCount: tttTraitorCount(rows.length, traitorPercent) } : {}),
     ...(selected.gameMode === 'duel' ? { duelKillLimit } : {}),
+    ...(selected.gameMode === 'conquest' ? { conquestVariant: normalizeConquestVariant(conquestVariant) } : {}),
     code: normalizeLobbyCode(code),
     host: typeof host === 'string' || Number.isFinite(host) ? host : '',
     phase: phase === 'live' ? 'live' : 'waiting',

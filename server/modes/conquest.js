@@ -45,9 +45,9 @@ export class ConquestPolicy extends TdmPolicy {
     this._vehicleForContext = context.vehicleFor ?? (() => null);
     this.director = null;
     this.capture = new CaptureSystem(this.rules);
-    this.ledger = new TicketLedger(this.rules);
+    this.ledger = this._createLedger();
     this.squads = new SquadRoster(this.rules.squadSize);
-    this.bounds = new BoundsSystem(this.rules);
+    this.bounds = this._createBounds();
     this.deploy = new DeploySystem(this);
     this.score = new ScoreLedger({
       now: () => this.now,
@@ -73,6 +73,7 @@ export class ConquestPolicy extends TdmPolicy {
       emit: (kind, fields) => this._emit(kind, fields),
       squads: this.squads,
       flags: () => this.capture.flags,
+      locked: flag => !!this.capture.locked?.(flag),
       teamFor: p => this.teamFor(p),
       entity: value => this._entity(value),
     });
@@ -136,6 +137,24 @@ export class ConquestPolicy extends TdmPolicy {
     const pts = this.award(id, 'ribbon');
     this._emit('ribbon', { id: String(id), ribbon, count, pts });
   }
+  // --- variant hooks (server/modes/conquest/breakthrough.js overrides them) ---
+
+  /** Rule variant (CONQUEST_VARIANTS); the mode id stays 'conquest'. */
+  get variant() { return 'conquest'; }
+  /** Ticket accounting; called once from the constructor (before subclass fields exist). */
+  _createLedger() { return new TicketLedger(this.rules); }
+  /** HQ restriction and combat area; called once from the constructor. */
+  _createBounds() { return new BoundsSystem(this.rules); }
+  /** Hull spawns of a match (GameEngine resets the VehicleSystem with them). */
+  vehicleSpawns() { return this.mapMeta?.conquest?.vehicleSpawns ?? []; }
+  /** After every capture step, before tickets: objective rules beyond the flags. */
+  _afterCapture() {}
+  /** A team ran out of tickets: it loses. */
+  _onTicketsOut(team) { this._finishMatch(oppositeTeam(team)); }
+  /** Extra `match.conquest` fields of a variant. */
+  _conquestExtras() { return null; }
+  /** Extra `match_end` fields of a variant. */
+  _matchEndExtras() { return null; }
 
   /** Rich flag rows: id, x, y, z, radius, owner, control, state, mover, alpha, bravo, spawns. */
   get flags() { return this.capture.flags; }
@@ -213,10 +232,12 @@ export class ConquestPolicy extends TdmPolicy {
       isDown: p => this.roles.isDown(p) === true,
     });
     for (const outcome of this.capture.step(dt, presence)) this._applyFlagOutcome(outcome);
+    this._afterCapture(now);
+    if (this.phase !== 'live') return;
     const held = this.capture.held();
     const { low, zero } = this.ledger.step(now, dt, held);
     for (const row of low) this._emit('ticket_low', row);
-    if (zero) { this._finishMatch(oppositeTeam(zero)); return; }
+    if (zero) { this._onTicketsOut(zero); if (this.phase !== 'live') return; }
     this.bounds.step(now, this._entities.values(), {
       teamFor: p => this.teamFor(p),
       vehicleFor: id => this.vehicleFor(id),
@@ -340,7 +361,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.phase = 'post';
     this.phaseEndsAt = null; // ModeController sets it once the continuation vote passes
     this.matchWinner = winner ?? null;
-    this._emit('match_end', { mode: this.mode, winner: this.matchWinner, scores: { ...this.ledger.tickets } });
+    this._emit('match_end', { mode: this.mode, winner: this.matchWinner, scores: { ...this.ledger.tickets }, ...this._matchEndExtras() });
     this._emit('phase', { mode: this.mode, phase: this.phase, endsAt: this.phaseEndsAt });
   }
 
@@ -432,7 +453,7 @@ export class ConquestPolicy extends TdmPolicy {
     // The deploy screen opens now: restate the human's kit unlocks, so a client that
     // missed the join announcement (still loading the map) never shows stale padlocks.
     if (!dead.bot && Number.isFinite(dead.careerLevel)) this.setCareerLevel(dead, dead.careerLevel);
-    if (this.ledger.tickets[state.team] <= 0) this._finishMatch(oppositeTeam(state.team));
+    if (this.ledger.tickets[state.team] <= 0) this._onTicketsOut(state.team);
     return true;
   }
 
@@ -798,7 +819,8 @@ export class ConquestPolicy extends TdmPolicy {
         v: 2,
         tickets: { ...ledger.tickets },
         maxTickets: ledger.max,
-        bleed: ledger.snapshotBleed(),
+        // Breakthrough has no bleed: the field stays off its wire (clients read 0).
+        ...(ledger.bleeds === false ? {} : { bleed: ledger.snapshotBleed() }),
         endsAt: Number.isFinite(ledger.endsAt) ? Math.round(ledger.endsAt) : null,
         flags: this.capture.flags.map(encodeConquestFlag),
         // A squad tuple gains its order flag as a 4th entry while it has one.
@@ -810,6 +832,7 @@ export class ConquestPolicy extends TdmPolicy {
         ...(this.weather.tuple ? { wx: this.weather.snapshot() } : {}),
         ...(bridge ? { br: bridge } : {}),
         ...(this.phase === 'post' ? { ticketGraph: ledger.graph.map(row => row.slice()) } : {}),
+        ...this._conquestExtras(),
       },
     };
   }

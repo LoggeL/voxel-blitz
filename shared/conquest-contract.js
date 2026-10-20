@@ -37,6 +37,51 @@ export const CONQUEST_RULES = Object.freeze({
   redeployCooldownMs: 10000,
 });
 
+/**
+ * Conquest rule variants, picked in the lobby (`conquestVariant`). The mode id
+ * stays 'conquest' for every variant: kits, vehicles, deploy, squads and bots
+ * are shared; a variant only swaps the objective rules (server/modes/conquest/).
+ */
+export const CONQUEST_VARIANTS = Object.freeze(['conquest', 'breakthrough']);
+export const DEFAULT_CONQUEST_VARIANT = CONQUEST_VARIANTS[0];
+export const normalizeConquestVariant = value => (CONQUEST_VARIANTS.includes(value) ? value : DEFAULT_CONQUEST_VARIANT);
+
+/**
+ * Breakthrough (docs/conquest.md, Breakthrough): the attackers push an ordered
+ * line of sectors toward the defenders' HQ. Only the active sector's flags can
+ * change hands; holding all of them advances the front. The attackers spend a
+ * ticket pool that each captured sector refills; the defenders have no
+ * tickets. BreakthroughPolicy merges these over CONQUEST_RULES.
+ */
+export const BREAKTHROUGH_RULES = Object.freeze({
+  attackers: 'alpha',
+  tickets: 30,
+  // Tickets each captured sector gives the attackers back, never above `tickets`.
+  refillPerSector: 20,
+  // Attackers out of tickets fight on while they still take or contest an active flag.
+  overtime: true,
+  timeLimitMs: 30 * 60 * 1000,
+  bleedMsByFlags: Object.freeze({}),
+  // Defenders behind a lost sector's line get this long to fall back before the out-of-bounds timer runs
+  // (on Frontier about 100 m on foot from flag A to the C line; 15 s lost most bots to the timer).
+  fallbackGraceMs: 25000,
+  // Attackers may push this far past the line between the active and the next sector.
+  attackerLeadM: 40,
+  // Ordered sectors from the attackers' HQ to the defenders' (flag ids, 1-2 per sector), per map.
+  sectors: Object.freeze({
+    frontier: Object.freeze([Object.freeze(['A', 'B']), Object.freeze(['C']), Object.freeze(['D', 'E'])]),
+  }),
+  // Hull changes per side, keyed by the HQ pad suffix of `<team>-<pad>` spawns: the attackers
+  // bring a second tank (offset in metres in the attackers' frame, mirrored for bravo); the
+  // defenders' HQ tank bay fields an AT jeep (their armour is the Iron Bridge tank while C holds).
+  vehicles: Object.freeze({
+    attacker: Object.freeze({ add: Object.freeze([Object.freeze({ pad: 'tank-2', copy: 'tank', dx: 0, dz: 10 })]) }),
+    defender: Object.freeze({ retype: Object.freeze({ tank: 'jeep_at' }) }),
+  }),
+  // Bot commander: share of squads sent at enemy-held active flags (for the defenders: retakes).
+  botAttackShare: Object.freeze({ attacker: 0.8, defender: 0.3 }),
+});
+
 export const FLAG_STATES = Object.freeze(['idle', 'capturing', 'neutralizing', 'contested', 'restoring']);
 
 /**
@@ -161,7 +206,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'flag_captured',     // {flag, team}
   'ticket_low',        // {team, tickets}
   'score',             // {id, pts, reason}
-  'deploy_refused',    // {id, reason}                   reason: 'invalid'|'contested'|'enemy'|'busy'|'cooldown'|'seat'|'locked' (+ kit, level; or vehicle, upgrade, level)
+  'deploy_refused',    // {id, reason}                   reason: 'invalid'|'contested'|'enemy'|'busy'|'cooldown'|'seat'|'locked' (+ kit, level; or vehicle, upgrade, level)|'tickets'
   'revive',            // {id, by}
   'heal',              // {id, by, hp}                   Medic aura pulse: `by` restored `hp` to `id` (one per pulse per mate)
   'kit_unlocks',       // {id, level, unlocked:[kit], newly:[kit]}  career level gate; on join and on a level-up that opens a kit
@@ -181,6 +226,8 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'medal',             // {id, medal}                      MEDALS id awarded at match end (one event per medal)
   'weather_strike',    // {x, y, z}                      a lightning strike of the weather timeline (y = ground), shared/conquest-weather.js
   'bridge',            // {bridge, stage, integrity, fallAt?, by?}  Iron Bridge levolution stage change (shared/conquest-bridge.js; v6)
+  'sector_captured',   // {sector, next, team, flags:[id], refill, tickets, graceEndsAt}  Breakthrough front advanced (next -1: none left)
+  'sector_overtime',   // {team}                         Breakthrough attackers out of tickets fight on for an active flag
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);

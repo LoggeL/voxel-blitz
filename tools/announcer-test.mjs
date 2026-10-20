@@ -7,7 +7,7 @@ import { CombatFeedback } from '../public/js/combat/feedback.js';
 import { BUILTIN_SAMPLE_MANIFEST } from '../public/js/audio/samples.js';
 import {
   ANNOUNCER_CUES, MULTIKILL_WINDOW_MS, OBJECTIVE_CUES, OBJECTIVE_FLAG_IDS, TITANFALL_CUES, announcerCueInfo, objectiveAnnouncerCue, objectiveCueUrl,
-  titanfallCueUrl,
+  titanfallCueUrl, BREAKTHROUGH_CUES, breakthroughAnnouncerCue,
 } from '../shared/announcer.js';
 import {
   createObjectiveCues, OBJECTIVE_STINGERS, STINGER_SCORES, stingerForEvent, matchEndCue, CAPTURE_START_REPEAT_MS, UNDER_ATTACK_REPEAT_MS,
@@ -233,8 +233,9 @@ objectiveVoice.play = cue => { spoken.push(cue); return realPlay(cue); };
 const fetched = [];
 const cues = createObjectiveCues({ audioContext: objectiveEngine, announcer: objectiveVoice, hidden: () => false,
   fetchImpl: async url => { fetched.push(url); return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) }; } });
-assert.equal(await cues.ready, objectiveIds.length, 'every objective WAV decodes and registers once');
-assert.equal(fetched.length, objectiveIds.length);
+assert.equal(await cues.ready, objectiveIds.length + BREAKTHROUGH_CUES.length, 'every objective WAV (and the Breakthrough momentum calls) decodes and registers once');
+assert.equal(fetched.length, objectiveIds.length + BREAKTHROUGH_CUES.length);
+assert.deepEqual(fetched.slice(-BREAKTHROUGH_CUES.length), BREAKTHROUGH_CUES.map(titanfallCueUrl), 'Breakthrough reuses the Titanfall momentum WAVs');
 assert.equal(objectiveVoice.play('captured_C'), true, 'registered objective buffers are playable');
 spoken.length = 0;
 cues.syncMatch({ mode: 'conquest', phase: 'live', conquest: { flags: [['A', 100, 'alpha', 'idle', 0, 0], ['D', -100, 'bravo', 'idle', 0, 0]] } }, 'alpha');
@@ -249,6 +250,20 @@ cues.syncMatch({ mode: 'conquest', phase: 'post', winner: 'alpha', conquest: { e
 cues.syncMatch({ mode: 'conquest', phase: 'post', winner: 'alpha', conquest: { endsAt: 9, flags: [] } }, 'alpha');
 assert.deepEqual(cues.played, ['lost', 'captured', 'victory'], 'match end plays once');
 assert.deepEqual(spoken, ['under_attack_A', 'lost_A', 'captured_D', 'victory']);
+// Breakthrough: a fallen sector plays the captured / lost stinger and a momentum call; the break-through is the victory call's.
+{
+  assert.ok(BREAKTHROUGH_CUES.every(cue => Object.hasOwn(TITANFALL_CUES, cue)), 'sector calls are Titanfall bank lines');
+  const sector = { kind: 'sector_captured', sector: 0, next: 1, team: 'alpha', flags: ['A', 'B'], refill: 30, tickets: 50 };
+  assert.deepEqual([stingerForEvent(sector, 'alpha'), breakthroughAnnouncerCue(sector, 'alpha')], ['captured', 'winning']);
+  assert.deepEqual([stingerForEvent(sector, 'bravo'), breakthroughAnnouncerCue(sector, 'bravo')], ['lost', 'losing']);
+  assert.equal(breakthroughAnnouncerCue({ ...sector, next: -1 }, 'alpha'), null, 'the last sector leaves the call to victory / defeat');
+  const overtime = { kind: 'sector_overtime', team: 'alpha' };
+  assert.deepEqual([stingerForEvent(overtime, 'alpha'), breakthroughAnnouncerCue(overtime, 'alpha')], ['ticket_low', 'losing']);
+  assert.deepEqual([stingerForEvent(overtime, 'bravo'), breakthroughAnnouncerCue(overtime, 'bravo')], [null, 'winning']);
+  spoken.length = 0;
+  assert.deepEqual(cues.handleEvent(sector, 'bravo'), { stinger: 'lost', cue: 'losing' });
+  assert.deepEqual(spoken, ['losing']);
+}
 // Repeats are damped: capture start only inside the zone and once per window; under attack once per window.
 {
   let clock = 0;
