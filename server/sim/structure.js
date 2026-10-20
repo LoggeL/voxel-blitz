@@ -716,10 +716,10 @@ export class StructureSystem {
    * falls whatever its support then: `crush` are the bearing blocks that
    * give way under it (they crumble in place), `topple` its lean [x, z].
    */
-  doom(keys, cause, origin, { crush = null, topple = null, chunkCap = null } = {}) {
+  doom(keys, cause, origin, { crush = null, topple = null, chunkCap = null, fall = null } = {}) {
     const id = 'k' + (++this.doomSerial);
     for (const key of keys) this.doomed.add(key);
-    this.creakQueue.push({ id, keys, cause, origin, crush, topple, chunkCap });
+    this.creakQueue.push({ id, keys, cause, origin, crush, topple, chunkCap, fall });
     return id;
   }
 
@@ -727,12 +727,17 @@ export class StructureSystem {
    * A mode-scripted demolition (the Conquest Iron Bridge collapse): the
    * listed blocks creak and fall `creakMs` later whatever their support, as
    * chunks (at most `chunkCap`, default `maxChunksPerCluster`), credited to
-   * `cause` like any cut. Returns the creak id, or null when inactive.
+   * `cause` like any cut. `fall` {hinge: [x, y, z], dir: [x, z], minRise}
+   * topples a tower over its hinge edge instead (the Kestrel Halt grain
+   * elevator, a Conquest map event): every chunk whose centre stands at
+   * least `minRise` over the hinge lands where a rigid quarter turn puts it
+   * (its rise out along `dir`) and turns a quarter on the way; lower chunks
+   * fall as usual. Returns the creak id, or null when inactive.
    */
-  bringDown(keys, { cause = null, origin = null, chunkCap = null } = {}) {
+  bringDown(keys, { cause = null, origin = null, chunkCap = null, fall = null } = {}) {
     if (!this.field || !keys.length) return null;
     const live = keys.filter(key => !this.doomed.has(key));
-    return live.length ? this.doom(live, cause == null || cause === '' ? null : String(cause), origin, { crush: new Set(), chunkCap }) : null;
+    return live.length ? this.doom(live, cause == null || cause === '' ? null : String(cause), origin, { crush: new Set(), chunkCap, fall }) : null;
   }
 
   /**
@@ -753,8 +758,8 @@ export class StructureSystem {
       if (!keys.length) continue;
       events++;
       cells += listed;
-      const { id, cause, origin, crush, topple, chunkCap } = next;
-      this.dooms.push({ id, keys, next: 0, at, fallAt: at + rules.creakMs, cause, origin, crush, topple, chunkCap });
+      const { id, cause, origin, crush, topple, chunkCap, fall } = next;
+      this.dooms.push({ id, keys, next: 0, at, fallAt: at + rules.creakMs, cause, origin, crush, topple, chunkCap, fall });
       const { o, b, n } = this.encode(this.cellsOf(keys));
       this.engine.tickEvents.push(evCreak(id, at, rules.creakMs, o, b, n));
       this.stats.creaks++;
@@ -871,6 +876,27 @@ export class StructureSystem {
     return { drop, ms: Math.sqrt(2 * drop / g) * 1000, vx: 0, vz: 0 };
   }
 
+  /**
+   * Landing of a toppled tower's chunk (bringDown `fall`): out along `dir`
+   * by its rise over the hinge less its own distance past it, as a rigid
+   * quarter turn about the hinge edge would put its centre, on whatever the
+   * target columns hold. Null for a chunk below `minRise` or without room there.
+   */
+  toppleLanding(fall, cells, pivot) {
+    const rise = pivot[1] - fall.hinge[1];
+    if (!(rise >= (fall.minRise ?? 0))) return null;
+    const [ux, uz] = fall.dir;
+    const past = (pivot[0] - fall.hinge[0]) * ux + (pivot[2] - fall.hinge[2]) * uz;
+    const reach = Math.max(0, rise - past);
+    const sx = Math.round(ux * reach), sz = Math.round(uz * reach);
+    const own = new Set(cells.map(c => pack(c.x, c.y, c.z)));
+    let drop = Infinity;
+    for (const c of cells) if (c.y === 0 || !own.has(pack(c.x, c.y - 1, c.z))) drop = Math.min(drop, this.gapBelow(c.x + sx, c.y, c.z + sz));
+    if (!(drop > 0) || !Number.isFinite(drop)) return null;
+    const ms = Math.sqrt(2 * drop / this.rules.gravity) * 1000;
+    return { drop, ms, vx: sx / (ms / 1000), vz: sz / (ms / 1000) };
+  }
+
   spawnChunk(doom, cells) {
     const engine = this.engine, rules = this.rules, serial = ++this.chunkSerial;
     let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
@@ -900,13 +926,17 @@ export class StructureSystem {
       vx = Math.cos(heading) * speed;
       vz = Math.sin(heading) * speed;
     }
-    const land = this.landing(cells, vx, vz);
+    const thrown = doom.fall ? this.toppleLanding(doom.fall, cells, pivot) : null;
+    if (thrown) heading = Math.atan2(doom.fall.dir[1], doom.fall.dir[0]);
+    const land = thrown ?? this.landing(cells, vx, vz);
     if (!land) return false;
     // Tumble about the horizontal axis across the drift.
     let rate = (rules.spin[0] + (rules.spin[1] - rules.spin[0]) * random()) * (random() < 0.5 ? -1 : 1);
     if (cells.length > rules.maxDriftCells) rate *= 0.35;
     // Negative about the cross axis: the top swings toward the heading.
     if (doom.topple) rate = -this.loadRules.toppleSpin * (0.8 + 0.4 * random());
+    // A toppled tower's chunk lies on its side as it lands.
+    if (thrown) rate = -(Math.PI / 2) / Math.max(0.05, land.ms / 1000) * (0.9 + 0.2 * random());
     const axis = heading + Math.PI / 2, spin = [Math.cos(axis) * rate, 0, Math.sin(axis) * rate];
     const id = 'c' + serial, at = engine.now, velocity = [land.vx, 0, land.vz];
     const chunk = {

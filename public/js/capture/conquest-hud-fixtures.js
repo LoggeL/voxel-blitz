@@ -10,6 +10,8 @@ import { encodeConquestFlag } from '../../../shared/conquest.js';
 import { mortarPitchForRange } from '../../../shared/mortar-rules.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
+import { mapEventsFor } from '../../../shared/conquest-map-events.js';
+import { ELEVATOR_EVENT } from '../../../shared/map-events/elevator.js';
 
 export const FIXTURE_NOW = 2_000_000;
 const GROUND = 26;
@@ -434,6 +436,26 @@ export function conquestHudFixtures() {
       vehicles: [spottedTank, vehicle('alpha-tank', 'tank', 'alpha', C.x - 80, C.z + 20, { hp: 700 })], match,
       events: [{ kind: 'bridge', bridge: 'iron-bridge', stage: 3, name: 'down', integrity: 0, by: 'en1', blocks: 608 }],
       camera: cam(C.x - 50, GROUND + 1.6, C.z + 40, 0), bigMap: true }));
+  }
+  // 16d. Kestrel Halt elevator giving way (map event, docs/design/conquest/events/elevator/ variant A): held amber
+  // banner with the countdown, the hexagon marker over the tower, the striped fall line east on the minimap.
+  // 16e. The elevator down (variant C): the rubble strip across the a-c road on the full map, the DOWN banner.
+  {
+    const index = mapEventsFor('frontier').indexOf(ELEVATOR_EVENT);
+    const at = { x: 252, z: 352 }, tower = { x: 279.5, z: 334.5 };
+    const self = meAt(at.x, at.z);
+    const endsAt = FIXTURE_NOW + 3000;
+    const match = baseMatch();
+    match.conquest.ev = [[index, 2, 100, 1, 30]];
+    out.push(state('elevator-warning', 'Kestrel elevator giving way · countdown banner, tower marker, fall line on the minimap', { self, players: roster(self), match,
+      events: [{ kind: 'map_event', event: 'elevator', phase: 'warning', team: 'bravo', by: 'en1', endsAt, pos: [280, 46, 335] }],
+      camera: cam(at.x, 31.6, at.z, yawTo(at, tower), 0.12) }));
+    const down = baseMatch();
+    down.conquest.ev = [[index, 4, 100, 1]];
+    const me2 = meAt(240, 360);
+    out.push(state('elevator-down', 'Kestrel elevator down · rubble across the a-c road on the full map, down banner', { self: me2, players: roster(me2), match: down,
+      events: [{ kind: 'map_event', event: 'elevator', phase: 'done', team: 'bravo', by: 'en1', pos: [280, 46, 335] }],
+      camera: cam(240, 31.6, 360, yawTo({ x: 240, z: 360 }, tower)), bigMap: true }));
   }
   // 17. Deploy screen: dead, 3.2 s to respawn, valid spawns plus a refused flag (enemies in B).
   const deployRoster = self => roster(self, [player('en9', 'Draves', 'bravo', B.x + 3, B.z - 2, { cq: { squad: 2 } })]);

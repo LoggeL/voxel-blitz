@@ -14,7 +14,7 @@
 // slot relay (Frontier Signal Rock radio mast):
 // import { RELAY_EVENT } from './relay.js';
 // slot elevator (Frontier Kestrel Halt grain elevator):
-// import { ELEVATOR_EVENT } from './elevator.js';
+import { ELEVATOR_EVENT } from './elevator.js';
 // slot quarry (Frontier Aldric Quarry rockslide):
 // import { QUARRY_EVENT } from './quarry.js';
 // slot comeback (both maps, trailing team call-in):
@@ -34,7 +34,7 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot relay:
   // RELAY_EVENT,
   // slot elevator:
-  // ELEVATOR_EVENT,
+  ELEVATOR_EVENT,
   // slot quarry:
   // QUARRY_EVENT,
   // slot comeback:
