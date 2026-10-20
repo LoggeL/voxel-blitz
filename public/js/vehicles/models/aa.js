@@ -1,8 +1,7 @@
-import * as THREE from '../../vendor/three.module.js';
 import { VoxelPart } from '../voxel-model/dsl.js';
 import { VEHICLE_DEFS } from '../../../../shared/vehicle-defs.js';
 import { AA_RADAR } from '../../../../shared/vehicle-handling/aa.js';
-import { TANK_TRACK_PATH, TANK_TRACK_X } from './tank.js';
+import { TANK_TRACK_PATH, TANK_TRACK_PERIMETER, TANK_TRACK_X, mountTrackGear, trackGearParts } from './tank.js';
 import { blueprint, createKit, buildSeatAnchors, buildMounts, lightAnchor, finishModel } from './common.js';
 
 /**
@@ -12,8 +11,6 @@ import { blueprint, createKit, buildSeatAnchors, buildMounts, lightAnchor, finis
  * rotating search radar on a mast at the back of the roof and the commander's
  * hatch with a roof .50. Every pivot comes from VEHICLE_DEFS.aa.
  */
-const ROADWHEEL_Z = Object.freeze([-1.75, -1.05, -0.35, 0.35, 1.05, 1.75]);
-const CLEATS_PER_SIDE = 28;
 /** Turret ring: yaw pivot at the shared turretForward (turretLocal), on the hull roof. */
 export const AA_TURRET_PIVOT = Object.freeze([0, 1.5, -(VEHICLE_DEFS.aa.rules.turretForward ?? 0.19)]);
 /** Search radar mast (turret frame): the antenna spins about it. */
@@ -154,32 +151,8 @@ function buildParts() {
   rwsGun.box([rx + 0.1, ry - 0.1, rz - 0.4], [rx + 0.3, ry + 0.1, rz], 'panel', { tag: 'rws' });
   rwsGun.userData.priority = { rws: 70 };
 
-  const wheel = new VoxelPart('aa-roadwheel', { grid: [0, 0.1, 0.1] });
-  wheel.userData.scale = 0.5;
-  wheel.cyl([0, 0, 0], 0.66, 0.8, 'x', 'rubber');
-  wheel.cyl([0, 0, 0], 0.46, 0.8, 'x', 'drab');
-  wheel.cyl([0, 0, 0], 0.16, 0.8, 'x', 'dark');
-  const cleat = new VoxelPart('aa-cleat', { grid: [0.1, -0.1, -0.1] });
-  cleat.box([-0.3, -0.1, -0.1], [0.3, 0.1, 0.1], 'track');
+  const { wheel, cleat } = trackGearParts('aa');
   return { running, hull, turret, gun, barrel, radar, rwsBase, rwsGun, wheel, cleat, rwsBasePivot };
-}
-
-const segments = TANK_TRACK_PATH.map((start, i) => {
-  const end = TANK_TRACK_PATH[(i + 1) % TANK_TRACK_PATH.length];
-  return { start, end, length: Math.hypot(end[0] - start[0], end[1] - start[1]) };
-});
-const PERIMETER = segments.reduce((sum, segment) => sum + segment.length, 0);
-function pathPoint(distance) {
-  let offset = ((distance % PERIMETER) + PERIMETER) % PERIMETER;
-  for (const segment of segments) {
-    if (offset <= segment.length) {
-      const t = offset / segment.length;
-      return { z: segment.start[0] + (segment.end[0] - segment.start[0]) * t, y: segment.start[1] + (segment.end[1] - segment.start[1]) * t,
-        angle: Math.atan2(segment.end[1] - segment.start[1], segment.end[0] - segment.start[0]) };
-    }
-    offset -= segment.length;
-  }
-  return { z: segments[0].start[0], y: segments[0].start[1], angle: 0 };
 }
 
 /**
@@ -213,12 +186,7 @@ export function makeAaModel(options = {}) {
     right: kit.anchor(rwsPitch, 'rws-grip-right', [rws.pivot[0] + 0.12, rws.pivot[1] - 0.05, rws.pivot[2] + 0.25]),
   };
 
-  const wheelTransforms = [];
-  for (const side of [-1, 1]) for (const z of ROADWHEEL_Z) wheelTransforms.push({ position: [side * TANK_TRACK_X, 0.33, z], side });
-  const wheels = kit.instances(group, parts.wheel, wheelTransforms, 'aa-roadwheels');
-  const cleatTransforms = [];
-  for (const side of [-1, 1]) for (let i = 0; i < CLEATS_PER_SIDE; i++) cleatTransforms.push({ position: [side * TANK_TRACK_X, 0, 0], side, index: i });
-  const cleats = kit.instances(group, parts.cleat, cleatTransforms, 'aa-track-cleats');
+  const { wheels, cleats, animateTracks } = mountTrackGear(kit, group, parts, 'aa');
 
   const seatAnchors = buildSeatAnchors(kit, 'aa', { body, turret });
   const mounts = buildMounts(kit, 'aa', {
@@ -240,36 +208,6 @@ export function makeAaModel(options = {}) {
   };
 
   const contacts = [-1, 1].map(side => ({ x: side * TANK_TRACK_X, z: 0, radius: 0.7, stretch: 3.6, strength: 0.7 }));
-  const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), euler = new THREE.Euler();
-  const scale = new THREE.Vector3(1, 0.4, 1), unit = new THREE.Vector3(1, 1, 1);
-  const state = { left: 0, right: 0, spinLeft: 0, spinRight: 0 };
-  const writeCleats = () => {
-    cleatTransforms.forEach((transform, i) => {
-      const point = pathPoint(transform.index / CLEATS_PER_SIDE * PERIMETER + (transform.side < 0 ? state.left : state.right));
-      position.set(transform.side * TANK_TRACK_X, point.y + Math.cos(point.angle) * 0.04, point.z - Math.sin(point.angle) * 0.04);
-      quaternion.setFromEuler(euler.set(-point.angle, 0, 0));
-      matrix.compose(position, quaternion, scale);
-      cleats.setMatrixAt(i, matrix);
-    });
-    cleats.instanceMatrix.needsUpdate = true;
-  };
-  const writeWheels = () => {
-    wheelTransforms.forEach((transform, i) => {
-      position.fromArray(transform.position);
-      quaternion.setFromEuler(euler.set(transform.side < 0 ? state.spinLeft : state.spinRight, 0, 0));
-      matrix.compose(position, quaternion, unit);
-      wheels.setMatrixAt(i, matrix);
-    });
-    wheels.instanceMatrix.needsUpdate = true;
-  };
-  writeCleats(); writeWheels();
-  const animateTracks = (leftDistance = 0, rightDistance = 0) => {
-    const left = Number.isFinite(leftDistance) ? leftDistance : 0, right = Number.isFinite(rightDistance) ? rightDistance : 0;
-    if (left === 0 && right === 0) return;
-    state.left += left; state.spinLeft -= left / 0.33;
-    state.right += right; state.spinRight -= right / 0.33;
-    writeCleats(); writeWheels();
-  };
   const radarRate = 2 * Math.PI / AA_RADAR.sweepSeconds;
   const animate = (dt, { leftTrackSpeed = 0, rightTrackSpeed = 0, wreck = false } = {}) => {
     if (wreck || !(dt > 0)) return;
@@ -283,6 +221,6 @@ export function makeAaModel(options = {}) {
     wheels: [wheels], trackCleats: cleats, animate, animateTracks,
     muzzle: mounts['driver:main'].muzzle, muzzleLength: main.muzzle,
     gunPivotHeight: main.pivot[1], gunPivotForward: -main.pivot[2] + AA_TURRET_PIVOT[2],
-    floorTop: 1.5, perimeter: PERIMETER,
+    floorTop: 1.5, perimeter: TANK_TRACK_PERIMETER,
   });
 }

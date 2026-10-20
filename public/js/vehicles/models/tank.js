@@ -165,17 +165,23 @@ function buildParts() {
   rwsGun.box([rx - 0.1, ry + 0.1, rz - 0.6], [rx + 0.1, ry + 0.3, rz - 0.4], 'dark', { tag: 'rws' });
   rwsGun.userData.priority = { rws: 70 };
 
+  const { wheel, cleat } = trackGearParts('tank');
+  return { running, hull, turret, gun, barrel, rwsBase, rwsGun, wheel, cleat, rwsBasePivot };
+}
+
+/** The instanced roadwheel and belt cleat of a tracked hull (`prefix`-wheel parts; the mobile AA shares them). */
+export function trackGearParts(prefix) {
   // Roadwheel (instanced): authored at twice its size and meshed at half
   // scale, so the 0.1 m voxels give a round tyre, a painted dish and a hub.
-  const wheel = new VoxelPart('tank-roadwheel', { grid: [0, 0.1, 0.1] });
+  const wheel = new VoxelPart(`${prefix}-roadwheel`, { grid: [0, 0.1, 0.1] });
   wheel.userData.scale = 0.5;
   // Flat faces keep the instanced wheel cheap (no AO rings to split quads).
   wheel.cyl([0, 0, 0], 0.66, 0.8, 'x', 'rubber');
   wheel.cyl([0, 0, 0], 0.46, 0.8, 'x', 'drab');
   wheel.cyl([0, 0, 0], 0.16, 0.8, 'x', 'dark');
-  const cleat = new VoxelPart('tank-cleat', { grid: [0.1, -0.1, -0.1] });
+  const cleat = new VoxelPart(`${prefix}-cleat`, { grid: [0.1, -0.1, -0.1] });
   cleat.box([-0.3, -0.1, -0.1], [0.3, 0.1, 0.1], 'track');
-  return { running, hull, turret, gun, barrel, rwsBase, rwsGun, wheel, cleat, rwsBasePivot };
+  return { wheel, cleat };
 }
 
 // Perimeter sampling for the moving cleats.
@@ -184,6 +190,8 @@ const segments = TANK_TRACK_PATH.map((start, i) => {
   return { start, end, length: Math.hypot(end[0] - start[0], end[1] - start[1]) };
 });
 const PERIMETER = segments.reduce((sum, segment) => sum + segment.length, 0);
+/** Belt length of TANK_TRACK_PATH (m). */
+export const TANK_TRACK_PERIMETER = PERIMETER;
 function pathPoint(distance) {
   let offset = ((distance % PERIMETER) + PERIMETER) % PERIMETER;
   for (const segment of segments) {
@@ -195,6 +203,55 @@ function pathPoint(distance) {
     offset -= segment.length;
   }
   return { z: segments[0].start[0], y: segments[0].start[1], angle: 0 };
+}
+
+/**
+ * Instanced roadwheels and moving cleats of both belts under `group` (from
+ * trackGearParts; the mobile AA rides the same running gear). Roadwheels and
+ * idlers spin about X; cleats run around each belt. `animateTracks(left,
+ * right)` takes the signed per-frame belt travel in metres, per side.
+ */
+export function mountTrackGear(kit, group, parts, prefix) {
+  const wheelTransforms = [];
+  for (const side of [-1, 1]) for (const z of ROADWHEEL_Z) wheelTransforms.push({ position: [side * TANK_TRACK_X, 0.33, z], side });
+  const wheels = kit.instances(group, parts.wheel, wheelTransforms, `${prefix}-roadwheels`);
+  const cleatTransforms = [];
+  for (const side of [-1, 1]) for (let i = 0; i < CLEATS_PER_SIDE; i++) cleatTransforms.push({ position: [side * TANK_TRACK_X, 0, 0], side, index: i });
+  const cleats = kit.instances(group, parts.cleat, cleatTransforms, `${prefix}-track-cleats`);
+
+  const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), euler = new THREE.Euler();
+  const scale = new THREE.Vector3(1, 0.4, 1), unit = new THREE.Vector3(1, 1, 1);
+  const state = { left: 0, right: 0, spinLeft: 0, spinRight: 0 };
+  const writeCleats = () => {
+    cleatTransforms.forEach((transform, i) => {
+      const point = pathPoint(transform.index / CLEATS_PER_SIDE * PERIMETER + (transform.side < 0 ? state.left : state.right));
+      // Cleats sit inside the belt line so their outer face is the ground contact.
+      position.set(transform.side * TANK_TRACK_X, point.y + Math.cos(point.angle) * 0.04, point.z - Math.sin(point.angle) * 0.04);
+      quaternion.setFromEuler(euler.set(-point.angle, 0, 0));
+      matrix.compose(position, quaternion, scale);
+      cleats.setMatrixAt(i, matrix);
+    });
+    cleats.instanceMatrix.needsUpdate = true;
+  };
+  const writeWheels = () => {
+    wheelTransforms.forEach((transform, i) => {
+      position.fromArray(transform.position);
+      quaternion.setFromEuler(euler.set(transform.side < 0 ? state.spinLeft : state.spinRight, 0, 0));
+      matrix.compose(position, quaternion, unit);
+      wheels.setMatrixAt(i, matrix);
+    });
+    wheels.instanceMatrix.needsUpdate = true;
+  };
+  writeCleats(); writeWheels();
+  const animateTracks = (leftDistance = 0, rightDistance = 0) => {
+    const left = Number.isFinite(leftDistance) ? leftDistance : 0, right = Number.isFinite(rightDistance) ? rightDistance : 0;
+    // A parked or pivot-locked belt keeps its last pose: no per-frame instance upload.
+    if (left === 0 && right === 0) return;
+    state.left += left; state.spinLeft -= left / 0.33;
+    state.right += right; state.spinRight -= right / 0.33;
+    writeCleats(); writeWheels();
+  };
+  return { wheels, cleats, animateTracks };
 }
 
 /**
@@ -226,13 +283,7 @@ export function makeTankModel(options = {}) {
     right: kit.anchor(rwsPitch, 'rws-grip-right', [rws.pivot[0] + 0.12, rws.pivot[1] - 0.05, rws.pivot[2] + 0.25]),
   };
 
-  // Roadwheels and idlers spin about X; cleats run around each belt.
-  const wheelTransforms = [];
-  for (const side of [-1, 1]) for (const z of ROADWHEEL_Z) wheelTransforms.push({ position: [side * TANK_TRACK_X, 0.33, z], side });
-  const wheels = kit.instances(group, parts.wheel, wheelTransforms, 'tank-roadwheels');
-  const cleatTransforms = [];
-  for (const side of [-1, 1]) for (let i = 0; i < CLEATS_PER_SIDE; i++) cleatTransforms.push({ position: [side * TANK_TRACK_X, 0, 0], side, index: i });
-  const cleats = kit.instances(group, parts.cleat, cleatTransforms, 'tank-track-cleats');
+  const { wheels, cleats, animateTracks } = mountTrackGear(kit, group, parts, 'tank');
 
   const seatAnchors = buildSeatAnchors(kit, 'tank', { body, turret });
   const mounts = buildMounts(kit, 'tank', {
@@ -255,39 +306,6 @@ export function makeTankModel(options = {}) {
   };
 
   const contacts = [-1, 1].map(side => ({ x: side * TANK_TRACK_X, z: 0, radius: 0.7, stretch: 3.6, strength: 0.75 }));
-  const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), euler = new THREE.Euler();
-  const scale = new THREE.Vector3(1, 0.4, 1), unit = new THREE.Vector3(1, 1, 1);
-  const state = { left: 0, right: 0, spinLeft: 0, spinRight: 0 };
-  const writeCleats = () => {
-    cleatTransforms.forEach((transform, i) => {
-      const point = pathPoint(transform.index / CLEATS_PER_SIDE * PERIMETER + (transform.side < 0 ? state.left : state.right));
-      // Cleats sit inside the belt line so their outer face is the ground contact.
-      position.set(transform.side * TANK_TRACK_X, point.y + Math.cos(point.angle) * 0.04, point.z - Math.sin(point.angle) * 0.04);
-      quaternion.setFromEuler(euler.set(-point.angle, 0, 0));
-      matrix.compose(position, quaternion, scale);
-      cleats.setMatrixAt(i, matrix);
-    });
-    cleats.instanceMatrix.needsUpdate = true;
-  };
-  const writeWheels = () => {
-    wheelTransforms.forEach((transform, i) => {
-      position.fromArray(transform.position);
-      quaternion.setFromEuler(euler.set(transform.side < 0 ? state.spinLeft : state.spinRight, 0, 0));
-      matrix.compose(position, quaternion, unit);
-      wheels.setMatrixAt(i, matrix);
-    });
-    wheels.instanceMatrix.needsUpdate = true;
-  };
-  writeCleats(); writeWheels();
-  /** Signed per-frame belt travel in metres, independently per side. */
-  const animateTracks = (leftDistance = 0, rightDistance = 0) => {
-    const left = Number.isFinite(leftDistance) ? leftDistance : 0, right = Number.isFinite(rightDistance) ? rightDistance : 0;
-    // A parked or pivot-locked belt keeps its last pose: no per-frame instance upload.
-    if (left === 0 && right === 0) return;
-    state.left += left; state.spinLeft -= left / 0.33;
-    state.right += right; state.spinRight -= right / 0.33;
-    writeCleats(); writeWheels();
-  };
   const animate = (dt, { leftTrackSpeed = 0, rightTrackSpeed = 0, wreck = false } = {}) => {
     if (wreck || !(dt > 0)) return;
     animateTracks(leftTrackSpeed * dt, rightTrackSpeed * dt);
