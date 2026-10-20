@@ -41,10 +41,18 @@ export const CONQUEST_SQUAD_TUPLE_LENGTH = 3;
 export const CONQUEST_SQUAD_TUPLE_MAX_LENGTH = 4;
 /** 400 B before contract v6; the weather tuple `wx` adds about 26 B. */
 export const CONQUEST_MATCH_BUDGET_BYTES = 440;
+/** Contract v7: the map event rows `ev` / `evp` ride `match.conquest` under a budget of their own (MAP_EVENT_RULES.wire.budgetBytes). */
+export const CONQUEST_MAP_EVENT_KEYS = 'ev,evp';
+/** UTF-8 bytes of `match.conquest` that CONQUEST_MATCH_BUDGET_BYTES bounds: everything but the map event rows. */
+export function conquestMatchBytes(matchConquest) {
+  const { ev = null, evp = null, ...base } = matchConquest ?? {};
+  return Buffer.byteLength(JSON.stringify(base));
+}
 
 /** Conquest contract v3 (classes): `cq[0]` indexes this kit list (0-3 kept from v2, new kits appended, so cq[0] <= 8). */
 // v6: squad orders and the comm rose, the Recon gadgets, the Support MORTAR (`mortar` intent and event, deployable `mortar` hull rows with `own`), and ribbons and medals (`ribbon` / `medal` events, the `ribbon` score reason, results rows `cqr` / `cqm` / `cqp` / `cxp`), and vehicle upgrades (deploy `upgrades` map, row `upg`, locked `deploy_refused` with `vehicle` / `upgrade` / `level`), and the mobile AA (`aa` pad hull, `medium` armour class, `flak35` proximity-fused flak), and the patrol boat (`boat` pad hull after `aa`, `bow` mount, Frontier `waterways`), and dynamic weather (`match.conquest.wx` tuple, `weather_strike` event), and the Iron Bridge collapse (`match.conquest.br` tuple, `bridge` event, `bridge_destroyed` score reason).
-export const CONQUEST_CONTRACT = Object.freeze({ version: 6 });
+// v7: the map events (shared/conquest-map-events.js): `match.conquest.ev` / `evp` rows, the `map_event` event and score reason, the `use` support intent.
+export const CONQUEST_CONTRACT = Object.freeze({ version: 7 });
 export const CONQUEST_KIT_IDS = 'assault,engineer,support,recon,medic,pyro,grenadier,raider,marksman';
 /** Event kinds added by the classes update: the Medic aura `heal {id, by, hp}` and `kit_unlocks {id, level, unlocked, newly}`. */
 export const CONQUEST_CLASS_EVENT_KINDS = 'heal,kit_unlocks';

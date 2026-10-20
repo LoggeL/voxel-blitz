@@ -54,6 +54,8 @@ export class HazardZones {
       warnFrom: spec.warnFrom ?? spec.from ?? now, by: spec.by == null ? null : String(spec.by), killKey: spec.killKey ?? instance?.controller?.killKey ?? 'collapse',
       spareTeam: spec.spareTeam !== false, avoid: spec.avoid !== false, hits: new Map(), inside: new Map(), fired: false,
     };
+    // The trigger's side, so bots of it may cross a zone that spares them before it opens (re-read every tick once open).
+    zone.byTeam = zone.by ? this.system.teamOf(zone.by) : null;
     this.zones.push(zone);
     return zone;
   }

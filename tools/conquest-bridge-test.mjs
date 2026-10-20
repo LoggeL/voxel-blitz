@@ -34,7 +34,7 @@ import {
   decodeBridge, encodeBridge, onBridgeSpan,
 } from '../shared/conquest-bridge.js';
 import { IRON_ARCH_TOP_Y } from '../shared/world/frontier-sites/bridge.js';
-import { CONQUEST_BRIDGE_KEY, CONQUEST_CONTRACT, CONQUEST_MATCH_BUDGET_BYTES } from './lib/protocol-contract.mjs';
+import { CONQUEST_BRIDGE_KEY, CONQUEST_CONTRACT, CONQUEST_MATCH_BUDGET_BYTES, conquestMatchBytes } from './lib/protocol-contract.mjs';
 import { IronBridge } from '../server/modes/conquest/bridge.js';
 import {
   bannerCountdown, bridgeBanner, bridgeChipBadge, bridgeMapModel, bridgeStateBanner, hasIronBridge, paintBridge, paintBridgeFlag,
@@ -52,8 +52,8 @@ const strip = ev => Object.fromEntries(Object.entries(ev).filter(([k]) => !['at'
 
 // ---------------------------------------------------------------- rules and contract
 {
-  assert.equal(CONQUEST_CONTRACT_VERSION, 6, 'the bridge is contract v6');
-  assert.equal(CONQUEST_CONTRACT.version, 6);
+  assert.equal(CONQUEST_CONTRACT_VERSION, 7, 'the bridge is contract v6');
+  assert.equal(CONQUEST_CONTRACT.version, 7);
   assert.equal(CONQUEST_BRIDGE_KEY, 'br');
   assert.equal(CONQUEST_EVENT_KINDS.indexOf('bridge'), CONQUEST_EVENT_KINDS.indexOf('weather_strike') + 1, 'the bridge event kind is appended after the weather');
   assert.equal(SCORE_POINTS.bridge_destroyed, 200);
@@ -203,7 +203,7 @@ assert.equal(avoidSpan(game, { x: 300, y: 26, z: 300 }, a).x, 300, 'points off t
 run(TICK_MS * 2);
 const br = F.snap.match.conquest.br;
 assert.equal(br[0], 2); assert.equal(br[1], 0); assert.equal(br[2], Math.round(bridge.fallAt));
-assert(Buffer.byteLength(JSON.stringify(F.snap.match.conquest)) <= CONQUEST_MATCH_BUDGET_BYTES, 'match.conquest with br still fits its budget');
+assert(conquestMatchBytes(F.snap.match.conquest) <= CONQUEST_MATCH_BUDGET_BYTES, 'match.conquest with br still fits its budget');
 run(IRON_BRIDGE_RULES.warnMs - 200);
 assert.equal(bridge.stage, BRIDGE_STAGE.failing, 'the span carries traffic through the groan');
 assert(spanLeft(F.world) === deckBlocks, 'nothing falls before fallAt');

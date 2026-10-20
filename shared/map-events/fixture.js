@@ -30,3 +30,16 @@ export function fixtureMapEvent({ id = 'fixture', maps = ['frontier', 'redrock']
     tuning: { crushDamage: 999, fireDps: 20 },
   });
 }
+
+/**
+ * The live fixture (`VB_CONQUEST_EVENTS=fixture`, server/modes/conquest/map-events/fixture.js):
+ * the definition anchored at the first spawn of `mapMeta`'s C flag (else its first flag), as
+ * a one-entry list, or null. A capture page hands the same list to ConquestHud.setEventDefs.
+ */
+export function liveFixtureDefs(mapMeta) {
+  const flags = mapMeta?.conquest?.flags ?? [];
+  const flag = flags.find(f => f.id === 'C') ?? flags[0];
+  const at = flag?.spawns?.[0] ?? flag;
+  if (!at || !Number.isFinite(at.x) || !Number.isFinite(at.z) || !mapMeta?.id) return null;
+  return [fixtureMapEvent({ maps: [mapMeta.id], anchor: { x: at.x, y: at.y ?? 0, z: at.z }, flag: flag.id })];
+}

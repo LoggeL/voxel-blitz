@@ -28,6 +28,10 @@
 //  6. Tests: tools/conquest-map-event-<id>-test.mjs in `conquest:test`, with
 //     the fixture helpers of tools/lib/map-event-fixtures.mjs; docs: your
 //     subsection under docs/conquest.md "Map events" and the map doc.
+//  7. Wire: the base `match.conquest` keeps its 440 B (tools/lib/protocol-contract.mjs
+//     conquestMatchBytes leaves `ev` / `evp` out); your rows stay inside
+//     MAP_EVENT_RULES.wire.budgetBytes (mapEventWireBytes). Live smoke without
+//     your event: VB_CONQUEST_EVENTS=fixture (server/modes/conquest/map-events/fixture.js).
 import { MAP_EVENT_DEFS } from './map-events/registry.js';
 
 export { defineMapEvent, MAP_EVENT_KINDS, MAP_EVENT_POINT_TEAMS } from './map-events/define.js';

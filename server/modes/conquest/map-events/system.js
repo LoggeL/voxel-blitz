@@ -15,25 +15,33 @@ import { IntegrityTargets } from './integrity.js';
 import { StagedEdits } from './staged-edits.js';
 import { HazardZones } from './hazards.js';
 import { MAP_EVENT_CONTROLLERS } from './registry.js';
+import { FixtureController, liveFixtureDefs } from './fixture.js';
 
-/** `VB_CONQUEST_EVENTS`: off / false / 0 / no / none turn the map events off (tests, captures). */
+/**
+ * `VB_CONQUEST_EVENTS`: off / false / 0 / no / none turn the map events off (tests, captures);
+ * `fixture` runs only the framework fixture at the map's C flag (./fixture.js: smokes, HUD captures).
+ */
 export function mapEventsOptionFromEnv(value) {
   if (typeof value !== 'string' || !value.trim()) return undefined;
-  return ['off', 'false', '0', 'no', 'none'].includes(value.trim().toLowerCase()) ? false : undefined;
+  const v = value.trim().toLowerCase();
+  if (v === 'fixture') return 'fixture';
+  return ['off', 'false', '0', 'no', 'none'].includes(v) ? false : undefined;
 }
 
 export class MapEventSystem {
   /**
    * @param {object} policy  ConquestPolicy (engine, mapMeta, variant, teamFor, award, _emit)
    * @param {object} [options]
-   * @param {Array|false} [options.defs]  definitions (default: the registry); false turns events off
+   * @param {Array|false|'fixture'} [options.defs]  definitions (default: the registry); false turns events off,
+   *   'fixture' runs the framework fixture at the map's C flag (./fixture.js)
    * @param {object} [options.controllers]  id -> MapEventController subclass (default: the server registry)
    */
   constructor(policy, { defs = MAP_EVENT_DEFS, controllers = MAP_EVENT_CONTROLLERS, rules = MAP_EVENT_RULES } = {}) {
     this.policy = policy;
     this.enabled = defs !== false;
+    this.fixture = defs === 'fixture';
     this.defs = Array.isArray(defs) ? defs : MAP_EVENT_DEFS;
-    this.controllers = controllers ?? {};
+    this.controllers = this.fixture ? { fixture: FixtureController } : controllers ?? {};
     this.rules = rules;
     this.director = new MapEventDirector(this, rules.director);
     this.points = new InteractionPoints(this, rules.interaction);
@@ -66,7 +74,10 @@ export class MapEventSystem {
    * false` turns events off) and start over as at a round start.
    */
   configure({ defs, controllers } = {}) {
-    if (defs !== undefined) { this.enabled = defs !== false; this.defs = Array.isArray(defs) ? defs : MAP_EVENT_DEFS; }
+    if (defs !== undefined) {
+      this.enabled = defs !== false; this.fixture = defs === 'fixture'; this.defs = Array.isArray(defs) ? defs : MAP_EVENT_DEFS;
+      if (this.fixture) this.controllers = { fixture: FixtureController };
+    }
     if (controllers !== undefined) this.controllers = controllers ?? {};
     this.reset();
     return this;
@@ -82,6 +93,8 @@ export class MapEventSystem {
     this.instances = [];
     this.lastTickAt = this.now;
     if (!this.enabled || !this.mapId) return;
+    // The live fixture anchors on this map's metadata, so it is built per round.
+    if (this.fixture) this.defs = liveFixtureDefs(this.policy?.mapMeta) ?? [];
     const breakthrough = this.variant === 'breakthrough';
     this.mapDefs.forEach((def, index) => {
       if (breakthrough && !def.breakthrough) return;

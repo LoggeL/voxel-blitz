@@ -21,7 +21,7 @@ import {
   MAP_EVENT_RULES, decodeMapEvents, defineMapEvent, encodeMapEventPoint, encodeMapEventRow, integrityBlastDamage, mapEventsFor,
 } from '../shared/conquest-map-events.js';
 import { IRON_BRIDGE, IRON_BRIDGE_RULES, bridgeBlastDamage } from '../shared/conquest-bridge.js';
-import { MapEventSystem } from '../server/modes/conquest/map-events/system.js';
+import { MapEventSystem, mapEventsOptionFromEnv } from '../server/modes/conquest/map-events/system.js';
 import { planBoxEdit } from '../server/modes/conquest/map-events/staged-edits.js';
 import { hazardEscape, mapEventGoal, planMapEventTasks } from '../server/bot-map-events.js';
 import { mapEventBanner } from '../public/js/ui/conquest/map-events.js';
@@ -90,9 +90,9 @@ assert.equal(ev.phase, 'warning');
 assert(twin.trigger({ team: 'bravo', by: 'b' }), 'a second big event is accepted');
 assert.equal(twin.phase, 'armed', 'and queued');
 assert.equal(twin.queued, true);
-const warn = F.kinds().find(e => e.phase === 'warning');
-assert(warn && warn.event === 'fixture' && warn.team === 'alpha' && warn.by === 'a' && Number.isFinite(warn.endsAt) && warn.pos.length === 3);
 F.run(TICK_MS);
+const warn = F.kinds().find(e => e.phase === 'warning');
+assert(warn && warn.event === 'fixture' && warn.team === 'alpha' && warn.by === 'a' && Number.isFinite(warn.endsAt) && warn.pos.length === 3, 'one map_event per phase change (on the next broadcast)');
 const wire = F.snap.match.conquest;
 const row = wire.ev.find(r => r[0] === 0);
 assert.deepEqual(row.slice(0, 4), [0, 2, 0, 0], '[index, phase warning, progress, team alpha, ...]');
@@ -124,6 +124,10 @@ assert(rep.trigger() && F.runUntil(() => rep.phase === 'done', 12000) < 12000, '
 const bt = new MapEventSystem({ mapMeta: { id: 'frontier' }, variant: 'breakthrough', now: 0 }, { defs });
 bt.reset();
 assert.deepEqual(bt.instances.map(i => i.id), ['fixture', 'zz-repeat']);
+// VB_CONQUEST_EVENTS=fixture: the live fixture at the map's C flag with its server controller.
+const live = new MapEventSystem({ mapMeta: getMapMeta('redrock'), variant: 'conquest', now: 0 }, { defs: mapEventsOptionFromEnv('fixture') });
+live.reset();
+assert.deepEqual([live.instances.map(i => i.id), live.instance('fixture').def.flag, live.instance('fixture').controller.constructor.name], [['fixture'], 'C', 'FixtureController']);
 
 // ---------------------------------------------------------------- integrity, hazards, kill credit
 for (let i = 0; i < 3; i++) game.mode.onBlast([at.x, at.y + 1, at.z], { key: 'rocket', radius: 3, ownerId: 'b' });

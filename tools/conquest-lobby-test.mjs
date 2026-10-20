@@ -11,7 +11,7 @@ import { decodeConquestMatch } from '../shared/conquest.js';
 import {
   CONQUEST_CQ_LENGTH, CONQUEST_CQ_MAX_LENGTH, CONQUEST_CQS_LENGTH, CONQUEST_FLAG_TUPLE_LENGTH, CONQUEST_MATCH_BUDGET_BYTES, CONQUEST_MATCH_KEYS,
   CONQUEST_PLAYER_KEYS, CONQUEST_SQUAD_TUPLE_LENGTH, CONQUEST_SQUAD_TUPLE_MAX_LENGTH, CONQUEST_STATE_KEYS, CONQUEST_WEATHER_TUPLE_LENGTH,
-  remoteRowKeys,
+  CONQUEST_MAP_EVENT_KEYS, conquestMatchBytes, remoteRowKeys,
 } from './lib/protocol-contract.mjs';
 
 const server = startServer();
@@ -56,8 +56,9 @@ try {
   const conquest = tick.match.conquest;
   assert.equal(conquest.v, 2);
   assert.equal(Object.keys(tick.match).sort().join(','), CONQUEST_MATCH_KEYS, 'match keys');
-  assert.equal(Object.keys(conquest).sort().join(','), CONQUEST_STATE_KEYS, 'slim match.conquest');
-  assert(Buffer.byteLength(JSON.stringify(conquest)) <= CONQUEST_MATCH_BUDGET_BYTES, 'match.conquest fits its 440 B budget');
+  // The map event rows (`ev` / `evp`, contract v7) ride beside the slim state under their own budget.
+  assert.equal(Object.keys(conquest).filter(k => !CONQUEST_MAP_EVENT_KEYS.split(',').includes(k)).sort().join(','), CONQUEST_STATE_KEYS, 'slim match.conquest');
+  assert(conquestMatchBytes(conquest) <= CONQUEST_MATCH_BUDGET_BYTES, 'match.conquest fits its 440 B budget');
   assert(conquest.flags.every(f => f.length === CONQUEST_FLAG_TUPLE_LENGTH));
   // A 4th entry (the squad order flag, contract v6) only rides while a squad has an order.
   assert(conquest.squads.every(s => s.length === CONQUEST_SQUAD_TUPLE_LENGTH
