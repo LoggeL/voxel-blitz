@@ -4,7 +4,8 @@
  * then the level unlocks; locked kits show a padlock, the unlock level and XP
  * progress and cannot be picked; fresh unlocks are named in the section
  * header), one loadout slot under the base row with the picked class's
- * variant and gadget toggles (Engineer: AT launcher or STINGER), a class info line (the hint of the
+ * variant and gadget toggles (Engineer: AT launcher or STINGER; Support: none or
+ * the MORTAR; Recon: SPAWN BEACON or MOTION SENSOR), a class info line (the hint of the
  * hovered, focused or selected class, or why a tapped class is locked),
  * killer card, countdown to respawnAt and the Deploy button (desktop: beside
  * the unlocks row). A CLASSES / VEHICLES tab pair heads the strip: the
@@ -168,13 +169,18 @@ export class DeployScreen {
     this.unlocks = unlocks ?? null;
     this._kitSig = '';
     if (this.open && this._modelArgs) {
-      this.model = deployModel({ ...this._modelArgs, selection: this.selection, refused: this.refused, unlocks: this.unlocks, career: this._careerView() }) || this.model;
+      this.model = this._buildModel() || this.model;
       if (this.model) this._render(this.model);
     }
   }
 
   _careerView() {
     try { return this.career() ?? null; } catch { return null; }
+  }
+
+  /** The deploy model of the latest snapshot args with the current picks, refusal and unlocks (null without one). */
+  _buildModel() {
+    return deployModel({ ...this._modelArgs, selection: this.selection, refused: this.refused, unlocks: this.unlocks, career: this._careerView() });
   }
 
   /** Kits a level-up just opened: tagged NEW on the picker until picked. */
@@ -270,7 +276,7 @@ export class DeployScreen {
     const next = list[((current < 0 ? (delta > 0 ? -1 : 0) : current) + delta + list.length) % list.length];
     this.select(field === 'spawn' ? { spawn: next.spawn } : { kit: next.id });
     // Show the pick now; the next snapshot update rebuilds the model.
-    this.model = deployModel({ ...this._modelArgs, selection: this.selection, refused: this.refused, unlocks: this.unlocks, career: this._careerView() }) || model;
+    this.model = this._buildModel() || model;
     this._render(this.model);
     return true;
   }
@@ -292,7 +298,7 @@ export class DeployScreen {
       const current = options.findIndex(option => option.selected);
       const next = options[((current < 0 ? 0 : current) + delta + options.length) % options.length];
       this.select({ upgrade: { type: card.type, id: next.id } });
-      this.model = deployModel({ ...this._modelArgs, selection: this.selection, refused: this.refused, unlocks: this.unlocks, career: this._careerView() }) || this.model;
+      this.model = this._buildModel() || this.model;
     }
     this._kitSig = '';
     this._render(this.model);
@@ -323,7 +329,7 @@ export class DeployScreen {
   update({ cq, self, players, vehicles, nowMs, mapItems = [], meta = null }) {
     if (!this.open || !cq || !self) return null;
     this._modelArgs = { cq, self, players, vehicles, nowMs };
-    const model = deployModel({ ...this._modelArgs, selection: this.selection, refused: this.refused, unlocks: this.unlocks, career: this._careerView() });
+    const model = this._buildModel();
     if (!model) return null;
     if (model.spawn !== this.selection.spawn) {
       // The held spawn left the option list (flag lost, squadmate down, hull gone): the server
@@ -483,7 +489,7 @@ export class DeployScreen {
         chip.addEventListener('click', () => {
           if (!option.unlocked) return this.lockedUpgrade(card, option);
           this.select({ upgrade: focus });
-          this.model = deployModel({ ...this._modelArgs, selection: this.selection, refused: this.refused, unlocks: this.unlocks, career: this._careerView() }) || this.model;
+          this.model = this._buildModel() || this.model;
           if (this.model) this._render(this.model);
           return true;
         });
@@ -570,7 +576,7 @@ export class DeployScreen {
       v.addEventListener('click', () => this.select({ kit: card.id, variant: primary.index }));
     }
     if (card.gadgets.length) {
-      // Gadget choice (Engineer): AT launcher or AA STINGER, same toggle as the primaries.
+      // Gadget choice (Engineer AT / AA, Support NONE / MORTAR, Recon BCN / MSN), same toggle as the primaries.
       const gadgets = el('div', 'cq-kit-gadgets', loadout);
       gadgets.setAttribute('role', 'radiogroup');
       gadgets.setAttribute('aria-label', `${card.label} gadget`);
