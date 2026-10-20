@@ -20,7 +20,7 @@ import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { seatViews, vehicleViewLabel } from '../session/vehicle-camera.js';
 
 const fixtureMap = new URLSearchParams(location.search).get('map') || 'frontier';
-const fixtures = conquestHudFixtures();
+const fixtures = conquestHudFixtures({ map: fixtureMap });
 const mapMeta = fixtureMapMeta(fixtureMap);
 if (fixtureMap !== 'frontier') {
   for (const fixture of fixtures) if (fixture.match) fixture.match.map = fixtureMap;

@@ -5,7 +5,7 @@
 // event without a controller runs the inert base class.
 
 // slot dam:
-// import { DamController } from './dam.js';
+import { DamController } from './dam.js';
 // slot depot:
 // import { DepotController } from './depot.js';
 // slot weir:
@@ -24,7 +24,7 @@
 
 export const MAP_EVENT_CONTROLLERS = Object.freeze({
   // slot dam:
-  // dam: DamController,
+  dam: DamController,
   // slot depot:
   // depot: DepotController,
   // slot weir:

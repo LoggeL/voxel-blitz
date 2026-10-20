@@ -18,7 +18,7 @@
 // every goal point inside one is pushed to the zone's edge (`avoidHazards`).
 // Drivers: crossings an event closes join the Iron Bridge's in
 // `closedCrossings` (server/bot-bridge.js), so road routes skip them.
-import { MAP_EVENT_RULES, MAP_EVENT_SUPPORT, zoneContains, zoneExit } from '../shared/conquest-map-events.js';
+import { MAP_EVENT_RULES, MAP_EVENT_SUPPORT, zoneContains, zoneExit, zoneExitToward } from '../shared/conquest-map-events.js';
 
 /** A task at or above this priority may take bots out of a human-led squad's order. */
 export const HUMAN_ORDER_PRIORITY = 10;
@@ -65,12 +65,16 @@ export function hazardEscape(game, p, team = null) {
     lookYaw: Math.atan2(-(point.x - p.x), -(point.z - p.z)), hazard: zone.id };
 }
 
-/** A goal point inside an avoided zone moves to the zone's edge (the side of `from`); other points pass. */
+/**
+ * A goal point inside an avoided zone moves to the zone's edge: the edge
+ * nearest `from` when `from` stands outside it (the bot keeps out instead of
+ * crossing), else the nearest edge; other points pass.
+ */
 export function avoidHazards(game, point, from = null, team = null) {
   const zone = hazardAt(game, point, team);
   if (!zone) return point;
-  const side = from && !zoneContains(zone, from.x, from.y, from.z) ? from : point;
-  const out = zoneExit(zone, { ...point, x: side.x, z: side.z }, MAP_EVENT_RULES.hazards.fleeMargin);
+  const margin = MAP_EVENT_RULES.hazards.fleeMargin;
+  const out = from && !zoneContains(zone, from.x, from.y, from.z) ? zoneExitToward(zone, point, from, margin) : zoneExit(zone, point, margin);
   return { ...point, x: out.x, z: out.z };
 }
 

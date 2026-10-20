@@ -31,6 +31,7 @@ import { isCombinedArms } from '../shared/modes.js';
 import { navigationWaypoint } from './bot-navigation.js';
 import { BOAT_PATROL, boatPatrol } from './bot-boat-driving.js';
 import { avoidSpan, closedCrossings, crossesClosedSpan } from './bot-bridge.js';
+import { avoidHazards } from './bot-map-events.js';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -226,8 +227,9 @@ function shortestPath(graph, start, end, closed = null) {
 export function vehicleRoute(game, vehicle, goal) {
   const graph = roadGraph(game);
   const closed = closedCrossings(game);
-  // A goal on a fallen span (flag C's centre) becomes the bridgehead on the hull's bank.
-  goal = avoidSpan(game, goal, vehicle);
+  // A goal on a fallen span (flag C's centre) becomes the bridgehead on the hull's bank,
+  // one inside a map event hazard (a breached dam's gap) the zone's edge on the hull's side.
+  goal = avoidHazards(game, avoidSpan(game, goal, vehicle), vehicle);
   const prefix = [];
   const exit = vehicle.spawn?.exitRoute;
   let from = vehicle;

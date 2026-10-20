@@ -32,7 +32,7 @@ import { MAP_EVENT_DEFS } from './map-events/registry.js';
 
 export { defineMapEvent, MAP_EVENT_KINDS, MAP_EVENT_POINT_TEAMS } from './map-events/define.js';
 export {
-  boxDistance, insideBox, integrityBlastDamage, segmentCrossesZone, zoneCenter, zoneContains, zoneExit, zoneFlatDistance,
+  boxDistance, insideBox, integrityBlastDamage, segmentCrossesZone, zoneCenter, zoneContains, zoneExit, zoneExitToward, zoneFlatDistance,
 } from './map-events/geometry.js';
 export { MAP_EVENT_DEFS };
 

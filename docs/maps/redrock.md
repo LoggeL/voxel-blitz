@@ -71,6 +71,15 @@ Vehicles cross the river only at five points:
 - North of the dam the whole reach stands at the reservoir level (y26), so the north bridge spans it and the north ford is one voxel deep. The basin itself (z214–378) is wide and deep; boats are not part of the fleet, so infantry swim and vehicles go round. The vehicle wading cue reads the same two levels (`riverSurfaceAt` in `shared/world/battlefield-plans.js`).
 - South of the dam the canyon floor (y20) is reachable from two gullies on each side (`CANYON_GULLIES`, z452 and z590), so infantry can work along the river under the trestle.
 
+## Dam breach
+
+The dam can be blown (rules in [conquest.md](../conquest.md), *Redrock Dam breach*; data in `shared/map-events/dam.js`). Map-side facts:
+
+- The two charges sit in the gallery's portal passages (west x371, east x397, z388, floor y24), not in the middle of the gallery: the bots' surface graph (2.5D, one standing height a cell) cannot reach the gallery under the crest, but it reaches the portal mouths. So the gallery is not a bot route either, whatever the *Bots* paragraph below suggests for players.
+- The breach cuts x374–393 (z378–403) from the sill (y21, which stays) to y37; both abutments and flag C's 12 spawn cells stand. The intake towers stay, their feet dry once the reservoir drains.
+- The reservoir (z0–377, x150–618) drains to y21: 64 283 water cells over 15 862 columns. The canyon (z391–767, x300–468) rises 2 m, from its y19 surface to y21 (17 725 cells), so the wash ford goes under water and is closed for bot drivers; vehicles cross at the trestle and the north bridge (ford-north drains dry).
+- Changes are runtime voxel edits only; the pristine template and its fingerprint are unchanged, and a rematch restores them. A joiner after the breach gets a 422 KB map-cache patch (150 KB deflated).
+
 ## Terrain (`redrock-terrain.js`)
 
 `redrockTerrain()` returns the same arrays as `frontierTerrain()` (`heights`, `surface`, `drivable`, `water`, `ground`, `kind`, …). It is memoised. `redrockSurfaceY(x, z)` is the standing height (`heights + 1`); `redrockTopY` is the top voxel.
@@ -123,6 +132,7 @@ node tools/render-map-scenes.mjs --map redrock --width 1440 --height 900        
 node tools/render-map-scenes.mjs --map redrock --shot overview --width 1024 --height 1024
 node tools/render-map-scenes.mjs --map redrock --shot vista --weather dusk
 node tools/conquest-hud-capture.mjs --map redrock --out <dir>                      # HUD fixtures over Redrock's flags and overview
+node tools/conquest-hud-capture.mjs --map redrock --only dam-armed,dam-breached --sizes desktop,portrait --out docs/design/conquest/events/dam/captures
 ```
 
 The shots are in `shared/redrock-capture-shots.js` and stand on `redrockSurfaceY`. They all run in a muted headless browser.
@@ -146,6 +156,8 @@ The waiting lobby with Conquest and Redrock picked is captured in `captures/lobb
 - the presentation wiring: preview, label, capture shots, weather, apron colours and soundscape sites;
 - the deploy options on the real map, including an accepted flag deploy and a refused enemy flag;
 - a 60 s, 12-bot match: flags move, the dam is contested, bots fight and crew the fleet, nobody drowns or wedges in the canyon.
+
+`node tools/conquest-map-event-dam-test.mjs` (in `npm run conquest:test`) covers the dam breach on the real world (see conquest.md *Testing*).
 
 `node tools/redrock-lobby-test.mjs` (also in `npm run conquest:test`) runs the lobby over the real server: Conquest offers Redrock with Frontier as the default, other modes refuse it, the host's client receives Redrock's authoritative voxels, and the live match runs on Redrock's fleet and flags. `tools/lobby-settings-test.mjs` checks the lobby map menu and hint.
 

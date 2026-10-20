@@ -10,6 +10,8 @@ import { encodeConquestFlag } from '../../../shared/conquest.js';
 import { mortarPitchForRange } from '../../../shared/mortar-rules.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
+import { encodeMapEventPoint, encodeMapEventRow, mapEventsFor } from '../../../shared/conquest-map-events.js';
+import { DAM_EVENT, DAM_TUNING } from '../../../shared/map-events/dam.js';
 
 export const FIXTURE_NOW = 2_000_000;
 const GROUND = 26;
@@ -91,9 +93,10 @@ function state(id, title, { selfTeam = 'alpha', self, players, vehicles = [], ma
 }
 
 /** Every HUD state the acceptance list names, in capture order. */
-export function conquestHudFixtures() {
+export function conquestHudFixtures({ map = 'frontier' } = {}) {
   const out = [];
   const meAt = (x, z, extra = {}) => player('me', 'You', 'alpha', x, z, { cq: { squad: 1, kitId: 'assault' }, kills: 5, deaths: 2, score: 940, cqs: [400, 1, 1, 2], ...extra });
+  const meAtY = (x, y, z, extra = {}) => ({ ...meAt(x, z, extra), y });
   const alphaHeli = vehicle('alpha-helicopter', 'helicopter', 'alpha', 150, 330, { hp: 650, y: 40 });
   const spottedTank = vehicle('bravo-tank', 'tank', 'bravo', C.x + 70, C.z - 30, { hp: 820, sp: 1, yaw: 1.2 });
 
@@ -692,6 +695,8 @@ export function conquestHudFixtures() {
       dead: true, killer: { name: 'Rourke', weaponName: 'VK-77 RAPTOR', distance: 64 }, selection: { spawn: 'hq', kit: 'assault', variant: 0 },
       camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
+  // Redrock Dam breach (docs/conquest.md "Redrock Dam breach"; --map redrock only, the `ev` index is Redrock's).
+  if (map === 'redrock') out.push(...damFixtures(meAtY));
   return out;
 }
 
@@ -706,4 +711,38 @@ function breakthroughMatch({ attackers = 'alpha', sector = 0, tickets = BREAKTHR
   match.conquest.endsAt = FIXTURE_NOW + 24 * 60_000 + 18_000;
   match.conquest.bt = [attackers, sector, attackers === 'alpha' ? 'AB.C.DE' : 'ED.C.BA', graceEndsAt, overtime ? 1 : 0];
   return match;
+}
+
+
+/**
+ * Redrock Dam fixtures: the enemy's charges armed with 12 s of fuse (WEST at
+ * the west portal, the DEFUSE prompt, the charge pips and stripes on the
+ * minimap), and the breach under way on the full map (the lake bed showing
+ * through, the canyon in flood down to the wave front, the gap in the crest).
+ */
+function damFixtures(meAtY) {
+  const index = mapEventsFor('redrock').indexOf(DAM_EVENT);
+  const pointIndex = id => DAM_EVENT.points.findIndex(p => p.id === id);
+  const flags = [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', -1, 'bravo', 'idle'),
+    flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')];
+  const out = [];
+  const [west] = DAM_TUNING.charges;
+  {
+    const self = meAtY(west.x + 0.4, west.y, west.z + 1.4);
+    const match = baseMatch({ flags });
+    match.conquest.ev = [encodeMapEventRow(index, { phase: 'armed', progress: 0.7, team: 'bravo', leftMs: 12000, extra: [3, 0, 0] })];
+    match.conquest.evp = ['defuse-west', 'defuse-east'].map(id => encodeMapEventPoint(index, pointIndex(id), { teams: new Set(['alpha']), progress: 0, userTeam: null }));
+    out.push(state('dam-armed', 'Redrock Dam · enemy charges armed, 12 s fuse, DEFUSE prompt at the west portal', { self, players: roster(self), match,
+      events: [{ kind: 'map_event', event: 'dam', phase: 'armed', reason: 'fuse', team: 'bravo', by: 'en1', endsAt: FIXTURE_NOW + 12000, pos: [384, 24, 384] }],
+      camera: cam(self.x, self.y + 1.6, self.z, 0, 0) }));
+  }
+  {
+    const self = meAtY(352, 34, 395);
+    const match = baseMatch({ flags });
+    match.conquest.ev = [encodeMapEventRow(index, { phase: 'active', progress: 0.55, team: 'bravo', leftMs: null, extra: [3, 55, 548] })];
+    out.push(state('dam-breached', 'Redrock Dam breached · full map: lake bed, flooded canyon to the wave front, crest gap', { self, players: roster(self), match,
+      events: [{ kind: 'map_event', event: 'dam', phase: 'active', team: 'bravo', by: 'en1', pos: [384, 24, 384] }],
+      camera: cam(self.x, self.y + 1.6, self.z, yawTo(self, { x: 384, z: 420 }), -0.1), bigMap: true }));
+  }
+  return out;
 }

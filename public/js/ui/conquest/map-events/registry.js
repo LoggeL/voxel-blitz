@@ -19,7 +19,7 @@
  */
 
 // slot dam:
-// import { DAM_PRESENTER } from './dam.js';
+import { DAM_PRESENTER } from './dam.js';
 // slot depot:
 // import { DEPOT_PRESENTER } from './depot.js';
 // slot weir:
@@ -38,7 +38,7 @@
 
 export const MAP_EVENT_PRESENTERS = Object.freeze({
   // slot dam:
-  // dam: DAM_PRESENTER,
+  dam: DAM_PRESENTER,
   // slot depot:
   // depot: DEPOT_PRESENTER,
   // slot weir:
