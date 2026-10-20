@@ -25,7 +25,7 @@ const { FlightHint, FLIGHT_HINT, flightHintItems } = await import('../public/js/
 const { declutter } = await import('../public/js/ui/conquest/big-map.js');
 const { KILL_KEY_ICONS, ICON_PATHS } = await import('../public/js/ui/conquest/icons.js');
 const { conquestHudFixtures, fixtureMapMeta, FIXTURE_NOW } = await import('../public/js/capture/conquest-hud-fixtures.js');
-const { WEAPON_NAMES, VEHICLE_KILL_KEYS, isVehicleKillKey } = await import('../public/js/ui/hud-support.js');
+const { WEAPON_NAMES, VEHICLE_KILL_KEYS, DEPLOYABLE_KILL_ART, isVehicleKillKey } = await import('../public/js/ui/hud-support.js');
 const { CombatHudController } = await import('../public/js/ui/combat-hud.js');
 const { Scoreboard, groupBySquad, squadName } = await import('../public/js/ui/scoreboard.js');
 const { MatchResultOverlay } = await import('../public/js/ui/match-result-overlay.js');
@@ -638,7 +638,9 @@ function quietCombat(domParts) {
     const row = kf.firstChild;
     assert.ok(!row.textContent.includes('ENVIRONMENT'), `${key}: no ENVIRONMENT kill-feed row`);
     assert.ok(row.textContent.includes(WEAPON_NAMES[key]), `${key}: row names ${WEAPON_NAMES[key]}`);
-    if (key !== 'rocket') assert.equal(row.querySelectorAll('.kf-vehicle-icon').length, 1, `${key}: vector icon`);
+    // The drone's charge and the mortar shell show the deployables' slot art instead.
+    if (DEPLOYABLE_KILL_ART[key]) assert.equal(row.querySelector('.kf-weapon-icon')?.src, DEPLOYABLE_KILL_ART[key], `${key}: slot art`);
+    else if (key !== 'rocket') assert.equal(row.querySelectorAll('.kf-vehicle-icon').length, 1, `${key}: vector icon`);
   }
   combat.vehicleDestroyed({ kind: 'vehicle_destroyed', vehicleId: 'bravo-tank', type: 'tank', attacker: 'me', assists: [], crewKilled: 2 });
   const destroyed = kf.querySelectorAll('.kf-vehicle-destroyed').at(-1);

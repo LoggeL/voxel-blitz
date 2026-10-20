@@ -26,7 +26,7 @@ import { Input } from './engine/input.js';
 import { HUD } from './ui/hud.js';
 import { bastionEventBanner } from './ui/bastion-hud.js';
 import { displaySettings } from './ui/display-settings.js';
-import { MAP_LABELS, weaponImagePath } from './ui/hud-support.js';
+import { DEPLOYABLE_ART, MAP_LABELS, weaponImagePath } from './ui/hud-support.js';
 import { mapAtmosphere } from './engine/map-atmosphere.js';
 import { GrenadePouchSessionController, WeaponWheelController } from './session/weapon-wheel-controller.js';
 import { RunHud } from './ui/run-hud.js';
@@ -2019,6 +2019,7 @@ async function prefetchArt(report) {
   const urls = [...new Set([
     ...Object.keys(MAP_LABELS).map((map) => mapAtmosphere(map)?.skybox).filter(Boolean),
     ...WEAPON_IDS.map(weaponImagePath),
+    ...Object.values(DEPLOYABLE_ART),
     ...GRENADE_TYPE_IDS.map(grenadeIcon),
   ])];
   let done = 0;

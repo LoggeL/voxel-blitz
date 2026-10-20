@@ -15,7 +15,8 @@
  * spawn and spawns the player once respawnAt passes, so a choice may be sent
  * during the countdown; any later change is re-sent.
  */
-import { el, loadPref, savePref } from '../hud-support.js';
+import { DEPLOYABLE_ART, GRENADE_HUD_ICONS, el, loadPref, savePref, weaponImagePath } from '../hud-support.js';
+import { WEAPONS } from '../../../../shared/combatmath.js';
 import { deployModel } from '../conquest-hud-state.js';
 import { NorthUpMap } from './big-map.js';
 import { bridgeMapModel } from './bridge-hud.js';
@@ -24,6 +25,8 @@ import { downedMedicModel } from './comms-state.js';
 import { upgradeInfoText } from './upgrade-cards.js';
 
 const KIT_PREF = 'vb-conquest-kit';
+/** Slot art of a gadget toggle: the launcher's weapon art, the deployable's or the pouch gadget's icon (none for NO GADGET). */
+const gadgetArt = id => DEPLOYABLE_ART[id] ?? GRENADE_HUD_ICONS[id] ?? (WEAPONS[id] ? weaponImagePath(id) : null);
 /** Vehicle upgrade picks `{type: upgradeId}` (JSON) and the open strip tab ('class' | 'vehicles'). */
 const UPGRADE_PREF = 'vb-conquest-vehicle-upgrades';
 const TAB_PREF = 'vb-conquest-deploy-tab';
@@ -590,6 +593,11 @@ export class DeployScreen {
         g.title = gadget.hint;
         el('span', 'cq-kit-gadget-role', g).textContent = gadget.role;
         el('span', 'cq-kit-gadget-name', g).textContent = gadget.label;
+        const art = gadgetArt(gadget.weapon);
+        if (art) {
+          const img = el('img', 'cq-kit-gadget-art', g);
+          img.src = art; img.alt = ''; img.setAttribute('aria-hidden', 'true');
+        }
         g.addEventListener('click', () => this.select({ kit: card.id, gadget: gadget.index }));
       }
     } else if (model.kits.some(c => c.unlocked && c.gadgets.length)) {

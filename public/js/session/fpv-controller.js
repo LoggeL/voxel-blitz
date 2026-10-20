@@ -9,7 +9,7 @@
  * battery from the row, signal from the distance to the own body, the same
  * curve the server cuts the link with (fpvSignal).
  */
-import { FPV_RULES, decodeFpvRow, fpvDronesOf, fpvRowOf, fpvSignal } from '../../../shared/fpv-rules.js';
+import { FPV_RULES, decodeFpvRow, fpvDronesOf, fpvRowOf, fpvSignal, fpvStatic } from '../../../shared/fpv-rules.js';
 
 const finite = (value, fallback = 0) => (Number.isFinite(value) ? value : fallback);
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
@@ -21,6 +21,7 @@ export class FpvPilot {
   constructor({ getBlock = null } = {}) {
     this.getBlock = typeof getBlock === 'function' ? getBlock : null;
     this.row = null; this.info = null; this.left = null;
+    this._static = {};
     this.yaw = 0; this.pitch = 0; this.roll = 0;
     this._id = null;
   }
@@ -80,20 +81,22 @@ export class FpvPilot {
 
   /**
    * Feed telemetry: `{ battery 0..1, seconds, bars, quality, speed, altitude,
-   * distance, noise 0..1, left, roll, pitch }`, or null while inactive.
-   * `operator` is the own body's position (x, y, z).
+   * distance, noise 0..1, tear, bleed, drop, left, roll, pitch }`, or null
+   * while inactive. The distance is the row's link length (the server's, the
+   * one it cuts on); `operator`, the own body's position (x, y, z), only
+   * stands in for a row without it.
    */
   telemetry(operator = null) {
     if (!this.row || !this.info) return null;
     const row = this.row;
-    const distance = operator ? Math.hypot(row.x - operator.x, finite(row.y) - (finite(operator.y) + 1.5), row.z - operator.z) : 0;
-    const signal = fpvSignal(distance);
+    const distance = this.info.linkM ?? (operator ? Math.hypot(row.x - operator.x, finite(row.y) - (finite(operator.y) + 1.5), row.z - operator.z) : 0);
+    const signal = fpvSignal(distance), noise = fpvStatic(distance, this.info.occluded, this._static);
     return {
       battery: this.info.battery, seconds: Math.max(0, Math.round(this.info.battery * FPV_RULES.batteryMs / 1000)),
       bars: signal.bars, maxBars: FPV_RULES.signal.bars, quality: signal.quality, degraded: signal.degraded,
       speed: Math.abs(finite(row.speed)), altitude: this._altitude(row), distance, range: FPV_RULES.signal.range,
-      // Static: a faint grain always, growing to a snowstorm as the signal fades.
-      noise: clamp(0.08 + (1 - signal.quality) * 0.92, 0, 1),
+      // Static (FPV_RULES.static): a faint grain near the operator, a snowstorm with tears, bleed and dropouts at the range.
+      noise: noise.level, tear: noise.tear, bleed: noise.bleed, drop: noise.drop,
       left: this.left, roll: this.roll, pitch: this.pitch,
     };
   }

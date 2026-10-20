@@ -84,6 +84,16 @@ export function weaponImagePath(weaponId) {
   return `./assets/weapons/hud/${weaponId}${suffix}.png`;
 }
 
+/**
+ * Slot art of the Conquest deployables (the Support's M-81 MORTAR, the
+ * Engineer's FPV drone): they are no weapon slots, but the weapon wheel, the
+ * deploy-screen gadget toggles, the touch button and the kill feed show them
+ * in the weapon art's style (docs/design/conquest/fpv/icons/, .../mortar/icons/).
+ */
+export const DEPLOYABLE_ART = Object.freeze({ mortar: weaponImagePath('mortar'), fpv: weaponImagePath('fpv') });
+/** Kill keys drawn with a deployable's art in the kill feed (the drone's charge, the mortar's shell). */
+export const DEPLOYABLE_KILL_ART = Object.freeze({ fpv: DEPLOYABLE_ART.fpv, mortarHE: DEPLOYABLE_ART.mortar });
+
 /** Kill-feed / recap names for explosives that are not weapon slots. */
 export const THROWABLE_NAMES = Object.freeze({
   grenade: 'GRENADE',

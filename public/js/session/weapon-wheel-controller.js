@@ -1,5 +1,5 @@
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
-import { WEAPON_NAMES, WEAPON_CLASSES, weaponImagePath } from '../ui/hud-support.js';
+import { WEAPON_NAMES, WEAPON_CLASSES, DEPLOYABLE_ART, weaponImagePath } from '../ui/hud-support.js';
 import { usesOwnedLoadout } from '../../../shared/modes.js';
 import { KIT_DIGIT_ROLES, KIT_GADGET_LABELS, kitWeaponRole as kitRole, kitWeaponDigit } from '../../../shared/conquest-kits.js';
 import { ICON_PATHS } from '../ui/conquest/icons.js';
@@ -20,8 +20,9 @@ function kitSlotAction(id) {
 /** Kit-relative digit of the gadget role (slot key 3): a deployable gadget answers to it too. */
 const GADGET_DIGIT = KIT_DIGIT_ROLES.indexOf('gadget');
 
-/** Wheel art for a deployable gadget: its Conquest glyph (public/js/ui/conquest/icons.js) as an SVG image. */
+/** Wheel art for a deployable gadget: its slot art (DEPLOYABLE_ART), else its Conquest glyph (public/js/ui/conquest/icons.js) as an SVG image. */
 function deployableIcon(id) {
+  if (DEPLOYABLE_ART[id]) return DEPLOYABLE_ART[id];
   const path = ICON_PATHS[id];
   return path ? `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#f2f4f5" d="${path}"/></svg>`)}` : '';
 }

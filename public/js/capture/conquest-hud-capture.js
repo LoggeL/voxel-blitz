@@ -12,7 +12,7 @@ import { readConquest, seatedVehicle, vehiclePanelModel } from '../ui/conquest-h
 import { KIT_IDS, KITS, seatWeaponList } from '../../../shared/conquest-contract.js';
 import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
-import { conquestHudFixtures, fixtureMapMeta, FIXTURE_NOW } from './conquest-hud-fixtures.js';
+import { conquestHudFixtures, fixtureMapMeta, fpvFixtureTelemetry, FIXTURE_NOW } from './conquest-hud-fixtures.js';
 import { WeaponWheelController as WheelSession } from '../session/weapon-wheel-controller.js';
 import { wheelAngleForSlot } from '../ui/weapon-wheel.js';
 import { kitDeployable, kitLoadout } from '../../../shared/conquest-kits.js';
@@ -99,9 +99,11 @@ function applyOrderStates(hud, state) {
   }
 }
 
-async function render(id, { touch: touchMode = false } = {}) {
-  const state = fixtures.find(f => f.id === id);
-  if (!state) throw new Error(`unknown fixture ${id}`);
+/** `linkM` re-flies an FPV fixture over that link length (the static captures at several distances). */
+async function render(id, { touch: touchMode = false, linkM = null } = {}) {
+  const fixture = fixtures.find(f => f.id === id);
+  if (!fixture) throw new Error(`unknown fixture ${id}`);
+  const state = fixture.fpv && Number.isFinite(linkM) ? { ...fixture, fpv: fpvFixtureTelemetry(linkM, { altitude: fixture.fpv.altitude }) } : fixture;
   const h = ensureHud();
   conquest?.dispose();
   h.setScoreboard?.(false);

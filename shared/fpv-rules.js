@@ -70,8 +70,23 @@ export const FPV_RULES = freeze({
     terrainRadius: 1.8, terrainPower: 110, maxDestroyedBlocks: 18, knockback: 12 }),
   /** The mobile AA's radar shows a drone inside this range (it never takes a STINGER lock). */
   radarRange: 150,
-  /** HUD: the feed's horizontal field of view (degrees) and the static floor once the link degrades. */
+  /** HUD: the feed's horizontal field of view (degrees). */
   fov: 104,
+  /**
+   * The feed's static by link length (fpvStatic; drawn by public/js/ui/conquest/fpv-feed.js).
+   * `noise` is [m, level] knots, linear between: a faint grain near the
+   * operator, rising from 70 m, clearly noisy by 200 m, a snowstorm at the
+   * range. Horizontal tear lines ramp in from `tearFrom` m and colour bleed
+   * from `bleedFrom` m, both full at the range; past `dropFrom` m the frame
+   * drops out (frozen snow over the picture) for `dropMs` up to `dropRate`
+   * times a second at the range. Terrain between the operator's head and the
+   * drone (the server looks every `occlusionMs`) adds `occlusion` to the level.
+   */
+  static: Object.freeze({
+    noise: Object.freeze([[0, 0.03], [70, 0.05], [130, 0.15], [200, 0.38], [250, 0.55], [300, 0.74], [335, 0.9], [350, 1]]),
+    tearFrom: 220, bleedFrom: 250, dropFrom: 260, dropRate: 1.6, dropMs: 160,
+    occlusion: 0.18, occlusionMs: 250,
+  }),
 });
 
 /**
@@ -100,6 +115,31 @@ export function fpvSignal(distance, rules = FPV_RULES) {
   const s = rules.signal, d = finite(distance, Infinity);
   const quality = d <= s.degradeFrom ? 1 : d >= s.range ? 0 : 1 - (d - s.degradeFrom) / (s.range - s.degradeFrom);
   return { quality, bars: d > s.range ? 0 : Math.max(1, Math.ceil(quality * s.bars)), degraded: d > s.degradeFrom, lost: d > s.range };
+}
+
+const ramp = (d, from, to) => (d <= from ? 0 : d >= to ? 1 : (d - from) / (to - from));
+
+/**
+ * Static of the feed over a link `distance` m long (`occluded`: terrain
+ * between the operator and the drone): `{ level, tear, bleed, drop }`, the
+ * snow level 0..1, the tear-line and colour-bleed strengths 0..1 and the
+ * dropouts per second. Fills and returns `out` (the HUD passes one per frame).
+ */
+export function fpvStatic(distance, occluded = false, out = {}, rules = FPV_RULES) {
+  const s = rules.static, range = rules.signal.range, d = Math.max(0, finite(distance, range)), knots = s.noise;
+  let level = knots[knots.length - 1][1];
+  for (let i = 1; i < knots.length; i++) {
+    if (d <= knots[i][0]) {
+      const [d0, l0] = knots[i - 1], [d1, l1] = knots[i];
+      level = l0 + (l1 - l0) * (d1 > d0 ? (d - d0) / (d1 - d0) : 1);
+      break;
+    }
+  }
+  out.level = clamp(level + (occluded ? s.occlusion : 0), 0, 1);
+  out.tear = ramp(d, s.tearFrom, range);
+  out.bleed = ramp(d, s.bleedFrom, range);
+  out.drop = ramp(d, s.dropFrom, range) * s.dropRate;
+  return out;
 }
 
 /** Unit look vector of a yaw / pitch (yaw 0 faces -Z, positive yaw turns toward -X). */
@@ -173,22 +213,31 @@ export const FPV_LINK = freeze({ live: 0, cut: 1 });
 
 /**
  * Snapshot extras of an `fpv` row: `own` (the operator's id, as on the
- * mortar) and `fpv = [batteryPct, link, look100?]`: battery left 0..100, the
- * FPV_LINK state and, while flying, the operator's look pitch ×100 (the
- * client's camera for spectators and the operator's own reconnect).
+ * mortar) and `fpv = [batteryPct, link, look100?, linkM?, occluded?]`: battery
+ * left 0..100, the FPV_LINK state and, while flying, the operator's look pitch
+ * ×100 (the client's camera for spectators and the operator's own reconnect),
+ * the link length in whole metres the server cuts on and 1 while terrain
+ * stands between the operator and the drone (the feed's static, fpvStatic).
  */
 export function encodeFpvRow(drone, now) {
   const battery = Math.round(clamp((finite(drone.batteryUntil) - now) / FPV_RULES.batteryMs, 0, 1) * 100);
   const link = drone.cutAt != null ? FPV_LINK.cut : FPV_LINK.live;
-  return link === FPV_LINK.live ? [battery, link, Math.round(finite(drone.lookPitch) * 100)] : [battery, link];
+  if (link !== FPV_LINK.live) return [battery, link];
+  const row = [battery, link, Math.round(finite(drone.lookPitch) * 100)];
+  if (Number.isFinite(drone.linkM)) row.push(Math.round(drone.linkM), drone.linkOccluded ? 1 : 0);
+  return row;
 }
 
-/** `{ battery: 0..1, link: 'live'|'cut', lookPitch, ownerId }` of a row, or null for another type. */
+/**
+ * `{ battery: 0..1, link: 'live'|'cut', lookPitch, linkM, occluded, ownerId }`
+ * of a row (`linkM` null on a row without it), or null for another type.
+ */
 export function decodeFpvRow(row) {
   if (row?.type !== FPV_RULES.type) return null;
   const f = Array.isArray(row.fpv) ? row.fpv : [];
   return { battery: clamp(finite(f[0], 100) / 100, 0, 1), link: f[1] === FPV_LINK.cut ? 'cut' : 'live',
-    lookPitch: finite(f[2]) / 100, ownerId: row.own != null ? String(row.own) : null };
+    lookPitch: finite(f[2]) / 100, linkM: Number.isFinite(f[3]) ? Math.max(0, f[3]) : null, occluded: f[4] === 1,
+    ownerId: row.own != null ? String(row.own) : null };
 }
 
 /** The live drone row `ownerId` flies among `vehicles` (snapshot rows), or null. */

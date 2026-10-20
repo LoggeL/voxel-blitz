@@ -11,6 +11,16 @@ The Chaos shop, weapon wheel, HUD and kill feed use these illustrations through
 `weaponImagePath()` in `public/js/ui/hud-support.js`. The exact prompts are stored in
 [`hud/heavy-imagegen-prompts.json`](./hud/heavy-imagegen-prompts.json).
 
+## Conquest deployables
+
+`hud/fpv.png` (the Engineer's FPV drone) and `hud/mortar.png` (the Support's M-81
+MORTAR) were generated with gpt-image-2 through the Codex image helper on 2026-10-20
+and processed by `tools/imagegen-hud-icon.py` (alpha cleanup, fit to the launchers'
+box on 480 by 240, 256-colour quantize). They are not weapon slots: `DEPLOYABLE_ART` in
+`public/js/ui/hud-support.js` hands them to the kit wheel, the deploy-screen gadget
+toggles, the touch button and the kill feed. Prompts and the rejected alternatives are in
+`docs/design/conquest/fpv/icons/` and `docs/design/conquest/mortar/icons/`.
+
 ## Model reference images
 
 The eight HUD illustrations in [`hud/`](./hud/) are the canonical visual

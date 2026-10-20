@@ -9,7 +9,7 @@ import { GameEngine } from '../server/game.js';
 import { TICK_MS, parseConquestIntent } from '../server/protocol/admission.js';
 import { CONQUEST_CONTRACT_VERSION, CONQUEST_EVENT_KINDS, DEPLOYABLE_TYPE_IDS, KITS, isDeployableType } from '../shared/conquest-contract.js';
 import { kitDeployable, kitGadgetWeapon, kitWeapons } from '../shared/conquest-kits.js';
-import { FPV_RULES, decodeFpvRow, fpvSignal, fpvRowOf } from '../shared/fpv-rules.js';
+import { FPV_RULES, decodeFpvRow, fpvSignal, fpvStatic, fpvRowOf } from '../shared/fpv-rules.js';
 import { flakTargets } from '../server/sim/flak-fuse.js';
 import { ConquestFpvBots } from '../server/bot-fpv.js';
 import { normalizeGadget } from '../server/modes/conquest/deploy.js';
@@ -29,6 +29,13 @@ eq([normalizeGadget('engineer', 2), normalizeGadget('support', 2), normalizeGadg
 eq([parseConquestIntent({ deploy: { spawn: 'hq', kit: 'engineer', gadget: 2 } })?.gadget, parseConquestIntent({ deploy: { spawn: 'hq', kit: 'support', gadget: 2 } })],
   [2, null], 'gadget 2 only where the kit has a third choice');
 eq([fpvSignal(100).bars, fpvSignal(300).degraded, fpvSignal(351).lost], [4, true, true], 'signal curve');
+// The feed's static ramps with the link: clean near, noisy by 200 m, tears / bleed / dropouts only past 220-260 m, worst at the range.
+{
+  const at = d => fpvStatic(d).level, near = fpvStatic(40), edge = fpvStatic(345);
+  ok(at(40) <= 0.06 && at(200) >= 0.3 && at(345) >= 0.9 && [40, 80, 130, 200, 250, 300, 345].every((d, i, a) => !i || at(d) > at(a[i - 1])), 'static rises with the distance');
+  ok(near.tear === 0 && near.bleed === 0 && near.drop === 0 && edge.tear > 0.8 && edge.bleed > 0.8 && edge.drop > 1, 'tears, bleed and dropouts near the range only');
+  ok(fpvStatic(150, true).level - at(150) === FPV_RULES.static.occlusion, 'terrain across the link adds static');
+}
 
 // ------------------------------------------------------------------------- rig --
 function fixture() {
@@ -79,6 +86,7 @@ ok(droneZ - drone.z > 6 && drone.speed > 15, `the drone flies ahead (${(droneZ -
   const snap = f.frames.at(-1);
   const row = fpvRowOf(snap.vehicles, 'op'), decoded = decodeFpvRow(row);
   ok(row && decoded.ownerId === 'op' && decoded.link === 'live' && decoded.battery > 0.9, 'the row names its operator, link and battery');
+  ok(Math.abs(decoded.linkM - Math.hypot(drone.x - op.x, drone.y - op.y - 1.5, drone.z - op.z)) < 1 && decoded.occluded === false, `the row carries the link length (${decoded.linkM} m)`);
   eq(snap.players.find(p => p.id === 'op')?.cqf, 1, 'the row carries the drones left');
   ok(JSON.stringify(row).length < 260, `drone row ${JSON.stringify(row).length} B`);
   ok(flakTargets(f.game.vehicles.vehicles, 'bravo').includes(drone), 'enemy flak fuses on the drone');

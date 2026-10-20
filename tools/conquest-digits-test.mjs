@@ -170,7 +170,7 @@ for (const mode of ['tdm', 'fun', 'snd', 'gungame', 'ttt']) {
     overlay.close();
     const index = wheel.directIndex(2, entries);
     check(() => assert.equal(entries[index]?.deployable, 'mortar', 'wheel key 3 is the MORTAR segment'));
-    check(() => assert.ok(entries[index].icon.startsWith('data:image/svg+xml,') && entries[index].slot === null, 'glyph art, no weapon slot'));
+    check(() => assert.ok(entries[index].icon === './assets/weapons/hud/mortar.png' && entries[index].slot === null, 'slot art, no weapon slot'));
     wheel.openWheel();
     wheel.commit(index);
     check(() => assert.deepEqual(placed, ['mortar'], 'picking MORTAR places the mortar'));

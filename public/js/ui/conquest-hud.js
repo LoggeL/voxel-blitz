@@ -988,6 +988,7 @@ export class ConquestHud {
     this.eventTarget?.removeEventListener?.('keyup', this._onKeyUp, true);
     this.eventTarget?.removeEventListener?.('blur', this._onBlur);
     this.healTick?.remove();
+    this.fpvFeed.dispose();
     this.root.remove();
   }
 }

@@ -211,8 +211,15 @@ export class FpvSystem {
         const fire = !!live.wantFire;
         if (fire && !link.fire && now - v.launchedAt >= FPV_RULES.armMs) { link.fire = fire; this.detonate(v, null); return; }
         link.fire = fire;
+        // The link runs from the operator's head; its length and the terrain across it ride the row (the feed's static).
+        const head = [owner.x, owner.y + 1.5, owner.z], at = [v.x, v.y, v.z];
+        v.linkM = dist(head, at);
         if (now >= v.batteryUntil) this.cut(v, 'battery');
-        else if (fpvSignal(dist([owner.x, owner.y + 1.5, owner.z], [v.x, v.y, v.z])).lost) this.cut(v, 'signal');
+        else if (fpvSignal(v.linkM).lost) this.cut(v, 'signal');
+        else if (now >= (v.linkCheckAt ?? -Infinity)) {
+          v.linkCheckAt = now + FPV_RULES.static.occlusionMs;
+          v.linkOccluded = this._occluded(head, at, v.linkM);
+        }
       }
     }
     if (v.cutAt != null && now - v.cutAt >= FPV_RULES.cutFuseMs) { this.detonate(v, null); return; }
@@ -227,6 +234,13 @@ export class FpvSystem {
     v.speed = Math.hypot(v.vx, v.vy, v.vz);
     v.engineOn = powered; v.grounded = false;
     this._move(v, dt, owner, now);
+  }
+
+  /** True when terrain stands on the line from the operator's head to the drone (the last metre, round the frame, is open). */
+  _occluded(head, at, length) {
+    if (!(length > 1.5)) return false;
+    const vehicles = this.vehicles, dir = at.map((n, i) => (n - head[i]) / length);
+    return !!raycastVoxels((x, y, z) => vehicles.solid(x, y, z, true), ...head, ...dir, length - 1);
   }
 
   /** Sweep the frame's centre along its velocity: voxels, hulls and bodies stop it or fire the charge. */
