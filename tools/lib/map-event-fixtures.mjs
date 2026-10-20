@@ -75,8 +75,8 @@ export class RecordingController extends MapEventController {
   onPhase(phase, prev) { this.calls.push(['phase', phase, prev]); }
   onUse(point, entity, team) {
     this.calls.push(['use', point.id, String(entity?.id), team]);
-    if (this.event.phase === 'idle') { this.event.arm({ team, by: entity?.id }); this.system.award(entity?.id, 'use'); }
-    else if (this.event.phase === 'armed' && team !== this.event.team) { this.event.cancel({ reason: 'defused' }); this.system.award(entity?.id, 'defuse'); }
+    if (this.event.phase === 'idle') this.event.arm({ team, by: entity?.id });
+    else if (this.event.phase === 'armed' && team !== this.event.team) { this.event.cancel({ reason: 'defused' }); this.system.payDefuse(entity?.id); }
   }
   onTarget(target, hit) { this.calls.push(['target', target.id, +hit.share.toFixed(3), hit.destroyed]); }
   wireExtra() { const t = this.target('pylon'); return t ? [Math.round(this.system.targets.share(t) * 100)] : null; }

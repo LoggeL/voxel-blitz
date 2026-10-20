@@ -8,7 +8,14 @@
 // `supportDamage` share off the pool, falling off linearly with the distance
 // (integrityBlastDamage in shared/map-events/geometry.js, the bridge's own
 // helper). The table defaults to the Iron Bridge's (IRON_BRIDGE_RULES), so
-// 10 rockets drop a 1000 pool. The last blow is credited (`by`).
+// 10 rockets drop a 1000 pool. The last blow is credited (`by`); every
+// player's integrity taken is kept in `contrib` (id -> pool units) for the
+// proportional assists (MapEventSystem.payDestroyed).
+//
+// A scripted strike (the comeback call-in's bombs and shells, blast `strike`
+// {id, capShare}) takes at most `capShare` of a pool per strike, so one run
+// softens a structure and the team has to finish it (strikeCapped, also
+// used by the Iron Bridge).
 import { IRON_BRIDGE_RULES } from '../../../../shared/conquest-bridge.js';
 import { integrityBlastDamage } from '../../../../shared/conquest-map-events.js';
 
@@ -25,7 +32,7 @@ export class IntegrityTargets {
   /** Register a target of `instance`: {id, boxes, integrity, supportDamage?, minReach?}. Returns its state. */
   add(instance, spec) {
     const target = {
-      instance, id: spec.id, boxes: spec.boxes, integrity: spec.integrity, damage: 0, by: null, team: null, destroyed: false,
+      instance, id: spec.id, boxes: spec.boxes, integrity: spec.integrity, damage: 0, by: null, team: null, destroyed: false, contrib: new Map(), strikes: null,
       enabled: spec.enabled !== false,
       rules: { supportDamage: spec.supportDamage ?? DEFAULT_INTEGRITY_RULES.supportDamage, minReach: spec.minReach ?? DEFAULT_INTEGRITY_RULES.minReach },
     };
@@ -40,12 +47,13 @@ export class IntegrityTargets {
   share(target) { return target ? Math.max(0, 1 - target.damage / target.integrity) : 0; }
 
   /** An explosion: every live target in reach takes its share. Returns [{target, damage}] (damage as a share). */
-  onBlast(origin, { key = null, radius = 0, ownerId = null } = {}) {
+  onBlast(origin, { key = null, radius = 0, ownerId = null, strike = null } = {}) {
     const hits = [];
     for (const target of this.targets) {
       if (target.destroyed || !target.enabled) continue;
       const { damage, support } = integrityBlastDamage(origin, key, radius, target.rules, target.boxes);
-      if (damage > 0) hits.push(this.damage(target, damage, ownerId, { key, support }));
+      const taken = strikeCapped(target, strike, damage, target.integrity);
+      if (taken > 0) hits.push(this.damage(target, taken, ownerId, { key, support }));
     }
     return hits.filter(Boolean);
   }
@@ -54,9 +62,11 @@ export class IntegrityTargets {
   damage(target, amount, by = null, extra = {}) {
     if (!target || target.destroyed || !(amount > 0)) return null;
     const before = this.share(target);
-    target.damage = Math.min(target.integrity, target.damage + amount);
+    const taken = Math.min(target.integrity - target.damage, amount);
+    target.damage += taken;
     if (by != null && by !== '') {
       target.by = String(by);
+      target.contrib.set(target.by, (target.contrib.get(target.by) ?? 0) + taken);
       target.team = this.system.policy?.teamFor?.(this.system.entity(target.by)) ?? null;
     }
     const after = this.share(target);
@@ -65,4 +75,20 @@ export class IntegrityTargets {
     target.instance.controller.onTarget(target, hit);
     return hit;
   }
+}
+
+/**
+ * The pool units a blast may take off `pool` (a target, the Iron Bridge):
+ * `damage` itself, except for a scripted strike (`strike` {id, capShare}),
+ * which takes at most capShare x `integrity` of the pool over all its blasts.
+ * Books the strike's share on `pool.strikes` (id -> units taken).
+ */
+export function strikeCapped(pool, strike, damage, integrity) {
+  if (!(damage > 0)) return 0;
+  if (!strike?.id || !(strike.capShare >= 0)) return damage;
+  pool.strikes ??= new Map();
+  const used = pool.strikes.get(strike.id) ?? 0;
+  const taken = Math.max(0, Math.min(damage, strike.capShare * integrity - used));
+  if (taken > 0) pool.strikes.set(strike.id, used + taken);
+  return taken;
 }

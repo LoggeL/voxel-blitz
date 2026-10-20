@@ -1,5 +1,6 @@
 // The sluice weir on the north reach (docs/maps/frontier.md "Sluice weir";
-// the Conquest event in docs/conquest.md "Sluice weir"). One team-neutral
+// no Conquest event of its own: the wheel-and-flood event was cut, the ford
+// sluices will reuse the structure, docs/conquest.md "Map events"). One team-neutral
 // structure on the river axis, 6 m upstream of ford-north: concrete
 // abutments on both banks, two piers that split the 20 m channel into a west
 // gate bay, the 9 m navigation pass and an east gate bay, steel gantries with
@@ -12,7 +13,7 @@
 // (384, 384)): the weir is a shared objective on the river axis, usable from
 // both banks and about equidistant from both HQs (340 m and 332 m), like
 // flag C; its mirror would put a second sluice below ford-south. The geometry
-// is WEIR in shared/map-events/weir.js, which the event's gate edits read too.
+// is WEIR in shared/map-events/weir.js, which any event edit of the gates reads too.
 
 import { AIR, CONCRETE, METAL, RUST, MC_WATER } from '../blocks.js';
 import { WEIR } from '../../map-events/weir.js';

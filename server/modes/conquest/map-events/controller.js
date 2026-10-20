@@ -198,6 +198,8 @@ export class MapEventController {
   wireExtra() { return null; }
   /** Bot tasks for `team` (see server/bot-map-events.js): [{id, kind, point, pointKey?, radius, priority, squad, range?}]. */
   botTasks(_team, _view) { return []; }
+  /** An event's own scripted blast (`blast.salvo`) as the structures take it ({...blast, key, strike}), or null: not ours. */
+  structureBlast(_blast) { return null; }
   /** Road crossing ids (mapMeta.conquest.crossings) bot drivers may not use now. */
   closedCrossings() { return null; }
   /** A hold on one of the event's points broke off (moved away, hurt, died, stopped). */

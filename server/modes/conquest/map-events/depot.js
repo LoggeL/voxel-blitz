@@ -58,7 +58,7 @@ export class DepotController extends MapEventController {
     for (const t of this.system.targets.of(this.event)) t.enabled = false;
     tank.burst = true;
     if (!this.event.trigger({ team: hit.team ?? null, by: hit.by ?? null })) return;
-    this.system.award(hit.by, 'trigger');
+    this.system.payDestroyed(target, hit.by);
     this._burst(tank);
   }
 

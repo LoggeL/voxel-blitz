@@ -2,24 +2,18 @@
 // events"): event id -> MapEventController subclass. Each event owns exactly
 // its two slot lines (import, map entry); the comment lines between slots
 // stay untouched so branches that each fill one merge without conflicts. An
-// event without a controller runs the inert base class.
+// event without a controller runs the inert base class. Reserved slots
+// (sluice, radar, trestle) stay empty until their branch fills them.
 
 // slot dam:
 import { DamController } from './dam.js';
 // slot depot:
 import { DepotController } from './depot.js';
-// slot weir:
-import { WeirController } from './weir.js';
-// slot relay:
-import { RelayController } from './relay.js';
-// slot elevator:
-import { ElevatorController } from './elevator.js';
-// slot quarry:
-import { QuarryController } from './quarry.js';
+// slot sluice:
+// slot radar:
+// slot trestle:
 // slot comeback:
 import { ComebackController } from './comeback.js';
-// slot airdrop:
-import { AirdropController } from './airdrop.js';
 // end of import slots
 
 export const MAP_EVENT_CONTROLLERS = Object.freeze({
@@ -27,17 +21,10 @@ export const MAP_EVENT_CONTROLLERS = Object.freeze({
   dam: DamController,
   // slot depot:
   depot: DepotController,
-  // slot weir:
-  weir: WeirController,
-  // slot relay:
-  relay: RelayController,
-  // slot elevator:
-  elevator: ElevatorController,
-  // slot quarry:
-  quarry: QuarryController,
+  // slot sluice:
+  // slot radar:
+  // slot trestle:
   // slot comeback:
   comeback: ComebackController,
-  // slot airdrop:
-  airdrop: AirdropController,
   // end of map slots
 });

@@ -58,10 +58,12 @@ export const COMEBACK_EVENT = defineMapEvent({
   tuning: {
     /**
      * Earning (plain Conquest): a side at least max(deficitShare x start
-     * tickets, deficitMin) tickets behind for sustainMs in a row. With 300
-     * tickets: 75 behind for 20 s.
+     * tickets, deficitMin) tickets behind, holding at most `maxFlags` flags,
+     * for sustainMs in a row, and never before the round is `minRoundMs`
+     * old. With 300 tickets: 75 behind on two flags or fewer for 20 s, from
+     * minute 5 on (it fired at 207-383 s in 5 of 6 rounds before).
      */
-    earn: { deficitShare: 0.25, deficitMin: 60, sustainMs: 20000 },
+    earn: { deficitShare: 0.25, deficitMin: 75, maxFlags: 2, minRoundMs: 300000, sustainMs: 20000 },
     /**
      * Breakthrough (only the attackers have tickets): the attackers earn it
      * at or below attackerShare of their start pool (10 of 30), outside
@@ -86,7 +88,7 @@ export const COMEBACK_EVENT = defineMapEvent({
      * bomb's (no ground fire): `damage` splash over `damageRadius`,
      * `directDamage` on a direct hit, the crater `terrainRadius`.
      */
-    bomber: { bombs: 7, spacing: 9, altitude: 48, speed: 90, firstImpactMs: 600, weapon: 'jetBomb', killKey: 'callinBomb',
+    bomber: { bombs: 7, spacing: 9, altitude: 48, speed: 90, firstImpactMs: 600, weapon: 'jetBomb', killKey: 'callinBomb', supportKey: 'jetBomb',
       blast: { damage: 210, directDamage: 250, damageRadius: 9, knockback: 24, terrainRadius: 3, terrainPower: 230, maxDestroyedBlocks: 80 },
       /** Visual approach: the jet appears this far before its first release and flies on as far after the last. */
       approachM: 520, zoneWidth: 11 },
@@ -97,8 +99,16 @@ export const COMEBACK_EVENT = defineMapEvent({
      * toward the caller's HQ (the mortar round's presentation and whistle).
      */
     artillery: { shells: 12, spanMs: 10000, firstImpactMs: 500, jitterMs: 250, radius: 25, flightMs: 3000, riseM: 140, backM: 40,
-      weapon: 'mortarHE', killKey: 'callinShell',
+      weapon: 'mortarHE', killKey: 'callinShell', supportKey: 'mortarHE',
       blast: { damage: 180, directDamage: 200, damageRadius: 8, knockback: 18, terrainRadius: 2.4, terrainPower: 170, maxDestroyedBlocks: 34 } },
+    /**
+     * Structures: the strike's rounds wear the Iron Bridge and every event
+     * integrity pool down with their `supportKey`'s full support damage
+     * (IRON_BRIDGE_RULES.supportDamage: a bomb 420, a shell 40), but one
+     * strike takes at most `capShare` of a pool, so seven well-placed bombs
+     * cannot drop the bridge (1000) alone: the team finishes it.
+     */
+    structure: { capShare: 0.6 },
     /** The active phase runs this long past the last planned impact (stragglers, chained blasts). */
     tailMs: 1500,
     /** Red smoke at the target through the warning (presentation; the HUD and FX read it from here). */
@@ -121,6 +131,19 @@ export function comebackTrailingTeam(tickets, max, earn = COMEBACK_TUNING.earn) 
   if (b - a >= need) return 'alpha';
   if (a - b >= need) return 'bravo';
   return null;
+}
+
+/**
+ * The plain Conquest side that earns the call-in now: it trails by enough
+ * (comebackTrailingTeam), holds at most `earn.maxFlags` flags (`flagsHeld`
+ * {alpha, bravo}) and the round is at least `earn.minRoundMs` old
+ * (`roundMs`). Null otherwise.
+ */
+export function comebackEarningTeam({ tickets, max, flagsHeld, roundMs }, earn = COMEBACK_TUNING.earn) {
+  if (!(roundMs >= (earn.minRoundMs ?? 0))) return null;
+  const team = comebackTrailingTeam(tickets, max, earn);
+  if (!team) return null;
+  return (flagsHeld?.[team] ?? 0) <= (earn.maxFlags ?? Infinity) ? team : null;
 }
 
 /**

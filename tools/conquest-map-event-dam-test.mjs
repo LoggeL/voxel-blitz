@@ -63,6 +63,8 @@ at(a, E); hold(a, 'plant-east');
 assert.equal(F.kinds().at(-1).reason, 'fuse');
 assert(Math.abs(dam.leftMs - DAM_TUNING.fuseMs) < 1000, 'both charges: the 40 s fuse runs');
 assert.deepEqual(F.decoded().events[0].extra, [3, 0, 0], 'ev extra: both charges set');
+const damScore = id => F.kinds('score').filter(e => e.id === id && e.reason === 'map_event').reduce((n, e) => n + e.pts, 0);
+assert.equal(damScore('a'), 0, 'G3: planting pays nothing until the charges go off');
 const tasksB = system.view().tasks.bravo.map(t => t.id), tasksA = system.view().tasks.alpha.map(t => t.id);
 assert(tasksB.includes('dam:use:defuse-west') && tasksB.includes('dam:use:defuse-east') && tasksB.includes('dam:escort'), `bravo bots defuse (${tasksB})`);
 assert(tasksA.includes('dam:guard'), 'alpha bots guard the gallery');
@@ -89,6 +91,8 @@ assert(hazardEscape(game, { x: 380, y: 21.5, z: 450 }, 'bravo'), 'and off the ca
 const plan = damPlan(world, DAM_TUNING);
 F.runUntil(() => dam.phase === 'active', 11000);
 assert.equal(dam.phase, 'active');
+F.run(TICK_MS);
+assert.equal(damScore('a'), 300, 'G3: the breach pays its planter the final blow (300)');
 F.place(crest, 384.5, 384.5, crestY); F.place(tunnel, 384, 383.5, 24);
 let peak = 0, ticks = 0, blockCells = 0;
 const t0 = performance.now();

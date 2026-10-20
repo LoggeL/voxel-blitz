@@ -125,6 +125,21 @@ export class MapEventSystem {
     this.hazards.tick(now, dt);
   }
 
+  /**
+   * The blast as the structures take it (ConquestPolicy.onBlast, for the Iron
+   * Bridge and the integrity targets): an event's own scripted strike (blast
+   * `salvo`) is rewritten by its controller (`structureBlast`: the support
+   * damage key and the per-strike cap), anything else passes unchanged.
+   */
+  structureBlast(blast) {
+    if (blast?.salvo == null) return blast;
+    for (const instance of this.instances) {
+      const rewritten = instance.controller.structureBlast?.(blast);
+      if (rewritten) return rewritten;
+    }
+    return blast;
+  }
+
   /** An explosion (ConquestPolicy.onBlast): the integrity targets take their share. */
   onBlast(origin, blast) {
     if (!this.instances.length) return [];
@@ -170,15 +185,55 @@ export class MapEventSystem {
 
   /**
    * Pay the `map_event` score to a player: `action` one of
-   * MAP_EVENT_RULES.score ('trigger', 'defuse', 'use', 'assist') or a number,
-   * scaling SCORE_POINTS.map_event (career XP: a major Conquest award).
-   * Returns the points.
+   * MAP_EVENT_RULES.score ('finalBlow', 'assist', 'defuse', 'plant') or a
+   * number, scaling SCORE_POINTS.map_event (career XP: a major Conquest
+   * award). Results only: an unknown action pays nothing. Returns the points.
    */
-  award(id, action = 'trigger') {
+  award(id, action) {
     if (id == null || id === '') return 0;
-    const scale = typeof action === 'number' ? action : this.rules.score[action] ?? 1;
+    const scale = typeof action === 'number' ? action : this.rules.score[action] ?? 0;
+    if (!(scale > 0)) return 0;
     return this.policy?.award?.(String(id), MAP_EVENT_SCORE_REASON, scale) ?? 0;
   }
+
+  /**
+   * A structure went down: the final blow (`by`) earns `finalBlow` (300);
+   * every other player who wore the `targets` down earns `assist` (up to 200)
+   * scaled by the share of their summed integrity they took. Returns
+   * {id: points}.
+   */
+  payDestroyed(targets, by) {
+    const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
+    const pool = list.reduce((sum, t) => sum + (t.integrity || 0), 0);
+    const taken = new Map();
+    for (const t of list) for (const [id, units] of t.contrib ?? []) taken.set(id, (taken.get(id) ?? 0) + units);
+    const paid = {};
+    const final = by == null || by === '' ? null : String(by);
+    if (final) paid[final] = this.award(final, 'finalBlow');
+    for (const [id, units] of taken) {
+      if (id === final || !(pool > 0)) continue;
+      const pts = this.award(id, Math.min(1, units / pool) * this.rules.score.assist);
+      if (pts) paid[id] = pts;
+    }
+    return paid;
+  }
+
+  /**
+   * Charges went off: the player credited with the detonation (`by`, the one
+   * whose charge set it off) earns `finalBlow`, every other planter of a
+   * charge that detonated `plant` (50). A charge that is defused pays its
+   * planter nothing. Returns {id: points}.
+   */
+  payDetonation(planters, by) {
+    const paid = {};
+    const final = by == null || by === '' ? null : String(by);
+    if (final) paid[final] = this.award(final, 'finalBlow');
+    for (const id of new Set((planters ?? []).filter(Boolean).map(String))) if (id !== final) paid[id] = this.award(id, 'plant');
+    return paid;
+  }
+
+  /** A charge defused: `defuse` (200). */
+  payDefuse(id) { return this.award(id, 'defuse'); }
 
   /** `{ev, evp}` for match.conquest, or null when nothing rides. */
   snapshot() {

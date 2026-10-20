@@ -82,12 +82,12 @@ export class DamController extends MapEventController {
       if (this.charges[i] || (ev.phase !== 'idle' && ev.phase !== 'armed') || (ev.team && ev.team !== team)) return;
       this.charges[i] = { by: String(entity?.id ?? ''), team };
       const both = this.charges.every(Boolean);
+      // A plant pays nothing until its charge detonates (payDetonation at the breach).
       ev.arm({ team, by: entity?.id ?? null, ms: both ? this.tuning.fuseMs : null, reason: both ? 'fuse' : 'one', data: { charge: i } });
-      this.system.award(entity?.id, 'use');
     } else {
       if (!this.charges[i] || ev.phase !== 'armed' || team === ev.team) return;
       this.charges[i] = null;
-      this.system.award(entity?.id, 'defuse');
+      this.system.payDefuse(entity?.id);
       if (this.charges.some(Boolean)) ev.setPhase('armed', { ms: null, reason: 'defused', data: { charge: i } });
       else ev.cancel({ reason: 'defused', by: entity?.id ?? null, team });
     }
@@ -129,7 +129,7 @@ export class DamController extends MapEventController {
     const t = this.tuning, b = t.breach, by = this.event.by;
     this.breachAt = now;
     this.floodNext = 0;
-    if (by) this.system.award(by, 'trigger');
+    this.system.payDetonation(this.charges.map(c => c?.by), by);
     this.closed.add(t.closes.crest);
     if (!this.galleryZone) this._openAvoidZones(now - (this.def.durations.warningMs ?? 0));
     const edits = this.system.edits, plan = this.plan;

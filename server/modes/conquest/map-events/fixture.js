@@ -18,10 +18,9 @@ export class FixtureController extends MapEventController {
     const event = this.event;
     if (event.phase === 'idle') {
       event.arm({ team, by: entity?.id, ms: FIXTURE_EVENT_RULES.fuseMs, reason: 'planted' });
-      this.system.award(entity?.id, 'use');
     } else if (event.phase === 'armed' && !event.queued && team !== event.team) {
       event.cancel({ reason: 'defused' });
-      this.system.award(entity?.id, 'defuse');
+      this.system.payDefuse(entity?.id);
     }
   }
 
@@ -30,7 +29,7 @@ export class FixtureController extends MapEventController {
   }
 
   onPhase(phase) {
-    if (phase === 'warning' && this.event.by) this.system.award(this.event.by, 'trigger');
+    if (phase === 'warning' && this.event.by) this.system.payDetonation([this.event.by], this.event.by);
     if (phase !== 'active') return;
     const a = this.system.anchorOf(this.event), now = this.system.now, by = this.event.by;
     this.system.hazards.add(this.event, { kind: 'crush', shape: 'circle', x: a.x, z: a.z, r: FIXTURE_EVENT_RULES.crushR, by });

@@ -701,8 +701,10 @@ export class ConquestPolicy extends TdmPolicy {
   /** An explosion (ProjectileSystem.explode): the Iron Bridge supports and the map events' integrity targets take their share. */
   onBlast(origin, blast) {
     if (this.phase !== 'live') return;
-    this.bridge.onBlast(origin, blast);
-    this.mapEvents.onBlast(origin, blast);
+    // A map event's own scripted strike (the call-in) wears structures down under its cap.
+    const structural = this.mapEvents.structureBlast(blast);
+    this.bridge.onBlast(origin, structural);
+    this.mapEvents.onBlast(origin, structural);
   }
 
   onVehicleEvent(kind, payload) {

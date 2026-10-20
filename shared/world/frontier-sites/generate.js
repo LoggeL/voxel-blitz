@@ -79,7 +79,7 @@ export function generateFrontierV2Into(world, blocks, heights) {
   // roadside pass, which keeps their footprints bare, so they never shift
   // the roadside dressing elsewhere on the map.
   buildLocations(kit);
-  // The sluice weir on the north reach (the Conquest weir event), with the places for the same reason.
+  // The sluice weir on the north reach (the planned ford sluices reuse it), with the places for the same reason.
   buildWeir(kit);
   buildEntrances(kit);
   reopenRoads(kit);

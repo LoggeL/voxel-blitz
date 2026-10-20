@@ -18,6 +18,7 @@ import {
   BRIDGE_STAGE, BRIDGE_STAGES, IRON_BRIDGE, IRON_BRIDGE_RULES, bridgeBlastDamage, encodeBridge, insideBox, onBridgeSpan,
 } from '../../../shared/conquest-bridge.js';
 import { pack } from '../../sim/structure-field.js';
+import { strikeCapped } from './map-events/integrity.js';
 import { evHit } from '../../protocol/events.js';
 
 export class IronBridge {
@@ -47,6 +48,7 @@ export class IronBridge {
     this.crushAt = null;
     this.by = null;
     this.creakId = null;
+    this.strikes = null;      // scripted strike id -> integrity it took (strikeCapped)
     this.active = this._detect();
   }
 
@@ -67,12 +69,13 @@ export class IronBridge {
 
   /**
    * An explosion (ProjectileSystem.explode via the mode's onBlast): wear the
-   * supports down. `key` is the blast's weapon key, `radius` its damage radius.
+   * supports down. `key` is the blast's weapon key, `radius` its damage radius,
+   * `strike` a scripted strike's cap (a call-in takes at most its capShare).
    * Returns the integrity taken (0..1 share).
    */
-  onBlast(origin, { key = null, radius = 0, ownerId = null } = {}) {
+  onBlast(origin, { key = null, radius = 0, ownerId = null, strike = null } = {}) {
     if (!this.active || this.stage >= BRIDGE_STAGE.failing) return 0;
-    const { damage } = bridgeBlastDamage(origin, key, radius, this.rules, this.bridge);
+    const damage = strikeCapped(this, strike, bridgeBlastDamage(origin, key, radius, this.rules, this.bridge).damage, this.rules.integrity);
     if (!(damage > 0)) return 0;
     const before = this.integrity;
     this.damage = Math.min(this.rules.integrity, this.damage + damage);

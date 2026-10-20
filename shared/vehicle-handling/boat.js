@@ -20,7 +20,7 @@ export const BOAT_RULES = Object.freeze({
   drag: 1.6, dragPerSpeed: 0.05, planeDrag: 0.6,
   turn: 0.95, pivotTurn: 0.4, turnSpeed: 7, turnAcceleration: 2.6, grip: 2.2, planeGrip: 1.4,
   draft: 0.45, maxStep: 0.6, maxSlope: 1.1,
-  // A water face one voxel higher (a surge's front, the Frontier weir flood) lifts the hull onto it; ground never rises more than maxStep.
+  // A water face one voxel higher (a surge's front, a flood) lifts the hull onto it; ground never rises more than maxStep.
   waterStep: 1.1,
   groundDrag: 9, creep: 1.2,
   shallowDepth: 1.5, shallowSpeed: 5, shallowDrag: 20,

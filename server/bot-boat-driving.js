@@ -255,7 +255,7 @@ export function boatPatrol(driving, br, p, v, assignment, now, inp) {
   // Slow through the narrows (the arches of a bridge within 20 m), over a ford and on the approach.
   const crossings = driving.game.mapMeta?.conquest?.crossings ?? [];
   const narrows = crossings.some(c => c.kind === 'bridge' && flat(c, v) < 20);
-  // A flooded ford (the Frontier sluice weir) is deep water: no scrape, no slowdown.
+  // A flooded ford (high water over the authored metre) is deep water: no scrape, no slowdown.
   const ford = crossings.some(c => c.kind === 'ford' && flat(c, v) < BOAT_PATROL.fordReach && fordShallow(driving.game.world, c));
   const cruise = narrows ? BOAT_PATROL.narrows : ford ? BOAT_PATROL.ford : toGo < 30 ? BOAT_PATROL.approach : BOAT_PATROL.cruise;
   const remaining = driving.follow(br, v, state, now, inp, { arrive: BOAT_PATROL.arrive, cruise, narrows });

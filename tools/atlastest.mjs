@@ -385,7 +385,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     bikini_bottom: 'Bikini Bottom',
   };
   const expectedMapHashes = {
-    frontier: 'b005c18f',
+    frontier: '9ba4890a',
     redrock: '385e4f55',
     ashfall: 'a63d23e4',
     harbor: 'eeb64538', canyon: 'b8e254a7',
@@ -433,7 +433,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     pristineBytes.set(mapId, bytes);
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     // The battlefields ship run-length encoded (VB v2); every other map is raw v1.
-    const rleLength = { frontier: 2012889, redrock: 1561879 }[mapId];
+    const rleLength = { frontier: 2012784, redrock: 1561879 }[mapId];
     const exactHeader = rleLength
       ? bytes.length === rleLength && bytes[0] === 86 && bytes[1] === 66
         && bytes[2] === 2 && bytes[3] === 1 && view.getUint16(4, true) === SX

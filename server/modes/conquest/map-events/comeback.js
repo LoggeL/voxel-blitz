@@ -2,7 +2,8 @@
 // data and pure helpers in shared/map-events/comeback.js).
 //
 //   idle     the deficit watch: a side that meets the earning condition
-//            (comebackTrailingTeam, or the Breakthrough rules) for
+//            (comebackEarningTeam: deficit, at most two flags, a round of
+//            five minutes; or the Breakthrough rules) for
 //            `sustainMs` in a row arms the event for itself (READY). Each
 //            side earns it at most once a round.
 //   armed    open until one of the side's squad leaders designates: the
@@ -21,12 +22,16 @@
 //
 // Voxel damage is the blasts' ordinary craters (block deltas, so joiners get
 // them through the map cache); a rematch restores the world and resets this.
+// Structures (the Iron Bridge, every event integrity pool) take the rounds'
+// full support damage through ConquestPolicy.onBlast (`structureBlast`), at
+// most `structure.capShare` of a pool per strike. Designating pays nothing:
+// the strike's kills and a structure it finishes are the score.
 import { AIR } from '../../../../shared/world/blocks.js';
 import { worldDimensions } from '../../../../shared/world/dimensions.js';
 import { VEHICLE_WEAPON_META } from '../../../../shared/conquest-contract.js';
 import {
-  COMEBACK_TUNING, comebackBreakthroughTeams, comebackHeadingDeg, comebackKindCode, comebackStrikePlan, comebackTargetRefusal,
-  comebackTrailingTeam, parseComebackCall,
+  COMEBACK_TUNING, comebackBreakthroughTeams, comebackEarningTeam, comebackHeadingDeg, comebackKindCode, comebackStrikePlan,
+  comebackTargetRefusal, parseComebackCall,
 } from '../../../../shared/map-events/comeback.js';
 import { humanLeadsSquad, planComebackCall } from '../../../bot-comeback.js';
 import { MapEventController } from './controller.js';
@@ -69,7 +74,10 @@ export class ComebackController extends MapEventController {
       return comebackBreakthroughTeams({ attackers: p.attackerTeam, defenders: p.defenderTeam, tickets: p.tickets?.[p.attackerTeam],
         max: p.ledger?.max, sector: p.bt?.sector ?? 0, sectors, overtime: p.bt?.overtime === true }, this.tuning.breakthrough);
     }
-    const team = comebackTrailingTeam(p.tickets, p.ledger?.max, this.tuning.earn);
+    const flagsHeld = { alpha: 0, bravo: 0 };
+    for (const flag of p.capture?.flags ?? []) if (flag.owner in flagsHeld) flagsHeld[flag.owner]++;
+    const roundMs = this.system.now - (p.ledger?.startedAt ?? this.system.now);
+    const team = comebackEarningTeam({ tickets: p.tickets, max: p.ledger?.max, flagsHeld, roundMs }, this.tuning.earn);
     return team ? [team] : [];
   }
 
@@ -132,7 +140,6 @@ export class ComebackController extends MapEventController {
     if (!ev.trigger({ team, by, data: { kind, heading: headingDeg } })) { this.strike = null; this.extra = null; ev.anchor = null; return false; }
     // Avoid-only (no damage): the target side's bots leave the strike zone from the telegraph on.
     this.system.hazards.add(ev, { kind: 'fire', ...plan.zone, dps: 0, by, from: now, until: startAt + plan.activeMs, avoid: true });
-    this.system.award(by, 'use');
     return true;
   }
 
@@ -201,6 +208,13 @@ export class ComebackController extends MapEventController {
       s.fired++;
     }
     if (s.shots.every(shot => shot.done) && this.event.phase !== 'warning' && this.event.phase !== 'active') this.strike = null;
+  }
+
+  /** Our strike's rounds (blast `salvo` `comeback:...`): the support key's full damage, capped per strike and pool. */
+  structureBlast(blast) {
+    if (!String(blast.salvo).startsWith('comeback:')) return null;
+    const t = [this.tuning.bomber, this.tuning.artillery].find(k => k.killKey === blast.key);
+    return t ? { ...blast, key: t.supportKey, strike: { id: String(blast.salvo), capShare: this.tuning.structure.capShare } } : null;
   }
 
   /** The telegraph ran out: the strike phase lasts its plan. */

@@ -5,7 +5,7 @@
 // team (`botTasks(team)`: {id, kind, point, pointKey?, radius, priority,
 // squad, range?, arrive?, until?, kits?}). `planMapEventTasks` books the nearest
 // free bots for each task, highest priority first, up to its squad size:
-// bots on foot that crew no hull, ride no hitch, are not bound by a human
+// bots on foot within TASK_RANGE (120 m) of the point that crew no hull, ride no hitch, are not bound by a human
 // leader's order and are not taking a flag (standing in a zone their team
 // is turning, or passing an undefended one: bot-flag-flow.js committedFlag /
 // passingFlag; both unless the task's priority reaches HUMAN_ORDER_PRIORITY)
@@ -15,9 +15,9 @@
 // BotCommander.roleGoal) comes before its task.
 // A booked bot keeps its task while it stays posted. Kinds:
 //   use     walk to the interaction point and hold the `use` intent (plant,
-//           defuse, turn the wheel, claim the crate) through the bots' support
-//           plumbing (server/bots.js, as a revive);
-//   hold    stand inside `radius` of the point and fight from there (a relay);
+//           defuse a charge) through the bots' support plumbing (server/bots.js,
+//           as a revive);
+//   hold    stand inside `radius` of the point and fight from there;
 //   attack  close on the point with the gun up (stop an enemy plant);
 //   shoot   fire a launcher at the point from where the bot stands (a fuel tank
 //           with enemies around it): never booked by the commander and never a
@@ -38,8 +38,12 @@ import { committedFlag, passingFlag } from './bot-flag-flow.js';
 
 /** A task at or above this priority may take bots out of a human-led squad's order. */
 export const HUMAN_ORDER_PRIORITY = 10;
-/** Default metres a bot walks for a task. */
-export const TASK_RANGE = 220;
+/**
+ * Booking radius: only bots within this many metres (flat) of a task's point
+ * are booked for it, whatever the task asks (`range` may only narrow it), so
+ * an event takes the bots already fighting there, never a walk across the map.
+ */
+export const TASK_RANGE = 120;
 /** Extra metres of "distance" a Medic pays for a task (it is picked last; revives come first). */
 const MEDIC_TASK_PENALTY = 80;
 const EMPTY = Object.freeze({ active: false, tasks: { alpha: [], bravo: [] }, hazards: [], closed: new Set(), events: [] });
@@ -131,7 +135,7 @@ export function planMapEventTasks(commander, ts, now, view = commander.view) {
     if (task.priority < HUMAN_ORDER_PRIORITY && takingFlag(p, squad?.order ?? null)) return false;
     const kit = commander.kitOf(p);
     if (Array.isArray(task.kits) ? !task.kits.includes(kit) : kit === 'medic' && task.kind !== 'use') return false;
-    return flat(p, task.point) <= (task.range ?? TASK_RANGE);
+    return flat(p, task.point) <= Math.min(task.range ?? TASK_RANGE, TASK_RANGE);
   };
   const bots = commander.teamBrains(ts.team).map(br => commander.game.entities.get(String(br.id))).filter(Boolean);
   const booked = new Set();

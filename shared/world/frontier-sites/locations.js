@@ -24,7 +24,6 @@ import {
 import { frontierTerrain } from '../frontier-terrain.js';
 import { rect } from './plan.js';
 import { plasterHouse, shed, sandbags, crateStack, wreckTruck } from './props.js';
-import { QUARRY_SITE } from '../../map-events/quarry.js';
 
 // ------------------------------------------------------------- the plan
 
@@ -340,15 +339,6 @@ function aldricQuarry(kit) {
   wreckTruck(pit, 262, 604, true, { cold: true });
   shed(pit, QUARRY.hut.minX, QUARRY.hut.minZ, QUARRY.hut.maxX, QUARRY.hut.maxZ, 3, { back: 'w' });
   kit.features[kit.features.length - 1].location = 'aldric-quarry';
-  // Rockslide props (shared/map-events/quarry.js): striped charge boxes set into the north face
-  // above the haul ramp, and the detonator (a crate with a plunger post) on the hut floor.
-  for (const [x, y, z] of QUARRY_SITE.charges) {
-    kit.set(x, y, z, ACCENT);
-    if (kit.solid(x, y + 1, z)) kit.set(x, y + 1, z, ACCENT);
-  }
-  const det = QUARRY_SITE.plunger;
-  kit.set(det.x, det.y, det.z, DUST_CRATE);
-  kit.set(det.x, det.y + 1, det.z, METAL);
   // A timber rail along the top of the high west face.
   for (let z = q.minZ; z <= q.maxZ; z += 3) { const g = kit.top(q.minX - 1, z); kit.set(q.minX - 1, g + 1, z, TIMBER); }
   drive(kit, QUARRY.drive, 2);

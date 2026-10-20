@@ -125,8 +125,6 @@ Measured with `node tools/conquest-action-test.mjs --map redrock` (16 bots, 180 
 
 Flags change hands more often on Redrock, but the open desert gives fewer infantry fights: the foot-fight fraction is about 0.21, and the median foot distance to the nearest enemy is about 107 m. Some seeds fall under the gate's 25 infantry kills (seed 1 has 17). This is a known gap: more cover between B and C and between E and C would help.
 
-The Conquest supply airdrop ([docs/conquest.md "Supply airdrop"](../conquest.md#supply-airdrop)) uses this graph too: its crate lands only on a walk node in the same component as the two flags it lies between, so bots can always walk to it. At the round start, 40 seeds put it 11 times between B and C (x 284–345, z 444–481), 14 times between C and D (x 433–479, z 282–342), 8 times between C and E (x 439–464, z 426–470) and 7 times between A and C (x 294–335, z 291–335), at a height of 27–33 m. Every seed found a spot.
-
 ## Captures
 
 ```

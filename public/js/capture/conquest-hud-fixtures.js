@@ -12,11 +12,7 @@ import { FPV_RULES, fpvSignal, fpvStatic } from '../../../shared/fpv-rules.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
 import { comebackHudFixtures } from './comeback-hud-fixtures.js';
-import { airdropHudFixtures } from './map-events/airdrop-fixtures.js';
 import { encodeMapEventPoint, encodeMapEventRow, mapEventsFor } from '../../../shared/conquest-map-events.js';
-import { RELAY_SITE } from '../../../shared/map-events/relay.js';
-import { ELEVATOR_EVENT } from '../../../shared/map-events/elevator.js';
-import { QUARRY_EVENT } from '../../../shared/map-events/quarry.js';
 import { DAM_EVENT, DAM_TUNING } from '../../../shared/map-events/dam.js';
 
 export const FIXTURE_NOW = 2_000_000;
@@ -456,81 +452,6 @@ export function conquestHudFixtures({ map = 'frontier' } = {}) {
       events: [{ kind: 'bridge', bridge: 'iron-bridge', stage: 3, name: 'down', integrity: 0, by: 'en1', blocks: 608 }],
       camera: cam(C.x - 50, GROUND + 1.6, C.z + 40, 0), bigMap: true }));
   }
-  // 16d-f. Signal Rock relay (docs/conquest.md "Signal Rock relay"): `ev` / `evp` rows as the server writes them.
-  {
-    const index = mapEventsFor('frontier').findIndex(d => d.id === 'relay');
-    const relayRows = (row, points) => ({ ev: [encodeMapEventRow(index, row)],
-      evp: points.map(([k, teams, progress = 0]) => encodeMapEventPoint(index, k, { teams: new Set(teams), progress, userTeam: progress ? 'alpha' : null })) });
-    const bunker = RELAY_SITE.bunker, mast = RELAY_SITE.mastCentre;
-    if (index >= 0) {
-      // Held by WEST, 0.6 s after a scan: the scan circle and its sweep, spotted enemies inside, RELAY · SCAN 25 S.
-      const at = { x: 446, z: 196 };
-      const self = meAt(at.x, at.z);
-      const match = baseMatch();
-      Object.assign(match.conquest, relayRows({ phase: 'active', team: 'alpha', progress: 0, leftMs: 24400 }, [[0, ['bravo']], [1, ['bravo']]]));
-      out.push(state('relay-held', 'Signal Rock relay held · scan circle and sweep, owner marker, RELAY SECURED', { self, players: roster(self), match,
-        events: [{ kind: 'map_event', event: 'relay', phase: 'active', team: 'alpha', by: 'me', reason: 'captured', endsAt: FIXTURE_NOW + 24400 },
-          { kind: 'map_event', event: 'relay', phase: 'active', team: 'alpha', note: 'scan', data: { team: 'alpha', n: 2 } }],
-        camera: cam(at.x, GROUND + 1.6, at.z, yawTo(at, bunker), -0.04) }));
-    }
-    if (index >= 0) {
-      // Held by EAST: WEST at the mast's north foot with the charge hold running.
-      const at = { x: 468.5, z: 164.9 };
-      const self = meAt(at.x, at.z, { y: 31, cq: { squad: 1, kitId: 'engineer', action: 40 } });
-      const match = baseMatch();
-      Object.assign(match.conquest, relayRows({ phase: 'active', team: 'bravo', progress: 0.25, leftMs: 9000 }, [[0, ['alpha']], [1, ['alpha'], 0.4]]));
-      out.push(state('relay-enemy', 'Signal Rock relay held by EAST · RELAY LOST, HOLD · PLANT CHARGE at the mast', { self, players: roster(self), match,
-        events: [{ kind: 'map_event', event: 'relay', phase: 'active', team: 'bravo', by: 'en1', reason: 'captured', endsAt: FIXTURE_NOW + 9000 }],
-        camera: cam(at.x, 32.6, at.z, yawTo(at, mast), 0.25), interactHeld: 2000 }));
-    }
-    if (index >= 0) {
-      // The mast groans: the fall line across the north loop on the minimap and the countdown banner.
-      const at = { x: 452, z: 146 };
-      const self = meAt(at.x, at.z);
-      const match = baseMatch();
-      Object.assign(match.conquest, relayRows({ phase: 'warning', team: 'alpha', progress: 1, leftMs: 2600 }, []));
-      out.push(state('relay-failing', 'Signal Rock mast failing · fall line on the map, MAST FAILING countdown', { self, players: roster(self), match,
-        events: [{ kind: 'map_event', event: 'relay', phase: 'warning', team: 'alpha', by: 'me', endsAt: FIXTURE_NOW + 2600 }],
-        camera: cam(at.x, GROUND + 1.6, at.z, yawTo(at, mast), 0.1) }));
-    }
-  }
-  // 16d. Kestrel Halt elevator giving way (map event, docs/design/conquest/events/elevator/ variant A): held amber
-  // banner with the countdown, the hexagon marker over the tower, the striped fall line east on the minimap.
-  // 16e. The elevator down (variant C): the rubble strip across the a-c road on the full map, the DOWN banner.
-  {
-    const index = mapEventsFor('frontier').indexOf(ELEVATOR_EVENT);
-    const at = { x: 252, z: 352 }, tower = { x: 279.5, z: 334.5 };
-    const self = meAt(at.x, at.z);
-    const endsAt = FIXTURE_NOW + 3000;
-    const match = baseMatch();
-    match.conquest.ev = [[index, 2, 100, 1, 30]];
-    out.push(state('elevator-warning', 'Kestrel elevator giving way · countdown banner, tower marker, fall line on the minimap', { self, players: roster(self), match,
-      events: [{ kind: 'map_event', event: 'elevator', phase: 'warning', team: 'bravo', by: 'en1', endsAt, pos: [280, 46, 335] }],
-      camera: cam(at.x, 31.6, at.z, yawTo(at, tower), 0.12) }));
-    const down = baseMatch();
-    down.conquest.ev = [[index, 4, 100, 1]];
-    const me2 = meAt(240, 360);
-    out.push(state('elevator-down', 'Kestrel elevator down · rubble across the a-c road on the full map, down banner', { self: me2, players: roster(me2), match: down,
-      events: [{ kind: 'map_event', event: 'elevator', phase: 'done', team: 'bravo', by: 'en1', pos: [280, 46, 335] }],
-      camera: cam(240, 31.6, 360, yawTo({ x: 240, z: 360 }, tower)), bigMap: true }));
-  }
-  // 16d. Frontier sluice weir: fords flooded, red banner with the recession countdown, flood patches on the minimap and the full map.
-  {
-    const ford = { x: 392, z: 270 }, weir = { x: 388.5, z: 256 };
-    const self = meAt(ford.x - 46, ford.z + 18);
-    const weirMatch = () => {
-      const match = baseMatch({ flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 0.2, null, 'capturing', 1, 0),
-        flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')] });
-      match.conquest.ev = [encodeMapEventRow(0, { phase: 'active', progress: 1, team: 'alpha', leftMs: 84000 })];
-      return match;
-    };
-    const events = [{ kind: 'map_event', event: 'weir', phase: 'active', team: 'alpha', endsAt: FIXTURE_NOW + 84000 }];
-    const stalled = vehicle('bravo-jeep', 'jeep', 'bravo', ford.x + 10, ford.z - 2, { hp: 300 });
-    out.push(state('weir-flooded', 'Sluice weir · fords flooded banner, flood patches on the minimap', { self, players: roster(self), vehicles: [stalled],
-      match: weirMatch(), events, camera: cam(self.x, GROUND + 1.6, self.z, yawTo(self, weir), -0.05) }));
-    out.push(state('weir-flooded-map', 'Sluice weir · full map with both fords flooded', { self, players: roster(self), vehicles: [stalled],
-      match: weirMatch(), events, camera: cam(self.x, GROUND + 1.6, self.z, 0), bigMap: true }));
-  }
   // 17. Deploy screen: dead, 3.2 s to respawn, valid spawns plus a refused flag (enemies in B).
   const deployRoster = self => roster(self, [player('en9', 'Draves', 'bravo', B.x + 3, B.z - 2, { cq: { squad: 2 } })]);
   const tankRow = vehicle('alpha-tank', 'tank', 'alpha', 110, 384, { hp: 1000, seatOccupants: { driver: null, commander: null } });
@@ -805,8 +726,6 @@ export function conquestHudFixtures({ map = 'frontier' } = {}) {
       camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
   out.push(...comebackHudFixtures({ state, roster, baseMatch, meAt, cam, yawTo, C, D, GROUND, meta: fixtureMapMeta(), now: FIXTURE_NOW }));
-  // Map events: the supply airdrop (public/js/capture/map-events/airdrop-fixtures.js).
-  out.push(...airdropHudFixtures({ state, roster, baseMatch, cam, yawTo, meAt, now: FIXTURE_NOW, ground: GROUND, from: B, to: C }));
   // 25. Hollin Fuel Depot (docs/conquest.md "Hollin Fuel Depot"): the chain reaction 2 s from the last burst, then
   // ablaze 10 s into the active phase (fire on the tanks and the canopy, the smoke column on the maps).
   {
@@ -829,27 +748,6 @@ export function conquestHudFixtures({ map = 'frontier' } = {}) {
         events: [{ kind: 'map_event', event: 'depot', phase: 'active', team: 'bravo', by: 'en1', endsAt: FIXTURE_NOW + 170_000, pos: [512, 31, 425] }],
         camera: cam(near.x, GROUND + 1.6, near.z, yawTo(near, anchor)) }));
     }
-  }
-  // 25-27. Aldric Quarry rockslide (docs/conquest.md "Aldric Quarry rockslide"): the enemy's
-  // warning seen from the pit floor, holding the plunger in the hut, and the full map after the slide.
-  {
-    const q = mapEventsFor('frontier').findIndex(d => d.id === 'quarry');
-    const anchor = QUARRY_EVENT.anchor, plunger = QUARRY_EVENT.points[0];
-    const pit = meAt(262, 600, { y: 25.02 });
-    out.push(state('quarry-warning', 'Aldric Quarry · enemy set the rockslide off · 4 s', { self: pit, players: roster(pit),
-      match: { ...baseMatch(), conquest: { ...baseMatch().conquest, ev: [[q, 2, 0, 1, 40]] } },
-      camera: cam(262, 26.6, 600, 0.12, 0.12),
-      events: [{ kind: 'map_event', event: 'quarry', phase: 'warning', team: 'bravo', by: 'en1', endsAt: FIXTURE_NOW + 4000,
-        pos: [anchor.x, anchor.y, anchor.z] }] }));
-    const hut = meAt(plunger.x + 0.8, plunger.z, { y: plunger.y, cq: { squad: 1, kitId: 'assault', action: 55 } });
-    out.push(state('quarry-plunger', 'Aldric Quarry · holding the detonator · 55 %', { self: hut, players: roster(hut),
-      match: { ...baseMatch(), conquest: { ...baseMatch().conquest, evp: [[q, 0, 3, 55, 0]] } },
-      camera: cam(hut.x, plunger.y + 1.6, hut.z, Math.PI / 2 + 0.2, -0.35) }));
-    const rim = meAt(B.x + 12, B.z - 10, { y: 34.02 });
-    out.push(state('quarry-done', 'Aldric Quarry · full map after the rockslide', { self: rim, players: roster(rim), bigMap: true,
-      match: { ...baseMatch(), conquest: { ...baseMatch().conquest, ev: [[q, 4, 100, 0]] } },
-      camera: cam(rim.x, 35.6, rim.z, Math.PI, -0.2),
-      events: [{ kind: 'map_event', event: 'quarry', phase: 'done', team: 'alpha', by: 'me', pos: [anchor.x, anchor.y, anchor.z] }] }));
   }
   // Redrock Dam breach (docs/conquest.md "Redrock Dam breach"; --map redrock only, the `ev` index is Redrock's).
   if (map === 'redrock') out.push(...damFixtures(meAtY));

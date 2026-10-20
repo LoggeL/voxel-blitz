@@ -1,13 +1,17 @@
 // Comeback call-in (docs/conquest.md "Comeback call-in"): earning on a
-// sustained deficit, the squad-leader designation and its refusals, the
+// sustained deficit late in a lost round (X3: 75 behind, two flags or fewer,
+// from minute 5), the squad-leader designation and its refusals, the
 // telegraph -> strike -> cooldown cycle with real projectiles and the kill
-// key, the `ev` wire row, the bots' own call, the Breakthrough rule and the
-// rematch reset. One live Frontier engine with only this event registered.
+// key, the strike's capped structure damage (one bomber run takes at most
+// 60 % of the Iron Bridge), the `ev` wire row, the bots' own call, the
+// Breakthrough rule and the rematch reset. One live Frontier engine with only this event registered.
 import assert from 'node:assert/strict';
 import { MAP_EVENT_RULES, mapEventWireBytes } from '../shared/conquest-map-events.js';
 import {
-  COMEBACK_EVENT, COMEBACK_TUNING, comebackBreakthroughTeams, comebackCallKey, comebackStrikePlan, comebackTrailingTeam, parseComebackCall,
+  COMEBACK_EVENT, COMEBACK_TUNING, comebackBreakthroughTeams, comebackCallKey, comebackEarningTeam, comebackStrikePlan, comebackTrailingTeam,
+  parseComebackCall,
 } from '../shared/map-events/comeback.js';
+import { IRON_BRIDGE, IRON_BRIDGE_RULES } from '../shared/conquest-bridge.js';
 import { ComebackController } from '../server/modes/conquest/map-events/comeback.js';
 import { eventFixture } from './lib/map-event-fixtures.mjs';
 
@@ -16,6 +20,11 @@ const T = COMEBACK_TUNING;
 // Pure rules.
 assert.equal(comebackTrailingTeam({ alpha: 200, bravo: 300 }, 300), 'alpha', '100 behind of 300 earns');
 assert.equal(comebackTrailingTeam({ alpha: 260, bravo: 300 }, 300), null, '40 behind does not');
+assert.equal(comebackTrailingTeam({ alpha: 230, bravo: 300 }, 300), null, '70 behind does not (75 at least)');
+const late = { tickets: { alpha: 200, bravo: 300 }, max: 300, flagsHeld: { alpha: 2, bravo: 3 }, roundMs: 300000 };
+assert.equal(comebackEarningTeam(late), 'alpha', 'late, behind, on two flags: earned');
+assert.equal(comebackEarningTeam({ ...late, roundMs: 299000 }), null, 'never before minute 5');
+assert.equal(comebackEarningTeam({ ...late, flagsHeld: { alpha: 3, bravo: 2 } }), null, 'a side on three flags is not losing the map');
 assert.deepEqual(comebackBreakthroughTeams({ attackers: 'alpha', defenders: 'bravo', tickets: 50, max: 200, sector: 0, sectors: 3 }), ['alpha']);
 assert.deepEqual(comebackBreakthroughTeams({ attackers: 'alpha', defenders: 'bravo', tickets: 50, max: 200, sector: 0, sectors: 3, overtime: true }), []);
 assert.deepEqual(comebackBreakthroughTeams({ attackers: 'alpha', defenders: 'bravo', tickets: 150, max: 200, sector: 2, sectors: 3 }), ['bravo'],
@@ -45,6 +54,9 @@ assert.notEqual(policy.squads.map().get('a2')?.leaderId, 'a2');
 // Earning: 20 s at 100 tickets behind arms it for the trailing side.
 F.place(a, D.x - 150, D.z); F.place(a2, D.x - 152, D.z + 4); F.place(b, D.x + 2, D.z + 1);
 policy.ledger.tickets.alpha = 200;
+F.run(T.earn.sustainMs + 1000);
+assert.equal(ev.phase, 'idle', 'an early deficit (round under 5 min) earns nothing');
+policy.ledger.startedAt -= T.earn.minRoundMs;
 F.run(T.earn.sustainMs - 1000);
 assert.equal(ev.phase, 'idle', 'not before the sustain window');
 F.run(1500);
@@ -86,6 +98,19 @@ assert.equal(row()?.[5], undefined, 'no anchor after the strike');
 console.log(`  strike peak tick ${peak.toFixed(2)} ms (${(performance.now() - t0).toFixed(0)} ms wall)`);
 F.run(COMEBACK_EVENT.repeat.cooldownMs + 200);
 assert.equal(ev.phase, 'idle');
+
+// Structures: the strike's bombs take the jet bomb's full 420 off the Iron Bridge, capped at 60 % per strike.
+const pier = IRON_BRIDGE.supports[0], onPier = [(pier.x0 + pier.x1 + 1) / 2, (pier.y0 + pier.y1 + 1) / 2, (pier.z0 + pier.z1 + 1) / 2];
+const bomb = salvo => policy.onBlast(onPier, { key: T.bomber.killKey, radius: T.bomber.blast.damageRadius, ownerId: 'a', salvo });
+assert.ok(policy.bridge.active, 'the live Frontier has the Iron Bridge');
+bomb('comeback:1:1');
+assert.equal(Math.round(policy.bridge.damage), IRON_BRIDGE_RULES.supportDamage.jetBomb, 'one bomb on a pier: 420');
+for (let i = 0; i < T.bomber.bombs - 1; i++) bomb('comeback:1:1');
+assert.equal(Math.round(policy.bridge.damage), T.structure.capShare * IRON_BRIDGE_RULES.integrity, 'seven bombs: capped at 600 of 1000');
+assert.equal(policy.bridge.stage, 1, 'damaged, still standing: the team finishes it');
+bomb('comeback:2:1');
+assert.equal(Math.round(policy.bridge.damage), 1000, 'a second strike (or the team) may finish it');
+policy.bridge.reset();
 
 // Each side once: alpha does not earn it again; a trailing bravo does, and its bot leader calls it.
 policy.ledger.tickets.alpha = 200; policy.ledger.tickets.bravo = 300;

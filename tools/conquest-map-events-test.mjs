@@ -23,7 +23,7 @@ import {
 import { IRON_BRIDGE, IRON_BRIDGE_RULES, bridgeBlastDamage } from '../shared/conquest-bridge.js';
 import { MapEventSystem, mapEventsOptionFromEnv } from '../server/modes/conquest/map-events/system.js';
 import { planBoxEdit } from '../server/modes/conquest/map-events/staged-edits.js';
-import { hazardEscape, mapEventGoal, planMapEventTasks } from '../server/bot-map-events.js';
+import { TASK_RANGE, hazardEscape, mapEventGoal, planMapEventTasks } from '../server/bot-map-events.js';
 import { mapEventBanner } from '../public/js/ui/conquest/map-events.js';
 import { interactModel } from '../public/js/ui/conquest-hud-state.js';
 import { mapEventAudio } from '../public/js/audio/objective-cues.js';
@@ -77,8 +77,13 @@ assert.equal(mid.progress, 0, 'damage drops the hold');
 hold(a, 3400);
 assert.equal(ev.phase, 'armed', 'a completed hold reaches onUse (the fixture arms)');
 assert.equal(ev.team, 'alpha');
+F.run(TICK_MS);
+const mapScore = id => F.kinds('score').filter(e => e.id === id && e.reason === 'map_event').reduce((n, e) => n + e.pts, 0);
+assert.equal(mapScore('a'), 0, 'G3: a plant pays nothing by itself');
 hold(b, 3400);
 assert.equal(ev.phase, 'idle', 'the rival team defuses');
+F.run(TICK_MS);
+assert.equal(mapScore('b'), 200, 'G3: a defuse pays 200');
 const defused = F.kinds().filter(e => e.event === 'fixture').at(-1);
 assert.equal(defused.reason, 'defused');
 assert.equal(mapEventBanner({ kind: 'map_event', ...defused }, { defs }).title, 'TEST PYLON · CHARGES DEFUSED', 'reason-keyed banner text');
@@ -135,6 +140,15 @@ const pylon = system.targets.get(ev, 'pylon');
 assert.equal(pylon.destroyed, true, 'three rockets drop a 300 pool');
 assert.equal(pylon.by, 'b');
 assert.deepEqual(ev.controller.calls.filter(c => c[0] === 'target').map(c => c[2]), [0.667, 0.333, 0], 'onTarget per blow');
+// G3 results only: the final blow 300, every other contributor its share of the pool (up to 200), a detonated plant 50.
+{
+  const pool = { integrity: 1000, contrib: new Map([['b', 400], ['a', 500], ['a2', 100]]) };
+  F.events.length = 0;
+  assert.deepEqual(system.payDestroyed(pool, 'b'), { b: 300, a: 100, a2: 20 }, 'final blow 300, assists by share');
+  assert.deepEqual(system.payDetonation(['a', 'a2'], 'a'), { a: 300, a2: 50 }, 'the detonation 300, the other planter 50');
+  assert.equal(system.award('a', 'use'), 0, 'no use / hold payout');
+  F.run(TICK_MS);
+}
 // The Iron Bridge keeps its numbers on the shared helper.
 const pier = [IRON_BRIDGE.x - 0.5, IRON_BRIDGE.waterY + 1, IRON_BRIDGE.z - 2.5];
 assert.deepEqual(bridgeBlastDamage(pier, 'rocket', 3), integrityBlastDamage(pier, 'rocket', 3, IRON_BRIDGE_RULES, IRON_BRIDGE.supports));
@@ -168,6 +182,12 @@ system.hazards.remove(zone);
   assert.equal(ts.eventAssign.get('a2'), 'fixture:use:charge', 'the nearest free bot takes the use task');
   const goal = mapEventGoal(commander, a2, ts);
   assert.deepEqual(goal.support, { type: 'support', support: 'use', targetId: 'fixture:0' }, 'and holds `use` through the bots\' support plumbing');
+  // The 120 m booking radius: a bot farther out is never booked, even for a task asking more.
+  F.place(a2, at.x + TASK_RANGE + 5, at.z);
+  planMapEventTasks(commander, ts, game.now);
+  assert.equal(TASK_RANGE, 120);
+  assert.equal(ts.eventAssign.size, 1, 'only the bot within 120 m is booked');
+  assert.equal(ts.eventAssign.get('a'), 'fixture:use:charge', 'the near one (40 m) takes it');
   a.bot = false; a2.bot = false;
 }
 

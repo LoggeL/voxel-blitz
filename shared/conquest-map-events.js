@@ -1,8 +1,10 @@
 // Conquest map events (docs/conquest.md "Map events"): the shared registry,
 // phases, tuning and wire codec of the scripted battlefield events (dam
-// breach, fuel depot, weir, relay mast, grain elevator, quarry rockslide,
-// comeback call-in, supply airdrop). The Iron Bridge collapse predates the
-// framework and keeps its own module (shared/conquest-bridge.js).
+// breach, fuel depot, comeback call-in; slots reserved for the ford sluices,
+// the flag radars and the canyon trestle). Every event must change the flag
+// fight (crossings, vehicle supply, the vehicle and air picture, tickets), be
+// set off through combat and pay only for results. The Iron Bridge collapse
+// predates the framework and keeps its own module (shared/conquest-bridge.js).
 //
 // HOW TO ADD AN EVENT (each step names the file; keep every number in data):
 //  1. shared/map-events/<id>.js: `export const <ID>_EVENT = defineMapEvent({...})`
@@ -21,7 +23,11 @@
 //     `match.conquest.ev` for late joiners. Voxel changes go through
 //     StagedEdits only (block deltas: joiners get them via the map cache).
 //  4. Bots: post tasks from `botTasks(team, view)` (go use / hold / defend a
-//     point with a priority and squad size); hazards are avoided for you.
+//     point with a priority and squad size); only bots within TASK_RANGE
+//     (120 m, server/bot-map-events.js) of the point are booked, hazards
+//     are avoided for you.
+//  4b. Score: results only, through `this.system.payDestroyed(targets, by)`,
+//     `payDetonation(planters, by)` and `payDefuse(id)` (MAP_EVENT_RULES.score).
 //  5. Client: public/js/ui/conquest/map-events/<id>.js presenter (banner text,
 //     map paint, markers; slot in .../map-events/registry.js) and FX in
 //     public/js/fx/map-events/<id>.js (slot in .../fx/map-events/registry.js).
@@ -66,9 +72,12 @@ export const codeTeam = code => TEAM_CODES[code] ?? null;
  *               impulse zone from shoving the same body every tick.
  *  edits        staged voxel edits apply at most `cellsPerTick` cells a tick
  *               (block deltas), about 2.4 k cells per second at 60 Hz.
- *  score        `map_event` scales per action (SCORE_POINTS.map_event = 200):
- *               setting an event off or stopping it (a defuse) 200, a
- *               completed hold (a plant, a claim) 100, an assist 50.
+ *  score        results only (SCORE_POINTS.map_event = 200, scaled): the
+ *               final blow that destroys a structure or sets the event off
+ *               300 (`finalBlow`), every other contributor its share of the
+ *               pool's integrity up to 200 (`assist`), a defuse 200, a plant
+ *               50 and only once its charge detonates (`plant`). Using or
+ *               holding a point, designating or claiming pays nothing.
  *  wire         `ev` + `evp` ride `match.conquest` under their own budget
  *               (like `recon`): the base 440 B has about 24 B left with 16
  *               bots (416 B max measured on Frontier, 40 s), so the event
@@ -79,7 +88,7 @@ export const MAP_EVENT_RULES = Object.freeze({
   interaction: Object.freeze({ staleMs: 350, exitPad: 0.75, dy: 2.5, damageResets: true }),
   hazards: Object.freeze({ tickMs: 250, pushCooldownMs: 1000, fleeMargin: 4 }),
   edits: Object.freeze({ cellsPerTick: 40 }),
-  score: Object.freeze({ trigger: 1, defuse: 1, use: 0.5, assist: 0.25 }),
+  score: Object.freeze({ finalBlow: 1.5, assist: 1, defuse: 1, plant: 0.25 }),
   wire: Object.freeze({ budgetBytes: 200, extraMax: 6 }),
 });
 
