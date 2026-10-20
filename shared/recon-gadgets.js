@@ -76,9 +76,6 @@ export const RECON_GADGET_RULES = Object.freeze({
   botCheckMs: 2500,
 });
 
-/** Gadget kinds in wire order (`recon_gadget.gadget`). */
-export const RECON_GADGET_KINDS = Object.freeze(['beacon', 'sensor']);
-
 /**
  * Placement of a spawn beacon from the eye along `dir`: the AT mine's floor
  * rule (crosshair floor within reach, else the floor below a point just

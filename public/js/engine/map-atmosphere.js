@@ -295,11 +295,6 @@ const FRONTIER_PRESETS = {
     backdropHaze: '#6c757d', backdropLight: { sun: '#949ca4', sky: '#7c8791' }, backdropAirFog: 0.85, backdropBaseHaze: 0.9, backdropHazeHeight: 120 },
 };
 
-/** A Frontier weather preset's raw values (conquest-weather-view.js blends between them). */
-export function frontierWeatherPreset(weather) {
-  return FRONTIER_PRESETS[FRONTIER_WEATHER.includes(weather) ? weather : 'golden'];
-}
-
 /** The weather a map shows: a capture override, else the authored mapMeta value, else golden (Redrock: desert). */
 export function resolveWeather(meta, override = null) {
   if (meta?.id === 'redrock') return resolveRedrockWeather(meta, override);

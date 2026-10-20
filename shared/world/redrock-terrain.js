@@ -6,7 +6,8 @@
 // the same arrays and cell kinds, so the site kit, the generator helpers, the
 // map metadata, bot navigation and the far-terrain renderer read it the same
 // way. Everything is derived from REDROCK_PLAN (shared/world/redrock-plan.js)
-// plus the authored ground plan below, with one constant seed.
+// plus the authored ground plan below, on Frontier's noise salted (SALT) so the
+// relief never repeats Frontier's.
 //
 // Height convention (as Frontier): `heights[i]` is the y of the top solid
 // terrain voxel of the column (river bed, ground, road, pad, bridge deck or
@@ -29,11 +30,9 @@ const H = REDROCK_PLAN.heights;
 const AREA = REDROCK_PLAN.combatArea;
 /** Noise salts are offset so Redrock never repeats Frontier's relief. */
 const SALT = 5000;
-export const REDROCK_TERRAIN_SEED = 0x52445243;
 
-/** Mirror about x = 384 (continuous) and its cell form. */
+/** Mirror about x = 384 (continuous). */
 export const mirrorX = ([x, z]) => [SX - x, z];
-export const mirrorCellX = (x, z) => [SX - 1 - x, z];
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const smoothstep = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -274,7 +273,6 @@ export const REDROCK_CELL_KIND = KIND;
 function deckRect(c) {
   return rect(Math.floor(c.x - c.halfSpan), Math.floor(c.z - c.width / 2), Math.ceil(c.x + c.halfSpan) - 1, Math.ceil(c.z + c.width / 2) - 1);
 }
-export const redrockDeckRect = deckRect;
 
 function buildTerrain() {
   const N = SX * SZ;
@@ -619,8 +617,6 @@ const cellIndex = (x, z) => clamp(Math.floor(z), 0, SZ - 1) * SX + clamp(Math.fl
 export function redrockSurfaceY(x, z) { return redrockTerrain().heights[cellIndex(x, z)] + 1; }
 /** Top terrain voxel y at x, z (river bed, ground, road, bridge deck or dam crest). */
 export function redrockTopY(x, z) { return redrockTerrain().heights[cellIndex(x, z)]; }
-/** Block id of the terrain top at x, z (MC_WATER on open water and fords). */
-export function redrockSurfaceBlock(x, z) { return redrockTerrain().surface[cellIndex(x, z)]; }
 /** Water surface y at x, z, or 0 on dry ground. */
 export function redrockWaterY(x, z) { return redrockTerrain().water[cellIndex(x, z)]; }
 export function redrockDrivable(x, z) { return redrockTerrain().drivable[cellIndex(x, z)] === 1; }

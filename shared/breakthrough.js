@@ -12,9 +12,6 @@ const TEAM_SET = new Set(CONQUEST_TEAMS);
 const other = team => (team === 'alpha' ? 'bravo' : 'alpha');
 const finitePoint = p => Number.isFinite(p?.x) && Number.isFinite(p?.z);
 
-/** Roles a flag plays in Breakthrough: taken by the attackers, in play, or not yet reachable. */
-export const SECTOR_ROLES = Object.freeze(['captured', 'active', 'locked']);
-
 /** Ordered sectors of a map (arrays of flag ids from the attackers' side), or null without a table. */
 export function breakthroughSectors(mapId, rules = BREAKTHROUGH_RULES) {
   const table = rules?.sectors?.[mapId];
@@ -53,9 +50,6 @@ export function sectorRole(bt, flagId) {
   if (index < 0) return null;
   return index < bt.sector ? 'captured' : index === bt.sector ? 'active' : 'locked';
 }
-
-/** Flag ids of the active sector ([] once broken through). */
-export const activeSectorFlags = bt => (bt && bt.sector < bt.sectors.length ? bt.sectors[bt.sector].slice() : []);
 
 /** Unit axis from the attackers' HQ toward the defenders' HQ; `project(p)` is metres along it. */
 export function breakthroughAxis(bases, attackers) {

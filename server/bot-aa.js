@@ -29,9 +29,6 @@ export const AA_BOT = Object.freeze({
   infantryEffect: 0.3,
 });
 
-/** True for a hull type whose seat weapons carry the flak fuse. */
-export const isAaType = type => type === 'aa';
-
 /** Live enemy aircraft with anyone aboard (parked or flying): the AA's reason to crew. */
 export function enemyAirThreats(vehicles, team) {
   const out = [];

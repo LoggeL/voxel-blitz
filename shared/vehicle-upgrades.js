@@ -117,11 +117,6 @@ export function upgradeUnlocked(type, id, level) {
   return lv >= upgradeUnlockLevel(type, id);
 }
 
-/** Lowest unlock level of any upgrade (the deploy screen's VEHICLES tab hint). */
-export function firstUpgradeLevel() {
-  return Math.min(...Object.values(VEHICLE_UPGRADES).flat().map(upgrade => upgrade.unlockLevel));
-}
-
 /**
  * A choice map `{type: upgradeId}` reduced to known types and ids (stock
  * entries dropped). Returns null for anything that is not a plain object.

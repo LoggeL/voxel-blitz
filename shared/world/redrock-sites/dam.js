@@ -14,7 +14,7 @@ import {
 } from '../blocks.js';
 import { REDROCK_PLAN } from '../redrock-plan.js';
 import {
-  REDROCK_CROSSINGS, REDROCK_DAM, REDROCK_CELL_KIND as KIND, CANYON_FLOOR, NORTH_SURFACE, riverOffset, redrockTopY,
+  REDROCK_CROSSINGS, REDROCK_DAM, REDROCK_CELL_KIND as KIND, CANYON_FLOOR, NORTH_SURFACE, redrockTopY,
 } from '../redrock-terrain.js';
 import { rect, pickSpawnCells, wall } from './plan.js';
 import { crateStack } from '../frontier-sites/props.js';
