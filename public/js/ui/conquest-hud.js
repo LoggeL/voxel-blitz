@@ -738,7 +738,11 @@ export class ConquestHud {
         break;
       }
       case 'deploy_refused':
-        if (String(ev.id) === String(selfId)) this.deploy.refuse(ev.reason === 'locked' ? { reason: 'locked', level: ev.level } : ev.reason);
+        if (String(ev.id) === String(selfId)) {
+          // A locked class names its level; a locked vehicle upgrade also names the hull and the upgrade.
+          this.deploy.refuse(ev.reason !== 'locked' ? ev.reason : ev.upgrade ? { reason: 'locked', level: ev.level, vehicle: ev.vehicle, upgrade: ev.upgrade }
+            : { reason: 'locked', level: ev.level });
+        }
         break;
       case 'squad_order': {
         // The own squad's new (or cleared) order: a banner and the radio squelch.

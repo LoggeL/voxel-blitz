@@ -128,7 +128,12 @@ async function render(id, { touch: touchMode = false } = {}) {
   // main.js reports the input device the same way (touch hides key badges, compacts the Ready Card).
   h.gameplay?.setDeviceLabels?.({ touch: touchMode });
   h.setState(localHudState(state));
-  if (state.selection) conquest.deploy.selection = { ...conquest.deploy.selection, ...state.selection };
+  if (state.selection) {
+    conquest.deploy.selection = { ...conquest.deploy.selection, ...state.selection };
+    // The strip tab rides the fixture selection (`tab: 'vehicles'`); set directly, so no preference leaks into later states.
+    conquest.deploy.tab = state.selection.tab === 'vehicles' ? 'vehicles' : 'class';
+    conquest.deploy._kitSig = '';
+  }
   const args = { match: state.match, mapMeta, self: state.self, players: state.players, vehicles: state.vehicles, camera,
     nearbyVehicle: state.nearbyVehicle, nowMs: FIXTURE_NOW, interactHeld: state.interactHeld, viewport: { width, height },
     // A fixture's camera view strip shows as if V was just pressed.

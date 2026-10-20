@@ -48,7 +48,7 @@ let groups = 0;
   assert.equal(model.spawn, 'flag:A'); assert.equal(model.valid, true); assert.equal(model.selectedKey, 'flag:A');
   assert.equal(model.waitMs, 3200); assert.equal(model.countdown, '3.2'); assert.equal(model.ready, false, 'not before respawnAt');
   assert.equal(model.timeoutMs, 3200 + CONQUEST_RULES.deployTimeoutMs);
-  assert.deepEqual(model.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0 }, 'the engineer choice carries its gadget (AT by default)');
+  assert.deepEqual(model.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0, upgrades: {} }, 'the engineer choice carries its gadget (AT by default)');
   assert.deepEqual(model.kits.map(k => k.id), KIT_MENU_ORDER, 'class cards follow the menu order (wire order is KIT_IDS)');
   assert.deepEqual([...model.kits.map(k => k.id)].sort(), [...KIT_IDS].sort());
   assert.deepEqual(model.kits.filter(k => !k.unlocked).map(k => k.id), ['pyro', 'grenadier', 'raider', 'marksman'], 'without kit_unlocks only base kits are open');
@@ -66,11 +66,11 @@ let groups = 0;
     'the support card offers no gadget or the mortar');
   const aa = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
     nowMs: FIXTURE_NOW, selection: { ...deploy.selection, gadget: 1 } });
-  assert.deepEqual(aa.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1 });
+  assert.deepEqual(aa.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1, upgrades: {} });
   assert.equal(aa.kits.find(k => k.id === 'engineer').gadget, WEAPON_NAMES.stinger);
   const assaultAa = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
     nowMs: FIXTURE_NOW, selection: { spawn: 'hq', kit: 'assault', gadget: 1 } });
-  assert.deepEqual(assaultAa.choice, { spawn: 'hq', kit: 'assault', variant: 0 }, 'a kit without a gadget choice never sends one');
+  assert.deepEqual(assaultAa.choice, { spawn: 'hq', kit: 'assault', variant: 0, upgrades: {} }, 'a kit without a gadget choice never sends one');
   assert.deepEqual(engineer.grenades, Object.entries(KITS.engineer.grenades).map(([t, n]) => `${n}× ${t === 'atmine' ? 'AT MINE' : t.toUpperCase()}`));
 
   // A refused choice, a stale selection and a vehicle seat.
@@ -189,20 +189,20 @@ let groups = 0;
   assert.equal(screen.map.spawnHits.length, 7);
 
   screen.button.click();
-  assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0 }], 'Deploy sends {spawn, kit, variant, gadget}');
+  assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0, upgrades: {} }], 'Deploy sends {spawn, kit, variant, gadget, upgrades}');
   // The gadget toggle (AT / AA) on the engineer card re-sends the choice with the STINGER.
   const gadgetButtons = screen.kits.querySelectorAll('.cq-kit-gadget');
   assert.deepEqual(gadgetButtons.map(b => b.dataset.gadget), ['rocket', 'stinger'], 'only the engineer card shows the gadget toggle');
   gadgetButtons[1].click();
   update();
-  assert.deepEqual(sent.at(-1), { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1 }, 'picking the STINGER re-sends gadget 1');
+  assert.deepEqual(sent.at(-1), { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1, upgrades: {} }, 'picking the STINGER re-sends gadget 1');
   assert.equal(dom.storage.getItem('vb-conquest-kit-gadget'), '1', 'gadget choice persists');
   assert.equal(screen.kits.querySelector('.cq-kit-gadget.is-selected').dataset.gadget, 'stinger');
   assert.equal(screen.button.textContent, 'DEPLOYING IN 3.2');
   // A change while readied is re-sent so the server holds the latest choice.
   screen.kits.querySelectorAll('.cq-kit-pick').find(b => b.textContent.startsWith('RECON')).click();
   update();
-  assert.deepEqual(sent.at(-1), { spawn: 'flag:A', kit: 'recon', variant: 1, gadget: 1 }, 'the recon carries its gadget choice (the remembered second gadget: MOTION SENSOR)');
+  assert.deepEqual(sent.at(-1), { spawn: 'flag:A', kit: 'recon', variant: 1, gadget: 1, upgrades: {} }, 'the recon carries its gadget choice (the remembered second gadget: MOTION SENSOR)');
   assert.deepEqual(screen.kits.querySelectorAll('.cq-kit-gadget').map(b => b.dataset.gadget), ['beacon', 'sensor'], 'the recon card shows the BEACON / SENSOR toggle');
   assert.equal(dom.storage.getItem('vb-conquest-kit'), 'recon', 'kit choice persists');
   screen.kits.querySelectorAll('.cq-kit-variant').find(b => b.textContent && b.parentNode.parentNode.dataset.kit === 'recon' && b.classList.contains('is-selected') === false).click();
@@ -288,7 +288,7 @@ let groups = 0;
   // Touch DEPLOY (vb-conquest-action) and Enter both deploy.
   dom.window.dispatchEvent({ type: CONQUEST_TOUCH_EVENT, detail: { action: 'deploy' } });
   // The Support has a gadget choice now (none / MORTAR): its choice carries gadget 0.
-  assert.deepEqual(sent, [{ spawn: 'hq', kit: 'support', variant: 0, gadget: 0 }]);
+  assert.deepEqual(sent, [{ spawn: 'hq', kit: 'support', variant: 0, gadget: 0, upgrades: {} }]);
   dom.window.dispatchEvent({ type: 'keydown', key: 'Enter', code: 'Enter', repeat: false, target: document.body });
   assert.equal(sent.length, 2);
   hud.handleEvent({ kind: 'deploy_refused', id: 'me', reason: 'cooldown' }, 'me');

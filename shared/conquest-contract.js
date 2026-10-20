@@ -159,7 +159,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'flag_captured',     // {flag, team}
   'ticket_low',        // {team, tickets}
   'score',             // {id, pts, reason}
-  'deploy_refused',    // {id, reason}                   reason: 'invalid'|'contested'|'enemy'|'busy'|'cooldown'|'seat'|'locked' (+ level)
+  'deploy_refused',    // {id, reason}                   reason: 'invalid'|'contested'|'enemy'|'busy'|'cooldown'|'seat'|'locked' (+ kit, level; or vehicle, upgrade, level)
   'revive',            // {id, by}
   'heal',              // {id, by, hp}                   Medic aura pulse: `by` restored `hp` to `id` (one per pulse per mate)
   'kit_unlocks',       // {id, level, unlocked:[kit], newly:[kit]}  career level gate; on join and on a level-up that opens a kit
@@ -193,7 +193,8 @@ export const CONQUEST_DEATH_KEYS = Object.freeze(['restricted', 'vehicle', 'fall
 
 /** Client -> server Conquest intent frame `{t:'conquest', ...}` (one field per frame is enough). */
 export const CONQUEST_INTENT_SHAPE = Object.freeze({
-  deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>"|"beacon:<beaconId>", kit:KIT_ID, variant:0|1, gadget?:0|1}',
+  // upgrades (v6): {<vehicle type>: <upgrade id>} from shared/vehicle-upgrades.js; a type left out drives stock.
+  deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>"|"beacon:<beaconId>", kit:KIT_ID, variant:0|1, gadget?:0|1, upgrades?:{type:upgradeId}}',
   spot: '1',
   support: '{type:"revive"|"repair", targetId:string}',
   // In-game menu RESPAWN: die now (1 ticket, kill key `redeploy`) and open the deploy screen.

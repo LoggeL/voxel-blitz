@@ -278,6 +278,8 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-badge-warn { background: #ffcf5c; color: #1d1404; }
 .cq-badge-info { background: #4cc3ff; color: #04131c; }
 .cq-badge-repair { background: #7ef29a; color: #04190b; }
+/* The driver's vehicle upgrade (row `upg`): outlined in the own colour, so it never reads as a status alarm. */
+.cq-badge-upgrade { padding: 0 5px; border: 1px solid var(--cq-own); color: var(--cq-own); background: #0f2533; }
 .cq-vehicle-telemetry { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: var(--cq-sub); font-variant-numeric: tabular-nums; }
 .cq-vehicle-weapons { display: grid; gap: 3px; }
 .cq-weapon { display: grid; grid-template-columns: 22px 1fr 80px 64px; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 3px; font-size: 12px; font-weight: 700; color: var(--cq-sub); }
@@ -527,6 +529,36 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   background: linear-gradient(180deg, #ffd166, #f0a83a); color: #1a1205; font: 800 17px var(--font-ui); letter-spacing: 2px; box-shadow: 0 4px 18px #f0a83a55; }
 .cq-deploy-button:disabled { background: #3a3f44; color: #9aa3aa; box-shadow: none; cursor: not-allowed; }
 .cq-deploy-button.is-ready { background: linear-gradient(180deg, #7ef29a, #3fbf6b); color: #062010; }
+/* Strip tabs CLASSES / VEHICLES and the hull upgrade cards (design docs/design/conquest/upgrades/, variant A).
+   The tab pair replaces the CLASSES header; the VEHICLES tab fills the same strip, so the map, spawns and DEPLOY stay put. */
+.cq-deploy-tabs { display: flex; align-items: flex-end; gap: 18px; min-width: 0; border-bottom: 1px solid #ffffff14; }
+.cq-deploy-tab { margin-bottom: -1px; padding: 0 2px 4px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--cq-sub);
+  font: 800 12px var(--font-ui); letter-spacing: 3px; cursor: pointer; }
+.cq-deploy-tab:hover { color: #fff; }
+.cq-deploy-tab.is-active { color: #fff; border-bottom-color: var(--cq-own); }
+.cq-deploy-tab-level { margin-bottom: 4px; padding: 0 6px; border: 1px solid var(--cq-line); border-radius: 2px; font-size: 10px; font-weight: 800; line-height: 15px; letter-spacing: 1px; color: var(--cq-sub); }
+.cq-deploy-section-base { display: none; }
+.cq-upg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-items: stretch; }
+.cq-upg-hull { display: grid; align-content: start; gap: 5px; min-width: 0; padding: 6px 8px; border: 1px solid var(--cq-line); border-radius: 4px; background: #0e1820e6; }
+/* The hull the picked spawn seats you in. */
+.cq-upg-hull.is-spawn { border-color: #ffd16699; box-shadow: inset 3px 0 0 #ffd166; }
+.cq-upg-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cq-upg-icon { flex: none; width: 26px; height: 20px; color: var(--cq-sub); }
+.cq-upg-hull.is-upgraded .cq-upg-icon { color: var(--cq-own); }
+.cq-upg-name { font-size: 13px; letter-spacing: 1.5px; white-space: nowrap; }
+.cq-upg-options { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
+.cq-upg-option { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 32px; padding: 2px 4px;
+  border: 1px solid var(--cq-line); border-radius: 3px; background: #0b141b; color: #c3d3de; font: 700 10px/1.15 var(--font-ui); letter-spacing: 0.5px; text-align: center; cursor: pointer; }
+.cq-upg-option:hover:not(.is-locked):not(.is-selected) { border-color: #4cc3ff88; color: #fff; }
+.cq-upg-option.is-selected { color: #04131c; background: var(--cq-own); border-color: var(--cq-own); }
+.cq-upg-option.is-locked { border-style: dashed; background: #0b1218d9; color: #7d8b96; cursor: not-allowed; }
+.cq-upg-text { display: grid; min-width: 0; }
+.cq-upg-label { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.cq-upg-level { font-size: 9px; letter-spacing: 1px; color: #ffd166; }
+.cq-upg-lock { flex: none; width: 12px; height: 12px; }
+/* Desktop: the upgrade info line rides beside DEPLOY under the hull grid (two lines at most). */
+.cq-deploy-kits[data-tab="vehicles"] .cq-kit-info { display: -webkit-box; box-sizing: border-box; min-height: 52px; margin-right: calc(var(--cq-deploy-w) + 10px);
+  padding-top: 10px; white-space: normal; line-height: 15px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 
 /* ------------------------------------------------- kill feed + hitmarks */
 .kf-vehicle-icon { width: 26px; height: 18px; color: currentColor; }
@@ -623,6 +655,8 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 /* With the panel button replaced by the touch one, the status line (countdown, refusals) moves up under the header. */
 .vb-touch-deploying .cq-deploy-foot { display: none; }
 .vb-touch-deploying .cq-kit-row-unlock { margin-right: 0; }
+.vb-touch-deploying .cq-deploy-kits[data-tab="vehicles"] .cq-kit-info { min-height: 30px; margin-right: 0; padding-top: 0; }
+.vb-touch-mode .cq-upg-option, .vb-touch-mode .cq-deploy-tab { min-height: 44px; }
 /* Touch: 44 px targets on the class cards and their toggles. */
 .vb-touch-mode .cq-kit-pick, .vb-touch-mode .cq-kit-variant, .vb-touch-mode .cq-kit-gadget { min-height: 44px; }
 .vb-touch-mode .cq-kit-info { white-space: normal; min-height: 30px; line-height: 15px; }
@@ -649,6 +683,7 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   .cq-kit-row-unlock { margin-right: 0; }
   .cq-kit-loadout-name { display: none; }
   .cq-kit-loadout .cq-kit-variants, .cq-kit-loadout .cq-kit-gadgets { flex-basis: 260px; }
+  .cq-deploy-kits[data-tab="vehicles"] .cq-kit-info { min-height: 30px; margin-right: 0; padding-top: 0; }
 }
 @media (max-width: 700px) {
   .cq-deploy { place-items: start center; }
@@ -669,6 +704,8 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   /* Two compact columns that never reflow; the loadout slot stacks its toggles below them. */
   .cq-kit-row, .cq-kit-row-unlock { grid-template-columns: 1fr 1fr; margin-right: 0; }
   .cq-kit-loadout { display: grid; gap: 5px; padding: 6px; }
+  /* Phone portrait: one hull per row, its chips side by side. */
+  .cq-upg-grid { grid-template-columns: 1fr; }
   .cq-kit-loadout-name { display: none; }
   .cq-kit-loadout .cq-kit-gadgets.is-placeholder { display: block; visibility: hidden; min-height: 32px; }
   .vb-touch-mode .cq-kit-loadout .cq-kit-gadgets.is-placeholder { min-height: 44px; }
@@ -718,6 +755,10 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   .cq-deploy-killer { padding: 4px 10px; margin-left: auto; width: auto; }
   .cq-kit-row, .cq-kit-row-unlock { grid-template-columns: 1fr 1fr; margin-right: 0; gap: 5px; }
   .cq-kit { padding: 4px 6px; gap: 4px; }
+  /* Phone landscape: the hulls stack in the scrolling classes column. */
+  .cq-upg-grid { grid-template-columns: 1fr; gap: 5px; }
+  .cq-upg-hull { padding: 4px 6px; gap: 4px; }
+  .cq-deploy-kits[data-tab="vehicles"] .cq-kit-info { min-height: 30px; margin-right: 0; padding-top: 0; }
   .cq-kit-loadout { display: grid; gap: 4px; padding: 4px 6px; }
   .cq-kit-loadout-name { display: none; }
   .cq-kit-loadout .cq-kit-gadgets.is-placeholder { display: block; visibility: hidden; min-height: 32px; }

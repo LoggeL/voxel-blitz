@@ -11,6 +11,7 @@ import { fireMountedRay } from './combat.js';
 import { evVehicleShoot } from '../protocol/events.js';
 import { isTitanType } from '../../shared/titan-contract.js';
 import { stepTitanMounts, fireTitanMount, titanMountRows, selectTitanWeapon } from './titanfall/titan-mounts.js';
+import { mountMagazine, mountSeconds, upgradedHitscan } from './vehicle-upgrades.js';
 
 const wrap = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
@@ -122,7 +123,7 @@ export class VehicleMounts {
     const slewScale = vehicle.disabled ? VEHICLE_DAMAGE_RULES.disabledSlew : 1;
     // A damaged turret ring (tank subsystem) slows the turret's own traverse and elevation.
     const ringScale = vehicle.subsystems && this.system.subsystemBroken?.(vehicle, 'turret') ? TANK_SUBSYSTEMS.turret.slew : 1;
-    for (const state of vehicle.mounts) this.tickTimers(state, dt);
+    for (const state of vehicle.mounts) this.tickTimers(state, dt, vehicle);
     for (const seat of def.seats) {
       if (!seat.mounts.length) continue;
       const operator = this.system.seatOccupant(vehicle, seat.id);
@@ -159,8 +160,10 @@ export class VehicleMounts {
     }
   }
 
-  tickTimers(state, dt) {
+  /** `vehicle` sizes the magazine (a hull upgrade may add rounds, server/sim/vehicle-upgrades.js). */
+  tickTimers(state, dt, vehicle = null) {
     const weapon = VEHICLE_WEAPONS[state.weapon];
+    const magazine = vehicle ? mountMagazine(vehicle, state) : weapon.magazine;
     // While the trigger stays held, carry at most one tick of credit so fast
     // guns keep their real cadence instead of rounding each shot up to a tick.
     state.cooldown = Math.max(state.held ? -dt : 0, state.cooldown - dt);
@@ -170,12 +173,14 @@ export class VehicleMounts {
     } else if (weapon.heatPerShot) state.heat = Math.max(0, state.heat - weapon.coolPerSecond * dt);
     if (state.reloadT > 0) {
       state.reloadT = Math.max(0, state.reloadT - dt);
-      if (state.reloadT === 0 && Number.isFinite(weapon.magazine)) state.ammo = weapon.magazine;
+      if (state.reloadT === 0 && Number.isFinite(weapon.magazine)) state.ammo = magazine;
     }
     if (state.rearm.length) {
       for (let i = 0; i < state.rearm.length; i++) state.rearm[i] -= dt;
-      while (state.rearm.length && state.rearm[0] <= 0) { state.rearm.shift(); state.ammo = Math.min(weapon.magazine, state.ammo + 1); }
+      while (state.rearm.length && state.rearm[0] <= 0) { state.rearm.shift(); state.ammo = Math.min(magazine, state.ammo + 1); }
     }
+    // Rounds above a shrunk upgraded magazine (server/sim/vehicle-upgrades.js) keep re-arming off the rack.
+    if (state.heldRearm) for (let i = 0; i < state.heldRearm.length; i++) state.heldRearm[i] = Math.max(0, state.heldRearm[i] - dt);
   }
 
   /** The barrel between its pivot and muzzle must not pass through terrain. */
@@ -206,7 +211,7 @@ export class VehicleMounts {
       if (!result) return false;
     } else if (weapon.kind === 'hitscan') {
       dir = spreadDirection(pose.dir, weapon.spreadDeg, state);
-      result = fireMountedRay(operator, pose.origin, dir, weapon, this.system.combatContext(), { vehicleId: vehicle.id });
+      result = fireMountedRay(operator, pose.origin, dir, upgradedHitscan(vehicle, mountId, weapon), this.system.combatContext(), { vehicleId: vehicle.id });
     } else {
       const targetId = weapon.key === 'aaMissile' ? this.system.locks.lockedTarget(operator, 'aaMissile') : null;
       // A sight-guided missile rides its gunner's sight: the mount's `sight` mount (the heli's chin gimbal), else the launcher.
@@ -218,15 +223,16 @@ export class VehicleMounts {
       if (!result) return false;
     }
     state.shots++;
-    state.cooldown = weapon.cooldown + Math.min(0, state.cooldown);
+    // Hull upgrades scale the mount's timers (an autoloader, a quick TOW reload, a quick rearm).
+    state.cooldown = mountSeconds(vehicle, state, 'cooldown') + Math.min(0, state.cooldown);
     if (weapon.heatPerShot) {
       state.heat = Math.min(1, state.heat + weapon.heatPerShot);
       if (state.heat >= 1) { state.overheated = true; state.overheatT = weapon.overheatSeconds; }
     }
     if (Number.isFinite(weapon.magazine)) {
       state.ammo--;
-      if (weapon.rearmSeconds) state.rearm.push(weapon.rearmSeconds);
-      else if (state.ammo <= 0 && weapon.reloadSeconds) state.reloadT = weapon.reloadSeconds;
+      if (weapon.rearmSeconds) state.rearm.push(mountSeconds(vehicle, state, 'rearm'));
+      else if (state.ammo <= 0 && weapon.reloadSeconds) state.reloadT = mountSeconds(vehicle, state, 'reload');
     }
     const side = mount.sides ? state.side : null;
     if (mount.sides) state.side = (state.side + 1) % mount.sides.length;
@@ -247,9 +253,9 @@ export class VehicleMounts {
     return (vehicle.mounts || []).map(state => {
       const weapon = VEHICLE_WEAPONS[state.weapon];
       let reload = 0;
-      if (state.reloadT > 0) reload = state.reloadT / weapon.reloadSeconds;
-      else if (state.rearm.length && state.ammo <= 0) reload = state.rearm[0] / weapon.rearmSeconds;
-      else if (weapon.cooldown >= 1 && state.cooldown > 0) reload = state.cooldown / weapon.cooldown;
+      if (state.reloadT > 0) reload = state.reloadT / mountSeconds(vehicle, state, 'reload');
+      else if (state.rearm.length && state.ammo <= 0) reload = state.rearm[0] / mountSeconds(vehicle, state, 'rearm');
+      else if (weapon.cooldown >= 1 && state.cooldown > 0) reload = state.cooldown / mountSeconds(vehicle, state, 'cooldown');
       return [round(state.yaw, 1000), round(state.pitch, 1000), state.ammo,
         state.overheated ? 100 : Math.round(clamp(state.heat, 0, 1) * 100), Math.round(clamp(reload, 0, 1) * 100)];
     });

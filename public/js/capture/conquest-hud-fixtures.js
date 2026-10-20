@@ -189,7 +189,9 @@ export function conquestHudFixtures() {
     const self = meAt(tankAt.x, tankAt.z, { vehicleId: 'alpha-tank', vehicleSeatId: 'commander' });
     const yaw = yawTo(tankAt, C);
     const tank = vehicle('alpha-tank', 'tank', 'alpha', tankAt.x, tankAt.z, { hp: 760, yaw, turretYaw: yaw,
-      seatOccupants: { driver: 'sq2', commander: 'me' }, mounts: [[yaw, 0, 6, 0, 0], [yaw, 0, -1, 0, 0], [yaw + 0.3, 0.05, -1, 81, 0]], sel: { driver: 1 }, cmr: 100 });
+      seatOccupants: { driver: 'sq2', commander: 'me' }, mounts: [[yaw, 0, 6, 0, 0], [yaw, 0, -1, 0, 0], [yaw + 0.3, 0.05, -1, 81, 0]], sel: { driver: 1 }, cmr: 100,
+      // The bot driver's fixed vehicle upgrade (BOT_VEHICLE_UPGRADES.tank: REACTIVE ARMOUR, row upg 1).
+      upg: 1 });
     out.push(state('tank-commander', 'Tank commander · RWS hot', { self, players: roster(self), vehicles: [tank, spottedTank], match: baseMatch(),
       camera: cam(tankAt.x + 0.6, GROUND + 3.4, tankAt.z + 0.4, yaw + 0.3, -0.02) }));
   }
@@ -480,6 +482,16 @@ export function conquestHudFixtures() {
       events: [{ kind: 'flag_captured', flag: 'C', team: 'alpha' }, { kind: 'score', id: 'me', pts: 250, reason: 'capture' },
         { kind: 'score', id: 'me', pts: 50, reason: 'ribbon' }, { kind: 'ribbon', id: 'me', ribbon: 'conquest', count: 1, pts: 50 }],
       camera: cam(C.x + 4, GROUND + 1.6, C.z + 6, yawTo(C, D) + 0.35) }));
+  }
+  // 18j. VEHICLES tab: career LV 4 (1,240 XP), the tank's driver seat picked as spawn, three hull upgrades chosen.
+  {
+    const self = meAt(C.x, C.z, { hp: 0, state: 'dead', respawnAt: FIXTURE_NOW + 3200, cq: { squad: 1, kitId: 'engineer' } });
+    out.push(state('deploy-vehicles', 'Deploy · VEHICLES tab, LV 4, hull upgrades, tank spawn', { self, players: deployRoster(self), vehicles: [tankRow, heliRow],
+      match: deployMatch(), dead: true, killer: { name: 'Rourke', weaponName: '120MM AP', distance: 142 },
+      selection: { spawn: 'vehicle:alpha-tank:driver', kit: 'engineer', variant: 0, tab: 'vehicles', upgrades: { tank: 'reactive', jeep: 'turbo', plane: 'extra_flares', helicopter: 'extra_missile' } },
+      career: { xp: 1240, level: 4, levelStart: 900, nextLevel: 1600 },
+      events: [{ kind: 'kit_unlocks', id: 'me', level: 4, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'], newly: [] }],
+      camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
   // 19. Scoreboard (squads, objective, vehicles, revives).
   {

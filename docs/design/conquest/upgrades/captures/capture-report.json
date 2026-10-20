@@ -1,0 +1,56 @@
+{
+  "generated": "2026-10-19T23:04:53.882Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "tank-commander",
+        "title": "Tank commander · RWS hot",
+        "file": "docs/design/conquest/upgrades/captures/desktop-tank-commander.png",
+        "seated": "tank:commander",
+        "overlaps": []
+      },
+      {
+        "id": "deploy-vehicles",
+        "title": "Deploy · VEHICLES tab, LV 4, hull upgrades, tank spawn",
+        "file": "docs/design/conquest/upgrades/captures/desktop-deploy-vehicles.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "tank-commander",
+        "title": "Tank commander · RWS hot",
+        "file": "docs/design/conquest/upgrades/captures/portrait-tank-commander.png",
+        "seated": "tank:commander",
+        "overlaps": []
+      },
+      {
+        "id": "deploy-vehicles",
+        "title": "Deploy · VEHICLES tab, LV 4, hull upgrades, tank spawn",
+        "file": "docs/design/conquest/upgrades/captures/portrait-deploy-vehicles.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "tank-commander",
+        "title": "Tank commander · RWS hot",
+        "file": "docs/design/conquest/upgrades/captures/landscape-tank-commander.png",
+        "seated": "tank:commander",
+        "overlaps": []
+      },
+      {
+        "id": "deploy-vehicles",
+        "title": "Deploy · VEHICLES tab, LV 4, hull upgrades, tank spawn",
+        "file": "docs/design/conquest/upgrades/captures/landscape-deploy-vehicles.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

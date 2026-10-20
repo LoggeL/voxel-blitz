@@ -492,7 +492,7 @@ function fixture({ walls = [] } = {}) {
   assert.ok(option && option.ok && option.label === 'SPAWN BEACON' && option.detail.endsWith('SQUAD BEACON'), `beacon row: ${option?.detail}`);
   assert.equal(model.spawn, `beacon:${beacon.id}`);
   assert.equal(model.gadget, 1, 'the Recon gadget choice rides the model');
-  assert.deepEqual(model.choice, { spawn: `beacon:${beacon.id}`, kit: 'recon', variant: 0, gadget: 1 });
+  assert.deepEqual(model.choice, { spawn: `beacon:${beacon.id}`, kit: 'recon', variant: 0, gadget: 1, upgrades: {} });
   const cooling = deployModel({ cq: { ...cq, recon: { ...cq.recon, beacons: cq.recon.beacons.map(x => ({ ...x, cooldownMs: 4200 })) } },
     self: dead, players: game.lastSnapshot.players, vehicles: [], nowMs: policy.now });
   const coolRow = cooling.options.find(o => o.kind === 'beacon');

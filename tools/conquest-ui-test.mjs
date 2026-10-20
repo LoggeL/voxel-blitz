@@ -44,7 +44,7 @@ const ok = () => { checks++; };
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
   'tank-driver', 'tank-commander', 'tank-periscope', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-bomb', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
-  'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'recon-deploy', 'recon-sensor', 'ribbon', 'ribbon-banner', 'scoreboard', 'result', 'result-medals',
+  'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'recon-deploy', 'recon-sensor', 'ribbon', 'ribbon-banner', 'deploy-vehicles', 'scoreboard', 'result', 'result-medals',
   'orders-rose', 'orders-chip', 'orders-map', 'mortar'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
@@ -197,7 +197,7 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
   const mending = seatedOf(byId('tank-commander'));
   const repairing = state.vehiclePanelModel({ ...mending, row: { ...mending.row, st: (mending.row.st | 0) | VEHICLE_STATUS.repairing } }, { selfId: 'me', players: byId('tank-commander').players });
   assert.equal(repairing.repairing, true);
-  assert.deepEqual(repairing.badges.map(b => [b.label, b.tone]), [['REPAIRING', 'repair']]);
+  assert.deepEqual(repairing.badges.map(b => [b.label, b.tone]), [['REACTIVE', 'upgrade'], ['REPAIRING', 'repair']], 'the driver\'s upgrade badge leads, then REPAIRING');
   assert.equal(state.driverHudModel({ ...mending.row, st: VEHICLE_STATUS.repairing }, 'driver').badges.length, 0, 'REPAIRING is no periscope danger badge');
 
   const pilot = panelOf(byId('heli-pilot'));
@@ -1147,7 +1147,7 @@ ok();
   const cqA = cqOf(deploy);
   screen.update({ cq: cqA, self: deploy.self, players: deploy.players, vehicles: deploy.vehicles, nowMs: FIXTURE_NOW });
   assert.equal(screen.deploy(), true); assert.equal(screen.readied, true);
-  assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0 }]);
+  assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0, upgrades: {} }]);
   const lostA = { ...deploy.match, conquest: { ...deploy.match.conquest,
     flags: deploy.match.conquest.flags.map(t => (t[0] === 'A' ? ['A', -100, 'bravo', 'idle', 0, 0] : t)) } };
   screen.update({ cq: state.readConquest(lostA, mapMeta), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles, nowMs: FIXTURE_NOW });

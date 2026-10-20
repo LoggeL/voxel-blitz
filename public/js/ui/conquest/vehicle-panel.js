@@ -134,6 +134,7 @@ export class VehiclePanel {
       for (const badge of model.badges) {
         const b = el('span', `cq-badge cq-badge-${badge.tone}`, this.badges);
         b.textContent = badge.label;
+        if (badge.title) b.title = badge.title;
       }
     }
     // Aircraft: height above ground (absolute height only without a world cast), the jet's throttle.

@@ -7,7 +7,10 @@
  * variant and gadget toggles (Engineer: AT launcher or STINGER), a class info line (the hint of the
  * hovered, focused or selected class, or why a tapped class is locked),
  * killer card, countdown to respawnAt and the Deploy button (desktop: beside
- * the unlocks row). The server holds the chosen
+ * the unlocks row). A CLASSES / VEHICLES tab pair heads the strip: the
+ * VEHICLES tab swaps the class rows for one card per hull type with its
+ * career-unlocked upgrades (design docs/design/conquest/upgrades/, variant A).
+ * The server holds the chosen
  * spawn and spawns the player once respawnAt passes, so a choice may be sent
  * during the countdown; any later change is re-sent.
  */
@@ -16,8 +19,18 @@ import { deployModel } from '../conquest-hud-state.js';
 import { NorthUpMap } from './big-map.js';
 import { svgIcon } from './icons.js';
 import { downedMedicModel } from './comms-state.js';
+import { upgradeInfoText } from './upgrade-cards.js';
 
 const KIT_PREF = 'vb-conquest-kit';
+/** Vehicle upgrade picks `{type: upgradeId}` (JSON) and the open strip tab ('class' | 'vehicles'). */
+const UPGRADE_PREF = 'vb-conquest-vehicle-upgrades';
+const TAB_PREF = 'vb-conquest-deploy-tab';
+const loadUpgrades = () => {
+  try {
+    const value = JSON.parse(loadPref(UPGRADE_PREF, '{}'));
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch { return {}; }
+};
 /** A tapped locked class says when it opens for this long in the class info line. */
 const LOCK_NOTE_MS = 4000;
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -44,6 +57,9 @@ export class DeployScreen {
     this.announceKits = new Set();
     /** Card under the pointer or keyboard / gamepad focus: its hint fills the info line. */
     this.focusKit = null;
+    /** Upgrade chip under the pointer or focus (`{type, id}`), and the strip tab on show. */
+    this.focusUpgrade = null;
+    this.tab = loadPref(TAB_PREF, 'class') === 'vehicles' ? 'vehicles' : 'class';
     this.root = el('section', 'cq-deploy', parent);
     this.root.hidden = true;
     this.root.setAttribute('aria-label', 'Deploy');
@@ -81,6 +97,20 @@ export class DeployScreen {
     // Class strip: under the map and spawn list on desktop (DEPLOY beside the unlocks
     // row), a scrolling third column in phone landscape, stacked on phone portrait.
     const side = el('div', 'cq-deploy-side', body);
+    // CLASSES / VEHICLES tabs: the VEHICLES tab fills the same strip with the hull upgrades.
+    this.tabs = el('div', 'cq-deploy-tabs', side);
+    this.tabs.setAttribute('role', 'tablist');
+    this.tabButtons = {};
+    for (const [id, label] of [['class', 'CLASSES'], ['vehicles', 'VEHICLES']]) {
+      const tab = el('button', 'cq-deploy-tab', this.tabs);
+      tab.type = 'button';
+      tab.dataset.tab = id;
+      tab.setAttribute('role', 'tab');
+      el('span', 'cq-deploy-tab-label', tab).textContent = label;
+      tab.addEventListener('click', () => this.setTab(id));
+      this.tabButtons[id] = tab;
+    }
+    this.tabLevel = el('span', 'cq-deploy-tab-level', this.tabs);
     this.kits = el('div', 'cq-deploy-kits', side);
     this.kits.setAttribute('role', 'radiogroup');
     this.kits.setAttribute('aria-label', 'Class');
@@ -95,7 +125,7 @@ export class DeployScreen {
 
     const kit = loadPref(KIT_PREF, 'assault');
     this.selection = { spawn: 'hq', kit, variant: Number(loadPref(`${KIT_PREF}-variant`, '0')) === 1 ? 1 : 0,
-      gadget: Number(loadPref(`${KIT_PREF}-gadget`, '0')) === 1 ? 1 : 0 };
+      gadget: Number(loadPref(`${KIT_PREF}-gadget`, '0')) === 1 ? 1 : 0, upgrades: loadUpgrades() };
     this.readied = false;
     this._resend = false;
     this.refused = null;
@@ -107,7 +137,7 @@ export class DeployScreen {
 
   setOpen(open, killerInfo = null) {
     const next = !!open;
-    if (next && !this.open) { this.readied = false; this.refused = null; this._resend = false; this.lockNote = null; this.focusKit = null; this.announceKits.clear(); }
+    if (next && !this.open) { this.readied = false; this.refused = null; this._resend = false; this.lockNote = null; this.focusKit = null; this.focusUpgrade = null; this.announceKits.clear(); }
     const opening = next && !this.open;
     this.open = next;
     this.root.hidden = !next;
@@ -170,10 +200,47 @@ export class DeployScreen {
     if (this.model) this._renderInfo(this.model);
   }
 
+  /** Hover / focus on an upgrade chip (`{type, id}`, null when it leaves). */
+  hoverUpgrade(focus) {
+    this.focusUpgrade = focus || null;
+    if (this.model) this._renderInfo(this.model);
+  }
+
+  /** Show the CLASSES ('class') or VEHICLES ('vehicles') strip; remembered across deaths. */
+  setTab(tab) {
+    const next = tab === 'vehicles' ? 'vehicles' : 'class';
+    if (next === this.tab) return;
+    this.tab = next;
+    this.lockNote = null;
+    this.focusKit = null;
+    this.focusUpgrade = null;
+    savePref(TAB_PREF, next);
+    this._kitSig = '';
+    if (this.model) this._render(this.model);
+  }
+
+  /** A click on a locked upgrade chip: say when it opens in the info line, never pick it. */
+  lockedUpgrade(card, option) {
+    const progress = option.progress ? ` · ${fmt(option.progress.xp)} / ${fmt(option.progress.need)} XP` : '';
+    this.lockNote = `${card.label} ${option.label} UNLOCKS AT LV ${option.unlockLevel}${progress}`;
+    this.lockNoteUntil = this._nowMs() + LOCK_NOTE_MS;
+    if (this.model) this._render(this.model);
+    return false;
+  }
+
   select(patch) {
     this.lockNote = null;
     if (patch.kit) { this.newKits.delete(patch.kit); this.announceKits.delete(patch.kit); }
-    this.selection = { ...this.selection, ...patch };
+    // An upgrade pick `{upgrade: {type, id}}` (id null: stock) replaces that hull's entry.
+    const { upgrade, ...rest } = patch;
+    if (upgrade) {
+      const upgrades = { ...(this.selection.upgrades || {}) };
+      if (upgrade.id) upgrades[upgrade.type] = upgrade.id;
+      else delete upgrades[upgrade.type];
+      rest.upgrades = upgrades;
+      savePref(UPGRADE_PREF, JSON.stringify(upgrades));
+    }
+    this.selection = { ...this.selection, ...rest };
     if (patch.kit) savePref(KIT_PREF, patch.kit);
     if (patch.variant !== undefined) savePref(`${KIT_PREF}-variant`, String(patch.variant));
     if (patch.gadget !== undefined) savePref(`${KIT_PREF}-gadget`, String(patch.gadget));
@@ -214,7 +281,9 @@ export class DeployScreen {
    */
   _send(choice) {
     const gadget = choice.gadget === undefined ? {} : { gadget: choice.gadget };
-    return this.onDeploy({ spawn: choice.spawn, kit: choice.kit, variant: choice.variant, ...gadget }) !== false;
+    // `upgrades` lists only picks open at the announced level (the server re-checks the career level).
+    const upgrades = choice.upgrades ? { upgrades: { ...choice.upgrades } } : {};
+    return this.onDeploy({ spawn: choice.spawn, kit: choice.kit, variant: choice.variant, ...gadget, ...upgrades }) !== false;
   }
 
   update({ cq, self, players, vehicles, nowMs, mapItems = [], meta = null }) {
@@ -289,63 +358,14 @@ export class DeployScreen {
         }
       }
     }
-    const kitSig = JSON.stringify([model.kit, model.variant, model.gadget, model.kits.map(card => [card.unlocked, card.progress?.xp ?? null]), [...this.newKits]]);
+    const upgradeSig = (model.upgrades || []).map(card => [card.type, card.selected, card.spawn, card.options.map(o => o.unlocked)]);
+    const kitSig = JSON.stringify([this.tab, model.kit, model.variant, model.gadget, model.kits.map(card => [card.unlocked, card.progress?.xp ?? null]), [...this.newKits], upgradeSig]);
     if (kitSig !== this._kitSig) {
       this._kitSig = kitSig;
       this.kits.textContent = '';
-      const rows = {};
-      let loadout = null;
-      for (const [row, title] of [['base', 'CLASSES'], ['unlock', 'UNLOCKS']]) {
-        // One loadout slot (the picked class's toggles) under the base row, then the
-        // class info line, then the unlocks: picking a class never moves the rows.
-        if (row === 'unlock') {
-          loadout = el('div', 'cq-kit-loadout', this.kits);
-          this.kits.appendChild(this.kitInfo);
-        }
-        const head = el('h3', `cq-deploy-section cq-deploy-section-${row}`, this.kits);
-        head.textContent = title;
-        // Fresh unlocks are announced here, in the screen's own flow: a HUD banner would cover the spawns and cards.
-        const fresh = model.kits.filter(card => card.row === row && card.unlocked && this.newKits.has(card.id)).map(card => card.label);
-        if (fresh.length) el('span', 'cq-deploy-section-new', head).textContent = `${fresh.length > 1 ? 'NEW CLASSES' : 'NEW CLASS'} · ${fresh.join(' · ')}`;
-        rows[row] = el('div', `cq-kit-row cq-kit-row-${row}`, this.kits);
-        rows[row].dataset.row = row;
-      }
-      for (const card of model.kits) {
-        const node = el('div', 'cq-kit', rows[card.row] || rows.base);
-        node.classList.toggle('is-selected', card.selected);
-        node.classList.toggle('is-locked', !card.unlocked);
-        node.dataset.kit = card.id;
-        // Hover and keyboard / gamepad focus explain the class in the info line (touch: the tap does).
-        node.addEventListener('pointerenter', () => this.hoverKit(card.id));
-        node.addEventListener('pointerleave', () => this.hoverKit(null));
-        node.addEventListener('focusin', () => this.hoverKit(card.id));
-        node.addEventListener('focusout', () => this.hoverKit(null));
-        const pick = el('button', 'cq-kit-pick', node);
-        pick.type = 'button';
-        pick.setAttribute('role', 'radio');
-        pick.setAttribute('aria-checked', String(card.selected));
-        pick.setAttribute('aria-disabled', String(!card.unlocked));
-        pick.title = card.unlocked ? card.hint : `${card.label} UNLOCKS AT LV ${card.unlockLevel} · ${card.hint}`;
-        const icon = svgIcon(globalThis.document, card.id, 'cq-kit-icon');
-        if (icon) pick.appendChild(icon);
-        const name = el('span', 'cq-kit-name', pick);
-        el('b', '', name).textContent = card.label;
-        el('small', '', name).textContent = card.unlocked ? card.ability : card.lockText;
-        if (card.unlocked && this.newKits.has(card.id)) el('span', 'cq-kit-new', pick).textContent = 'NEW';
-        if (!card.unlocked) {
-          const lock = svgIcon(globalThis.document, 'padlock', 'cq-kit-lock');
-          if (lock) pick.appendChild(lock);
-          if (card.progress) {
-            const bar = el('span', 'cq-kit-xp', node);
-            el('i', 'cq-kit-xp-fill', bar).style.width = `${(card.progress.fraction * 100).toFixed(1)}%`;
-            el('small', 'cq-kit-xp-text', node).textContent = `${fmt(card.progress.xp)} / ${fmt(card.progress.need)} XP`;
-          }
-          pick.addEventListener('click', () => this.lockedPick(card));
-          continue;
-        }
-        pick.addEventListener('click', () => this.select({ kit: card.id }));
-      }
-      this._renderLoadout(loadout, model);
+      this._renderTabs(model);
+      if (this.tab === 'vehicles') this._renderUpgrades(model);
+      else this._renderClasses(model);
     }
     const selected = model.options.find(o => o.spawn === model.selectedKey);
     const where = selected ? selected.label : 'HQ';
@@ -368,6 +388,130 @@ export class DeployScreen {
     if (this.status.textContent !== line) this.status.textContent = line;
     this.status.dataset.tone = model.refused || !model.valid ? 'warn' : news ? 'new' : 'info';
     this._renderInfo(model);
+  }
+
+  /** The tab pair and the career level chip (the level the server announced). */
+  _renderTabs(model) {
+    for (const [id, tab] of Object.entries(this.tabButtons)) {
+      const active = id === this.tab;
+      tab.classList.toggle('is-active', active);
+      tab.setAttribute('aria-selected', String(active));
+    }
+    this.tabLevel.textContent = `LV ${model.level ?? 1}`;
+    this.kits.dataset.tab = this.tab;
+    this.root.dataset.tab = this.tab;
+  }
+
+  /**
+   * VEHICLES tab: one card per hull type with STOCK and its upgrades as chips;
+   * locked chips are dashed with a padlock and their level and say when they
+   * open on a tap. The hull the picked spawn seats you in is outlined.
+   */
+  _renderUpgrades(model) {
+    const grid = el('div', 'cq-upg-grid', this.kits);
+    grid.setAttribute('role', 'list');
+    for (const card of model.upgrades || []) {
+      const node = el('div', 'cq-upg-hull', grid);
+      node.dataset.type = card.type;
+      node.setAttribute('role', 'listitem');
+      node.classList.toggle('is-spawn', card.spawn);
+      node.classList.toggle('is-upgraded', !!card.selected);
+      const head = el('div', 'cq-upg-head', node);
+      const icon = svgIcon(globalThis.document, card.type, 'cq-upg-icon');
+      if (icon) head.appendChild(icon);
+      el('b', 'cq-upg-name', head).textContent = card.label;
+      const chips = el('div', 'cq-upg-options', node);
+      chips.setAttribute('role', 'radiogroup');
+      chips.setAttribute('aria-label', `${card.label} upgrade`);
+      for (const option of card.options) {
+        const chip = el('button', 'cq-upg-option', chips);
+        chip.type = 'button';
+        chip.dataset.upgrade = option.id ?? 'stock';
+        chip.classList.toggle('is-selected', option.selected);
+        chip.classList.toggle('is-locked', !option.unlocked);
+        chip.setAttribute('role', 'radio');
+        chip.setAttribute('aria-checked', String(option.selected));
+        chip.setAttribute('aria-disabled', String(!option.unlocked));
+        chip.title = upgradeInfoText(card, option);
+        if (!option.unlocked) {
+          const lock = svgIcon(globalThis.document, 'padlock', 'cq-upg-lock');
+          if (lock) chip.appendChild(lock);
+        }
+        const text = el('span', 'cq-upg-text', chip);
+        el('span', 'cq-upg-label', text).textContent = option.label;
+        if (!option.unlocked) el('small', 'cq-upg-level', text).textContent = option.lockText;
+        const focus = { type: card.type, id: option.id };
+        chip.addEventListener('pointerenter', () => this.hoverUpgrade(focus));
+        chip.addEventListener('pointerleave', () => this.hoverUpgrade(null));
+        chip.addEventListener('focus', () => this.hoverUpgrade(focus));
+        chip.addEventListener('blur', () => this.hoverUpgrade(null));
+        chip.addEventListener('click', () => {
+          if (!option.unlocked) return this.lockedUpgrade(card, option);
+          this.select({ upgrade: focus });
+          this.model = deployModel({ ...this._modelArgs, selection: this.selection, refused: this.refused, unlocks: this.unlocks, career: this._careerView() }) || this.model;
+          if (this.model) this._render(this.model);
+          return true;
+        });
+      }
+    }
+    this.kits.appendChild(this.kitInfo);
+  }
+
+  /** CLASSES tab: the base row, the picked class's loadout slot and info line, then the unlocks. */
+  _renderClasses(model) {
+    const rows = {};
+    let loadout = null;
+    for (const [row, title] of [['base', 'CLASSES'], ['unlock', 'UNLOCKS']]) {
+      // One loadout slot (the picked class's toggles) under the base row, then the
+      // class info line, then the unlocks: picking a class never moves the rows.
+      if (row === 'unlock') {
+        loadout = el('div', 'cq-kit-loadout', this.kits);
+        this.kits.appendChild(this.kitInfo);
+      }
+      const head = el('h3', `cq-deploy-section cq-deploy-section-${row}`, this.kits);
+      head.textContent = title;
+      // Fresh unlocks are announced here, in the screen's own flow: a HUD banner would cover the spawns and cards.
+      const fresh = model.kits.filter(card => card.row === row && card.unlocked && this.newKits.has(card.id)).map(card => card.label);
+      if (fresh.length) el('span', 'cq-deploy-section-new', head).textContent = `${fresh.length > 1 ? 'NEW CLASSES' : 'NEW CLASS'} · ${fresh.join(' · ')}`;
+      rows[row] = el('div', `cq-kit-row cq-kit-row-${row}`, this.kits);
+      rows[row].dataset.row = row;
+    }
+    for (const card of model.kits) {
+      const node = el('div', 'cq-kit', rows[card.row] || rows.base);
+      node.classList.toggle('is-selected', card.selected);
+      node.classList.toggle('is-locked', !card.unlocked);
+      node.dataset.kit = card.id;
+      // Hover and keyboard / gamepad focus explain the class in the info line (touch: the tap does).
+      node.addEventListener('pointerenter', () => this.hoverKit(card.id));
+      node.addEventListener('pointerleave', () => this.hoverKit(null));
+      node.addEventListener('focusin', () => this.hoverKit(card.id));
+      node.addEventListener('focusout', () => this.hoverKit(null));
+      const pick = el('button', 'cq-kit-pick', node);
+      pick.type = 'button';
+      pick.setAttribute('role', 'radio');
+      pick.setAttribute('aria-checked', String(card.selected));
+      pick.setAttribute('aria-disabled', String(!card.unlocked));
+      pick.title = card.unlocked ? card.hint : `${card.label} UNLOCKS AT LV ${card.unlockLevel} · ${card.hint}`;
+      const icon = svgIcon(globalThis.document, card.id, 'cq-kit-icon');
+      if (icon) pick.appendChild(icon);
+      const name = el('span', 'cq-kit-name', pick);
+      el('b', '', name).textContent = card.label;
+      el('small', '', name).textContent = card.unlocked ? card.ability : card.lockText;
+      if (card.unlocked && this.newKits.has(card.id)) el('span', 'cq-kit-new', pick).textContent = 'NEW';
+      if (!card.unlocked) {
+        const lock = svgIcon(globalThis.document, 'padlock', 'cq-kit-lock');
+        if (lock) pick.appendChild(lock);
+        if (card.progress) {
+          const bar = el('span', 'cq-kit-xp', node);
+          el('i', 'cq-kit-xp-fill', bar).style.width = `${(card.progress.fraction * 100).toFixed(1)}%`;
+          el('small', 'cq-kit-xp-text', node).textContent = `${fmt(card.progress.xp)} / ${fmt(card.progress.need)} XP`;
+        }
+        pick.addEventListener('click', () => this.lockedPick(card));
+        continue;
+      }
+      pick.addEventListener('click', () => this.select({ kit: card.id }));
+    }
+    this._renderLoadout(loadout, model);
   }
 
   /**
@@ -419,6 +563,7 @@ export class DeployScreen {
    */
   _renderInfo(model) {
     if (this.lockNote && this._nowMs() >= this.lockNoteUntil) this.lockNote = null;
+    if (this.tab === 'vehicles') return this._renderUpgradeInfo(model);
     const card = model.kits.find(c => c.id === this.focusKit) ?? model.kits.find(c => c.selected) ?? null;
     let text = '', tone = 'info';
     if (this.lockNote) {
@@ -428,6 +573,25 @@ export class DeployScreen {
       tone = 'warn';
     } else if (card) {
       text = card.unlocked ? `${card.label} · ${card.ability} — ${card.hint}` : `${card.label} · UNLOCKS AT LV ${card.unlockLevel} — ${card.hint}`;
+    }
+    if (this.kitInfo.textContent !== text) this.kitInfo.textContent = text;
+    this.kitInfo.dataset.tone = tone;
+  }
+
+  /**
+   * VEHICLES info line: a fresh locked-upgrade note, else the hovered or
+   * focused chip, else the hull the picked spawn seats you in, else the first
+   * hull carrying an upgrade. Every number comes from the upgrade table.
+   */
+  _renderUpgradeInfo(model) {
+    const cards = model.upgrades || [];
+    let text = '', tone = 'info';
+    if (this.lockNote) { text = this.lockNote; tone = 'warn'; }
+    else {
+      const focus = this.focusUpgrade;
+      const card = (focus && cards.find(c => c.type === focus.type)) || cards.find(c => c.spawn) || cards.find(c => c.selected) || null;
+      const option = card && (focus && focus.type === card.type ? card.options.find(o => o.id === focus.id) : card.options.find(o => o.selected));
+      text = card ? upgradeInfoText(card, option) : '';
     }
     if (this.kitInfo.textContent !== text) this.kitInfo.textContent = text;
     this.kitInfo.dataset.tone = tone;
