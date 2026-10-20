@@ -86,7 +86,10 @@ export function bridgeMapModel(cq) {
 /**
  * Paint the overlay in world space (the context already maps world x/z to
  * canvas, as the minimap and the full map do before their markers).
- * `px` is canvas px per metre so strokes keep a readable width.
+ * `px` is canvas px per metre so strokes keep a readable width. Any
+ * levolution's span paints the same (./map-events/levolution.js): the model
+ * may say the traffic `axis` ('x', the Iron Bridge's, or 'z': the break marks
+ * sit on the ends of that axis) and `water: false` (a dry gap: no river fill).
  */
 export function paintBridge(ctx, model, { nowMs = 0, px = 1 } = {}) {
   if (!ctx || !model) return;
@@ -97,14 +100,18 @@ export function paintBridge(ctx, model, { nowMs = 0, px = 1 } = {}) {
   ctx.save();
   if (model.stage >= BRIDGE_STAGE.down) {
     // The river runs through where the deck was; jagged white break marks on both bank ends of the road.
-    ctx.fillStyle = BRIDGE_COLORS.water;
-    ctx.fillRect(x0 + 0.5, z0, w - 1, h);
+    const alongZ = model.axis === 'z';
+    if (model.water !== false) {
+      ctx.fillStyle = BRIDGE_COLORS.water;
+      if (alongZ) ctx.fillRect(x0, z0 + 0.5, w, h - 1); else ctx.fillRect(x0 + 0.5, z0, w - 1, h);
+    }
     ctx.strokeStyle = BRIDGE_COLORS.mark; ctx.lineWidth = line(1.6); ctx.lineJoin = 'miter';
-    const teeth = 4, step = h / teeth, tooth = Math.min(2.2, w / 5);
-    for (const [edge, dir] of [[x0, 1], [x1, -1]]) {
+    const teeth = 4, step = (alongZ ? w : h) / teeth, tooth = Math.min(2.2, (alongZ ? h : w) / 5);
+    for (const [edge, dir] of alongZ ? [[z0, 1], [z1, -1]] : [[x0, 1], [x1, -1]]) {
       ctx.beginPath();
       for (let i = 0; i <= teeth; i++) {
-        const x = edge + (i % 2 ? dir * tooth : 0), z = z0 + i * step;
+        const across = edge + (i % 2 ? dir * tooth : 0), along = (alongZ ? x0 : z0) + i * step;
+        const [x, z] = alongZ ? [along, across] : [across, along];
         if (i) ctx.lineTo(x, z); else ctx.moveTo(x, z);
       }
       ctx.stroke();

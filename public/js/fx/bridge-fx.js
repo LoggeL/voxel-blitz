@@ -6,6 +6,10 @@
 // window, and the river burst and rumble as the span goes. Sounds reuse the
 // structure voices (structureCreak / structureImpact, material 'metal');
 // there is no dedicated recording or announcer line for the bridge.
+//
+// The same effects serve every levolution (a span, `deckY`, `waterY` and the
+// material are options; ./map-events/levolution.js drives one per event from
+// its `map_event` phases through `stage(name)`).
 import { IRON_BRIDGE, IRON_BRIDGE_RULES } from '../../../shared/conquest-bridge.js';
 
 /** Presentation tuning (no gameplay meaning). */
@@ -20,8 +24,6 @@ export const BRIDGE_FX = Object.freeze({
   grit: 5, dust: 9, water: 6,
 });
 
-const span = IRON_BRIDGE.span;
-const CENTER = Object.freeze([(span.x0 + span.x1 + 1) / 2, IRON_BRIDGE.deckY + 0.5, (span.z0 + span.z1 + 1) / 2]);
 
 /** Deterministic 0..1 noise (puff placement). */
 function hash01(n) {
@@ -37,9 +39,16 @@ export class BridgeFx {
    * @param {object|null} options.cameraShake  CameraShake bus
    * @param {() => object|null} options.getCamera
    * @param {object|null} options.fx           ParticleField (grit, dust, water)
+   * @param {object} [options.span]             the falling footprint {x0, z0, x1, z1} (inclusive; default the Iron Bridge's)
+   * @param {number} [options.deckY]            deck block row (grit under it, groans on it)
+   * @param {number|null} [options.waterY]      water line under the span (null: dust only, no water bursts)
+   * @param {string} [options.material]         structure voice material
    */
-  constructor({ audio = null, cameraShake = null, getCamera = () => null, fx = null, rules = IRON_BRIDGE_RULES } = {}) {
+  constructor({ audio = null, cameraShake = null, getCamera = () => null, fx = null, rules = IRON_BRIDGE_RULES,
+    span = IRON_BRIDGE.span, deckY = IRON_BRIDGE.deckY, waterY = IRON_BRIDGE.waterY, material = 'metal' } = {}) {
     this.audio = audio; this.cameraShake = cameraShake; this.getCamera = getCamera; this.fx = fx; this.rules = rules;
+    this.span = span; this.deckY = deckY; this.waterY = waterY; this.material = material;
+    this.center = Object.freeze([(span.x0 + span.x1 + 1) / 2, deckY + 0.5, (span.z0 + span.z1 + 1) / 2]);
     this.groan = null;
     this._seq = 0;
     this._params = { count: 0, scale: 1, alpha: 1, color: null, speed: 1, life: 1 };
@@ -49,25 +58,36 @@ export class BridgeFx {
   falloff() {
     const eye = this.getCamera?.()?.position;
     if (!eye) return 0;
-    const d = Math.hypot(eye.x - CENTER[0], eye.y - CENTER[1], eye.z - CENTER[2]);
+    const d = Math.hypot(eye.x - this.center[0], eye.y - this.center[1], eye.z - this.center[2]);
     const f = Math.max(0, 1 - d / BRIDGE_FX.shakeRange);
     return f * f;
   }
 
   handleEvent(ev) {
     if (ev?.kind !== 'bridge' || ev.bridge !== IRON_BRIDGE.id) return false;
-    if (ev.name === 'damaged') {
-      this.audio?.structureCreak?.(CENTER, { n: 160, material: 'metal', seconds: 0.9 });
+    return this.stage(ev.name, ev);
+  }
+
+  /**
+   * One stage's effects: 'damaged' (a groan, grit, a shake), 'failing' (the
+   * groans through the warning window: `leftMs` of it, default all of it),
+   * 'down' (the rumble, dust and water as the span goes; `blocks` scales it).
+   */
+  stage(name, { blocks = 0, leftMs = null } = {}) {
+    const ground = this.waterY ?? this.deckY - 6;
+    if (name === 'damaged') {
+      this.audio?.structureCreak?.(this.center, { n: 160, material: this.material, seconds: 0.9 });
       this._shake(BRIDGE_FX.shake.damaged);
       this._grit(BRIDGE_FX.grit);
-    } else if (ev.name === 'failing') {
-      this.groan = { left: this.rules.warnMs / 1000, total: this.rules.warnMs / 1000, next: 0 };
-    } else if (ev.name === 'down') {
+    } else if (name === 'failing') {
+      const total = this.rules.warnMs / 1000, left = Number.isFinite(leftMs) ? Math.max(0, Math.min(total, leftMs / 1000)) : total;
+      this.groan = { left, total, next: 0 };
+    } else if (name === 'down') {
       this.groan = null;
-      this.audio?.structureImpact?.(CENTER, { n: Math.max(200, ev.blocks | 0), speed: 12, material: 'metal' });
+      this.audio?.structureImpact?.(this.center, { n: Math.max(200, blocks | 0), speed: 12, material: this.material });
       this._shake(BRIDGE_FX.shake.down);
-      for (let i = 0; i < BRIDGE_FX.dust; i++) this._puff('dust', this._spanPoint(IRON_BRIDGE.waterY + 1.5), 4, 2.2, 1.2);
-      for (let i = 0; i < BRIDGE_FX.water; i++) this._puff('water', this._spanPoint(IRON_BRIDGE.waterY + 0.6), 10, 1.6, 1.4);
+      for (let i = 0; i < BRIDGE_FX.dust; i++) this._puff('dust', this._spanPoint(ground + 1.5), 4, 2.2, 1.2);
+      if (this.waterY != null) for (let i = 0; i < BRIDGE_FX.water; i++) this._puff('water', this._spanPoint(this.waterY + 0.6), 10, 1.6, 1.4);
     } else return false;
     return true;
   }
@@ -81,8 +101,8 @@ export class BridgeFx {
     if (g.next > 0) return;
     g.next = BRIDGE_FX.groanEvery;
     const k = 1 - g.left / g.total;
-    const at = this._spanPoint(IRON_BRIDGE.deckY + 0.5);
-    this.audio?.structureCreak?.(at, { n: 240 + 360 * k, material: 'metal', seconds: 0.8 });
+    const at = this._spanPoint(this.deckY + 0.5);
+    this.audio?.structureCreak?.(at, { n: 240 + 360 * k, material: this.material, seconds: 0.8 });
     const [a, b] = BRIDGE_FX.shake.groan;
     this._shake(a + (b - a) * k);
     this._grit(Math.round(BRIDGE_FX.grit * (1 + k)));
@@ -95,11 +115,11 @@ export class BridgeFx {
     if (f > 0) this.cameraShake?.add?.(trauma * f);
   }
 
-  _grit(n) { for (let i = 0; i < n; i++) this._puff('grit', this._spanPoint(IRON_BRIDGE.deckY - 0.6), 6, 1, 1); }
+  _grit(n) { for (let i = 0; i < n; i++) this._puff('grit', this._spanPoint(this.deckY - 0.6), 6, 1, 1); }
 
   _spanPoint(y) {
-    const i = ++this._seq;
-    return [span.x0 + 0.5 + hash01(i * 3) * (span.x1 - span.x0), y, span.z0 + 0.5 + hash01(i * 3 + 1) * (span.z1 - span.z0)];
+    const i = ++this._seq, s = this.span;
+    return [s.x0 + 0.5 + hash01(i * 3) * (s.x1 - s.x0), y, s.z0 + 0.5 + hash01(i * 3 + 1) * (s.z1 - s.z0)];
   }
 
   _puff(kind, pos, count, scale, speed) {

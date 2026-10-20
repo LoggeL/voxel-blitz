@@ -202,6 +202,11 @@ export class MapEventController {
   structureBlast(_blast) { return null; }
   /** Road crossing ids (mapMeta.conquest.crossings) bot drivers may not use now. */
   closedCrossings() { return null; }
+  /**
+   * A structure bots may blow down or defend (a levolution: ./levolution.js
+   * `Levolution.structureView`): {id, crossing, stage, standing, supports, heads, ...}, or null.
+   */
+  structureView() { return null; }
   /** A hold on one of the event's points broke off (moved away, hurt, died, stopped). */
   onUseInterrupted(_point, _userId) {}
 
