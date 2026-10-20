@@ -33,7 +33,8 @@ export function waterSurfaceAt(world, x, z, around, up = 1.5, down = 2.5) {
  * the first flush bank row); ground more than `maxStep` above the hull blocks
  * it. `aground` is the share of cells whose ground lifts the hull, `wet` the
  * share of the stern third that has water under it and is not aground (the
- * waterjet's intake). A wreck ignores the water and rests on the bed.
+ * waterjet's intake), `shallow` the share afloat over less than `shallowDepth`
+ * of water (a ford). A wreck ignores the water and rests on the bed.
  */
 export function boatSupport(system, v, x, z, yaw = v.yaw) {
   const rules = VEHICLE_RULES[v.type], world = system.engine.world, hull = hullFootprint(v.type, x, z, yaw);
@@ -53,13 +54,15 @@ export function boatSupport(system, v, x, z, yaw = v.yaw) {
   const float = surface > -Infinity ? surface - rules.draft : -Infinity;
   const y = Math.max(float, ground);
   if (!(y > -Infinity) || y - v.y > rules.maxStep) return null;
-  let aground = 0, wet = 0, stern = 0;
+  let aground = 0, wet = 0, stern = 0, shallow = 0;
   for (let k = 0; k < grounds.length; k++) {
     const lifted = grounds[k] != null && grounds[k] >= y - 0.02;
     if (lifted) aground++;
+    else if (waters[k] != null && grounds[k] != null && waters[k] - grounds[k] < rules.shallowDepth) shallow++;
     if (sterns[k]) { stern++; if (waters[k] != null && !lifted) wet++; }
   }
-  return { y, float: float > -Infinity ? float : null, aground: grounds.length ? aground / grounds.length : 1, wet: stern ? wet / stern : 0 };
+  const n = grounds.length;
+  return { y, float: float > -Infinity ? float : null, aground: n ? aground / n : 1, wet: stern ? wet / stern : 0, shallow: n ? shallow / n : 0 };
 }
 
 /** VehicleSystem.placement for a boat: the support height when the hull pose there is clear, else null. */
@@ -80,10 +83,10 @@ export function advanceBoat(system, v, p, controls, dt) {
   // A crewless boat at rest on still water sleeps until terrain or a body changes.
   if (!p && controls.throttle === 0 && v.speed === 0 && v.yawRate === 0 && v.boatRest === (system.engine.blockRevision ?? 0)
     && !system.fallSpeeds.has(v.id) && !system.infantryNear(v)) return;
-  const here = boatSupport(system, v, v.x, v.z) ?? { wet: 0, aground: 1 };
+  const here = boatSupport(system, v, v.x, v.z) ?? { wet: 0, aground: 1, shallow: 0 };
   const drive = v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1;
   stepBoatDrive(v, { throttle: controls.throttle * drive, steer: controls.steer, brake: controls.brake }, dt, here);
-  v.boatWet = here.wet; v.boatAground = here.aground;
+  v.boatWet = here.wet; v.boatAground = here.aground; v.boatShallow = here.shallow;
   if (!system.clearHull(v, v.x, v.y, v.z)) { v.yaw = previous.yaw; v.course = previous.yaw; v.yawRate = 0; }
   const course = vehicleDirection(v.course ?? v.yaw), x = v.x + course[0] * v.speed * dt, z = v.z + course[2] * v.speed * dt;
   const floor = Math.abs(v.speed) * dt > 1e-9 ? boatPlacement(system, v, x, z) : null;

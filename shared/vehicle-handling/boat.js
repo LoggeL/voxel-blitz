@@ -10,7 +10,9 @@
  * course into a turn and slides (`grip` per second pulls the course back onto
  * the heading). Pitch and roll are presentation only and clamped, so the boat
  * never capsizes. Thrust needs water under the stern (`wet`): beached on a
- * bank or a ford the hull grinds (`groundDrag`) and only creeps.
+ * bank or a ford the hull grinds (`groundDrag`) and only creeps. Over water
+ * shallower than `shallowDepth` (a ford's one voxel) the hull scrapes along:
+ * its top speed falls toward `shallowSpeed` and `shallowDrag` slows it down.
  */
 export const BOAT_RULES = Object.freeze({
   hp: 360, radius: 3.65, height: 1.6, seatHeight: 1.2,
@@ -19,6 +21,7 @@ export const BOAT_RULES = Object.freeze({
   turn: 0.95, pivotTurn: 0.4, turnSpeed: 7, turnAcceleration: 2.6, grip: 2.2, planeGrip: 1.4,
   draft: 0.45, maxStep: 0.6, maxSlope: 1.1,
   groundDrag: 9, creep: 1.2,
+  shallowDepth: 1.5, shallowSpeed: 5, shallowDrag: 20,
   buoyancy: 3, sinkRate: 0.7,
   // Presentation attitude (published pitch/roll; never physics) and the client-side swell amplitude.
   humpTrim: 0.085, planeTrim: 0.035, heel: 0.012, maxRoll: 0.18, maxPitch: 0.14, bob: 0.014,
@@ -38,9 +41,10 @@ export const boatPlaning = speed => clamp((Math.abs(finite(speed)) - BOAT_RULES.
  * Mutates speed, yaw, yawRate and course (the direction the hull actually
  * travels) only; the caller owns position and collisions. `wet` (0..1) is the
  * share of the stern in water, `aground` (0..1) the share of the hull resting
- * on the bed or a bank. Positive steer turns right, like the jeep.
+ * on the bed or a bank, `shallow` (0..1) the share over water shallower than
+ * `shallowDepth`. Positive steer turns right, like the jeep.
  */
-export function stepBoatDrive(state, input = {}, dt, { wet = 1, aground = 0 } = {}) {
+export function stepBoatDrive(state, input = {}, dt, { wet = 1, aground = 0, shallow = 0 } = {}) {
   if (!state || !Number.isFinite(dt) || dt <= 0) return state;
   const R = BOAT_RULES;
   state.speed = clamp(state.speed, -R.reverse, R.speed);
@@ -50,20 +54,22 @@ export function stepBoatDrive(state, input = {}, dt, { wet = 1, aground = 0 } = 
   const throttle = clamp(input?.throttle, -1, 1) * clamp(wet, 0, 1);
   const steer = clamp(input?.steer, -1, 1);
   const brake = clamp(input?.brake, 0, 1);
-  const ground = clamp(aground, 0, 1);
+  const ground = clamp(aground, 0, 1), scrape = clamp(shallow, 0, 1);
   let remaining = Math.min(dt, 0.25);
   while (remaining > 1e-10) {
     const h = Math.min(remaining, 1 / 120);
     remaining -= h;
     const speed = state.speed, planing = boatPlaning(speed);
-    const drag = (R.drag + Math.abs(speed) * R.dragPerSpeed) * (1 - (1 - R.planeDrag) * planing) + R.groundDrag * ground;
+    const drag = (R.drag + Math.abs(speed) * R.dragPerSpeed) * (1 - (1 - R.planeDrag) * planing) + R.groundDrag * ground + R.shallowDrag * scrape;
     const reversing = throttle !== 0 && speed !== 0 && Math.sign(throttle) !== Math.sign(speed);
     if (brake > 0 || reversing) state.speed = approach(speed, 0, (R.brake * (brake || 1) + drag) * h);
     else if (throttle === 0) state.speed = approach(speed, 0, drag * h);
     else {
       const limit = (throttle > 0 ? R.speed : R.reverse) * (1 - ground) + R.creep * ground;
       const hump = Math.abs(speed) > R.planeSpeed * 0.35 && Math.abs(speed) < R.planeSpeed ? R.humpAcceleration : 1;
-      const target = throttle * limit;
+      // Scraping over a ford caps the speed (part throttle below the cap is unchanged).
+      const cap = limit + (Math.min(limit, R.shallowSpeed) - limit) * scrape;
+      const target = Math.sign(throttle) * Math.min(Math.abs(throttle) * limit, cap);
       state.speed = Math.abs(speed) > Math.abs(target) ? approach(speed, target, drag * h)
         : approach(speed, target, R.acceleration * hump * h);
     }

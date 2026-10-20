@@ -73,10 +73,11 @@ function ridged(x, z, octaves, salt) {
 // ------------------------------------------------------------- the river
 
 /**
- * The river keeps the plan's 12 m channel at the five crossings and widens
- * between them into a 24-30 m meandering river. `riverReach(z)` is 0 at a
- * crossing and 1 on an open reach; the Iron Bridge keeps its narrows longer
- * because its quays run 44 m up and down both banks.
+ * The river keeps the plan's 20 m channel at the five crossings and widens
+ * between them into a 36-44 m meandering river, wide and deep enough for the
+ * patrol boats end to end. `riverReach(z)` is 0 at a crossing and 1 on an
+ * open reach; the Iron Bridge keeps its narrows longer because its quays run
+ * 44 m up and down both banks.
  */
 const NARROWS = Object.freeze({ 'iron-bridge': [46, 66] });
 export function riverReach(z) {
@@ -88,11 +89,11 @@ export function riverReach(z) {
   return w;
 }
 function riverHalfExact(z) {
-  return RIVER.width / 2 + 9 * riverReach(z) * (0.84 + 0.16 * Math.cos((z - SZ / 2) / 23));
+  return RIVER.width / 2 + 12 * riverReach(z) * (0.84 + 0.16 * Math.cos((z - SZ / 2) / 23));
 }
 /** riverHalfExact sampled at every cell centre z + 0.5 (exact there, linear between). */
 const HALF_ROWS = Float64Array.from({ length: SZ + 1 }, (_, zi) => riverHalfExact(zi + 0.5));
-/** Half width of the open water at continuous z (6 at every crossing). */
+/** Half width of the open water at continuous z (10 at every crossing). */
 export function riverHalfAt(z) {
   const t = clamp(z - 0.5, 0, SZ), zi = Math.min(SZ - 1, Math.floor(t));
   return lerp(HALF_ROWS[zi], HALF_ROWS[zi + 1], t - zi);
@@ -150,7 +151,11 @@ export function riverOffset(x, z) {
   return (x - riverCentreX(z)) / Math.sqrt(1 + RIVER_LINE.slope[zi] ** 2);
 }
 const RIVER_HALF = RIVER.width / 2;
-const RIVER_BED = RIVER.surfaceY - RIVER.depth;              // 18
+// Water depth is the water face (surfaceY + 1) less the standing height (bed + 1).
+// The plan's 4.5 m is the mean of the channel: 4 m, 5 m down the middle of a wide
+// reach, shelving to 3 m and then 2 m along the last 3 m before each bank.
+const RIVER_BED = RIVER.surfaceY - Math.floor(RIVER.depth);  // 17, 4 m of water
+const DEEP_BED = RIVER.surfaceY - Math.ceil(RIVER.depth);    // 16, 5 m of water
 const FORD_BED = RIVER.surfaceY - 1;                         // 20, one voxel of water
 
 /**
@@ -160,9 +165,9 @@ const FORD_BED = RIVER.surfaceY - 1;                         // 20, one voxel of
  * None touches the centreline, so the main channel stays open water.
  */
 const ISLANDS_NORTH = [
-  { z: 92, o: -7, len: 11, wid: 3.2 },
-  { z: 212, o: 7.5, len: 15, wid: 3.6 },
-  { z: 318, o: -6, len: 9, wid: 2.6 },
+  { z: 92, o: -11, len: 11, wid: 4 },
+  { z: 212, o: 11.5, len: 15, wid: 4.4 },
+  { z: 318, o: -10, len: 9, wid: 3.4 },
 ];
 export const FRONTIER_ISLANDS = Object.freeze([...ISLANDS_NORTH, ...ISLANDS_NORTH.map(s => ({ ...s, z: SZ - s.z, o: -s.o }))]
   .map(s => Object.freeze(s)));
@@ -220,7 +225,9 @@ export const FRONTIER_ROAD_PLAN = Object.freeze([
 ]);
 
 /** Bridge decks: top voxel y; deck spans the river plus 3 m abutments. */
-const DECK_Y = { 'bridge-north': 24, 'iron-bridge': H.valleyMin + 1, 'bridge-south': 24 };
+// The end bridges stand a voxel higher than the Iron Bridge so a patrol boat
+// passes under them with a metre to spare (deck underside y25, water face 22).
+const DECK_Y = { 'bridge-north': 26, 'iron-bridge': H.valleyMin + 1, 'bridge-south': 26 };
 export const FRONTIER_CROSSINGS = Object.freeze(FRONTIER_PLAN.crossings.map(c => Object.freeze({
   ...c, deckY: c.kind === 'bridge' ? DECK_Y[c.id] : null, bedY: c.kind === 'ford' ? FORD_BED : null,
   halfSpan: c.kind === 'bridge' ? RIVER_HALF + 3 : RIVER_HALF + 1,
@@ -524,10 +531,11 @@ function buildTerrain() {
     }
   }
 
-  // 3. River: 12 m of water at the crossings widening to ~30 m on the open
-  // reaches, over an 18/19 bed (17 down the middle of a wide reach); fords
-  // lift the bed to 20. Gravel islands stand in the open reaches and the
-  // inside of every bend carries a gravel beach at water level.
+  // 3. River: 20 m of water at the crossings widening to 36-44 m on the open
+  // reaches, over a 17 bed (16 down the middle of a wide reach) that shelves
+  // to 18 and 19 along the banks; fords lift the bed to 20 (one voxel of
+  // water, a boat scrapes across). Gravel islands stand in the open reaches
+  // and the inside of every bend carries a gravel beach at water level.
   const fords = FRONTIER_CROSSINGS.filter(c => c.kind === 'ford');
   const island = new Uint8Array(N);
   for (let z = 0; z < SZ; z++) {
@@ -541,7 +549,8 @@ function buildTerrain() {
         water[i] = RIVER.surfaceY;
         if (ford) { kind[i] = KIND.FORD; fixed[i] = 1; fixedY[i] = FORD_BED; raw[i] = FORD_BED; continue; }
         kind[i] = KIND.RIVER; fixed[i] = 0;
-        let bed = dr < half - 1.5 ? (half > 10 && dr < half * 0.45 ? RIVER_BED - 1 : RIVER_BED) : RIVER_BED + 1;
+        const shelf = half - dr;
+        let bed = shelf < 1.5 ? RIVER_BED + 2 : shelf < 3 ? RIVER_BED + 1 : half > 14 && dr < half * 0.5 ? DEEP_BED : RIVER_BED;
         for (const s of FRONTIER_ISLANDS) {
           const u = (pz - s.z) / s.len, v = (offset - s.o) / s.wid, q = u * u + v * v;
           if (q >= 1 + 0.3 * symNoise(px / 3, pz / 3, 197)) continue;
@@ -642,7 +651,8 @@ function buildTerrain() {
           fixed[i] = 1;
           fixedY[i] = kind[i] === KIND.FORD ? FORD_BED : level[k];
           raw[i] = fixedY[i];
-        } else if (!fixed[i] && kind[i] !== KIND.RIVER) {
+        } else if (!fixed[i] && kind[i] !== KIND.RIVER && kind[i] !== KIND.BRIDGE) {
+          // (A deck cell keeps the river bed under it: a later segment's shoulder never fills the arch.)
           raw[i] = lerp(level[k], raw[i], smoothstep(hw, hw + shoulder, d));
         }
       }

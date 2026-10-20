@@ -227,7 +227,7 @@ console.log('Scorch pool passed: 24 on arenas, 256 on Frontier, resized in place
   const meta = createFrontierMetadata();
   const ids = MAP_CAPTURE_SHOTS.filter(shot => shot.map === 'frontier').map(shot => shot.id);
   assert.deepEqual(ids, ['vista', 'farm', 'village-street', 'bridge', 'trenches', 'works', 'tank-forest', 'heli-river', 'jet-sky', 'wreck-column',
-    'boat-river', 'airspace-west', 'airspace-return', 'airspace-river', 'airspace-edge', 'overview'],
+    'boat-river', 'river-reach', 'river-ford', 'river-iron-bridge', 'airspace-west', 'airspace-return', 'airspace-river', 'airspace-edge', 'overview'],
     'the old Frontier shots are replaced by the v2 set');
   const { sx, sz } = meta.dimensions;
   const { mapApron } = await import('../shared/world/state.js');

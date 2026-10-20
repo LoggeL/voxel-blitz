@@ -87,6 +87,11 @@ const FRONTIER_SHOTS = [
   // The west patrol boat at its north mooring, from off its port bow (mapMeta.conquest.vehicleSpawns).
   groundShot('boat-river', [C.x - 21, C.z - 182, 4], [C.x - 14, C.z - 173, 1], 62,
     { subject: Object.freeze({ vehicle: 'alpha-boat-north', from: Object.freeze([-7, 3, -9]), to: Object.freeze([0, 1.2, 0]) }) }),
+  // The river as a waterway: an open reach above ford-north (an island, the north
+  // mooring beyond), the ford itself, and the Iron Bridge arch from the water downstream.
+  groundShot('river-reach', [388, 170, 7.5], [380, 232, 3], 66),
+  groundShot('river-ford', [406, 294, 7], [389, 266, 0], 66),
+  groundShot('river-iron-bridge', [386, 432, 8], [387, 384, -1], 62),
   // Past the west edge at cruise height, looking out over the apron to the ranges.
   airShot('airspace-west', [-90, 150, 384], [-700, 72, 330], 64),
   // From deep in the apron, back toward the map and its HQ plateau.

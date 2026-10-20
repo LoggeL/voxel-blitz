@@ -67,6 +67,12 @@ const strip = ev => Object.fromEntries(Object.entries(ev).filter(([k]) => !['at'
   // Integrity accounting: 10 rockets, 3 bombs.
   assert.equal(Math.ceil(IRON_BRIDGE_RULES.integrity / IRON_BRIDGE_RULES.supportDamage.rocket), 10);
   assert.equal(Math.ceil(IRON_BRIDGE_RULES.integrity / IRON_BRIDGE_RULES.supportDamage.jetBomb), 3);
+  // The wave's explosives: the Support mortar's HE bomb and the mobile AA's 35 mm flak.
+  assert.equal(Math.ceil(IRON_BRIDGE_RULES.integrity / IRON_BRIDGE_RULES.supportDamage.mortarHE), 25, 'five mortar magazines drop it');
+  assert.equal(Math.ceil(IRON_BRIDGE_RULES.integrity / IRON_BRIDGE_RULES.supportDamage.flak35), 250, 'flak barely chips it');
+  assert(IRON_BRIDGE_RULES.supportDamage.mortarHE < IRON_BRIDGE_RULES.supportDamage.tankHE && IRON_BRIDGE_RULES.supportDamage.flak35 < IRON_BRIDGE_RULES.supportDamage.frag,
+    'a mortar bomb is lighter than a tank shell and a flak shell than a frag grenade');
+  for (const key of ['mortarHE', 'flak35']) assert(bridgeBlastDamage(PIER, key, 3).damage === IRON_BRIDGE_RULES.supportDamage[key], `${key} on a pier takes its share`);
   const hit = bridgeBlastDamage(PIER, 'rocket', 3);
   assert.equal(hit.support, 'piers'); assert.equal(hit.damage, 100, 'a rocket on a pier takes its full share');
   assert.equal(bridgeBlastDamage(PIER, 'rifle', 3).damage, 0, 'bullets do nothing');

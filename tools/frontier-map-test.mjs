@@ -107,13 +107,16 @@ for (const [a, b] of [['alpha-boat-north', 'bravo-boat-south'], ['alpha-boat-sou
   assert.ok(Math.abs(Math.cos(a.yaw) + Math.cos(b.yaw)) < 1e-9, 'boat yaw is mirrored');
   assert.ok(a.x < plan.river.points[2][0] && b.x > plan.river.points[2][0], 'each team moors on its own bank');
 }
-// The boat lane: one polyline on the water face, north to south between the end bridges.
+// The boat lane: one polyline on the water face down the whole river, end to end
+// of the combat area, through every crossing (under the three bridge decks, over the fords).
 assert.equal(c.waterways.length, 1);
 const lane = c.waterways[0];
 assert.equal(lane.kind, 'boat-lane');
 assert.ok(lane.points.every(([, y]) => y === plan.river.surfaceY + 1), 'the lane lies on the water face');
 assert.ok(lane.points.every(([, , z], i) => !i || z > lane.points[i - 1][2]), 'the lane runs north to south');
-assert.ok(lane.points[0][2] > 150 && lane.points.at(-1)[2] < 618, 'the lane stops short of the end bridges');
+assert.ok(lane.points[0][2] <= plan.combatArea.minZ + 10 && lane.points.at(-1)[2] >= plan.combatArea.maxZ - 10, 'the lane runs the length of the river');
+for (const crossing of c.crossings) assert.ok(lane.points[0][2] < crossing.z && lane.points.at(-1)[2] > crossing.z, `the lane passes ${crossing.id}`);
+assert.ok(lane.points.every(([x, , z]) => z >= plan.combatArea.minZ && z < plan.combatArea.maxZ && x >= plan.combatArea.minX && x < plan.combatArea.maxX), 'the lane stays inside the combat area');
 assert.equal(c.airfields.length, 2);
 assert.deepEqual(c.airfields.map(a => a.team), ['alpha', 'bravo']);
 

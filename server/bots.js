@@ -62,6 +62,7 @@ import { TerrainWatch } from './bot-surface-nav.js';
 import { isAircraft } from '../shared/vehicles.js';
 import { ROCKET_RULES } from '../shared/rocket-rules.js';
 import { ballisticIntercept, ballisticProfile } from '../shared/bullet-ballistics.js';
+import { MEDIC_BOT_RULES } from './bot-medic.js';
 
 const TAU = Math.PI * 2;
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
@@ -1303,8 +1304,10 @@ class BotManager {
     const dryNearEnemy = cq && enemy && !hullTarget && p.mag[p.weapon] === 0 && p.reserve[p.weapon] > 0
       && enemyFlatEarly(enemy, p) < RELOAD_COVER_DIST;
     const panicFrom = enemy && (p.hp <= RETREAT_HP * pers.retreatHp || dryNearEnemy) ? enemy : evadeHull;
-    // A Medic holding a revive in reach finishes it (1.2 s) before falling back.
-    const supportHold = cq && supportInReach && goal.kind === 'revive';
+    // A Medic holding a revive in reach finishes it (1.2 s) before falling back, and one
+    // within the last metres of the body walks them first (MEDIC_BOT_RULES.reviveCommit).
+    const supportHold = cq && goal.kind === 'revive'
+      && (supportInReach || objectiveFlatDist <= MEDIC_BOT_RULES.reviveCommit);
     // Breakthrough's front fall-back never stops for cover: the out-of-bounds timer runs.
     if (panicFrom && !objectiveUrgent && !supportHold && !goal.fallback && now >= br.retreatReadyAt && !retreating) {
       const cover = cq ? this.director?.coverFrom(p, panicFrom, goal) : null;

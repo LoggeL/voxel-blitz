@@ -17,12 +17,14 @@ const FLAG = FRONTIER_PLAN.flags.find(f => f.id === 'C');
 const IRON = FRONTIER_CROSSINGS.find(c => c.id === 'iron-bridge');
 // The truss geometry is shared with the collapse event (shared/conquest-bridge.js).
 const ARCH = IRON_ARCH;
-const TOLL = rect(358, 364, 368, 373);
-const WAREHOUSE = rect(399, 394, 409, 403);
-const RUIN_W = rect(356, 396, 366, 406);
-const RUIN_E = rect(401, 361, 411, 371);
-const WATER_TOWER = { x: 348.5, z: 362.5, rise: 25 };
-const TANK_WEST = { x: 346.5, z: 392.5 }, TANK_EAST = { x: 421.5, z: 375.5 };
+// The bridgehead stands back from the 20 m channel: the quay lanes run 4 m off
+// the water (x 370 / 397), with their walls and the buildings behind them.
+const TOLL = rect(354, 364, 364, 373);
+const WAREHOUSE = rect(403, 394, 413, 403);
+const RUIN_W = rect(352, 396, 362, 406);
+const RUIN_E = rect(405, 361, 415, 371);
+const WATER_TOWER = { x: 346.5, z: 362.5, rise: 25 };
+const TANK_WEST = { x: 344.5, z: 392.5 }, TANK_EAST = { x: 423.5, z: 375.5 };
 export const IRON_ARCH_TOP_Y = IRON.deckY + 1 + ARCH.rise;
 
 export const BRIDGE_SITE = Object.freeze({
@@ -37,20 +39,20 @@ export const BRIDGE_SITE = Object.freeze({
   vehicle: Object.freeze({ id: 'flag-C-tank', type: 'tank', team: null, x: TANK_WEST.x, z: TANK_WEST.z, yaw: -Math.PI / 2,
     altX: TANK_EAST.x, altZ: TANK_EAST.z, altYaw: Math.PI / 2 }),
   lanes: Object.freeze([
-    Object.freeze({ id: 'C-west-quay', from: [374, 340], to: [374, 428] }),
-    Object.freeze({ id: 'C-east-quay', from: [394, 428], to: [394, 340] }),
+    Object.freeze({ id: 'C-west-quay', from: [370, 340], to: [370, 428] }),
+    Object.freeze({ id: 'C-east-quay', from: [397, 428], to: [397, 340] }),
   ]),
   ambush: Object.freeze([
-    Object.freeze({ x: 366.5, z: 374.5, faces: 'axis' }),
-    Object.freeze({ x: 401.5, z: 393.5, faces: 'axis' }),
-    Object.freeze({ x: 357.5, z: 395.5, faces: 'axis' }),
-    Object.freeze({ x: 410.5, z: 372.5, faces: 'axis' }),
+    Object.freeze({ x: 362.5, z: 374.5, faces: 'axis' }),
+    Object.freeze({ x: 405.5, z: 393.5, faces: 'axis' }),
+    Object.freeze({ x: 353.5, z: 395.5, faces: 'axis' }),
+    Object.freeze({ x: 414.5, z: 372.5, faces: 'axis' }),
   ]),
   spawns: pickSpawnCells(FLAG.x, FLAG.z, {
-    exclude: [TOLL, WAREHOUSE, RUIN_W, RUIN_E, rect(342, 388, 351, 397), rect(417, 371, 426, 380),
-      rect(362, 374, 373, 377), rect(362, 390, 373, 393), rect(394, 374, 405, 377), rect(394, 390, 405, 393)],
-    radii: [13, 17, 21, 25],
-    accept: (x, z) => Math.abs(riverOffset(x, z)) > 9 && x > 340 && x < 428,
+    exclude: [TOLL, WAREHOUSE, RUIN_W, RUIN_E, rect(340, 388, 349, 397), rect(419, 371, 428, 380),
+      rect(358, 374, 369, 377), rect(358, 390, 369, 393), rect(398, 374, 409, 377), rect(398, 390, 409, 393)],
+    radii: [14, 16, 18, 20, 22, 24, 25],
+    accept: (x, z) => Math.abs(riverOffset(x, z)) > 13 && x > 338 && x < 430,
   }),
 });
 
@@ -199,20 +201,20 @@ export function buildBridgeSite(kit) {
   ruin(kit, RUIN_W, 3);
   ruin(kit, RUIN_E, 5);
   // Sandbagged bridgeheads beside the roadway.
-  sandbags(kit, [[363, 376], [372, 376], [372, 374]]);
-  sandbags(kit, [[363, 391], [372, 391], [372, 393]]);
-  sandbags(kit, [[404, 391], [395, 391], [395, 393]]);
-  sandbags(kit, [[404, 376], [395, 376], [395, 374]]);
+  sandbags(kit, [[359, 376], [368, 376], [368, 374]]);
+  sandbags(kit, [[359, 391], [368, 391], [368, 393]]);
+  sandbags(kit, [[408, 391], [399, 391], [399, 393]]);
+  sandbags(kit, [[408, 376], [399, 376], [399, 374]]);
   // Quay lanes: a wall on the landward side of each riverbank path.
-  fieldWall(kit, [[370, 338], [370, 375]]);
-  fieldWall(kit, [[370, 392], [370, 430]]);
-  fieldWall(kit, [[397, 338], [397, 375]]);
-  fieldWall(kit, [[397, 392], [397, 430]]);
+  fieldWall(kit, [[366, 338], [366, 375]]);
+  fieldWall(kit, [[366, 392], [366, 430]]);
+  fieldWall(kit, [[401, 338], [401, 375]]);
+  fieldWall(kit, [[401, 392], [401, 430]]);
   for (const lane of BRIDGE_SITE.lanes) kit.feature('lane', { flag: 'C', ...lane });
   crateStack(kit, 352, 380, 2, 2, 2);
   crateStack(kit, 414, 386, 2, 2, 2);
-  kit.paintRect(342, 388, 351, 397, DIRT);
-  kit.paintRect(417, 371, 426, 380, DIRT);
+  kit.paintRect(340, 388, 349, 397, DIRT);
+  kit.paintRect(419, 371, 428, 380, DIRT);
   for (const a of BRIDGE_SITE.ambush) kit.feature('ambush', { flag: 'C', ...a });
   for (const p of [TANK_WEST, TANK_EAST]) kit.reserve(p.x - 4.5, p.z - 4.5, p.x + 3.5, p.z + 3.5, 5, 'flag-C-tank');
 }

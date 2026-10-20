@@ -25,12 +25,14 @@ The pipeline:
    - Flag pads have a radius of flag radius + 12, a 20 m smoothstep falloff, and these levels: farm 27, village 33, bridge 25, bunkers 33, works 27.
    - The HQ plateaus are flat at y36: x 26–146 by z 200–568 for WEST, mirrored for EAST.
    - Each runway approach stays level for 90 m and then climbs at 1:5.
-3. **River.** The `FRONTIER_PLAN.river` spline keeps its 12 m channel at the five crossings (`riverHalfAt(z)` is 6 there) and widens to 24–30 m on the open reaches between them (`riverReach(z)`: full width 46 m from a bridge or ford, 66 m from the Iron Bridge, whose quays run ±44 m). `riverMeander(z)` bends each reach (±9–15 m, `sin²` so every crossing stays square to the banks; zero within 48 m of the Iron Bridge); the south reaches are the point mirror of the north ones.
-   - The bed is y18/19 (y17 down the middle of a wide reach), water y19–21. The two fords lift the bed to y20 (one voxel of water) across 14 m and have gentle banks.
-   - Six gravel islands (`FRONTIER_ISLANDS`, three authored, three mirrored) stand off the centreline in the wide reaches: a y21 gravel/sand rim round a y22 grassy crown. They keep kind RIVER (not drivable) with no water above them.
+3. **River.** The river is a waterway the patrol boats can run end to end (2026-10-20; it was 12 m at the crossings and 24–30 m between them, 3 m deep). The `FRONTIER_PLAN.river` spline (`width` 20, `depth` 4.5, `surfaceY` 21) keeps a 20 m channel at the five crossings (`riverHalfAt(z)` is 10 there) and widens to 36–44 m on the open reaches between them (`riverReach(z)`: full width 46 m from a bridge or ford, 66 m from the Iron Bridge, whose quays run ±44 m). `riverMeander(z)` bends each reach (±9–15 m, `sin²` so every crossing stays square to the banks; zero within 48 m of the Iron Bridge); the south reaches are the point mirror of the north ones.
+   - The water face is y22 (water voxels up to y21). The bed is y17 (4 m of water), y16 (5 m) down the middle half of a wide reach, and shelves to y18 (3 m) and y19 (2 m) over the last 3 m before each bank: the channel averages about 4.5 m, the whole river 4.05 m. Deep beds are gravel, the shelves mud.
+   - The two fords lift the bed to y20 (one voxel, 1 m of water) across the whole 20 m channel for 14 m along it, with gentle banks. Jeeps and tanks drive through on the bed; a boat floats over it with 0.55 m under the keel but scrapes (`BOAT_RULES.shallowDepth`), so it crosses at 5 m/s at most.
+   - Six gravel islands (`FRONTIER_ISLANDS`, three authored, three mirrored) stand 10–11.5 m off the centreline in the wide reaches (at least 6 m clear of it, so the boat lane down the middle stays open): a y21 gravel/sand rim round a y22 grassy crown. They keep kind RIVER (not drivable) with no water above them.
    - The inside of every bend carries a gravel/sand beach one voxel above the water (a beach flush with the surface trapped swimming bots); the rest of the bank climbs one voxel per metre as before.
    - After the clamp, water finds its level: any dry cell below y21 that touches the river (a ford bank or road shoulder graded down to the ford bed) is flooded too, so no water face ever stands over open ground.
-   - Vehicles still cross only at the 3 bridges and 2 fords: the bed sits 2–4 voxels under every bank.
+   - Vehicles still cross only at the 3 bridges and 2 fords: the bed sits 3–6 voxels under every bank.
+   - Bridge decks keep the river bed under them: a road shoulder never fills an arch (before the widening, the south loop's shoulder had filled the west arch of bridge-south up to the deck).
 4. **Roads.** Each road is graded by envelope relaxation between pins (decks, fords, pads, plateaus and earlier roads) to 2/3 of 1 voxel per 3 m. This keeps the rasterised cells at no more than 1 voxel per 3 m along the road and 1 voxel across it.
    - The paved axis runs HQ-W → C → HQ-E and is 10 m wide.
    - The gravel tracks are 7 m wide: HQ→A, HQ→B, A→C, B→C, A→D over ford-north, the north loop over bridge-north, and their EAST mirrors (E→B over ford-south, the south loop over bridge-south).
@@ -57,6 +59,8 @@ The pipeline:
 | D Ridge Bunkers (496, 248) | `bunkers.js`: zig-zag trenches 2 deep with duckboards, sandbag lips and timber revetments; 2 concrete pillboxes; tank traps; MG nests | west pillbox | observation tower (y59), radar dome (y43) |
 | E Kessler Works (536, 520) | `works.js`: enterable smelter hall with furnaces, gantry and crane rail; conveyor; rail yard with wagons and sleeper stacks; coal heaps; pump house; boiler house; blast walls | smelter hall | two chimneys (y78), two boiler stacks (y70, y66), cooling tower (y65) |
 | HQ ×2 | `hq-airfield.js`: 312 m runway along z, 2 helipads, arched hangar with roundel (WEST blue, EAST red), control tower with ladder, fuel farm, motor pool, command bunker, AA pits | command bunker | hangar ridge (y50) |
+
+The Iron Bridge spans the 20 m channel (x 374–393) with one pier pair on the centreline (x 383–384), so both arches are 9 m wide; the truss feet stand on the banks at x 366 and 401 (35 m apart, crown y45), and the bridgehead stands back from the water: quay lanes at x 370 and 397 with their walls at x 366 and 401, the toll house, warehouse and ruins 4 m further out than before, the C tank pads at (344.5, 392.5) and (423.5, 375.5). The flag radius stays 24 m, so 14 m of each bank lies in the zone; the 12 spawn cells stand 20–25 m from the flag, six on each bank, at least 13 m off the centreline. The end bridges stand at y26 (deck underside y25, 3 m over the water face) so a boat passes under them as under the Iron Bridge (underside y24).
 
 In Conquest the Iron Bridge span can be blown down: supports, stages, the fall into the river and the bots' fords are in [docs/conquest.md "Iron Bridge collapse"](../conquest.md#iron-bridge-collapse). The truss geometry (`IRON_ARCH`) lives in `shared/conquest-bridge.js` and is shared by `bridge.js` and the collapse, so the voxels and the falling box cannot drift apart.
 
@@ -134,7 +138,7 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 - `airfields`: today's shape, with terrain y
 - `roads`: `{ id, kind, width, points: [[x, y, z]] }`, resampled every 10 m or less
 - `crossings`: `{ id, kind, x, y, z, width }`
-- `waterways`: one boat lane, `{ id: 'river', kind: 'boat-lane', width: 5, points: [[x, 22, z]] }` with 40 points at the water face. It runs from z 158 to z 610 down the river's deep channel, clear of piers, fords and banks, through the Iron Bridge's east arch (x 387.5). The south half is the point mirror of the north half. The patrol bots sail it, and tests read it to check that a boat can get from mooring to mooring.
+- `waterways`: one boat lane, `{ id: 'river', kind: 'boat-lane', width: 5, points: [[x, 22, z]] }` with 89 points at the water face, every 8 m from z 32 to z 736: the whole river inside the combat area, 729 m. It follows the river's centreline (the deep channel, at least 6 m off every island), crosses both fords and swings 5 m off the centreline under each bridge, clear of the piers: the east arch of bridge-north (x 401) and of the Iron Bridge (x 389), the west arch of bridge-south (x 367). Away from the Iron Bridge the lane is its own point mirror. The patrol bots sail it, and tests read it to check that a boat can get from mooring to mooring and from one end of the river to the other (`frontier-river-test`).
 - `weather: 'golden'`
 - `dressing`: the wreck smoke anchors
 
@@ -163,29 +167,29 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 | `flag-B-jeep` (alpha) | (256.5, 520.5) |
 | `flag-D-jeep` (bravo) | (510.5, 250.5) |
 | `flag-E-jeep` (bravo) | (520.5, 532.5) |
-| `flag-C-tank` (team null, `flag: 'C'`) | west bank (346.5, 392.5); alternate east-bank pad `altX/altZ` (421.5, 375.5) |
-| `alpha-boat-north` / `bravo-boat-south` | moored at (370, 211), yaw −2.7, above ford-north / EAST mirror (398, 557) |
-| `alpha-boat-south` / `bravo-boat-north` | moored at (362, 452), yaw −0.85, below the Iron Bridge / EAST mirror (406, 316) |
+| `flag-C-tank` (team null, `flag: 'C'`) | west bank (344.5, 392.5); alternate east-bank pad `altX/altZ` (423.5, 375.5) |
+| `alpha-boat-north` / `bravo-boat-south` | moored at (373, 236), yaw −2.83, above ford-north / EAST mirror (395, 532) |
+| `alpha-boat-south` / `bravo-boat-north` | moored at (361, 464), yaw 0.28, below the Iron Bridge / EAST mirror (407, 304) |
 
-Boats float at y 21.57 (water face 22 minus the 0.45 m draft, plus 0.02). Each boat pad is named for where it sits on the river, so the EAST mirror of WEST's north boat is `bravo-boat-south`. Every pad clears a full pivot (32 yaws), and a boat crewed from the bank gets under way (`frontier-fleet-capacity-test`). Boats are left out of the HQ walking-route checks.
+Boats float at y 21.57 (water face 22 minus the 0.45 m draft, plus 0.02). Each mooring lies where a reach narrows toward a crossing, about 5 m off the west bank (boarding range from the bank) and 9 m beside the boat lane. Each boat pad is named for where it sits on the river, so the EAST mirror of WEST's north boat is `bravo-boat-south`. Every pad clears a full pivot (32 yaws), and a boat crewed from the bank gets under way (`frontier-fleet-capacity-test`). Boats are left out of the HQ walking-route checks.
 
 **Crossings:**
 
 | Crossing | Position | y |
 |---|---|---:|
-| bridge-north | (396, 150) | 25.02 |
+| bridge-north | (396, 150) | 27.02 |
 | ford-north | (392, 270) | 21.02 |
 | iron-bridge | (384, 384) | 26.02 |
 | ford-south | (376, 498) | 21.02 |
-| bridge-south | (372, 618) | 25.02 |
+| bridge-south | (372, 618) | 27.02 |
 
 `FRONTIER_ROADS` (polylines of control points `[[x, z]]`), `FRONTIER_AIRFIELDS` and `FRONTIER_CONQUEST` are still exported. The last two are read-only views that resolve on first access, so importing the layout never builds the terrain. `FRONTIER_FLOOR` has been removed.
 
 ## Budgets (2026-10-07, after the world content pass)
 
 - Server generation is about 0.55 s (terrain 0.30 s plus voxels 0.25 s; the four places add about 3 ms; it was 0.49 s before the content pass). The budget is 1.5 s.
-- The run-length payload is 2,000,764 bytes (1,986,604 before the locations pass, 1,720,449 before the content pass), against a budget of 3.0 MB. The FNV-1a fingerprint is `557723ca`, pinned in `tools/atlastest.mjs`.
-- The distant voxel shell (medium profile) draws 166 611 greedy quads against the 170 000 budget (165 476 before the locations pass, 151 414 before the content pass). Trees and bushes are about 51 000 of them; this budget, not the payload, caps the woodland. The four places cost about 2 000 quads, of which about 650 come back from the trees their footprints displace.
+- The run-length payload is 2,011,579 bytes (2,000,764 before the river was widened, 1,986,604 before the locations pass, 1,720,449 before the content pass), against a budget of 3.0 MB. The FNV-1a fingerprint is `1e482b14`, pinned in `tools/atlastest.mjs`.
+- The distant voxel shell (medium profile) draws 165 632 greedy quads against the 170 000 budget (166 611 before the river was widened, 165 476 before the locations pass, 151 414 before the content pass). Trees and bushes are about 51 000 of them; this budget, not the payload, caps the woodland. The four places cost about 2 000 quads, of which about 650 come back from the trees their footprints displace.
 - Map memory: 47.2 MB of blocks, 1.2 MB of heights and about 6 MB of retained terrain arrays, against 52.4 MB of blocks and heights for the old 1024 × 48 × 1024 map. The terrain builder keeps its scratch arrays few and narrow (Int16 envelopes, no second relief buffer), because a process keeps freed typed-array pages resident.
 - Process RSS, head to head (generator plus template plus one match state, `node --expose-gc`): old generator +121.7 MiB, Frontier v2 +128–130 MiB, so +5–7 % against the +10 % limit. The scripts are `.conquest-work/wp4/review/rss-old.mjs` (the retired generator, from `.conquest-work/wp4/retired/`) and `.conquest-work/wp4/review/rss-new.mjs`.
 - The top surface:
@@ -201,6 +205,7 @@ Run each file on its own (on the shared development machine, through `.conquest-
 node tools/frontier-terrain-test.mjs     # pads, grades, jeep/tank drive along every road and ford, river, sight lines, cover, budgets
 node tools/frontier-sites-test.mjs       # per-flag gameplay contract, landmarks, forests, dressing
 node tools/frontier-map-test.mjs         # §3.2 shape, terrain y everywhere, 23-hull fleet, boat lane, round trip
+node tools/frontier-river-test.mjs       # channel widths and depths, fords, deck clearance, bot boats end to end, C from both banks, boats through the fallen span
 node tools/frontier-airfields-test.mjs   # runway, corridor, helipads, roundel, tower ladder, mirroring
 node tools/frontier-fleet-capacity-test.mjs  # parked hulls, pivots, pickup routes, bay exits, aircraft departures
 node tools/conquest-world-protocol-test.mjs  # V2 RLE header, Frontier payload, client decode

@@ -40,6 +40,12 @@ export const MEDIC_BOT_RULES = Object.freeze({
    */
   reviveRange: 40,
   reviveRunSpeed: 6,
+  /**
+   * m (flat): a Medic this close to the body it runs to walks the last metres and
+   * holds the revive before a low-HP fallback. Without it the fallback started at
+   * once and only reached the body when the cover it picked lay that way.
+   */
+  reviveCommit: 8,
   /** m a squad spawn must beat the best flag spawn by for a Medic (others: SQUAD_SPAWN_PENALTY, 45). */
   squadSpawnPenalty: 0,
 });

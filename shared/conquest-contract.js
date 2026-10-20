@@ -436,7 +436,7 @@ export const FRONTIER_PLAN = Object.freeze({
     Object.freeze({ id: 'D', name: 'Ridge Bunkers',  site: 'bunkers', x: 496, z: 248, radius: 22, home: 'bravo' }),
     Object.freeze({ id: 'E', name: 'Kessler Works',  site: 'works',   x: 536, z: 520, radius: 22, home: 'bravo' }),
   ]),
-  river: Object.freeze({ points: Object.freeze([[384, 0], [396, 150], [384, 384], [372, 618], [384, 768]]), width: 12, depth: 3, surfaceY: 21 }),
+  river: Object.freeze({ points: Object.freeze([[384, 0], [396, 150], [384, 384], [372, 618], [384, 768]]), width: 20, depth: 4.5, surfaceY: 21 }),
   crossings: Object.freeze([
     Object.freeze({ id: 'bridge-north', kind: 'bridge', x: 396, z: 150, width: 8 }),
     Object.freeze({ id: 'ford-north',   kind: 'ford',   x: 392, z: 270, width: 14 }),

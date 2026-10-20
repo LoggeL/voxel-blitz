@@ -95,7 +95,8 @@ function fixture(n, { seed = 3, hulls = false } = {}) {
   const enemy = game.entities.get('enemy');
   policy.setLobbyTeam(enemy, 'bravo');
   for (let i = 0; i < 3; i++) game.step(TICK_MS);
-  const place = (p, s, extra = {}) => Object.assign(p, { x: s.x, y: s.y, z: s.z, vx: 0, vy: 0, vz: 0, spawnProtectedUntil: 0, ...extra });
+  // A teleport also ends a vault in progress (its path would pull the body back to the old ledge).
+  const place = (p, s, extra = {}) => Object.assign(p, { x: s.x, y: s.y, z: s.z, vx: 0, vy: 0, vz: 0, vault: null, spawnProtectedUntil: 0, ...extra });
   const kit = (p, id) => { policy.roles.applyLoadout(p, id, 0, 0); p.hp = p.maxHp || 100; };
   const run = ms => { for (let t = 0; t < ms; t += TICK_MS) game.step(TICK_MS); };
   const intent = value => game.conquestIntent('me', value);
@@ -238,7 +239,8 @@ function fixture(n, { seed = 3, hulls = false } = {}) {
   ok(answer && answer.responder === String(medic.id), 'the Medic bot answers NEED MEDIC');
   const goal = f.bots.commander.goalFor(medic);
   ok(goal.kind === 'heal' && goal.comm === answer.seq, 'the Medic walks to the requester');
-  ok(flat(goal.point, me) <= 4, 'it stands next to the requester');
+  // Its stand spot snaps to the walk graph (4 m cells), so it is held to the heal aura like the Support below.
+  ok(flat(goal.point, me) <= KIT_ROLE_RULES.healRadius - 1, 'it stands inside its heal aura beside the requester');
   eq(decodeCommField(wireRows(f.game, policy).find(r => r.id === 'me'))?.responder, String(medic.id), 'the marker names the responder');
   // Served: a heal pulse then full health.
   policy._emit('heal', { id: 'me', by: String(medic.id), hp: 5 });

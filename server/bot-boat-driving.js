@@ -37,8 +37,12 @@ export const BOAT_PATROL = Object.freeze({
   moveMs: Object.freeze([8000, 14000]),
   /** Arrival radius of a station, m, and how long the boat pivots its bow onto the crossing there. */
   arrive: 6, faceMs: 3500,
-  /** Cruise on the open lane, through a narrows (the Iron Bridge arch) and close to the station, m/s. */
-  cruise: 15, narrows: 6, approach: 8,
+  /**
+   * Cruise on the open lane, through a narrows (the arches of a bridge within
+   * 20 m), over a ford within `fordReach` m (one voxel of water: the hull
+   * scrapes across at BOAT_RULES.shallowSpeed) and close to the station, m/s.
+   */
+  cruise: 15, narrows: 6, ford: 5, fordReach: 20, approach: 8,
   /**
    * In the narrows (a bridge within 20 m) a helmsman whose waypoint lies more
    * than `pivotError` rad off the bow stops and pivots instead of turning under
@@ -229,9 +233,11 @@ export function boatPatrol(driving, br, p, v, assignment, now, inp) {
   state = routeState(driving, br, v, lane, target, now);
   state.patrol = patrol;
   const toGo = flat(v, target);
-  // Slow through the narrows (the arches of a bridge within 20 m) and on the approach.
-  const narrows = (driving.game.mapMeta?.conquest?.crossings ?? []).some(c => c.kind === 'bridge' && flat(c, v) < 20);
-  const cruise = narrows ? BOAT_PATROL.narrows : toGo < 30 ? BOAT_PATROL.approach : BOAT_PATROL.cruise;
+  // Slow through the narrows (the arches of a bridge within 20 m), over a ford and on the approach.
+  const crossings = driving.game.mapMeta?.conquest?.crossings ?? [];
+  const narrows = crossings.some(c => c.kind === 'bridge' && flat(c, v) < 20);
+  const ford = crossings.some(c => c.kind === 'ford' && flat(c, v) < BOAT_PATROL.fordReach);
+  const cruise = narrows ? BOAT_PATROL.narrows : ford ? BOAT_PATROL.ford : toGo < 30 ? BOAT_PATROL.approach : BOAT_PATROL.cruise;
   const remaining = driving.follow(br, v, state, now, inp, { arrive: BOAT_PATROL.arrive, cruise, narrows });
   if (remaining < BOAT_PATROL.arrive) {
     if (!patrol.retreat && !patrol.settleAt) {

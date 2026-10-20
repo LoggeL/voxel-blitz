@@ -185,7 +185,9 @@ export function apronFor(mapId, dimensions, edgeTop) {
   const height = new Int16Array(nx * nz), kind = new Uint8Array(nx * nz), water = new Int16Array(nx * nz), canopy = new Uint8Array(nx * nz);
   const edge = (x, z) => edgeTop(clamp(Math.floor(x), 0, sx - 1), clamp(Math.floor(z), 0, sz - 1));
   const field = mapId === 'frontier'
-    ? frontierField(edge, { x: sx / 2, sz, half: 13, bed: 18, surface: 21, bank: 30 })
+    // Frontier's river leaves the map 38 m wide (riverHalfAt is 19 at both ends) over a
+    // 4-5 m channel; `surface` is the first free y over the water, the map's water face (22).
+    ? frontierField(edge, { x: sx / 2, sz, half: 19, bed: 17, surface: 22, bank: 30 })
     : mapId === 'redrock'
       ? redrockField(edge, { x: sx / 2, sz, half: 9, bed: 16, north: 26, south: 19 })
       : (x, z) => ({ h: edge(x, z) + 1, kind: APRON_KIND.MEADOW, canopy: 0, water: 0 });

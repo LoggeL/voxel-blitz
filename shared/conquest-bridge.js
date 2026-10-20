@@ -17,13 +17,13 @@ const RIVER_HALF = FRONTIER_PLAN.river.width / 2;
 const DECK_Y = FRONTIER_PLAN.heights.valleyMin + 1;
 
 /** Bowstring truss over the C deck: arch feet x0/x1, the two truss planes zs, arch rise over the deck. */
-export const IRON_ARCH = Object.freeze({ x0: 370, x1: 397, zs: Object.freeze([378, 389]), rise: 19 });
+export const IRON_ARCH = Object.freeze({ x0: 366, x1: 401, zs: Object.freeze([378, 389]), rise: 19 });
 
 const box = (x0, y0, z0, x1, y1, z1) => Object.freeze({ x0, y0, z0, x1, y1, z1 });
 
 /**
  * Geometry (integer voxel boxes, inclusive). `span` is everything that falls:
- * the deck cells over the 12 m channel, the edge girders and the truss planes
+ * the deck cells over the 20 m channel, the edge girders and the truss planes
  * between the banks, from just above the water to above the arch crown.
  * `piers` lists the mid-river pier columns (their parts below the water
  * surface turn into river water when the span goes). `supports` are the boxes
@@ -53,7 +53,8 @@ export const IRON_BRIDGE = Object.freeze({
  * reach; the nearest support counts, never several. Keys not listed (bullets,
  * smoke, molotov, pulse, bubbles, the chin cannon) do nothing. `limpet` is
  * the projectile type of the wall claymore. With 1000 integrity: 10 RX-8 or
- * TOW/guided missile hits, about 8 tank HE or 15 AP shells, 3 jet bombs.
+ * TOW/guided missile hits, about 8 tank HE or 15 AP shells, 3 jet bombs,
+ * 25 mortar bombs or 250 flak shells.
  */
 export const IRON_BRIDGE_RULES = Object.freeze({
   integrity: 1000,
@@ -66,6 +67,10 @@ export const IRON_BRIDGE_RULES = Object.freeze({
   supportDamage: Object.freeze({
     rocket: 100, guidedMissile: 100, towMissile: 100, tankAP: 65, tankHE: 120, jetBomb: 420,
     helicopterRocket: 30, atmine: 150, limpet: 10, mgl: 25, frag: 15,
+    // The Support's M-81 mortar (a plunging HE bomb with a small charge: 25
+    // rounds, five magazines) and the mobile AA's 35 mm flak (a small fused
+    // shell at 8 rounds/s: 250 hits, half a minute of fire on one support).
+    mortarHE: 40, flak35: 4,
   }),
   /** Bodies standing on the span when it goes: infantry damage and hull share of max HP (kill key `collapse`). */
   spanCrush: Object.freeze({ infantry: 45, hullFraction: 0.2, above: 4 }),
