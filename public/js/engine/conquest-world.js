@@ -16,7 +16,8 @@ import { ReconGadgetView } from './recon-gadget-view.js';
 // static `mapMeta.conquest` layout; nothing is predicted here.
 //
 // Draws: one instanced draw for all masts, one for all cloths, one for all
-// beams, one merged ring mesh and one sprite per flag. Colour, height, pulse
+// beams, one merged ring mesh and one sprite per flag, plus one for all flag
+// supply caches and one for their holder strips. Colour, height, pulse
 // and label changes are instance attributes, uniforms or canvas uploads, so
 // no program key ever changes after the map loads.
 
@@ -119,6 +120,53 @@ function makeMastGeometry() {
   boxInto(positions, normals, 0.62, 0.3, 0.62, 0, 0.5, 0);
   boxInto(positions, normals, 0.16, MAST_HEIGHT, 0.16, 0, MAST_HEIGHT / 2, 0);
   boxInto(positions, normals, 0.34, 0.22, 0.34, 0, MAST_HEIGHT + 0.08, 0);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+/**
+ * Flag supply cache (shared/flag-cache.js): a low-poly stack of three olive
+ * crates with darker lids, slats and yellow stencils, foot at the origin,
+ * front (+Z) toward the pole. Vertex colours: one material, one draw for every cache.
+ */
+const CRATE_BODY = 0x5d6b3a, CRATE_DARK = 0x3c4526, CRATE_STENCIL = 0xd9b44a;
+function makeCacheGeometry() {
+  const positions = [], normals = [], colors = [];
+  const color = new THREE.Color();
+  const box = (sx, sy, sz, cx, cy, cz, hex) => {
+    const before = positions.length;
+    boxInto(positions, normals, sx, sy, sz, cx, cy, cz);
+    color.setHex(hex);
+    for (let i = before; i < positions.length; i += 3) colors.push(color.r, color.g, color.b);
+  };
+  // Two crates side by side, a third across them on top.
+  for (const x of [-0.5, 0.5]) {
+    box(0.92, 0.7, 0.78, x, 0.35, 0, CRATE_BODY);
+    box(0.96, 0.08, 0.82, x, 0.7, 0, CRATE_DARK);
+    box(0.08, 0.6, 0.8, x - 0.3, 0.33, 0, CRATE_DARK);
+    box(0.08, 0.6, 0.8, x + 0.3, 0.33, 0, CRATE_DARK);
+    for (const z of [0.4, -0.4]) box(0.34, 0.12, 0.02, x, 0.42, z, CRATE_STENCIL);
+  }
+  box(1.1, 0.5, 0.66, 0.05, 0.99, -0.02, CRATE_BODY);
+  box(1.14, 0.07, 0.7, 0.05, 1.25, -0.02, CRATE_DARK);
+  for (const z of [0.32, -0.36]) box(0.4, 0.1, 0.02, 0.05, 1.02, z, CRATE_STENCIL);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+/** The holder's colour strip: a band round the top crate (instance colour). */
+function makeCacheStripGeometry() {
+  const positions = [], normals = [];
+  boxInto(positions, normals, 1.16, 0.12, 0.72, 0.05, 1.1, -0.02);
+  boxInto(positions, normals, 0.06, 0.4, 0.06, -0.94, 0.9, 0.36);
+  boxInto(positions, normals, 0.3, 0.2, 0.02, -0.8, 1.0, 0.37);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
@@ -361,8 +409,11 @@ export class ConquestWorld {
       const id = String(definition.id ?? '').toUpperCase();
       if (!id || this.flags.has(id)) continue;
       const radius = Number.isFinite(definition.radius) && definition.radius > 0 ? definition.radius : 20;
+      const cache = definition.cache && [definition.cache.x, definition.cache.y, definition.cache.z].every(Number.isFinite)
+        ? { x: definition.cache.x, y: definition.cache.y, z: definition.cache.z, yaw: Number.isFinite(definition.cache.yaw) ? definition.cache.yaw : 0 } : null;
       const flag = { id, index: this.order.length, x: definition.x, y: definition.y, z: definition.z, radius,
-        owner: null, control: 0, state: 'idle', atk: 0, def: 0, shown: 0, ringDirty: true, label: null };
+        owner: null, control: 0, state: 'idle', atk: 0, def: 0, shown: 0, ringDirty: true, label: null,
+        cache, cacheIndex: -1, cacheDirty: !!cache };
       this.flags.set(id, flag); this.order.push(flag);
     }
     if (this.order.length) this.build(lightUniforms, windYaw);
@@ -406,9 +457,51 @@ export class ConquestWorld {
       this.group.add(mesh);
     }
     this.cloths.frustumCulled = false;
+    this.buildCaches(lightUniforms);
     this.buildRings();
     for (const flag of this.order) this.buildLabel(flag);
     this.applyAll();
+  }
+
+  /**
+   * Flag supply caches (shared/flag-cache.js): the crate stacks in one
+   * instanced draw and the holders' colour strips in another, seated on the
+   * voxel floor under the metadata spot (hidden while that floor is gone).
+   */
+  buildCaches(lightUniforms) {
+    const withCache = this.order.filter(flag => flag.cache);
+    if (!withCache.length) return;
+    withCache.forEach((flag, i) => { flag.cacheIndex = i; });
+    const crateMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
+    crateMaterial.name = 'conquest-cache';
+    const stripMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    stripMaterial.name = 'conquest-cache-strip';
+    if (lightUniforms) { patchVoxelLitMaterial(crateMaterial, lightUniforms, 'voxel-lit'); patchVoxelLitMaterial(stripMaterial, lightUniforms, 'voxel-lit'); }
+    this.caches = new THREE.InstancedMesh(makeCacheGeometry(), crateMaterial, withCache.length);
+    this.caches.name = 'conquest-caches';
+    this.cacheStrips = new THREE.InstancedMesh(makeCacheStripGeometry(), stripMaterial, withCache.length);
+    this.cacheStrips.name = 'conquest-cache-strips';
+    for (let i = 0; i < withCache.length; i++) this.cacheStrips.setColorAt(i, _color.setHex(CONQUEST_FLAG_COLORS.neutral));
+    this.cacheStrips.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    for (const mesh of [this.caches, this.cacheStrips]) { mesh.frustumCulled = false; this.group.add(mesh); }
+    for (const flag of withCache) this.seatCache(flag);
+  }
+
+  /** Seat one cache on the floor under its spot; a floor gone (a fallen span, a breach) hides it. */
+  seatCache(flag) {
+    const c = flag.cache, floor = Math.floor(c.y + 0.01);
+    const ground = this.getBlock ? this.groundAt(c.x, c.z, floor) : floor;
+    const standing = Math.abs(ground - floor) <= 1
+      && (!this.getBlock || this.getBlock(Math.floor(c.x), ground - 1, Math.floor(c.z)) !== 0);
+    _rotation.makeRotationY(c.yaw);
+    _matrix.makeTranslation(c.x, ground + 0.01, c.z).multiply(_rotation);
+    if (!standing) _matrix.makeScale(0, 0, 0);
+    this.caches.setMatrixAt(flag.cacheIndex, _matrix);
+    this.cacheStrips.setMatrixAt(flag.cacheIndex, _matrix);
+    this.caches.instanceMatrix.needsUpdate = true;
+    this.cacheStrips.instanceMatrix.needsUpdate = true;
+    flag.cacheShown = standing;
+    flag.cacheDirty = false;
   }
 
   /**
@@ -559,6 +652,7 @@ export class ConquestWorld {
   applyDeltas(deltas) {
     if (this.disposed || !this.getBlock || !deltas?.length) return;
     for (const flag of this.order) {
+      if (flag.cache && !flag.cacheDirty && deltas.some(d => Math.abs(d.x + 0.5 - flag.cache.x) <= 3 && Math.abs(d.z + 0.5 - flag.cache.z) <= 3)) flag.cacheDirty = true;
       if (flag.ringDirty) continue;
       for (const d of deltas) {
         const r = Math.hypot(d.x + 0.5 - flag.x, d.z + 0.5 - flag.z);
@@ -594,6 +688,7 @@ export class ConquestWorld {
       this.ringColors.setXYZ(base + v, _color.r, _color.g, _color.b);
       this.ringParams.setXY(base + v, contested ? 0.45 + 0.35 * pulse : 0.5, pulse);
     }
+    if (flag.cacheIndex >= 0) this.cacheStrips.setColorAt(flag.cacheIndex, _color.setHex(this.colorFor(flag.owner)));
     const label = flag.label;
     // The marker arc moves in 1/LABEL_ARC_STEPS steps: a capture repaints and
     // uploads the 256 px label a few dozen times, not on every eased frame.
@@ -613,6 +708,7 @@ export class ConquestWorld {
     this.beamParams.needsUpdate = true;
     this.ringColors.needsUpdate = true;
     this.ringParams.needsUpdate = true;
+    if (this.cacheStrips) this.cacheStrips.instanceColor.needsUpdate = true;
   }
 
   /** Ease the hoist toward authority, animate cloth and pulse, depth-test labels by distance. */
@@ -634,6 +730,7 @@ export class ConquestWorld {
       if (Math.abs(flag.control - flag.shown) < 0.001) flag.shown = flag.control;
       if (flag.shown !== shown || flag.state === 'contested') changed = true;
       if (flag.ringDirty) this.seatRing(flag);
+      if (flag.cacheDirty && flag.cacheIndex >= 0) this.seatCache(flag);
     }
     if (changed) this.applyAll();
     if (camera) {
@@ -661,7 +758,7 @@ export class ConquestWorld {
     this.disposed = true; this.group.visible = false;
     this.recon?.dispose();
     this.group.removeFromParent();
-    for (const mesh of [this.masts, this.cloths, this.beams]) mesh?.dispose();
+    for (const mesh of [this.masts, this.cloths, this.beams, this.caches, this.cacheStrips]) mesh?.dispose();
     disposeObjectTree(this.group);
     this.group.clear(); this.flags.clear(); this.order.length = 0;
   }

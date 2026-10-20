@@ -128,6 +128,18 @@ export function paintFlag(ctx, item, c, radiusPx, { letterSize = 12, pulse = 0 }
   ctx.textBaseline = 'middle';
   ctx.fillText(item.label, 0, 1);
   if (item.role === 'locked') { ctx.globalAlpha = 0.9; drawIcon(ctx, 'padlock', size * 0.62, -size * 0.62, letterSize * 0.95, '#e8eef2'); }
+  if (item.supply) {
+    // Supply cache pip (shared/flag-cache.js): a small crate under the letter's right corner, amber
+    // while it pays the own side, grey while an enemy stands in the zone.
+    const pip = Math.max(4, letterSize * 0.48), px = size * 0.5, py = size * 0.42;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#0d151bf0';
+    ctx.fillRect(px - pip / 2 - 1.5, py - pip / 2 - 1.5, pip + 3, pip + 3);
+    ctx.fillStyle = item.supply === 'on' ? '#ffd36a' : '#7d8a93';
+    ctx.fillRect(px - pip / 2, py - pip / 2, pip, pip);
+    ctx.fillStyle = '#0d151bcc';
+    ctx.fillRect(px - pip / 2, py - 0.5, pip, 1);
+  }
   ctx.restore();
 }
 

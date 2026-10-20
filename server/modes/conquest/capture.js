@@ -38,6 +38,8 @@ export class CaptureSystem {
           x: f.x, y: f.y, z: f.z,
           radius: Number.isFinite(f.radius) && f.radius > 0 ? f.radius : DEFAULT_RADIUS,
           home, spawns: Array.isArray(f.spawns) ? f.spawns.map(pointOf).filter(Boolean) : [],
+          // The flag's supply cache spot (shared/flag-cache.js; served by conquest/flag-caches.js).
+          cache: pointOf(f.cache) ? { ...pointOf(f.cache), yaw: Number.isFinite(f.cache.yaw) ? f.cache.yaw : 0 } : null,
           owner: home, control: teamSign(home), state: 'idle', mover: null,
           alpha: 0, bravo: 0,
         };

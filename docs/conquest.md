@@ -820,6 +820,20 @@ Each battlefield has two radars bound to a flag: Frontier D (the Ridge Bunkers' 
 
 Measured on the merged branch (2026-10-20, before the cuts above), in-process with 16 bots (`GameEngine` + `attachBots`, 30 s warm-up), each event forced once through its own entry point (`trigger`, the airdrop's `drop`, the relay's `_blow`, the comeback's READY with the bot leader's call): no exception or error log, every event ran its phases, every flag zone counted a body standing in it with nothing solid or fluid at head height afterwards, and flags kept changing hands (Frontier 5 transitions in 173 s, Redrock 3 in 182 s; 3 and 4 with the events off). Peak whole tick per 18 s window (Frontier) or 45 s window (Redrock): airdrop 6.2 / 7.3 ms, comeback 6.1 / 6.2 ms, depot 8.6 ms, elevator 8.0 ms, quarry 8.0 ms, relay 8.4 ms, weir 5.8 ms, dam 10.2 ms; the same windows peak at 5.7-9.7 ms with the events off. Stuck samples (an on-foot bot that moved under 1 m in 10 s with its goal over 6 m away): 1.3 % on Frontier and 2.3 % on Redrock, against 4.3 % and 2.8 % with the events off. Desktop captures from a live Redrock match (muted CDP, the dam triggered by a capture hook): `docs/design/conquest/events/captures/` (`banner-dam-warning.png`, `banner-dam-breach.png`, and `dam-aftermath-canyon.png` from the east rim 80 m downstream, 42 s into the breach). Map event hexagons now share the flags' edge spread (`spreadEdgeMarkers`), so an edge-clamped event no longer sits on a flag marker. The banner panel stays solid under left-aligned event text. On phone landscape a prompt inside a flag zone drops below the capture ring.
 
+## Infantry supply
+
+### Flag caches
+
+Every flag (Frontier, Redrock Canyon, and the same flags in Breakthrough) has one supply cache: a stack of three olive crates with the holder's colour strip, 4-8 m from its pole.
+
+- **Spot** (`shared/flag-cache.js` `flagCacheSpot`, called from `battlefieldLayoutKit.buildFlags`): picked once from the pole and the terrain when the metadata is built, and stored as flag row `cache {x, y, z, yaw}`. The first bearing points toward the map centre, then alternates either way in 22.5° steps, at radii 6, 5, 7, 4.5 and 7.5 m. The first spot wins whose 3x3 footprint is flat, dry (water under a bridge deck counts as dry), within 2 voxels of the pole's ground and 2.5 m clear of the flag's spawns. Redrock's dam crest roadway sits one voxel under the terrain's crest height (`damWalkTopY`). The cache is a client prop with no voxels and no collision, so the map fingerprints do not change. Frontier C stands on the Iron Bridge deck and Redrock C on the dam crest.
+- **Pay** (`server/modes/conquest/flag-caches.js`): every 3 s, each living on-foot soldier of the side holding the flag gets `roles.supply(p, {mags: 1, grenades: 1, gadgetRound, bandages})` if their feet are within 4 m flat and 2.5 m in height of the cache. No key is needed. `gadgetRound` comes at most every 15 s and a bandage at most every 12 s per player. The cache pays no one while the flag is neutral or enemy-held, or while an enemy stands in the capture zone. It cannot be destroyed. It goes quiet when the voxel under it is gone (the fallen Iron Bridge span, a breached dam crest), and the client hides the prop then too.
+- **HUD**: the capture ring shows a small amber RESUPPLYING tag while the local player stands at a cache that serves them now (`flagCacheServing`, from the authoritative flag owner, the zone counts and the own position). Own-held flags show a crate pip on the minimap and the big map: amber while the cache pays, grey while an enemy is in the zone.
+- **Bots** (`server/bot-flag-cache.js`, from `BotCommander.computeGoal` after role jobs and map event tasks): a bot on foot goes to the cache of the nearest flag its side holds within 150 m when its primary reserve is under 35 % of its issue, or when it has no bandage left and is under 70 HP. It does not go under an all-in order or while standing in a zone its side is taking. It stays until the reserve is back over 90 % (and it has a bandage), or for 45 s at most.
+- **Wire**: unchanged. The spot rides the static `mapMeta.conquest.flags[].cache`, and activity is derived from the existing flag rows.
+- **Capture**: `docs/design/conquest/supply/flags/cache-A-desktop.jpg` (muted desktop CDP, live Frontier match, 1440x900): the A cache with the holder's blue strip and the RESUPPLYING tag under the ring. The HUD tag is small, so it had no ImageGen pass.
+- **Tests**: `node tools/conquest-supply-flags-test.mjs` (in `conquest:test`). It checks every flag spot on both maps against the voxels, holder only, the contested, neutral, seated and floor-gone cases, the 3/12/15 s rates, the HUD tag and pip, the world prop and the bot run.
+
 ## HUD and audio
 
 - **Top centre**: ticket bars with ▼ bleed rate, time left and five flag chips. Below them the weather tab: glyph and state, your `SPOT` and `LOCK` ranges (amber while shortened; the lock range is the jet's AA missile while you fly the jet) and the forecast (`CLEARING 2:10`, `STORM IN 1:40`, `→ CLEAR 0:31` during a transition). On touch only the glyph and the state sit beside the clock.
@@ -984,7 +998,7 @@ Not changed (each would change what bots do): per-tick re-route budgets, a resum
 
 ```
 { version: 2,
-  flags: [{ id, name, site, x, y, z, radius, home, spawns: [{x,y,z}] ×12 }],      // y = surface feet (+1.02)
+  flags: [{ id, name, site, x, y, z, radius, home, spawns: [{x,y,z}] ×12, cache: {x,y,z,yaw} }],  // y = surface feet (+1.02); cache: the supply cache spot
   bases: { alpha: { id, name, x, y, z, radius, spawns ×8 }, bravo: … },
   combatArea: { minX, maxX, minZ, maxZ },
   vehicleSpawns: [{ id, team, type, x, y, z, yaw, flag?, altX?, altY?, altZ?, altYaw?, walkingRoute?, exitRoute? }],  // 23 hulls (Redrock 19)

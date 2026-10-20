@@ -23,7 +23,7 @@ import { battlefieldLayoutKit, battlefieldMetadata, battlefieldReservedCells, de
 export { frontierSurfaceY };
 
 const { sx: SX, sz: SZ } = FRONTIER_PLAN.dimensions;
-const LAYOUT = battlefieldLayoutKit({ dimensions: FRONTIER_PLAN.dimensions, topY: frontierTopY });
+const LAYOUT = battlefieldLayoutKit({ dimensions: FRONTIER_PLAN.dimensions, topY: frontierTopY, waterY: frontierWaterY });
 const { mirrorYaw } = LAYOUT;
 /** Feet position on the terrain at continuous (x, z). */
 export const feet = LAYOUT.feet;
