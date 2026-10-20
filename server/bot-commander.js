@@ -56,8 +56,8 @@ export const TRANSIT_MAX_MS = 40000;
 /** One persistent crew seat per this many team bots (capped by ceil(teamBots / 3)). */
 export const CREW_SHARE = 4;
 const MAX_TEAM_RIDES = 1;
-const STALEMATE_FLANK_MS = 20000; // a contested frontline flag this long sends a squad to back-cap
-const ATTACK_STALL_MS = 40000;    // an attack with no ownership progress this long also counts as stalled
+const STALEMATE_FLANK_MS = 10000; // a contested frontline flag this long sends a squad to back-cap
+const ATTACK_STALL_MS = 25000;    // an attack with no ownership progress this long also counts as stalled
 const SQUAD_SPAWN_PENALTY = 45;   // m a squad spawn must beat the best flag spawn by
 /** A Recon spawn beacon stands still and never dies under the spawn: a lighter penalty than a squad mate. */
 const BEACON_SPAWN_PENALTY = 6;
@@ -512,11 +512,11 @@ export class BotCommander {
     }
   }
 
-  squadCentroid(squad, { infantryOnly = true } = {}) {
+  squadCentroid(squad, { infantryOnly = true, skip = null } = {}) {
     let x = 0, z = 0, y = 0, n = 0;
     for (const id of squad.members) {
       const p = this.game.entities.get(id);
-      if (!p || p.state !== 'alive' || (infantryOnly && p.vehicleId)) continue;
+      if (!p || p.state !== 'alive' || (infantryOnly && p.vehicleId) || skip?.(p)) continue;
       x += p.x; y += p.y; z += p.z; n++;
     }
     return n ? { x: x / n, y: y / n, z: z / n, n } : null;
@@ -1229,6 +1229,9 @@ export class BotCommander {
       // the mate) and a refused bot deploys at HQ: only take it when it clearly wins.
       // A Medic deploys on its squad whenever that is about as close: the aura needs mates around.
       else if (spawn.startsWith('squad:')) {
+        // A refused pick deploys the bot at HQ (DeploySystem.ready): a mate under fire
+        // (the 4 s damage lock) or on its spawn cooldown is no choice at all.
+        if (this.game.mode?.policy?.deploy?.validate?.(p, spawn)?.ok === false) continue;
         point = this.game.entities.get(spawn.slice(6));
         penalty = KITS[kit]?.aura === 'heal' ? MEDIC_BOT_RULES.squadSpawnPenalty : SQUAD_SPAWN_PENALTY;
       }
@@ -1383,8 +1386,13 @@ export class BotCommander {
       if (trail) { point = trail.point; arrive = MEDIC_BOT_RULES.trailArrive; escort = true; }
     }
     if (kit === 'support' && stance === 'attack') {
-      // Support trails the squad by a few metres, keeping the resupply aura on it.
-      const centroid = squad ? this.squadCentroid(squad) : null;
+      // Support trails the squad by a few metres, keeping the resupply aura on it. It trails
+      // the mates that lead the push only: never itself, another trailer (Support, Medic),
+      // a Recon on overwatch or a mate walking to a hull. Trailing a centroid that holds
+      // trailers drifts the whole group back from the flag (each one 5 m behind the rest);
+      // with no leader on foot it walks to the flag itself.
+      const centroid = squad ? this.squadCentroid(squad, { skip: m => m === p || ts.crews.has(String(m.id))
+        || ['support', 'medic', 'recon'].includes(this.kitOf(m)) }) : null;
       if (centroid && flat(centroid, flag) > flag.radius) {
         const back = bearing(flag, centroid);
         point = this.walkablePoint({ x: centroid.x - Math.sin(back) * 5, y: centroid.y, z: centroid.z - Math.cos(back) * 5 }) ?? point;

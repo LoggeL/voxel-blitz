@@ -8,6 +8,8 @@
 //  - a bot walking past an undefended enemy flag takes it on the way;
 //  - a Medic bot trails a walking squad mate inside the heal aura, picks a mate
 //    it can catch up with, and a revive run is only taken while it can finish;
+//  - a squad of Supports and a Medic walks onto its flag (no trailing drift back);
+//  - a dead bot never picks a squad spawn the deploy system refuses;
 //  - a bot in a trench the surface graph does not cover vaults out (bot-unstick.js).
 //
 //   node tools/conquest-bot-flow-test.mjs
@@ -243,6 +245,60 @@ function fixture(n, seed = 11) {
   f.bots.dispose(); f.game.stop?.();
 }
 
+// A squad of trailers (two Supports and a Medic) ordered to C walks there: a Support trails
+// only the mates that lead the push, so a squad without one no longer drifts back from the
+// flag 5 m at a time (each trailer stepping behind a centroid that held the others).
+{
+  const f = fixture(3, 13);
+  const [s1, s2, medic] = f.list;
+  f.kit(s1, 'support'); f.kit(s2, 'support'); f.kit(medic, 'medic');
+  const commander = f.bots.commander;
+  const C = flagOf('C'), B = flagOf('B');
+  // Start on flag B's spawn cells (WEST), 177 m from C.
+  const cells = B.spawns.slice(0, 3);
+  [s1, s2, medic].forEach((p, i) => f.place(p, cells[i % cells.length]));
+  const start = Math.min(...[s1, s2, medic].map(p => flat(p, C)));
+  for (let t = 0; t < 30000; t += TICK_MS) {
+    const squad = commander.teams.get('alpha').memberSquad?.get(String(s1.id));
+    if (squad?.order) Object.assign(squad.order, { stance: 'attack', flagId: 'C', phase: 'push', staging: null, issuedAt: f.game.now });
+    for (const p of [s1, s2, medic]) p.hp = Math.max(p.hp, 100);
+    f.game.step(TICK_MS);
+  }
+  ok(new Set([s1, s2, medic].map(p => commander.teams.get('alpha').memberSquad?.get(String(p.id))?.id)).size === 1, 'the three bots share a squad');
+  const end = Math.min(...[s1, s2, medic].map(p => flat(p, C)));
+  ok(end < start - 60, `the trailer squad closes on its flag (${start.toFixed(0)} -> ${end.toFixed(0)} m in 30 s)`);
+  f.bots.dispose(); f.game.stop?.();
+}
+
+// A dead bot never picks a squad spawn the deploy system refuses (a mate under fire): a
+// refused pick would put it at HQ instead of the nearest valid spawn.
+{
+  const f = fixture(2, 17);
+  const [bot, mate] = f.list;
+  const commander = f.bots.commander;
+  // WEST holds no flag; the mate stands 40 m short of C, the squad's attack flag.
+  for (const id of ['A', 'B']) f.setFlag(id, { owner: 'bravo', control: -1, state: 'idle' });
+  const C = flagOf('C');
+  const near = commander.walkablePoint({ x: C.x - 40, y: C.y, z: C.z });
+  f.place(mate, near);
+  const order = () => {
+    const squad = commander.teams.get('alpha').memberSquad?.get(String(bot.id));
+    if (squad?.order) Object.assign(squad.order, { stance: 'attack', flagId: 'C', phase: 'push', staging: null });
+  };
+  for (let i = 0; i < 4; i++) { order(); f.game.step(TICK_MS); }
+  f.game.killPlayer?.(bot, null, 'world', false);
+  ok(bot.state !== 'alive', 'the bot is down');
+  order();
+  mate.lastDamagedAt = -Infinity;
+  const free = commander.deployFor(bot);
+  ok(free?.spawn === `squad:${mate.id}`, `the mate near the objective is the pick while it is not under fire (${free?.spawn})`);
+  mate.lastDamagedAt = f.game.now;
+  const pick = commander.deployFor(bot);
+  ok(pick && pick.spawn !== `squad:${mate.id}`, `no squad spawn on a mate hit within the damage lock (${pick?.spawn})`);
+  ok(f.policy.deploy.validate(bot, pick.spawn).ok, 'the pick is one the deploy system accepts');
+  f.bots.dispose(); f.game.stop?.();
+}
+
 // A Medic already holding a revive finishes it although the window left is shorter than a fresh
 // run would need (reviveRunInTime only gates new runs; re-checking it mid-hold dropped the revive).
 {
@@ -305,5 +361,5 @@ function fixture(n, seed = 11) {
   f.bots.dispose(); f.game.stop?.();
 }
 
-console.log(`Conquest bot flow: ${checks} checks passed (attack commitment, zone stay, passing captures, Medic trail and revive timing, late revive, pit escape).`);
+console.log(`Conquest bot flow: ${checks} checks passed (attack commitment, zone stay, passing captures, Medic trail and revive timing, late revive, trailer squads, valid squad spawns, pit escape).`);
 process.exit(0);
