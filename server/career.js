@@ -116,6 +116,17 @@ export class CareerService {
     else this.loadouts.delete(id);
   }
 
+  /** Career XP total and this match's gain for the Conquest result screen (results row `cxp`). */
+  syncProgress(client, profile, gained) {
+    if (!client || !profile || !Number.isFinite(profile.xp)) return;
+    client.careerXp = Math.max(Number.isFinite(client.careerXp) ? client.careerXp : 0, profile.xp);
+    try {
+      const engine = client.room?.engine;
+      const entity = engine?.entities?.get?.(client.id);
+      if (entity && typeof engine.mode?.policy?.setCareerProgress === 'function') engine.mode.policy.setCareerProgress(entity, { xp: profile.xp, gained });
+    } catch { /* a mode error must never break reward bookkeeping */ }
+  }
+
   /**
    * Push a level gained in play to the live entity (Conquest re-checks kit
    * unlocks and announces new ones). Levels never decrease.
@@ -225,7 +236,7 @@ export class CareerService {
     if (!self) return;
     let state = this.sessions.get(client);
     if (!state || state.engine !== client.room.engine) {
-      state = { engine: client.room.engine, now: -1, active: 0, participated: 0, post: false, objectiveAt: -Infinity, objectiveXp: 0 };
+      state = { engine: client.room.engine, now: -1, active: 0, participated: 0, post: false, objectiveAt: -Infinity, objectiveXp: 0, matchXp: 0, matchSeq: 0, pushedXp: 0 };
       this.sessions.set(client, state);
     }
     if (snapshot.now <= state.now) return;
@@ -266,8 +277,10 @@ export class CareerService {
           if (snapshot.now - state.objectiveAt >= 60000) { state.objectiveAt = snapshot.now; state.objectiveXp = 0; }
           const xp = Math.min(objective.minorXp, objective.minorCapPerMinute - state.objectiveXp);
           if (xp > 0) { state.objectiveXp += xp; addReward({ xp }); }
-        }
+        } else if (event.reason === 'ribbon') addReward(CAREER_REWARDS.conquestRibbon);
       }
+      // Conquest medals are decided at match end from the match's ribbons.
+      if (match.mode === 'conquest' && event.kind === 'medal' && event.id === client.id) addReward(CAREER_REWARDS.conquestMedal);
     }
     const player = client.room.engine.entities.get(client.id);
     const input = player?.input;
@@ -293,13 +306,28 @@ export class CareerService {
       }
       state.post = true;
       state.participated = 0;
-    } else if (match.phase !== 'post') state.post = false;
+    } else if (match.phase !== 'post') {
+      // A rematch on the same engine starts a new match tally for the result screen.
+      if (state.post) { state.matchXp = 0; state.matchSeq++; state.pushedXp = 0; }
+      state.post = false;
+    }
+    state.matchXp += reward.xp;
     // The 20 Hz observation path is synchronous and makes no database calls
     // until an authoritative event actually earns a nonzero reward.
     if (['xp', 'kills', 'matches', 'pvpKills', 'wins'].some(key => reward[key] > 0)) {
       const saved = this.applyProgress(client.profileId, reward);
-      if (saved && typeof saved.then === 'function') saved.then(profile => this.syncLevel(client, profile), () => {});
-      else this.syncLevel(client, saved);
+      const gained = state.matchXp, seq = state.matchSeq;
+      const sync = profile => {
+        this.syncLevel(client, profile);
+        // A PostgreSQL save can resolve after a newer one, after the rematch reset
+        // the tally or after a room change: such a late save updates the total,
+        // never the match gain.
+        const fresh = state.matchSeq === seq && gained >= state.pushedXp && client.room?.engine === state.engine;
+        if (fresh) state.pushedXp = gained;
+        this.syncProgress(client, profile, fresh ? gained : undefined);
+      };
+      if (saved && typeof saved.then === 'function') saved.then(sync, () => {});
+      else sync(saved);
       return saved;
     }
   }

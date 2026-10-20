@@ -341,6 +341,8 @@ async function main() {
           meta.mastery = masteryView(profile?.mastery);
           // Authoritative level for the Conquest kit unlocks (guests without a career are level 1).
           meta.careerLevel = profile ? careerLevel(profile.xp) : 1;
+          // Career XP for the Conquest result screen's level bar (null: a guest without a career).
+          meta.careerXp = profile && Number.isFinite(profile.xp) ? profile.xp : null;
           if (admission.kind === 'quick') {
             admitted = manager.quickPlay(meta, name, admission.bots);
           } else if (admission.kind === 'create') {

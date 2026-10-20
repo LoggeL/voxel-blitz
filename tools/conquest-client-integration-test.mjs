@@ -153,7 +153,7 @@ assert(main.includes('this.hud.spectator?.setSuppressed(false)'), 'other modes g
 const events = main.slice(main.indexOf('onGameplayEvent: (event) => {'));
 assert(events.indexOf('this.conquestHud?.handleEvent(event, this.myId)') < events.indexOf("event.kind === 'vehicle_destroyed'"),
   'the HUD sees vehicle_destroyed before the destruction FX early return');
-assert(events.includes('this.objectiveCues?.handleEvent(event, this.selfRow?.team)'));
+assert(events.includes('this.objectiveCues?.handleEvent(event, this.selfRow?.team, this.myId)'));
 assert(events.includes('this.vehicleFx?.handleEvent(event, this.myId)') && events.includes('this.vehicleFx?.correctMissile(event)'));
 const killcamFilter = events.slice(events.indexOf('if (this.killcam?.active'), events.indexOf('this.vehicleFx?.handleEvent(event, this.myId)'));
 assert(killcamFilter.includes('this.vehicleFx?.correctMissile(event)') && killcamFilter.includes('this.vehicleFx?.endMissile(event.pid)'),

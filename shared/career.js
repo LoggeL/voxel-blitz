@@ -132,7 +132,12 @@ export const CAREER_REWARDS = Object.freeze({
     major: Object.freeze(['revive', 'capture', 'neutralize', 'defend', 'order_capture', 'order_defend']), majorXp: 15,
     minor: Object.freeze(['heal', 'repair', 'resupply']), minorXp: 3, minorCapPerMinute: 30,
   }),
+  /** Conquest ribbons (a `score` with reason `ribbon`) and end-of-match medals (`medal` events). */
+  conquestRibbon: Object.freeze({ xp: 20 }),
+  conquestMedal: Object.freeze({ xp: 50 }),
 });
+/** XP at which a career level starts (inverse of careerLevel). */
+export const careerLevelXp = level => 100 * Math.max(0, Math.trunc(level) - 1) ** 2;
 export function careerLevel(xp) { return 1 + Math.floor(Math.sqrt(Math.max(0, Number.isFinite(xp) ? xp : 0) / 100)); }
 export const defaultCosmeticLoadout = () => ({ weaponSkins: {}, characterSkin: 'standard', signature: 'standard', sound: 'standard', reticle: 'standard', nameplate: 'standard' });
 

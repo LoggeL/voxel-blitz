@@ -128,6 +128,8 @@ export function stampCareerLevel(engine, id, meta) {
   const policy = engine.mode?.policy;
   if (typeof policy?.setCareerLevel === 'function') policy.setCareerLevel(entity, level);
   else entity.careerLevel = Math.max(level, Number.isFinite(entity.careerLevel) ? entity.careerLevel : 1);
+  // Conquest result screen: the career XP behind the level bar (guests have none).
+  if (Number.isFinite(meta?.careerXp)) policy?.setCareerProgress?.(entity, { xp: meta.careerXp });
 }
 
 /**

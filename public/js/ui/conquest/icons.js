@@ -71,6 +71,10 @@ export const ICON_PATHS = Object.freeze({
   sensor: 'M12 7c4.4 0 8 1.6 8 3.5v3c0 1.9-3.6 3.5-8 3.5s-8-1.6-8-3.5v-3C4 8.6 7.6 7 12 7zm0 2c-3.3 0-5.6 .9-5.6 1.5S8.7 12 12 12s5.6-.9 5.6-1.5S15.3 9 12 9z',
   // Support mortar: the tube raised over its baseplate, the bipod leg forward.
   mortar: 'M6.2 15.6L15.6 3.4l2.3 1.8-9.4 12.2zM3 18.2h10.5v2.3H3zM13.6 9.6l1.3-.8 4.6 9.4h-1.6zM12.2 11.8h1.5l-.6 6.4h-1.4z',
+  // Ribbons and medals (ribbons.js): a reticle, a flag on its pole and a shield.
+  target: 'M11 2h2v3.1A7 7 0 0 1 18.9 11H22v2h-3.1A7 7 0 0 1 13 18.9V22h-2v-3.1A7 7 0 0 1 5.1 13H2v-2h3.1A7 7 0 0 1 11 5.1zm1 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4z',
+  flag: 'M5 2h2v20H5zM8 3h11l-3 4 3 4H8z',
+  shield: 'M12 2l8 3v6c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V5zm0 4.2L7 8v3.2c0 3.2 2 6 5 7.4z',
 });
 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */

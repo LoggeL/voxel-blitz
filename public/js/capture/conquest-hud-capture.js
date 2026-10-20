@@ -191,6 +191,8 @@ function textRect(selector) {
  * (everything else is underneath it).
  */
 function boxes() {
+  // The ribbon toast's entry slide (380 ms) would otherwise be measured mid-flight on a slow frame.
+  for (const anim of document.getAnimations?.() ?? []) if (anim.animationName === 'cq-ribbon-in') anim.finish();
   const one = selector => rect(document.querySelector(selector));
   const buttons = [...document.querySelectorAll('.vb-touch-button')].map(b => ({ action: b.dataset.action, box: rect(b) })).filter(b => b.box);
   if (one('.cq-deploy')) {
@@ -204,7 +206,7 @@ function boxes() {
     .map(n => ({ id: n.querySelector('.cq-flag-marker-letter')?.textContent || '?', box: union(rect(n), rect(n.querySelector('.cq-flag-marker-distance'))) }))
     .filter(f => f.box);
   return {
-    top: one('.cq-top'), view: one('.cq-view'), banner: one('.cq-banner'), ring: one('.cq-ring'), ticker: one('.cq-ticker'), minimap: one('.cq-minimap'), squad: one('.cq-squad'),
+    top: one('.cq-top'), view: one('.cq-view'), banner: one('.cq-banner'), ribbon: one('.cq-ribbon'), ring: one('.cq-ring'), ticker: one('.cq-ticker'), minimap: one('.cq-minimap'), squad: one('.cq-squad'),
     'map-hint': one('.cq-map-hint'), vehicle: one('.cq-vehicle'), mortar: one('.cq-mortar:not([hidden])'), interact: one('.cq-interact'), lock: one('.cq-lock'), restricted: one('.cq-restricted'),
     // Drawn on the reticle canvas: the tank hull indicator.
     hull: conquest?.reticles?.hullBox ?? null,

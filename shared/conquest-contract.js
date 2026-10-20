@@ -85,6 +85,7 @@ export const SCORE_POINTS = Object.freeze({
   order_capture: 100, order_defend: 50,
   // Recon gadgets (shared/recon-gadgets.js): a squad mate deployed on your beacon, an enemy beacon or sensor destroyed.
   beacon_spawn: 15, gadget_destroyed: 50,
+  ribbon: 50 /* bonus for a ribbon earned (RIBBONS) */,
 });
 export const SCORE_LABELS = Object.freeze({
   kill: 'KILL', headshot: 'HEADSHOT', assist: 'KILL ASSIST', attacker_kill: 'ATTACKER KILL', defender_kill: 'DEFENDER KILL',
@@ -93,7 +94,63 @@ export const SCORE_LABELS = Object.freeze({
   driver_assist: 'DRIVER ASSIST', revive: 'REVIVE', heal: 'HEAL', repair: 'REPAIR', resupply: 'RESUPPLY', spot_assist: 'SPOT ASSIST', squad_spawn: 'SQUAD SPAWN',
   order_capture: 'ORDER CAPTURE', order_defend: 'ORDER DEFEND',
   beacon_spawn: 'BEACON SPAWN', gadget_destroyed: 'GADGET DESTROYED',
+  ribbon: 'RIBBON',
 });
+
+/**
+ * Score categories of the result screen's personal summary: results rows carry
+ * `cqp`, the points per category in SCORE_CATEGORY_IDS order (decodeConquestResult).
+ * A reason missing here counts as `combat`, so the categories always sum to the score.
+ */
+export const SCORE_CATEGORIES = Object.freeze({
+  combat: Object.freeze(['kill', 'headshot', 'assist', 'attacker_kill', 'defender_kill', 'gadget_destroyed']),
+  objective: Object.freeze(['capture', 'neutralize', 'capture_assist', 'defend', 'order_capture', 'order_defend']),
+  vehicles: Object.freeze(['vehicle_destroyed', 'vehicle_crew', 'vehicle_disabled', 'vehicle_damage', 'driver_assist']),
+  support: Object.freeze(['revive', 'heal', 'repair', 'resupply', 'spot_assist', 'squad_spawn', 'beacon_spawn']),
+  ribbons: Object.freeze(['ribbon']),
+});
+export const SCORE_CATEGORY_IDS = Object.freeze(Object.keys(SCORE_CATEGORIES));
+const CATEGORY_OF = new Map(Object.entries(SCORE_CATEGORIES).flatMap(([id, reasons]) => reasons.map(r => [r, id])));
+export const scoreCategory = reason => CATEGORY_OF.get(reason) ?? 'combat';
+
+/**
+ * Ribbons (server/modes/conquest/ribbons.js): mid-match awards for `count`
+ * score events of one of `reasons`. A `life` ribbon counts since the last
+ * death and is paid once per life; a `match` ribbon is paid again at every
+ * multiple of `count` (5, 10, 15 revives). Each ribbon pays SCORE_POINTS.ribbon
+ * and CAREER_REWARDS.conquestRibbon XP and emits `ribbon {id, ribbon, count, pts}`.
+ * Wire order RIBBON_IDS (results row `cqr`): append only.
+ */
+const RIBBON = (label, detail, reasons, count, scope = 'match') => Object.freeze({ label, detail, reasons: Object.freeze(reasons), count, scope });
+export const RIBBONS = Object.freeze({
+  spree:        RIBBON('SPREE RIBBON',        '4 KILLS IN ONE LIFE',  ['kill'],              4, 'life'),
+  medic:        RIBBON('MEDIC RIBBON',        '5 REVIVES',            ['revive'],            5),
+  anti_vehicle: RIBBON('ANTI-VEHICLE RIBBON', '3 VEHICLES DESTROYED', ['vehicle_destroyed'], 3),
+  conquest:     RIBBON('CONQUEST RIBBON',     '2 FLAGS CAPTURED',     ['capture'],           2),
+  resupply:     RIBBON('RESUPPLY RIBBON',     '10 RESUPPLIES',        ['resupply'],          10),
+  repair:       RIBBON('REPAIR RIBBON',       '5 REPAIRS',            ['repair'],            5),
+  intel:        RIBBON('INTEL RIBBON',        '5 SPOT ASSISTS',       ['spot_assist'],       5),
+  defender:     RIBBON('DEFENDER RIBBON',     '2 FLAG DEFENDS',       ['defend'],            2),
+});
+export const RIBBON_IDS = Object.freeze(Object.keys(RIBBONS));
+/**
+ * Medals, decided once at match end from the match's ribbons: `count` ribbons
+ * of `ribbon` (null: of any kind). Each medal emits `medal {id, medal}` and pays
+ * CAREER_REWARDS.conquestMedal XP. Wire order MEDAL_IDS (results row `cqm`): append only.
+ */
+const MEDAL = (label, ribbon, count) => Object.freeze({ label, ribbon, count });
+export const MEDALS = Object.freeze({
+  valor:         MEDAL('VALOR MEDAL',         'spree',        2),
+  lifesaver:     MEDAL('LIFESAVER MEDAL',     'medic',        2),
+  tank_hunter:   MEDAL('TANK HUNTER MEDAL',   'anti_vehicle', 2),
+  conqueror:     MEDAL('CONQUEROR MEDAL',     'conquest',     2),
+  quartermaster: MEDAL('QUARTERMASTER MEDAL', 'resupply',     2),
+  mechanic:      MEDAL('MECHANIC MEDAL',      'repair',       2),
+  pathfinder:    MEDAL('PATHFINDER MEDAL',    'intel',        2),
+  guardian:      MEDAL('GUARDIAN MEDAL',      'defender',     2),
+  service:       MEDAL('SERVICE MEDAL',       null,           5),
+});
+export const MEDAL_IDS = Object.freeze(Object.keys(MEDALS));
 
 /** Server -> client event kinds added by Conquest v2 (all `{t:'ev', kind, at, ...}`). */
 export const CONQUEST_EVENT_KINDS = Object.freeze([
@@ -118,6 +175,8 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'comm_answer',       // {team, seq, comm, by, responder}  a bot took request `seq` (medic heading over, driver on the way)
   'recon_gadget',      // {gadget:'beacon'|'sensor', id, owner, team, state:'placed'|'destroyed'|'removed'|'expired', pos:[x,y,z], by?}
   'mortar',            // {id, state:'placed'|'refused'|'lost', vehicleId?, reason?, waitMs?}  Support mortar (shared/mortar-rules.js)
+  'ribbon',            // {id, ribbon, count, pts}         RIBBONS id earned mid-match; count = this ribbon's total this match, pts = SCORE_POINTS.ribbon paid
+  'medal',             // {id, medal}                      MEDALS id awarded at match end (one event per medal)
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);
@@ -267,6 +326,21 @@ export const decodeConquestPlayer = row => {
 export const decodeConquestStats = row => {
   const s = Array.isArray(row?.cqs) ? row.cqs : [0, 0, 0, 0];
   return { objective: s[0] | 0, vehicles: s[1] | 0, revives: s[2] | 0, captures: s[3] | 0 };
+};
+
+/**
+ * Post-match results row extras (contract v6, `match.results[]` only, never in live rows):
+ * `cqr` ribbon counts in RIBBON_IDS order, `cqm` earned medals as MEDAL_IDS indices,
+ * `cqp` points per SCORE_CATEGORY_IDS, `cxp` [careerXp, xpGainedThisMatch] (humans with a career only).
+ */
+export const decodeConquestResult = row => {
+  const ribbons = {}, categories = {};
+  RIBBON_IDS.forEach((id, i) => { ribbons[id] = Array.isArray(row?.cqr) ? Math.max(0, row.cqr[i] | 0) : 0; });
+  SCORE_CATEGORY_IDS.forEach((id, i) => { categories[id] = Array.isArray(row?.cqp) ? Math.max(0, row.cqp[i] | 0) : 0; });
+  const medals = (Array.isArray(row?.cqm) ? row.cqm : []).map(i => MEDAL_IDS[i]).filter(Boolean);
+  const cxp = Array.isArray(row?.cxp) && row.cxp.length >= 2 && row.cxp.every(Number.isFinite)
+    ? { xp: Math.max(0, Math.trunc(row.cxp[0])), gained: Math.max(0, Math.trunc(row.cxp[1])) } : null;
+  return { ribbons, medals, categories, career: cxp };
 };
 
 /** Frontier v2 plan (voxel units). y comes from the terrain: frontierSurfaceY(x, z) in shared/world/frontier-terrain.js. */

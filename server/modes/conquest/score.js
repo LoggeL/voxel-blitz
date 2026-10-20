@@ -1,4 +1,4 @@
-import { SCORE_POINTS } from '../../../shared/conquest-contract.js';
+import { SCORE_CATEGORY_IDS, SCORE_POINTS, scoreCategory } from '../../../shared/conquest-contract.js';
 import { VEHICLE_RULES } from '../../../shared/vehicles.js';
 
 /** Damage older than this no longer earns an assist. */
@@ -24,7 +24,8 @@ export class ScoreLedger {
    * `host` supplies: now(), emit(kind, fields), entity(id), teamFor(p),
    * isEnemy(a, b), vehicleFor(id), flags() (rich capture rows) and rules;
    * optionally damageTakenScale(entity, weapon) and onInfantryHit(victim,
-   * attacker, weapon, amount) (the roles package's kit passives).
+   * attacker, weapon, amount) (the roles package's kit passives) and
+   * onAward(id, reason, pts) (the ribbon tracker).
    */
   constructor(host) {
     this.host = host;
@@ -33,6 +34,7 @@ export class ScoreLedger {
 
   reset() {
     this.stats = new Map();
+    this.categories = new Map();
     this.contributions = new Map();
     this.vehicleDamage = new Map();
   }
@@ -99,12 +101,17 @@ export class ScoreLedger {
     if (reason === 'vehicle_destroyed') stats[STAT_INDEX.vehicles]++;
     if (reason === 'revive') stats[STAT_INDEX.revives]++;
     if (reason === 'capture') stats[STAT_INDEX.captures]++;
+    this._categories(id)[SCORE_CATEGORY_IDS.indexOf(scoreCategory(reason))] += pts;
     this.host.emit('score', { id, pts, reason });
+    this.host.onAward?.(id, reason, pts);
     return pts;
   }
 
   /** `[objectiveScore, vehiclesDestroyed, revives, captures]` for the cqs row. */
   statsRow(playerId) { return this._stats(String(playerId)).slice(); }
+
+  /** Points per SCORE_CATEGORY_IDS entry (results row `cqp`); they sum to the ledger's score. */
+  categoryRow(playerId) { return this._categories(String(playerId)).slice(); }
 
   /**
    * Kill payout: kill, headshot, attacker/defender kill near a flag, driver
@@ -175,6 +182,7 @@ export class ScoreLedger {
   rename(priorId, nextId) {
     const prior = String(priorId), next = String(nextId);
     if (this.stats.has(prior)) { this.stats.set(next, this.stats.get(prior)); this.stats.delete(prior); }
+    if (this.categories.has(prior)) { this.categories.set(next, this.categories.get(prior)); this.categories.delete(prior); }
     if (this.contributions.has(prior)) { this.contributions.set(next, this.contributions.get(prior)); this.contributions.delete(prior); }
     for (const list of this.contributions.values()) for (const c of list) if (c.id === prior) c.id = next;
     for (const [key, row] of [...this.vehicleDamage]) {
@@ -188,6 +196,7 @@ export class ScoreLedger {
   remove(playerId) {
     const id = String(playerId);
     this.stats.delete(id);
+    this.categories.delete(id);
     this.contributions.delete(id);
     for (const [key, row] of [...this.vehicleDamage]) if (row.attackerId === id) this.vehicleDamage.delete(key);
   }
@@ -195,6 +204,12 @@ export class ScoreLedger {
   _stats(id) {
     let row = this.stats.get(id);
     if (!row) { row = [0, 0, 0, 0]; this.stats.set(id, row); }
+    return row;
+  }
+
+  _categories(id) {
+    let row = this.categories.get(id);
+    if (!row) { row = SCORE_CATEGORY_IDS.map(() => 0); this.categories.set(id, row); }
     return row;
   }
 

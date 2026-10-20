@@ -4,6 +4,7 @@ import { Scoreboard } from './scoreboard.js';
 import { MODE_TITLES } from './mode-presentation.js';
 import { TEAM_DISPLAY } from '../../../shared/conquest-contract.js';
 import { conquestMvps, relativeTeam, ticketGraphModel } from './conquest/scoring.js';
+import { ConquestDebrief } from './conquest/debrief.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -17,6 +18,7 @@ export class MatchResultOverlay {
     this.dom = {};
     this.onContinue = onContinue;
     this.scoreboard = new Scoreboard();
+    this.debrief = null;
     this.roundId = null;
   }
 
@@ -55,6 +57,8 @@ export class MatchResultOverlay {
     graph.setAttribute('role', 'img');
     graphBox.appendChild(graph);
     const mvps = el('div', 'vb-result-mvps', conquest);
+    // Conquest debrief: team MVPs and top squad, the own score by category, ribbons, medals and career XP.
+    this.debrief = new ConquestDebrief(panel);
     const scoreboard = this.scoreboard.build(panel, { id: 'match-result-scoreboard', bodyId: 'match-result-scores', presentation: 'result' });
     scoreboard.style.display = 'block';
     const footer = el('div', 'vb-match-result-footer', panel);
@@ -220,8 +224,9 @@ export class MatchResultOverlay {
     const { conquest, graph, mvps } = this.dom;
     if (!conquest) return;
     conquest.hidden = !match;
-    if (!match) return;
     const selfTeam = selfRow?.team;
+    this.debrief?.update(match ? results : [], selfRow?.id ?? null, selfTeam);
+    if (!match) return;
     const own = selfTeam === 'bravo' ? 'bravo' : 'alpha';
     const model = ticketGraphModel(match.conquest?.ticketGraph, { width: 480, height: 110, maxTickets: match.conquest?.maxTickets });
     graph.textContent = '';
@@ -261,6 +266,7 @@ export class MatchResultOverlay {
 
   dispose() {
     this.scoreboard.dispose();
+    this.debrief = null;
     this.roundId = null;
     this.dom.root?.remove();
     this.dom = {};
