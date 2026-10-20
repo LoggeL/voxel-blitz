@@ -1,7 +1,14 @@
 import { SMOKE, smokeProfile, smokeBlocksSight, copySmokeFields } from '../../shared/smoke-rules.js';
 
 export class SmokeSystem {
-  constructor() { this.active = new Map(); }
+  constructor() {
+    this.active = new Map();
+    // Extra sight blockers by id, `(from, to, now) => bool` (a Conquest map event's smoke column);
+    // their owner sets and drops them, `clear()` leaves them alone.
+    this.occluders = new Map();
+  }
+  /** Register (fn) or drop (null) the sight blocker `id`. */
+  setOccluder(id, fn) { if (typeof fn === 'function') this.occluders.set(id, fn); else this.occluders.delete(id); }
   clear() { this.active.clear(); }
   deploy(projectile, ctx) {
     if (ctx.canAffectWorld?.() === false) return null;
@@ -26,6 +33,10 @@ export class SmokeSystem {
     if (ctx.canAffectWorld?.() === false) { this.clear(); return; }
     for (const [id, field] of this.active) if (ctx.now >= field.expiresAt) this.active.delete(id);
   }
-  blocksSight(from, to, now) { return smokeBlocksSight(this.active.values(), from, to, now); }
+  blocksSight(from, to, now) {
+    if (smokeBlocksSight(this.active.values(), from, to, now)) return true;
+    for (const blocks of this.occluders.values()) if (blocks(from, to, now)) return true;
+    return false;
+  }
   snapshot() { return copySmokeFields([...this.active.values()]); }
 }

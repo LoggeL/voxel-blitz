@@ -904,6 +904,9 @@ export function fireMountedRay(owner, origin, dir, weapon, ctx, { vehicleId = ow
         const type = ctx.getBlock(hit.x, hit.y, hit.z);
         damageBlock(hit.x, hit.y, hit.z, type, weapon.damage, ctx, owner?.id);
       }
+      // A mounted round on a voxel reaches the mode as a radius-0 blast on that voxel
+      // (Conquest map event targets that sustained HMG / cannon fire wears down).
+      ctx.onBlast?.([hit.x + 0.5, hit.y + 0.5, hit.z + 0.5], { key: weapon.key ?? null, radius: 0, ownerId: owner?.id ?? null, bullet: true });
     }
   }
   if (ctx.entities) {

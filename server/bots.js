@@ -53,6 +53,7 @@ import { ConquestAircraftDriving } from './bot-aircraft.js';
 import { ConquestMortarBots } from './bot-mortar.js';
 import { TitanfallBots } from './bot-titanfall.js';
 import { BotRecon } from './bot-recon.js';
+import { mapEventShoot } from './bot-map-events.js';
 import { isTitanType } from '../shared/titan-contract.js';
 import { PILOT_AT_RULES } from './sim/titanfall/pilot-projectiles.js';
 import { applyConquestVehicleCombat, applyMountedCombat, ballisticAim, bestWeaponFor, clearFlight, infantryArmorEffect, pickBotThreat, vehicleHullRules, STINGER_ENGAGE_RANGE } from './bot-vehicle-combat.js';
@@ -1886,8 +1887,14 @@ class BotManager {
     // the capacitor through the combat system when visual fire permission ends.
     if (p.charging && !canShoot) cancelCharge(p);
 
+    // Conquest map events: a launcher at a posted shoot target (a fuel tank with enemies around it), over the fight.
+    if (cq && !tf && combatAllowed && !inp.throwGrenade
+        && mapEventShoot(this.game, br, p, inp, now, dtS, ownedSlots, turnRate, pitchTurnRate, this.game.mode.teamFor?.(p) ?? p.team)) {
+      moving = false; br.moveWish = null;
+      inp.keys.f = inp.keys.b = inp.keys.l = inp.keys.r = false;
+      inp.keys.sprint = false;
     // Conquest: with nobody to fight, an enemy spawn beacon or motion sensor in sight is shot.
-    if (cq && !tf && combatAllowed && !fightNow && !objectiveUrgent && !inp.throwGrenade
+    } else if (cq && !tf && combatAllowed && !fightNow && !objectiveUrgent && !inp.throwGrenade
         && this.recon.shoot(br, p, inp, now, dtS, ownedSlots, turnRate, pitchTurnRate)) {
       moving = false; br.moveWish = null;
       inp.keys.f = inp.keys.b = inp.keys.l = inp.keys.r = false;

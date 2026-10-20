@@ -7,7 +7,7 @@
 // slot dam:
 // import { DamController } from './dam.js';
 // slot depot:
-// import { DepotController } from './depot.js';
+import { DepotController } from './depot.js';
 // slot weir:
 // import { WeirController } from './weir.js';
 // slot relay:
@@ -26,7 +26,7 @@ export const MAP_EVENT_CONTROLLERS = Object.freeze({
   // slot dam:
   // dam: DamController,
   // slot depot:
-  // depot: DepotController,
+  depot: DepotController,
   // slot weir:
   // weir: WeirController,
   // slot relay:
