@@ -20,7 +20,7 @@
 // slot comeback (both maps, trailing team call-in):
 // import { COMEBACK_EVENT } from './comeback.js';
 // slot airdrop (both maps, supply crate):
-// import { AIRDROP_EVENT } from './airdrop.js';
+import { AIRDROP_EVENT } from './airdrop.js';
 // end of import slots
 
 /** Every map event the game knows, in no particular order. */
@@ -40,6 +40,6 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot comeback:
   // COMEBACK_EVENT,
   // slot airdrop:
-  // AIRDROP_EVENT,
+  AIRDROP_EVENT,
   // end of list slots
 ].filter(Boolean));

@@ -10,6 +10,7 @@ import { encodeConquestFlag } from '../../../shared/conquest.js';
 import { mortarPitchForRange } from '../../../shared/mortar-rules.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
+import { airdropHudFixtures } from './map-events/airdrop-fixtures.js';
 
 export const FIXTURE_NOW = 2_000_000;
 const GROUND = 26;
@@ -692,6 +693,8 @@ export function conquestHudFixtures() {
       dead: true, killer: { name: 'Rourke', weaponName: 'VK-77 RAPTOR', distance: 64 }, selection: { spawn: 'hq', kit: 'assault', variant: 0 },
       camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
+  // Map events: the supply airdrop (public/js/capture/map-events/airdrop-fixtures.js).
+  out.push(...airdropHudFixtures({ state, roster, baseMatch, cam, yawTo, meAt, now: FIXTURE_NOW, ground: GROUND, from: B, to: C }));
   return out;
 }
 

@@ -19,7 +19,7 @@
 // slot comeback:
 // import { ComebackController } from './comeback.js';
 // slot airdrop:
-// import { AirdropController } from './airdrop.js';
+import { AirdropController } from './airdrop.js';
 // end of import slots
 
 export const MAP_EVENT_CONTROLLERS = Object.freeze({
@@ -38,6 +38,6 @@ export const MAP_EVENT_CONTROLLERS = Object.freeze({
   // slot comeback:
   // comeback: ComebackController,
   // slot airdrop:
-  // airdrop: AirdropController,
+  airdrop: AirdropController,
   // end of map slots
 });
