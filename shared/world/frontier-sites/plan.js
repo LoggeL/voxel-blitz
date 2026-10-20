@@ -1,22 +1,23 @@
 // Static planning helpers shared by the Frontier site modules and the map
 // metadata: road clearance, footprint tests and deterministic spawn picking.
-// Nothing here touches voxels or builds the terrain.
+// Nothing here touches voxels or builds the terrain. The Redrock sites
+// (shared/world/redrock-sites/plan.js) run the same helpers over their roads.
 
 import { FRONTIER_ROAD_PLAN } from '../frontier-terrain.js';
 
 export const rect = (minX, minZ, maxX, maxZ, extra = {}) => Object.freeze({ minX, minZ, maxX, maxZ, ...extra });
 export const inRect = (r, x, z, margin = 0) => x >= r.minX - margin && x <= r.maxX + 1 + margin && z >= r.minZ - margin && z <= r.maxZ + 1 + margin;
 
-function segmentDistance(px, pz, a, b) {
+export function segmentDistance(px, pz, a, b) {
   const dx = b[0] - a[0], dz = b[1] - a[1], len2 = dx * dx + dz * dz;
   const t = len2 ? Math.max(0, Math.min(1, ((px - a[0]) * dx + (pz - a[1]) * dz) / len2)) : 0;
   return Math.hypot(px - a[0] - dx * t, pz - a[1] - dz * t);
 }
 
-/** Distance from (x, z) to the nearest road edge (negative on the road). */
-export function roadClearance(x, z) {
+/** Distance from (x, z) to the nearest road edge of `roadPlan` (negative on the road). */
+export function roadPlanClearance(roadPlan, x, z) {
   let best = Infinity;
-  for (const road of FRONTIER_ROAD_PLAN) {
+  for (const road of roadPlan) {
     for (let i = 1; i < road.points.length; i++) {
       best = Math.min(best, segmentDistance(x, z, road.points[i - 1], road.points[i]) - road.width / 2);
     }
@@ -24,18 +25,24 @@ export function roadClearance(x, z) {
   return best;
 }
 
+/** Distance from (x, z) to the nearest Frontier road edge (negative on the road). */
+export function roadClearance(x, z) { return roadPlanClearance(FRONTIER_ROAD_PLAN, x, z); }
+
 /**
  * Twelve dry, open spawn cells around a flag: rings at the given radii,
- * clear of footprints and roads, spread by taking every k-th candidate.
+ * clear of footprints and Frontier's roads, spread by taking every k-th candidate.
  */
-export function pickSpawnCells(cx, cz, { exclude = [], count = 12, radii = [10, 14, 18], roadMargin = 1.5, minGap = 4, accept = () => true } = {}) {
+export function pickSpawnCells(cx, cz, options) { return spawnCellsAround(roadClearance, cx, cz, options); }
+
+/** pickSpawnCells over any road clearance function `clearance(x, z)`. */
+export function spawnCellsAround(clearance, cx, cz, { exclude = [], count = 12, radii = [10, 14, 18], roadMargin = 1.5, minGap = 4, accept = () => true } = {}) {
   const candidates = [];
   for (const r of radii) {
     for (let a = 0; a < 48; a++) {
       const angle = (a / 48) * Math.PI * 2 + r * 0.13;
       const x = Math.floor(cx + Math.cos(angle) * r) + 0.5, z = Math.floor(cz + Math.sin(angle) * r) + 0.5;
       if (exclude.some(e => inRect(e, x, z, 1.5))) continue;
-      if (roadClearance(x, z) < roadMargin) continue;
+      if (clearance(x, z) < roadMargin) continue;
       if (!accept(x, z)) continue;
       candidates.push({ x, z, angle: Math.atan2(z - cz, x - cx), r });
     }
