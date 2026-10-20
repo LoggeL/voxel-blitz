@@ -20,8 +20,8 @@ const ok = (value, message) => { assert.ok(value, message); checks++; };
 const eq = (a, b, message) => { assert.deepEqual(a, b, message); checks++; };
 
 // ------------------------------------------------------------ contract and gating --
-eq(CONQUEST_CONTRACT_VERSION, 7, 'contract v7 carries the FPV drone');
-eq([KITS.engineer.gadgets.at(-1), DEPLOYABLE_TYPE_IDS.at(-1), CONQUEST_EVENT_KINDS.at(-1)], ['fpv', 'fpv', 'fpv'], 'every new entry is appended');
+eq(CONQUEST_CONTRACT_VERSION, 8, 'contract v7 carries the FPV drone');
+eq([KITS.engineer.gadgets.at(-1), DEPLOYABLE_TYPE_IDS.at(-1), CONQUEST_EVENT_KINDS[CONQUEST_EVENT_KINDS.indexOf('map_event') + 1]], ['fpv', 'fpv', 'fpv'], 'every new entry is appended');
 ok(isDeployableType('fpv') && kitDeployable('engineer', 2) === 'fpv' && kitGadgetWeapon('engineer', 2) === null, 'gadget 2 is the drone, no launcher');
 eq(kitWeapons('engineer', 0, 2).owned.filter(id => id === 'rocket' || id === 'stinger'), [], 'the FPV Engineer owns no launcher');
 eq(parseConquestIntent({ fpv: 1 }), { type: 'fpv' });

@@ -34,7 +34,9 @@ export class PowerupHud {
   collected(event) {
     if (!this.toast || !Object.hasOwn(POWERUP_TYPES, event?.type)) return;
     const type = POWERUP_TYPES[event.type];
-    this.toast.textContent = event.type === 'cash'
+    // A caller-supplied label (the Conquest ammo pouch '+1 MAG') replaces the stock text.
+    this.toast.textContent = typeof event.label === 'string' && event.label ? event.label
+      : event.type === 'cash'
       ? `CASH +$${Math.round(Number(event.amount) || 0)}`
       : event.type === 'ammo'
       ? 'AMMO · RESERVES REFILLED'

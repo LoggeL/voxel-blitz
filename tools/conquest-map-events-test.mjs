@@ -32,8 +32,8 @@ import { RecordingController, TICK_MS, conquestBaseBytes, eventFixture, fixtureM
 import { CONQUEST_MATCH_BUDGET_BYTES } from './lib/protocol-contract.mjs';
 
 // ---------------------------------------------------------------- contract
-assert.equal(CONQUEST_CONTRACT_VERSION, 7, 'map events are contract v7');
-assert.deepEqual(CONQUEST_EVENT_KINDS.slice(-2), ['map_event', 'fpv'], 'the map_event kind is appended, the FPV drone after it');
+assert.equal(CONQUEST_CONTRACT_VERSION, 8, 'map events are contract v7');
+assert.deepEqual(CONQUEST_EVENT_KINDS.slice(CONQUEST_EVENT_KINDS.indexOf('map_event'), CONQUEST_EVENT_KINDS.indexOf('map_event') + 2), ['map_event', 'fpv'], 'the map_event kind is appended, the FPV drone after it');
 assert.equal(SCORE_POINTS.map_event, 200);
 assert(SCORE_CATEGORIES.objective.includes('map_event') && CAREER_REWARDS.conquestObjective.major.includes('map_event'), 'objective points, major career XP');
 assert.deepEqual(parseConquestIntent({ t: 'conquest', support: { type: 'use', targetId: 'dam:0' } }), { type: 'support', support: 'use', targetId: 'dam:0' });

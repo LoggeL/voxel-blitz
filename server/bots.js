@@ -65,6 +65,7 @@ import { isAircraft } from '../shared/vehicles.js';
 import { ROCKET_RULES } from '../shared/rocket-rules.js';
 import { ballisticIntercept, ballisticProfile } from '../shared/bullet-ballistics.js';
 import { MEDIC_BOT_RULES } from './bot-medic.js';
+import { pouchGoal } from './bot-pouches.js';
 
 const TAU = Math.PI * 2;
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
@@ -1203,6 +1204,8 @@ class BotManager {
       return inp;
     }
 
+    // Low on primary ammo with no enemy in sight: a pouch of the fallen within reach (server/bot-pouches.js).
+    if (cq && !tf) goal = pouchGoal(this.game, br, p, goal, now) ?? goal;
     const objective = (cq && goalPoint({ target: goal.point })) || goalPoint(goal);
     const objectiveFlatDist = objective ? Math.hypot(objective.x - p.x, objective.z - p.z) : Infinity;
     const objectiveDist = objective

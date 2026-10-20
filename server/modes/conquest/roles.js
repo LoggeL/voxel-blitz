@@ -322,6 +322,22 @@ export class ConquestRoles {
     return true;
   }
 
+  /**
+   * True when `victim` died as infantry on foot inside the world, so a body lies
+   * where it fell (the rules of the revivable body): no seat, no wreck, no fall
+   * out of the world, no restricted-area or menu death. Conquest ammo pouches drop on it.
+   */
+  diedOnFoot(victim, context = null) {
+    const p = this._entity(victim), state = this._state(victim, false);
+    return !!p && !!state && this._downAllowed(p, state, context);
+  }
+
+  /** Where a body settles on the floor under `victim` (the revivable body's height). */
+  bodyRestY(victim) {
+    const p = this._entity(victim);
+    return p ? settleBodyY(p, this.engine?.solidAt, this.engine?.fluidAt) : NaN;
+  }
+
   _downAllowed(p, state, context) {
     if (!this._live() || !finite3(p)) return false;
     const weapon = typeof context?.weapon === 'string' ? context.weapon : '';

@@ -64,7 +64,7 @@ const park = (team, players) => players.forEach((p, i) => place(p, team === 'alp
 
 // --- contract, wire form and pure rules ----------------------------------------------
 {
-  eq(CONQUEST_CONTRACT_VERSION, 7, 'contract v6 adds the Breakthrough variant');
+  eq(CONQUEST_CONTRACT_VERSION, 8, 'contract v6 adds the Breakthrough variant');
   eq(CONQUEST_VARIANTS, ['conquest', 'breakthrough']);
   eq([normalizeConquestVariant('breakthrough'), normalizeConquestVariant('rush'), normalizeConquestVariant(undefined)], ['breakthrough', 'conquest', 'conquest']);
   ok(CONQUEST_EVENT_KINDS.indexOf('sector_captured') === CONQUEST_EVENT_KINDS.indexOf('bridge') + 1
