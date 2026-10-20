@@ -50,6 +50,8 @@ export class PlayerPhysics {
     this.swimming = false;
     // Conquest parachute / ejection seat (shared/parachute.js), predicted like the authority.
     this.airRules = false;
+    // Conquest weather wind under an open canopy ({x, z} m/s from match.conquest.wx), like the authority.
+    this.chuteDrift = null;
     this.chute = CHUTE.none;
     this.chuteT = 0;
     this._chuteHold = 0;
@@ -374,7 +376,7 @@ export class PlayerPhysics {
       jumpAccepted = true;
     }
     if (this.chute === CHUTE.open) {
-      stepChuteVelocity(this.vel, Number.isFinite(yaw) ? yaw : this.leanYaw, wish.x, wish.z, dt);
+      stepChuteVelocity(this.vel, Number.isFinite(yaw) ? yaw : this.leanYaw, wish.x, wish.z, dt, this.chuteDrift);
     } else if (this.chute === CHUTE.seat) {
       // The ejection seat flies ballistic until the canopy opens.
       this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);

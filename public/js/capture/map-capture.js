@@ -8,8 +8,9 @@ import { rendererCapabilities, resolveGraphicsProfile } from '../engine/graphics
 
 // Static, muted map captures: no game loop, network, audio or HUD. Optional
 // layers: ?vehicles=1 parks the authored fleet (plus a shot's staged hull),
-// voxel-lit through VehicleView.lightingRoot(); ?weather=golden|mist|overcast
-// overrides the Frontier mood; ?ambience=1 adds the Conquest chimney plumes,
+// voxel-lit through VehicleView.lightingRoot(); ?weather=golden|mist|overcast|storm
+// overrides the Frontier mood and runs the Conquest weather view pinned at that
+// state (rain, wet ground; ?flash=1 freezes a lightning strike at its peak); ?ambience=1 adds the Conquest chimney plumes,
 // wreck columns and off-map salvos through the shared ParticleField;
 // ?avatars=1 and ?explosion= as before. Any failed request fails the capture.
 
@@ -149,6 +150,29 @@ if (shot.mode === 'conquest' && params.get('ambience') === '1' && world.meta?.co
     weather: worldview.weather || 'golden', getBlock: world.getBlock });
   for (let i = 0; i < 16 * 30; i++) { ambience.update(1 / 30, camera); particles.update(1 / 30, camera); }
 }
+// Conquest weather on Frontier: the live ConquestWeatherView pinned at the ?weather= state
+// (the server's `wx` tuple for a held state), so rain, wet ground and the blended uniforms
+// are the match's; ?flash=1 adds one strike ahead of the camera, frozen at its brightest.
+let weatherView = null;
+if (map === 'frontier' && params.get('weather') && !overview) {
+  const [{ ConquestWeatherView }, { WEATHER_IDS, WEATHER_STATES, decodeConquestWeather }] = await Promise.all([
+    import('../engine/conquest-weather-view.js'), import('../../../shared/conquest-weather.js'),
+  ]);
+  const id = params.get('weather');
+  if (WEATHER_STATES[id]) {
+    let seed = 0x5eed;
+    const random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    weatherView = new ConquestWeatherView({ worldview, post, graphics, random });
+    const index = WEATHER_IDS.indexOf(id);
+    weatherView.set(decodeConquestWeather([index, index, 0, 0, 210, Math.round(WEATHER_STATES[id].rain * 100), -1]));
+    for (let i = 0; i < 30; i++) weatherView.update(1 / 30, camera);
+    if (params.get('flash') === '1') {
+      const dx = shot.target[0] - shot.position[0], dz = shot.target[2] - shot.position[2], len = Math.hypot(dx, dz) || 1;
+      weatherView.strike({ x: shot.position[0] + dx / len * 240 + dz / len * 60, y: 28, z: shot.position[2] + dz / len * 240 - dx / len * 60 }, camera.position);
+      weatherView.update(0.02, camera);
+    }
+  }
+}
 // Opt-in blast review: ?explosion=frag|limpet|rocket|pulse|molotov|shell (tank HE blast plus an AP tracer in flight), ?explosionAge=s, ?explosionAt=x,y,z.
 const explosion = params.get('explosion') ? (await import('./explosion-capture.js')).stageCaptureExplosion({
   type: params.get('explosion'), age: params.get('explosionAge') ?? 0.12, at: params.get('explosionAt'),
@@ -205,6 +229,7 @@ window.__vbCapture = Object.freeze({
   tufts: worldview.grassTufts?.stats || null,
   conquest: worldview.conquest?.stats || null,
   ambience: ambience?.stats || null,
+  weatherView: weatherView?.stats || null,
   particles: particles?.stats || null,
   vehicles: vehicles ? world.meta.conquest.vehicleSpawns.length : 0,
   graphics,

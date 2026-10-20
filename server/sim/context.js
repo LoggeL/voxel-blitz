@@ -97,6 +97,8 @@ export function createSimulationContexts(engine) {
     movementLocked: false,
     // Conquest flies parachutes and ejection seats and applies fall damage.
     get airRules() { return engine.mode?.airborneRules?.() === true; },
+    // Conquest weather: the wind an open canopy drifts with (`drift {x, z}`, shared/conquest-weather.js).
+    get chuteDrift() { return engine.mode?.weatherEffects?.()?.drift ?? null; },
     // Titanfall pilot movement hooks (shared/pilot-movement.js).
     get pilotRules() { return isTitanfall(engine.mode?.mode); },
     onLand: (entity, speed) => engine.mode?.fallDamage?.(entity, speed),

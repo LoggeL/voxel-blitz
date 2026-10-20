@@ -195,11 +195,13 @@ const SCENERY = {
  *   golden    late-afternoon sun from the west-south-west, warm haze, long shadows
  *   mist      valley mist, hazy soft sun, denser fog
  *   overcast  grey deck, no sun disc, flat light
+ *   storm     dark slate deck, cold dense fog, dim sun, rain (Conquest dynamic weather:
+ *             conquest-weather-view.js blends between these presets at runtime)
  * fogScale multiplies the render-distance profile's ground density and, unless
  * airFogScale is given, its airborne density. Golden thins the ground haze so
  * the flags' landmarks read across the valley; the air keeps the profile's.
  */
-export const FRONTIER_WEATHER = Object.freeze(['golden', 'mist', 'overcast']);
+export const FRONTIER_WEATHER = Object.freeze(['golden', 'mist', 'overcast', 'storm']);
 const FRONTIER_SCENERY = {
   skybox: null, density: 0.002,
   // No blocky puffs: each mood paints its own pixel-snapped cloud layer in the
@@ -279,7 +281,22 @@ const FRONTIER_PRESETS = {
     ambience: { kind: 'sparse', floor: 20, band: 40 },
     water: { reflection: 0.85, shallow: '#5b6c72', deep: '#26363d', tile: 0.25, specular: 0.25 },
     backdropHaze: '#99a3ad', backdropLight: { sun: '#c8ccd0', sky: '#a8b2bc' }, backdropAirFog: 0.45, backdropBaseHaze: 0.65 },
+  // Design reference: docs/design/conquest/weather/ (storm look).
+  storm: { skyTop: '#323a44', skyHorizon: '#6b757e', fog: '#717b84', skyHaze: 0.5,
+    overcast: 1, deckColor: '#58626c', cloud: '#737d85',
+    skyLight: '#9ba8b4', groundLight: '#3c443c', sun: '#c4ced8', ambient: 0.7, sunlight: 0.38,
+    sunDir: [-30, 110, 30], sunDisc: 0, envIntensity: 0.36, fogScale: 1.65, airFogScale: 1.45,
+    grade: { exposure: 0.9, saturation: 0.8, contrast: 1.1, shadowTint: [-0.004, 0.003, 0.016], highlightTint: [-0.006, 0.0, 0.01] },
+    light: { minSky: 0.5, shadow: 0.18 },
+    ambience: { kind: 'rain', floor: 20 },
+    water: { reflection: 0.9, shallow: '#45555b', deep: '#1b282e', tile: 0.32, specular: 0.12 },
+    backdropHaze: '#6c757d', backdropLight: { sun: '#949ca4', sky: '#7c8791' }, backdropAirFog: 0.85, backdropBaseHaze: 0.9, backdropHazeHeight: 120 },
 };
+
+/** A Frontier weather preset's raw values (conquest-weather-view.js blends between them). */
+export function frontierWeatherPreset(weather) {
+  return FRONTIER_PRESETS[FRONTIER_WEATHER.includes(weather) ? weather : 'golden'];
+}
 
 /** The weather a map shows: a capture override, else the authored mapMeta value, else golden. */
 export function resolveWeather(meta, override = null) {

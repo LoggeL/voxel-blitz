@@ -106,13 +106,15 @@ export function chuteAvailable(body, solidAt, fluidAt) {
 
 /**
  * Canopy flight velocity for one step: sink toward `descent`, glide along the
- * look yaw and steer with the normalized wish direction (wx, wz).
- * `vel` = { x, y, z } is updated in place.
+ * look yaw and steer with the normalized wish direction (wx, wz). `drift`
+ * `{x, z}` (m/s, Conquest weather: shared/conquest-weather.js) is the wind the
+ * canopy drifts with on top. `vel` = { x, y, z } is updated in place.
  */
-export function stepChuteVelocity(vel, yaw, wx, wz, dt) {
+export function stepChuteVelocity(vel, yaw, wx, wz, dt, drift = null) {
   const v = 1 - Math.exp(-PARACHUTE.verticalResponse * dt), h = 1 - Math.exp(-PARACHUTE.horizontalResponse * dt);
   const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
-  const tx = fx * PARACHUTE.glide + wx * PARACHUTE.steer, tz = fz * PARACHUTE.glide + wz * PARACHUTE.steer;
+  const ax = Number.isFinite(drift?.x) ? drift.x : 0, az = Number.isFinite(drift?.z) ? drift.z : 0;
+  const tx = fx * PARACHUTE.glide + wx * PARACHUTE.steer + ax, tz = fz * PARACHUTE.glide + wz * PARACHUTE.steer + az;
   vel.y += (-PARACHUTE.descent - vel.y) * v;
   vel.x += (tx - vel.x) * h;
   vel.z += (tz - vel.z) * h;

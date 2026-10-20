@@ -396,7 +396,7 @@ function fixture(n, { seed = 3, hulls = false } = {}) {
     f.policy.comms.request(p, 'medic', f.game.now);
   }
   const bytes = JSON.stringify(f.policy.matchSnapshot().conquest).length;
-  ok(bytes <= 400, `match.conquest with orders stays within 400 B while ${COMM_RULES.maxPerTeam} requests stand (${bytes} B)`);
+  ok(bytes <= 440, `match.conquest with orders and the weather tuple stays within 440 B while ${COMM_RULES.maxPerTeam} requests stand (${bytes} B)`);
   const rows = wireRows(f.game, f.policy).filter(r => r.cqc);
   eq(rows.length, COMM_RULES.maxPerTeam, 'each requester row carries its cqc');
   ok(rows.every(r => JSON.stringify(r.cqc).length <= 24), 'a cqc field is a few bytes');

@@ -177,6 +177,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'mortar',            // {id, state:'placed'|'refused'|'lost', vehicleId?, reason?, waitMs?}  Support mortar (shared/mortar-rules.js)
   'ribbon',            // {id, ribbon, count, pts}         RIBBONS id earned mid-match; count = this ribbon's total this match, pts = SCORE_POINTS.ribbon paid
   'medal',             // {id, medal}                      MEDALS id awarded at match end (one event per medal)
+  'weather_strike',    // {x, y, z}                      a lightning strike of the weather timeline (y = ground), shared/conquest-weather.js
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);

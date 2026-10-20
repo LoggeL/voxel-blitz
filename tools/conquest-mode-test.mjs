@@ -271,7 +271,8 @@ const park = (players, team) => players.filter(p => p.team === team).forEach((p,
   run(game, TICK_MS);
   const snap = game.lastSnapshot;
   const conquest = snap.match.conquest;
-  assert.deepEqual(Object.keys(conquest).sort(), ['bleed', 'endsAt', 'flags', 'maxTickets', 'squads', 'tickets', 'v']);
+  assert.deepEqual(Object.keys(conquest).sort(), ['bleed', 'endsAt', 'flags', 'maxTickets', 'squads', 'tickets', 'v', 'wx']);
+  assert.equal(conquest.wx.length, 7, 'the weather tuple (docs/conquest.md, Weather)');
   assert.equal(conquest.v, 2);
   assert.deepEqual(snap.match.scores, conquest.tickets, 'match.scores stays the ticket count');
   for (const tuple of conquest.flags) {
@@ -279,7 +280,7 @@ const park = (players, team) => players.filter(p => p.team === team).forEach((p,
     assert(Number.isInteger(tuple[1]) && Math.abs(tuple[1]) <= 100, 'control100 is an integer');
   }
   const bytes = Buffer.byteLength(JSON.stringify(conquest));
-  assert(bytes <= 400, `match.conquest is ${bytes} B (budget 400)`);
+  assert(bytes <= 440, `match.conquest is ${bytes} B (budget 440 with the weather tuple)`);
   {
     // A busy tick: three flags in play with full zones, bleed running and an 8-digit clock.
     const saved = policy.flags.map(f => ({ ...f }));
@@ -290,7 +291,7 @@ const park = (players, team) => players.filter(p => p.team === team).forEach((p,
     policy.ledger.endsAt = 87654321;
     policy.ledger.bleed.bravo = 3000;
     const busy = Buffer.byteLength(JSON.stringify(policy.matchSnapshot().conquest));
-    assert(busy <= 400, `a busy-tick match.conquest is ${busy} B (budget 400)`);
+    assert(busy <= 440, `a busy-tick match.conquest is ${busy} B (budget 440 with the weather tuple)`);
     policy.flags.forEach((f, i) => Object.assign(f, saved[i]));
     policy.ledger.endsAt = endsAt;
     policy.ledger.bleed.bravo = 0;
@@ -395,4 +396,4 @@ for (const control of [-0.003, -0.00417, 0.003, 0]) {
   assert.deepEqual([row.alpha, row.bravo], [0, 3], `control ${control} keeps alpha/bravo counts through the wire`);
 }
 
-console.log('Conquest v2 authority: capture math (1v0 8 s, net scaling, 2.5x cap, contest, decay, 16 s flip), presence (airborne/down/NPC excluded), one flag_* event per transition with pads, majority bleed 3/2/1 s, death cost and refund, ticket_low 25/10 %, zero-ticket and time-limit wins with tie-breaks, ticket graph, HQ/OOB restriction deaths, balanced squads, cq/cqs round trip, 400 B match budget and strict parsers passed.');
+console.log('Conquest v2 authority: capture math (1v0 8 s, net scaling, 2.5x cap, contest, decay, 16 s flip), presence (airborne/down/NPC excluded), one flag_* event per transition with pads, majority bleed 3/2/1 s, death cost and refund, ticket_low 25/10 %, zero-ticket and time-limit wins with tie-breaks, ticket graph, HQ/OOB restriction deaths, balanced squads, cq/cqs round trip, 440 B match budget and strict parsers passed.');

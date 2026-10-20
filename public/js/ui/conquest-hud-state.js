@@ -14,6 +14,7 @@ import {
   decodeConquestMatch, deployOptions, deployViewFromSnapshot, isBotId, oppositeTeam, parseSpawnChoice, resolveDeployChoice, teamSign,
 } from '../../../shared/conquest.js';
 import * as vehicleDefs from '../../../shared/vehicle-defs.js';
+import { WEATHER_STATES } from '../../../shared/conquest-weather.js';
 import { vehicleHijackable } from '../../../shared/vehicle-seats.js';
 import {
   KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_POUCH_GADGETS, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
@@ -100,6 +101,42 @@ export function ticketModel(cq, selfTeam, nowMs) {
   };
   const timeLeftMs = Number.isFinite(cq.endsAt) && Number.isFinite(nowMs) ? Math.max(0, cq.endsAt - nowMs) : null;
   return { own: side(own, 'own'), enemy: side(enemy, 'enemy'), timeLeftMs, clock: timeLeftMs === null ? '--:--' : clockText(timeLeftMs) };
+}
+
+/* ---------------------------------------------------------------- weather */
+
+/**
+ * The weather tab under the ticket bar (docs/conquest.md, *Weather*), from the
+ * decoded `match.conquest.wx` (cq.weather): the leading state, the spotting
+ * range of the own kit and the lock range of the own launcher (the jet's AA
+ * missile while flying the jet, the STINGER otherwise), both the server's
+ * CONQUEST_RULES / LOCK_RULES × the same multipliers, and the forecast. Null
+ * while the match has no weather.
+ */
+export function weatherChipModel(cq, { kit = null, seatedType = null, hullSpot = null } = {}) {
+  const wx = cq?.weather;
+  if (!wx) return null;
+  const state = wx.blend >= 0.5 ? wx.to : wx.from;
+  const lead = WEATHER_STATES[state] ?? WEATHER_STATES.golden;
+  const spotBase = kit === 'recon' ? CONQUEST_RULES.spotRangeRecon : CONQUEST_RULES.spotRange;
+  const lockBase = seatedType === 'plane' ? vehicleDefs.LOCK_RULES.aaMissile.range : vehicleDefs.LOCK_RULES.stinger.range;
+  // Thermal optics on the crewed hull (`hullSpot`, shared/vehicle-upgrades.js) see through the weather, as on the server.
+  const thermal = Number.isFinite(hullSpot) && hullSpot > 0 ? hullSpot : 0;
+  const spot = Math.max(Math.round(spotBase * wx.spot), thermal), lock = Math.round(lockBase * wx.lock);
+  const next = wx.next ? WEATHER_STATES[wx.next] : null;
+  let forecast = '', trend = '';
+  if (next && wx.etaS > 0) {
+    const eta = clockText(wx.etaS * 1000);
+    if (wx.from !== wx.to) { forecast = `\u2192 ${next.label} ${eta}`; trend = next.spot >= (WEATHER_STATES[wx.from] ?? lead).spot ? 'better' : 'worse'; }
+    else if (next.spot > lead.spot) { forecast = `CLEARING ${eta}`; trend = 'better'; }
+    else { forecast = `${next.label} IN ${eta}`; trend = 'worse'; }
+  }
+  return {
+    state, label: wx.label, spot, lock, spotText: `SPOT ${spot} M`, lockText: `LOCK ${lock} M`,
+    spotReduced: spot < Math.max(spotBase, thermal), lockReduced: lock < lockBase, forecast, trend,
+    severity: wx.spot <= 0.8 ? 'bad' : wx.spot < 0.995 ? 'dim' : 'clear',
+    rain: wx.rain, wet: wx.wet, windDeg: wx.windDeg,
+  };
 }
 
 /** One chip per flag: owner colour, progress fill toward the leaning side, contested hatch. */
@@ -526,7 +563,7 @@ function armament(w) {
  * `aimMark`, the projection of the mouse aim (`driverAim` { yaw, pitch }).
  */
 export function reticleModel(seated, { projector = null, players = [], vehicles = [], selfTeam = null, aimDistance = 150, registry = vehicleDefs, raycast = null,
-  flightAim = false, sight = null, viewYaw = null, hullYaw = null, view = null, driverAim = null } = {}) {
+  flightAim = false, sight = null, viewYaw = null, hullYaw = null, view = null, driverAim = null, lockScale = 1 } = {}) {
   if (!seated?.row || !projector) return null;
   const { row, seat } = seated;
   const weapons = seatWeapons(row, seat.id);
@@ -641,7 +678,9 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
       return { ...common, pipper: null, target: null,
         ccip: bombImpactCue(row, seat.id, selected, { registry, raycast, projector }) };
     }
-    const target = pickAirTarget(row, dir, nose, vehicles, selfTeam, selected.weapon === 'aaMissile' ? 350 : 600);
+    // The AA missile's box stays inside the server's lock range (weather `lock`, cq.weather).
+    const aaScale = Number.isFinite(lockScale) && lockScale > 0 ? lockScale : 1;
+    const target = pickAirTarget(row, dir, nose, vehicles, selfTeam, selected.weapon === 'aaMissile' ? 350 * aaScale : 600);
     let pipper = null, lockBox = null;
     if (target) {
       const velocity = [finite(target.vx), finite(target.vy), finite(target.vz)];
@@ -753,8 +792,11 @@ export function pickAirTarget(row, dir, from, vehicles, selfTeam, range, cone = 
  * box marks the enemy aircraft inside the server's lock cone and range for
  * the weapon in use (jet AA missile when flying the plane, else the Engineer's
  * AX-9 STINGER), with a little slack for the view moving between snapshots.
+ * `lockScale` is the weather's lock multiplier (cq.weather.lock): fog and storms
+ * shorten the server's lock range, so the box never marks an aircraft past it.
  */
-export function lockerModel(self, { projector = null, vehicles = [], selfTeam = null, camera = null, seated = null, registry = vehicleDefs } = {}) {
+export function lockerModel(self, { projector = null, vehicles = [], selfTeam = null, camera = null, seated = null, registry = vehicleDefs,
+  lockScale = 1 } = {}) {
   const progress = decodeConquestPlayer(self)?.lockProgress ?? 0;
   if (!(progress > 0)) return null;
   let target = null;
@@ -762,7 +804,8 @@ export function lockerModel(self, { projector = null, vehicles = [], selfTeam = 
     const rules = registry?.LOCK_RULES?.[seated?.row?.type === 'plane' ? 'aaMissile' : 'stinger'] ?? { range: 400, cone: 15 * Math.PI / 180 };
     const dir = forwardFromAngles(camera.yaw, camera.pitch);
     const from = [camera.x, camera.y, camera.z];
-    target = pickAirTarget({ id: seated?.row?.id ?? null }, dir, from, vehicles, selfTeam, rules.range * 1.1, rules.cone * 1.5);
+    const scale = Number.isFinite(lockScale) && lockScale > 0 ? lockScale : 1;
+    target = pickAirTarget({ id: seated?.row?.id ?? null }, dir, from, vehicles, selfTeam, rules.range * scale * 1.1, rules.cone * 1.5);
   }
   const screen = target && projector ? projector.project(target.x, target.y, target.z) : null;
   return { progress, locked: progress >= 1, label: progress >= 1 ? 'LOCKED' : `LOCKING ${Math.round(progress * 100)}%`,

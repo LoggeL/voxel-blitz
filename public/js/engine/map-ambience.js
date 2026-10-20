@@ -63,6 +63,13 @@ export const AMBIENCE_KINDS = Object.freeze({
     vel: [0.7, -8.5, 0.35], vel2: [0.7, -8.5, 0.35], wobble: 0.05, mix: 0, additive: 0, indoor: 1, sunlit: 0,
     streak: 1, near: 2,
   },
+  // Conquest storm rain (conquest-weather-view.js): denser, longer, faster streaks; the
+  // weather scales uAlpha and the draw range with the rain and slants uVel with the wind.
+  rain: {
+    density: 2.6, box: [30, 20, 30], size: 0.34, alpha: 0.16, color: '#c9d4dc', color2: '#b8c4cc',
+    vel: [0, -14, 0], vel2: [0, -11.5, 0], wobble: 0.03, mix: 0.4, additive: 0, indoor: 1, sunlit: 0,
+    streak: 1, near: 2.5,
+  },
 });
 
 const VERT = /* glsl */ `
@@ -292,6 +299,9 @@ export function buildMapAmbience(palette = {}, {
     points,
     kind,
     count,
+    // Runtime blends (Conquest weather) fade uAlpha and slant uVel/uVel2.
+    uniforms,
+    preset,
     /** Advances the drift; reduced motion slows the field to a near standstill. */
     update(dt) {
       if (!(dt > 0)) return;

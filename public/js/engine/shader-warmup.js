@@ -45,6 +45,8 @@ export const VEHICLE_WARMUP_MATERIALS = Object.freeze([
 export const WORLD_WARMUP_MATERIALS = Object.freeze([
   'far-terrain', 'distant-voxel-shell', 'backdrop',
   'conquest-mast', 'conquest-cloth', 'conquest-beam', 'conquest-ring', 'conquest-label',
+  // Conquest weather (conquest-weather-view.js): the rain field and the lightning bolt.
+  'ambience-rain', 'weather-bolt',
 ]);
 
 /**

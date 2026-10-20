@@ -15,6 +15,10 @@
 .vb-conquest-hud:has(.cq-banner:not([hidden])) .cq-ribbon { top: calc(var(--cq-ribbon-top) + 76px); }
 .vb-conquest-hud:has(.cq-ribbon:not([hidden])) .cq-view { top: calc(max(14px, env(safe-area-inset-top)) + 156px); }
 .vb-conquest-hud:has(.cq-ribbon:not([hidden])):has(.cq-banner:not([hidden])) .cq-view { top: calc(max(14px, env(safe-area-inset-top)) + 232px); }
+/* Desktop weather tab under the ticket bar (conquest.css): the toast lane and the view strip start 28 px lower. */
+html:not(.vb-touch-mode) .vb-conquest-hud[data-weather="true"] .cq-ribbon { --cq-ribbon-top: max(124px, calc(env(safe-area-inset-top) + 118px)); }
+html:not(.vb-touch-mode) .vb-conquest-hud[data-weather="true"]:has(.cq-ribbon:not([hidden])) .cq-view { top: calc(max(14px, env(safe-area-inset-top)) + 184px); }
+html:not(.vb-touch-mode) .vb-conquest-hud[data-weather="true"]:has(.cq-ribbon:not([hidden])):has(.cq-banner:not([hidden])) .cq-view { top: calc(max(14px, env(safe-area-inset-top)) + 260px); }
 .vb-conquest-hud:has(.cq-deploy:not([hidden])) .cq-ribbon { visibility: hidden; }
 body:has(#scoreboard.is-open[data-mode="conquest"]) .vb-conquest-hud .cq-ribbon { visibility: hidden; }
 .cq-ribbon.is-in { animation: cq-ribbon-in 380ms cubic-bezier(.2, .9, .3, 1.15); }

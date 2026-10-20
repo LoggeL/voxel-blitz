@@ -1,0 +1,66 @@
+{
+  "generated": "2026-10-20T02:10:16.532Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "weather-storm",
+        "title": "Weather · storm: spot 210 m, lock 240 m, clearing 2:10",
+        "file": "docs/design/conquest/weather/captures/desktop-weather-storm.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weather-fog",
+        "title": "Weather · fog lifting: spot 203 m, lock 251 m, clear in 0:31",
+        "file": "docs/design/conquest/weather/captures/desktop-weather-fog.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "weather-storm",
+        "title": "Weather · storm: spot 210 m, lock 240 m, clearing 2:10",
+        "file": "docs/design/conquest/weather/captures/portrait-weather-storm.png",
+        "seated": null,
+        "overlaps": [
+          "banner × touch:comms"
+        ]
+      },
+      {
+        "id": "weather-fog",
+        "title": "Weather · fog lifting: spot 203 m, lock 251 m, clear in 0:31",
+        "file": "docs/design/conquest/weather/captures/portrait-weather-fog.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "weather-storm",
+        "title": "Weather · storm: spot 210 m, lock 240 m, clearing 2:10",
+        "file": "docs/design/conquest/weather/captures/landscape-weather-storm.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weather-fog",
+        "title": "Weather · fog lifting: spot 203 m, lock 251 m, clear in 0:31",
+        "file": "docs/design/conquest/weather/captures/landscape-weather-fog.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [
+    {
+      "size": "portrait",
+      "id": "weather-storm",
+      "hits": [
+        "banner × touch:comms"
+      ]
+    }
+  ],
+  "errors": []
+}

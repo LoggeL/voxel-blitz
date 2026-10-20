@@ -83,12 +83,16 @@ export class VehicleLocks {
   /** Once per tick: progress every locker and publish `lk` and lockProgress. */
   step(dt) {
     const now = this.system.nowMs(), seen = new Set();
+    // Conquest weather shortens the STINGER and AA missile lock range (fog, storm: `lock`).
+    const lockScale = this.engine.mode?.weatherEffects?.()?.lock;
+    const scaled = Number.isFinite(lockScale) && lockScale > 0 && lockScale !== 1 ? lockScale : 1;
     for (const v of this.system.vehicles.values()) v.lk = 0;
     for (const p of this.engine.entities?.values?.() ?? []) {
       const info = this.sourceFor(p), id = String(p.id);
       if (!info) { if (this.lockers.delete(id) || p.lockProgress) { p.lockProgress = 0; p.lockTargetId = null; } continue; }
       seen.add(id);
-      const rules = LOCK_RULES[info.source];
+      const base = LOCK_RULES[info.source];
+      const rules = scaled !== 1 && info.source !== 'archer' ? { ...base, range: base.range * scaled } : base;
       let lock = this.lockers.get(id);
       if (!lock || lock.source !== info.source) { lock = { source: info.source, targetId: null, progress: 0, losAt: -Infinity, los: false }; this.lockers.set(id, lock); }
       let current = lock.targetId ? this.candidate(p, this.system.vehicles.get(lock.targetId), info, { ...rules, cone: rules.cone * 1.5 }, now) : null;

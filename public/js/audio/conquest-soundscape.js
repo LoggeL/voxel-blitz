@@ -14,7 +14,13 @@
  *    burnt-out wreck prop,
  *  - off-map artillery booms for ConquestAmbience's salvo flashes, delayed by
  *    distance / 343 m/s, and sparse radio chatter near the own HQ or aboard a
- *    vehicle.
+ *    vehicle,
+ *  - Conquest dynamic weather (setWeather, shared/conquest-weather.js): the
+ *    wind follows the mix, rain plays as a bed and thunder follows each
+ *    lightning strike by distance / 343 m/s. There is no recorded rain or
+ *    thunder take yet: the rain bed reuses the river-flow loop and thunder the
+ *    distant-boom takes pitched down (cq.distant; a near strike adds the
+ *    airburst crack), see docs/audio/conquest-sfx.md.
  *
  * Long beds play through two crossfading media elements from a fetched Blob (never decoded to PCM); one-shots
  * use the decoded Conquest bank (sfx.conquestAudio()). Zones are mixed with a
@@ -25,8 +31,10 @@
 import { CONQUEST_STREAMS } from './conquest-bank.js';
 import { FRONTIER_PLAN } from '../../../shared/conquest-contract.js';
 
-/** Wind factor per weather preset (same values as ConquestAmbience's WEATHER looks). */
-const WEATHER_WIND = Object.freeze({ golden: 1.6, mist: 0.8, overcast: 2.2 });
+/** Wind factor per weather preset (same values as ConquestAmbience's WEATHER looks); storm is the dynamic weather's. */
+const WEATHER_WIND = Object.freeze({ golden: 1.6, mist: 0.8, overcast: 2.2, storm: 2.2 });
+/** Bed keys without a stream of their own reuse one (the rain bed is the river-flow loop until a rain take exists). */
+const BED_STREAMS = Object.freeze({ ...CONQUEST_STREAMS, rain: CONQUEST_STREAMS.river });
 const site = id => FRONTIER_PLAN.flags.find(flag => flag.id === id);
 
 export const SOUNDSCAPE = Object.freeze({
@@ -42,6 +50,10 @@ export const SOUNDSCAPE = Object.freeze({
   industrial: Object.freeze({ range: 120, level: 0.6, every: Object.freeze([8, 22]), oneShot: 0.55 }),
   wreck: Object.freeze({ range: 35, level: 0.45 }),
   artillery: Object.freeze({ level: 0.75, range: 900, floor: 0.15, max: 4 }),
+  // Dynamic weather: the rain bed (quieter aloft), storm gusts come this much more often,
+  // thunder: distant-boom takes at `rate` (a low rumble) within `range`, the airburst crack inside `near` m.
+  rain: Object.freeze({ level: 0.42, aloft: 0.5, gustRate: 1.8 }),
+  thunder: Object.freeze({ level: 0.9, range: 1800, floor: 0.2, rate: Object.freeze([0.5, 0.66]), near: 350, crack: 0.7, max: 3 }),
   radio: Object.freeze({ every: Object.freeze([14, 34]), hqRange: 80, level: 0.32 }),
   maxOneShots: 10,
 });
@@ -64,7 +76,7 @@ export function nearestOnPolyline(x, z, points) {
 
 /**
  * Pure: target gain and pan of every streamed bed for a listener state.
- * `state` = { pos:[x,y,z], fwd:[x,y,z], wind, intensity, calm:{A,B}, wrecks:[{x,y,z}] }.
+ * `state` = { pos:[x,y,z], fwd:[x,y,z], wind, rain, intensity, calm:{A,B}, wrecks:[{x,y,z}] }.
  */
 export function soundscapeTargets(state) {
   const S = SOUNDSCAPE;
@@ -86,6 +98,7 @@ export function soundscapeTargets(state) {
     windBed: { gain: (S.wind.bed + S.wind.bedPerWind * wind) * (1 + 0.5 * aloft), pan: 0 },
     windGusty: { gain: S.wind.gusty * wind * (0.6 + 0.4 * Math.max(ridge, aloft)), pan: 0 },
     windRidge: { gain: S.wind.ridge * Math.max(ridge, aloft * 0.8) * (0.5 + 0.5 * wind), pan: 0 },
+    rain: { gain: S.rain.level * clamp01(state.rain) * (1 - S.rain.aloft * aloft), pan: 0 },
   };
   const river = FRONTIER_PLAN.river;
   const bank = nearestOnPolyline(pos[0], pos[2], river.points);
@@ -233,6 +246,7 @@ export class ConquestSoundscape {
   constructor({ audio = null, weather = 'golden', wrecks = [], random = Math.random, createStream = defaultStream } = {}) {
     this.audio = audio;
     this.wind = WEATHER_WIND[weather] ?? WEATHER_WIND.golden;
+    this.rain = 0;
     this.wrecks = Array.isArray(wrecks) ? wrecks.filter(w => Number.isFinite(w?.x) && Number.isFinite(w?.z)) : [];
     this.random = typeof random === 'function' ? random : Math.random;
     this.createStream = createStream;
@@ -304,6 +318,30 @@ export class ConquestSoundscape {
   }
 
   /**
+   * Conquest dynamic weather (decodeConquestWeather of `match.conquest.wx`, or
+   * null to keep the load mood): the wind blends the presets' factors, `rain` drives the rain bed.
+   */
+  setWeather(weather) {
+    if (!weather) return;
+    const k = weather.blend * weather.blend * (3 - 2 * weather.blend);
+    const from = WEATHER_WIND[weather.from] ?? WEATHER_WIND.golden, to = WEATHER_WIND[weather.to] ?? from;
+    this.wind = from + (to - from) * k;
+    this.rain = clamp01(weather.rain);
+  }
+
+  /** Thunder for a lightning strike `{pos, distance}` (ConquestWeatherView): the rumble follows at 343 m/s. */
+  thunder(strike) {
+    const pos = strike?.pos, listener = this.listener;
+    if (!Array.isArray(pos) || !listener) return false;
+    const T = SOUNDSCAPE.thunder;
+    const distance = Number.isFinite(strike.distance) ? strike.distance : Math.hypot(pos[0] - listener[0], pos[1] - listener[1], pos[2] - listener[2]);
+    const gain = T.level * Math.max(T.floor, 1 - distance / T.range);
+    const delay = distance / 343;
+    if (distance <= T.near) this._oneShot('cq.blast.airburst', pos, { gain: gain * T.crack, delay, rate: 0.72, range: Infinity, cap: T.max });
+    return this._oneShot('cq.distant', pos, { gain, delay: delay + 0.05, rate: this._between(T.rate), range: Infinity, cap: T.max });
+  }
+
+  /**
    * Per frame: `camera` (THREE camera: position and matrixWorld), `match` (the
    * snapshot match for flag activity and match start/end), `selfTeam`, `inVehicle`.
    */
@@ -322,7 +360,7 @@ export class ConquestSoundscape {
     const flags = Array.isArray(match?.conquest?.flags) ? match.conquest.flags : [];
     const active = flags.filter(t => Array.isArray(t) && t[3] && t[3] !== 'idle').length / Math.max(1, FRONTIER_PLAN.flags.length);
     const intensity = clamp01(SOUNDSCAPE.battle.base + SOUNDSCAPE.battle.flagWeight * active + this.combat);
-    this.targets = soundscapeTargets({ pos: this.listener, fwd, wind: this.wind, intensity, calm: this.calm, wrecks: this.wrecks });
+    this.targets = soundscapeTargets({ pos: this.listener, fwd, wind: this.wind, rain: this.rain, intensity, calm: this.calm, wrecks: this.wrecks });
     const ctx = this._ready();
     if (!ctx) return;
     for (const [key, target] of Object.entries(this.targets)) this._bed(key, target, ctx);
@@ -333,9 +371,9 @@ export class ConquestSoundscape {
     let bed = this.beds.get(key);
     const audible = target.gain > 0.002;
     if (!bed) {
-      if (!audible || !CONQUEST_STREAMS[key]) return;
+      if (!audible || !BED_STREAMS[key]) return;
       let stream = null;
-      try { stream = this.createStream(ctx, CONQUEST_STREAMS[key]); } catch { stream = null; }
+      try { stream = this.createStream(ctx, BED_STREAMS[key]); } catch { stream = null; }
       if (!stream) { this.beds.set(key, { failed: true }); return; }
       const gain = ctx.createGain();
       gain.gain.value = 0;
@@ -379,7 +417,7 @@ export class ConquestSoundscape {
     for (const key of Object.keys(t)) t[key] -= step;
     const wind = clamp01(this.wind / 2.2);
     if (t.gust <= 0) {
-      t.gust = this._between(S.wind.gustEvery) / Math.max(0.4, wind);
+      t.gust = this._between(S.wind.gustEvery) / Math.max(0.4, wind) / (1 + (S.rain.gustRate - 1) * clamp01(this.rain));
       const angle = this.random() * Math.PI * 2;
       this._oneShot('cq.amb.gust', [pos[0] + Math.cos(angle) * 20, pos[1], pos[2] + Math.sin(angle) * 20], { gain: S.wind.gust * wind });
     }

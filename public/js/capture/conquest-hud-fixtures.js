@@ -520,6 +520,27 @@ export function conquestHudFixtures() {
       events: [{ kind: 'kit_unlocks', id: 'me', level: 4, unlocked: ['assault', 'medic', 'engineer', 'support', 'recon', 'pyro'], newly: [] }],
       camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
+  // 18k. Weather: a storm holding (shorter spot / lock ranges, clearing forecast) under a flag banner, with a lightning strike.
+  {
+    // Between the flags (no capture ring), so the banner shows where it drops under the weather tab.
+    const self = meAt(C.x + 4, C.z + 70);
+    const match = baseMatch({ flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 0.38, null, 'capturing', 3, 1),
+      flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')], bleed: { alpha: 0, bravo: 3000 } });
+    // wx = [from, to, blend100, etaS, windDeg, wet100, next]: storm holding, overcast in 2:10.
+    match.conquest.wx = [3, 3, 0, 130, 40, 82, 1];
+    out.push(state('weather-storm', 'Weather · storm: spot 210 m, lock 240 m, clearing 2:10', { self,
+      players: roster(self), vehicles: [spottedTank], match,
+      camera: cam(C.x + 4, GROUND + 1.6, C.z + 70, yawTo({ x: C.x + 4, z: C.z + 70 }, D) + 0.2),
+      events: [{ kind: 'flag_captured', flag: 'B', team: 'alpha' }, { kind: 'weather_strike', x: C.x + 90, y: GROUND, z: C.z - 120 }] }));
+  }
+  // 18l. Weather: fog lifting into a clear sky, seen by an Engineer (STINGER lock range).
+  {
+    const self = meAt(B.x + 2, B.z + 3, { cq: { squad: 1, kitId: 'engineer' } });
+    const match = baseMatch();
+    match.conquest.wx = [2, 0, 35, 31, 300, 0, 0];
+    out.push(state('weather-fog', 'Weather · fog lifting: spot 203 m, lock 251 m, clear in 0:31', { self, players: roster(self), vehicles: [alphaHeli], match,
+      camera: cam(B.x + 2, GROUND + 1.6, B.z + 3, yawTo(B, C)) }));
+  }
   // 19. Scoreboard (squads, objective, vehicles, revives).
   {
     const self = meAt(C.x, C.z);

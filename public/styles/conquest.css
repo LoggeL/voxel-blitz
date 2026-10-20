@@ -69,6 +69,38 @@ body[data-flight-aim="true"] #crosshair { display: none !important; }
 }
 .cq-chip[data-moving="enemy"]::after { border-color: var(--cq-enemy); }
 .cq-chip[data-moving="own"]::after { border-color: var(--cq-own); }
+/* Weather tab (design A, docs/design/conquest/weather/): hung under the ticket bar; values from match.conquest.wx. */
+.cq-weather {
+  /* Below the bar's 1 px border (an absolute child's 100% is the padding box). */
+  position: absolute; top: calc(100% + 1px); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; padding: 4px 14px 5px; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(9, 15, 20, 0.9), rgba(9, 15, 20, 0.8));
+  border: 1px solid var(--cq-line); border-top: 0; border-radius: 0 0 6px 6px; box-shadow: 0 6px 14px #0006;
+  font-size: 11px; font-weight: 700; letter-spacing: 1.4px; color: var(--cq-sub); font-variant-numeric: tabular-nums;
+  transition: background 160ms ease-out, box-shadow 160ms ease-out;
+}
+.cq-weather-glyph { display: inline-grid; place-items: center; width: 16px; height: 16px; color: #e8eef2; }
+.cq-weather-icon { width: 16px; height: 16px; display: block; }
+.cq-weather-label { color: var(--cq-text); font-weight: 800; letter-spacing: 1.8px; margin-left: -4px; }
+.cq-weather-sep { width: 1px; height: 13px; background: #ffffff2e; }
+.cq-weather-range[data-reduced="true"] { color: var(--cq-contested); }
+.cq-weather-forecast { color: #7f909c; margin-left: 4px; }
+.cq-weather[data-trend="worse"] .cq-weather-forecast { color: #c2cbd1; }
+.cq-weather[data-state="golden"] .cq-weather-glyph { color: #ffcf6a; }
+.cq-weather[data-state="storm"] .cq-weather-glyph, .cq-weather-tag[data-state="storm"] .cq-weather-glyph { color: #d6e4ff; }
+.cq-weather[data-flash="true"] { background: linear-gradient(180deg, rgba(64, 80, 112, 0.94), rgba(20, 28, 40, 0.86)); box-shadow: 0 6px 14px #0006, 0 0 18px #b9ccff66; transition: none; }
+/* Touch: no room under the bar, so the glyph and the state name sit beside the clock. */
+.cq-weather-tag { display: none; align-items: center; gap: 3px; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; color: var(--cq-sub); }
+.cq-weather-tag .cq-weather-glyph, .cq-weather-tag .cq-weather-icon { width: 11px; height: 11px; }
+.cq-weather-tag[data-severity="bad"] { color: var(--cq-contested); }
+.cq-weather-tag[data-flash="true"] .cq-weather-glyph { color: #fff; filter: drop-shadow(0 0 4px #b9ccff); }
+/* Desktop only (touch shows the weather glyph beside the clock instead): the banner lane, the view strip under a banner
+   and the ribbon toast (conquest-ribbons.css) step below the tab, and the tab hides under the scoreboard. */
+html:not(.vb-touch-mode) .vb-conquest-hud[data-weather="true"] .cq-banner { top: max(124px, calc(env(safe-area-inset-top) + 118px)); }
+/* The 1.6 s view strip takes the slot under the ticket bar (the periscope heading tape sits right below it): the tab yields meanwhile. */
+.vb-conquest-hud:has(.cq-view:not([hidden])) .cq-weather { visibility: hidden; }
+html:not(.vb-touch-mode) .vb-conquest-hud[data-weather="true"]:has(.cq-banner:not([hidden])) .cq-view { top: calc(max(14px, env(safe-area-inset-top)) + 178px); }
+body:has(#scoreboard.is-open[data-mode="conquest"]) .vb-conquest-hud .cq-weather { visibility: hidden; }
 @keyframes cq-pulse { 50% { box-shadow: 0 0 0 1px #0009, 0 0 12px var(--cq-contested); } }
 @keyframes cq-ping { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(1.5); } }
 
@@ -607,6 +639,10 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .vb-touch-mode .cq-chip { width: 18px; height: 18px; border-width: 1.5px; }
 .vb-touch-mode .cq-chip-letter { font-size: 11px; }
 .vb-touch-mode .cq-clock { font-size: 11px; }
+.vb-touch-mode .cq-weather { display: none; }
+.vb-touch-mode .cq-center:has(.cq-weather-tag:not([hidden])) { grid-template-columns: auto auto; column-gap: 6px; }
+.vb-touch-mode .cq-center:has(.cq-weather-tag:not([hidden])) .cq-chips { grid-column: 1 / -1; }
+.vb-touch-mode .cq-weather-tag { display: inline-flex; }
 /* Portrait: the card row (HP, grenade, ammo) and the minimap fill the top 228 px, so banners sit just below them. */
 .vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 228px); min-width: 0; width: max-content; max-width: calc(100vw - 40px); padding: 6px 14px; }
 .vb-touch-mode .cq-banner-title { font-size: 15px; letter-spacing: 1px; }

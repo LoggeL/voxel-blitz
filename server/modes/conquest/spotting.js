@@ -114,9 +114,15 @@ export class ConquestSpotting {
     return hull && hull.hp > 0 ? upgradeSpot(hull) : null;
   }
 
+  /**
+   * Kit range scaled by the weather (`spot`: fog and storms shorten it, shared/conquest-weather.js);
+   * thermal optics on the crewed hull see through the weather like they see through smoke.
+   */
   rangeFor(player) {
     const kit = this.kitOf(player) === 'recon' ? this.rules.spotRangeRecon : this.rules.spotRange;
-    return Math.max(kit, this.hullSpot(player)?.range ?? 0);
+    const scale = this.policy?.weatherEffects?.()?.spot;
+    const weathered = Number.isFinite(scale) && scale > 0 ? kit * scale : kit;
+    return Math.max(weathered, this.hullSpot(player)?.range ?? 0);
   }
 
   durationFor(player) {

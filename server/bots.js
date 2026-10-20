@@ -38,6 +38,7 @@ import { mulberry32 } from '../shared/noise.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { DUST2_NAV_FLOORS, dust2FloorsAt } from '../shared/world/dust2-layout.js';
 import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
+import { weatherLockScale, weatherSight } from './bot-weather.js';
 import { botDifficulty, DEFAULT_BOT_DIFFICULTY, isBotDifficulty, BOT_AIRCRAFT_SIGHT_RANGE } from '../shared/bot-difficulty.js';
 import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY, isBotPersonality, rollBotPersonality } from '../shared/bot-personality.js';
 import { cancelCharge } from './sim/combat.js';
@@ -836,8 +837,9 @@ class BotManager {
     // Titanfall: attrition minions (engine.npcs, WP8) are targets too, after pilots at a similar range.
     const pool = this.game.mode.mode === 'titanfall' ? this.game.combatants ?? this.game.entities : this.game.entities;
     const held = heldId ? pool.get(heldId) : null;
+    const sight = weatherSight(this.game);
     const observe = target => observeBotTarget(p, target, this.solidAt,
-      this.game.projectiles.smoke, this.game.now, target.id === heldId && br?.noticeProgress >= 1, br?.difficulty);
+      this.game.projectiles.smoke, this.game.now, target.id === heldId && br?.noticeProgress >= 1, br?.difficulty, sight);
     if (held && held.state === 'alive' && !held.vehicleId && this.game.mode.isEnemy(p, held)) {
       const sighting = observe(held);
       if (sighting) {
@@ -1032,7 +1034,7 @@ class BotManager {
     // An Engineer carrying a loaded STINGER scans the sky out to its lock range.
     const stinger = STINGER_SLOT >= 0 && ownedSlots.includes(STINGER_SLOT) && (p.mag[STINGER_SLOT] > 0 || p.reserve[STINGER_SLOT] > 0);
     const result = pickBotThreat(this.game, p, br, {
-      scan, now, airSightRange: stinger ? STINGER_ENGAGE_RANGE : null,
+      scan, now, airSightRange: stinger ? STINGER_ENGAGE_RANGE * weatherLockScale(this.game) : null,
       effectFor: (target, distance) => target.kind === 'hull'
         ? infantryArmorEffect(p, ownedSlots, target, distance) : 1,
     });

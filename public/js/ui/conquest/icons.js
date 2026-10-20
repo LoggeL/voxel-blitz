@@ -79,6 +79,11 @@ export const ICON_PATHS = Object.freeze({
   target: 'M11 2h2v3.1A7 7 0 0 1 18.9 11H22v2h-3.1A7 7 0 0 1 13 18.9V22h-2v-3.1A7 7 0 0 1 5.1 13H2v-2h3.1A7 7 0 0 1 11 5.1zm1 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4z',
   flag: 'M5 2h2v20H5zM8 3h11l-3 4 3 4H8z',
   shield: 'M12 2l8 3v6c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V5zm0 4.2L7 8v3.2c0 3.2 2 6 5 7.4z',
+  // Weather states (the HUD weather tab, docs/conquest.md *Weather*).
+  'wx-golden': 'M12 7.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9zM11 1.5h2V5h-2zM11 19h2v3.5h-2zM1.5 11H5v2H1.5zM19 11h3.5v2H19zM4.2 5.6l1.4-1.4 2.5 2.5-1.4 1.4zM15.9 17.3l1.4-1.4 2.5 2.5-1.4 1.4zM4.2 18.4l2.5-2.5 1.4 1.4-2.5 2.5zM15.9 6.7l2.5-2.5 1.4 1.4-2.5 2.5z',
+  'wx-overcast': 'M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 .5 9.5z',
+  'wx-mist': 'M3 6h13v2H3zM6 10h15v2H6zM2 14h14v2H2zM8 18h12v2H8z',
+  'wx-storm': 'M7 14a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 4.5a4.75 4.75 0 0 1 .5 9.5h-2.6l1.1-2.4h-5.2L8.9 14zM11.4 12.6h4.1l-2 3.6h2.8L10 23l1.6-5.4H9z',
 });
 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */

@@ -10,21 +10,25 @@ const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, '.artifacts', 'map-renders');
 // --quality low|medium|high|ultra forwards ?quality= to capture.html (default high);
 // --avatars forwards ?avatars=1 (capture avatars placed in view);
 // --vehicles forwards ?vehicles=1 (the authored Conquest fleet, staged hulls);
-// --weather golden|mist|overcast forwards ?weather= (Frontier mood override).
+// --weather golden|mist|overcast|storm forwards ?weather= (Frontier mood override; the
+// capture page also runs the Conquest weather view: rain, wet ground, a lightning flash).
+// --flash forwards ?flash=1 (a lightning strike frozen at its brightest, storm only).
 // Captures run in a muted headless browser (tools/lib/cdp-session.mjs).
 const QUALITIES = new Set(['low', 'medium', 'high', 'ultra']);
-const WEATHERS = new Set(['golden', 'mist', 'overcast']);
+const WEATHERS = new Set(['golden', 'mist', 'overcast', 'storm']);
 
 export function parseArgs(argv) {
   let quality = null;
   let weather = null;
   let avatars = false;
   let vehicles = false;
+  let flash = false;
   const rest = [];
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--avatars') { avatars = true; continue; }
     if (arg === '--vehicles') { vehicles = true; continue; }
+    if (arg === '--flash') { flash = true; continue; }
     if (arg === '--weather') {
       weather = argv[++index];
       if (!WEATHERS.has(weather)) throw new Error(`invalid --weather: ${weather}`);
@@ -34,7 +38,7 @@ export function parseArgs(argv) {
     quality = argv[++index];
     if (!QUALITIES.has(quality)) throw new Error(`invalid --quality: ${quality}`);
   }
-  return { ...parseCaptureArgsFor(rest), quality, avatars, vehicles, weather };
+  return { ...parseCaptureArgsFor(rest), quality, avatars, vehicles, weather, flash };
 }
 
 function parseCaptureArgsFor(argv) {
@@ -55,7 +59,7 @@ function selectedShots(options) {
   return matches;
 }
 
-export function captureUrl(baseUrl, shot, { quality = null, avatars = false, vehicles = false, weather = null } = {}) {
+export function captureUrl(baseUrl, shot, { quality = null, avatars = false, vehicles = false, weather = null, flash = false } = {}) {
   const url = new URL('/capture.html', baseUrl);
   url.searchParams.set('map', shot.map);
   url.searchParams.set('shot', shot.id);
@@ -63,15 +67,16 @@ export function captureUrl(baseUrl, shot, { quality = null, avatars = false, veh
   if (avatars) url.searchParams.set('avatars', '1');
   if (vehicles) url.searchParams.set('vehicles', '1');
   if (weather) url.searchParams.set('weather', weather);
+  if (flash) url.searchParams.set('flash', '1');
   // Conquest shots always carry the battlefield ambience (chimney plumes, wreck columns, salvos).
   if (shot.mode === 'conquest') url.searchParams.set('ambience', '1');
   return url;
 }
 
-async function renderShot({ browser, baseUrl, outDir, dimensions, shot }, { quality, avatars, vehicles, weather }) {
-  const suffix = `${avatars ? '-avatars' : ''}${weather ? `-${weather}` : ''}${quality ? `-${quality}` : ''}`;
+async function renderShot({ browser, baseUrl, outDir, dimensions, shot }, { quality, avatars, vehicles, weather, flash }) {
+  const suffix = `${avatars ? '-avatars' : ''}${weather ? `-${weather}` : ''}${flash ? '-flash' : ''}${quality ? `-${quality}` : ''}`;
   const output = path.join(outDir, `${shot.map}-${shot.id}${suffix}.png`);
-  const url = captureUrl(baseUrl, shot, { quality, avatars, vehicles, weather });
+  const url = captureUrl(baseUrl, shot, { quality, avatars, vehicles, weather, flash });
   const readyMarkers = [
     'data-capture-ready="true"',
     `data-capture-map="${shot.map}"`,
