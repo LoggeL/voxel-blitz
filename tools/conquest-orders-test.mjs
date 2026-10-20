@@ -20,6 +20,7 @@ import { CAREER_REWARDS } from '../shared/career.js';
 import { decodeConquestMatch } from '../shared/conquest.js';
 import { KIT_ROLE_RULES } from '../shared/conquest-kits.js';
 import { COMM_KINDS, COMM_ROSE, COMM_RULES, commAudience, commRequestsOf, decodeCommField, flagInSight, orderStance } from '../shared/conquest-comms.js';
+import { conquestMatchBytes } from './lib/protocol-contract.mjs';
 
 const meta = getMapMeta('frontier');
 const world = createMapState('frontier');
@@ -397,7 +398,8 @@ function fixture(n, { seed = 3, hulls = false } = {}) {
     const p = f.list[i];
     f.policy.comms.request(p, 'medic', f.game.now);
   }
-  const bytes = JSON.stringify(f.policy.matchSnapshot().conquest).length;
+  // The map event rows (`ev` / `evp`) have their own budget (docs/conquest.md "Map events").
+  const bytes = conquestMatchBytes(f.policy.matchSnapshot().conquest);
   ok(bytes <= 440, `match.conquest with orders and the weather tuple stays within 440 B while ${COMM_RULES.maxPerTeam} requests stand (${bytes} B)`);
   const rows = wireRows(f.game, f.policy).filter(r => r.cqc);
   eq(rows.length, COMM_RULES.maxPerTeam, 'each requester row carries its cqc');

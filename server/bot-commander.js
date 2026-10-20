@@ -484,7 +484,7 @@ export class BotCommander {
     this.planHitches(ts, view, now);
     this.planWaits(ts, now);
     // Map events (server/bot-map-events.js): book bots for the tasks the events post.
-    planMapEventTasks(this, ts, now);
+    planMapEventTasks(this, ts, now, view);
   }
 
   isBot(id) { return this.game.entities.get(id)?.bot === true; }
@@ -1347,12 +1347,13 @@ export class BotCommander {
     // active flag first, shooting on the move, before the out-of-bounds timer runs out.
     const fallback = this.frontFallback(p, team, view);
     if (fallback) return fallback;
-    // A map event task the commander booked this bot for (plant, defuse, hold, claim).
-    const eventTask = mapEventGoal(this, p, ts);
-    if (eventTask) return eventTask;
+    // A class job at hand (a revive, a comm answer, a hurt mate, a damaged hull) comes before
+    // a map event task the commander booked this bot for (plant, defuse, hold, claim).
     const kit = this.kitOf(p);
     const role = this.roleGoal(p, kit, ts, now);
     if (role) return role;
+    const eventTask = mapEventGoal(this, p, ts);
+    if (eventTask) return eventTask;
     const squad = ts.memberSquad?.get(String(p.id));
     const order = squad?.order;
     let flag = order ? view.flags.find(f => f.id === order.flagId) : null;

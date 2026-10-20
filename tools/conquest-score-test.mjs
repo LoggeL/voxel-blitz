@@ -177,9 +177,10 @@ revive(b3); park(); run(game, TICK_MS);
 // Role awards (revive, repair, resupply, spot assist) and the Iron Bridge's
 // final blow (paid by a real collapse in conquest-bridge-test) go through the
 // same ledger via policy.award; the squad spawn is paid by a real squad deploy.
-// The Recon gadget awards fire through their real sources in conquest-recon-gadgets-test.
+// The Recon gadget awards fire through their real sources in conquest-recon-gadgets-test,
+// the map event actions (`map_event`, scaled per action) in conquest-map-events-test.
 reset();
-for (const reason of ['revive', 'heal', 'repair', 'resupply', 'spot_assist', 'order_capture', 'order_defend', 'beacon_spawn', 'gadget_destroyed', 'bridge_destroyed']) assert.equal(policy.award(a3.id, reason), SCORE_POINTS[reason]);
+for (const reason of ['revive', 'heal', 'repair', 'resupply', 'spot_assist', 'order_capture', 'order_defend', 'beacon_spawn', 'gadget_destroyed', 'bridge_destroyed', 'map_event']) assert.equal(policy.award(a3.id, reason), SCORE_POINTS[reason]);
 assert(policy.squads.areSquadmates(a1.id, a2.id), 'four alpha players share squad 1');
 place(a1, 20, 60);
 game.killPlayer(a2, b1, 'rifle', false);
@@ -206,7 +207,7 @@ for (const p of [...alpha, ...bravo]) {
   assert.equal(p.score, mine.reduce((sum, e) => sum + e.pts, 0), `${p.id}: players[].score is the ledger total`);
   const row = game.lastSnapshot.players.find(r => r.id === p.id);
   assert.equal(row.score, p.score);
-  const objective = mine.filter(e => ['capture', 'neutralize', 'capture_assist', 'defend', 'order_capture', 'order_defend'].includes(e.reason)).reduce((sum, e) => sum + e.pts, 0);
+  const objective = mine.filter(e => ['capture', 'neutralize', 'capture_assist', 'defend', 'order_capture', 'order_defend', 'map_event'].includes(e.reason)).reduce((sum, e) => sum + e.pts, 0);
   assert.deepEqual(decodeConquestStats(row), {
     objective,
     vehicles: mine.filter(e => e.reason === 'vehicle_destroyed').length,

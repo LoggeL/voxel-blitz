@@ -35,8 +35,9 @@ let matchMax = 0;
 const game = atEpoch(() => new GameEngine({ mode: 'conquest', conquestVariant: 'breakthrough', world, mapMeta: meta,
   broadcast: snap => {
     for (const e of snap.events ?? []) events.push({ ...e, at: game.now });
-    // Measured without the Recon gadget block (`recon`), which has its own budget (tools/conquest-scale-test.mjs).
-    { const { recon = null, ...base } = snap.match?.conquest ?? {}; const text = JSON.stringify(base); if (text.length > matchMax) { matchMax = text.length; globalThis.maxText = text; } }
+    // Measured without the Recon gadget block (`recon`) and the map event rows (`ev` / `evp`), which have budgets of
+    // their own (tools/conquest-scale-test.mjs, docs/conquest.md "Map events").
+    { const { recon = null, ev = null, evp = null, ...base } = snap.match?.conquest ?? {}; const text = JSON.stringify(base); if (text.length > matchMax) { matchMax = text.length; globalThis.maxText = text; } }
   } }));
 const policy = game.mode.policy;
 const bots = attachBots(game, BOTS);
@@ -111,7 +112,7 @@ console.log(`attacker respawns after the fall: ${attackerSpawns.length}, on the 
 restrictedDeaths += fallKills.length;
 
 if (matchMax > 440) console.log(globalThis.maxText);
-ok(matchMax <= 440, `match.conquest with the bt tuple stays in the 440 B budget, wx included, recon aside (max ${matchMax} B)`);
+ok(matchMax <= 440, `match.conquest with the bt tuple stays in the 440 B budget, wx included, recon and map events aside (max ${matchMax} B)`);
 const sorted = tickMs.slice().sort((a, b) => a - b);
 const p95 = sorted[Math.floor(sorted.length * 0.95)];
 console.log(`ticks ${tickMs.length}, p95 ${p95.toFixed(2)} ms, kills ${kills.length}, restricted deaths ${restrictedDeaths}, tickets ${policy.tickets[attackers]}`);

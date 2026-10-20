@@ -10,9 +10,12 @@ import { attachBots } from '../server/bots.js';
 import { TICK_MS } from '../server/protocol/admission.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { KillcamTerrain } from '../public/js/player/killcam-terrain.js';
+import { MAP_EVENT_RULES, mapEventWireBytes } from '../shared/conquest-map-events.js';
 
-// match.conquest is measured without its Recon gadget block (`recon`), which has a budget of its own.
-const BUDGET = Object.freeze({ rowBytes: 260, tickBytes: 27 * 1024, tickP95Ms: 10, matchConquestBytes: 440, reconBytes: 700 });
+// match.conquest is measured without its Recon gadget block (`recon`) and the map event rows (`ev` / `evp`),
+// which have budgets of their own.
+const BUDGET = Object.freeze({ rowBytes: 260, tickBytes: 27 * 1024, tickP95Ms: 10, matchConquestBytes: 440, reconBytes: 700,
+  mapEventBytes: MAP_EVENT_RULES.wire.budgetBytes });
 const seconds = Number(process.argv.find(arg => arg.startsWith('--seconds='))?.slice(10)) || 120;
 
 const importedMemory = process.memoryUsage(), start = performance.now(), world = createMapState('frontier');
@@ -26,7 +29,7 @@ assert.equal(game.vehicles.vehicles.size, meta.conquest.vehicleSpawns.length, 'e
 const bots = attachBots(game, 16), positions = new Map([...game.entities].map(([id, p]) => [id, { x: p.x, z: p.z }]));
 
 const ticks = Math.round(seconds * 1000 / TICK_MS), durations = [];
-let tickBytes = 0, rowBytes = 0, rows = 0, matchBytes = 0, matchMax = 0, tickMax = 0, reconMax = 0;
+let tickBytes = 0, rowBytes = 0, rows = 0, matchBytes = 0, matchMax = 0, tickMax = 0, reconMax = 0, eventMax = 0;
 const wallStart = performance.now();
 for (let n = 0; n < ticks; n++) {
   const t = performance.now();
@@ -36,8 +39,9 @@ for (let n = 0; n < ticks; n++) {
   const size = JSON.stringify(snapshot).length;
   tickBytes += size; tickMax = Math.max(tickMax, size);
   for (const row of snapshot.vehicles) { rowBytes += JSON.stringify(row).length; rows++; }
-  const { recon = null, ...base } = snapshot.match?.conquest ?? {};
+  const { recon = null, ev = null, evp = null, ...base } = snapshot.match?.conquest ?? {};
   const conquest = JSON.stringify(base).length;
+  eventMax = Math.max(eventMax, mapEventWireBytes({ ev, evp }));
   matchBytes += conquest; matchMax = Math.max(matchMax, conquest);
   if (recon) reconMax = Math.max(reconMax, JSON.stringify(recon).length);
 }
@@ -52,7 +56,7 @@ const report = {
   generationMs: Math.round(generationMs), payloadBytes: bytes.byteLength, decodedBytes: sx * sy * sz, simulationMs: Math.round(simulationMs),
   p50TickMs: +durations[Math.floor(ticks * 0.5)].toFixed(2), p95TickMs: +durations[Math.floor(ticks * 0.95)].toFixed(2), maxTickMs: +durations.at(-1).toFixed(2),
   avgTickBytes: Math.round(tickBytes / ticks), maxTickBytes: tickMax, avgVehicleRowBytes: +(rowBytes / Math.max(1, rows)).toFixed(1),
-  avgMatchConquestBytes: Math.round(matchBytes / ticks), maxMatchConquestBytes: matchMax, maxReconBytes: reconMax,
+  avgMatchConquestBytes: Math.round(matchBytes / ticks), maxMatchConquestBytes: matchMax, maxReconBytes: reconMax, maxMapEventBytes: eventMax,
   importedMemory, worldMemory, memory: process.memoryUsage(),
   flags, moved,
 };
@@ -63,6 +67,7 @@ assert(report.avgTickBytes <= BUDGET.tickBytes, `average tick ${report.avgTickBy
 assert(report.p95TickMs <= BUDGET.tickP95Ms, `tick p95 ${report.p95TickMs} ms > ${BUDGET.tickP95Ms}`);
 assert(report.maxMatchConquestBytes <= BUDGET.matchConquestBytes, `match.conquest ${report.maxMatchConquestBytes} B > ${BUDGET.matchConquestBytes}`);
 assert(report.maxReconBytes <= BUDGET.reconBytes, `match.conquest.recon ${report.maxReconBytes} B > ${BUDGET.reconBytes}`);
+assert(report.maxMapEventBytes <= BUDGET.mapEventBytes, `match.conquest ev + evp ${report.maxMapEventBytes} B > ${BUDGET.mapEventBytes}`);
 assert(moved.filter(p => p.travel > 100).length >= 8, 'at least eight bots progress over 100 voxels');
 assert(flags.some(f => Array.isArray(f) ? f[2] : f.owner), 'bots hold at least one objective');
 

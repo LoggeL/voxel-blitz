@@ -5,9 +5,14 @@
 // team (`botTasks(team)`: {id, kind, point, pointKey?, radius, priority,
 // squad, range?, arrive?, until?, kits?}). `planMapEventTasks` books the nearest
 // free bots for each task, highest priority first, up to its squad size:
-// bots on foot that crew no hull, ride no hitch and are not bound by a human
-// leader's order (unless the task's priority reaches HUMAN_ORDER_PRIORITY)
-// and, for a task with `kits`, carry one of those kits.
+// bots on foot that crew no hull, ride no hitch, are not bound by a human
+// leader's order and are not taking a flag (standing in a zone their team
+// is turning, or passing an undefended one: bot-flag-flow.js committedFlag /
+// passingFlag; both unless the task's priority reaches HUMAN_ORDER_PRIORITY)
+// and, for a task with `kits`, carry one of those kits (without `kits`, a
+// Medic takes only `use` tasks: it trails its squad, it holds no ground).
+// A booked bot's class job at hand (revive, comm answer, heal, repair;
+// BotCommander.roleGoal) comes before its task.
 // A booked bot keeps its task while it stays posted. Kinds:
 //   use     walk to the interaction point and hold the `use` intent (plant,
 //           defuse, turn the wheel, claim the crate) through the bots' support
@@ -29,6 +34,7 @@ import { WEAPON_IDS, WEAPONS } from '../shared/combatmath.js';
 import { ROCKET_RULES } from '../shared/rocket-rules.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { ballisticAim } from './bot-vehicle-combat.js';
+import { committedFlag, passingFlag } from './bot-flag-flow.js';
 
 /** A task at or above this priority may take bots out of a human-led squad's order. */
 export const HUMAN_ORDER_PRIORITY = 10;
@@ -99,7 +105,7 @@ export function goalOutOfHazards(game, goal, p, team) {
  * Book bots for the team's posted tasks (part of the commander's 2 Hz plan).
  * Writes ts.eventTasks (task id -> task) and ts.eventAssign (bot id -> task id).
  */
-export function planMapEventTasks(commander, ts, now) {
+export function planMapEventTasks(commander, ts, now, view = commander.view) {
   const tasks = (mapEventsView(commander.game).tasks?.[ts.team] ?? []).filter(t => t.kind !== 'shoot').sort((a, b) => b.priority - a.priority);
   const prior = ts.eventAssign ?? new Map();
   ts.eventTasks = new Map(tasks.map(t => [t.id, t]));
@@ -107,12 +113,24 @@ export function planMapEventTasks(commander, ts, now) {
   if (!tasks.length) return;
   const humanSquads = new Set();
   for (const squad of ts.squads?.values?.() ?? []) if (squad.order?.human) humanSquads.add(squad.id);
+  // A bot taking a flag (in a zone its team is turning, or passing an undefended one) stays on it.
+  const taking = new Map();
+  const takingFlag = (p, order) => {
+    const id = String(p.id);
+    if (!view?.flags) return false;
+    if (!taking.has(id)) taking.set(id, !!(committedFlag(commander, p, ts.team, view, order)
+      ?? (order?.stance === 'defend' || order?.human ? null : passingFlag(commander, p, ts, view, null))));
+    return taking.get(id);
+  };
   const eligible = (p, task) => {
     if (!p?.bot || p.state !== 'alive' || p.vehicleId) return false;
     const id = String(p.id);
     if (ts.crews?.has?.(id) || ts.hitches?.has?.(id)) return false;
-    if (humanSquads.has(ts.memberSquad?.get(id)?.id) && task.priority < HUMAN_ORDER_PRIORITY) return false;
-    if (Array.isArray(task.kits) && !task.kits.includes(commander.kitOf(p))) return false;
+    const squad = ts.memberSquad?.get(id);
+    if (task.priority < HUMAN_ORDER_PRIORITY && humanSquads.has(squad?.id)) return false;
+    if (task.priority < HUMAN_ORDER_PRIORITY && takingFlag(p, squad?.order ?? null)) return false;
+    const kit = commander.kitOf(p);
+    if (Array.isArray(task.kits) ? !task.kits.includes(kit) : kit === 'medic' && task.kind !== 'use') return false;
     return flat(p, task.point) <= (task.range ?? TASK_RANGE);
   };
   const bots = commander.teamBrains(ts.team).map(br => commander.game.entities.get(String(br.id))).filter(Boolean);

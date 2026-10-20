@@ -5,6 +5,7 @@ import { GameEngine } from '../server/game.js';
 import { ConquestPolicy } from '../server/modes/conquest.js';
 import { TicketLedger } from '../server/modes/conquest/tickets.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
+import { conquestMatchBytes } from './lib/protocol-contract.mjs';
 import { parseConquestIntent, parseVehicleAction, TICK_MS } from '../server/protocol/admission.js';
 import { MODE_RULES, isModeMapCompatible, mapForMode, usesOwnedLoadout } from '../shared/modes.js';
 import { lobbyCapacity, hasLobbyTeams } from '../shared/lobby-limits.js';
@@ -271,7 +272,8 @@ const park = (players, team) => players.filter(p => p.team === team).forEach((p,
   run(game, TICK_MS);
   const snap = game.lastSnapshot;
   const conquest = snap.match.conquest;
-  assert.deepEqual(Object.keys(conquest).sort(), ['bleed', 'endsAt', 'flags', 'maxTickets', 'squads', 'tickets', 'v', 'wx']);
+  // The map event rows (`ev` / `evp`, docs/conquest.md "Map events") ride only while an event or a point is live.
+  assert.deepEqual(Object.keys(conquest).filter(k => k !== 'ev' && k !== 'evp').sort(), ['bleed', 'endsAt', 'flags', 'maxTickets', 'squads', 'tickets', 'v', 'wx']);
   assert.equal(conquest.wx.length, 7, 'the weather tuple (docs/conquest.md, Weather)');
   assert.equal(conquest.v, 2);
   assert.deepEqual(snap.match.scores, conquest.tickets, 'match.scores stays the ticket count');
@@ -279,7 +281,7 @@ const park = (players, team) => players.filter(p => p.team === team).forEach((p,
     assert.equal(tuple.length, 6);
     assert(Number.isInteger(tuple[1]) && Math.abs(tuple[1]) <= 100, 'control100 is an integer');
   }
-  const bytes = Buffer.byteLength(JSON.stringify(conquest));
+  const bytes = conquestMatchBytes(conquest);
   assert(bytes <= 440, `match.conquest is ${bytes} B (budget 440 with the weather tuple)`);
   {
     // A busy tick: three flags in play with full zones, bleed running and an 8-digit clock.
@@ -290,7 +292,7 @@ const park = (players, team) => players.filter(p => p.team === team).forEach((p,
     Object.assign(policy.flags[3], { state: 'contested', alpha: 2, bravo: 2 });
     policy.ledger.endsAt = 87654321;
     policy.ledger.bleed.bravo = 3000;
-    const busy = Buffer.byteLength(JSON.stringify(policy.matchSnapshot().conquest));
+    const busy = conquestMatchBytes(policy.matchSnapshot().conquest);
     assert(busy <= 440, `a busy-tick match.conquest is ${busy} B (budget 440 with the weather tuple)`);
     policy.flags.forEach((f, i) => Object.assign(f, saved[i]));
     policy.ledger.endsAt = endsAt;
