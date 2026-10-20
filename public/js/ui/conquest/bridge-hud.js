@@ -45,6 +45,19 @@ export function bridgeBanner(ev, nowMs = 0, rules = IRON_BRIDGE_RULES) {
   }
 }
 
+/**
+ * The collapsing banner from the snapshot's bridge state (`cq.bridge`, stage
+ * failing), or null: a player who joins or reconnects during the groan never
+ * saw the `failing` event. `key` names this collapse (its fall time), so the
+ * HUD pushes it once whichever of the event and the snapshot arrives first.
+ */
+export function bridgeStateBanner(cq, nowMs = 0, rules = IRON_BRIDGE_RULES) {
+  const bridge = cq?.bridge;
+  if (!hasIronBridge(cq) || bridge?.stage !== BRIDGE_STAGE.failing) return null;
+  const banner = bridgeBanner({ kind: 'bridge', bridge: IRON_BRIDGE.id, name: 'failing', fallAt: bridge.fallAt }, nowMs, rules);
+  return banner && { banner, key: Number.isFinite(bridge.fallAt) ? Math.round(bridge.fallAt) : 'failing' };
+}
+
 /** Countdown text and bar share of a banner at `nowMs`: { seconds, fraction } or null. */
 export function bannerCountdown(banner, nowMs) {
   const cd = banner?.countdown;

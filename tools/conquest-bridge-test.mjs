@@ -37,7 +37,7 @@ import { IRON_ARCH_TOP_Y } from '../shared/world/frontier-sites/bridge.js';
 import { CONQUEST_BRIDGE_KEY, CONQUEST_CONTRACT, CONQUEST_MATCH_BUDGET_BYTES } from './lib/protocol-contract.mjs';
 import { IronBridge } from '../server/modes/conquest/bridge.js';
 import {
-  bannerCountdown, bridgeBanner, bridgeChipBadge, bridgeMapModel, hasIronBridge, paintBridge, paintBridgeFlag,
+  bannerCountdown, bridgeBanner, bridgeChipBadge, bridgeMapModel, bridgeStateBanner, hasIronBridge, paintBridge, paintBridgeFlag,
 } from '../public/js/ui/conquest/bridge-hud.js';
 import { scheduleBanner } from '../public/js/ui/conquest/banners.js';
 import { stingerForEvent } from '../public/js/audio/objective-cues.js';
@@ -394,6 +394,12 @@ assert(cState.control < 0 || cState.owner === 'bravo', `bravo moves C's control 
   const down = bridgeBanner(ev('down'), 4600);
   assert.equal(down.title, 'IRON BRIDGE DESTROYED'); assert.equal(down.detail, 'VEHICLES CROSS AT THE FORDS'); assert.equal(down.tone, 'danger');
   assert.equal(bridgeBanner({ kind: 'bridge', bridge: 'other', name: 'down' }), null);
+  // From the snapshot stage (a joiner during the groan): the same banner, keyed by its fall time.
+  const joined = bridgeStateBanner(cq, 1000);
+  assert.equal(joined.banner.title, 'IRON BRIDGE COLLAPSING'); assert.equal(joined.key, 5000);
+  assert.deepEqual(bannerCountdown(joined.banner, 1000), { seconds: 4, fraction: 1 });
+  for (const row of [null, [1, 40], [3, 0]]) assert.equal(bridgeStateBanner({ ...cq, bridge: decodeBridge(row) }, 1000), null, `stage ${row?.[0] ?? 0}: no collapsing banner`);
+  assert.equal(bridgeStateBanner({ meta: { crossings: [] }, bridge: cq.bridge }, 1000), null, 'other maps: none');
   // Scheduling: "destroyed" replaces "collapsing" for good (not re-queued behind it).
   let state = { current: null, queue: [], seen: new Map() };
   state = scheduleBanner(state, damaged, 1000);

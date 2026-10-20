@@ -886,6 +886,28 @@ ok();
   assert.equal(failingBridge.topBar.chipNodes.get('C').dataset.bridge, 'hazard');
   assert.equal(failingBridge.topBar.chipNodes.get('C').badge.hidden, false);
   assert.equal(failingBridge.topBar.chipNodes.get('B').badge.hidden, true, 'only the bridge flag gets the badge');
+  // A player who joins during the groan never saw the `failing` event: the snapshot's stage raises the banner, once.
+  {
+    const groan = byId('bridge-failing');
+    const { hud: joiner } = renderFixture({ ...groan, events: [] });
+    assert.equal(shownText(joiner.banners.title), 'IRON BRIDGE COLLAPSING', 'a joiner gets the collapsing banner from match.conquest.br');
+    assert.equal(joiner.banners.detail.textContent, 'GET OFF THE SPAN · 3 S', 'with the countdown to the fall');
+    const pushes = [];
+    const push = joiner.banners.push.bind(joiner.banners);
+    joiner.banners.push = (...a) => { pushes.push(a[0]?.key); return push(...a); };
+    joiner.update(renderArgs(groan)); joiner.update(renderArgs(groan));
+    joiner.handleEvent(groan.events[0], 'me');
+    joiner.update(renderArgs(groan));
+    assert.deepEqual(pushes, ['bridge:failing'], 'the late event pushes the same banner (dropped as a repeat), the snapshot never again');
+    joiner.dispose();
+    const { hud: witness } = renderFixture(groan);
+    const seen = [];
+    const wpush = witness.banners.push.bind(witness.banners);
+    witness.banners.push = (...a) => { seen.push(a[0]?.key); return wpush(...a); };
+    witness.update(renderArgs(groan));
+    assert.deepEqual(seen, [], 'a player who saw the event gets no second banner from the snapshot');
+    witness.dispose();
+  }
   const downBridge = rendered.get('bridge-down').hud;
   assert.equal(shownText(downBridge.banners.title), 'IRON BRIDGE DESTROYED');
   assert.equal(downBridge.banners.bar.hidden, true);

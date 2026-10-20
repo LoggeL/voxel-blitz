@@ -42,7 +42,7 @@ import {
 import { MortarSight, mortarBanner, mortarSightModel } from './conquest/mortar-sight.js';
 import { RibbonToast, ribbonToastEntry } from './conquest/ribbons.js';
 import { WeatherChip } from './conquest/weather-chip.js';
-import { bridgeBanner, bridgeChipBadge, bridgeMapModel } from './conquest/bridge-hud.js';
+import { bridgeBanner, bridgeChipBadge, bridgeMapModel, bridgeStateBanner } from './conquest/bridge-hud.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 const MARKER_INSETS_DESKTOP = Object.freeze({ top: 96, bottom: 120, left: 48, right: 48 });
@@ -536,6 +536,11 @@ export class ConquestHud {
     const vehicles = Array.isArray(args.vehicles) ? args.vehicles : [];
     const alive = !!self && self.state !== 'dead' && self.hp > 0;
     this.seated = alive ? seatedVehicle(self, vehicles) : null;
+    // The Iron Bridge collapsing banner also follows the snapshot's stage: a player who
+    // joined during the groan missed the `failing` event (pushed once per collapse).
+    const collapsing = post ? null : bridgeStateBanner(cq, now);
+    if (collapsing && collapsing.key !== this._bridgeFailing) this.banners.push(collapsing.banner, now);
+    this._bridgeFailing = collapsing?.key ?? null;
     const end = matchEndBanner(match, selfTeam);
     if (end && end.key !== this._endKey) { this._endKey = end.key; this.banners.hold(end, now); }
     else if (!end && this._endKey) { this._endKey = null; this.banners.clear(); }
@@ -843,6 +848,8 @@ export class ConquestHud {
         // Iron Bridge collapse: damaged, collapsing (held with its countdown), destroyed.
         const banner = bridgeBanner(ev, now);
         if (banner) this.banners.push(banner, now);
+        // The snapshot's stage then never repeats this collapse's banner (_ingest).
+        if (ev.name === 'failing') this._bridgeFailing = Number.isFinite(ev.fallAt) ? Math.round(ev.fallAt) : 'failing';
         break;
       }
       case 'vehicle_hijacked': {
