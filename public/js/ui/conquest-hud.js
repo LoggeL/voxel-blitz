@@ -45,6 +45,9 @@ import { WeatherChip } from './conquest/weather-chip.js';
 import { bridgeBanner, bridgeChipBadge, bridgeMapModel, bridgeStateBanner } from './conquest/bridge-hud.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+/** Per-frame DOM writes compare first: an equal data-* or hidden write still invalidates style. */
+const setData = (node, key, value) => { if (node.dataset[key] !== value) node.dataset[key] = value; };
+const setHidden = (node, hidden) => { if (node.hidden !== hidden) node.hidden = hidden; };
 const MARKER_INSETS_DESKTOP = Object.freeze({ top: 96, bottom: 120, left: 48, right: 48 });
 const MARKER_INSETS_TOUCH = Object.freeze({ top: 124, bottom: 150, left: 28, right: 28 });
 /** Phone landscape: HP card, minimap and MAP / SPOT fill the left edge, so left markers clamp right of them. */
@@ -532,7 +535,7 @@ export class ConquestHud {
     this.self = self;
     const selfTeam = self?.team === 'alpha' || self?.team === 'bravo' ? self.team : null;
     this.selfTeam = selfTeam;
-    this.root.dataset.team = selfTeam || '';
+    setData(this.root, 'team', selfTeam || '');
     const vehicles = Array.isArray(args.vehicles) ? args.vehicles : [];
     const alive = !!self && self.state !== 'dead' && self.hp > 0;
     this.seated = alive ? seatedVehicle(self, vehicles) : null;
@@ -563,27 +566,8 @@ export class ConquestHud {
     const touch = !!doc?.documentElement?.classList?.contains('vb-touch-mode');
     const width = viewport?.width ?? globalThis.innerWidth ?? 1280;
     const height = viewport?.height ?? globalThis.innerHeight ?? 720;
-
-    this.topBar.update(ticketModel(cq, selfTeam, now), flagChipModels(cq, selfTeam), { bridge: bridgeChipBadge(cq) });
-    const weather = this.weather.update(weatherChipModel(cq, { kit: this._selfKit(self), seatedType: this.seated?.row?.type ?? null,
-      hullSpot: this.seated?.row ? upgradeSpot(this.seated.row)?.range ?? null : null }), now);
-    // The weather tab hangs under the ticket bar: banners drop below it (conquest.css).
-    if (this.root.dataset.weather !== String(weather)) this.root.dataset.weather = String(weather);
-    this.banners.update(now);
-    this.ribbonToast.update(now);
-    this.ticker.update(now);
-    this.radio.update(clockNow());
-
     const alive = !!self && self.state !== 'dead' && self.hp > 0;
     const seated = this.seated;
-    if (doc?.body?.dataset) {
-      doc.body.dataset.vehicleSeated = String(!!seated);
-      // A mouse-aim pilot's aim circle replaces the infantry crosshair at the screen centre.
-      doc.body.dataset.flightAim = String(!!seated && this.vehicleController?.aimFlight === true);
-    }
-    this.root.dataset.seated = seated ? seated.row.type : '';
-    this.root.dataset.touch = String(touch);
-
     // THREE refreshes matrixWorldInverse only while rendering; project with this frame's pose.
     camera?.updateMatrixWorld?.();
     const angles = cameraAngles(camera);
@@ -595,8 +579,35 @@ export class ConquestHud {
     const order = orderFlagOf(cq, self);
     const requests = alive ? visibleRequests({ self, players, vehicles, seated }) : [];
     const items = [...withOrderRing(mapItems({ cq, self, players, vehicles, selfTeam }), order), ...requestMapItems(requests)];
+    const bridge = bridgeMapModel(cq);
+    // The minimap paints before this frame's HUD DOM writes: its flag letters are canvas
+    // text, and text on a canvas in the document first flushes every pending style change.
+    const living = !this.dead && alive;
+    if (touch !== this._touch) { this._touch = touch; this.minimap.invalidateSize(); } // --cq-minimap follows touch mode
+    if (living) {
+      setHidden(this.minimap.root, false);
+      this.minimap.draw({ items, center: { x: self.x, z: self.z }, yaw, size: cq.size, meta: cq.meta, nowMs: now, bridge });
+    }
 
-    if (this.dead || !alive) {
+    this.topBar.update(ticketModel(cq, selfTeam, now), flagChipModels(cq, selfTeam), { bridge: bridgeChipBadge(cq) });
+    const weather = this.weather.update(weatherChipModel(cq, { kit: this._selfKit(self), seatedType: this.seated?.row?.type ?? null,
+      hullSpot: this.seated?.row ? upgradeSpot(this.seated.row)?.range ?? null : null }), now);
+    // The weather tab hangs under the ticket bar: banners drop below it (conquest.css).
+    setData(this.root, 'weather', String(weather));
+    this.banners.update(now);
+    this.ribbonToast.update(now);
+    this.ticker.update(now);
+    this.radio.update(clockNow());
+
+    if (doc?.body?.dataset) {
+      setData(doc.body, 'vehicleSeated', String(!!seated));
+      // A mouse-aim pilot's aim circle replaces the infantry crosshair at the screen centre.
+      setData(doc.body, 'flightAim', String(!!seated && this.vehicleController?.aimFlight === true));
+    }
+    setData(this.root, 'seated', seated ? seated.row.type : '');
+    setData(this.root, 'touch', String(touch));
+
+    if (!living) {
       this.ring.update(null);
       this.vehiclePanel.update(null);
       this.viewStrip.update(null);
@@ -608,7 +619,7 @@ export class ConquestHud {
       this.mortarSight.hide();
       this._setSight('');
       this.markers.clear();
-      this.minimap.root.hidden = true;
+      setHidden(this.minimap.root, true);
       this.squadList.update(null);
       this.orderChip.update(null);
       if (this.rose.open) this.rose.close();
@@ -617,10 +628,9 @@ export class ConquestHud {
       this._medkitLeft = null;
       return;
     }
-    this.minimap.root.hidden = false;
     this.squadList.update(squadListModel({ cq, self, players, vehicles }));
     this.orderChip.update(squadOrderModel(cq, self));
-    this.root.dataset.order = order ? order.stance : '';
+    setData(this.root, 'order', order ? order.stance : '');
     // The rose keeps its labels current (ORDER follows the crosshair on touch, where the aim stays live).
     if (this.rose.open) this.rose.setModel(this._roseModel());
     if (this.bigMap.open) this.bigMap.setOrders({ leader: isSquadLeader(cq, self), orderFlag: order?.flagId ?? null });
@@ -646,7 +656,7 @@ export class ConquestHud {
     // The tank driver's DRIVER periscope swaps the hull indicator and the vehicle card for its own instruments.
     const view = seated ? this.vehicleController?.viewState?.()?.view ?? null : null;
     const periscope = view === 'driver' && seated.row.type === 'tank' && seated.seat?.id === 'driver' && !sight;
-    this.root.dataset.vehicleView = periscope ? 'driver' : '';
+    setData(this.root, 'vehicleView', periscope ? 'driver' : '');
     const aim = periscope && Number.isFinite(this.vehicleController?.yaw) ? { yaw: this.vehicleController.yaw, pitch: this.vehicleController.pitch } : null;
     // The mortar operator gets the fire-control panel and the ground ring instead of a reticle.
     const mortar = seated && seated.row.type === 'mortar' ? mortarSightModel(seated, { items, raycast: this.shellRaycast, projector,
@@ -659,7 +669,7 @@ export class ConquestHud {
       view: periscope ? 'driver' : null, driverAim: aim, lockScale: cq?.weather?.lock ?? 1 }) : null;
     this._setSight(reticle?.sensor ? 'sensor' : reticle?.periscope ? 'periscope' : '');
     // A dive puts the bomb pipper below the aim, where phones keep the exit prompt: it steps above the aim then.
-    this.root.dataset.bombSight = String(!!reticle && reticle.ccip !== undefined);
+    setData(this.root, 'bombSight', String(!!reticle && reticle.ccip !== undefined));
     const locker = projector ? lockerModel(self, { projector, vehicles, selfTeam, seated, lockScale: cq?.weather?.lock ?? 1,
       camera: angles && eye ? { ...eye, yaw: angles.yaw, pitch: angles.pitch } : null }) : null;
     this.reticles.draw(reticle, locker, width, height, { touch });
@@ -686,21 +696,19 @@ export class ConquestHud {
       this.spotFlash.hidden = false;
     }
     this._medkitLeft = medkitLeft;
-    this.healTick.hidden = now >= this._healUntil;
+    setHidden(this.healTick, now >= this._healUntil);
     if (this.healTick.hidden) this._healSum = 0;
     const prompt = (!seated && chutePromptModel(args.chute)) || interactModel({ self, players, vehicles, nearbyVehicle, seated });
     this.interact.update(prompt, { heldMs: this._heldMs(vehicleController ?? this.vehicleController, interactHeld, clockNow(), interactDown), nowMs: now, touch });
-    const bridge = bridgeMapModel(cq);
-    this.minimap.draw({ items, center: { x: self.x, z: self.z }, yaw, size: cq.size, meta: cq.meta, nowMs: now, bridge });
     this.bigMap.draw({ items, size: cq.size, meta: cq.meta, nowMs: now, bridge });
     // A short onboarding hint, not a permanent keybind line: it fades after
     // MAP_HINT_MS in the match or once the player has used M or Y.
     const hintLive = !this._hintUsed && clockNow() - this._shownAt < MAP_HINT_MS;
     const hint = this.bigMap.open || !hintLive ? '' : `${bindingLabel('bigMap')} MAP · ${bindingLabel('spot')} SPOT`;
     if (!touch && this.bigMapHint.textContent !== hint) this.bigMapHint.textContent = hint;
-    this.bigMapHint.hidden = touch || !hint;
-    this.spotFlash.hidden = now >= this._spotUntil;
-    this.hitCallout.hidden = now >= this._calloutUntil;
+    setHidden(this.bigMapHint, touch || !hint);
+    setHidden(this.spotFlash, now >= this._spotUntil);
+    setHidden(this.hitCallout, now >= this._calloutUntil);
   }
 
   /** Forget the measured HUD panel rects (after a layout change the caller knows about). */
@@ -951,6 +959,7 @@ export class ConquestHud {
   dispose() {
     this._healthObserver?.disconnect();
     this._vehicleObserver?.disconnect();
+    this.minimap.dispose();
     this.root.ownerDocument?.body?.style?.removeProperty?.('--cq-health-h');
     if (this._onViewportResize) this.root.ownerDocument?.defaultView?.removeEventListener('resize', this._onViewportResize);
     this.hide();

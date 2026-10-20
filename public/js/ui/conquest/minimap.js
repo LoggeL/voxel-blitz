@@ -23,10 +23,27 @@ export class Minimap {
     this.image = overviewImage();
     if (onOpen) this.root.addEventListener('click', () => onOpen());
     this._px = 0;
+    // root.clientWidth, cached while a ResizeObserver watches the root: reading it
+    // every frame after the HUD's DOM writes forced a synchronous style and layout pass.
+    this._css = null;
+    this._transforms = {};
+    const win = this.root.ownerDocument?.defaultView;
+    if (typeof win?.ResizeObserver === 'function') {
+      this._sizeObserver = new win.ResizeObserver(() => { this._css = null; });
+      this._sizeObserver.observe(this.root);
+    }
   }
 
+  /** Measure the root again on the next draw (a layout change the caller knows about, such as touch mode). */
+  invalidateSize() { this._css = null; }
+
   _resize() {
-    const css = this.root.clientWidth || 184;
+    let css = this._css;
+    if (css === null) {
+      css = this.root.clientWidth;
+      if (this._sizeObserver) this._css = css;
+    }
+    css ||= 184;
     const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
     const px = Math.round(css * dpr);
     if (px !== this._px) { this._px = px; this.canvas.width = px; this.canvas.height = px; }
@@ -105,7 +122,10 @@ export class Minimap {
       // World direction at yaw `angle` relative to the view: screen bearing = angle - yaw (left positive).
       const bearing = angle - yaw;
       const x = -Math.sin(bearing) * rim, y = -Math.cos(bearing) * rim;
-      this.compass[dir].style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      const transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      if (this._transforms[dir] !== transform) { this._transforms[dir] = transform; this.compass[dir].style.transform = transform; }
     }
   }
+
+  dispose() { this._sizeObserver?.disconnect(); this._sizeObserver = null; }
 }
