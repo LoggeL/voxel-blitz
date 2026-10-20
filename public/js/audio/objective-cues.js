@@ -35,6 +35,7 @@ import {
   BREAKTHROUGH_CUES, OBJECTIVE_CUES, breakthroughAnnouncerCue, objectiveAnnouncerCue, objectiveCueUrl, titanfallCueUrl,
 } from '../../../shared/announcer.js';
 import { CONQUEST_RULES, FRONTIER_PLAN } from '../../../shared/conquest-contract.js';
+import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 
 export const OBJECTIVE_STINGERS = Object.freeze(['capture_start', 'neutralized', 'captured', 'lost', 'ticket_low', 'victory', 'defeat', 'ribbon']);
 const STINGER_GAIN = 0.5;
@@ -64,16 +65,24 @@ export function insideFlagZone(flagId, pos, zones = FLAG_ZONES) {
   return !Number.isFinite(flag.y) || !Number.isFinite(pos.y) || Math.abs(pos.y - flag.y) <= CONQUEST_RULES.presenceDy;
 }
 
-/** Plan flag zones with the heights (and any moved centres) of the map metadata flags. */
-export function flagZonesFrom(metaFlags) {
-  const zones = new Map(FLAG_ZONES);
-  for (const flag of Array.isArray(metaFlags) ? metaFlags : []) {
-    if (typeof flag?.id !== 'string' || !Number.isFinite(flag.x) || !Number.isFinite(flag.z)) continue;
-    const plan = FLAG_ZONES.get(flag.id);
-    zones.set(flag.id, { x: flag.x, y: Number.isFinite(flag.y) ? flag.y : null, z: flag.z,
-      radius: Number.isFinite(flag.radius) ? flag.radius : plan?.radius ?? 20 });
-  }
-  return zones;
+/**
+ * Flag zones of the active map: its metadata flags (centres, heights, radii)
+ * when it has any, else the frozen plan of `plan` (Frontier by default). A
+ * metadata flag without a radius takes the plan's.
+ */
+export function flagZonesFrom(metaFlags, plan = FRONTIER_PLAN) {
+  const planned = new Map((plan?.flags ?? []).map(f => [f.id, f]));
+  const flags = (Array.isArray(metaFlags) ? metaFlags : [])
+    .filter(flag => typeof flag?.id === 'string' && Number.isFinite(flag.x) && Number.isFinite(flag.z));
+  if (!flags.length) return planned;
+  return new Map(flags.map(flag => [flag.id, { x: flag.x, y: Number.isFinite(flag.y) ? flag.y : null, z: flag.z,
+    radius: Number.isFinite(flag.radius) ? flag.radius : planned.get(flag.id)?.radius ?? 20 }]));
+}
+
+/** Flag owners at match start: the metadata flags' `home` teams, else the plan's. */
+export function initialFlagOwners(metaFlags, plan = FRONTIER_PLAN) {
+  const flags = (Array.isArray(metaFlags) ? metaFlags : []).filter(flag => typeof flag?.id === 'string');
+  return new Map((flags.length ? flags : plan?.flags ?? []).map(f => [f.id, f.home ?? null]));
 }
 
 /** Pure: the stinger an event earns for the local team (a ribbon: for the local player), or null. */
@@ -171,8 +180,6 @@ export function playStinger(voices, dest, id, at) {
   return true;
 }
 
-/** Flag owners at match start from the frozen plan; kept current by events and snapshot syncs. */
-const initialOwners = () => new Map(FRONTIER_PLAN.flags.map(f => [f.id, f.home ?? null]));
 
 /** Comm rose / squad order radio: the conquest bank's squelch, at most once per RADIO_REPEAT_MS. */
 const RADIO_SAMPLE = 'cq.amb.squelch';
@@ -182,13 +189,16 @@ const RADIO_REPEAT_MS = 700;
 const defaultClock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
 export function createObjectiveCues({ audioContext = null, announcer = null, fetchImpl = globalThis.fetch?.bind(globalThis),
-  hidden = () => globalThis.document?.hidden === true, now = defaultClock, bank = null, flagZones = null } = {}) {
-  const zones = flagZonesFrom(flagZones);
+  hidden = () => globalThis.document?.hidden === true, now = defaultClock, bank = null, flagZones = null, mapId = null } = {}) {
+  // The active map's flags (`flagZones`: its metadata conquest.flags), its frozen plan without them.
+  const plan = conquestPlanFor(mapId);
+  const zones = flagZonesFrom(flagZones, plan);
   const currentEngine = engineFrom(audioContext);
   let voices = null;
   let voicesCtx = null;
   let output = null;
-  const owners = initialOwners();
+  // Kept current by events and snapshot syncs.
+  const owners = initialFlagOwners(flagZones, plan);
   let endKey = null;
   let disposed = false;
   let loading = null;

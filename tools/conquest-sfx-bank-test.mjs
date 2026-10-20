@@ -11,7 +11,7 @@ import { CONQUEST_SAMPLE_GROUPS, CONQUEST_SAMPLE_MANIFEST, CONQUEST_SAMPLE_MANIF
 import { BUILTIN_SAMPLE_MANIFEST, SAMPLE_FILE_SLOTS } from '../public/js/audio/samples.js';
 import { VehicleAudio, VEHICLE_AUDIO, closestApproach, polylineDistance } from '../public/js/vehicles/vehicle-audio.js';
 import { ConquestSoundscape, SOUNDSCAPE, soundscapeTargets, nearestOnPolyline } from '../public/js/audio/conquest-soundscape.js';
-import { createObjectiveCues, OBJECTIVE_SAMPLE_CUES, insideFlagZone, flagZonesFrom } from '../public/js/audio/objective-cues.js';
+import { createObjectiveCues, OBJECTIVE_SAMPLE_CUES, insideFlagZone, flagZonesFrom, initialFlagOwners } from '../public/js/audio/objective-cues.js';
 import { CONQUEST_RULES, FRONTIER_PLAN } from '../shared/conquest-contract.js';
 import { MC_STONE, MC_WATER } from '../shared/world/blocks.js';
 import { installGlobals } from './lib/install-globals.mjs';
@@ -515,6 +515,22 @@ const named = (sfx, name) => sfx.calls.filter(call => call[0] === name);
   aloft.syncMatch({ mode: 'conquest', phase: 'live', conquest: { flags: [['A', 40, null, 'capturing', 2, 0]] } }, 'alpha', { x: 232, y: 31, z: 248, state: 'alive' });
   check(() => assert.equal(aloft.capturing, true, 'on the ground it ticks'));
   aloft.dispose();
+  // Redrock: the active map's flags, never Frontier's plan. C (the dam, 32 m) and A (Palmera Oasis at 236, 236).
+  const { getMapMeta } = await import('../shared/worlddata.js');
+  const { REDROCK_PLAN } = await import('../shared/world/redrock-plan.js');
+  const redrock = getMapMeta('redrock').conquest.flags;
+  const rr = flagZonesFrom(redrock, REDROCK_PLAN);
+  check(() => assert.deepEqual([...rr.keys()], redrock.map(f => f.id)));
+  check(() => assert.equal(rr.get('C').radius, 32, 'the dam zone is Redrock\'s 32 m, not the Iron Bridge\'s 24 m'));
+  check(() => assert.equal(insideFlagZone('A', { x: 236, y: redrock[0].y, z: 236 }, rr), true, 'Palmera Oasis'));
+  check(() => assert.equal(insideFlagZone('B', { x: 272, z: 520 }, rr), false, 'Frontier\'s St. Aldric spot is outside Copperhead Mine'));
+  check(() => assert.deepEqual([...flagZonesFrom(null, REDROCK_PLAN).values()].map(f => [f.x, f.z]), REDROCK_PLAN.flags.map(f => [f.x, f.z]), 'no metadata: the map\'s own plan'));
+  check(() => assert.deepEqual([...initialFlagOwners(redrock, REDROCK_PLAN)], redrock.map(f => [f.id, f.home ?? null]), 'start owners from the metadata homes'));
+  const canyon = createObjectiveCues({ audioContext: engine, announcer: { play() { return true; }, registerBuffer() { return true; } }, fetchImpl: null,
+    hidden: () => false, bank, flagZones: redrock, mapId: 'redrock' });
+  canyon.syncMatch({ mode: 'conquest', phase: 'live', conquest: { flags: [['C', 40, null, 'capturing', 2, 0]] } }, 'alpha', { x: 384 + 28, y: redrock[2].y, z: 384, state: 'alive' });
+  check(() => assert.equal(canyon.capturing, true, '28 m out on the dam is inside its 32 m zone'));
+  canyon.dispose();
 }
 
 // --- Water entry of a bullet path (rounds pass through water, so wall impacts never report it) ------------

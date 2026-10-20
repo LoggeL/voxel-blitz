@@ -530,7 +530,7 @@ class Game {
     if (welcome.gameMode === 'conquest') {
       const audio = sfx.objectiveAudio?.();
       this.objectiveCues = rt.createObjectiveCues({ audioContext: audio?.engine ?? null, announcer: audio?.announcer ?? null,
-        bank: sfx.conquestAudio?.() ?? null, flagZones: this.mapMeta?.conquest?.flags ?? null });
+        bank: sfx.conquestAudio?.() ?? null, flagZones: this.mapMeta?.conquest?.flags ?? null, mapId: this.mapMeta?.id ?? null });
     }
     this.worldview.dynamicShadows?.addCasterRoot(this.liveAvatarsGroup, { coarse: true });
     this.effects = new rt.Effects(this.liveEffectsGroup, this.camera, getBlock, {
