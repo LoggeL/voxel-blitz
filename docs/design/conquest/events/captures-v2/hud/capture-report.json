@@ -1,0 +1,31 @@
+{
+  "generated": "2026-10-20T19:55:12.008Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "radar-sweep",
+        "title": "Flag radar · WEST jeep inside EAST's Ridge radar ring · sweep in 6 s",
+        "file": "docs/design/conquest/events/captures-v2/hud/desktop-radar-sweep.png",
+        "seated": "jeep:driver",
+        "overlaps": []
+      },
+      {
+        "id": "radar-map",
+        "title": "Flag radar · full map · WEST's St. Aldric radar at B, EAST's Ridge radar at D",
+        "file": "docs/design/conquest/events/captures-v2/hud/desktop-radar-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "depot-service",
+        "title": "Kestrel Halt depot · SERVICING · hull +5 %/s",
+        "file": "docs/design/conquest/events/captures-v2/hud/desktop-depot-service.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}
