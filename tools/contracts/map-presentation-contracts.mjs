@@ -28,9 +28,9 @@ export function runMapPresentationContracts(ok) {
     for (const id of MAP_IDS) {
       const world = createMapState(id);
       const signs = buildMapSigns(id, world.getBlock);
-      if (id === 'frontier') {
-        // Frontier uses capture markers, not painted wall signage.
-        ok(signs.group.children.length === 0, 'frontier has no unauthored wall signage');
+      if (id === 'frontier' || id === 'redrock') {
+        // The battlefields use capture markers, not painted wall signage.
+        ok(signs.group.children.length === 0, `${id} has no unauthored wall signage`);
         signs.dispose();
         continue;
       }

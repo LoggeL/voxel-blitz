@@ -12,7 +12,7 @@
 // cell grid; past `fineBand` the cells pair up into 16 m terraces, so the far
 // apron renders with a quarter of the faces.
 
-import { AIR, DIRT, STONE, SAND, MC_WATER, MEADOW, DRY_GRASS, FIELD_WHEAT, PINE_NEEDLES, PINE_LEAVES, GRAVEL } from './blocks.js';
+import { AIR, DIRT, STONE, SAND, MC_WATER, MEADOW, DRY_GRASS, FIELD_WHEAT, PINE_NEEDLES, PINE_LEAVES, GRAVEL, DUST_ROCK } from './blocks.js';
 
 export const AIRSPACE = Object.freeze({
   frontier: Object.freeze({
@@ -23,6 +23,8 @@ export const AIRSPACE = Object.freeze({
     /** Bots keep this far inside the combat apron. */
     botMargin: 120,
   }),
+  // Redrock Canyon flies the same envelope over red desert badlands.
+  redrock: Object.freeze({ combat: 480, limit: 800, botMargin: 120 }),
 });
 
 /** The airspace of a map, or null (no aircraft beyond the map). */
@@ -70,8 +72,8 @@ function fbm(x, z, octaves, salt) {
 }
 
 /** Apron surface kinds (render colours and the top voxel). */
-export const APRON_KIND = Object.freeze({ MEADOW: 0, DRY: 1, FIELD: 2, FOREST: 3, ROCK: 4, SHORE: 5, WATER: 6, GRAVEL: 7 });
-const KIND_BLOCK = [MEADOW, DRY_GRASS, FIELD_WHEAT, PINE_LEAVES, STONE, SAND, SAND, GRAVEL];
+export const APRON_KIND = Object.freeze({ MEADOW: 0, DRY: 1, FIELD: 2, FOREST: 3, ROCK: 4, SHORE: 5, WATER: 6, GRAVEL: 7, DESERT: 8, RED_ROCK: 9 });
+const KIND_BLOCK = [MEADOW, DRY_GRASS, FIELD_WHEAT, PINE_LEAVES, STONE, SAND, SAND, GRAVEL, SAND, DUST_ROCK];
 
 /**
  * Frontier's outer valley: the rim the map ends on (61 m) rolls down into a
@@ -118,6 +120,50 @@ function frontierField(edge, river) {
   };
 }
 
+/**
+ * Redrock Canyon's outer desert: the red rim the map ends on rolls out into
+ * sand flats and gravel pavement around 45-60 m, broken by terraced mesas
+ * (6 m benches, red rock) and cut by the river canyon that leaves the map
+ * north (reservoir level) and south (stream level). No woods, no canopy.
+ */
+function redrockField(edge, river) {
+  return (x, z, gap) => {
+    let h = 48 + 9 * fbm(x / 290, z / 290, 4, 61) + 3 * fbm(x / 64, z / 64, 3, 67);
+    const m = fbm(x / 180, z / 180, 3, 71) + 0.2 * fbm(x / 40, z / 40, 2, 73);
+    let rock = false;
+    if (m > 0.16) {
+      const lift = Math.min(1, (m - 0.16) / 0.1);
+      h += 38 * lift;
+      h = Math.floor(h / 6) * 6 + Math.round(smooth(0.6, 1, (h % 6) / 6) * 6);
+      rock = lift > 0.25;
+    }
+    let water = 0, dr = Infinity;
+    if (z < 0 || z > river.sz) {
+      const out = z < 0 ? -z : z - river.sz;
+      const centre = river.x + 40 * fbm(out / 240, z < 0 ? 2.5 : 8.5, 3, 79) * smooth(0, 160, out);
+      dr = Math.abs(x - centre);
+      const half = river.half + out * 0.02;
+      const surface = z < 0 ? river.north : river.south;
+      // A canyon: steep red walls, the stream on a narrow floor.
+      const wall = smooth(half + 4, half + 34, dr);
+      if (wall < 1) { h = surface + 1 + (h - surface - 1) * wall; rock = rock || wall > 0.15; }
+      if (dr < half) { h = surface - 2; water = surface; }
+    }
+    const top = edge(x, z) + 1, blend = smooth(0, 150, gap);
+    h = top + (h - top) * blend;
+    h = Math.round(clamp(h, river.bed, 104));
+    let kind;
+    if (water && h < water) kind = APRON_KIND.WATER;
+    else if (dr < river.half + 6 + gap * 0.02) kind = APRON_KIND.SHORE;
+    else if (rock || h > 82) kind = APRON_KIND.RED_ROCK;
+    else {
+      const n = fbm(x / 70, z / 70, 2, 83);
+      kind = n > 0.28 ? APRON_KIND.GRAVEL : n < -0.3 ? APRON_KIND.DRY : APRON_KIND.DESERT;
+    }
+    return { h, kind, canopy: 0, water: kind === APRON_KIND.WATER ? water : 0 };
+  };
+}
+
 const APRONS = new Map();
 
 /**
@@ -140,7 +186,9 @@ export function apronFor(mapId, dimensions, edgeTop) {
   const edge = (x, z) => edgeTop(clamp(Math.floor(x), 0, sx - 1), clamp(Math.floor(z), 0, sz - 1));
   const field = mapId === 'frontier'
     ? frontierField(edge, { x: sx / 2, sz, half: 13, bed: 18, surface: 21, bank: 30 })
-    : (x, z) => ({ h: edge(x, z) + 1, kind: APRON_KIND.MEADOW, canopy: 0, water: 0 });
+    : mapId === 'redrock'
+      ? redrockField(edge, { x: sx / 2, sz, half: 9, bed: 16, north: 26, south: 19 })
+      : (x, z) => ({ h: edge(x, z) + 1, kind: APRON_KIND.MEADOW, canopy: 0, water: 0 });
   for (let iz = 0; iz < nz; iz++) {
     for (let ix = 0; ix < nx; ix++) {
       let x0 = origin + ix * CELL, z0 = origin + iz * CELL;

@@ -67,7 +67,8 @@ const block = (x, y, z) => world.getBlock(x, y, z);
 const T = GROUND;
 
 // ---------------------------------------------------------------- registry
-ok(MAP_IDS.includes(ID) && MAP_IDS.at(-1) === 'frontier', 'ashfall is a map id (frontier stays last)');
+ok(MAP_IDS.includes(ID) && MAP_IDS.indexOf(ID) < MAP_IDS.indexOf('frontier') && MAP_IDS.at(-1) === 'redrock',
+  'ashfall is a map id (frontier, then redrock, stay last)');
 ok(meta.name === 'Ashfall' && sx === 224 && sy === 40 && sz === 176
   && getMapDimensions(ID) === world.dimensions || (getMapDimensions(ID).sx === 224 && getMapDimensions(ID).sz === 176),
 'Ashfall is 224 x 40 x 176');

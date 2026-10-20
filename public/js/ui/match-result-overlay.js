@@ -162,7 +162,7 @@ export class MatchResultOverlay {
       if (winner == null) {
         this.dom.title.textContent = 'DRAW';
         this.dom.detail.textContent = 'TICKETS AND FLAGS EVEN';
-      } else this.dom.detail.textContent = `${winnerName} HOLDS THE FRONTIER`;
+      } else this.dom.detail.textContent = `${winnerName} HOLDS ${match?.map === 'redrock' ? 'THE CANYON' : 'THE FRONTIER'}`;
     }
     if (mode === 'bastion') {
       const b = match.bastion || {};

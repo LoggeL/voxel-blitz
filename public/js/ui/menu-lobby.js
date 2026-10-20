@@ -16,6 +16,7 @@ import { LobbyInviteQr } from './lobby-invite-qr.js';
 import { addMenuIcon } from './menu-icons.js';
 import { LobbyBrowser } from './lobby-browser.js';
 import { LobbySettings } from './lobby-settings.js';
+import { prewarmBattlefieldMetadata } from '../engine/map-meta-prewarm.js';
 import { normalizeModeId, mapForMode } from '../../../shared/modes.js';
 import { MAX_BOTS, modeAllowsBots } from '../../../shared/lobby-limits.js';
 import { LobbyRoster } from './lobby-roster.js';
@@ -549,6 +550,8 @@ export class MenuLobbyController {
       && state.host != null
       && String(state.selfId) === String(state.host);
     dom.settings.update(state, isHost);
+    // Redrock Canyon's metadata derives in a worker while the lobby fills (Frontier's at menu boot).
+    if (state.map === 'redrock') void prewarmBattlefieldMetadata('redrock');
     if (isHost) {
       if (dom.startBtn) {
         dom.startBtn.style.display = 'block';

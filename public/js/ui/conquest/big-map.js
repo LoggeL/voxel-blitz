@@ -65,6 +65,7 @@ export class NorthUpMap {
     ctx.save();
     ctx.setTransform(s, 0, 0, s, 0, 0);
     paintVectorBase(ctx, meta, (x, z) => ({ x, y: z }), 1);
+    this.image = overviewImage() ?? this.image;
     if (imageReady(this.image)) ctx.drawImage(this.image, 0, 0, size.x, size.z);
     ctx.restore();
     // Combat area outline.

@@ -208,7 +208,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 // ---------------------------------------------- mode + map foundation contract
 {
   ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training', 'conquest', 'titanfall'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'ashfall', 'frontier'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'ashfall', 'frontier', 'redrock'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -324,6 +324,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
   const expectedCompatibility = {
     frontier: ['conquest', 'titanfall'],
+    redrock: ['conquest'],
     ashfall: ['titanfall'],
     harbor: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'titanfall'],
     canyon: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'titanfall'],
@@ -366,6 +367,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
   const expectedMapNames = {
     frontier: 'Frontier',
+    redrock: 'Redrock Canyon',
     ashfall: 'Ashfall',
     harbor: 'Harbor', canyon: 'Canyon',
     reactor: 'Reactor 9',
@@ -384,6 +386,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   };
   const expectedMapHashes = {
     frontier: '557723ca',
+    redrock: '385e4f55',
     ashfall: 'a63d23e4',
     harbor: 'eeb64538', canyon: 'b8e254a7',
     reactor: 'b1104db3',
@@ -402,6 +405,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   };
   const expectedSpawnCounts = {
     frontier: { fun: 16, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 8, sndDefenders: 8 },
+    redrock: { fun: 16, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 8, sndDefenders: 8 },
     ashfall: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 0, sndDefenders: 0 },
     harbor: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
     canyon: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
@@ -428,8 +432,10 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     const bytes = roomA.serializeWorld();
     pristineBytes.set(mapId, bytes);
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    const exactHeader = mapId === 'frontier'
-      ? bytes.length === 2000764 && bytes[0] === 86 && bytes[1] === 66
+    // The battlefields ship run-length encoded (VB v2); every other map is raw v1.
+    const rleLength = { frontier: 2000764, redrock: 1561879 }[mapId];
+    const exactHeader = rleLength
+      ? bytes.length === rleLength && bytes[0] === 86 && bytes[1] === 66
         && bytes[2] === 2 && bytes[3] === 1 && view.getUint16(4, true) === SX
         && view.getUint16(6, true) === SZ && view.getUint16(8, true) === SY
         && view.getUint32(10, true) === bytes.length - 14

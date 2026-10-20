@@ -1,3 +1,5 @@
+import { redrockAtmosphere, resolveRedrockWeather } from './redrock-atmosphere.js';
+
 /**
  * Per-map atmosphere. Colours, fog, sun placement, the post grade and the
  * voxel light floor all live here so a map's mood is one reviewable block.
@@ -281,8 +283,9 @@ const FRONTIER_PRESETS = {
     backdropHaze: '#99a3ad', backdropLight: { sun: '#c8ccd0', sky: '#a8b2bc' }, backdropAirFog: 0.45, backdropBaseHaze: 0.65 },
 };
 
-/** The weather a map shows: a capture override, else the authored mapMeta value, else golden. */
+/** The weather a map shows: a capture override, else the authored mapMeta value, else golden (Redrock: desert). */
 export function resolveWeather(meta, override = null) {
+  if (meta?.id === 'redrock') return resolveRedrockWeather(meta, override);
   const wanted = override ?? meta?.conquest?.weather ?? null;
   return FRONTIER_WEATHER.includes(wanted) ? wanted : 'golden';
 }
@@ -305,7 +308,8 @@ function frontierAtmosphere(weather) {
 }
 
 export function mapAtmosphere(mapId, { weather = null } = {}) {
-  const palette = mapId === 'frontier' ? frontierAtmosphere(weather) : PALETTES[mapId] || {};
+  const palette = mapId === 'frontier' ? frontierAtmosphere(weather)
+    : mapId === 'redrock' ? redrockAtmosphere(weather) : PALETTES[mapId] || {};
   return {
     ...DEFAULT,
     ...palette,

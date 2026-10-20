@@ -14,7 +14,8 @@ export const KNOWN_DIMENSIONS = Object.freeze([DEFAULT_DIMENSIONS, LARGE_DIMENSI
 
 /** Authored extents. Legacy maps keep their original voxel scale and footprint. */
 export function getMapDimensions(mapId) {
-  if (mapId === 'frontier') return FRONTIER_DIMENSIONS;
+  // Redrock Canyon shares Frontier's battlefield extents.
+  if (mapId === 'frontier' || mapId === 'redrock') return FRONTIER_DIMENSIONS;
   if (mapId === 'harbor' || mapId === 'canyon' || mapId === 'causeway') return LARGE_DIMENSIONS;
   if (mapId === 'minecraft_b5') return TALL_DIMENSIONS;
   if (mapId === 'waterworld') return WATERWORLD_DIMENSIONS;

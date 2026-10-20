@@ -684,6 +684,9 @@ function quietCombat(domParts) {
   assert.deepEqual(overlay.dom.graph.querySelectorAll('polyline').map(l => l.getAttribute('class')), ['vb-result-graph-line is-own', 'vb-result-graph-line is-enemy']);
   assert.equal(overlay.dom.mvps.children.length, 5);
   assert.ok(overlay.dom.detail.textContent.includes('WEST HOLDS THE FRONTIER'));
+  overlay.update({ ...result.match, map: 'redrock' }, result.self, result.players, FIXTURE_NOW);
+  assert.ok(overlay.dom.detail.textContent.includes('WEST HOLDS THE CANYON'), 'the Redrock result names the canyon');
+  overlay.update(result.match, result.self, result.players, FIXTURE_NOW);
   assert.equal(overlay.dom.score.textContent, `${result.match.conquest.tickets.alpha}:${result.match.conquest.tickets.bravo}`);
   ok();
 }

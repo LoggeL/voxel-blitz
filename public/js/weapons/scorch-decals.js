@@ -8,7 +8,7 @@ import * as THREE from '../vendor/three.module.js';
 export const SCORCH_CAPACITY = 24;
 /** Large battlefields (Frontier) keep many more craters charred at once. */
 export const SCORCH_CAPACITY_LARGE = 256;
-const LARGE_POOL_MAPS = new Set(['frontier']);
+const LARGE_POOL_MAPS = new Set(['frontier', 'redrock']);
 
 /** Active scorch pool size for a map. */
 export function scorchCapacityForMap(mapId) {

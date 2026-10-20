@@ -16,7 +16,7 @@
  * edge-clamped flag markers and every visible touch button; any overlap fails
  * the run (exit 1).
  *
- *   node tools/conquest-hud-capture.mjs [--out <dir>] [--only id,id] [--sizes desktop,portrait,landscape]
+ *   node tools/conquest-hud-capture.mjs [--out <dir>] [--only id,id] [--sizes desktop,portrait,landscape] [--map redrock]
  *
  * Not part of conquest:test (it needs a local Chromium).
  */
@@ -32,6 +32,8 @@ const arg = (name, fallback = null) => {
   return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
 };
 const outDir = path.resolve(root, arg('--out', 'docs/design/conquest/redesign/hud/captures'));
+// --map redrock renders the same fixtures over Redrock Canyon's flags and overview.
+const fixtureMap = arg('--map', 'frontier');
 const only = arg('--only') ? new Set(arg('--only').split(',').map(s => s.trim()).filter(Boolean)) : null;
 
 export const CAPTURE_SIZES = Object.freeze({
@@ -90,7 +92,7 @@ async function main() {
   const report = { generated: new Date().toISOString(), page: 'public/conquest-hud-capture.html', sizes: {}, overlaps: [], errors: [] };
   try {
     const port = await server.port;
-    const url = `http://127.0.0.1:${port}/conquest-hud-capture.html`;
+    const url = `http://127.0.0.1:${port}/conquest-hud-capture.html${fixtureMap === 'frontier' ? '' : `?map=${encodeURIComponent(fixtureMap)}`}`;
     browser = await launchCdpSession(url, { width: 1440, height: 1037 });
     const page = browser.page;
     await page.waitFor('window.__cq?.ready === true', { label: 'capture page ready' });

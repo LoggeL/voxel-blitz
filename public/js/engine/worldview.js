@@ -26,6 +26,7 @@ import { mapAtmosphere, resolveWeather } from './map-atmosphere.js';
 import { buildMapBackdrop } from './map-backdrop.js';
 import { buildAirspaceApron } from './airspace-apron.js';
 import { mapApron } from '../../../shared/world/state.js';
+import { isBattlefieldMap } from '../../../shared/world/battlefields.js';
 import { buildMapAmbience } from './map-ambience.js';
 import { buildMapSigns } from './map-signs.js';
 import { buildMapLights } from './map-lights.js';
@@ -169,7 +170,7 @@ export class WorldView {
     const visualBlock = (x, y, z) => (this.replayTerrain || this.store).getBlock(x, y, z);
     const visualDamage = (x, y, z) => (this.replayTerrain || this.store).getBlockDamage?.(x, y, z) || 0;
     const meta = mapMeta || storeRef.meta;
-    this.weather = meta?.id === 'frontier' ? resolveWeather(meta, weather) : null;
+    this.weather = isBattlefieldMap(meta?.id) ? resolveWeather(meta, weather) : null;
     const palette = mapAtmosphere(meta?.id, { weather: this.weather });
     this.palette = palette;
     this.graphics = graphics;
@@ -289,7 +290,7 @@ export class WorldView {
     // are built by ready(), after the spawn chunks: a module worker posted to
     // only starts running once this thread yields.
     this.farTerrain = null;
-    this._farTerrainOptions = meta?.id === 'frontier' ? {
+    this._farTerrainOptions = isBattlefieldMap(meta?.id) ? {
       step: captureTerrainStep || this.renderDistanceProfile.terrainStep,
       silhouetteStep: this.renderDistanceProfile.silhouetteStep,
       groundHeight: Number.isFinite(meta?.groundLevel) ? meta.groundLevel : null,

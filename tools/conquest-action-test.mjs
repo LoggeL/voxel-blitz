@@ -6,6 +6,7 @@
 //   node tools/conquest-action-test.mjs                 # P0 fixture + 180 s gate (normal bots)
 //   node tools/conquest-action-test.mjs --seconds 90 --report out.json --no-gate
 //   node tools/conquest-action-test.mjs --difficulty easy --trace --dump-stuck   # diagnostics
+//   node tools/conquest-action-test.mjs --map redrock     # the same gate on Redrock Canyon
 //
 // Run it through .conquest-work/heavy.sh on a shared machine: ~10 800 ticks.
 import assert from 'node:assert/strict';
@@ -34,6 +35,7 @@ const GATE = !args.includes('--no-gate');
 // engine clock starts at a fixed epoch, so a run is reproducible bit for bit
 // and a behaviour regression shows up as a changed report. --seed n explores.
 const SEED = Number(option('seed', 1));
+const MAP = option('map', 'frontier');
 const EPOCH = 1_800_000_000_000;
 Math.random = mulberry32(SEED);
 /** Build an engine whose clock starts at the fixed epoch (GameEngine reads Date.now once). */
@@ -43,9 +45,9 @@ const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const median = list => { if (!list.length) return NaN; const s = list.slice().sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 const quantile = (list, q) => { if (!list.length) return NaN; const s = list.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(s.length * q))]; };
 
-const meta = getMapMeta('frontier');
-assert.equal(meta.conquest?.version, 2, 'Frontier v2 metadata (mapMeta.conquest.version 2)');
-const world = createMapState('frontier');
+const meta = getMapMeta(MAP);
+assert.equal(meta.conquest?.version, 2, `${MAP} v2 metadata (mapMeta.conquest.version 2)`);
+const world = createMapState(MAP);
 
 // ---------------------------------------------------------------------------
 // P0 fixture: a bot standing in a capture zone fires at a visible enemy and
@@ -111,7 +113,7 @@ if (!SKIP_P0) {
 Math.random = mulberry32(SEED);
 const events = [];
 let snapshotBytes = 0, snapshotSamples = 0, tickIndex = 0;
-const game = atEpoch(() => new GameEngine({ mode: 'conquest', world: createMapState('frontier'), mapMeta: meta, broadcast: snap => {
+const game = atEpoch(() => new GameEngine({ mode: 'conquest', world: createMapState(MAP), mapMeta: meta, broadcast: snap => {
   for (const e of snap.events ?? []) events.push({ ...e, at: game.now });
   if (tickIndex % 10 === 0) { snapshotBytes += JSON.stringify(snap).length; snapshotSamples++; }
 } }));
@@ -247,7 +249,7 @@ const tickets = policy.conquestView?.().tickets ?? policy.tickets ?? {};
 const maxTickets = CONQUEST_RULES.tickets;
 const ticketLoss = Math.max(maxTickets - (tickets.alpha ?? maxTickets), maxTickets - (tickets.bravo ?? maxTickets));
 const report = {
-  seconds: SECONDS, bots: BOTS, difficulty: DIFFICULTY, seed: SEED, wallMs: Math.round(wallMs),
+  map: MAP, seconds: SECONDS, bots: BOTS, difficulty: DIFFICULTY, seed: SEED, wallMs: Math.round(wallMs),
   firstKillS: kills.length ? +at(kills[0]).toFixed(1) : null,
   firstCaptureS: captures.length ? +at(captures[0]).toFixed(1) : null,
   kills: kills.length, infantryKills: infantryKills.length, infantryWeaponKills: infantryWeaponKills.length,

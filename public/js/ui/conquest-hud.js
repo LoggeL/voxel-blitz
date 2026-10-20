@@ -22,6 +22,7 @@ import { DeployScreen } from './conquest/deploy-screen.js';
 import { InteractPrompt } from './conquest/interact.js';
 import { WorldMarkers } from './conquest/markers.js';
 import { Minimap } from './conquest/minimap.js';
+import { setOverviewMap } from './conquest/map-painter.js';
 import { cameraAngles, cameraPosition, createProjector } from './conquest/projection.js';
 import { Reticles } from './conquest/reticles.js';
 import { ScoreTicker } from './conquest/score-ticker.js';
@@ -309,6 +310,7 @@ export class ConquestHud {
     const { match, mapMeta = null, self = null, vehicleController = null, nowMs = null } = args;
     const cq = readConquest(match, mapMeta);
     if (!cq) { this._lastArgs = null; this.hide(); return false; }
+    if (mapMeta?.id && mapMeta.id !== this._overviewMap) { this._overviewMap = mapMeta.id; setOverviewMap(mapMeta.id); }
     this._lastArgs = args;
     if (vehicleController) this.vehicleController = vehicleController;
     const now = Number.isFinite(nowMs) ? nowMs : Date.now();

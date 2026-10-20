@@ -10,10 +10,10 @@ const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, '.artifacts', 'map-renders');
 // --quality low|medium|high|ultra forwards ?quality= to capture.html (default high);
 // --avatars forwards ?avatars=1 (capture avatars placed in view);
 // --vehicles forwards ?vehicles=1 (the authored Conquest fleet, staged hulls);
-// --weather golden|mist|overcast forwards ?weather= (Frontier mood override).
+// --weather golden|mist|overcast forwards ?weather= (Frontier mood override; desert|dusk on Redrock).
 // Captures run in a muted headless browser (tools/lib/cdp-session.mjs).
 const QUALITIES = new Set(['low', 'medium', 'high', 'ultra']);
-const WEATHERS = new Set(['golden', 'mist', 'overcast']);
+const WEATHERS = new Set(['golden', 'mist', 'overcast', 'desert', 'dusk']);
 
 export function parseArgs(argv) {
   let quality = null;

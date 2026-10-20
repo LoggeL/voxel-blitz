@@ -1,6 +1,6 @@
 # Conquest
 
-Conquest is a Battlefield-style mode for the Frontier map (768 × 80 × 768, see [docs/maps/frontier.md](maps/frontier.md)). Up to 16 players and bots form two teams. The internal team ids are `alpha` and `bravo`, but the game shows them as **WEST** (own team blue `#4cc3ff`) and **EAST** (enemy orange `#ff8a3d`), so flag "A" is never confused with a team. The server decides everything: capture, tickets, spawns, kits, vehicle damage and score. The client only presents snapshot fields and server events.
+Conquest is a Battlefield-style mode for two 768 × 80 × 768 battlefields: **Frontier** (the default, a river valley, see [docs/maps/frontier.md](maps/frontier.md)) and **Redrock Canyon** (a red-rock desert held by a dam, see [docs/maps/redrock.md](maps/redrock.md)). Up to 16 players and bots form two teams. The internal team ids are `alpha` and `bravo`, but the game shows them as **WEST** (own team blue `#4cc3ff`) and **EAST** (enemy orange `#ff8a3d`), so flag "A" is never confused with a team. The server decides everything: capture, tickets, spawns, kits, vehicle damage and score. The client only presents snapshot fields and server events.
 
 Every tuning value is data:
 
@@ -403,7 +403,21 @@ The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 5; 4 added th
   - `input.vehicleAction` is one of `enter {vehicleId, seatId?}`, `exit`, `seat {seatId}`, `cm` or `weapon {index}`. `vehicleActionFrame` in `netclient.js` whitelists the same exact-key shapes that `parseVehicleAction` accepts.
 - **Bot director**: `server/bot-commander.js` registers `{goalFor, deployFor}` through `mode.setBotDirector` when bots attach. `deployFor` also returns the Engineer `gadget`: while enemy aircraft are in play (crewed or airborne) a stable share of the team's engineers takes the STINGER (40 % for one aircraft, 60 % for two or more, at least one), the rest keep the AT launcher. AT engineers lead moving hulls with the rocket; AA engineers watch the sky out to the lock range, hold the seeker on the hull and fire only once locked.
 
+## Maps
+
+The host picks the battlefield in the lobby map list. Only the battlefields are offered in Conquest, and Frontier is the default (`mapForMode('conquest', …)`). Both maps publish the same `mapMeta.conquest` v2 shape: 5 flags (A and B WEST, C neutral, D and E EAST), 2 HQs on the same plateaus, the same 17-hull fleet with the same pad ids, airfields, roads and crossings. So the rules, deploy, bots, commander, HUD and protocol are unchanged, and nothing on the wire names a map beyond the existing `map` id. The differences are all data:
+
+- the plan: `FRONTIER_PLAN` or `REDROCK_PLAN`, through `conquestPlanFor(mapId)` in `shared/world/battlefield-plans.js`;
+- the generator and metadata: `shared/world/frontier-sites/` or `shared/world/redrock-sites/`;
+- the atmosphere and weather: `golden | mist | overcast` on Frontier, `desert | dusk` on Redrock;
+- the minimap overview image;
+- the soundscape sites.
+
+`shared/world/battlefields.js` lists the battlefield ids. Every large-map code path tests `isBattlefieldMap(id)`, never `id === 'frontier'`.
+
 ## Loading Frontier
+
+The same pipeline loads Redrock Canyon: the server builds its template just after it starts listening (`VOXEL_BATTLEFIELD_WARM=0` defers it to first use), and the menu derives its metadata in the worker once a lobby picks it.
 
 Joining a Conquest match takes about 0.7 s locally from the JOIN click to the first live frame (it took 5 s), plus the map transfer over the internet. The pipeline is in [docs/development.md](development.md) (*Joining a large map*, *Map frames and the map cache*):
 
@@ -441,6 +455,7 @@ Node suites (no browser):
 
 - `npm run conquest:test` runs every Conquest Node suite: mode, deploy, score, kits, classes (`tools/conquest-classes-test.mjs`: the nine kits and wire order, unlocks and the `locked` refusal, Medic revive and heal aura, every passive ability, teamplay career XP, bot slots, the deploy picker), AT mines (`tools/conquest-at-mine-test.mjs`: placement and NO GROUND, arming delay, infantry, aircraft and friendly hulls never trigger, an enemy jeep dies with its crew credited, a tank is disabled by one mine and destroyed by two, a stacked pair chains, the 3-per-player cap, persistence through death and cleanup on leave, shot, chained and unsupported mines, client view, arm click and ghost, the defending Engineer bot), class bots (`tools/conquest-class-bots-test.mjs`: a Medic bot revives inside a fight and at panic HP, a Pyro bot draws and burns the flamethrower at close range, a Medic bot walks to a hurt mate and heals it, squad Medics), spotting, vehicles, seats, locks, guided missiles, bots, terrain, sites, rendering, client, HUD and FX. The §9 action gate `tools/conquest-action-test.mjs` runs last. Each suite is also a plain script, so a single area runs on its own, for example `node tools/conquest-vehicle-seats-test.mjs` or `node tools/conquest-ui-test.mjs`.
 - `npm run conquest:action` runs only the action gate: 16 bots for 180 s on Frontier.
+  - `node tools/conquest-action-test.mjs --map redrock` runs the same gate on Redrock Canyon (see [docs/maps/redrock.md](maps/redrock.md) for measured numbers). `tools/redrock-map-test.mjs` (in `conquest:test`) is Redrock's map contract plus a 60 s bot smoke.
   - It requires a first kill within 35 s, a first capture within 60 s, at least 25 infantry kills, vehicle fire with 4 or more weapons, and 3 or more flag transitions.
   - It also requires a tick p95 of at most 10 ms and an average snapshot of at most 27 KB.
   - Pass `--seed N` or `--difficulty easy|normal|hard` to vary the run.

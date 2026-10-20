@@ -1,4 +1,5 @@
 import { createFrontierMetadata } from './frontier-layout.js';
+import { createRedrockMetadata } from './redrock-sites/layout.js';
 import { LARGE_SPAWN_ANCHORS, LARGE_SITES, LARGE_LANDMARKS } from './large-layout.js';
 import { worldDimensions } from './dimensions.js';
 import { AIR, GROUND, METAL, SX, SY, SZ, isSolidBlock } from './blocks.js';
@@ -346,27 +347,35 @@ function resolveSpawnPool(world, anchors, floorY = null) {
   return out;
 }
 
-// Shared identity contract, while Frontier's voxel template remains lazy.
-let frontierMetadata;
+// Shared identity contract, while the battlefields' voxel templates remain lazy.
+const BATTLEFIELD_METADATA = { frontier: createFrontierMetadata, redrock: createRedrockMetadata };
+const battlefieldMetadata = new Map();
 
 /**
- * Adopt Frontier metadata computed elsewhere (the browser derives it in a
+ * Adopt battlefield metadata computed elsewhere (the browser derives it in a
  * worker, see public/js/engine/frontier-meta-worker.js): `raw` is a clone of
- * createFrontierMetadata(). No-op once the metadata exists. Returns it.
+ * createFrontierMetadata() or createRedrockMetadata(). No-op once that map's
+ * metadata exists. Returns it.
  */
+export function primeBattlefieldMetadata(raw) {
+  const id = raw && typeof raw === 'object' ? raw.id : null;
+  if (!BATTLEFIELD_METADATA[id]) return null;
+  if (!battlefieldMetadata.has(id)) battlefieldMetadata.set(id, deepFreeze({ ...raw, modes: MAP_MODE_COMPATIBILITY[id] }));
+  return battlefieldMetadata.get(id);
+}
+
+/** Frontier's prime (map-loading-test, older callers): only adopts Frontier metadata. */
 export function primeFrontierMetadata(raw) {
-  if (!frontierMetadata && raw && typeof raw === 'object' && raw.id === 'frontier') {
-    frontierMetadata = deepFreeze({ ...raw, modes: MAP_MODE_COMPATIBILITY.frontier });
-  }
-  return frontierMetadata ?? null;
+  if (raw && typeof raw === 'object' && raw.id === 'frontier') return primeBattlefieldMetadata(raw);
+  return battlefieldMetadata.get('frontier') ?? null;
 }
 
 export function createMapMetadata(id, world) {
-  if (id === 'frontier') {
-    if (!frontierMetadata) frontierMetadata = deepFreeze({
-      ...createFrontierMetadata(), modes: MAP_MODE_COMPATIBILITY.frontier,
-    });
-    return frontierMetadata;
+  if (BATTLEFIELD_METADATA[id]) {
+    if (!battlefieldMetadata.has(id)) battlefieldMetadata.set(id, deepFreeze({
+      ...BATTLEFIELD_METADATA[id](), modes: MAP_MODE_COMPATIBILITY[id],
+    }));
+    return battlefieldMetadata.get(id);
   }
   const anchors = MAP_SPAWN_ANCHORS[id];
   // Courtyard/training spawns stay below roofs; Dust II anchors carry NAV levels.

@@ -24,10 +24,25 @@
  */
 import { CONQUEST_STREAMS } from './conquest-bank.js';
 import { FRONTIER_PLAN } from '../../../shared/conquest-contract.js';
+import { REDROCK_PLAN } from '../../../shared/world/redrock-plan.js';
 
 /** Wind factor per weather preset (same values as ConquestAmbience's WEATHER looks). */
-const WEATHER_WIND = Object.freeze({ golden: 1.6, mist: 0.8, overcast: 2.2 });
-const site = id => FRONTIER_PLAN.flags.find(flag => flag.id === id);
+const WEATHER_WIND = Object.freeze({ golden: 1.6, mist: 0.8, overcast: 2.2, desert: 1.9 });
+/**
+ * Where each battlefield's zones sit: the plan (river, crossings, flags, HQs),
+ * the two songbird flags (their calm keys), the bell flag and the industrial
+ * flag. Frontier: Kestrel Farm and St. Aldric birds, the St. Aldric bell, the
+ * Kessler Works drone. Redrock Canyon reuses the same takes: birds at the
+ * Palmera Oasis palms and the reservoir by the dam, the Palmera mission bell
+ * and the Copperhead Mine machinery.
+ */
+const SOUND_SITES = Object.freeze({
+  frontier: Object.freeze({ plan: FRONTIER_PLAN, birds: Object.freeze(['A', 'B']), bell: 'B', industrial: 'E' }),
+  redrock: Object.freeze({ plan: REDROCK_PLAN, birds: Object.freeze(['A', 'C']), bell: 'A', industrial: 'B' }),
+});
+/** The sound sites of a battlefield (Frontier's for any other id). */
+export const soundscapeSites = mapId => SOUND_SITES[mapId] ?? SOUND_SITES.frontier;
+const siteIn = (sites, id) => sites.plan.flags.find(flag => flag.id === id);
 
 export const SOUNDSCAPE = Object.freeze({
   level: 0.85, fadeIn: 3, smoothing: 0.6, pauseAfter: 4,
@@ -68,6 +83,8 @@ export function nearestOnPolyline(x, z, points) {
  */
 export function soundscapeTargets(state) {
   const S = SOUNDSCAPE;
+  const sites = state.sites ?? SOUND_SITES.frontier, plan = sites.plan;
+  const site = id => siteIn(sites, id);
   const pos = state.pos;
   const fwd = state.fwd || [0, 0, -1];
   const rx = -fwd[2], rz = fwd[0], rl = Math.hypot(rx, rz) || 1;
@@ -87,23 +104,23 @@ export function soundscapeTargets(state) {
     windGusty: { gain: S.wind.gusty * wind * (0.6 + 0.4 * Math.max(ridge, aloft)), pan: 0 },
     windRidge: { gain: S.wind.ridge * Math.max(ridge, aloft * 0.8) * (0.5 + 0.5 * wind), pan: 0 },
   };
-  const river = FRONTIER_PLAN.river;
+  const river = plan.river;
   const bank = nearestOnPolyline(pos[0], pos[2], river.points);
   const fromWater = Math.max(0, bank.distance - river.width / 2);
   targets.river = { gain: S.river.level * falloff(fromWater, S.river.range, 2), pan: panTo(bank.x, bank.z) };
   let rapids = { gain: 0, pan: 0 };
-  for (const crossing of FRONTIER_PLAN.crossings) {
+  for (const crossing of plan.crossings) {
     const d = Math.hypot(pos[0] - crossing.x, pos[2] - crossing.z);
     const gain = S.river.rapids * falloff(d, S.river.rapidsRange, 2) * (crossing.kind === 'ford' ? 1 : 0.6);
     if (gain > rapids.gain) rapids = { gain, pan: panTo(crossing.x, crossing.z) };
   }
   targets.rapids = rapids;
-  for (const [key, id] of [['birdsFarm', 'A'], ['birdsVillage', 'B']]) {
+  for (const [key, id] of [['birdsFarm', sites.birds[0]], ['birdsVillage', sites.birds[1]]]) {
     const flag = site(id);
     const d = Math.hypot(pos[0] - flag.x, pos[2] - flag.z);
     targets[key] = { gain: S.birds.level * falloff(d, S.birds.range) * clamp01(state.calm?.[id] ?? 1) * (1 - aloft), pan: panTo(flag.x, flag.z) };
   }
-  const works = site('E');
+  const works = site(sites.industrial);
   targets.industrial = { gain: S.industrial.level * falloff(Math.hypot(pos[0] - works.x, pos[2] - works.z), S.industrial.range),
     pan: panTo(works.x, works.z) };
   let wreck = { gain: 0, pan: 0 };
@@ -227,11 +244,12 @@ function defaultStream(ctx, url) {
 export class ConquestSoundscape {
   /**
    * @param {{ audio: {engine, getBuffer, pick}, weather?: string, wrecks?: Array<{x,y,z}>,
-   *   random?: Function, createStream?: Function }} options `audio` is sfx.conquestAudio();
-   *   `wrecks` the ConquestAmbience wreck props.
+   *   random?: Function, createStream?: Function, mapId?: string }} options `audio` is sfx.conquestAudio();
+   *   `wrecks` the ConquestAmbience wreck props; `mapId` picks the battlefield's sound sites.
    */
-  constructor({ audio = null, weather = 'golden', wrecks = [], random = Math.random, createStream = defaultStream } = {}) {
+  constructor({ audio = null, weather = 'golden', wrecks = [], random = Math.random, createStream = defaultStream, mapId = 'frontier' } = {}) {
     this.audio = audio;
+    this.sites = soundscapeSites(mapId);
     this.wind = WEATHER_WIND[weather] ?? WEATHER_WIND.golden;
     this.wrecks = Array.isArray(wrecks) ? wrecks.filter(w => Number.isFinite(w?.x) && Number.isFinite(w?.z)) : [];
     this.random = typeof random === 'function' ? random : Math.random;
@@ -242,7 +260,7 @@ export class ConquestSoundscape {
     this.oneShots = 0;
     this.groupShots = new Map();
     this.combat = 0;
-    this.calm = { A: 1, B: 1 };
+    this.calm = Object.fromEntries(this.sites.birds.map(id => [id, 1]));
     this.timers = { gust: this._between(SOUNDSCAPE.wind.gustEvery), crow: this._between(SOUNDSCAPE.birds.crowEvery),
       bell: this._between(SOUNDSCAPE.bell.every), industrial: this._between(SOUNDSCAPE.industrial.every),
       radio: this._between(SOUNDSCAPE.radio.every) };
@@ -281,8 +299,8 @@ export class ConquestSoundscape {
     if (!pos) return;
     const blast = ev.kind === 'projectileExplode' || ev.kind === 'vehicle_destroyed';
     if (!blast && ev.kind !== 'shoot' && ev.kind !== 'kill') return;
-    for (const id of ['A', 'B']) {
-      const flag = site(id);
+    for (const id of this.sites.birds) {
+      const flag = siteIn(this.sites, id);
       const d = Math.hypot(pos[0] - flag.x, pos[2] - flag.z);
       if (d > SOUNDSCAPE.birds.combatRadius) continue;
       if (blast && d <= SOUNDSCAPE.birds.scatterRadius && this.calm[id] > 0.5) {
@@ -318,11 +336,11 @@ export class ConquestSoundscape {
     this._fwd = fwd;
     this._step = step;
     this.combat = Math.max(0, this.combat - SOUNDSCAPE.battle.decayPerSecond * step);
-    for (const id of ['A', 'B']) this.calm[id] = Math.min(1, this.calm[id] + step / SOUNDSCAPE.birds.recover);
+    for (const id of this.sites.birds) this.calm[id] = Math.min(1, this.calm[id] + step / SOUNDSCAPE.birds.recover);
     const flags = Array.isArray(match?.conquest?.flags) ? match.conquest.flags : [];
-    const active = flags.filter(t => Array.isArray(t) && t[3] && t[3] !== 'idle').length / Math.max(1, FRONTIER_PLAN.flags.length);
+    const active = flags.filter(t => Array.isArray(t) && t[3] && t[3] !== 'idle').length / Math.max(1, this.sites.plan.flags.length);
     const intensity = clamp01(SOUNDSCAPE.battle.base + SOUNDSCAPE.battle.flagWeight * active + this.combat);
-    this.targets = soundscapeTargets({ pos: this.listener, fwd, wind: this.wind, intensity, calm: this.calm, wrecks: this.wrecks });
+    this.targets = soundscapeTargets({ pos: this.listener, fwd, wind: this.wind, intensity, calm: this.calm, wrecks: this.wrecks, sites: this.sites });
     const ctx = this._ready();
     if (!ctx) return;
     for (const [key, target] of Object.entries(this.targets)) this._bed(key, target, ctx);
@@ -385,8 +403,8 @@ export class ConquestSoundscape {
     }
     if (t.crow <= 0) {
       t.crow = this._between(S.birds.crowEvery);
-      for (const id of ['A', 'B']) {
-        const flag = site(id);
+      for (const id of this.sites.birds) {
+        const flag = siteIn(this.sites, id);
         if (this.calm[id] > 0.3 && Math.hypot(pos[0] - flag.x, pos[2] - flag.z) <= S.birds.crowRange) {
           this._oneShot('cq.amb.crow', [flag.x + (this.random() - 0.5) * 50, pos[1] + 8, flag.z + (this.random() - 0.5) * 50],
             { gain: S.birds.crow, range: S.birds.crowRange });
@@ -396,12 +414,12 @@ export class ConquestSoundscape {
     }
     if (t.bell <= 0) {
       t.bell = this._between(S.bell.every);
-      const church = site('B');
+      const church = siteIn(this.sites, this.sites.bell);
       if (Math.hypot(pos[0] - church.x, pos[2] - church.z) <= S.bell.range) this._oneShot('cq.amb.bell', [church.x, 40, church.z], { gain: S.bell.level, range: S.bell.range });
     }
     if (t.industrial <= 0) {
       t.industrial = this._between(S.industrial.every);
-      const works = site('E');
+      const works = siteIn(this.sites, this.sites.industrial);
       if (Math.hypot(pos[0] - works.x, pos[2] - works.z) <= S.industrial.range) {
         const group = this.random() < 0.5 ? 'cq.amb.steam' : 'cq.amb.creak';
         this._oneShot(group, [works.x + (this.random() - 0.5) * 30, pos[1], works.z + (this.random() - 0.5) * 30],
@@ -410,7 +428,7 @@ export class ConquestSoundscape {
     }
     if (t.radio <= 0) {
       t.radio = this._between(S.radio.every);
-      const hq = FRONTIER_PLAN.hqs[selfTeam];
+      const hq = this.sites.plan.hqs[selfTeam];
       const nearHq = hq && Math.hypot(pos[0] - hq.x, pos[2] - hq.z) <= S.radio.hqRange;
       if (nearHq || inVehicle) this._oneShot(this.random() < 0.25 ? 'cq.amb.squelch' : 'cq.amb.radio', null, { gain: S.radio.level });
     }
@@ -418,7 +436,7 @@ export class ConquestSoundscape {
 
   /** Three church-bell tolls (match start and end), heard across the valley. */
   _tolls() {
-    const church = site('B');
+    const church = siteIn(this.sites, this.sites.bell);
     for (let i = 0; i < SOUNDSCAPE.bell.tolls; i++) {
       this._oneShot('cq.amb.bell', [church.x, 40, church.z], { gain: SOUNDSCAPE.bell.level, range: Infinity,
         delay: i * SOUNDSCAPE.bell.tollSpacing, floor: 0.35 });
