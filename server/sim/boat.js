@@ -54,7 +54,8 @@ export function boatSupport(system, v, x, z, yaw = v.yaw) {
   }
   const float = surface > -Infinity ? surface - rules.draft : -Infinity;
   const y = Math.max(float, ground);
-  if (!(y > -Infinity) || y - v.y > rules.maxStep) return null;
+  // Ground lifts the hull at most maxStep (a bank stops it); a higher water face up to waterStep (it rides the surge).
+  if (!(y > -Infinity) || y - v.y > (float >= ground ? rules.waterStep ?? rules.maxStep : rules.maxStep)) return null;
   let aground = 0, wet = 0, stern = 0, shallow = 0;
   for (let k = 0; k < grounds.length; k++) {
     const lifted = grounds[k] != null && grounds[k] >= y - 0.02;

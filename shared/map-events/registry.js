@@ -10,7 +10,7 @@
 // slot depot (Frontier Hollin Fuel Depot):
 import { DEPOT_EVENT } from './depot.js';
 // slot weir (Frontier sluice gate):
-// import { WEIR_EVENT } from './weir.js';
+import { WEIR_EVENT } from './weir.js';
 // slot relay (Frontier Signal Rock radio mast):
 import { RELAY_EVENT } from './relay.js';
 // slot elevator (Frontier Kestrel Halt grain elevator):
@@ -30,7 +30,7 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot depot:
   DEPOT_EVENT,
   // slot weir:
-  // WEIR_EVENT,
+  WEIR_EVENT,
   // slot relay:
   RELAY_EVENT,
   // slot elevator:

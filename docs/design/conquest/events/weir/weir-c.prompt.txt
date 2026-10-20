@@ -1,0 +1,8 @@
+Game UI design mockup, 1536x1024 screenshot of a browser voxel shooter's full-screen tactical map overlay (top-down orthographic render of a blocky river valley: green and dry-grass fields, voxel woods, a blue river running north to south through the middle with three bridges and two fords, flag diamonds A B (blue) C (white) D E (orange), two HQ airfields at the left and right edges).
+Existing map style (keep exactly: dark translucent navy frame rgba(9,15,20,0.86) with 1px light border and 6px radius, condensed bold uppercase sans-serif labels with wide letter spacing, cyan #4cc3ff friendly, orange #ff8a3d enemy, amber #ffb020 hazard, red #ff4b4b danger).
+NEW MAP EVENT UI TO SHOW (variant C, labelled ford tags on the map):
+1) Both fords on the river are painted as bright semi-transparent blue patches with diagonal hatch stripes extending a little up and down the river, each with a small dark tag beside it: wave glyph + "FORD N · FLOODED 1:54" and "FORD S · FLOODED 1:54" in blue-white letters.
+2) A little upstream of the northern ford an amber hexagon badge with a sluice wheel glyph and the label "WEIR".
+3) The three bridges get small white "OPEN" ticks; the road segments that lead into the flooded fords are drawn dashed.
+4) A thin red objective banner at the top of the screen: "SLUICE WEIR · FORDS FLOODED · VEHICLES CROSS AT THE BRIDGES".
+Crisp flat game HUD, no extra decorations, no watermark, legible text.

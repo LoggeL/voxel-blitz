@@ -11,6 +11,8 @@ export const MAP_EVENT_GLYPHS = Object.freeze({
   // Hollin Fuel Depot: a squat fuel tank with a flame over it.
   'event-depot': 'M12 1.5c1.9 2.2 3.4 3.9 3.4 5.9a3.4 3.4 0 0 1-6.8 0c0-1.1.5-2.1 1.3-2.9.1 1.1.7 1.9 1.5 2.2-.2-1.8.1-3.5.6-5.2zM4 13.2C4 11.4 7.6 10 12 10s8 1.4 8 3.2V20c0 1.5-3.6 2.5-8 2.5S4 21.5 4 20zM6 14.6v1.6c1.5.6 3.6.9 6 .9s4.5-.3 6-.9v-1.6c-1.5.6-3.6.9-6 .9s-4.5-.3-6-.9z',
   // slot weir:
+  // A sluice wheel: rim, hub, cross spokes and four handles.
+  'event-weir': 'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18zM12 5.2a6.8 6.8 0 1 0 0 13.6a6.8 6.8 0 1 0 0-13.6zM11.2 5h1.6v14h-1.6zM5 11.2h14v1.6H5zM12 9.6a2.4 2.4 0 1 1 0 4.8a2.4 2.4 0 1 1 0-4.8zM18.4 3.9a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4zM5.6 3.9a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4zM18.4 16.7a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4zM5.6 16.7a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4z',
   // slot relay:
   // slot elevator:
   'event-elevator': 'M6 21V6.5L9.5 3l3.5 3.5V21H11v-4H8v4zM8 8.2v2.2h3V8.2zM8 12.2v2.2h3v-2.2zM14.6 21l6.8-6.8 1.4 1.4L17.4 21zM15.2 13.1l2.2-2.2 1.4 1.4-2.2 2.2zM2 21h20v1.5H2z',

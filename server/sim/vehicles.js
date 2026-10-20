@@ -1,9 +1,9 @@
 import { hullFootprint, footprintCells, footprintsOverlap, footprintContact, vehicleHullParts, vehicleSupportOffset, hullBoxesOverlap, voxelHullBox, rayHullPartSpan, nearestHullPoint, solidHull, solidWreck, blocksHulls } from '../../shared/vehicle-collision.js';
 import { isSolidBlock } from '../../shared/worlddata.js';
-import { RAM_CLASS, RAM_HARDNESS, BLOCK_HARDNESS } from '../../shared/world/blocks.js';
+import { RAM_CLASS, RAM_HARDNESS, BLOCK_HARDNESS, MC_WATER } from '../../shared/world/blocks.js';
 import { VEHICLE_RULES, isAircraft, vehicleEnterDistance, vehicleDirection, vehicleSeatPose, vehicleLocalPoint } from '../../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleWeaponSeatId, vehicleDriverSeat } from '../../shared/vehicle-seats.js';
-import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, VEHICLE_MASS, WRECK_PUSH_RULES, VEHICLE_RAM, RAM_RULES, WALL_CRASH_RULES, HULL_CRASH_RULES, vehicleDef, vehicleMaxHp,
+import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, VEHICLE_MASS, WRECK_PUSH_RULES, VEHICLE_RAM, RAM_RULES, WALL_CRASH_RULES, HULL_CRASH_RULES, WADE_RULES, vehicleDef, vehicleMaxHp,
   mountPose as sharedMountPose } from '../../shared/vehicle-defs.js';
 import { VEHICLE_STATUS } from '../../shared/conquest-contract.js';
 import { groundAttitude } from '../../shared/vehicle-attitude.js';
@@ -1332,7 +1332,12 @@ export class VehicleSystem {
     const now = this.nowMs(), tracks = v.subsystems && subsystemBroken(v, 'tracks', now);
     const drive = (v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1)
       * (tracks ? 0 : v.subsystems && subsystemBroken(v, 'engine', now) ? TANK_SUBSYSTEMS.engine.drive : 1);
-    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: tracks ? 0 : controls.steer, brake: controls.brake }, dt, def, groundTune(v));
+    // Deeper water than the hull wades (WADE_RULES): the engine floods, the hull only crawls.
+    const flooded = this.flooded(v);
+    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * (flooded ? 0 : drive), steer: tracks ? 0 : controls.steer, brake: controls.brake }, dt, def, groundTune(v));
+    if (flooded && Math.abs(controls.throttle) > 0.05 && !tracks) v.speed = Math.sign(controls.throttle) * Math.min(WADE_RULES.crawl, Math.abs(controls.throttle) * WADE_RULES.crawl);
+    else if (flooded) v.speed = clamp(v.speed, -WADE_RULES.crawl, WADE_RULES.crawl);
+    v.flooded = flooded;
     // A driverless hull at rest with no body in reach: its collision pass is a
     // pure function of the fields, terrain and nearby hulls it reads, so when
     // they all equal the previous pass's inputs, that pass's result is reused.
@@ -1342,6 +1347,18 @@ export class VehicleSystem {
     this.moveGround(v, previous, controls, def, driver, dt, startSpeed);
     if (memo) this.endRest(v, memo);
     else this.restMemos.delete(v);
+  }
+  /** Water (m) standing over a ground hull's floor at its centre: top of the highest water voxel in that column minus its y. */
+  waterDepth(v) {
+    const world = this.engine.world, bx = Math.floor(v.x), bz = Math.floor(v.z);
+    let y = Math.floor(v.y + 0.05), top = null;
+    while (y < (world.dimensions?.sy ?? 80) && world.getBlock(bx, y, bz) === MC_WATER) top = ++y;
+    return top == null ? 0 : top - v.y;
+  }
+  /** True while a ground hull stands deeper than it wades (WADE_RULES.depth by type; hulls without a depth never flood). */
+  flooded(v) {
+    const limit = WADE_RULES.depth[v.type];
+    return Number.isFinite(limit) && this.waterDepth(v) > limit;
   }
   moveGround(v, previous, controls, def, driver, dt, startSpeed = v.speed) {
     if (!this.clearHull(v,v.x,v.y,v.z)) { v.yaw=previous.yaw; v.yawRate=0; v.leftTrackSpeed=v.speed; v.rightTrackSpeed=v.speed; }

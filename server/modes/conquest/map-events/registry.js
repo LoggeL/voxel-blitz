@@ -9,7 +9,7 @@
 // slot depot:
 import { DepotController } from './depot.js';
 // slot weir:
-// import { WeirController } from './weir.js';
+import { WeirController } from './weir.js';
 // slot relay:
 import { RelayController } from './relay.js';
 // slot elevator:
@@ -28,7 +28,7 @@ export const MAP_EVENT_CONTROLLERS = Object.freeze({
   // slot depot:
   depot: DepotController,
   // slot weir:
-  // weir: WeirController,
+  weir: WeirController,
   // slot relay:
   relay: RelayController,
   // slot elevator:
