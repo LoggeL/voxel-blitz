@@ -190,6 +190,7 @@ export const MODE_LABELS = Object.freeze({
 
 export const MAP_LABELS = Object.freeze({
   frontier: 'FRONTIER · 768 × 768',
+  redrock: 'REDROCK CANYON · 768 × 768',
   harbor: 'HARBOR · LARGE',
   canyon: 'CANYON · LARGE',
   reactor: 'REACTOR 9',
@@ -210,6 +211,7 @@ export const MAP_LABELS = Object.freeze({
 
 export const MAP_PREVIEWS = Object.freeze({
   frontier: './assets/maps/frontier.jpg',
+  redrock: './assets/maps/redrock.jpg',
   harbor: './assets/maps/harbor.webp',
   canyon: './assets/maps/canyon.webp',
   reactor: './assets/maps/reactor-preview.webp',

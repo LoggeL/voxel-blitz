@@ -19,6 +19,8 @@
 //
 // The view starts at the load mood (worldview.palette) and never touches the
 // baked pieces (voxel sun direction, backdrop vertex colours, environment map).
+// On a map whose load mood is not a Frontier preset (Redrock Canyon's desert or
+// dusk) that load mood is the clear (golden) state of the blend.
 
 import * as THREE from '../vendor/three.module.js';
 import { WEATHER_IDS } from '../../../shared/conquest-weather.js';
@@ -68,7 +70,8 @@ export function weatherLook(palette) {
     exposure: grade.exposure, saturation: grade.saturation, contrast: grade.contrast,
     shadowTint: new THREE.Vector3(...grade.shadowTint), highlightTint: new THREE.Vector3(...grade.highlightTint),
     minSky: palette.light?.minSky ?? 0.5, shadow: palette.light?.shadow ?? 0.75,
-    water: { skyTop: top, skyHorizon: horizon, reflection: palette.water?.reflection ?? 0.5, shallow: color(palette.water?.shallow || '#2f4a55'),
+    // Own copies: blendLooks sums into the sky and the water colours separately (shared ones doubled the sky).
+    water: { skyTop: top.clone(), skyHorizon: horizon.clone(), reflection: palette.water?.reflection ?? 0.5, shallow: color(palette.water?.shallow || '#2f4a55'),
       deep: color(palette.water?.deep || '#132a33'), tile: palette.water?.tile ?? 0.25, specular: palette.water?.specular ?? 1 },
     airFog: palette.backdrop?.air?.fog ?? 0.2,
   };
@@ -124,7 +127,10 @@ export class ConquestWeatherView {
     this.random = random;
     this.scene = worldview.scene;
     this.loadWeather = worldview.weather || 'golden';
-    this.looks = WEATHER_IDS.map(id => weatherLook(mapAtmosphere('frontier', { weather: id })));
+    // A battlefield with moods of its own (Redrock Canyon: desert, dusk) keeps its load mood as the
+    // clear state and borrows Frontier's overcast, mist and storm looks for the others.
+    const ownMood = !WEATHER_IDS.includes(this.loadWeather);
+    this.looks = WEATHER_IDS.map(id => weatherLook(ownMood && id === 'golden' ? worldview.palette : mapAtmosphere('frontier', { weather: id })));
     this.baseLook = weatherLook(worldview.palette);
     const loadIndex = Math.max(0, WEATHER_IDS.indexOf(this.loadWeather));
     this.weights = WEATHER_IDS.map((_, i) => (i === loadIndex ? 1 : 0));

@@ -65,6 +65,10 @@ export const TILE = {
   CORRUGATED_STEEL: 112, SOOT_BRICK: 113,
   // Frontier's per-map LEAVES remap: olive broadleaf hedges, shrubs and crowns.
   FRONTIER_LEAVES: 114,
+  // Redrock Canyon's per-map remaps: red canyon strata (DUST_ROCK), orange
+  // desert sand (SAND), cream cap-rock bands (DUST_SANDSTONE) and grey-green
+  // sage scrub and palm fronds (LEAVES).
+  REDROCK_STRATA: 115, REDROCK_SAND: 116, REDROCK_BAND: 117, REDROCK_SAGE: 118,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -931,6 +935,43 @@ function frontierLeaves(x, y) {
   return [clamp255(base[0] + shade), clamp255(base[1] + shade), clamp255(base[2] + (shade >> 1)), 255];
 }
 
+/** Redrock strata: deep red sandstone in thin wavy beds with darker partings. */
+function redrockStrata(x, y) {
+  const drift = [0, 1, 1, 2, 1, 0, -1, -1, -2, -1, 0, 1, 1, 0, -1, 0][x];
+  const bed = (y + drift + 16) & 15;
+  const tone = [6, 9, 4, -3, -8, -2, 3, 7, 5, 0, -6, -10, -4, 2, 5, 3][bed];
+  const grain = dustGrain(x, y, 231, 13) - 6;
+  if (bed === 11 && dustGrain(x, y, 232, 5) < 3) return dustColor([112, 52, 34], grain >> 1);   // parting line
+  return dustColor([166, 82, 52], tone + grain);
+}
+
+/** Redrock sand: warm orange wind-blown sand with fine ripples and dark grit. */
+function redrockSand(x, y) {
+  const ripple = ((y * 2 + (x >> 2) + dustGrain(x >> 3, y >> 3, 233, 3)) & 7) === 0 ? -6 : 0;
+  const grain = dustGrain(x, y, 234, 11) - 5;
+  let c = dustColor([212, 146, 94], grain + ripple);
+  if (dustGrain(x, y, 235, 61) === 0) c = dustColor([150, 92, 60], 0);
+  return c;
+}
+
+/** Redrock cap-rock band: pale cream sandstone, natural (no masonry joints), faint cross-bedding. */
+function redrockBand(x, y) {
+  const cross = ((x + y * 2 + dustGrain(x >> 2, 0, 236, 4)) % 9) === 0 ? -6 : 0;
+  const grain = dustGrain(x, y, 237, 9) - 4;
+  const mottle = dustGrain(x >> 2, y >> 2, 238, 7) - 3;
+  return dustColor([214, 184, 140], grain + mottle + cross);
+}
+
+/** Redrock sage: the leaf cutout in dusty grey-green, sun-bleached at the tips. */
+function redrockSage(x, y) {
+  const leaf = leaves(x, y);
+  if (!leaf[3]) return leaf;
+  const cluster = ((x >> 1) * 7 ^ (y >> 1) * 17 ^ ((x + y) >> 2) * 5) % 3;
+  const base = [[92, 104, 70], [112, 122, 82], [132, 136, 96]][cluster];
+  const shade = (leaf[0] - [42, 55, 70][cluster]);
+  return [clamp255(base[0] + shade), clamp255(base[1] + shade), clamp255(base[2] + (shade >> 1)), 255];
+}
+
 /** Dense conifer foliage: opaque, cool dark greens with needle highlights. */
 function pineLeaves(x, y) {
   const cluster = (((x >> 1) * 11 ^ (y >> 1) * 19 ^ ((x - y + 16) >> 2) * 5) >>> 0) % 3;
@@ -1129,6 +1170,10 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.PINE_NEEDLES]: pineNeedles,
   [TILE.PINE_LEAVES]: pineLeaves,
   [TILE.FRONTIER_LEAVES]: frontierLeaves,
+  [TILE.REDROCK_STRATA]: redrockStrata,
+  [TILE.REDROCK_SAND]: redrockSand,
+  [TILE.REDROCK_BAND]: redrockBand,
+  [TILE.REDROCK_SAGE]: redrockSage,
   [TILE.BIRCH_LOG_SIDE]: birchSide,
   [TILE.BIRCH_LOG_TOP]: birchTop,
   [TILE.WHITE_PLASTER]: whitePlaster,
@@ -1283,6 +1328,15 @@ export const MAP_SURFACES = Object.freeze({
     remap: Object.freeze({ [TILE.GRASS_TOP]: TILE.MEADOW_TOP, [TILE.GRASS_SIDE]: TILE.MEADOW_SIDE, [TILE.LEAVES]: TILE.FRONTIER_LEAVES }),
     boundary: false, pilasterEvery: 0,
   }),
+  // Redrock Canyon's desert palette: the canyon walls, mesas and slickrock
+  // (DUST_ROCK) turn red, DUST_SANDSTONE becomes the natural cream cap-rock
+  // band (also the sites' masonry), SAND the orange desert floor and LEAVES
+  // dusty sage. Like Frontier: open mountains, no boundary skin.
+  redrock: Object.freeze({
+    remap: Object.freeze({ [TILE.DUST_ROCK]: TILE.REDROCK_STRATA, [TILE.SAND]: TILE.REDROCK_SAND,
+      [TILE.DUST_SANDSTONE]: TILE.REDROCK_BAND, [TILE.LEAVES]: TILE.REDROCK_SAGE }),
+    boundary: false, pilasterEvery: 0,
+  }),
 });
 const NO_SURFACE = Object.freeze({ remap: null, boundary: false, pilasterEvery: 0 });
 
@@ -1343,6 +1397,8 @@ const NO_RING_DARKEN = new Set([
   TILE.FIELD_WHEAT_SIDE, TILE.MUD, TILE.SCORCHED_EARTH, TILE.GRAVEL, TILE.PINE_NEEDLES, TILE.PINE_LEAVES,
   TILE.BIRCH_LOG_SIDE, TILE.BIRCH_LOG_TOP, TILE.WHITE_PLASTER, TILE.TERRACOTTA_ROOF, TILE.COBBLE_WALL,
   TILE.TIMBER, TILE.CORRUGATED_STEEL, TILE.SOOT_BRICK,
+  // Redrock's strata, sand, cap rock and sage are natural surfaces too.
+  TILE.REDROCK_STRATA, TILE.REDROCK_SAND, TILE.REDROCK_BAND, TILE.REDROCK_SAGE,
   ...Object.entries(TILE).filter(([name]) => name.startsWith('MC_')).map(([, slot]) => slot),
 ]);
 const RING_DARKEN = 0.9;

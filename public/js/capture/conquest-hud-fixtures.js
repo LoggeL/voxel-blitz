@@ -8,18 +8,24 @@ import { BREAKTHROUGH_RULES, FRONTIER_PLAN, KIT_IDS, VEHICLE_STATUS, vehicleMoun
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { encodeConquestFlag } from '../../../shared/conquest.js';
 import { mortarPitchForRange } from '../../../shared/mortar-rules.js';
+import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
+import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
 
 export const FIXTURE_NOW = 2_000_000;
 const GROUND = 26;
 const HQ_Y = FRONTIER_PLAN.heights.hqPlateau;
 
 /** mapMeta with the Conquest statics the client merges (flags with y, bases, combat area). */
-export function fixtureMapMeta() {
-  const flags = FRONTIER_PLAN.flags.map(f => ({ ...f, y: GROUND, spawns: [] }));
-  const bases = Object.fromEntries(Object.entries(FRONTIER_PLAN.hqs).map(([team, hq]) => [team, { id: team, ...hq, y: HQ_Y, spawns: [] }]));
+export function fixtureMapMeta(mapId = 'frontier') {
+  // ?map=redrock on the capture page: the same fixtures over Redrock Canyon's
+  // flags (names, radii), HQs and overview image; the fixture rows keep their
+  // Frontier positions, which fall on the same five-flag layout.
+  const plan = mapId === 'frontier' ? FRONTIER_PLAN : conquestPlanFor(mapId);
+  const flags = plan.flags.map(f => ({ ...f, y: GROUND, spawns: [] }));
+  const bases = Object.fromEntries(Object.entries(plan.hqs).map(([team, hq]) => [team, { id: team, ...hq, y: HQ_Y, spawns: [] }]));
   return {
-    id: 'frontier', name: 'Frontier', dimensions: { ...FRONTIER_PLAN.dimensions },
-    conquest: { version: 2, flags, bases, combatArea: { ...FRONTIER_PLAN.combatArea }, vehicleSpawns: [], roads: [], crossings: FRONTIER_PLAN.crossings.map(c => ({ ...c, y: GROUND })), weather: 'golden' },
+    id: mapId, name: BATTLEFIELD_INFO[mapId]?.name ?? 'Frontier', dimensions: { ...plan.dimensions },
+    conquest: { version: 2, flags, bases, combatArea: { ...plan.combatArea }, vehicleSpawns: [], roads: [], crossings: plan.crossings.map(c => ({ ...c, y: GROUND })), weather: mapId === 'redrock' ? 'desert' : 'golden' },
   };
 }
 

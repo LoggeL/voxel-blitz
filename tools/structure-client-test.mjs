@@ -716,7 +716,8 @@ await (async () => {
   const index = readFileSync(new URL('../server/index.js', import.meta.url), 'utf8');
   const bootWarmup = readFileSync(new URL('../server/boot-warmup.js', import.meta.url), 'utf8');
   assert(bootWarmup.includes('prepareStructureTemplate(world)')
-    && index.indexOf('prepareFrontier(') > 0 && index.indexOf('prepareFrontier(') < index.indexOf('server.listen('),
+    && index.indexOf("prepareBattlefieldLogged('frontier')") > 0
+    && index.indexOf("prepareBattlefieldLogged('frontier')") < index.indexOf('server.listen('),
     'Frontier field prepared before accepting players');
   assert(index.indexOf('warmStructureTemplates(') > index.indexOf('server.listen('), 'the other maps warm after listening');
   assert(index.includes('schedule: afterRoomTick'), 'slices run right after a room tick, also while rooms exist');

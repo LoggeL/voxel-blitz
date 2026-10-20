@@ -19,12 +19,16 @@ import { MAP_FINGERPRINT_PATTERN, isMapFrame, mapFingerprint, parseMapFrame } fr
 
 const CACHE_NAME = 'vb-map-templates-v1';
 const KEY_PREFIX = '/__vb-map-template/';
-/** Persisted templates (Frontier is the only large one; arenas are a few kB). */
+/** Persisted templates (the two battlefields are the large ones). */
 const PERSIST_LIMIT = 6;
 /** Fingerprints announced per admission (server/protocol/admission.js MAX_ADMISSION_MAP_CACHE). */
 const ANNOUNCE_LIMIT = 8;
-/** Template bytes kept (memory and storage): one Frontier (2.0 MB) plus the arenas. */
-export const MAP_CACHE_BYTE_BUDGET = 3 * 1024 * 1024;
+/**
+ * Template bytes kept (memory and storage): both Conquest battlefields at once
+ * (Frontier 2.0 MB + Redrock Canyon 1.56 MB) plus an arena, so switching
+ * between the two battlefields never re-downloads either template.
+ */
+export const MAP_CACHE_BYTE_BUDGET = 4 * 1024 * 1024;
 
 export class MapCache {
   constructor({ storage = (typeof caches !== 'undefined' ? caches : null), limit = PERSIST_LIMIT,

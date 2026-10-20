@@ -685,6 +685,9 @@ function quietCombat(domParts) {
   assert.deepEqual(overlay.dom.graph.querySelectorAll('polyline').map(l => l.getAttribute('class')), ['vb-result-graph-line is-own', 'vb-result-graph-line is-enemy']);
   assert.equal(overlay.dom.mvps.children.length, 5);
   assert.ok(overlay.dom.detail.textContent.includes('WEST HOLDS THE FRONTIER'));
+  overlay.update({ ...result.match, map: 'redrock' }, result.self, result.players, FIXTURE_NOW);
+  assert.ok(overlay.dom.detail.textContent.includes('WEST HOLDS THE CANYON'), 'the Redrock result names the canyon');
+  overlay.update(result.match, result.self, result.players, FIXTURE_NOW);
   assert.equal(overlay.dom.score.textContent, `${result.match.conquest.tickets.alpha}:${result.match.conquest.tickets.bravo}`);
   // Breakthrough results read in sectors: broken through, or held with the sectors lost so far.
   const bt = structuredClone(result.match);
@@ -1313,6 +1316,30 @@ ok();
   markers.update([], [unit('plane')]);
   assert.notEqual(node.glyph.children[0], tankGlyph, 'a reused marker node redraws its hull glyph');
   markers.root.remove();
+  ok();
+}
+
+/* ------------------------- battlefield overview image (Redrock Canyon) */
+
+{
+  // The minimap, big map and deploy map load the overview when ConquestHud is
+  // built: a Redrock match must never fetch Frontier's 1.6 MB overview first.
+  const { setOverviewMap, OVERVIEW_URLS } = await import('../public/js/ui/conquest/map-painter.js');
+  const savedImage = globalThis.Image, fetched = [];
+  globalThis.Image = class { constructor() { this.dataset = {}; } set src(url) { fetched.push(url); this._src = url; } get src() { return this._src; } };
+  try {
+    setOverviewMap('frontier');
+    const hud = new ConquestHud(document.body, { eventTarget: dom.window, mapId: 'redrock' });
+    assert.ok(fetched.length > 0 && fetched.every(url => url === OVERVIEW_URLS.redrock), `only Redrock's overview loads (${fetched.join(', ')})`);
+    hud.dispose();
+    fetched.length = 0;
+    const frontierHud = new ConquestHud(document.body, { eventTarget: dom.window, mapId: 'frontier' });
+    assert.ok(fetched.length > 0 && fetched.every(url => url === OVERVIEW_URLS.frontier), 'the next Frontier match loads Frontier\'s overview');
+    frontierHud.dispose();
+  } finally {
+    if (savedImage === undefined) delete globalThis.Image; else globalThis.Image = savedImage;
+    setOverviewMap('frontier');
+  }
   ok();
 }
 

@@ -2,6 +2,7 @@ import * as THREE from '../vendor/three.module.js';
 import { createMapState } from '../../../shared/worlddata.js';
 import { findMapCaptureShot, resolveMapCaptureShot } from '../../../shared/map-capture-shots.js';
 import { FRONTIER_PLAN } from '../../../shared/conquest-contract.js';
+import { isBattlefieldMap } from '../../../shared/world/battlefields.js';
 import { WorldView } from '../engine/worldview.js';
 import { CombatPostProcess } from '../engine/combat-post-process.js';
 import { rendererCapabilities, resolveGraphicsProfile } from '../engine/graphics-quality.js';
@@ -9,8 +10,9 @@ import { rendererCapabilities, resolveGraphicsProfile } from '../engine/graphics
 // Static, muted map captures: no game loop, network, audio or HUD. Optional
 // layers: ?vehicles=1 parks the authored fleet (plus a shot's staged hull),
 // voxel-lit through VehicleView.lightingRoot(); ?weather=golden|mist|overcast|storm
-// overrides the Frontier mood and runs the Conquest weather view pinned at that
-// state (rain, wet ground; ?flash=1 freezes a lightning strike at its peak); ?ambience=1 adds the Conquest chimney plumes,
+// overrides the Frontier mood (desert|dusk on Redrock Canyon) and, on Frontier, runs
+// the Conquest weather view pinned at that state (rain, wet ground; ?flash=1 freezes
+// a lightning strike at its peak); ?ambience=1 adds the Conquest chimney plumes,
 // wreck columns and off-map salvos through the shared ParticleField;
 // ?avatars=1 and ?explosion= as before. Any failed request fails the capture.
 
@@ -54,7 +56,7 @@ function worldSurface(x, z) {
   return y;
 }
 
-// Frontier cameras stand on the planned terrain; a world that is not the
+// Battlefield cameras stand on the planned terrain (Frontier and Redrock share dimensions); a world that is not the
 // planned one yet (other dimensions) is measured directly instead.
 const plan = FRONTIER_PLAN.dimensions;
 const planned = world.dimensions.sx === plan.sx && world.dimensions.sy === plan.sy && world.dimensions.sz === plan.sz;
@@ -63,7 +65,7 @@ const shot = authored.anchor
   : authored;
 
 const overview = shot.kind === 'orthographic';
-const far = map === 'frontier' ? 3000 : 400;
+const far = isBattlefieldMap(map) ? 3000 : 400;
 const camera = overview
   ? new THREE.OrthographicCamera(-shot.scale / 2, shot.scale / 2, shot.scale / 2, -shot.scale / 2, 0.05, far)
   : new THREE.PerspectiveCamera(shot.fov, innerWidth / innerHeight, 0.05, far);

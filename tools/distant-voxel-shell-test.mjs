@@ -235,3 +235,29 @@ console.log('Distant voxel shell fixture passed: open bridge, odd pole, terrain,
   console.log(`Frontier distant shell passed (${buildMs.toFixed(0)} ms): ${shellQuads} quads, ${(shellBytes / 1048576).toFixed(1)} MiB, `
     + `visible terrain surface ${(terrainShare * 100).toFixed(0)} % of quads, no buried faces, rebuild ${Math.max(...updateMs).toFixed(1)} ms.`);
 }
+
+// --- Redrock Canyon: the same two-draw distant world within Frontier's budgets -----------------
+{
+  const world = createMapState('redrock'), started = performance.now();
+  const profile = renderDistanceProfile('redrock', 'medium');
+  const far = new FarTerrain(new THREE.Scene(), world.getBlock, world.dimensions, {
+    step: profile.terrainStep, silhouetteStep: profile.silhouetteStep, groundHeight: world.meta.groundLevel,
+  });
+  const full = far.silhouette;
+  const buildMs = performance.now() - started;
+  assert.equal(far.stats.draws, 2, 'Redrock: far ground plus the voxel shell');
+  assert(full.stats.quads < 170000, `greedy Redrock shell geometry is bounded (${full.stats.quads} quads)`);
+  assert(full.stats.bytes < 32 * 1024 * 1024, `Redrock shell CPU buffers ${(full.stats.bytes / 1048576).toFixed(1)} MiB stay below 32 MiB`);
+  const normals = full.geometry.attributes.normal.array, positions = full.geometry.attributes.position.array;
+  let buriedFaces = 0;
+  for (let v = 0; v < normals.length / 3; v += 4) {
+    if (normals[v * 3 + 1] >= 0) continue;
+    const x = Math.min(full.width - 1, Math.floor(Math.min(positions[v * 3], positions[(v + 2) * 3]) / full.step));
+    const z = Math.min(full.depth - 1, Math.floor(Math.min(positions[v * 3 + 2], positions[(v + 2) * 3 + 2]) / full.step));
+    if (positions[v * 3 + 1] <= full.floor[x + z * full.width]) buriedFaces++;
+  }
+  assert.equal(buriedFaces, 0, 'Redrock: no face is emitted against buried terrain');
+  const quads = full.stats.quads, bytes = full.stats.bytes;
+  far.dispose();
+  console.log(`Redrock distant shell passed (${buildMs.toFixed(0)} ms): ${quads} quads, ${(bytes / 1048576).toFixed(1)} MiB, no buried faces.`);
+}

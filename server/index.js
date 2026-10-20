@@ -13,9 +13,10 @@ import { LobbyManager } from './lobby.js';
 import { ServerDiagnostics } from './diagnostics.js';
 import { createMapState, getMapDimensions } from '../shared/worlddata.js';
 import { MAP_IDS } from '../shared/modes.js';
+import { isBattlefieldMap, BATTLEFIELD_INFO } from '../shared/world/battlefields.js';
 import { warmStructureTemplates } from './sim/structure.js';
 import { afterRoomTick } from './game.js';
-import { prepareFrontier, warmGroundGrids } from './boot-warmup.js';
+import { prepareBattlefield, warmGroundGrids } from './boot-warmup.js';
 import { coalesceTick, resetHeldTicks, tickSent, tickSettled } from './protocol/tick-backlog.js';
 import { TICK_MS, parseAdmissionFrame, parseBuyFrame, parseConquestIntent, parseTitanfallIntent, sanitizeName } from './protocol/admission.js';
 
@@ -473,16 +474,25 @@ async function main() {
   // before accepting players, so the first Conquest room does not stall every
   // match (server/boot-warmup.js).
   const structural = process.env.VOXEL_STRUCTURAL !== '0';
-  {
-    const { total, cover, field } = prepareFrontier({ structural });
-    console.log(`[voxel-blitz] Frontier prepared in ${Math.round(total)} ms (cover sets ${Math.round(cover)} ms`
+  const prepareBattlefieldLogged = (id) => {
+    const { total, cover, field } = prepareBattlefield(id, { structural });
+    console.log(`[voxel-blitz] ${BATTLEFIELD_INFO[id]?.name ?? id} prepared in ${Math.round(total)} ms (cover sets ${Math.round(cover)} ms`
       + (structural ? `, structure field ${Math.round(field)} ms)` : ')'));
-  }
+  };
+  prepareBattlefieldLogged('frontier');
 
   server.listen(port, () => {
     const address = server.address();
     const boundPort = address && typeof address === 'object' ? address.port : port;
     console.log(`voxel-blitz listening on :${boundPort}`);
+    // Redrock Canyon (the second battlefield, ~1 s of synchronous work here)
+    // prepares once, right after a room tick (or at once while none runs),
+    // so boot is not delayed and the first Redrock room does not stall.
+    if (process.env.VOXEL_BATTLEFIELD_WARM !== '0') {
+      afterRoomTick(() => {
+        try { prepareBattlefieldLogged('redrock'); } catch (err) { console.error('[voxel-blitz] Redrock prepare failed:', err); }
+      });
+    }
     // The other maps' structural template fields (2-50 ms each), smallest first,
     // in slices of at most 2 ms run right after a room tick (or at once while no
     // room ticks), so no running room waits for one and no first room on a map
@@ -490,7 +500,7 @@ async function main() {
     if (structural && process.env.VOXEL_STRUCTURE_WARM !== '0') {
       const started = performance.now();
       const volume = (id) => { const d = getMapDimensions(id); return d.sx * d.sy * d.sz; };
-      const maps = MAP_IDS.filter(id => id !== 'frontier').sort((a, b) => volume(a) - volume(b));
+      const maps = MAP_IDS.filter(id => !isBattlefieldMap(id)).sort((a, b) => volume(a) - volume(b));
       void warmStructureTemplates(maps.map(id => () => createMapState(id)), {
         schedule: afterRoomTick, sliceMs: 2,
       }).then((timings) => {

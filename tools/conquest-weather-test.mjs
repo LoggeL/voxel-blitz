@@ -383,4 +383,28 @@ ok();
 }
 ok();
 
-console.log(`Conquest weather: ${checks} groups passed (timeline, phases, wx tuple, wetness, stepper, policy, spotting, locks, bots, canopy drift, HUD tab, client view)`);
+// --- client view on Redrock Canyon: its own clear mood, Frontier's overcast/mist/storm ---
+{
+  const THREE = await import('../public/js/vendor/three.module.js');
+  const { ConquestWeatherView, weatherLook } = await import('../public/js/engine/conquest-weather-view.js');
+  const { mapAtmosphere } = await import('../public/js/engine/map-atmosphere.js');
+  const scene = new THREE.Scene();
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1); hemi.name = 'hemi'; scene.add(hemi);
+  scene.fog = new THREE.FogExp2(0xffffff, 0.002);
+  const palette = mapAtmosphere('redrock', { weather: 'desert' });
+  const worldview = { scene, palette, weather: 'desert', sun: new THREE.DirectionalLight(0xffffff, 1), lightUniforms: null };
+  const view = new ConquestWeatherView({ worldview, graphics: { tier: 'high', ambientParticles: 1 }, random: () => 0.5 });
+  const desert = weatherLook(palette), frontierGolden = weatherLook(mapAtmosphere('frontier', { weather: 'golden' }));
+  view.set(decodeConquestWeather([0, 0, 0, 0, 90, 0, -1]));
+  view.update(1 / 60, null);
+  assert(view.current.skyTop.equals(desert.skyTop) && view.current.fog.equals(desert.fog), 'clear weather keeps the desert mood');
+  assert(!view.current.skyTop.equals(frontierGolden.skyTop), 'not Frontier\'s golden sky');
+  assert(view.current.skyHorizon.equals(desert.skyHorizon) && view.current.water.skyTop.equals(desert.water.skyTop), 'sky and water colours blend once each');
+  view.set(decodeConquestWeather([3, 3, 0, 0, 90, 100, -1]));
+  for (let i = 0; i < 60 * 20; i++) view.update(1 / 60, null);
+  assert(view.stats.weights.storm > 0.99 && view.stats.rain === 1, 'a storm still rolls over the canyon');
+  view.dispose();
+}
+ok();
+
+console.log(`Conquest weather: ${checks} groups passed (timeline, phases, wx tuple, wetness, stepper, policy, spotting, locks, bots, canopy drift, HUD tab, client view, Redrock view)`);

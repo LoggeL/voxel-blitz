@@ -9,7 +9,7 @@ export const DEFAULT_DUEL_KILL_LIMIT = 5;
 export const MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training', 'conquest', 'titanfall']);
 export const DUEL_WEAPONS = Object.freeze(['rifle', 'shotgun', 'sniper', 'revolver', 'knife']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'ashfall', 'frontier']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'ashfall', 'frontier', 'redrock']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -154,6 +154,8 @@ export const MAP_MODE_COMPATIBILITY = Object.freeze({
   bikini_bottom: COMBAT_MODE_IDS,
   // Ashfall: the dedicated Titanfall Attrition arena (docs/titanfall.md §14).
   ashfall: Object.freeze(['titanfall']),
+  // Redrock Canyon: the second Conquest battlefield (docs/maps/redrock.md).
+  redrock: Object.freeze(['conquest']),
 });
 
 export function isModeId(value) {

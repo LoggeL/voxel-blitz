@@ -4,6 +4,7 @@ import { el, MAP_LABELS, MODE_LABELS, WEAPON_NAMES, savePref } from './hud-suppo
 import {
   BREAKTHROUGH_RULES, CONQUEST_VARIANTS, DEFAULT_CONQUEST_VARIANT, FRONTIER_PLAN, KIT_IDS, KITS, TEAM_DISPLAY,
 } from '../../../shared/conquest-contract.js';
+import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
 import { MAX_BOTS, lobbyCapacity, modeAllowsBots } from '../../../shared/lobby-limits.js';
 
 /** Lobby summary of a Conquest match, read from the frozen plan so it never drifts from the map. */
@@ -12,13 +13,20 @@ const CONQUEST_HINT = `${FRONTIER_PLAN.dimensions.sx} × ${FRONTIER_PLAN.dimensi
   + 'Squads of four deploy on HQ, held flags, squadmates or vehicles. Drive jeeps and tanks, fly attack and transport helicopters and jets. '
   + 'Hold three or more flags to bleed enemy tickets.';
 const CONQUEST_VARIANT_LABELS = Object.freeze({ conquest: 'Conquest · five flags, ticket bleed', breakthrough: 'Breakthrough · attack and defend sectors' });
-/** Lobby summary of Breakthrough, read from BREAKTHROUGH_RULES and the Frontier sector table. */
-const BREAKTHROUGH_SECTORS = BREAKTHROUGH_RULES.sectors.frontier;
-const BREAKTHROUGH_HINT = `Breakthrough on ${FRONTIER_PLAN.dimensions.sx} × ${FRONTIER_PLAN.dimensions.sz}: ${TEAM_DISPLAY[BREAKTHROUGH_RULES.attackers]} attacks, `
-  + `${TEAM_DISPLAY[BREAKTHROUGH_RULES.attackers === 'alpha' ? 'bravo' : 'alpha']} defends ${BREAKTHROUGH_SECTORS.length} sectors `
-  + `(${BREAKTHROUGH_SECTORS.map(s => s.join(' + ')).join(' → ')}). Attackers start with ${BREAKTHROUGH_RULES.tickets} tickets, `
-  + `+${BREAKTHROUGH_RULES.refillPerSector} per sector taken; hold every flag of a sector to break through. Defenders fall back behind each lost sector. `
-  + 'Same kits, squads and vehicles; the attackers bring more armour.';
+/** The battlefield's identity (Frontier, Redrock Canyon) that leads the Conquest and Breakthrough hints. */
+const battlefieldLead = map => (BATTLEFIELD_INFO[map] ? `${BATTLEFIELD_INFO[map].name}: ${BATTLEFIELD_INFO[map].tagline}. ` : '');
+/** The Conquest hint with the chosen battlefield's identity first (Frontier, Redrock Canyon). */
+export const conquestHint = map => battlefieldLead(map) + CONQUEST_HINT;
+/** Lobby summary of Breakthrough, read from BREAKTHROUGH_RULES and the battlefield's sector table (Frontier's by default). */
+export const breakthroughHint = (map) => {
+  const sectors = BREAKTHROUGH_RULES.sectors[map] ?? BREAKTHROUGH_RULES.sectors.frontier;
+  return battlefieldLead(map)
+    + `Breakthrough on ${FRONTIER_PLAN.dimensions.sx} × ${FRONTIER_PLAN.dimensions.sz}: ${TEAM_DISPLAY[BREAKTHROUGH_RULES.attackers]} attacks, `
+    + `${TEAM_DISPLAY[BREAKTHROUGH_RULES.attackers === 'alpha' ? 'bravo' : 'alpha']} defends ${sectors.length} sectors `
+    + `(${sectors.map(s => s.join(' + ')).join(' → ')}). Attackers start with ${BREAKTHROUGH_RULES.tickets} tickets, `
+    + `+${BREAKTHROUGH_RULES.refillPerSector} per sector taken; hold every flag of a sector to break through. Defenders fall back behind each lost sector. `
+    + 'Same kits, squads and vehicles; the attackers bring more armour.';
+};
 
 /**
  * Map menu label: the map label without a trailing "W × H" size, which the
@@ -133,7 +141,7 @@ export class LobbySettings {
       ? `BASE 1V1 WEAPON SET: ${DUEL_WEAPONS.map(id => WEAPON_NAMES[id] || id).join(' · ')}. No throwables.` : '';
     this.capacity.textContent = `${state.members?.length || 0} / ${limit} SLOTS · ${MAP_LABELS[state.map] || state.map}`;
     this.hint.textContent = state.gameMode === 'conquest'
-      ? (this.controls.conquestVariant.value === 'breakthrough' ? BREAKTHROUGH_HINT : CONQUEST_HINT) : state.gameMode === 'titanfall'
+      ? (this.controls.conquestVariant.value === 'breakthrough' ? breakthroughHint(state.map) : conquestHint(state.map)) : state.gameMode === 'titanfall'
       ? `Attrition, MILITIA vs IMC: pilots wallrun, call titans from orbit and rodeo enemy titans. First to ${titanfallScoreLimit(1)}-${titanfallScoreLimit(8)} points (scales with team size), up to 8 v 8.` : state.gameMode === 'bastion'
       ? `1–4 players defend ${MAP_LABELS[state.map] || state.map} stage by stage: build, hold, fall back, extract. No friendly bots.` : state.gameMode === 'duel'
       ? 'Share the invite link. Two players, no bots. Both players must be ready.' : isHost

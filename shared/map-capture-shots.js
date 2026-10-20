@@ -1,6 +1,7 @@
 import { FRONTIER_PLAN } from './conquest-contract.js';
 import { frontierSurfaceY } from './world/frontier-terrain.js';
 import { getMapDimensions } from './world/dimensions.js';
+import { redrockCaptureShots, redrockCaptureSurface } from './redrock-capture-shots.js';
 
 const shot = (map, id, position, target, fov = 75, mode = null, options = {}) => Object.freeze({
   map,
@@ -25,9 +26,13 @@ const HQ = FRONTIER_PLAN.hqs.alpha;
  * spawn from mapMeta. resolveMapCaptureShot() re-resolves against the loaded
  * world when that is not the planned one.
  */
+// Planned surfaces per battlefield (`surface` on a shot, Frontier by default).
+const PLANNED_SURFACES = Object.freeze({ frontier: frontierSurfaceY, redrock: redrockCaptureSurface });
+const plannedSurface = (entry) => PLANNED_SURFACES[entry?.surface] || frontierSurfaceY;
+
 const groundShot = (id, from, to, fov, options = {}) => {
   let resolved = null;
-  const resolve = () => (resolved ??= resolveAnchors(from, to, frontierSurfaceY));
+  const resolve = () => (resolved ??= resolveAnchors(from, to, plannedSurface(options)));
   return Object.freeze({
     map: 'frontier', id, fov, mode: 'conquest', anchor: Object.freeze({ from: Object.freeze(from), to: Object.freeze(to) }),
     get position() { return resolve().position; },
@@ -47,11 +52,12 @@ function resolveAnchors(from, to, surfaceY) {
  */
 const airShot = (id, position, target, fov) => shot('frontier', id, position, target, fov, 'conquest', { airspace: true });
 
-const frontierOverview = () => {
-  const { sx, sz } = getMapDimensions('frontier');
-  return shot('frontier', 'overview', [sx / 2, 1200, sz / 2], [sx / 2, 0, sz / 2], 75, 'conquest',
+const battlefieldOverview = (map) => {
+  const { sx, sz } = getMapDimensions(map);
+  return shot(map, 'overview', [sx / 2, 1200, sz / 2], [sx / 2, 0, sz / 2], 75, 'conquest',
     { kind: 'orthographic', scale: Math.max(sx, sz) });
 };
+const frontierOverview = () => battlefieldOverview('frontier');
 
 /** Frontier v2: the first sixty seconds, flag by flag, plus vehicles in the field. */
 const FRONTIER_SHOTS = [
@@ -94,7 +100,7 @@ const FRONTIER_SHOTS = [
 /** Frontier camera re-resolved against the loaded world (surface probe, mapMeta subjects). */
 export function resolveMapCaptureShot(entry, { surfaceY = null, meta = null } = {}) {
   if (!entry?.anchor) return entry;
-  const ground = typeof surfaceY === 'function' ? surfaceY : frontierSurfaceY;
+  const ground = typeof surfaceY === 'function' ? surfaceY : plannedSurface(entry);
   let { position, target } = resolveAnchors(entry.anchor.from, entry.anchor.to, ground);
   const subject = entry.subject;
   let focus = null;
@@ -130,6 +136,8 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   ...FRONTIER_SHOTS,
   // Square north-up frame over the whole authoritative extent.
   frontierOverview(),
+  // Redrock Canyon (shared/redrock-capture-shots.js), overview included.
+  ...redrockCaptureShots({ groundShot, overview: () => battlefieldOverview('redrock') }),
   shot('harbor', 'hero', [174, 80, 136], [94, 18, 68], 64),
   shot('harbor', 'cargo-lanes', [75, 19, 104], [98, 25, 61], 78),
   shot('harbor', 'freight-lightboxes', [65, 16.62, 61], [43, 23, 46], 76),

@@ -167,7 +167,7 @@ export class MatchResultOverlay {
       if (winner == null) {
         this.dom.title.textContent = 'DRAW';
         this.dom.detail.textContent = 'TICKETS AND FLAGS EVEN';
-      } else this.dom.detail.textContent = `${winnerName} HOLDS THE FRONTIER`;
+      } else this.dom.detail.textContent = `${winnerName} HOLDS ${match?.map === 'redrock' ? 'THE CANYON' : 'THE FRONTIER'}`;
       // Breakthrough (match.conquest.bt): the sectors taken tell the round, not a ticket pair.
       const bt = decodeBreakthrough(match?.conquest?.bt);
       if (bt) {

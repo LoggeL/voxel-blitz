@@ -1,4 +1,6 @@
 import { generateFrontierInto } from './flatmap-frontier.js';
+import { generateRedrockInto } from './flatmap-redrock.js';
+import { isBattlefieldMap } from './battlefields.js';
 import { getMapDimensions } from './dimensions.js';
 import { generateHarborInto, generateCanyonInto } from './flatmap-large.js';
 import { generateNuketownInto } from './flatmap-nuketown.js';
@@ -47,6 +49,7 @@ function buildPristineTemplate(id) {
   const world = createStateApi(blocks, heights, null, id);
 
   if (id === 'frontier') generateFrontierInto(world, blocks, heights);
+  else if (id === 'redrock') generateRedrockInto(world, blocks, heights);
   else if (id === 'harbor') generateHarborInto(world, blocks, heights);
   else if (id === 'canyon') generateCanyonInto(world, blocks, heights);
   else if (id === 'foundry') generateFoundryInto(world, blocks, heights);
@@ -75,15 +78,18 @@ function buildPristineTemplate(id) {
 
 // Build authoritative private baselines at import. Every state receives fresh cells.
 const pristineTemplates = new Map();
-for (const id of MAP_IDS) if (id !== 'frontier') pristineTemplates.set(id, buildPristineTemplate(id));
+for (const id of MAP_IDS) if (!isBattlefieldMap(id)) pristineTemplates.set(id, buildPristineTemplate(id));
 function getTemplate(id) {
   requireMapId(id);
   if (!pristineTemplates.has(id)) pristineTemplates.set(id, buildPristineTemplate(id));
   return pristineTemplates.get(id);
 }
-// Frontier metadata is static (terrain-derived, no voxels) and built on first use.
-let frontierMetadata = null;
-const frontierMeta = () => (frontierMetadata ??= createMapMetadata('frontier', { dimensions: getMapDimensions('frontier') }));
+// Battlefield metadata (Frontier, Redrock) is static (terrain-derived, no voxels) and built on first use.
+const battlefieldMetadata = new Map();
+const battlefieldMeta = (id) => {
+  if (!battlefieldMetadata.has(id)) battlefieldMetadata.set(id, createMapMetadata(id, { dimensions: getMapDimensions(id) }));
+  return battlefieldMetadata.get(id);
+};
 
 const defaultTemplate = pristineTemplates.get('foundry');
 data.set(defaultTemplate.blocks);
@@ -153,7 +159,7 @@ export function generateWorld() {
 
 export function getMapMeta(id) {
   requireMapId(id);
-  return id === 'frontier' ? frontierMeta() : getTemplate(id).meta;
+  return isBattlefieldMap(id) ? battlefieldMeta(id) : getTemplate(id).meta;
 }
 
 export function createMapState(id, serializedBytes) {

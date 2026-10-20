@@ -838,7 +838,9 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   /* Bomb sight up: the prompt moves to the free corner left of the top bar. */
   .vb-touch-mode .vb-conquest-hud[data-bomb-sight="true"] .cq-interact { top: max(10px, env(safe-area-inset-top)); bottom: auto;
     left: calc(50% - 146px); transform: translateX(-100%); }
-  .vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 52px); max-width: calc(100vw - 460px); }
+  /* Between the squad list and the grenade card; long place names (Redrock's COPPERHEAD MINE) take a smaller title. */
+  .vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 52px); max-width: calc(100vw - 480px); }
+  .vb-touch-mode .cq-banner-title { font-size: 13px; letter-spacing: 0.6px; }
   .vb-touch-mode .cq-restricted { top: 16%; }
   /* Landscape: the squad list rides right of the HP card, left of the banner lane and above MAP / SPOT. */
   .vb-touch-mode .cq-squad {

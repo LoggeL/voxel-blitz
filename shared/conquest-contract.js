@@ -70,12 +70,15 @@ export const BREAKTHROUGH_RULES = Object.freeze({
   // Ordered sectors from the attackers' HQ to the defenders' (flag ids, 1-2 per sector), per map.
   sectors: Object.freeze({
     frontier: Object.freeze([Object.freeze(['A', 'B']), Object.freeze(['C']), Object.freeze(['D', 'E'])]),
+    // Redrock Canyon mirrors Frontier's layout: oasis and mine, then the dam, then radar and railhead.
+    redrock: Object.freeze([Object.freeze(['A', 'B']), Object.freeze(['C']), Object.freeze(['D', 'E'])]),
   }),
   // Hull changes per side, keyed by the HQ pad suffix of `<team>-<pad>` spawns: the attackers
-  // bring a second tank (offset in metres in the attackers' frame, mirrored for bravo); the
+  // bring a second tank (offset in metres in the attackers' frame, mirrored for bravo; 20 m
+  // south of the HQ tank, past the mobile AA's bay at +9 m, just off the motor pool); the
   // defenders' HQ tank bay fields an AT jeep (their armour is the Iron Bridge tank while C holds).
   vehicles: Object.freeze({
-    attacker: Object.freeze({ add: Object.freeze([Object.freeze({ pad: 'tank-2', copy: 'tank', dx: 0, dz: 10 })]) }),
+    attacker: Object.freeze({ add: Object.freeze([Object.freeze({ pad: 'tank-2', copy: 'tank', dx: 0, dz: 20 })]) }),
     defender: Object.freeze({ retype: Object.freeze({ tank: 'jeep_at' }) }),
   }),
   // Bot commander: share of squads sent at enemy-held active flags (for the defenders: retakes).

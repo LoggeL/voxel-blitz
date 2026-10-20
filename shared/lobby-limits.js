@@ -23,6 +23,7 @@ export const MAP_PLAYER_LIMITS = Object.freeze({
   causeway: 4,
   bikini_bottom: 12,
   ashfall: 16,
+  redrock: 16,
 });
 
 export function lobbyCapacity(gameMode, map = 'foundry') {

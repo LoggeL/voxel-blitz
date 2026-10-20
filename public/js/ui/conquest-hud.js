@@ -24,6 +24,7 @@ import { DeployScreen } from './conquest/deploy-screen.js';
 import { InteractPrompt } from './conquest/interact.js';
 import { WorldMarkers } from './conquest/markers.js';
 import { Minimap } from './conquest/minimap.js';
+import { setOverviewMap } from './conquest/map-painter.js';
 import { cameraAngles, cameraPosition, createProjector } from './conquest/projection.js';
 import { Reticles } from './conquest/reticles.js';
 import { ScoreTicker } from './conquest/score-ticker.js';
@@ -81,9 +82,12 @@ export class ConquestHud {
   constructor(parent = globalThis.document?.body, {
     onInteract = () => {}, onDeploy = () => {}, onDeployOpen = () => {}, onSpot = () => {}, onSupport = () => {},
     combatHud = null, eventTarget = typeof window !== 'undefined' ? window : null, inputEnabled = () => true,
-    shellRaycast = null, careerProfile = () => null, replayHold = () => false,
+    shellRaycast = null, careerProfile = () => null, replayHold = () => false, mapId = null,
     onComm = () => {}, onOrder = () => {}, onCapture = () => {}, onRadio = () => {},
   } = {}) {
+    // The battlefield's overview image, picked before the minimap, big map and
+    // deploy map load it (update() keeps it in step with mapMeta.id after).
+    if (typeof mapId === 'string' && mapId) { this._overviewMap = mapId; setOverviewMap(mapId); }
     // Comm rose picks ({comm: kind}), full-map orders ({order: flagId | ''}), the Input UI capture
     // (Input.setUiCapture: the rose and the map cursor own the aim while up) and the radio squelch.
     this.onComm = typeof onComm === 'function' ? onComm : () => {};
@@ -473,6 +477,7 @@ export class ConquestHud {
     const { match, mapMeta = null, self = null, vehicleController = null, nowMs = null } = args;
     const cq = readConquest(match, mapMeta);
     if (!cq) { this._lastArgs = null; this.hide(); return false; }
+    if (mapMeta?.id && mapMeta.id !== this._overviewMap) { this._overviewMap = mapMeta.id; setOverviewMap(mapMeta.id); }
     this._lastArgs = args;
     if (vehicleController) this.vehicleController = vehicleController;
     const now = Number.isFinite(nowMs) ? nowMs : Date.now();

@@ -21,6 +21,7 @@ import { deserializeWorld, worldBlocks, getBlock, getMapMeta, getMapDimensions, 
 import { isMapFrame, parseMapFrame } from '../../shared/world/serialize.js';
 import { mapCache } from './engine/map-cache.js';
 import { prewarmFrontierMetadata, frontierMetadataPrewarm } from './engine/map-meta-prewarm.js';
+import { isBattlefieldMap } from '../../shared/world/battlefields.js';
 import { Input } from './engine/input.js';
 import { HUD } from './ui/hud.js';
 import { bastionEventBanner } from './ui/bastion-hud.js';
@@ -435,6 +436,8 @@ class Game {
     this.camera.far = this.worldview.renderDistanceProfile?.cameraFar ?? 400;
     this.camera.updateProjectionMatrix();
     this._conquestGroundFogDensity = this.worldview.scene.fog.density;
+    // Battlefields (Frontier, Redrock Canyon) thin the fog for aircraft in flight.
+    this._battlefieldFog = isBattlefieldMap(this.mapMeta?.id);
     this.worldview.setViewPosition(welcome.spawn);
     this.post.setGrade(this.worldview.palette.grade);
     joinMark('worldview');
@@ -455,7 +458,7 @@ class Game {
     this.vehicleView = new rt.VehicleView({ getBlock });
     this.cameraShake = new rt.CameraShake({ reducedMotion: displaySettings().reducedMotion });
     // Conquest: the river corridor drives the wading cue; the lazy Conquest sound bank decodes in the background.
-    this.vehicleAudio = new rt.VehicleAudio(sfx, { river: welcome.gameMode === 'conquest' ? rt.FRONTIER_PLAN.river : null });
+    this.vehicleAudio = new rt.VehicleAudio(sfx, { river: welcome.gameMode === 'conquest' ? rt.conquestPlanFor(welcome.map).river : null });
     // The low graphics tier (phones, weak laptops) decodes one take per group: about 58 instead of 85 MB of PCM.
     if (welcome.gameMode === 'conquest') {
       void sfx.loadConquestBank?.(graphics.tier === 'low' ? rt.CONQUEST_SAMPLE_MANIFEST_LITE : rt.CONQUEST_SAMPLE_MANIFEST);
@@ -471,7 +474,7 @@ class Game {
       this.conquestAmbience = new rt.ConquestAmbience({ scene: this.worldview.scene, fx: this.particleField,
         mapMeta: this.mapMeta, weather: this.worldview.weather || 'golden', getBlock,
         onArtillery: (pos) => this.conquestSoundscape?.artillery(pos) });
-      this.conquestSoundscape = new rt.ConquestSoundscape({ audio: sfx.conquestAudio(), weather: this.worldview.weather || 'golden',
+      this.conquestSoundscape = new rt.ConquestSoundscape({ audio: sfx.conquestAudio(), weather: this.worldview.weather || 'golden', mapId: this.mapMeta?.id,
         wrecks: this.conquestAmbience.sources?.wrecks ?? [] });
       // Dynamic weather (match.conquest.wx): sky, fog, light, rain, wet ground and lightning, uniform-only.
       if (this.worldview.weather) {
@@ -484,6 +487,7 @@ class Game {
       cameraShake: this.cameraShake, getBaseFov: () => this.session.baseFov,
     });
     this.conquestHud = new rt.ConquestHud(document.body, {
+      mapId: this.mapMeta?.id ?? welcome.map,
       onInteract: () => this.session.gameplayInputEnabled && this.vehicleController?.queueInteract(),
       onDeploy: (choice) => this.net?.sendConquest({ deploy: choice }),
       onDeployOpen: () => this.input.exit(),
@@ -704,7 +708,7 @@ class Game {
       post: this.post, characterRoots: this.worldview.characterRoots || [],
       shadows: this.worldview.dynamicShadows,
       expectMaterials: welcome.gameMode === 'conquest'
-        ? [...rt.VEHICLE_WARMUP_MATERIALS, ...(this.mapMeta?.id === 'frontier' ? rt.WORLD_WARMUP_MATERIALS : [])] : null,
+        ? [...rt.VEHICLE_WARMUP_MATERIALS, ...(isBattlefieldMap(this.mapMeta?.id) ? rt.WORLD_WARMUP_MATERIALS : [])] : null,
     });
     joinMark('shaders');
     this.worldview.releaseShaderWarmup?.();
@@ -1304,7 +1308,7 @@ class Game {
     this.conquestHud?.padInput({ pressed: pad?.pressed, held: pad?.held, blocked: !!this.hud.settingsOpen,
       scoped: this.vehicleController?.active !== true && !!this.weapon?.scopeActive });
     const seated = this.vehicleController?.active === true;
-    if (this.mapMeta?.id === 'frontier' && this.worldview?.scene.fog) {
+    if (this._battlefieldFog && this.worldview?.scene.fog) {
       const row = this.vehicleController?.vehicle;
       const flying = seated && ['helicopter', 'transport', 'plane'].includes(row.type) && row.grounded === false;
       const density = (flying ? this.worldview.renderDistanceProfile.fogAirDensity : this._conquestGroundFogDensity)

@@ -2,6 +2,7 @@ import { worldDimensions } from '../shared/world/dimensions.js';
 import { PHYSICS, boxCollides, solidBelow } from '../shared/player-movement.js';
 import { FLUID_BLOCKS } from '../shared/worlddata.js';
 import { surfaceNavigation } from './bot-surface-nav.js';
+import { isBattlefieldMap } from '../shared/world/battlefields.js';
 
 // Two navigation models share this facade: the flat-floor grid of maps with a
 // navigationFloor (legacy large maps) and the 2.5D surface graph of maps that
@@ -89,7 +90,7 @@ function refreshEdges(graph, node) {
 
 function createGrid(world) {
   const { sx, sz } = worldDimensions(world);
-  const cell = Math.max(CELL, Math.min(16, Math.trunc(world.meta.navigationCell ?? (world.meta.id === 'frontier' ? 8 : CELL))));
+  const cell = Math.max(CELL, Math.min(16, Math.trunc(world.meta.navigationCell ?? (isBattlefieldMap(world.meta.id) ? 8 : CELL))));
   const width = Math.ceil(sx / cell), depth = Math.ceil(sz / cell);
   return { world, width, depth, cell, walk: new Uint8Array(width * depth), edges: new Uint8Array(width * depth),
     floor: world.meta.navigationFloor + 1, revision: -1, solid: (x, y, z) => world.getBlock(x, y, z) !== 0,

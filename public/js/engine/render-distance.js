@@ -1,3 +1,5 @@
+import { isBattlefieldMap } from '../../../shared/world/battlefields.js';
+
 // Keep the camera, atmosphere and streamed detail on the same map profile.
 // The full-map silhouette remains visible when adaptive detail backs off.
 const LEGACY = Object.freeze({
@@ -20,7 +22,7 @@ const FRONTIER = Object.freeze(Object.fromEntries([
 })])));
 
 export function renderDistanceProfile(mapId, tier = 'medium') {
-  return mapId === 'frontier' ? FRONTIER[tier] || FRONTIER.medium : LEGACY;
+  return isBattlefieldMap(mapId) ? FRONTIER[tier] || FRONTIER.medium : LEGACY;
 }
 
 /** Hysteresis prevents geometry churn during short stalls or camera turns. */

@@ -16,6 +16,7 @@ import {
   outsideFront, sectorRole,
 } from '../shared/breakthrough.js';
 import { BreakthroughPolicy } from '../server/modes/conquest/breakthrough.js';
+import { getMapMeta } from '../shared/worlddata.js';
 
 let checks = 0;
 const ok = (value, message) => { assert.ok(value, message); checks++; };
@@ -368,9 +369,17 @@ const park = (team, players) => players.forEach((p, i) => place(p, team === 'alp
   eq([count('alpha', 'jeep_at'), count('bravo', 'jeep_at')], [1, 2], 'the defenders\' HQ tank bay fields an AT jeep');
   ok(list.filter(s => s.flag).every(s => s.team === 'bravo'), 'every flag pad starts with the defenders');
   const extra = list.find(s => s.id === 'alpha-tank-2'), tank = meta.vehicleSpawns.find(s => s.id === 'alpha-tank');
-  eq([extra.x, extra.z - tank.z, extra.y, extra.exitRoute.length], [tank.x, 10, tank.y, tank.exitRoute.length], 'the second tank parks 10 m south of the first');
+  eq([extra.x, extra.z - tank.z, extra.y, extra.exitRoute.length], [tank.x, 20, tank.y, tank.exitRoute.length], 'the second tank parks 20 m south of the first');
   const bravoAttack = breakthroughVehicleSpawns(meta.vehicleSpawns, { ...BREAKTHROUGH_RULES, attackers: 'bravo' });
-  eq(bravoAttack.find(s => s.id === 'bravo-tank-2').z, meta.vehicleSpawns.find(s => s.id === 'bravo-tank').z - 10, 'mirrored for an EAST attack');
+  eq(bravoAttack.find(s => s.id === 'bravo-tank-2').z, meta.vehicleSpawns.find(s => s.id === 'bravo-tank').z - 20, 'mirrored for an EAST attack');
+  // No two ground hulls share a pad (the mobile AA's bay sits 9 m south of the HQ tank), on either battlefield.
+  for (const mapId of ['frontier', 'redrock']) {
+    const spawns = breakthroughVehicleSpawns(getMapMeta(mapId).conquest.vehicleSpawns);
+    const ground = spawns.filter(s => ['jeep', 'jeep_at', 'tank', 'aa'].includes(s.type) && !s.flag);
+    for (const a of ground) for (const b of ground) {
+      if (a !== b) ok(Math.hypot(a.x - b.x, a.z - b.z) >= 8, `${mapId}: ${a.id} and ${b.id} park apart`);
+    }
+  }
   const bt = decodeBreakthrough(encodeBreakthrough({ attackers: 'alpha', sector: 1, sectors: BREAKTHROUGH_RULES.sectors.frontier }));
   const front = breakthroughFront(bt, meta.flags, meta.bases);
   eq(front.lines.map(Math.round), [256, 368], 'Frontier sector lines (metres from the West HQ): A/B | C | D/E');

@@ -4,14 +4,17 @@ import { MAP_SPAWN_ANCHORS } from './metadata.js';
 import { encodeMapFrame, mapFingerprint, rebuildHeights, serializeBlocks } from './serialize.js';
 import { airspaceFor, apronFor } from './airspace.js';
 import { frontierTopY } from './frontier-terrain.js';
+import { redrockTopY } from './redrock-terrain.js';
+import { isBattlefieldMap } from './battlefields.js';
 
 /**
- * The airspace apron of a map (shared/world/airspace.js), or null: Frontier
- * at its authored size, whose rim the pure terrain builder supplies.
+ * The airspace apron of a map (shared/world/airspace.js), or null: a
+ * battlefield (Frontier, Redrock) at its authored size, whose rim the pure
+ * terrain builder supplies.
  */
 export function mapApron(mapId, dimensions) {
-  return airspaceFor(mapId) && mapId === 'frontier' && dimensions?.sx === 768 && dimensions?.sz === 768
-    ? apronFor(mapId, dimensions, frontierTopY) : null;
+  return airspaceFor(mapId) && isBattlefieldMap(mapId) && dimensions?.sx === 768 && dimensions?.sz === 768
+    ? apronFor(mapId, dimensions, mapId === 'redrock' ? redrockTopY : frontierTopY) : null;
 }
 
 const PRISTINE_BYTES = new WeakMap();

@@ -6,7 +6,18 @@
 import { CQ_COLORS } from '../conquest-hud-state.js';
 import { drawIcon } from './icons.js';
 
-export const OVERVIEW_URL = './assets/maps/frontier-overview.png';
+/** Top-down overview render per battlefield (tools/render-map-scenes.mjs overview shots). */
+export const OVERVIEW_URLS = Object.freeze({
+  frontier: './assets/maps/frontier-overview.png',
+  redrock: './assets/maps/redrock-overview.png',
+});
+export const OVERVIEW_URL = OVERVIEW_URLS.frontier;
+let overviewUrl = OVERVIEW_URL;
+/** Pick the overview the maps draw (ConquestHud.update passes mapMeta.id); unknown ids keep Frontier's. */
+export function setOverviewMap(mapId) {
+  overviewUrl = OVERVIEW_URLS[mapId] ?? OVERVIEW_URL;
+  return overviewUrl;
+}
 const TONE = Object.freeze({ own: CQ_COLORS.own, enemy: CQ_COLORS.enemy, neutral: CQ_COLORS.neutral,
   squad: CQ_COLORS.squad, spotted: CQ_COLORS.spotted, self: CQ_COLORS.self, contested: CQ_COLORS.contested });
 export const toneColor = rel => TONE[rel] ?? TONE.neutral;
@@ -15,7 +26,7 @@ const REQUEST_GLYPHS = Object.freeze({ medic: 'revive', ammo: 'ammo', repair: 'r
 
 let overview = null;
 /** One shared overview image (top-down render of the whole map square). */
-export function overviewImage(url = OVERVIEW_URL) {
+export function overviewImage(url = overviewUrl) {
   if (typeof Image !== 'function') return null;
   if (!overview || overview.dataset?.src !== url) {
     overview = new Image();

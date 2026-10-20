@@ -3,7 +3,8 @@
 // build stalls all running matches (and every player's ping) at once: the
 // server builds them at boot, or in short slices between room ticks.
 //
-// - Frontier (synchronous, before listening): template, metadata, wire bytes,
+// - The battlefields (Frontier synchronous, before listening; Redrock Canyon
+//   right after a room tick once listening): template, metadata, wire bytes,
 //   surface graph, road graph, the bots' per-flag cover sets and the
 //   structural template field.
 // - Flat-floor maps (sliced, after listening): the bots' ground grid
@@ -16,15 +17,17 @@ import { prepareStructureTemplate } from './sim/structure.js';
 import { groundNavigationSteps, surfaceNavigation } from './bot-navigation.js';
 import { roadGraph } from './bot-vehicle-driving.js';
 import { CoverIndex } from './bot-cover.js';
+import { isBattlefieldMap } from '../shared/world/battlefields.js';
 
 /**
- * Build Frontier's shared caches on a throwaway pristine world. Returns the
- * timings in ms: { total, cover, field } (field null without structure).
+ * Build a battlefield's (Frontier, Redrock Canyon) shared caches on a throwaway
+ * pristine world. Returns the timings in ms: { total, cover, field } (field
+ * null without structure).
  */
-export function prepareFrontier({ structural = true } = {}) {
+export function prepareBattlefield(id, { structural = true } = {}) {
   const started = performance.now();
-  const mapMeta = getMapMeta('frontier');
-  const world = createMapState('frontier');
+  const mapMeta = getMapMeta(id);
+  const world = createMapState(id);
   world.serializeWorld();
   world.mapFrame();
   surfaceNavigation(world);
@@ -40,6 +43,11 @@ export function prepareFrontier({ structural = true } = {}) {
   if (structural) prepareStructureTemplate(world);
   const field = structural ? performance.now() - fieldStarted : null;
   return { total: performance.now() - started, cover, field };
+}
+
+/** Frontier's shared caches (prepareBattlefield('frontier')). */
+export function prepareFrontier(options = {}) {
+  return prepareBattlefield('frontier', options);
 }
 
 /** Maps whose bots route on the flat ground grid (a navigation floor, no surface graph). */
@@ -99,7 +107,7 @@ function* groundGridSteps(id) {
   return yield* groundNavigationSteps(createMapState(id));
 }
 
-/** Warm the ground grids of `maps` in slices (see runSliced); maps without a flat floor finish at once. */
-export function warmGroundGrids(maps = MAP_IDS.filter(id => id !== 'frontier'), options = {}) {
+/** Warm the ground grids of `maps` (default: all but the battlefields) in slices (see runSliced); maps without a flat floor finish at once. */
+export function warmGroundGrids(maps = MAP_IDS.filter(id => !isBattlefieldMap(id)), options = {}) {
   return runSliced(maps.map(id => [id, () => groundGridSteps(id)]), options);
 }

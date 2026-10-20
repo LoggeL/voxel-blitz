@@ -19,8 +19,13 @@ import { kitLoadout } from '../../../shared/conquest-kits.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { seatViews, vehicleViewLabel } from '../session/vehicle-camera.js';
 
+const fixtureMap = new URLSearchParams(location.search).get('map') || 'frontier';
 const fixtures = conquestHudFixtures();
-const mapMeta = fixtureMapMeta();
+const mapMeta = fixtureMapMeta(fixtureMap);
+if (fixtureMap !== 'frontier') {
+  for (const fixture of fixtures) if (fixture.match) fixture.match.map = fixtureMap;
+  document.body.style.backgroundImage = `url('./assets/maps/${encodeURIComponent(fixtureMap)}.jpg')`;
+}
 const label = document.getElementById('capture-label');
 let hud = null;
 let conquest = null;

@@ -11,11 +11,12 @@ const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, '.artifacts', 'map-renders');
 // --avatars forwards ?avatars=1 (capture avatars placed in view);
 // --vehicles forwards ?vehicles=1 (the authored Conquest fleet, staged hulls);
 // --weather golden|mist|overcast|storm forwards ?weather= (Frontier mood override; the
-// capture page also runs the Conquest weather view: rain, wet ground, a lightning flash).
+// capture page also runs the Conquest weather view on Frontier: rain, wet ground, a
+// lightning flash; desert|dusk on Redrock).
 // --flash forwards ?flash=1 (a lightning strike frozen at its brightest, storm only).
 // Captures run in a muted headless browser (tools/lib/cdp-session.mjs).
 const QUALITIES = new Set(['low', 'medium', 'high', 'ultra']);
-const WEATHERS = new Set(['golden', 'mist', 'overcast', 'storm']);
+const WEATHERS = new Set(['golden', 'mist', 'overcast', 'storm', 'desert', 'dusk']);
 
 export function parseArgs(argv) {
   let quality = null;

@@ -48,6 +48,7 @@ export class Minimap {
     const a = s * c, b = s * sn, cc = -s * sn, d = s * c;
     ctx.setTransform(a, b, cc, d, R - (a * center.x + cc * center.z), R - (b * center.x + d * center.z));
     paintVectorBase(ctx, meta, (x, z) => ({ x, y: z }), 1);
+    this.image = overviewImage() ?? this.image;
     if (imageReady(this.image)) {
       ctx.globalAlpha = 0.92;
       ctx.drawImage(this.image, 0, 0, size.x, size.z);
