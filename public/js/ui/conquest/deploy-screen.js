@@ -17,6 +17,7 @@
 import { el, loadPref, savePref } from '../hud-support.js';
 import { deployModel } from '../conquest-hud-state.js';
 import { NorthUpMap } from './big-map.js';
+import { bridgeMapModel } from './bridge-hud.js';
 import { svgIcon } from './icons.js';
 import { downedMedicModel } from './comms-state.js';
 import { upgradeInfoText } from './upgrade-cards.js';
@@ -303,7 +304,7 @@ export class DeployScreen {
       else { this._resend = false; this.readied = false; }
     }
     this._render(model);
-    this.map.draw({ items: mapItems, size: cq.size, meta, spawns: model.options, selected: model.selectedKey, nowMs, labels: true });
+    this.map.draw({ items: mapItems, size: cq.size, meta, spawns: model.options, selected: model.selectedKey, nowMs, labels: true, bridge: bridgeMapModel(cq) });
     return model;
   }
 

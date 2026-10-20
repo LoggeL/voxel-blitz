@@ -174,11 +174,12 @@ assert.equal(pts(events, a1.id, 'driver_assist'), 25);
 game.vehicles.release(a1); game.vehicles.release(a2);
 revive(b3); park(); run(game, TICK_MS);
 
-// Role awards (revive, repair, resupply, spot assist) go through the same
-// ledger via policy.award; the squad spawn is paid by a real squad deploy.
+// Role awards (revive, repair, resupply, spot assist) and the Iron Bridge's
+// final blow (paid by a real collapse in conquest-bridge-test) go through the
+// same ledger via policy.award; the squad spawn is paid by a real squad deploy.
 // The Recon gadget awards fire through their real sources in conquest-recon-gadgets-test.
 reset();
-for (const reason of ['revive', 'heal', 'repair', 'resupply', 'spot_assist', 'order_capture', 'order_defend', 'beacon_spawn', 'gadget_destroyed']) assert.equal(policy.award(a3.id, reason), SCORE_POINTS[reason]);
+for (const reason of ['revive', 'heal', 'repair', 'resupply', 'spot_assist', 'order_capture', 'order_defend', 'beacon_spawn', 'gadget_destroyed', 'bridge_destroyed']) assert.equal(policy.award(a3.id, reason), SCORE_POINTS[reason]);
 assert(policy.squads.areSquadmates(a1.id, a2.id), 'four alpha players share squad 1');
 place(a1, 20, 60);
 game.killPlayer(a2, b1, 'rifle', false);

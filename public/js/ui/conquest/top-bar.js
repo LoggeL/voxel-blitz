@@ -32,7 +32,8 @@ export class TopBar {
     node.textContent = value;
   }
 
-  update(tickets, chips) {
+  /** `bridge`: the Iron Bridge chip badge ({ flag, badge } from bridge-hud.js) or null. */
+  update(tickets, chips, { bridge = null } = {}) {
     if (!tickets) return;
     for (const rel of ['own', 'enemy']) {
       const model = tickets[rel], dom = this[rel];
@@ -55,6 +56,9 @@ export class TopBar {
         n.fill = el('i', 'cq-chip-fill', n);
         n.letter = el('span', 'cq-chip-letter', n);
         n.letter.textContent = chip.id;
+        // Bridge state badge: a zero-width sibling (the rotated chip clips its children).
+        n.badge = el('i', 'cq-chip-badge', this.chips);
+        n.badge.setAttribute('aria-hidden', 'true');
         this.chipNodes.set(chip.id, n);
       }
       n.dataset.owner = chip.owner;
@@ -62,10 +66,13 @@ export class TopBar {
       n.dataset.contested = String(chip.contested);
       n.dataset.moving = chip.moving || '';
       n.dataset.state = chip.state;
+      n.dataset.bridge = bridge?.flag === chip.id ? bridge.badge : '';
+      if (n.badge.dataset.bridge !== n.dataset.bridge) { n.badge.dataset.bridge = n.dataset.bridge; n.badge.hidden = !n.dataset.bridge; }
       n.style.setProperty('--fill', chip.fill.toFixed(3));
-      const title = `${chip.id} ${chip.name}: ${chip.contested ? 'CONTESTED' : chip.owner === 'neutral' ? 'NEUTRAL' : chip.owner === 'own' ? 'HELD' : 'ENEMY'}${chip.moving ? ` · ${chip.state.toUpperCase()}` : ''}`;
+      const bridgeNote = n.dataset.bridge === 'down' ? ' · BRIDGE DOWN' : n.dataset.bridge ? ' · BRIDGE DAMAGED' : '';
+      const title = `${chip.id} ${chip.name}: ${chip.contested ? 'CONTESTED' : chip.owner === 'neutral' ? 'NEUTRAL' : chip.owner === 'own' ? 'HELD' : 'ENEMY'}${chip.moving ? ` · ${chip.state.toUpperCase()}` : ''}${bridgeNote}`;
       if (n.title !== title) { n.title = title; n.setAttribute('aria-label', title); }
     }
-    for (const [id, n] of this.chipNodes) if (!ids.has(id)) { n.remove(); this.chipNodes.delete(id); }
+    for (const [id, n] of this.chipNodes) if (!ids.has(id)) { n.remove(); n.badge.remove(); this.chipNodes.delete(id); }
   }
 }

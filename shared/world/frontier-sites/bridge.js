@@ -11,10 +11,12 @@ import { FRONTIER_PLAN } from '../../conquest-contract.js';
 import { FRONTIER_CROSSINGS, FRONTIER_CELL_KIND as KIND, riverOffset } from '../frontier-terrain.js';
 import { rect, pickSpawnCells } from './plan.js';
 import { sandbags, fieldWall, crateStack } from './props.js';
+import { IRON_ARCH } from '../../conquest-bridge.js';
 
 const FLAG = FRONTIER_PLAN.flags.find(f => f.id === 'C');
 const IRON = FRONTIER_CROSSINGS.find(c => c.id === 'iron-bridge');
-const ARCH = { x0: 370, x1: 397, zs: [378, 389], rise: 19 };
+// The truss geometry is shared with the collapse event (shared/conquest-bridge.js).
+const ARCH = IRON_ARCH;
 const TOLL = rect(358, 364, 368, 373);
 const WAREHOUSE = rect(399, 394, 409, 403);
 const RUIN_W = rect(356, 396, 366, 406);

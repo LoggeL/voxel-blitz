@@ -10,6 +10,7 @@
  *   flag_captured    (own team)                             → captured + captured_X
  *   ticket_low       (own team)                             → ticket_low + tickets_low
  *   match end (phase → post, winner)                       → victory / defeat
+ *   bridge failing / down (Iron Bridge collapse, both teams) → ticket_low / neutralized
  *
  * With the Conquest bank decoded (`bank` = sfx.conquestAudio()), the
  * capture-start, neutralized, captured, lost and low-tickets stingers play
@@ -85,6 +86,9 @@ export function stingerForEvent(ev, selfTeam, selfId = null) {
       return ev.winner == null ? null : ev.winner === selfTeam ? 'victory' : 'defeat';
     case 'ribbon':
       return selfId != null && String(ev.id) === String(selfId) ? 'ribbon' : null;
+    case 'bridge':
+      // The Iron Bridge collapse reuses the alarm and the loss stingers (no bridge recording or announcer line yet).
+      return ev.name === 'failing' ? 'ticket_low' : ev.name === 'down' ? 'neutralized' : null;
     default:
       return null;
   }

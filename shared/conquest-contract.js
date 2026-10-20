@@ -86,6 +86,7 @@ export const SCORE_POINTS = Object.freeze({
   // Recon gadgets (shared/recon-gadgets.js): a squad mate deployed on your beacon, an enemy beacon or sensor destroyed.
   beacon_spawn: 15, gadget_destroyed: 50,
   ribbon: 50 /* bonus for a ribbon earned (RIBBONS) */,
+  bridge_destroyed: 200,
 });
 export const SCORE_LABELS = Object.freeze({
   kill: 'KILL', headshot: 'HEADSHOT', assist: 'KILL ASSIST', attacker_kill: 'ATTACKER KILL', defender_kill: 'DEFENDER KILL',
@@ -95,6 +96,7 @@ export const SCORE_LABELS = Object.freeze({
   order_capture: 'ORDER CAPTURE', order_defend: 'ORDER DEFEND',
   beacon_spawn: 'BEACON SPAWN', gadget_destroyed: 'GADGET DESTROYED',
   ribbon: 'RIBBON',
+  bridge_destroyed: 'BRIDGE DESTROYED',
 });
 
 /**
@@ -104,7 +106,7 @@ export const SCORE_LABELS = Object.freeze({
  */
 export const SCORE_CATEGORIES = Object.freeze({
   combat: Object.freeze(['kill', 'headshot', 'assist', 'attacker_kill', 'defender_kill', 'gadget_destroyed']),
-  objective: Object.freeze(['capture', 'neutralize', 'capture_assist', 'defend', 'order_capture', 'order_defend']),
+  objective: Object.freeze(['capture', 'neutralize', 'capture_assist', 'defend', 'order_capture', 'order_defend', 'bridge_destroyed']),
   vehicles: Object.freeze(['vehicle_destroyed', 'vehicle_crew', 'vehicle_disabled', 'vehicle_damage', 'driver_assist']),
   support: Object.freeze(['revive', 'heal', 'repair', 'resupply', 'spot_assist', 'squad_spawn', 'beacon_spawn']),
   ribbons: Object.freeze(['ribbon']),
@@ -178,6 +180,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'ribbon',            // {id, ribbon, count, pts}         RIBBONS id earned mid-match; count = this ribbon's total this match, pts = SCORE_POINTS.ribbon paid
   'medal',             // {id, medal}                      MEDALS id awarded at match end (one event per medal)
   'weather_strike',    // {x, y, z}                      a lightning strike of the weather timeline (y = ground), shared/conquest-weather.js
+  'bridge',            // {bridge, stage, integrity, fallAt?, by?}  Iron Bridge levolution stage change (shared/conquest-bridge.js; v6)
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);

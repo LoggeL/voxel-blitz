@@ -35,6 +35,7 @@ import { MEDIC_BOT_RULES, medicTrailMate, medicTrailSpot, reviveRunInTime } from
 import { committedFlag, keepAttackOrder, passingFlag } from './bot-flag-flow.js';
 import { MORTAR_BOT_RULES } from '../shared/mortar-rules.js';
 import { BOAT_PATROL, riverPatrolSlots } from './bot-boat-driving.js';
+import { avoidSpan, spanEscape } from './bot-bridge.js';
 
 export const COMMANDER_PLAN_MS = 500;
 export const STAGE_MIN = 50, STAGE_MAX = 70;
@@ -1285,6 +1286,9 @@ export class BotCommander {
     const ts = this.teams.get(team);
     if (!ts) return spectate;
     const kit = this.kitOf(p);
+    // The Iron Bridge groans: anyone on the span runs for the bank first.
+    const escape = spanEscape(this.game, p);
+    if (escape) return { kind: 'capture', target: null, interact: false, stance: 'attack', point: escape, arrive: 1.5, lookYaw: bearing(p, escape) };
     const role = this.roleGoal(p, kit, ts, now);
     if (role) return role;
     const squad = ts.memberSquad?.get(String(p.id));
@@ -1317,7 +1321,7 @@ export class BotCommander {
     if (stance === 'attack' && !local && order?.staging && order.phase !== 'push') {
       const a = slot * 1.9 + squad.id;
       const point = { x: order.staging.x + Math.cos(a) * (2 + slot), y: order.staging.y, z: order.staging.z + Math.sin(a) * (2 + slot) };
-      return { kind: 'capture', target, interact: false, stance: 'stage', point: this.walkablePoint(point) ?? order.staging,
+      return { kind: 'capture', target, interact: false, stance: 'stage', point: avoidSpan(this.game, this.walkablePoint(point) ?? order.staging, p),
         arrive: order.phase === 'stage' ? 3 : 5, lookYaw: bearing(order.staging, flag) };
     }
     const medic = KITS[kit]?.aura === 'heal';
@@ -1327,7 +1331,7 @@ export class BotCommander {
       // Medic: hold beside a defending mate (its cover node or the zone) so the aura covers it.
       const trail = medic ? this.medicTrail(p, ts, flag, surge) : null;
       if (trail) {
-        return { kind: 'capture', target, interact: false, stance: 'defend', point: trail.point,
+        return { kind: 'capture', target, interact: false, stance: 'defend', point: avoidSpan(this.game, trail.point, p),
           arrive: MEDIC_BOT_RULES.trailArrive, lookYaw: bearing(trail.point, threat), crouch: false, escort: true };
       }
       // In a surge only cover inside the zone (bots.js counts 0.85 r as in) qualifies.
@@ -1335,7 +1339,7 @@ export class BotCommander {
         surge ? { preferDist: flag.radius * 0.5, maxDist: flag.radius * 0.85 - 1.5, maxDy: 6 } : undefined);
       if (node) {
         this.cover.claim(node, key(p), now);
-        return { kind: 'capture', target, interact: false, stance: 'defend', point: { x: node.x, y: node.y, z: node.z },
+        return { kind: 'capture', target, interact: false, stance: 'defend', point: avoidSpan(this.game, { x: node.x, y: node.y, z: node.z }, p),
           arrive: 1.4, lookYaw: bearing(node, threat), crouch: node.peekMask !== 0 };
       }
     }
@@ -1359,7 +1363,8 @@ export class BotCommander {
         point = this.walkablePoint({ x: centroid.x - Math.sin(back) * 5, y: centroid.y, z: centroid.z - Math.cos(back) * 5 }) ?? point;
       }
     }
-    return { kind: 'capture', target, interact: false, stance: stance === 'defend' ? 'defend' : 'attack', point,
+    // A fallen (or failing) Iron Bridge: points on the span move to the bridgehead on the bot's bank.
+    return { kind: 'capture', target, interact: false, stance: stance === 'defend' ? 'defend' : 'attack', point: avoidSpan(this.game, point, p),
       arrive, lookYaw: towardEnemy, ...(escort ? { escort } : {}) };
   }
 

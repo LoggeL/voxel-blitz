@@ -291,6 +291,8 @@ export class ModeController {
   airborneRules() { return typeof this.policy.fallDamage === 'function'; }
   /** Landing hook from movement: damage dealt for a downward impact `speed` (m/s). */
   fallDamage(player, speed) { return this.policy.fallDamage?.(player, speed) ?? 0; }
+  /** ProjectileSystem.explode hook: `origin` [x,y,z] and `{key, radius, ownerId}` (the Conquest Iron Bridge). */
+  onBlast(origin, blast) { this.policy.onBlast?.(origin, blast); }
   /** VehicleSystem hook for vehicle_hit, vehicle_disabled, vehicle_repaired and vehicle_destroyed. */
   onVehicleEvent(kind, payload) { this.policy.onVehicleEvent?.(kind, payload); }
   /** WP3 bot director `{goalFor(player), deployFor(player)}`; null clears it. */

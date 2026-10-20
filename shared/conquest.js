@@ -14,6 +14,7 @@ import {
 } from './conquest-contract.js';
 import { RECON_GADGET_RULES, decodeReconGadgets } from './recon-gadgets.js';
 import { decodeConquestWeather } from './conquest-weather.js';
+import { decodeBridge } from './conquest-bridge.js';
 
 export { CONQUEST_TEAMS };
 
@@ -234,6 +235,8 @@ export function decodeConquestMatch(matchConquest, metaConquest = null) {
     recon: decodeReconGadgets(match.recon),
     // Dynamic weather (`wx`, shared/conquest-weather.js), null while the server runs none.
     weather: decodeConquestWeather(match.wx),
+    // Iron Bridge levolution (contract v6): intact unless `br` rides the snapshot.
+    bridge: decodeBridge(match.br),
   };
 }
 

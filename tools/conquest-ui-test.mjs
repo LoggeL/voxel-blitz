@@ -43,7 +43,7 @@ const ok = () => { checks++; };
 /* ------------------------------------------------------------ fixtures */
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
-  'tank-driver', 'tank-commander', 'tank-periscope', 'aa-driver', 'aa-overheat', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-bomb', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
+  'tank-driver', 'tank-commander', 'tank-periscope', 'aa-driver', 'aa-overheat', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'jet-view', 'jet-aim', 'jet-bomb', 'jet-stall', 'jet-edge', 'jet-oob', 'heli-aim', 'stinger-lock', 'enter-jeep', 'big-map', 'bridge-failing', 'bridge-down', 'deploy',
   'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'recon-deploy', 'recon-sensor', 'ribbon', 'ribbon-banner', 'deploy-vehicles', 'weather-storm', 'weather-fog', 'scoreboard', 'result', 'result-medals',
   'orders-rose', 'orders-chip', 'orders-map', 'mortar'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
@@ -776,6 +776,21 @@ ok();
   assert.equal(east.topBar.own.tickets.textContent, '233');
   assert.equal(east.topBar.chipNodes.get('D').dataset.owner, 'own');
   assert.equal(shownText(east.banners.title), 'OBJECTIVE C · IRON BRIDGE NEUTRALIZED');
+
+  // Iron Bridge collapse: held countdown banner and chip badge from match.conquest.br; the destroyed banner and map note.
+  const failingBridge = rendered.get('bridge-failing').hud;
+  assert.equal(shownText(failingBridge.banners.title), 'IRON BRIDGE COLLAPSING');
+  assert.equal(failingBridge.banners.root.dataset.tone, 'hazard');
+  assert.equal(failingBridge.banners.detail.textContent, 'GET OFF THE SPAN · 3 S', 'the countdown reads the fall time');
+  assert.equal(failingBridge.banners.bar.hidden, false);
+  assert.equal(failingBridge.topBar.chipNodes.get('C').dataset.bridge, 'hazard');
+  assert.equal(failingBridge.topBar.chipNodes.get('C').badge.hidden, false);
+  assert.equal(failingBridge.topBar.chipNodes.get('B').badge.hidden, true, 'only the bridge flag gets the badge');
+  const downBridge = rendered.get('bridge-down').hud;
+  assert.equal(shownText(downBridge.banners.title), 'IRON BRIDGE DESTROYED');
+  assert.equal(downBridge.banners.bar.hidden, true);
+  assert.equal(downBridge.topBar.chipNodes.get('C').dataset.bridge, 'down');
+  assert.equal(cap.topBar.chipNodes.get('C').badge.hidden, true, 'an intact bridge shows no badge');
 
   const oob = rendered.get('out-of-bounds').hud;
   assert.equal(oob.restricted.root.hidden, false); assert.equal(oob.restricted.seconds.textContent, '7');

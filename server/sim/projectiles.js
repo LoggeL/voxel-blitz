@@ -1760,6 +1760,7 @@ export class ProjectileSystem {
       suppressExplosion(owner, origin, rules.damageRadius, hitVictims, ctx);
     }
     if (rules.terrainRadius > 0) this._destroyTerrain(origin, rules, ctx, owner?.id ?? null);
+    ctx.onBlast?.(origin, { key: projectile.weaponKey || projectile.type, radius: rules.damageRadius, ownerId: ownerId ?? null });
     // A burning blast (the jet's bomb) lights its crater and rim once the
     // crater is dug; burn damage and kills carry the weapon's kill key.
     if (rules.burn) {

@@ -40,7 +40,7 @@ assert(WEATHER_STATES.storm.rain === 1 && WEATHER_STATES.storm.lightning === 1, 
 for (const script of WEATHER_RULES.scripts) assert.equal(script[0], 'golden', 'every forecast opens clear');
 assert(WEATHER_RULES.openingMs[0] >= 180_000, 'the opening outlasts the 180 s action gate');
 assert.equal(CONQUEST_CONTRACT_VERSION, 6);
-assert(CONQUEST_EVENT_KINDS.at(-1) === 'weather_strike', 'weather_strike is appended to the event kinds');
+assert(CONQUEST_EVENT_KINDS.indexOf('weather_strike') === CONQUEST_EVENT_KINDS.indexOf('medal') + 1, 'weather_strike is appended to the event kinds after the ribbons');
 ok();
 
 // --- timeline ----------------------------------------------------------------

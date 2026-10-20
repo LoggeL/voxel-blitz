@@ -176,6 +176,7 @@ class Game {
           this.titanfall?.onEvent(event);
           this.objectiveCues?.handleEvent(event, this.selfRow?.team, this.myId);
           this.conquestSoundscape?.handleEvent(event);
+          this.bridgeFx?.handleEvent(event);
           // Conquest weather: lightning flash, bolt and (through the soundscape) delayed thunder.
           if (event.kind === 'weather_strike') { this.weatherView?.strike(event, this.camera?.position ?? null); return; }
           if (event.kind === 'vehicle_destroyed' || (event.kind === 'explosion' && event.type === 'vehicle')) {
@@ -552,6 +553,9 @@ class Game {
     this.structureFx = new rt.StructureFx({ parent: this.liveEffectsGroup, mesher: this.worldview.chunkStore, getBlock,
       dimensions: this.worldview.dimensions, fx: this.particleField, chips: this.effects.impacts, audio: sfx,
       cameraShake: this.cameraShake, getCamera: () => this.camera, tier: graphics.tier });
+    // Conquest Iron Bridge collapse: groans, grit and the river burst around the structural fall.
+    if (welcome.gameMode === 'conquest') this.bridgeFx = new rt.BridgeFx({ audio: sfx, cameraShake: this.cameraShake,
+      getCamera: () => this.camera, fx: this.particleField });
     this.worldview.scene.add(this.camera);
     this.ownBody = rt.makeFirstPersonBody();
     this.worldview.scene.add(this.ownBody.group);
@@ -1492,6 +1496,7 @@ class Game {
       this.worldview.update(dt, this.killcam?.active ? this.killcam.camera : this.camera, { targetFps: this.frameRate.targetFps });
       // After the terrain rebuild budget: proxies swap in the frame their chunk rebuilt.
       this.structureFx?.update(frameDt, this.net?.presentedServerTime?.(performance.now()) ?? null);
+      this.bridgeFx?.update(frameDt);
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
       if (this.build) {
@@ -1681,6 +1686,7 @@ class Game {
     this.weatherView?.dispose(); this.weatherView = null;
     if (this.conquestSoundscape) { this.conquestSoundscape.dispose(); this.conquestSoundscape = null; sfx.unloadConquestBank?.(); }
     this.structureFx?.dispose(); this.structureFx = null;
+    this.bridgeFx?.clear(); this.bridgeFx = null;
     this.particleField?.dispose(); this.particleField = null;
     this.cameraShake = null;
     this.vehicleAudio?.dispose(); this.vehicleAudio = null;

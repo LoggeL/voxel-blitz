@@ -7,6 +7,7 @@ import { el } from '../hud-support.js';
 import { CQ_COLORS } from '../conquest-hud-state.js';
 import { drawIcon } from './icons.js';
 import { imageReady, overviewImage, paintFlag, paintSensorRing, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
+import { paintBridge, paintBridgeFlag } from './bridge-hud.js';
 
 /** Flag name size on the north-up maps, in CSS px (scaled down from the max on small maps). */
 const LABEL_MIN_PX = 8;
@@ -66,7 +67,7 @@ export class NorthUpMap {
   }
 
   /** Map square → canvas: the full world, with a little margin. */
-  draw({ items = [], size = { x: 768, z: 768 }, meta = null, spawns = null, selected = null, nowMs = 0, labels = true } = {}) {
+  draw({ items = [], size = { x: 768, z: 768 }, meta = null, spawns = null, selected = null, nowMs = 0, labels = true, bridge = null } = {}) {
     const ctx = this.context;
     if (!ctx) return;
     const { css, px } = this._resize();
@@ -86,6 +87,8 @@ export class NorthUpMap {
     ctx.setTransform(s, 0, 0, s, 0, 0);
     paintVectorBase(ctx, meta, (x, z) => ({ x, y: z }), 1);
     if (imageReady(this.image)) ctx.drawImage(this.image, 0, 0, size.x, size.z);
+    // The Iron Bridge state (bridge-hud.js) over the terrain, under every marker.
+    paintBridge(ctx, bridge, { nowMs, px: s });
     ctx.restore();
     // Combat area outline.
     const area = meta?.combatArea;
@@ -134,6 +137,7 @@ export class NorthUpMap {
       const c = place(item);
       if (item.kind === 'flag') {
         paintFlag(ctx, item, c, item.radius * s, { letterSize: 15 * scale, pulse: item.contested || item.order ? pulse : 0 });
+        if (bridge && item.id === bridge.flag) paintBridgeFlag(ctx, bridge, c, { size: (15 * scale + 6) * 0.71, nowMs, scale });
         this.flagHits.push({ id: item.id, u: c.x / px, v: c.y / px, r: Math.min(0.12, item.radius * s / px) });
       } else if (item.kind === 'hq') {
         ctx.beginPath(); ctx.arc(c.x, c.y, item.radius * s, 0, Math.PI * 2);
@@ -186,7 +190,9 @@ export class NorthUpMap {
         if (item.kind !== 'flag' || !item.name) continue;
         const c = toCanvas(item.x, item.z);
         const text = item.name.toUpperCase();
-        const w = ctx.measureText(text).width + 8 * scale, h = labelPx * 1.25;
+        // The bridge flag's name carries the bridge state ("IRON BRIDGE · DOWN").
+        const note = bridge?.note && item.id === bridge.flag ? ` · ${bridge.note}` : '';
+        const w = ctx.measureText(text + note).width + 8 * scale, h = labelPx * 1.25;
         const gap = Math.max(item.radius * s, 12 * scale) + 5 * scale;
         const inside = r => r.left >= 0 && r.right <= px && r.top >= 0 && r.bottom <= px;
         const at = (cx, top) => { const x = Math.max(w / 2 + 2 * scale, Math.min(px - w / 2 - 2 * scale, cx)); return { x, left: x - w / 2, right: x + w / 2, top, bottom: top + h }; };
@@ -198,8 +204,15 @@ export class NorthUpMap {
         labelRects.push(spot);
         ctx.fillStyle = '#081016b8';
         ctx.fillRect(spot.left, spot.top - 1 * scale, w, h);
-        ctx.lineWidth = 3 * scale; ctx.strokeStyle = '#081016e0'; ctx.strokeText(text, spot.x, spot.top + 1 * scale);
-        ctx.fillStyle = '#eef3f6'; ctx.fillText(text, spot.x, spot.top + 1 * scale);
+        // With a note, the name and its note are drawn left to right from the plate's start.
+        const noteW = note ? ctx.measureText(note).width : 0, nameX = spot.x - noteW / 2;
+        ctx.lineWidth = 3 * scale; ctx.strokeStyle = '#081016e0'; ctx.strokeText(text, nameX, spot.top + 1 * scale);
+        ctx.fillStyle = '#eef3f6'; ctx.fillText(text, nameX, spot.top + 1 * scale);
+        if (note) {
+          const noteX = nameX + ctx.measureText(text).width / 2 + noteW / 2;
+          ctx.strokeText(note, noteX, spot.top + 1 * scale);
+          ctx.fillStyle = bridge.noteColor; ctx.fillText(note, noteX, spot.top + 1 * scale);
+        }
       }
     }
   }

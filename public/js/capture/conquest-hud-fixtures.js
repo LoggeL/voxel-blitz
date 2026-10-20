@@ -406,6 +406,29 @@ export function conquestHudFixtures() {
         flag('D', -0.5, 'bravo', 'contested', 1, 1), flag('E', -1, 'bravo', 'idle')], bleed: { alpha: 0, bravo: 0 } }),
       camera: cam(C.x - 50, GROUND + 1.6, C.z + 40, 0), bigMap: true }));
   }
+  // 16b. Iron Bridge collapsing: held amber banner with its countdown, hazard on the minimap, C chip badge.
+  {
+    const at = { x: C.x - 34, z: C.z + 2 };
+    const self = meAt(at.x, at.z);
+    const fallAt = FIXTURE_NOW + 2200;
+    const match = baseMatch({ flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', -0.4, 'bravo', 'neutralizing', 2, 1),
+      flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')] });
+    match.conquest.br = [2, 0, fallAt];
+    out.push(state('bridge-failing', 'Iron Bridge collapsing · countdown banner, map hazard, C chip badge', { self, players: roster(self), match,
+      events: [{ kind: 'bridge', bridge: 'iron-bridge', stage: 2, name: 'failing', integrity: 0, fallAt, by: 'en1' }],
+      camera: cam(at.x, GROUND + 1.6, at.z, yawTo(at, C), -0.06) }));
+  }
+  // 16c. Iron Bridge down: full map with the gap and "IRON BRIDGE · DOWN", destroyed banner.
+  {
+    const self = meAt(C.x - 50, C.z + 40);
+    const match = baseMatch({ flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 0, null, 'idle'),
+      flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')] });
+    match.conquest.br = [3, 0];
+    out.push(state('bridge-down', 'Iron Bridge destroyed · full map gap, fords, destroyed banner', { self, players: roster(self),
+      vehicles: [spottedTank, vehicle('alpha-tank', 'tank', 'alpha', C.x - 80, C.z + 20, { hp: 700 })], match,
+      events: [{ kind: 'bridge', bridge: 'iron-bridge', stage: 3, name: 'down', integrity: 0, by: 'en1', blocks: 608 }],
+      camera: cam(C.x - 50, GROUND + 1.6, C.z + 40, 0), bigMap: true }));
+  }
   // 17. Deploy screen: dead, 3.2 s to respawn, valid spawns plus a refused flag (enemies in B).
   const deployRoster = self => roster(self, [player('en9', 'Draves', 'bravo', B.x + 3, B.z - 2, { cq: { squad: 2 } })]);
   const tankRow = vehicle('alpha-tank', 'tank', 'alpha', 110, 384, { hp: 1000, seatOccupants: { driver: null, commander: null } });

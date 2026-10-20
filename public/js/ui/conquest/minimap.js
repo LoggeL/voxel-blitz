@@ -2,6 +2,7 @@
 import { el } from '../hud-support.js';
 import { minimapPlacement } from '../conquest-hud-state.js';
 import { imageReady, overviewImage, paintFlag, paintSensorRing, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
+import { paintBridge, paintBridgeFlag } from './bridge-hud.js';
 
 export const MINIMAP_RANGE_M = 170;
 
@@ -33,7 +34,7 @@ export class Minimap {
   }
 
   /** items: mapItems(); center: self position; yaw: view yaw. */
-  draw({ items = [], center = null, yaw = 0, size = { x: 768, z: 768 }, meta = null, rangeM = MINIMAP_RANGE_M, nowMs = 0 } = {}) {
+  draw({ items = [], center = null, yaw = 0, size = { x: 768, z: 768 }, meta = null, rangeM = MINIMAP_RANGE_M, nowMs = 0, bridge = null } = {}) {
     const ctx = this.context;
     if (!ctx || !center) return;
     const { css, px } = this._resize();
@@ -52,6 +53,8 @@ export class Minimap {
       ctx.drawImage(this.image, 0, 0, size.x, size.z);
       ctx.globalAlpha = 1;
     }
+    // The Iron Bridge state (bridge-hud.js) over the terrain, under every marker.
+    paintBridge(ctx, bridge, { nowMs, px: s });
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     // Range rings for scale.
     ctx.strokeStyle = '#ffffff1c'; ctx.lineWidth = 1;
@@ -76,6 +79,10 @@ export class Minimap {
         const dist = Math.hypot(p.x, p.y), max = R - 12 * scale;
         if (dist > max) { pos.x = R + p.x / dist * max; pos.y = R + p.y / dist * max; }
         paintFlag(ctx, item, pos, dist > max ? 0 : item.radius * s, { letterSize: 10 * scale, pulse: item.contested || item.order ? pulse : 0 });
+        if (bridge && item.id === bridge.flag && dist <= max) {
+          const q = minimapPlacement({ ...item, x: item.x + 10 }, center, yaw, s);
+          paintBridgeFlag(ctx, bridge, pos, { size: (10 * scale + 6) * 0.71, dir: { x: q.x - p.x, y: q.y - p.y }, nowMs, scale });
+        }
       } else if (item.kind === 'hq') {
         const dist = Math.hypot(p.x, p.y);
         if (dist > R - 10 * scale) continue;

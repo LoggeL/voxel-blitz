@@ -101,6 +101,15 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-weather="true"] .cq-banner { top:
 .vb-conquest-hud:has(.cq-view:not([hidden])) .cq-weather { visibility: hidden; }
 html:not(.vb-touch-mode) .vb-conquest-hud[data-weather="true"]:has(.cq-banner:not([hidden])) .cq-view { top: calc(max(14px, env(safe-area-inset-top)) + 178px); }
 body:has(#scoreboard.is-open[data-mode="conquest"]) .vb-conquest-hud .cq-weather { visibility: hidden; }
+/* Iron Bridge state on the bridge flag's chip (bridge-hud.js): amber while damaged / collapsing, red once down. */
+.cq-chip-badge { position: relative; flex: none; width: 0; height: 28px; margin-left: -12px; --badge: #ffb020; }
+.cq-chip-badge[hidden] { display: none; }
+.cq-chip-badge[data-bridge="down"] { --badge: var(--cq-danger); }
+.cq-chip-badge::before {
+  content: '!'; position: absolute; left: -6px; bottom: -4px; width: 13px; height: 12px; display: grid; place-items: end center;
+  font-size: 9px; font-weight: 900; line-height: 1; color: #081016; background: var(--badge);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%); filter: drop-shadow(0 0 1px #000);
+}
 @keyframes cq-pulse { 50% { box-shadow: 0 0 0 1px #0009, 0 0 12px var(--cq-contested); } }
 @keyframes cq-ping { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(1.5); } }
 
@@ -138,6 +147,11 @@ body:has(#scoreboard.is-open[data-mode="conquest"]) .vb-conquest-hud .cq-weather
 }
 .cq-banner[data-tone="own"] { --tone: var(--cq-own); }
 .cq-banner[data-tone="enemy"] { --tone: var(--cq-enemy); }
+.cq-banner[data-tone="hazard"] { --tone: #ffb020; }
+.cq-banner[data-tone="danger"] { --tone: var(--cq-danger); }
+.cq-banner-bar { display: block; height: 3px; margin: 6px 6% 0; border-radius: 2px; background: #ffffff1a; overflow: hidden; }
+.cq-banner-bar[hidden] { display: none; }
+.cq-banner-bar > i { display: block; height: 100%; width: calc(var(--left, 1) * 100%); background: var(--tone, #ffb020); box-shadow: 0 0 8px var(--tone, #ffb020); }
 .cq-banner.is-in { animation: cq-banner-in 340ms cubic-bezier(.2, .9, .3, 1.2); }
 .cq-banner-title { font-size: 22px; font-weight: 800; letter-spacing: 2px; color: var(--tone, #fff); text-shadow: 0 2px 8px #000a; }
 .cq-banner-detail { margin-top: 1px; font-size: 12px; font-weight: 700; letter-spacing: 1.6px; color: var(--cq-sub); }
@@ -637,6 +651,8 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .vb-touch-mode .cq-center { gap: 2px; }
 .vb-touch-mode .cq-chips { gap: 4px; padding-top: 2px; }
 .vb-touch-mode .cq-chip { width: 18px; height: 18px; border-width: 1.5px; }
+.vb-touch-mode .cq-chip-badge { height: 18px; margin-left: -4px; }
+.vb-touch-mode .cq-chip-badge::before { left: -5px; bottom: -4px; width: 10px; height: 9px; font-size: 7px; }
 .vb-touch-mode .cq-chip-letter { font-size: 11px; }
 .vb-touch-mode .cq-clock { font-size: 11px; }
 .vb-touch-mode .cq-weather { display: none; }

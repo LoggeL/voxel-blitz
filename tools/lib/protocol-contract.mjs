@@ -21,6 +21,8 @@ export const CONQUEST_STATE_KEYS = 'bleed,endsAt,flags,maxTickets,squads,tickets
 export const CONQUEST_WEATHER_TUPLE_LENGTH = 7;
 /** Post-match `match.conquest` adds the 10 s ticket graph [[tMs, alpha, bravo], ...]. */
 export const CONQUEST_POST_STATE_KEYS = [...CONQUEST_STATE_KEYS.split(','), 'ticketGraph'].sort().join(',');
+/** Contract v6: `match.conquest.br` = [stage, integrity100, fallAt?] rides only once the Iron Bridge is damaged (shared/conquest-bridge.js). */
+export const CONQUEST_BRIDGE_KEY = 'br';
 /**
  * `flags[i]` = [id, control100, owner, state, atk, def]; `squads[i]` = [team, squadId, leaderId, orderFlag?]
  * (contract v6: the order flag id rides as a 4th entry only while the squad has an order).
@@ -32,7 +34,7 @@ export const CONQUEST_SQUAD_TUPLE_MAX_LENGTH = 4;
 export const CONQUEST_MATCH_BUDGET_BYTES = 440;
 
 /** Conquest contract v3 (classes): `cq[0]` indexes this kit list (0-3 kept from v2, new kits appended, so cq[0] <= 8). */
-// v6: squad orders and the comm rose, the Recon gadgets, the Support MORTAR (`mortar` intent and event, deployable `mortar` hull rows with `own`), and ribbons and medals (`ribbon` / `medal` events, the `ribbon` score reason, results rows `cqr` / `cqm` / `cqp` / `cxp`), and vehicle upgrades (deploy `upgrades` map, row `upg`, locked `deploy_refused` with `vehicle` / `upgrade` / `level`), and the mobile AA (`aa` pad hull, `medium` armour class, `flak35` proximity-fused flak), and the patrol boat (`boat` pad hull after `aa`, `bow` mount, Frontier `waterways`), and dynamic weather (`match.conquest.wx` tuple, `weather_strike` event).
+// v6: squad orders and the comm rose, the Recon gadgets, the Support MORTAR (`mortar` intent and event, deployable `mortar` hull rows with `own`), and ribbons and medals (`ribbon` / `medal` events, the `ribbon` score reason, results rows `cqr` / `cqm` / `cqp` / `cxp`), and vehicle upgrades (deploy `upgrades` map, row `upg`, locked `deploy_refused` with `vehicle` / `upgrade` / `level`), and the mobile AA (`aa` pad hull, `medium` armour class, `flak35` proximity-fused flak), and the patrol boat (`boat` pad hull after `aa`, `bow` mount, Frontier `waterways`), and dynamic weather (`match.conquest.wx` tuple, `weather_strike` event), and the Iron Bridge collapse (`match.conquest.br` tuple, `bridge` event, `bridge_destroyed` score reason).
 export const CONQUEST_CONTRACT = Object.freeze({ version: 6 });
 export const CONQUEST_KIT_IDS = 'assault,engineer,support,recon,medic,pyro,grenadier,raider,marksman';
 /** Event kinds added by the classes update: the Medic aura `heal {id, by, hp}` and `kit_unlocks {id, level, unlocked, newly}`. */
