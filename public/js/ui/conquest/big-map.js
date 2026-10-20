@@ -20,7 +20,7 @@ const LABEL_MIN_MAP_PX = 220;
 const FLAG_PICK_RADIUS = 0.06;
 
 export class NorthUpMap {
-  constructor(parent, className = 'cq-northmap', { onPick = null, onFlag = null } = {}) {
+  constructor(parent, className = 'cq-northmap', { onPick = null, onFlag = null, onPoint = null, onHover = null } = {}) {
     this.root = el('div', className, parent);
     this.canvas = el('canvas', 'cq-northmap-canvas', this.root);
     this.context = this.canvas.getContext?.('2d') ?? null;
@@ -29,11 +29,21 @@ export class NorthUpMap {
     this.flagHits = [];
     this.onFlag = onFlag;
     this._px = 0;
-    if (onPick || onFlag) {
+    this._extent = 768;
+    // A map event tool (a call-in designator, map-events/<id>.js) may take a pick or follow the pointer first.
+    if (onHover) {
+      this.canvas.addEventListener('pointermove', event => {
+        const rect = this.canvas.getBoundingClientRect?.();
+        if (rect?.width) onHover(this.worldAt((event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height));
+      });
+      this.canvas.addEventListener('pointerleave', () => onHover(null));
+    }
+    if (onPick || onFlag || onPoint) {
       this.canvas.addEventListener('pointerdown', event => {
         const rect = this.canvas.getBoundingClientRect?.();
         if (!rect || !rect.width) return;
         const x = (event.clientX - rect.left) / rect.width, y = (event.clientY - rect.top) / rect.height;
+        if (onPoint?.(this.worldAt(x, y)) === true) { event.preventDefault?.(); return; }
         if (onPick) {
           let best = null, bestD = 0.045;
           for (const hit of this.spawnHits) {
@@ -47,6 +57,9 @@ export class NorthUpMap {
       });
     }
   }
+
+  /** World metres {x, z} of a map point (u, v in 0..1 of the canvas, as drawn last). */
+  worldAt(u, v) { return { x: u * this._extent, z: v * this._extent }; }
 
   /** The flag id drawn nearest to a map point (u, v in 0..1 of the canvas), or null. */
   flagAt(u, v) {
@@ -68,12 +81,14 @@ export class NorthUpMap {
   }
 
   /** Map square → canvas: the full world, with a little margin. */
-  draw({ items = [], size = { x: 768, z: 768 }, meta = null, spawns = null, selected = null, nowMs = 0, labels = true, bridge = null, mapEvents = null } = {}) {
+  draw({ items = [], size = { x: 768, z: 768 }, meta = null, spawns = null, selected = null, nowMs = 0, labels = true, bridge = null, mapEvents = null,
+    overlay = null } = {}) {
     const ctx = this.context;
     if (!ctx) return;
     const { css, px } = this._resize();
     const scale = px / css;
     const extent = Math.max(size.x, size.z);
+    this._extent = extent;
     const s = px / extent;
     const toCanvas = (x, z) => ({ x: x * s, y: z * s });
     // Aircraft over the airspace apron (beyond the map square) pin to its edge.
@@ -220,6 +235,11 @@ export class NorthUpMap {
         }
       }
     }
+    // A map event tool's preview (the call-in designator's target), in world metres, over every marker.
+    if (typeof overlay === 'function') {
+      ctx.save();
+      try { ctx.setTransform(s, 0, 0, s, 0, 0); overlay(ctx, { nowMs, px: s }); } finally { ctx.restore(); }
+    }
   }
 }
 
@@ -299,7 +319,11 @@ export class BigMap {
     this.close.textContent = '✕';
     this.close.setAttribute('aria-label', 'Close map');
     this.close.addEventListener('click', () => this.setOpen(false));
-    this.map = new NorthUpMap(panel, 'cq-northmap cq-bigmap-map', { onFlag: id => this.orderFlag(id) });
+    // `tool` (a map event's designator: {active, pick(x, z), hoverAt(x, z), paint(ctx, opts), hint()}) takes picks first.
+    this.tool = null;
+    this.map = new NorthUpMap(panel, 'cq-northmap cq-bigmap-map', { onFlag: id => this.orderFlag(id),
+      onPoint: at => (this.open && this.tool?.active ? this.tool.pick(at.x, at.z) === true : false),
+      onHover: at => this.tool?.hoverAt?.(at?.x, at?.z) });
     // Order cursor (locked pointer / pad), in 0..1 map coordinates.
     this.cursor = el('i', 'cq-bigmap-cursor', this.map.root);
     this.cursor.hidden = true;
@@ -324,8 +348,9 @@ export class BigMap {
   /** Who may order and on which flag the order stands ({leader, orderFlag}); the head hint follows. */
   setOrders({ leader = false, orderFlag = null } = {}) {
     this.orders = { leader: !!leader, orderFlag: orderFlag ?? null };
-    const hint = !this.open ? '' : leader ? (orderFlag ? `SQUAD ORDER ${orderFlag} · PICK A FLAG · SAME FLAG CLEARS` : 'PICK A FLAG TO ORDER YOUR SQUAD')
-      : 'SQUAD LEADERS ORDER FROM THIS MAP';
+    const hint = !this.open ? '' : this.tool?.active ? this.tool.hint()
+      : leader ? (orderFlag ? `SQUAD ORDER ${orderFlag} · PICK A FLAG · SAME FLAG CLEARS` : 'PICK A FLAG TO ORDER YOUR SQUAD')
+        : 'SQUAD LEADERS ORDER FROM THIS MAP';
     if (this.hint.textContent !== hint) this.hint.textContent = hint;
     this.root.dataset.leader = String(!!leader);
   }
@@ -352,7 +377,10 @@ export class BigMap {
   }
 
   /** LMB / RT with the cursor up: pick the flag under it. */
-  clickCursor() { return this.orderFlag(this.map.flagAt(this.cursorAt.u, this.cursorAt.v)); }
+  clickCursor() {
+    if (this.tool?.active) { const at = this.map.worldAt(this.cursorAt.u, this.cursorAt.v); if (this.tool.pick(at.x, at.z) === true) return true; }
+    return this.orderFlag(this.map.flagAt(this.cursorAt.u, this.cursorAt.v));
+  }
 
   _moveCursor(du, dv) {
     this.cursorAt = { u: Math.max(0, Math.min(1, this.cursorAt.u + du)), v: Math.max(0, Math.min(1, this.cursorAt.v + dv)) };
@@ -363,10 +391,15 @@ export class BigMap {
     if (!this.cursorVisible) return;
     this.cursor.style.left = `${(this.cursorAt.u * 100).toFixed(2)}%`;
     this.cursor.style.top = `${(this.cursorAt.v * 100).toFixed(2)}%`;
+    if (this.tool?.active) { const at = this.map.worldAt(this.cursorAt.u, this.cursorAt.v); this.tool.hoverAt?.(at.x, at.z); }
     const over = this.map.flagAt(this.cursorAt.u, this.cursorAt.v);
     this.cursor.dataset.over = String(!!over);
   }
   toggle() { return this.setOpen(!this.open); }
 
-  draw(args) { if (this.open) this.map.draw(args); }
+  draw(args) {
+    if (!this.open) return;
+    const tool = this.tool?.active ? this.tool : null;
+    this.map.draw(tool ? { ...args, overlay: (ctx, opts) => tool.paint(ctx, opts) } : args);
+  }
 }

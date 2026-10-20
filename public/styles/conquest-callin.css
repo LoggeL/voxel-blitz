@@ -1,0 +1,73 @@
+/* Comeback call-in (docs/conquest.md "Comeback call-in"; design docs/design/conquest/events/comeback/, variant A):
+   the READY pill over the HUD and the designator strip under the full map's header. */
+
+.cq-callin-pill {
+  position: absolute; top: 14px; left: 14px; z-index: 3; display: flex; align-items: center; gap: 9px;
+  padding: 5px 12px 5px 5px; background: var(--cq-panel); border: 1px solid var(--cq-line); border-radius: 6px;
+  box-shadow: 0 2px 10px #0008; color: #ffb020; font: 800 15px/1 var(--font-ui); letter-spacing: 2px; white-space: nowrap;
+}
+.cq-callin-pill[hidden] { display: none; }
+.cq-callin-pill[data-leader="false"] { color: #e8d7b0; font-size: 13px; }
+.cq-callin-glyph { width: 24px; height: 24px; padding: 3px; box-sizing: border-box; border-radius: 4px; background: var(--cq-danger); color: #fff; flex: none; }
+
+/* The strip takes the panel's width (the map decides it) and never widens it. */
+.cq-callin {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px; row-gap: 8px;
+  width: 0; min-width: 100%; box-sizing: border-box; padding: 8px 10px; border-top: 2px solid var(--cq-danger);
+  background: #0e171d; border-radius: 3px;
+}
+.cq-callin[hidden] { display: none; }
+.cq-callin-badge .cq-callin-glyph { width: 40px; height: 40px; padding: 6px; }
+.cq-callin-text { display: grid; gap: 4px; min-width: 0; }
+.cq-callin-title { color: #ffb020; font: 800 22px/1 var(--font-ui); letter-spacing: 3px; white-space: nowrap; }
+.cq-callin-sub { color: var(--cq-sub); font: 700 11px/1.2 var(--font-ui); letter-spacing: 1.5px; }
+.cq-callin-cards { display: flex; gap: 8px; }
+.cq-callin-card {
+  display: flex; align-items: center; gap: 10px; min-width: 150px; padding: 7px 12px 7px 9px; border: 1px solid var(--cq-line);
+  border-radius: 4px; background: #121d25; color: var(--cq-text); font: inherit; text-align: left; cursor: pointer; pointer-events: auto;
+}
+.cq-callin-card[data-selected="true"] { border: 2px solid #ffb020; padding: 6px 11px 6px 8px; background: #2a2210; }
+.cq-callin-card-glyph { width: 30px; height: 30px; color: #fff; flex: none; }
+.cq-callin-card-text { display: grid; gap: 3px; }
+.cq-callin-card-text b { font: 800 15px/1 var(--font-ui); letter-spacing: 2px; color: #fff; }
+.cq-callin-card[data-selected="true"] .cq-callin-card-text b { color: #ffb020; }
+.cq-callin-card-text small { font: 700 10px/1 var(--font-ui); letter-spacing: 1.5px; color: var(--cq-sub); }
+.cq-bigmap[data-callin="true"] .cq-bigmap-map { width: min(calc(78vh - 76px), 82vw, 860px); }
+.cq-bigmap[data-callin="true"] .cq-bigmap-map .cq-northmap-canvas { cursor: crosshair; }
+.cq-bigmap[data-callin="true"] .cq-bigmap-hint { color: #ffb020; font-weight: 700; letter-spacing: 1px; }
+
+/* Narrow maps (phones, small windows): the cards drop under the title. */
+@media (max-width: 760px) {
+  .cq-callin { grid-template-columns: auto minmax(0, 1fr); padding: 6px 8px; column-gap: 8px; }
+  .cq-callin-cards { grid-column: 1 / -1; }
+  .cq-callin-card { flex: 1; min-width: 0; padding: 6px 8px; gap: 7px; }
+  .cq-callin-card[data-selected="true"] { padding: 5px 7px; }
+  .cq-callin-badge .cq-callin-glyph { width: 30px; height: 30px; padding: 4px; }
+  .cq-callin-title { font-size: 17px; letter-spacing: 2px; }
+  .cq-callin-sub { font-size: 10px; letter-spacing: 1px; }
+  .cq-callin-card-glyph { width: 22px; height: 22px; }
+  .cq-callin-card-text b { font-size: 13px; letter-spacing: 1px; }
+}
+/* Touch: no pill over the crowded top row; the MAP button lights up amber with a red call-in dot for a squad leader. */
+.vb-touch-bigMap[data-callin="true"] { border-color: #ffb020 !important; color: #ffb020 !important;
+  box-shadow: 0 0 0 2px #ffb02055, 0 0 14px #ffb02066; }
+.vb-touch-bigMap[data-callin="true"]::after { content: ''; position: absolute; top: -5px; right: -5px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--cq-danger, #ff4b4b); border: 2px solid #0e171d; }
+.vb-touch-mode .cq-bigmap[data-callin="true"] .cq-bigmap-map { width: min(calc(100vh - 220px), calc(100vw - 48px)); }
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Phone landscape: the map keeps its height; the strip becomes a column at its right. */
+  .vb-touch-mode .cq-bigmap[data-callin="true"] .cq-bigmap-panel { grid-template-columns: auto 184px; align-items: start; }
+  .vb-touch-mode .cq-bigmap[data-callin="true"] .cq-bigmap-head { grid-column: 1 / -1; }
+  .vb-touch-mode .cq-bigmap[data-callin="true"] .cq-bigmap-map { grid-column: 1; grid-row: 2; }
+  .vb-touch-mode .cq-bigmap[data-callin="true"] .cq-bigmap-legend { grid-column: 1; grid-row: 3; }
+  .vb-touch-mode .cq-callin { grid-column: 2; grid-row: 2 / span 2; width: auto; min-width: 0; align-self: stretch; align-content: start;
+    grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; padding: 8px; }
+  .vb-touch-mode .cq-callin-badge .cq-callin-glyph { width: 28px; height: 28px; padding: 4px; }
+  .vb-touch-mode .cq-callin-title { font-size: 15px; letter-spacing: 1.5px; white-space: normal; }
+  .vb-touch-mode .cq-callin-sub { font-size: 9px; letter-spacing: 1px; }
+  .vb-touch-mode .cq-callin-cards { grid-column: 1 / -1; flex-direction: column; }
+  .vb-touch-mode .cq-callin-card { min-width: 0; min-height: 52px; padding: 6px 8px; gap: 8px; }
+  .vb-touch-mode .cq-callin-card[data-selected="true"] { padding: 5px 7px; }
+  .vb-touch-mode .cq-callin-card-glyph { width: 24px; height: 24px; }
+  .vb-touch-mode .cq-callin-card-text b { font-size: 13px; letter-spacing: 1px; }
+}

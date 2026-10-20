@@ -1900,6 +1900,8 @@ export class ProjectileSystem {
       if (other === source || other.type === 'bolt' || other.type === 'glaive' || other.explodeAt <= ctx.now) continue;
       // A bubble stream (and its Double-bubble twin) never pops its own siblings.
       if (other.type === 'bubble' && source.type === 'bubble' && other.ownerId === source.ownerId) continue;
+      // Rounds of one scripted salvo (a map event's bomber run or barrage) never set each other off in the air.
+      if (other.salvo != null && other.salvo === source.salvo) continue;
       const distance = Math.hypot(other.x - origin[0], other.y - origin[1], other.z - origin[2]);
       if (distance > reach) continue;
       if (!visibleTo(ctx, origin, [other.x, other.y, other.z])) continue;

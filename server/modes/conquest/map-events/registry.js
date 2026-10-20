@@ -17,7 +17,7 @@
 // slot quarry:
 // import { QuarryController } from './quarry.js';
 // slot comeback:
-// import { ComebackController } from './comeback.js';
+import { ComebackController } from './comeback.js';
 // slot airdrop:
 // import { AirdropController } from './airdrop.js';
 // end of import slots
@@ -36,7 +36,7 @@ export const MAP_EVENT_CONTROLLERS = Object.freeze({
   // slot quarry:
   // quarry: QuarryController,
   // slot comeback:
-  // comeback: ComebackController,
+  comeback: ComebackController,
   // slot airdrop:
   // airdrop: AirdropController,
   // end of map slots

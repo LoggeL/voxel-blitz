@@ -33,7 +33,7 @@
 // slot quarry:
 // import { QUARRY_FX } from './quarry.js';
 // slot comeback:
-// import { COMEBACK_FX } from './comeback.js';
+import { COMEBACK_FX } from './comeback.js';
 // slot airdrop:
 // import { AIRDROP_FX } from './airdrop.js';
 // end of import slots
@@ -52,7 +52,7 @@ export const MAP_EVENT_FX = Object.freeze({
   // slot quarry:
   // quarry: QUARRY_FX,
   // slot comeback:
-  // comeback: COMEBACK_FX,
+  comeback: COMEBACK_FX,
   // slot airdrop:
   // airdrop: AIRDROP_FX,
   // end of map slots

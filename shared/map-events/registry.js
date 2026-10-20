@@ -18,7 +18,7 @@
 // slot quarry (Frontier Aldric Quarry rockslide):
 // import { QUARRY_EVENT } from './quarry.js';
 // slot comeback (both maps, trailing team call-in):
-// import { COMEBACK_EVENT } from './comeback.js';
+import { COMEBACK_EVENT } from './comeback.js';
 // slot airdrop (both maps, supply crate):
 // import { AIRDROP_EVENT } from './airdrop.js';
 // end of import slots
@@ -38,7 +38,7 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot quarry:
   // QUARRY_EVENT,
   // slot comeback:
-  // COMEBACK_EVENT,
+  COMEBACK_EVENT,
   // slot airdrop:
   // AIRDROP_EVENT,
   // end of list slots
