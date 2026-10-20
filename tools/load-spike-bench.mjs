@@ -49,6 +49,7 @@ async function warmUp() {
   try {
     const warm = await import('../server/boot-warmup.js');
     warm.prepareFrontier({ structural: true });
+    warm.warmConquestRoom?.('frontier');
     await warm.warmGroundGrids(undefined, { sliceMs: 1000 });
   } catch (error) {
     if (error?.code !== 'ERR_MODULE_NOT_FOUND') throw error;

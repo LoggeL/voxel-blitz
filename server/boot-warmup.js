@@ -10,14 +10,20 @@
 // - Flat-floor maps (sliced, after listening): the bots' ground grid
 //   (`navigationFloor` maps without a surface graph), so the first bot room on
 //   one copies it (0.1 ms) instead of sweeping it in its first tick (20-60 ms).
+// - The tick code itself (before listening): one throwaway Frontier Conquest
+//   room with bots, stepped a second, so the first player's room does not
+//   run its first tick cold (16-22 ms here, 55-75 ms on the production host).
 
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
 import { MAP_IDS } from '../shared/modes.js';
 import { prepareStructureTemplate } from './sim/structure.js';
-import { groundNavigationSteps, surfaceNavigation } from './bot-navigation.js';
+import { groundNavigation, groundNavigationSteps, surfaceNavigation } from './bot-navigation.js';
 import { roadGraph } from './bot-vehicle-driving.js';
 import { CoverIndex } from './bot-cover.js';
 import { isBattlefieldMap } from '../shared/world/battlefields.js';
+import { GameEngine } from './game.js';
+import { attachBots } from './bots.js';
+import { TICK_MS } from './protocol/admission.js';
 
 /**
  * Build a battlefield's (Frontier, Redrock Canyon) shared caches on a throwaway
@@ -43,6 +49,40 @@ export function prepareBattlefield(id, { structural = true } = {}) {
   if (structural) prepareStructureTemplate(world);
   const field = structural ? performance.now() - fieldStarted : null;
   return { total: performance.now() - started, cover, field };
+}
+
+/**
+ * Step a throwaway Conquest room (one host and `bots` bots) on battlefield `id`
+ * for `ticks` ticks, then dispose it: the engine's, the bots' and the vehicles'
+ * code is compiled before a player's room runs it. Cold, a process's first
+ * room's first tick took 16-22 ms here (55-75 ms on the production host); a
+ * later room's 4-5 ms, on either battlefield. It never starts its clock, so
+ * no room counts as ticking, and nothing it touches outlives it but the
+ * per-process caches every room shares (as after any earlier match). Returns
+ * { total, first } in ms (first: its first tick).
+ */
+export function warmConquestRoom(id, { ticks = 60, bots = 15 } = {}) {
+  const started = performance.now();
+  const engine = new GameEngine({ world: createMapState(id), mode: 'conquest', mapMeta: getMapMeta(id) });
+  const host = 'boot-warmup';
+  engine.addClient(host, 'Warm-up');
+  engine.mode.policy.gateDeploy?.(host);
+  const manager = attachBots(engine, bots);
+  let first = 0;
+  try {
+    // As GameEngine.start: a bot room routes on the ground grid.
+    groundNavigation(engine.world);
+    for (let i = 0; i < ticks; i++) {
+      const at = performance.now();
+      engine.step(TICK_MS);
+      if (i === 0) first = performance.now() - at;
+    }
+  } finally {
+    engine.stop();
+    manager.dispose();
+    engine.removeClient(host);
+  }
+  return { total: performance.now() - started, first };
 }
 
 /** Frontier's shared caches (prepareBattlefield('frontier')). */
