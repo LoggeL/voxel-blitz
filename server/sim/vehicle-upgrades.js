@@ -25,10 +25,13 @@ export function mountSeconds(vehicle, state, key) {
 
 /**
  * Give a hull the upgrade `id` (null: stock). Magazines follow the new size:
- * a shrunk magazine drops the rounds (and pending re-arms) above it; a grown
- * one is topped up at once when the stock rack was full and idle, otherwise
- * the missing rounds re-arm on the mount's own timer. Returns true when the
- * upgrade changed.
+ * a shrunk magazine moves the rounds above it (loaded ones as 0, pending
+ * re-arms with their time left) into the mount's `heldRearm`, which keeps
+ * counting down (VehicleMounts.tickTimers); a grown one takes those held
+ * rounds back first, is topped up at once when the stock rack was full and
+ * idle with nothing held, and otherwise re-arms the missing rounds on the
+ * mount's own timer. So hopping out and back in never refills a spent round.
+ * Returns true when the upgrade changed.
  */
 export function setHullUpgrade(vehicle, id) {
   if (!vehicle) return false;
@@ -40,14 +43,24 @@ export function setHullUpgrade(vehicle, id) {
     const cap = mountMagazine(vehicle, state), prior = before[index];
     if (cap < 0 || cap === prior || !Array.isArray(state.rearm)) return;
     if (cap < prior) {
-      state.ammo = Math.min(state.ammo, cap);
-      state.rearm.length = Math.min(state.rearm.length, Math.max(0, cap - state.ammo));
+      const held = state.heldRearm ??= [];
+      while (state.ammo > cap) { state.ammo--; held.push(0); }
+      const keep = Math.max(0, cap - state.ammo);
+      if (state.rearm.length > keep) held.push(...state.rearm.splice(keep));
+      if (!held.length) delete state.heldRearm;
       return;
     }
-    if (state.ammo >= prior && !state.rearm.length && !(state.reloadT > 0)) { state.ammo = cap; return; }
+    const held = (state.heldRearm ?? []).sort((a, b) => a - b);
+    delete state.heldRearm;
+    if (!held.length && state.ammo >= prior && !state.rearm.length && !(state.reloadT > 0)) { state.ammo = cap; return; }
+    let missing = cap - state.ammo - state.rearm.length;
+    for (; missing > 0 && held.length; missing--) {
+      const left = held.shift();
+      if (left > 0) state.rearm.push(left); else state.ammo++;
+    }
     const rearm = mountSeconds(vehicle, state, 'rearm');
-    if (!(rearm > 0)) return;
-    for (let missing = cap - state.ammo - state.rearm.length; missing > 0; missing--) state.rearm.push(rearm);
+    if (rearm > 0) for (; missing > 0; missing--) state.rearm.push(rearm);
+    state.rearm.sort((a, b) => a - b);
   });
   return true;
 }

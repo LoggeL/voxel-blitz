@@ -179,6 +179,8 @@ export class VehicleMounts {
       for (let i = 0; i < state.rearm.length; i++) state.rearm[i] -= dt;
       while (state.rearm.length && state.rearm[0] <= 0) { state.rearm.shift(); state.ammo = Math.min(magazine, state.ammo + 1); }
     }
+    // Rounds above a shrunk upgraded magazine (server/sim/vehicle-upgrades.js) keep re-arming off the rack.
+    if (state.heldRearm) for (let i = 0; i < state.heldRearm.length; i++) state.heldRearm[i] = Math.max(0, state.heldRearm[i] - dt);
   }
 
   /** The barrel between its pivot and muzzle must not pass through terrain. */

@@ -84,6 +84,36 @@ test('table: keyed by vehicle type, unique ids, career levels, bot defaults, row
   assert.ok(CONQUEST_INTENT_SHAPE.deploy.includes('upgrades'));
 });
 
+test('table: the hint numbers match the hull rules they describe', () => {
+  const hint = (type, id) => vehicleUpgrade(type, id).hint;
+  const fx = (type, id) => vehicleUpgrade(type, id).effects;
+  const s = n => String(Math.round(n * 100) / 100);
+  assert.ok(hint('jeep', 'turbo').includes(`${s(JEEP_RULES.speed)} → ${Math.round(JEEP_RULES.speed * fx('jeep', 'turbo').speed)} M/S`));
+  assert.ok(hint('jeep', 'turbo').includes(`${Math.round((fx('jeep', 'turbo').acceleration - 1) * 100)} % MORE ACCELERATION`));
+  const tow = VEHICLE_WEAPONS.towMissile.reloadSeconds;
+  assert.ok(hint('jeep_at', 'tow_reload').includes(`${s(tow)} → ${s(tow * fx('jeep_at', 'tow_reload').reload.pintle)} S`));
+  const ap = VEHICLE_WEAPONS.tankAP.cooldown;
+  assert.equal(VEHICLE_WEAPONS.tankHE.cooldown, ap, 'AP and HE share the main gun reload');
+  assert.ok(hint('tank', 'autoloader').includes(`${s(ap)} → ${s(ap * fx('tank', 'autoloader').cooldown.main)} S`));
+  assert.ok(hint('tank', 'reactive').includes(`${Math.round((1 - fx('tank', 'reactive').damageTaken.at) * 100)} % LESS`));
+  assert.ok(hint('jeep', 'reinforced').includes(`${Math.round((1 - fx('jeep', 'reinforced').damageTaken.all) * 100)} % LESS`));
+  const flare = COUNTERMEASURE_RULES.flares.cooldownSeconds;
+  assert.ok(hint('helicopter', 'flare_reload').includes(`${s(flare)} → ${s(flare * fx('helicopter', 'flare_reload').cmCooldown)} S`));
+  assert.ok(hint('helicopter', 'extra_missile').includes(`${VEHICLE_WEAPONS.guidedMissile.magazine + fx('helicopter', 'extra_missile').magazine.atgm} GUIDED MISSILES INSTEAD OF ${VEHICLE_WEAPONS.guidedMissile.magazine}`));
+  assert.ok(hint('transport', 'field_repair').includes(`${Math.round((fx('transport', 'field_repair').repair - 1) * 100)} % FASTER`));
+  assert.ok(hint('transport', 'heavy_doorguns').includes(`${Math.round((fx('transport', 'heavy_doorguns').damage['door-left'] - 1) * 100)} % MORE`));
+  assert.ok(hint('plane', 'extra_flares').includes(`${s(flare)} S COOLDOWN`));
+  const lock = fx('plane', 'ecm').lockTime;
+  assert.ok(hint('plane', 'ecm').includes(`${Math.round((lock - 1) * 100)} % LONGER`));
+  assert.ok(hint('plane', 'ecm').includes(`STINGER ${s(LOCK_RULES.stinger.seconds)} → ${s(LOCK_RULES.stinger.seconds * lock)} S`));
+  assert.ok(hint('plane', 'ecm').includes(`AA MISSILE ${s(LOCK_RULES.aaMissile.seconds)} → ${s(LOCK_RULES.aaMissile.seconds * lock)} S`));
+  const rearm = fx('plane', 'quick_rearm').rearm;
+  assert.ok(hint('plane', 'quick_rearm').includes(`AA MISSILES RE-ARM ${s(VEHICLE_WEAPONS.aaMissile.rearmSeconds)} → ${s(VEHICLE_WEAPONS.aaMissile.rearmSeconds * rearm.rails)} S`));
+  assert.ok(hint('plane', 'quick_rearm').includes(`BOMBS ${s(VEHICLE_WEAPONS.jetBomb.rearmSeconds)} → ${s(VEHICLE_WEAPONS.jetBomb.rearmSeconds * rearm.bombs)} S`));
+  const thermal = fx('tank', 'thermal').spot;
+  assert.ok(hint('tank', 'thermal').includes(`${thermal.range} M, LAST ${thermal.ms / 1000} S`));
+});
+
 test('protocol: the deploy intent carries an exact upgrades map', () => {
   const deploy = upgrades => parseConquestIntent({ t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', variant: 0, upgrades } });
   assert.deepEqual(deploy({ tank: 'reactive', plane: 'ecm' }).upgrades, { tank: 'reactive', plane: 'ecm' });
@@ -208,13 +238,28 @@ test('extra missile: the attack heli carries 3 guided missiles while its pilot d
   assert.equal(atgm().ammo, 3, 'a full stock rack is topped up at once');
   f.leave(pilot); f.step(2);
   assert.equal(atgm().ammo, 2, 'the extra round leaves with the pilot');
+  assert.deepEqual(atgm().heldRearm, [0], 'and is held off the rack, loaded');
+  f.board(pilot, 'heli', 'driver'); f.step(2);
+  assert.equal(atgm().ammo, 3, 'the held round comes back with the pilot');
   // A partly spent rack grows by re-arming, never by a free round.
   const state = atgm();
   state.ammo = 1; state.rearm = [VEHICLE_WEAPONS.guidedMissile.rearmSeconds];
-  f.board(pilot, 'heli', 'driver'); f.step(2);
+  setHullUpgrade(heli, null); delete state.heldRearm; setHullUpgrade(heli, 'extra_missile');
   assert.equal(state.ammo, 1); assert.equal(state.rearm.length, 2, 'the missing extra round re-arms on the rail timer');
   setHullUpgrade(heli, null);
-  assert.ok(state.ammo + state.rearm.length <= 2, 'shrinking drops pending re-arms above the stock rack');
+  assert.ok(state.ammo + state.rearm.length <= 2, 'shrinking takes pending re-arms above the stock rack off the rack');
+  // Hopping out and back in never refills a fired round: one shot from the full 3-rack
+  // leaves 2 + a re-arm; the stock rack holds 2, so the re-arm waits off the rack.
+  const rearm = VEHICLE_WEAPONS.guidedMissile.rearmSeconds;
+  Object.assign(state, { ammo: 2, rearm: [rearm], reloadT: 0 }); delete state.heldRearm;
+  heli.upgrade = 'extra_missile';
+  setHullUpgrade(heli, null);
+  assert.deepEqual([state.ammo, state.rearm.length, state.heldRearm?.length], [2, 0, 1], 'the pending re-arm is held, not dropped');
+  f.game.vehicles.mounts.tickTimers(state, 2, heli);
+  setHullUpgrade(heli, 'extra_missile');
+  assert.equal(state.ammo, 2, 'no free round from hopping out and in');
+  near(state.rearm[0], rearm - 2, 1e-9, 'the held re-arm resumes with its time left (it kept counting off the rack)');
+  assert.equal(state.heldRearm, undefined);
 });
 
 test('flare reload and extra flares: countermeasure cooldown and charges', () => {
@@ -235,6 +280,15 @@ test('flare reload and extra flares: countermeasure cooldown and charges', () =>
   assert.equal(jet.cmSlots.length, 1);
   f.board(jetPilot, 'jet', 'driver'); f.step(2);
   assert.equal(locks.countermeasure(jet), null, 'no free salvo from hopping out and in');
+  // One salvo spent, one in hand: the hull keeps the ready one when the pilot hops out.
+  delete jet.cmSlots; jet.cmReadyAt = 0;
+  assert.equal(locks.countermeasure(jet), 'flares');
+  f.leave(jetPilot); f.step(2);
+  assert.equal(jet.upgrade, null);
+  assert.equal(locks.readiness(jet), 100, 'the stock hull still has the unspent salvo');
+  f.board(jetPilot, 'jet', 'driver'); f.step(2);
+  assert.equal(locks.countermeasure(jet), 'flares', 'the unspent salvo');
+  assert.equal(locks.countermeasure(jet), null, 'the spent one came back on its own cooldown, not refreshed');
 });
 
 test('ECM jammer: an enemy AA lock on the jet takes 50 % longer', () => {

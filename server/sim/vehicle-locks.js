@@ -145,14 +145,17 @@ export class VehicleLocks {
    * Countermeasure salvos of a hull: one ready time per charge (an extra-flares
    * upgrade adds a charge). `cmReadyAt` stays the soonest of them, so a hull
    * with a charge in hand reads ready. Charges follow the hull's upgrade: a
-   * lost charge is the readiest one and a gained charge starts as late as the
-   * latest, so leaving and re-entering never refreshes a spent salvo.
+   * lost charge is the latest one and waits in `cmHeld` until a charge comes
+   * back; a gained charge with nothing held starts as late as the latest. So
+   * the next pilot keeps the ready salvo, and leaving and re-entering never
+   * refreshes a spent one.
    */
   cmSlots(vehicle) {
     const charges = upgradeCmCharges(vehicle);
-    if (!Array.isArray(vehicle.cmSlots) || vehicle.cmSlotsFor !== vehicle.cmReadyAt) vehicle.cmSlots = [vehicle.cmReadyAt ?? 0];
-    while (vehicle.cmSlots.length < charges) vehicle.cmSlots.push(Math.max(...vehicle.cmSlots));
-    if (vehicle.cmSlots.length > charges) vehicle.cmSlots.sort((a, b) => a - b).splice(0, vehicle.cmSlots.length - charges);
+    if (!Array.isArray(vehicle.cmSlots) || vehicle.cmSlotsFor !== vehicle.cmReadyAt) { vehicle.cmSlots = [vehicle.cmReadyAt ?? 0]; vehicle.cmHeld = []; }
+    const held = vehicle.cmHeld ??= [];
+    while (vehicle.cmSlots.length < charges) vehicle.cmSlots.push(held.length ? held.pop() : Math.max(...vehicle.cmSlots));
+    if (vehicle.cmSlots.length > charges) held.push(...vehicle.cmSlots.sort((a, b) => a - b).splice(charges));
     vehicle.cmReadyAt = vehicle.cmSlotsFor = Math.min(...vehicle.cmSlots);
     return vehicle.cmSlots;
   }
