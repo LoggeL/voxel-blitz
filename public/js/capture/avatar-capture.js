@@ -6,11 +6,14 @@ import {
   updateAvatarStancePose,
   updateAvatarWeaponPose,
 } from '../avatar/avatar.js';
+import { poseAvatarHandset } from '../avatar/avatar-handset.js';
 
 const params = new URLSearchParams(location.search);
 const weapon = params.get('weapon') || 'rifle';
 const view = params.get('view') || 'front';
 const shot = findAvatarCaptureShot(weapon, view);
+// `fpv=1`: the operator flies his FPV drone and holds the handset (avatar-handset.js).
+const fpv = params.get('fpv') === '1';
 if (!shot) throw new Error(`unknown avatar capture: ${weapon}/${view}`);
 
 const canvas = document.getElementById('capture');
@@ -96,6 +99,7 @@ for (let frame = 0; frame < (swimming ? 120 : 30); frame++) {
     dt: 1 / 60,
     blend: 1,
   });
+  poseAvatarHandset(avatar, fpv);
   updateAvatarStancePose(avatar, { blend: 1, stride });
   avatar.head.rotation.x = avatar.swimHeadTilt || 0;
 }
@@ -127,7 +131,7 @@ const captureMetrics = Object.freeze({
     Math.abs(corner.x) < 0.98 && Math.abs(corner.y) < 0.98 &&
     corner.z > -1 && corner.z < 1),
 });
-if (captureMetrics.gripError > 0.001 || !captureMetrics.weaponInFrame || (ads && captureMetrics.sightEyeDelta > 0.08)) {
+if (!fpv && captureMetrics.gripError > 0.001 || !captureMetrics.weaponInFrame || (ads && captureMetrics.sightEyeDelta > 0.08)) {
   throw new Error(`invalid avatar capture composition: ${JSON.stringify(captureMetrics)}`);
 }
 

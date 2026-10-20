@@ -8,6 +8,11 @@
  * hints show for FPV_HINT_MS after a launch only. Every value comes from the
  * snapshot through FpvPilot.telemetry (public/js/session/fpv-controller.js).
  * fpvBanner turns the server's `fpv` events into HUD banners.
+ *
+ * The launch and link-loss frames (docs/design/conquest/fpv-handset/, variant
+ * A; timed by public/js/session/fpv-transition.js): `boot` 1..0 brings the
+ * feed up out of full static, `lost` is the SIGNAL LOST frame, heavy snow and
+ * tear lines over the last picture with only the label on it.
  */
 import { el } from '../hud-support.js';
 import { svgIcon } from './icons.js';
@@ -31,9 +36,19 @@ const hash = n => {
 };
 const finite = (value, fallback = 0) => (Number.isFinite(value) ? value : fallback);
 
-/** The feed model of one telemetry frame (null while no drone flies). Pure: text and levels only. */
-export function fpvFeedModel(telemetry, { hints = '' } = {}) {
+/** Static over the SIGNAL LOST frame: near full snow, torn and bleeding, half the picture blanked. */
+export const FPV_LOST_STATIC = Object.freeze({ noise: 1, tear: 0.75, bleed: 0.45, blank: 0.5 });
+/** Under the boot static the picture starts this blank (fading with `boot`). */
+const BOOT_BLANK = 0.55;
+
+/**
+ * The feed model of one telemetry frame (null while no drone flies). Pure:
+ * text and levels only. `boot` (0..1) and `lost` come from the transition
+ * (FpvTransition frame): the static rises to them, the strip fades under them.
+ */
+export function fpvFeedModel(telemetry, { hints = '', boot = 0, lost = false } = {}) {
   if (!telemetry) return null;
+  const up = Math.max(0, Math.min(1, finite(boot)));
   const seconds = Math.max(0, Math.round(finite(telemetry.seconds)));
   const left = Number.isInteger(telemetry.left) ? telemetry.left : null;
   return {
@@ -45,8 +60,12 @@ export function fpvFeedModel(telemetry, { hints = '' } = {}) {
     altText: Number.isFinite(telemetry.altitude) ? `${Math.round(telemetry.altitude)} M` : '— M',
     rangeText: `${Math.round(finite(telemetry.distance))} M`,
     leftText: left === null ? '' : `${left} LEFT`,
-    noise: Math.max(0, Math.min(1, finite(telemetry.noise))), tear: Math.max(0, Math.min(1, finite(telemetry.tear))),
-    bleed: Math.max(0, Math.min(1, finite(telemetry.bleed))), drop: Math.max(0, finite(telemetry.drop)),
+    noise: lost ? FPV_LOST_STATIC.noise : Math.max(up, Math.min(1, Math.max(0, finite(telemetry.noise)))),
+    tear: lost ? FPV_LOST_STATIC.tear : Math.max(up * 0.5, Math.min(1, Math.max(0, finite(telemetry.tear)))),
+    bleed: lost ? FPV_LOST_STATIC.bleed : Math.max(0, Math.min(1, finite(telemetry.bleed))),
+    drop: lost ? 0 : Math.max(0, finite(telemetry.drop)),
+    blank: lost ? FPV_LOST_STATIC.blank : up * BOOT_BLANK,
+    phase: lost ? 'lost' : up > 0 ? 'boot' : 'live', boot: lost ? 0 : up,
     roll: finite(telemetry.roll), hints,
   };
 }
@@ -85,6 +104,9 @@ export class FpvFeed {
     this.canvas.width = STATIC_W; this.canvas.height = STATIC_H;
     this.context = this.canvas.getContext?.('2d') ?? null;
     this.image = this.context?.createImageData?.(STATIC_W, STATIC_H) ?? null;
+    // Blanks the picture under the boot static and the SIGNAL LOST snow.
+    this.blank = el('div', 'cq-fpv-blank', this.video);
+    this.blank.style.opacity = '0';
     el('div', 'cq-fpv-vignette', this.video);
     el('div', 'cq-fpv-reticle', this.root);
     this.horizon = el('div', 'cq-fpv-horizon', this.root);
@@ -109,6 +131,11 @@ export class FpvFeed {
       } else this.cells[`${key}Value`] = el('b', 'cq-fpv-value', cell);
       if (key === 'battery') this.batteryFill = el('i', '', el('div', 'cq-fpv-meter', cell));
     }
+    // SIGNAL LOST (design variant A): a navy plate with a red accent bar, centred on the snow.
+    this.lost = el('div', 'cq-fpv-lost', this.root);
+    this.lost.hidden = true;
+    el('b', '', this.lost).textContent = 'SIGNAL LOST';
+    el('span', '', this.lost).textContent = 'NO VIDEO LINK';
     this._sig = ''; this._hintAt = -Infinity; this._was = false; this._dropSlot = null;
     this.model = null;
   }
@@ -122,12 +149,22 @@ export class FpvFeed {
     if (!model) {
       if (!this.root.hidden) { this.root.hidden = true; this.video.hidden = true; }
       if (doc?.body?.dataset?.fpv) delete doc.body.dataset.fpv;
+      if (this.root.dataset.phase) delete this.root.dataset.phase;
       this._was = false;
       return;
     }
     if (!this._was) { this._was = true; this._hintAt = clockMs; }
     if (this.root.hidden) { this.root.hidden = false; this.video.hidden = false; }
     if (doc?.body?.dataset && doc.body.dataset.fpv !== 'true') doc.body.dataset.fpv = 'true';
+    const phase = model.phase || 'live';
+    if (this.root.dataset.phase !== phase) { this.root.dataset.phase = phase; this.lost.hidden = phase !== 'lost'; }
+    // The strip, the reticle and the horizon come up out of the boot static.
+    const shown = phase === 'boot' ? (1 - model.boot).toFixed(2) : '';
+    if (this.root.style.getPropertyValue('--fpv-shown') !== shown) {
+      if (shown) this.root.style.setProperty('--fpv-shown', shown); else this.root.style.removeProperty('--fpv-shown');
+    }
+    const blank = finite(model.blank).toFixed(2);
+    if (this.blank.style.opacity !== blank) this.blank.style.opacity = blank;
     const hint = model.hints || this._hintText;
     const showHint = !!hint && clockMs - this._hintAt < FPV_HINT_MS;
     if (this.hints.hidden === showHint) this.hints.hidden = !showHint;

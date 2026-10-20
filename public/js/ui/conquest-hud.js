@@ -631,7 +631,8 @@ export class ConquestHud {
     }
     setData(this.root, 'seated', seated ? seated.row.type : '');
     setData(this.root, 'touch', String(touch));
-    const fpvFeed = living && !seated ? fpvFeedModel(args.fpv ?? null) : null;
+    // `boot` / `lost`: the launch and link-loss frames (main.js, FpvTransition) ride the telemetry.
+    const fpvFeed = living && !seated ? fpvFeedModel(args.fpv ?? null, { boot: args.fpv?.boot, lost: args.fpv?.lost === true }) : null;
     this.fpvFeed.update(fpvFeed, { clockMs: clockNow() });
     setData(this.root, 'fpv', String(!!fpvFeed));
 

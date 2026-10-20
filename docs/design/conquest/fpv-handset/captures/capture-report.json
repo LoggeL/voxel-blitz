@@ -1,0 +1,90 @@
+{
+  "generated": "2026-10-20T22:25:23.180Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "name": "1-raise-150ms",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-1-raise-150ms.jpg",
+      "phase": "raise",
+      "handset": 0.21134989584921135,
+      "weaponHidden": true,
+      "draws": 16
+    },
+    {
+      "size": "desktop",
+      "name": "2-raise-330ms",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-2-raise-330ms.jpg",
+      "phase": "raise",
+      "handset": 0.7407407407407444,
+      "weaponHidden": true,
+      "draws": 37
+    },
+    {
+      "size": "desktop",
+      "name": "3-raise-440ms",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-3-raise-440ms.jpg",
+      "phase": "raise",
+      "handset": 0.984351978865012,
+      "weaponHidden": true,
+      "draws": 45
+    },
+    {
+      "size": "desktop",
+      "name": "7-lower-80ms",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-7-lower-80ms.jpg",
+      "phase": "lower",
+      "handset": 0.957031249999997,
+      "weaponHidden": true,
+      "draws": 43
+    },
+    {
+      "size": "desktop",
+      "name": "8-lower-240ms",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-8-lower-240ms.jpg",
+      "phase": "lower",
+      "handset": 0.43764467592590783,
+      "weaponHidden": true,
+      "draws": 25
+    },
+    {
+      "size": "desktop",
+      "name": "9-redraw-200ms",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-9-redraw-200ms.jpg",
+      "phase": "idle",
+      "handset": 0,
+      "weaponHidden": false,
+      "draws": 51
+    },
+    {
+      "size": "desktop",
+      "name": "4-boot-static",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-4-boot-static.jpg"
+    },
+    {
+      "size": "desktop",
+      "name": "5-boot-resolving",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-5-boot-resolving.jpg"
+    },
+    {
+      "size": "desktop",
+      "name": "5b-feed",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-5b-feed.jpg"
+    },
+    {
+      "size": "desktop",
+      "name": "6-signal-lost",
+      "file": "docs/design/conquest/fpv-handset/captures/desktop-6-signal-lost.jpg"
+    },
+    {
+      "size": "avatar",
+      "name": "front",
+      "file": "docs/design/conquest/fpv-handset/captures/third-person-front.jpg"
+    },
+    {
+      "size": "avatar",
+      "name": "crouched-profile",
+      "file": "docs/design/conquest/fpv-handset/captures/third-person-crouched-profile.jpg"
+    }
+  ],
+  "errors": []
+}
