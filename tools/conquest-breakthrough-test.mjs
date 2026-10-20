@@ -249,6 +249,64 @@ const park = (team, players) => players.forEach((p, i) => place(p, team === 'alp
   eq([timed.game.mode.phase, timed.game.mode.matchWinner], ['post', 'bravo'], 'the time limit goes to the defenders');
 }
 
+// --- overtime edge cases: the last pusher dies, a revive refunds a ticket ----------------
+{
+  // The only pusher dies with the last ticket: no overtime (its presence is counted now, not last tick).
+  const { game, events, policy } = fixture();
+  const { alpha, bravo } = roster(game, 4);
+  park('alpha', alpha); park('bravo', bravo);
+  run(game, TICK_MS);
+  policy.ledger.tickets.alpha = 1;
+  place(alpha[0], 50, 40);
+  run(game, 1000);
+  eq(flagOf(policy, 'A').state, 'neutralizing');
+  game.killPlayer(alpha[0], bravo[0], 'rifle', false);
+  run(game, TICK_MS * 2);
+  eq([kinds(events, 'sector_overtime').length, game.mode.phase, game.mode.matchWinner], [0, 'post', 'bravo'],
+    'the last pusher dying with the last ticket ends the round without an overtime');
+}
+{
+  // A revive refund during the overtime puts the round back to normal: leaving the flag no longer loses it.
+  const { game, policy } = fixture();
+  const { alpha, bravo } = roster(game, 4);
+  park('alpha', alpha); park('bravo', bravo);
+  run(game, TICK_MS);
+  policy.ledger.tickets.alpha = 1;
+  place(alpha[0], 50, 40);
+  run(game, 1000);
+  game.killPlayer(alpha[1], bravo[0], 'rifle', false);
+  run(game, TICK_MS * 2);
+  eq([policy.btView().overtime, policy.tickets.alpha], [true, 0], 'overtime');
+  ok(policy.refundTicket('alpha'), 'a revive refunds a ticket');
+  run(game, TICK_MS * 2);
+  eq([policy.btView().overtime, game.lastSnapshot.match.conquest.bt[4]], [false, 0], 'a refund ends the overtime');
+  place(alpha[0], 20, 80);
+  run(game, 500);
+  eq(game.mode.phase, 'live', 'with a ticket in the pool, leaving the flag does not lose the round');
+}
+
+// --- a defender joining mid-round never spawns on an active flag the attackers took --------
+{
+  const { game, policy } = fixture();
+  roster(game, 2);
+  Object.assign(flagOf(policy, 'A'), { owner: 'alpha', control: 1 });
+  run(game, TICK_MS);
+  eq(policy.btView().sector, 0, 'A alone does not advance the sector');
+  const on = (p, id) => flagOf(policy, id).spawns.some(c => Math.hypot(c.x - p.x, c.z - p.z) < 0.01);
+  const landed = [];
+  for (let i = 0; i < 12; i++) {
+    const p = human(game, `late${i}`);
+    if (p.team === 'bravo') landed.push(on(p, 'A') ? 'A' : on(p, 'B') ? 'B' : '?');
+  }
+  ok(landed.length > 0 && landed.every(id => id === 'B'), `late defenders spawn on the active flag they still hold (${landed.join('')})`);
+  // Both active flags taken mid-round (not yet advanced, e.g. inside one tick): the moved HQ (C) takes over.
+  Object.assign(flagOf(policy, 'B'), { owner: 'alpha', control: 1 });
+  policy._startSpawn = true;
+  const pool = policy.hqPool(game.entities.get([...game.entities.keys()].find(id => policy.teamFor(id) === 'bravo')));
+  policy._startSpawn = false;
+  ok(pool.every(c => flagOf(policy, 'C').spawns.includes(c)), 'no defender-held active flag: the defenders\' moved HQ');
+}
+
 // --- breaking through the last sector, rematch -------------------------------------------
 {
   const { game, events, policy } = fixture();

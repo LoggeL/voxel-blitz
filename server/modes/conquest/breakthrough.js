@@ -1,5 +1,5 @@
 import { BREAKTHROUGH_RULES, CONQUEST_TEAMS } from '../../../shared/conquest-contract.js';
-import { oppositeTeam, teamSign } from '../../../shared/conquest.js';
+import { buildCapturePresence, flagPresence, oppositeTeam, teamSign } from '../../../shared/conquest.js';
 import {
   breakthroughAxis, breakthroughFront, breakthroughHqAnchor, breakthroughHqFlags, breakthroughSectors, breakthroughVehicleSpawns,
   encodeBreakthrough, outsideFront, sectorRole,
@@ -156,6 +156,8 @@ export class BreakthroughPolicy extends ConquestPolicy {
   _afterCapture(now) {
     const active = this.activeFlags();
     if (active.length && active.every(f => f.owner === this.attackerTeam)) { this._advanceSector(now, active); return; }
+    // A revive refund put tickets back in the pool: the overtime is over, the round runs on as usual.
+    if (this.bt.overtime && this.ledger.tickets[this.attackerTeam] > 0) { this.bt.overtime = false; return; }
     // Overtime lasts while attackers still take or contest an active flag.
     if (this.bt.overtime && !this._attackersPushing()) this._finishMatch(this.defenderTeam);
   }
@@ -180,10 +182,20 @@ export class BreakthroughPolicy extends ConquestPolicy {
     if (done) this._finishMatch(this.attackerTeam);
   }
 
-  /** Attackers inside an active flag that is not securely theirs. */
+  /**
+   * Living attackers inside an active flag that is not securely theirs. The
+   * presence is counted now, not read from the flag rows (the last capture
+   * step): the last ticket can go with the death of the only pusher, who must
+   * not start an overtime.
+   */
   _attackersPushing() {
     const attackers = this.attackerTeam, defenders = this.defenderTeam;
-    return this.activeFlags().some(f => (f[attackers] | 0) > 0
+    const presence = buildCapturePresence(this._entities.values(), {
+      teamFor: p => this.teamFor(p),
+      vehicleFor: id => this.vehicleFor(id),
+      isDown: p => this.roles.isDown(p) === true,
+    });
+    return this.activeFlags().some(f => flagPresence(f, presence, this.rules)[attackers] > 0
       && (f.owner !== attackers || f.state === 'contested' || f.mover === defenders));
   }
 
@@ -205,10 +217,11 @@ export class BreakthroughPolicy extends ConquestPolicy {
   hqPool(player) {
     const team = this.teamFor(player), bt = this.bt && this.sectors ? this.btView() : null;
     // Round start (and joins, rematches, team changes): the defenders stand dug in on the
-    // active sector, one flag per squad, so both flags of a two-flag sector are manned.
-    const active = bt && !bt.done ? bt.sectors[bt.sector] : null;
+    // active sector's flags they still hold, one flag per squad, so both flags of a two-flag
+    // sector are manned. A flag the attackers took mid-round is no defender spawn.
+    const active = bt && !bt.done ? bt.sectors[bt.sector].filter(id => this.capture.flag(id)?.owner === this.defenderTeam) : [];
     const squad = Math.max(1, this.squads.squadOf(this._entity(player)?.id) | 0);
-    const ids = !bt ? null : this._startSpawn && team === this.defenderTeam && active ? [active[(squad - 1) % active.length]]
+    const ids = !bt ? null : this._startSpawn && team === this.defenderTeam && active.length ? [active[(squad - 1) % active.length]]
       : breakthroughHqFlags(bt, team);
     const cells = ids ? ids.flatMap(id => this.capture.flag(id)?.spawns ?? []) : [];
     return cells.length ? cells : super.hqPool(player);
