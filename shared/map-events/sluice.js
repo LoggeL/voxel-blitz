@@ -15,10 +15,15 @@
 //                        boats and light hulls downstream, the stepping
 //                        stones settle, then the ford bed is scoured
 //
-// The bore is the stage-1 one: a 1-D translation front behind `sluiceBore`
-// (front, crest, arrival, level, segments), so the shared flood field
-// (planned, docs/conquest.md "Map events") can replace it behind the same
-// calls. Pure data and helpers shared by the server, the bots and the client.
+// The bore is a 1-D translation front on the shared flood field's bore API
+// (createBoreField, shared/world/flood-field.js): `sluiceBore` gives the
+// front, crest, arrival and push segments, and with a world its `field`
+// raises the reach's own water over the voxels while the bore runs (the
+// server's world.flood and the client's LOCAL_FLOOD: swimming, hull depth and
+// boats read it). Pure data and helpers shared by the server, the bots and
+// the client.
+import { createBoreField } from '../world/flood-field.js';
+import { FLUID_BLOCKS, isSolidBlock } from '../world/blocks.js';
 import { defineLevolution } from './levolution.js';
 import { WEIR, WEIR_SOUTH } from './weir.js';
 
@@ -32,8 +37,10 @@ const freeze = Object.freeze;
  *  warnMs      the groan; chunkCap the fall's chunks
  *  drainMs     the pond's top voxel drains, nearest the gates first
  *  bore        the front: `speed` m/s from the gates' downstream face, `crest`
- *              m high there, falling off as exp(-d / decayM) (0.3 m 100 m
- *              down), over `reachM`; each `segmentM` of reach shoves bodies
+ *              m high there, falling off as 1 / (1 + d / decayM)^2 (0.3 m
+ *              100 m down, the flood field's decay), over `reachM`, rising
+ *              over `riseM` behind the front and fading with `tailS`
+ *              (e-folding, the field's tail); each `segmentM` of reach shoves bodies
  *              in it downstream (`push` m/s per metre of crest and `up`
  *              m/s up, once a second, hulls `hullPush` of the push) from
  *              the front's arrival for `carryMs`, within `halfWidth` of the
@@ -55,7 +62,7 @@ export const SLUICE_RELEASE = freeze({
   warnMs: 3000,
   chunkCap: 12,
   drainMs: 6000,
-  bore: freeze({ speed: 5, crest: 1, decayM: 83, reachM: 120, segmentM: 10, push: 5, up: 1, hullPush: 0.35, carryMs: 20000, halfWidth: 14, y0: 15, y1: 25 }),
+  bore: freeze({ speed: 5, crest: 1, decayM: 113, riseM: 3, tailS: 8, reachM: 120, segmentM: 10, push: 5, up: 1, hullPush: 0.35, carryMs: 20000, halfWidth: 14, y0: 15, y1: 25 }),
   stonesMs: 5000,
   scourMs: 24000,
   scour: freeze({ depth: 2 }),
@@ -74,12 +81,12 @@ export const SLUICE_RELEASE = freeze({
  *   zAt(d) / dAt(z)    world z of a distance down the reach, and back
  *   centre(z)          the reach's centreline x (weir.reach)
  *   arrival(x, z)      release ms the front reaches (x, z), Infinity off the reach
- *   level(x, z, ms)    water over the reach's face (m) at (x, z) then: the
- *                      crest from the arrival, falling to 0 over carryMs
  *   segments()         [{z0, z1, x0, x1, fromMs, untilMs, crest}] the reach in
  *                      segmentM slices (the server's push zones)
+ *   field              with `block(x, y, z)`: the flood-field bore over the
+ *                      reach (sluiceBoreField), else null
  */
-export function sluiceBore(weir, rules = SLUICE_RELEASE.bore) {
+export function sluiceBore(weir, rules = SLUICE_RELEASE.bore, block = null) {
   const z0 = weir.z1 + 1;
   const centre = z => {
     const r = weir.reach;
@@ -88,19 +95,13 @@ export function sluiceBore(weir, rules = SLUICE_RELEASE.bore) {
     return r[r.length - 1][1];
   };
   const zAt = d => z0 + d, dAt = z => z - z0;
-  const crest = d => (d < 0 || d > rules.reachM ? 0 : rules.crest * Math.exp(-d / rules.decayM));
+  const crest = d => (d < 0 || d > rules.reachM ? 0 : rules.crest / (1 + d / rules.decayM) ** 2);
   const onReach = (x, z) => dAt(z) >= 0 && dAt(z) <= rules.reachM && Math.abs(x - centre(z + 0.5)) <= rules.halfWidth;
   const arrival = (x, z) => (onReach(x, z) ? (dAt(z) / rules.speed) * 1000 : Infinity);
-  return freeze({
+  const bore = {
     rules, zAt, dAt, crest, centre,
     front: ms => Math.max(0, Math.min(rules.reachM, (ms / 1000) * rules.speed)),
     arrival,
-    level(x, z, ms) {
-      const at = arrival(x, z);
-      if (!(ms >= at)) return 0;
-      const k = 1 - (ms - at) / rules.carryMs;
-      return k > 0 ? crest(dAt(z)) * k : 0;
-    },
     segments() {
       const out = [];
       for (let d = 0; d < rules.reachM; d += rules.segmentM) {
@@ -110,6 +111,55 @@ export function sluiceBore(weir, rules = SLUICE_RELEASE.bore) {
       }
       return out;
     },
+  };
+  bore.field = block ? sluiceBoreField(bore, block) : null;
+  return freeze(bore);
+}
+
+/**
+ * The bore as a flood field (createBoreField) over the reach, read from the
+ * world at the release: only columns on the reach whose top is voxel water
+ * take part (their surface is the field's base), so it lifts the river by
+ * the bore's crest (peaking at crest(d)) and never wets a bank. `wet` answers true under the
+ * raised water and undefined elsewhere (the voxel answers there), so the
+ * field only ever adds water. Runs from the fall; the settled state (endS =
+ * carryMs) is the plain river again.
+ */
+export function sluiceBoreField(bore, block) {
+  const R = bore.rules, z0 = bore.zAt(0), z1 = bore.zAt(R.reachM) - 1;
+  let lo = Infinity, hi = -Infinity;
+  for (let z = z0; z <= z1; z++) { lo = Math.min(lo, bore.centre(z + 0.5)); hi = Math.max(hi, bore.centre(z + 0.5)); }
+  const box = freeze({ x0: Math.floor(lo - R.halfWidth), x1: Math.ceil(hi + R.halfWidth), z0, z1 });
+  const W = box.x1 - box.x0 + 1, surface = new Float32Array(W * (z1 - z0 + 1)).fill(NaN), floor = new Int16Array(surface.length);
+  for (let z = z0; z <= z1; z++) for (let x = box.x0; x <= box.x1; x++) {
+    if (Math.abs(x + 0.5 - bore.centre(z + 0.5)) > R.halfWidth) continue;
+    let y = R.y1;
+    while (y > R.y0 && !isSolidBlock(block(x, y, z)) && !FLUID_BLOCKS.has(block(x, y, z))) y--;
+    if (!FLUID_BLOCKS.has(block(x, y, z))) continue;
+    const top = y + 1;
+    while (y > 0 && !isSolidBlock(block(x, y - 1, z))) y--;
+    surface[(z - z0) * W + x - box.x0] = top; floor[(z - z0) * W + x - box.x0] = y;
+  }
+  const cell = (x, z) => {
+    const ix = Math.floor(x) - box.x0, iz = Math.floor(z) - z0;
+    return ix < 0 || iz < 0 || ix >= W || iz > z1 - z0 ? -1 : iz * W + ix;
+  };
+  // The field's crest rises behind its front and fades with its tail, so its peak is a share of `crest`:
+  // scaled back up, the water peaks at crest(d) over every point of the reach (the push zones' crest).
+  let share = 0;
+  for (let b = 0.05; b < 4 * R.tailS; b += 0.05) share = Math.max(share, (1 - 1 / (1 + R.speed * b / R.riseM)) / (1 + b / R.tailS) ** 2);
+  const field = createBoreField({
+    box, axis: 'z', dir: 1, speed: R.speed, crest: R.crest / share, decayM: R.decayM, riseM: R.riseM, tailS: R.tailS, endS: R.carryMs / 1000,
+    base: (x, z) => { const i = cell(x, z); return i < 0 ? NaN : surface[i]; },
+    floorAt: (x, z) => { const i = cell(x, z); return i < 0 ? Infinity : floor[i]; },
+  });
+  return freeze({
+    kind: field.kind, bounds: field.bounds, endS: field.endS,
+    level: (x, z, t) => field.level(x, z, t),
+    velocity: (x, z, t, out) => field.velocity(x, z, t, out),
+    arrival: (x, z) => field.arrival(x, z),
+    settled: (x, z) => field.settled(x, z),
+    wet: (x, y, z, t) => (field.wet(x, y, z, t) === true ? true : undefined),
   });
 }
 

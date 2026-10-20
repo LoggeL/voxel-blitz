@@ -25,7 +25,8 @@
 //               the water spreads sideways without ever standing as a wall.
 //   bore field  a 1-D translational bore down a straight reach
 //               (createBoreField: front at `speed`, a `crest` that decays
-//               with distance and time); the planned ford sluices build on it.
+//               with distance and time); the Frontier ford sluices run on it
+//               (sluiceBoreField, shared/map-events/sluice.js).
 //
 // Every field answers level(x, z, t) (water surface y, NaN where it does not
 // reach), velocity(x, z, t, out) (m/s on x and z), arrival(x, z) (s), and

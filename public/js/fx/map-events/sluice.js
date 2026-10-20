@@ -4,12 +4,16 @@
 //
 //   active   a burst of water over the gates as they go, then spray along the
 //            bore front as it runs down the reach (`sluiceBore`, the same
-//            front the server's push zones use, from the row's time left)
+//            front the server's push zones use, from the row's time left);
+//            the bore's flood field joins LOCAL_FLOOD for the run, so the
+//            player physics swims in the raised reach as the server does
 //
 // A joiner who walks into the release picks the front up from the row. No
 // dedicated recording: the structure voices and the water puffs carry it.
 import { mapEventDef } from '../../../../shared/conquest-map-events.js';
 import { sluiceBore } from '../../../../shared/map-events/sluice.js';
+import { LOCAL_FLOOD } from '../../../../shared/world/flood-field.js';
+import { getBlock } from '../../../../shared/worlddata.js';
 import { sluiceReleaseMs } from '../../ui/conquest/map-events/sluice.js';
 import { levolutionFx } from './levolution.js';
 
@@ -21,13 +25,21 @@ export function sluiceFx() {
   const runsOf = kit => { let m = runs.get(kit); if (!m) runs.set(kit, m = new Map()); return m; };
   const boreFor = (kit, id) => {
     const S = mapEventDef(id, kit.defs)?.tuning?.sluice;
-    return S ? { bore: sluiceBore(S.weir, S.release.bore), weir: S.weir } : null;
+    return S ? { bore: sluiceBore(S.weir, S.release.bore, (x, y, z) => getBlock(x, y, z)), weir: S.weir } : null;
+  };
+  // The run's field on the local clock (performance.now(), as the dam's): started `ms` into the release.
+  const join = (id, run) => {
+    if (!run.bore.field) return;
+    LOCAL_FLOOD.nowMs = performance.now();
+    LOCAL_FLOOD.add(id, run.bore.field, LOCAL_FLOOD.nowMs - run.ms);
   };
   const start = (kit, id, ms) => {
     const r = boreFor(kit, id);
-    if (r) runsOf(kit).set(id, { ...r, ms, spray: 0 });
+    if (r) { const run = { ...r, ms, spray: 0 }; runsOf(kit).set(id, run); join(id, run); }
     return r;
   };
+  const stop = (kit, id) => { runs.get(kit)?.delete(id); LOCAL_FLOOD.remove(id); };
+  const stopAll = kit => { for (const id of runs.get(kit)?.keys() ?? []) LOCAL_FLOOD.remove(id); runs.delete(kit); };
   return Object.freeze({
     onEvent(ev, kit) {
       const handled = base.onEvent(ev, kit);
@@ -38,19 +50,20 @@ export function sluiceFx() {
           for (let i = 0; i < SLUICE_FX_RULES.burstPuffs; i++) kit.puff('water', kit.ring?.(at, 7, 23) ?? at, { count: 10, scale: 2.2, speed: 2 });
         }
       }
-      if (!ev.note && ev.phase !== 'active') runs.get(kit)?.delete(ev.event);
+      if (!ev.note && ev.phase !== 'active') stop(kit, ev.event);
       return handled;
     },
     sync(event, kit, opts = {}) {
       base.sync(event, kit, opts);
       const ms = sluiceReleaseMs(event);
       const run = runs.get(kit)?.get(event.id);
-      if (ms == null) { runs.get(kit)?.delete(event.id); return; }
+      if (ms == null) { stop(kit, event.id); return; }
       if (!run) start(kit, event.id, ms);
-      else if (Math.abs(run.ms - ms) > 1500) run.ms = ms; // a joiner or a hitch: follow the row
+      else if (Math.abs(run.ms - ms) > 1500) { run.ms = ms; join(event.id, run); } // a joiner or a hitch: follow the row
     },
     update(dt, kit) {
       base.update(dt, kit);
+      if (runs.get(kit)?.size) LOCAL_FLOOD.nowMs = performance.now();
       for (const run of runs.get(kit)?.values() ?? []) {
         run.ms += dt * 1000;
         const R = run.bore.rules, d = run.bore.front(run.ms);
@@ -64,8 +77,8 @@ export function sluiceFx() {
         }
       }
     },
-    end(kit) { base.end(kit); runs.delete(kit); },
-    clear(kit) { base.clear(kit); runs.delete(kit); },
+    end(kit) { base.end(kit); stopAll(kit); },
+    clear(kit) { base.clear(kit); stopAll(kit); },
   });
 }
 

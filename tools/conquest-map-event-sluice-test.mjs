@@ -87,9 +87,21 @@ assert(pts('b') > 100 && pts('b') <= 120, `the assist pays its share (${pts('b')
 F.place(swimmer, fordN.x + 0.5, fordN.z - 4, 21.02);
 const z0 = swimmer.z;
 // The release's peak tick (the fall's chunks, the drain, the push zones).
-let peak = 0;
-for (let t = 0; t < SLUICE_RELEASE.drainMs + 500; t += TICK_MS) { const s = performance.now(); game.step(TICK_MS); peak = Math.max(peak, performance.now() - s); }
+// The bore is a flood field on world.flood: the ford's water rises over the voxels while it runs.
+assert(world.flood?.get('sluice-north'), 'the bore joins world.flood at the fall');
+const bx = Math.floor(fordN.x), bz = Math.floor(fordN.z), bed = topSolid(bx, bz) + 1;
+let peak = 0, fordPeak = 0, wetOver = false;
+for (let t = 0; t < SLUICE_RELEASE.drainMs + 500; t += TICK_MS) {
+  const s = performance.now(); game.step(TICK_MS); peak = Math.max(peak, performance.now() - s);
+  const lv = world.flood.level(bx + 0.5, bz + 0.5);
+  if (lv === lv) fordPeak = Math.max(fordPeak, lv - bed);
+  wetOver ||= game.fluidAt(bx, 22, bz) && world.getBlock(bx, 22, bz) === AIR;
+}
 notes.push(`release peak tick ${peak.toFixed(1)} ms`);
+assert(fordPeak > WADE_RULES.depth.aa && fordPeak < WADE_RULES.depth.tank, `the bore floods jeeps and the AA in the ford, a tank wades it (${fordPeak.toFixed(2)} m against ${WADE_RULES.depth.aa} / ${WADE_RULES.depth.tank})`);
+assert(wetOver, 'a body swims in the bore\'s water over the voxel face');
+assert.equal(world.getBlock(bx, 22, bz), AIR, 'the field raised it, not a voxel');
+notes.push(`bore over the ford ${fordPeak.toFixed(2)} m (was 1 m)`);
 assert(swimmer.z > z0 + 4, `the bore carries a swimmer down the ford (${(swimmer.z - z0).toFixed(1)} m)`);
 notes.push(`swimmer carried ${(swimmer.z - z0).toFixed(1)} m in ${((SLUICE_RELEASE.drainMs + 500) / 1000).toFixed(1)} s`);
 assert.equal(pondCells(NORTH), 0, 'the pond has drained');
@@ -107,6 +119,7 @@ let scourPeak = 0;
 for (let t = 0; north.phase !== 'done' && t < SLUICE_RELEASE.doneMs + 5000; t += TICK_MS) { const s = performance.now(); game.step(TICK_MS); scourPeak = Math.max(scourPeak, performance.now() - s); }
 notes.push(`stones/scour peak tick ${scourPeak.toFixed(1)} ms`);
 assert.equal(north.phase, 'done', 'the release ends');
+assert(!world.flood.get('sluice-north'), 'and the bore leaves world.flood');
 const scoured = F.kinds().find(e => e.event === 'sluice-north' && e.note === 'scoured');
 assert(scoured, 'the ford bed is scoured');
 notes.push(`scour ${scoured.data?.cells} cells; active ev ${JSON.stringify(F.snap?.match?.conquest?.ev ?? []).length} B`);

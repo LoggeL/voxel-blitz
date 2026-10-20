@@ -30,6 +30,7 @@
 import { AIR, MC_WATER, RUST, isSolidBlock } from '../../../../shared/world/blocks.js';
 import { vehicleDef } from '../../../../shared/vehicle-defs.js';
 import { sluiceBore } from '../../../../shared/map-events/sluice.js';
+import { floodSet } from '../../../../shared/world/flood-field.js';
 import { sillStone } from '../../../../shared/world/frontier-sites/weir.js';
 import { DEMOLISH_RULES, crossingDenialValue } from '../../../bot-map-events.js';
 import { LevolutionController } from './levolution.js';
@@ -111,6 +112,7 @@ export class SluiceController extends LevolutionController {
     this.weir = weir; this.release = release;
     this.bore = sluiceBore(weir, release.bore);
     this.fellAt = null;
+    this._dropField();
     this.stoned = false; this.scoured = false;
     this.scourJob = null;
   }
@@ -121,6 +123,13 @@ export class SluiceController extends LevolutionController {
     }
     super.onPhase(phase, prev);
     if (phase === 'active' && this.fellAt == null) this._release(this.system.now);
+    if (phase === 'done') this._dropField();
+  }
+
+  /** The bore's flood field leaves world.flood (the release is over, or a rematch). */
+  _dropField() {
+    const world = this.system.engine?.world;
+    if (world?.flood) world.flood.remove(this.event.id);
   }
 
   /** The bore's push zones, opening at `at` (the fall): bots avoid the reach from now on. */
@@ -147,6 +156,10 @@ export class SluiceController extends LevolutionController {
     if (drain.length) this.system.edits.enqueue({ id: `${this.event.id}-drain`, instance: this.event, cells: drain, by, authored: true,
       budget: Math.max(1, Math.ceil(this.drainCells / ticks)) });
     this.event.announce('release', { pond: this.drainCells });
+    // The bore's water over the reach from the fall (world.flood: swimming, hull depth, boats).
+    const field = sluiceBore(this.weir, R.bore, (x, y, z) => world.getBlock(x, y, z)).field;
+    floodSet(world).add(this.event.id, field, now);
+    floodSet(world).nowMs = now;
   }
 
   onTick(now, dt) {
@@ -154,6 +167,7 @@ export class SluiceController extends LevolutionController {
     if (this.fellAt == null) return;
     const world = this.system.engine?.world, R = this.release, by = this.levolution?.by ?? null;
     if (!world) return;
+    if (world.flood?.get(this.event.id)) world.flood.nowMs = now;
     if (!this.stoned && now - this.fellAt >= R.stonesMs) {
       this.stoned = true;
       const cells = sluiceStoneCells(world, this.weir, R.stones);
