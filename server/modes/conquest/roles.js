@@ -24,6 +24,7 @@ import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import * as sharedVehicles from '../../../shared/vehicles.js';
 import { ConquestSpotting } from './spotting.js';
 import { fpvResupply } from './fpv-intent.js';
+import { grantSupply } from '../../../shared/supply.js';
 
 const DEFAULT_MAX_HP = 100;
 const DEFAULT_HULL_REACH = 3;
@@ -439,6 +440,26 @@ export class ConquestRoles {
     }
     this.spotting.reset();
     this.lastTickAt = null;
+  }
+
+  /** A player's Conquest loadout `{kit, variant, gadget}`, or null before its first deploy. */
+  loadoutOf(entity) {
+    const state = this._state(entity, false);
+    return state?.kit ? { kit: state.kit, variant: state.variant ?? 0, gadget: state.gadget ?? 0 } : null;
+  }
+
+  /**
+   * One supply grant from any source (shared/supply.js grantSupply opts) to a
+   * living, on-foot soldier. Anything given counts as a refill, so a NEED AMMO
+   * call is served by it. Returns what was given (`any` false: nothing).
+   */
+  supply(entity, opts = {}) {
+    const p = this._entity(entity), state = this._state(entity, false);
+    if (!p || !state?.kit || p.state !== 'alive' || p.vehicleId) return { reserve: 0, grenades: 0, gadget: 0, bandages: 0, any: false };
+    const given = grantSupply(p, { kit: state.kit, variant: state.variant ?? 0, gadget: state.gadget ?? 0 }, opts);
+    if (given.reserve || given.grenades || given.gadget) state.lastRefilledAt = this.now;
+    if (given.gadget) state.lastGadgetRefillAt = this.now;
+    return given;
   }
 
   /** When a Support aura (or the kit's own resupply) last refilled this player (NEED AMMO is served by it). */
