@@ -165,7 +165,9 @@ function fixture(n = 16) {
   commander.goalAt = -1;
   const pushGoals = members.map(p => commander.computeGoal(p, game.now)).filter(g => g.kind === 'capture');
   assert(pushGoals.length && pushGoals.every(g => g.stance !== 'stage'), 'no member is left staging after the push');
-  assert(pushGoals.filter(g => g.stance === 'attack').every(g => flat(g.point, C) <= C.radius), 'pushers go into the zone');
+  // A Medic trails a pushing mate (bot-medic.js) instead of a zone point of its own.
+  assert(pushGoals.filter(g => g.stance === 'attack' && !g.escort).every(g => flat(g.point, C) <= C.radius), 'pushers go into the zone');
+  assert(pushGoals.filter(g => g.escort).every(g => members.some(m => flat(m, g.point) <= 6)), 'a pushing Medic stays on a mate');
   // An empty enemy flag is taken at a run (no staging).
   guard.x = C.x + 300; guard.z = C.z;
   for (const s of alpha.squads.values()) s.order = null;

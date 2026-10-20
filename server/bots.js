@@ -5,6 +5,7 @@ import { vehicleDef } from '../shared/vehicle-defs.js';
 import { groundRoute, groundSegmentClear, navigationWaypoint, surfaceNavigation } from './bot-navigation.js';
 import { canHopObstacle } from './bot-locomotion.js';
 import { boxCollides, findVault, solidBelow } from '../shared/player-movement.js';
+import { UNSTICK_RULES, pitEscape } from './bot-unstick.js';
 import { AimSteering } from './bot-aim.js';
 import { hearNoise } from './bot-hearing.js';
 // Direct-injection bots. They register with a GameEngine as pseudo-clients
@@ -713,6 +714,11 @@ class BotManager {
       // On an authored climb (a perch stair) a detour would walk off it: jump the step instead.
       br.unstickUntil = now + UNSTICK_MS;
       br.stuckSince = now;
+    } else if (now - br.stuckSince >= STUCK_WINDOW_MS && this.planEscape(br, p, now)) {
+      // In a pit the surface graph does not cover: walk to a vault spot and climb out.
+      // Still a wedge for the trap watchdog, so a failed escape ends in its redeploy.
+      br.stuckSince = now;
+      if (br.trap) br.trap.wedges++;
     } else if (now - br.stuckSince >= STUCK_WINDOW_MS) {
       // Replan from the current position without restarting a failed hop.
       // Surface maps side-step a few metres around whatever pins the body (a
@@ -729,6 +735,47 @@ class BotManager {
       br.stuckSince = now;
       if (br.trap) br.trap.wedges++;
     }
+  }
+
+  /**
+   * Conquest on surface maps: a way out of a pit under the graph (bot-unstick.js), unless one
+   * is under way. Titanfall shares Frontier but drives its pilots and titans itself, so it keeps
+   * the plain side-step.
+   */
+  planEscape(br, p, now) {
+    if (this.game.mode.mode !== 'conquest') return false;
+    const nav = surfaceNavigation(this.game.world);
+    if (!nav || p.vehicleId || (br.escape && now < br.escape.until)) return !!br.escape && now < br.escape.until;
+    const escape = pitEscape(nav, this.solidAt, p, br.surfaceRoute?.points?.[0] ?? null);
+    if (!escape) return false;
+    br.escape = { ...escape, until: now + UNSTICK_RULES.escapeMs };
+    br.surfaceRoute = null;
+    return true;
+  }
+
+  /**
+   * Walk a planned pit escape: the flood's cell path to the stand spot (hopping its
+   * one-voxel steps), then face the rim and vault (forward + jump, the player
+   * physics' own ledge grab). True
+   * while the escape drives the legs this tick.
+   */
+  followEscape(br, p, inp, now, turnRate, dtS) {
+    const escape = br.escape;
+    if (!escape || now >= escape.until || p.vehicleId || p.y >= escape.to.y - 0.3) { br.escape = null; return false; }
+    if (p.vault) { inp.keys.f = true; return true; }
+    const arrive = UNSTICK_RULES.escapeArrive;
+    while (escape.path.length > 1 && Math.hypot(escape.path[0].x - p.x, escape.path[0].z - p.z) < arrive) escape.path.shift();
+    const next = escape.path[0];
+    const d = Math.hypot(next.x - p.x, next.z - p.z);
+    const atRim = escape.path.length === 1 && d < arrive;
+    const yaw = atRim ? escape.yaw : Math.atan2(-(next.x - p.x), -(next.z - p.z));
+    inp.yaw = br.aim.steer('yaw', p.yaw, yaw, turnRate * 1.5, dtS);
+    const facing = Math.abs(wrapAngle(yaw - p.yaw)) < 0.35;
+    Object.assign(inp.keys, { f: facing, b: false, l: false, r: false, sprint: false, crouch: false });
+    // One-voxel steps on the way need a hop too (the physics does not step up on its own).
+    const step = next.y > p.y + 0.5 && d < UNSTICK_RULES.hopReach;
+    inp.keys.jump = facing && !!p.grounded && (atRim || step || canHopObstacle(this.solidAt, p, inp));
+    return true;
   }
 
   /**
@@ -1052,6 +1099,7 @@ class BotManager {
       br.groundRoute = null;
       br.retreatUntil = 0;
       br.stuckSince = 0;
+      br.escape = null;
       br.damageFrom = null;
       br.danger = null;
     }
@@ -1484,7 +1532,9 @@ class BotManager {
       moveYaw = Math.atan2(-ndx, -ndz);
       // Conquest: near the objective the eyes already sweep its threat axis
       // while the legs finish the walk, so contacts are seen before arrival.
-      const nearObjective = cq && !!flag && (inZone || objectiveFlatDist < 30 || flagDist < flag.radius + 15);
+      // An escort point (a Medic on a mate's heels) is always close: only the flag itself counts there,
+      // or the walk would never sprint and fall behind the mate it trails.
+      const nearObjective = cq && !!flag && (inZone || (!goal.escort && objectiveFlatDist < 30) || flagDist < flag.radius + 15);
       const lookYaw = cq ? this.idleLookYaw(br, p, goal, now, nearObjective) : null;
       if (lookYaw !== null && Math.hypot(ndx, ndz) > 0.35) {
         // Hurt on the move: face the shooter, keep walking the route.
@@ -1849,6 +1899,7 @@ class BotManager {
     const wetBody = !!inFluid || this.game.fluidAt(Math.floor(p.x), Math.floor(p.y + 0.05), Math.floor(p.z));
     if (cq) this.watchTrapped(br, p, now, wetBody, inZone || cqMotion === 'hold');
     if (cq && now < (br.unstickUntil ?? 0) && moving && p.grounded) { inp.keys.jump = true; inp.keys.crouch = false; }
+    if (cq && br.escape && this.followEscape(br, p, inp, now, turnRate, dtS)) moving = true;
     // In water the jump key is the swim-up stroke: keep the head above the
     // surface and climb out over the bank (never tread water into drowning).
     if (swimming) inp.keys.jump = true;

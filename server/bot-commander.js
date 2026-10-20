@@ -22,19 +22,21 @@
 // deployFor(player). Everything it reads is authoritative mode, entity and
 // vehicle state plus what the team's own bots have seen or heard.
 
-import { CONQUEST_TEAMS, KIT_IDS, KITS, VEHICLE_TOPOLOGY } from '../shared/conquest-contract.js';
+import { CONQUEST_RULES, CONQUEST_TEAMS, KIT_IDS, KITS, VEHICLE_TOPOLOGY } from '../shared/conquest-contract.js';
 import { KIT_ROLE_RULES, botSquadKit } from '../shared/conquest-kits.js';
 import { VEHICLE_RULES, vehicleMaxHp } from '../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
 import { CoverIndex, bearing } from './bot-cover.js';
 import { surfaceNavigation } from './bot-surface-nav.js';
+import { MEDIC_BOT_RULES, medicTrailMate, medicTrailSpot, reviveRunInTime } from './bot-medic.js';
+import { committedFlag, keepAttackOrder, passingFlag } from './bot-flag-flow.js';
 
 export const COMMANDER_PLAN_MS = 500;
 export const STAGE_MIN = 50, STAGE_MAX = 70;
 export const STAGE_ANGLE = 50 * Math.PI / 180;
 export const DEFEND_ALERT_RADIUS = 60;
 export const ATTACK_SHARE = 0.6;
-export const REVIVE_RANGE = 25, REPAIR_RANGE = 30, REPAIR_BELOW = 0.7;
+export const REVIVE_RANGE = MEDIC_BOT_RULES.reviveRange, REPAIR_RANGE = 30, REPAIR_BELOW = 0.7;
 /** A revive walk ends this close (flat m) to the body; the intent goes out inside reviveRange less the slack (3D). */
 const REVIVE_ARRIVE = 0.8, REVIVE_REACH_SLACK = 0.15;
 /**
@@ -86,8 +88,6 @@ const WAIT_REACH = 8;                   // m: a human this close counts as board
 const WAIT_STALL_MS = 1500;             // a human not closing in (outside reach) this long is given up on
 const WAIT_AWAY = -1;                   // m/s: walking away this fast ends the wait at once
 const WAIT_FACING = 0.6;                // rad: look direction that counts as heading for the hull
-/** A Medic bot with nothing to revive keeps this close behind its squad leader (heal aura reach 6 m). */
-const MEDIC_FOLLOW_DIST = 4;
 /**
  * A Medic bot with no body to revive walks to a teammate under this HP share within this
  * range (m) ... (most hurt bots survive a fight with 60-90 % HP, which 0.75 skipped).
@@ -95,8 +95,8 @@ const MEDIC_FOLLOW_DIST = 4;
 export const HEAL_SEEK_BELOW = 0.9, HEAL_SEEK_RANGE = 45;
 /** m: the seek range of a Medic standing in a flag being taken or fought over (hurtMate). */
 export const HEAL_ZONE_RANGE = 12;
-/** ... and stops this close (flat m), well inside the heal aura (KIT_ROLE_RULES.healRadius). */
-const HEAL_ARRIVE = 3;
+/** ... and stops this close (flat m) to its spot beside the mate, well inside the heal aura (KIT_ROLE_RULES.healRadius). */
+const HEAL_ARRIVE = MEDIC_BOT_RULES.trailArrive;
 /**
  * Engineer gadget mix: the share of a team's engineers that deploy with the
  * STINGER (gadget 1) by the number of enemy aircraft in play (crewed or
@@ -449,6 +449,8 @@ export class BotCommander {
       // Defend orders hold for a while after the threat clears.
       if (prior?.stance === 'defend' && !same && prior.issuedAt + DEFEND_HOLD_MS > now && !want.allIn
           && view.flags.find(f => f.id === prior.flagId)?.owner === team && want.stance !== 'defend') continue;
+      // Attack orders are committed for a while (bot-flag-flow.js), so a re-plan never flips a squad mid-walk.
+      if (keepAttackOrder(this, squad, prior, want, view, ts, now)) { this.advanceOrder(squad, view, ts, now); continue; }
       if (!same) squad.order = this.newOrder(squad, want, view, ts, now);
       else squad.order.allIn = !!want.allIn;
       this.advanceOrder(squad, view, ts, now);
@@ -1083,7 +1085,11 @@ export class BotCommander {
       if (spawn.startsWith('flag:')) point = view.flags.find(f => f.id === spawn.slice(5));
       // A squad spawn can still be refused at resolve time (no free cell behind
       // the mate) and a refused bot deploys at HQ: only take it when it clearly wins.
-      else if (spawn.startsWith('squad:')) { point = this.game.entities.get(spawn.slice(6)); penalty = SQUAD_SPAWN_PENALTY; }
+      // A Medic deploys on its squad whenever that is about as close: the aura needs mates around.
+      else if (spawn.startsWith('squad:')) {
+        point = this.game.entities.get(spawn.slice(6));
+        penalty = KITS[kit]?.aura === 'heal' ? MEDIC_BOT_RULES.squadSpawnPenalty : SQUAD_SPAWN_PENALTY;
+      }
       else continue;
       if (!finitePoint(point) || !target) continue;
       const score = flat(point, target) + penalty;
@@ -1122,7 +1128,8 @@ export class BotCommander {
    * spec 3.5 goalFor: the bot goal shape {kind, target, interact} plus
    * {stance:'attack'|'defend'|'stage', point}. Bot-only extras: `role`
    * ('overwatch' recon hold, 'support' revive/repair), `arrive`, `lookYaw`,
-   * `crouch`, and `support`/`reach` for the support intent. Cached per tick.
+   * `crouch`, `escort` (a Medic trail spot on a moving mate) and `support`/`reach`
+   * for the support intent. Cached per tick.
    */
   goalFor(player) {
     const p = this.game.entities.get(String(player?.id ?? player)) ?? player;
@@ -1153,16 +1160,20 @@ export class BotCommander {
     let flag = order ? view.flags.find(f => f.id === order.flagId) : null;
     if (!flag) flag = this.focusFlag(ts);
     if (!flag) return spectate;
+    // Capture flow (bot-flag-flow.js): a bot in a zone its team is taking stays until the flag
+    // turns, and one passing an undefended enemy flag takes it on the way.
+    const local = this.localFlag(p, team, ts, view, order, flag);
+    if (local) flag = local;
     const target = { id: flag.id, x: flag.x, y: flag.y, z: flag.z, radius: flag.radius, owner: flag.owner, state: flag.state };
     const slot = this.slotOf(p).slot;
-    const stance = order?.stance ?? (flag.owner === team ? 'defend' : 'attack');
+    const stance = local ? (local.owner === team ? 'defend' : 'attack') : order?.stance ?? (flag.owner === team ? 'defend' : 'attack');
     const towardEnemy = this.enemyAxis(flag, team);
     // Defend surge: an owned flag being neutralized or fought over, or an
     // all-in home defence, pulls every defender into the capture zone. Only
     // bodies inside the radius stop a capture; the cover ring around it does not.
     const surge = stance === 'defend' && flag.owner === team
       && (flag.state === 'neutralizing' || flag.state === 'contested' || !!order?.allIn);
-    if (kit === 'recon' && !surge) {
+    if (kit === 'recon' && !surge && !local) {
       const node = this.cover.overwatch(flag.id, p, wrap(towardEnemy + Math.PI), key(p), now);
       if (node && order?.phase !== 'move') {
         this.cover.claim(node, key(p), now);
@@ -1171,15 +1182,22 @@ export class BotCommander {
           arrive: 2, lookYaw: bearing(node, flag) };
       }
     }
-    if (stance === 'attack' && order?.staging && order.phase !== 'push') {
+    if (stance === 'attack' && !local && order?.staging && order.phase !== 'push') {
       const a = slot * 1.9 + squad.id;
       const point = { x: order.staging.x + Math.cos(a) * (2 + slot), y: order.staging.y, z: order.staging.z + Math.sin(a) * (2 + slot) };
       return { kind: 'capture', target, interact: false, stance: 'stage', point: this.walkablePoint(point) ?? order.staging,
         arrive: order.phase === 'stage' ? 3 : 5, lookYaw: bearing(order.staging, flag) };
     }
+    const medic = KITS[kit]?.aura === 'heal';
     if (stance === 'defend') {
       const threat = this.threatOrigin(flag, ts);
       const threatYaw = bearing(flag, threat);
+      // Medic: hold beside a defending mate (its cover node or the zone) so the aura covers it.
+      const trail = medic ? this.medicTrail(p, ts, flag, surge) : null;
+      if (trail) {
+        return { kind: 'capture', target, interact: false, stance: 'defend', point: trail.point,
+          arrive: MEDIC_BOT_RULES.trailArrive, lookYaw: bearing(trail.point, threat), crouch: false, escort: true };
+      }
       // In a surge only cover inside the zone (bots.js counts 0.85 r as in) qualifies.
       const node = this.cover.cover(flag.id, p, threatYaw, key(p), now,
         surge ? { preferDist: flag.radius * 0.5, maxDist: flag.radius * 0.85 - 1.5, maxDy: 6 } : undefined);
@@ -1193,17 +1211,13 @@ export class BotCommander {
     const angle = stableHash(`${p.id}`) % 360 * Math.PI / 180;
     const r = flag.radius * (0.2 + 0.25 * ((slot % 3) / 2));
     let point = this.walkablePoint({ x: flag.x + Math.cos(angle) * r, y: flag.y, z: flag.z + Math.sin(angle) * r }) ?? target;
-    if (KITS[kit]?.aura === 'heal' && squad && !surge) {
-      // Medic: no body to revive, so it stays on the squad leader to keep the heal aura on
-      // someone, as long as that spot is still inside the zone it was sent to (pushers and
-      // a defend surge go into the circle like everyone).
-      const leader = squad.members[0] !== String(p.id) ? this.game.entities.get(squad.members[0]) : null;
-      if (leader?.state === 'alive' && !leader.vehicleId && finitePoint(leader) && flat(leader, p) < 120) {
-        const back = Number.isFinite(leader.yaw) ? leader.yaw : bearing(flag, leader);
-        const follow = this.walkablePoint({ x: leader.x + Math.sin(back) * MEDIC_FOLLOW_DIST, y: leader.y,
-          z: leader.z + Math.cos(back) * MEDIC_FOLLOW_DIST });
-        if (follow && flat(follow, flag) <= flag.radius * 0.85) point = follow;
-      }
+    let arrive = 2.5, escort = false;
+    if (medic) {
+      // Medic: no body to revive and no hurt mate, so it trails a mate to keep the heal aura
+      // on someone. Standing in a zone it is taking, it only trails mates inside it too.
+      const inZone = flat(p, flag) <= flag.radius * 0.85 && Math.abs(p.y - flag.y) <= 8 && flag.owner !== team;
+      const trail = this.medicTrail(p, ts, flag, surge || inZone);
+      if (trail) { point = trail.point; arrive = MEDIC_BOT_RULES.trailArrive; escort = true; }
     }
     if (kit === 'support' && stance === 'attack') {
       // Support trails the squad by a few metres, keeping the resupply aura on it.
@@ -1214,7 +1228,39 @@ export class BotCommander {
       }
     }
     return { kind: 'capture', target, interact: false, stance: stance === 'defend' ? 'defend' : 'attack', point,
-      arrive: 2.5, lookYaw: towardEnemy };
+      arrive, lookYaw: towardEnemy, ...(escort ? { escort } : {}) };
+  }
+
+  /**
+   * Medic trail (server/bot-medic.js): the spot beside the mate it keeps the aura on,
+   * {mate, point}, or null. `zoneOnly` keeps it to spots inside the flag's zone.
+   */
+  medicTrail(p, ts, flag, zoneOnly) {
+    const mate = medicTrailMate(this, p, ts, flag);
+    if (!mate) return null;
+    const spot = medicTrailSpot(p, mate, flag);
+    const point = this.walkablePoint(spot) ?? { x: mate.x, y: mate.y, z: mate.z };
+    if (zoneOnly && flat(point, flag) > flag.radius * 0.85) return null;
+    return { mate, point };
+  }
+
+  /**
+   * A flag that overrides the squad order for one bot on foot, or null: the zone it
+   * stands in while its team takes (or holds) it, else an undefended enemy flag it passes
+   * on an attack or a plain walk (never on a defend order).
+   */
+  localFlag(p, team, ts, view, order, flag) {
+    if (p.vehicleId) return null;
+    const committed = committedFlag(this, p, team, view, order);
+    if (committed) return committed.id === flag.id ? null : committed;
+    if (order?.stance === 'defend') return null;
+    return passingFlag(this, p, ts, view, flag.id);
+  }
+
+  /** The flag a player's squad order is about, or null. */
+  objectiveFlagOf(p) {
+    const order = this.teams.get(this.teamOf(p))?.memberSquad?.get(String(p?.id))?.order;
+    return order ? this.view?.flags.find(f => f.id === order.flagId) ?? null : null;
   }
 
   kitOf(p) {
@@ -1251,7 +1297,12 @@ export class BotCommander {
         // A body in the river or on a ledge no walker reaches is left alone.
         if (this.game.fluidAt(Math.floor(body.x), Math.floor(body.y + 0.3), Math.floor(body.z))) continue;
         const d = flat(body, p);
-        if (d > REVIVE_RANGE || this.claimedByOther(`revive:${body.id}`, id, now) || this.supportGivenUp(id, `revive:${body.id}`, now)) continue;
+        // The run-time check only gates a new run: a revive this Medic already holds is finished
+        // while the window lasts (re-checking the full hold mid-hold would drop it short of the end).
+        const claim = this.roleClaims.get(`revive:${body.id}`);
+        const running = claim?.id === id && claim.until > now;
+        if (d > REVIVE_RANGE || (!running && !reviveRunInTime(d, body.until, now, CONQUEST_RULES.reviveHoldMs))
+          || this.claimedByOther(`revive:${body.id}`, id, now) || this.supportGivenUp(id, `revive:${body.id}`, now)) continue;
         if (!this.supportReachable(p, body, `revive:${body.id}`, now)) continue;
         if (!best || d < best.d) best = { body, d };
       }
@@ -1269,9 +1320,10 @@ export class BotCommander {
     if (KITS[kit]?.aura === 'heal') {
       const mate = this.hurtMate(p, ts, now);
       if (mate) {
-        // Stand next to the hurt mate so the heal aura (healRadius) covers it between fights.
+        // Stand next to the hurt mate so the heal aura (healRadius) covers it between fights
+        // (on its heels while it moves, see medicTrailSpot).
         this.claimRole(`heal:${mate.id}`, id, now);
-        const point = { x: mate.x, y: mate.y, z: mate.z };
+        const point = medicTrailSpot(p, mate, null);
         return { kind: 'heal', target: point, interact: false, role: 'support', point, arrive: HEAL_ARRIVE, healId: String(mate.id) };
       }
     }
