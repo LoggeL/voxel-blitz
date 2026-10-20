@@ -29,7 +29,7 @@ import { DEPOT_FX } from './depot.js';
 // slot relay:
 import { RELAY_FX } from './relay.js';
 // slot elevator:
-// import { ELEVATOR_FX } from './elevator.js';
+import { ELEVATOR_FX } from './elevator.js';
 // slot quarry:
 // import { QUARRY_FX } from './quarry.js';
 // slot comeback:
@@ -48,7 +48,7 @@ export const MAP_EVENT_FX = Object.freeze({
   // slot relay:
   relay: RELAY_FX,
   // slot elevator:
-  // elevator: ELEVATOR_FX,
+  elevator: ELEVATOR_FX,
   // slot quarry:
   // quarry: QUARRY_FX,
   // slot comeback:

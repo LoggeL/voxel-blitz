@@ -1,0 +1,40 @@
+{
+  "generated": "2026-10-20T16:12:30.097Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "elevator-warning",
+        "title": "Kestrel elevator giving way · countdown banner, tower marker, fall line on the minimap",
+        "file": "docs/design/conquest/events/elevator/captures/desktop-elevator-warning.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "elevator-down",
+        "title": "Kestrel elevator down · rubble across the a-c road on the full map, down banner",
+        "file": "docs/design/conquest/events/elevator/captures/desktop-elevator-down.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "elevator-warning",
+        "title": "Kestrel elevator giving way · countdown banner, tower marker, fall line on the minimap",
+        "file": "docs/design/conquest/events/elevator/captures/portrait-elevator-warning.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "elevator-down",
+        "title": "Kestrel elevator down · rubble across the a-c road on the full map, down banner",
+        "file": "docs/design/conquest/events/elevator/captures/portrait-elevator-down.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

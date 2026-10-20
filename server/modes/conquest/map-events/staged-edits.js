@@ -71,13 +71,14 @@ export class StagedEdits {
    * Queue a job: `cells` a flat [x, y, z, v, ...] list (Int32Array or array),
    * `mode` 'set' (default) or 'fall', `by` the player credited with what the
    * edit kills or brings down, `origin` [x, y, z] of a fall, `chunkCap` for
-   * the structural chunks, `budget` this job's own per-tick share (never
+   * the structural chunks, `topple` a fall over a hinge edge (bringDown's
+   * `fall` {hinge, dir, minRise}), `budget` this job's own per-tick share (never
    * above the global budget), `onDone(job)` once applied. Returns the job.
    */
-  enqueue({ id = null, instance = null, cells, mode = 'set', by = null, origin = null, chunkCap = null, budget = null, authored = false,
-    onDone = null } = {}) {
+  enqueue({ id = null, instance = null, cells, mode = 'set', by = null, origin = null, chunkCap = null, topple = null, budget = null,
+    authored = false, onDone = null } = {}) {
     const job = { id: id ?? `edit-${++this.serial}`, instance, cells: cells instanceof Int32Array ? cells : Int32Array.from(cells ?? []),
-      mode, by: by == null ? null : String(by), origin, chunkCap, budget, authored: !!authored, onDone, next: 0, applied: 0, done: false,
+      mode, by: by == null ? null : String(by), origin, chunkCap, topple, budget, authored: !!authored, onDone, next: 0, applied: 0, done: false,
       creakId: null };
     if (mode === 'fall') this._fall(job);
     else this.jobs.push(job);
@@ -145,7 +146,7 @@ export class StagedEdits {
       if (isSolidBlock(world.getBlock(x, y, z))) keys.push(pack(x, y, z));
     }
     if (structure?.active) {
-      job.creakId = structure.bringDown(keys, { cause: job.by, origin: job.origin, chunkCap: job.chunkCap });
+      job.creakId = structure.bringDown(keys, { cause: job.by, origin: job.origin, chunkCap: job.chunkCap, fall: job.topple });
     } else {
       for (const key of keys) {
         const x = key & 1023, z = (key >> 10) & 1023, y = key >> 20;

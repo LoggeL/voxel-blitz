@@ -13,7 +13,7 @@ import { DepotController } from './depot.js';
 // slot relay:
 import { RelayController } from './relay.js';
 // slot elevator:
-// import { ElevatorController } from './elevator.js';
+import { ElevatorController } from './elevator.js';
 // slot quarry:
 // import { QuarryController } from './quarry.js';
 // slot comeback:
@@ -32,7 +32,7 @@ export const MAP_EVENT_CONTROLLERS = Object.freeze({
   // slot relay:
   relay: RelayController,
   // slot elevator:
-  // elevator: ElevatorController,
+  elevator: ElevatorController,
   // slot quarry:
   // quarry: QuarryController,
   // slot comeback:

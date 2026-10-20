@@ -27,7 +27,7 @@ import { DEPOT_PRESENTER } from './depot.js';
 // slot relay:
 import { RELAY_PRESENTER } from './relay.js';
 // slot elevator:
-// import { ELEVATOR_PRESENTER } from './elevator.js';
+import { ELEVATOR_PRESENTER } from './elevator.js';
 // slot quarry:
 // import { QUARRY_PRESENTER } from './quarry.js';
 // slot comeback:
@@ -46,7 +46,7 @@ export const MAP_EVENT_PRESENTERS = Object.freeze({
   // slot relay:
   relay: RELAY_PRESENTER,
   // slot elevator:
-  // elevator: ELEVATOR_PRESENTER,
+  elevator: ELEVATOR_PRESENTER,
   // slot quarry:
   // quarry: QUARRY_PRESENTER,
   // slot comeback:
