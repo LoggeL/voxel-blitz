@@ -23,6 +23,9 @@ export class CaptureSystem {
     this.rules = rules;
     this.flags = [];
     this.tracks = new Map();
+    // Variant hook: a flag this returns true for cannot change hands (Breakthrough's
+    // captured and locked sectors). Its presence counts still publish.
+    this.locked = null;
   }
 
   /** Home flags start owned at full control; every other flag starts neutral. */
@@ -61,6 +64,7 @@ export class CaptureSystem {
       const counts = flagPresence(flag, presence, this.rules);
       flag.alpha = counts.alpha;
       flag.bravo = counts.bravo;
+      if (this.locked?.(flag)) continue;
       const ownerBefore = flag.owner;
       const transitions = advanceControl(flag, counts, dtMs, this.rules);
       const track = this.tracks.get(flag.id);

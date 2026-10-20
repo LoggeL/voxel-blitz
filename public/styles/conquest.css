@@ -70,6 +70,48 @@ body[data-flight-aim="true"] #crosshair { display: none !important; }
 .cq-chip[data-moving="enemy"]::after { border-color: var(--cq-enemy); }
 .cq-chip[data-moving="own"]::after { border-color: var(--cq-own); }
 @keyframes cq-pulse { 50% { box-shadow: 0 0 0 1px #0009, 0 0 12px var(--cq-contested); } }
+
+/* Breakthrough sector track (docs/design/conquest/breakthrough/, variant A). */
+.cq-center-foot { display: flex; align-items: center; gap: 8px; }
+.cq-top[data-variant="breakthrough"] { grid-template-columns: 150px auto 150px; }
+.cq-top[data-variant="breakthrough"] .cq-chips { gap: 6px; align-items: stretch; padding: 0; }
+.cq-sector {
+  --sector: var(--cq-line); position: relative; display: flex; align-items: center; gap: 6px;
+  padding: 2px 9px 3px 6px; border: 1px solid var(--sector); border-radius: 4px; background: #ffffff08; overflow: hidden;
+}
+.cq-sector-label { font-size: 10px; font-weight: 800; letter-spacing: 1px; color: var(--cq-sub); writing-mode: vertical-rl; transform: rotate(180deg); }
+.cq-sector-flags { display: flex; gap: 10px; padding: 4px 3px; }
+.cq-sector .cq-chip { width: 22px; height: 22px; }
+.cq-sector .cq-chip-letter { font-size: 13px; }
+.cq-sector-mark { display: none; position: absolute; right: 3px; top: 2px; width: 11px; height: 11px; color: var(--cq-sub); }
+.cq-sector-mark svg { width: 100%; height: 100%; display: block; }
+.cq-sector-progress { position: absolute; left: 0; bottom: 0; height: 2px; width: calc(var(--progress, 0) * 100%); background: var(--sector); }
+.cq-sector[data-role="captured"] { opacity: 0.62; }
+.cq-sector[data-role="locked"] { opacity: 0.5; border-style: dashed; }
+.cq-sector[data-role="locked"] .cq-sector-mark { display: block; }
+.cq-sector[data-role="active"] { --sector: var(--cq-contested); background: #ffd16612; box-shadow: 0 0 10px #ffd16633, inset 0 0 0 1px #ffd16633; }
+.cq-sector[data-role="active"] .cq-sector-label { color: var(--cq-contested); }
+.cq-top[data-side="attack"] .cq-sector[data-role="captured"] { --sector: var(--cq-own); }
+.cq-top[data-side="defend"] .cq-sector[data-role="captured"] { --sector: var(--cq-enemy); }
+.cq-sector-sep { align-self: center; width: 7px; height: 7px; border-top: 2px solid var(--cq-sub); border-right: 2px solid var(--cq-sub); transform: rotate(45deg); opacity: 0.7; }
+.cq-top[data-side="defend"] .cq-sector-sep { transform: rotate(-135deg); }
+.cq-chip[data-role="locked"] { --chip: #8a98a3; filter: saturate(0.4); }
+.cq-team[data-role="defend"] .cq-ticket-track { visibility: hidden; }
+.cq-team[data-role="defend"] .cq-bleed { color: var(--cq-sub); letter-spacing: 1.2px; }
+.cq-team[data-role="attack"] .cq-bleed { color: var(--cq-sub); font-size: 10px; letter-spacing: 1.2px; }
+.cq-team-own[data-role="defend"] .cq-team-name, .cq-team-own[data-role="attack"] .cq-team-name { color: var(--cq-own); }
+.cq-team-enemy[data-role="defend"] .cq-team-name, .cq-team-enemy[data-role="attack"] .cq-team-name { color: var(--cq-enemy); }
+.cq-team[data-role="attack"][data-low="true"] .cq-bleed { color: var(--cq-danger); }
+.cq-sector-tag { padding: 0 6px; border-radius: 3px; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; line-height: 16px; }
+.cq-sector-tag[data-kind="grace"] { background: #ffd16622; color: var(--cq-contested); }
+.cq-sector-tag[data-kind="overtime"] { background: #ff4b4b2e; color: #ffb1a8; animation: cq-bleed 1s ease-in-out infinite; }
+.cq-flag-marker-lock { display: none; position: absolute; left: 50%; top: -12px; width: 12px; height: 12px; margin-left: -6px; color: #e8eef2; filter: drop-shadow(0 1px 1px #000); }
+.cq-flag-marker[data-role="locked"] { --tone: #a6b2bb; --lean: #a6b2bb; opacity: 0.55; }
+.cq-flag-marker[data-role="locked"] .cq-flag-marker-lock { display: block; }
+.cq-flag-marker[data-role="captured"] { opacity: 0.6; }
+.cq-restricted[data-kind="grace"] { border-color: #ffd16688; }
+.cq-restricted[data-kind="grace"] .cq-restricted-title { color: var(--cq-contested); }
+.cq-restricted[data-kind="grace"] .cq-restricted-seconds { animation: none; color: #ffe7a8; }
 @keyframes cq-ping { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(1.5); } }
 
 /* ------------------------------------------------- vehicle camera view strip */
@@ -570,10 +612,24 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .vb-touch-mode .cq-chip { width: 18px; height: 18px; border-width: 1.5px; }
 .vb-touch-mode .cq-chip-letter { font-size: 11px; }
 .vb-touch-mode .cq-clock { font-size: 11px; }
+/* Breakthrough on phones: sector boxes keep only their chips (the S1 labels and side captions drop). */
+.vb-touch-mode .cq-top[data-variant="breakthrough"] { grid-template-columns: 62px auto 62px; }
+.vb-touch-mode .cq-top[data-variant="breakthrough"] .cq-chips { gap: 3px; }
+.vb-touch-mode .cq-sector { min-width: 0; padding: 1px 2px; gap: 0; }
+.vb-touch-mode .cq-sector-sep { display: none; }
+.vb-touch-mode .cq-sector-label { display: none; }
+.vb-touch-mode .cq-sector-flags { gap: 4px; padding: 2px 1px; }
+.vb-touch-mode .cq-sector .cq-chip { width: 15px; height: 15px; }
+.vb-touch-mode .cq-sector .cq-chip-letter { font-size: 10px; }
+.vb-touch-mode .cq-sector-mark { width: 8px; height: 8px; right: 1px; top: 1px; }
+.vb-touch-mode .cq-team[data-role] .cq-bleed, .vb-touch-mode .cq-team[data-role] .cq-team-name { font-size: 8px; letter-spacing: 0; }
+.vb-touch-mode .cq-sector-tag { font-size: 9px; line-height: 12px; padding: 0 4px; }
 /* Portrait: the card row (HP, grenade, ammo) and the minimap fill the top 228 px, so banners sit just below them. */
 .vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 228px); min-width: 0; width: max-content; max-width: calc(100vw - 40px); padding: 6px 14px; }
 .vb-touch-mode .cq-banner-title { font-size: 15px; letter-spacing: 1px; }
 .vb-touch-mode .cq-banner-detail { font-size: 10px; }
+/* Breakthrough fall-back on phones: the restricted card already says SECTOR LOST, so the banner gives way to it. */
+.vb-touch-mode .vb-conquest-hud:has(.cq-restricted:not([hidden])) .cq-banner { display: none; }
 .vb-touch-mode .cq-minimap { top: calc(max(10px, env(safe-area-inset-top)) + 114px); bottom: auto; left: max(12px, env(safe-area-inset-left)); }
 /* Phone portrait has no free corner beside the minimap (MAP / SPOT sit there): the squad list shows in landscape only. */
 .vb-touch-mode .cq-squad { display: none; }
@@ -724,7 +780,7 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   .cq-kit-name b { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cq-chip, .cq-chip::after, .cq-ring-dial, .cq-banner.is-in, .cq-view, .cq-lock, .cq-restricted-seconds, .cq-unit-glyph, .cq-team .cq-ticket-fill { animation: none !important; }
+  .cq-chip, .cq-chip::after, .cq-ring-dial, .cq-banner.is-in, .cq-view, .cq-lock, .cq-restricted-seconds, .cq-unit-glyph, .cq-team .cq-ticket-fill, .cq-sector-tag { animation: none !important; }
 }
 
 /* --------------------------------------------- scoreboard + result (conquest) */

@@ -14,6 +14,8 @@ import {
 } from '../shared/modes.js';
 import { SndPolicy } from './modes/snd.js';
 import { ConquestPolicy } from './modes/conquest.js';
+import { BreakthroughPolicy } from './modes/conquest/breakthrough.js';
+import { normalizeConquestVariant } from '../shared/conquest-contract.js';
 import { TdmPolicy } from './modes/tdm.js';
 import { GunGamePolicy } from './modes/gungame.js';
 import { BastionPolicy } from './modes/bastion.js';
@@ -137,7 +139,7 @@ class ChaosPolicy extends FunPolicy {
 
 /** Stable policy interface consumed by GameEngine and BotManager. */
 export class ModeController {
-  constructor(engine, { mode = DEFAULT_MODE_ID, mapMeta = null } = {}) {
+  constructor(engine, { mode = DEFAULT_MODE_ID, mapMeta = null, variant = null } = {}) {
     if (!engine || typeof engine !== 'object') {
       throw new TypeError('ModeController requires an engine');
     }
@@ -189,7 +191,11 @@ export class ModeController {
     else if (modeId === 'duel') this.policy = new DuelPolicy(context);
     else if (modeId === 'chaos') this.policy = new ChaosPolicy(context);
     else if (modeId === 'snd') this.policy = new SndPolicy(context);
-    else if (modeId === 'conquest') this.policy = new ConquestPolicy(context, engine);
+    else if (modeId === 'conquest') {
+      // Conquest variants (CONQUEST_VARIANTS) keep the mode id; Breakthrough swaps the objective rules.
+      this.policy = normalizeConquestVariant(variant) === 'breakthrough'
+        ? new BreakthroughPolicy(context, engine) : new ConquestPolicy(context, engine);
+    }
     else if (modeId === 'tdm') this.policy = new TdmPolicy(context);
     else if (modeId === 'gungame') this.policy = new GunGamePolicy(context);
     else if (modeId === 'training') this.policy = new TrainingPolicy(context);
@@ -198,6 +204,8 @@ export class ModeController {
   }
 
   get mode() { return this.policy.mode; }
+  /** Conquest rule variant ('conquest' | 'breakthrough'), null in other modes. */
+  get variant() { return this.policy.mode === 'conquest' ? this.policy.variant ?? 'conquest' : null; }
   get rules() { return this.policy.rules; }
   get mapMeta() { return this.policy.mapMeta; }
   get phase() { return this.policy.phase; }

@@ -438,7 +438,7 @@ export class ConquestHud {
         obstacles: [...this._markerObstacles(width, height, touch), crosshairZone(width, height), ...this.reticles.reserved] }) : [],
       projector ? unitMarkerModels({ self, players, vehicles, selfTeam, projector, insets }) : [],
     );
-    this.restricted.update(restrictedModel(self, cq, { aircraft: !!seated && isAircraftType(seated.row.type) }));
+    this.restricted.update(restrictedModel(self, cq, { aircraft: !!seated && isAircraftType(seated.row.type), nowMs: now }));
     // Assault ADRENALINE: the spent medkit came back (0 -> 1 on the authoritative row) right
     // after an own kill. A Medic aura restock or a respawn refill is not adrenaline.
     const medkitLeft = Number.isFinite(self?.medkit?.remaining) ? self.medkit.remaining : Array.isArray(self?.medkit) ? self.medkit[0] : null;
@@ -538,7 +538,7 @@ export class ConquestHud {
         if (entry) this.ticker.push(entry, now);
         break;
       }
-      case 'flag_captured': case 'flag_neutralized': case 'flag_state': case 'ticket_low': {
+      case 'flag_captured': case 'flag_neutralized': case 'flag_state': case 'ticket_low': case 'sector_captured': case 'sector_overtime': {
         const flag = this.cq?.flags?.find(f => f.id === ev.flag);
         const banner = bannerForEvent(ev, selfTeam, { flagOwner: flag?.owner ?? null, flagName: flag?.name ?? null });
         if (banner) this.banners.push(banner, now);

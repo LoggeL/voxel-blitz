@@ -9,7 +9,12 @@
  *   flag_neutralized (an own flag was neutralized)          → lost + lost_X
  *   flag_captured    (own team)                             → captured + captured_X
  *   ticket_low       (own team)                             → ticket_low + tickets_low
+ *   sector_captured  (Breakthrough, own / enemy attackers)  → captured + winning / lost + losing
+ *   sector_overtime  (Breakthrough, own attackers)          → ticket_low + losing (defenders hear winning)
  *   match end (phase → post, winner)                       → victory / defeat
+ *
+ * Breakthrough has no sector lines of its own: the momentum calls come from
+ * the Titanfall bank (BREAKTHROUGH_CUES, loaded with the objective WAVs).
  *
  * With the Conquest bank decoded (`bank` = sfx.conquestAudio()), the
  * capture-start, neutralized, captured, lost and low-tickets stingers play
@@ -25,7 +30,9 @@
  * change (neutralizing → contested → neutralizing).
  */
 import { createVoices } from './primitives.js';
-import { OBJECTIVE_CUES, objectiveAnnouncerCue, objectiveCueUrl } from '../../../shared/announcer.js';
+import {
+  BREAKTHROUGH_CUES, OBJECTIVE_CUES, breakthroughAnnouncerCue, objectiveAnnouncerCue, objectiveCueUrl, titanfallCueUrl,
+} from '../../../shared/announcer.js';
 import { CONQUEST_RULES, FRONTIER_PLAN } from '../../../shared/conquest-contract.js';
 
 export const OBJECTIVE_STINGERS = Object.freeze(['capture_start', 'neutralized', 'captured', 'lost', 'ticket_low', 'victory', 'defeat']);
@@ -78,6 +85,10 @@ export function stingerForEvent(ev, selfTeam) {
     case 'flag_captured':
       return ev.team === selfTeam ? 'captured' : null;
     case 'ticket_low':
+      return ev.team === selfTeam ? 'ticket_low' : null;
+    case 'sector_captured':
+      return ev.team === selfTeam ? 'captured' : 'lost';
+    case 'sector_overtime':
       return ev.team === selfTeam ? 'ticket_low' : null;
     case 'match_end':
       return ev.winner == null ? null : ev.winner === selfTeam ? 'victory' : 'defeat';
@@ -202,9 +213,10 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
     if (!engine?.ctx || typeof fetchImpl !== 'function' || typeof announcer?.registerBuffer !== 'function') return Promise.resolve(0);
     loading = (async () => {
       let loaded = 0;
-      await Promise.all(Object.keys(OBJECTIVE_CUES).map(async cue => {
+      const urls = [...Object.keys(OBJECTIVE_CUES).map(cue => [cue, objectiveCueUrl(cue)]), ...BREAKTHROUGH_CUES.map(cue => [cue, titanfallCueUrl(cue)])];
+      await Promise.all(urls.map(async ([cue, url]) => {
         try {
-          const response = await fetchImpl(objectiveCueUrl(cue));
+          const response = await fetchImpl(url);
           if (!response.ok) return;
           const buffer = await engine.ctx.decodeAudioData(await response.arrayBuffer());
           if (!disposed && announcer.registerBuffer(cue, buffer)) loaded++;
@@ -307,7 +319,9 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
       load();
       const ownerBefore = typeof ev.flag === 'string' ? owners.get(ev.flag) ?? null : null;
       let id = stingerForEvent(ev, selfTeam);
-      let cue = ev.kind === 'match_end' ? matchEndCue(ev.winner, selfTeam) : objectiveAnnouncerCue(ev, selfTeam, ownerBefore);
+      let cue = ev.kind === 'match_end' ? matchEndCue(ev.winner, selfTeam)
+        : ev.kind === 'sector_captured' || ev.kind === 'sector_overtime' ? breakthroughAnnouncerCue(ev, selfTeam)
+          : objectiveAnnouncerCue(ev, selfTeam, ownerBefore);
       if (id === 'capture_start' && ((selfKnown && !insideFlagZone(ev.flag, selfPos, zones))
         || repeatBlocked(`start:${ev.flag}`, CAPTURE_START_REPEAT_MS))) id = null;
       if (cue && cue.startsWith('under_attack_') && repeatBlocked(cue, UNDER_ATTACK_REPEAT_MS)) cue = null;

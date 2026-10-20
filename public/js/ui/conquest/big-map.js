@@ -6,7 +6,7 @@
 import { el } from '../hud-support.js';
 import { CQ_COLORS } from '../conquest-hud-state.js';
 import { drawIcon } from './icons.js';
-import { imageReady, overviewImage, paintFlag, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
+import { imageReady, overviewImage, paintFlag, paintFrontLine, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
 
 /** Flag name size on the north-up maps, in CSS px (scaled down from the max on small maps). */
 const LABEL_MIN_PX = 8;
@@ -108,6 +108,7 @@ export class NorthUpMap {
     const movable = [...badges.filter(b => !spawnHulls.has(String(b.item.id))), ...spawnBadges];
     declutter(movable, fixed, { px, maxShift: 30 * scale });
     for (const item of sorted) {
+      if (item.kind === 'front') { paintFrontLine(ctx, item, toCanvas(item.a.x, item.a.z), toCanvas(item.b.x, item.b.z), scale); continue; }
       const c = place(item);
       if (item.kind === 'flag') {
         paintFlag(ctx, item, c, item.radius * s, { letterSize: 15 * scale, pulse: item.contested ? pulse : 0 });

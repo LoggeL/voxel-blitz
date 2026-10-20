@@ -1,7 +1,7 @@
 /** Circular, heading-up minimap with a rotating compass ring (bottom left). */
 import { el } from '../hud-support.js';
 import { minimapPlacement } from '../conquest-hud-state.js';
-import { imageReady, overviewImage, paintFlag, paintUnit, paintVectorBase, sortItems } from './map-painter.js';
+import { imageReady, overviewImage, paintFlag, paintFrontLine, paintUnit, paintVectorBase, sortItems } from './map-painter.js';
 
 export const MINIMAP_RANGE_M = 170;
 
@@ -61,6 +61,11 @@ export class Minimap {
     for (const item of sortItems(items)) {
       const p = minimapPlacement(item, center, yaw, s);
       const pos = { x: R + p.x, y: R + p.y };
+      if (item.kind === 'front') {
+        const ends = [item.a, item.b].map(e => minimapPlacement(e, center, yaw, s));
+        paintFrontLine(ctx, item, { x: R + ends[0].x, y: R + ends[0].y }, { x: R + ends[1].x, y: R + ends[1].y }, scale);
+        continue;
+      }
       if (item.kind === 'aura') {
         // The Medic's heal aura reach (KIT_ROLE_RULES.healRadius) around the player.
         // Never smaller than a readable ring around the self arrow.

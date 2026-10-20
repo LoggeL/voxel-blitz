@@ -17,7 +17,7 @@ import {
   validBotCount,
 } from './protocol/admission.js';
 import { makeLobbyState, makeWelcome } from './protocol/welcome.js';
-import { CONQUEST_CONTRACT_VERSION } from '../shared/conquest-contract.js';
+import { CONQUEST_CONTRACT_VERSION, CONQUEST_VARIANTS, DEFAULT_CONQUEST_VARIANT } from '../shared/conquest-contract.js';
 import { TITANFALL_CONTRACT_VERSION } from '../shared/titan-contract.js';
 import {
   DUEL_KILL_LIMITS,
@@ -390,7 +390,7 @@ export class LobbyManager {
     return true;
   }
 
-  configure(meta, { gameMode, map, bots, duelKillLimit, traitorPercent } = {}) {
+  configure(meta, { gameMode, map, bots, duelKillLimit, traitorPercent, conquestVariant } = {}) {
     const found = this._memberFor(meta);
     if (!found) return this._error(meta, 'Not in a lobby');
     const { room, member } = found;
@@ -420,6 +420,9 @@ export class LobbyManager {
     if (!TTT_TRAITOR_PERCENTS.includes(traitorPercent)) return this._error(meta, 'Invalid traitor percentage');
     duelKillLimit ??= room.duelKillLimit;
     if (!DUEL_KILL_LIMITS.includes(duelKillLimit)) return this._error(meta, 'Invalid 1v1 kill target');
+    // Conquest rule variant (Conquest or Breakthrough): the policy is built with the engine.
+    conquestVariant ??= room.conquestVariant;
+    if (!CONQUEST_VARIANTS.includes(conquestVariant)) return this._error(meta, 'Invalid Conquest variant');
     bots = modeAllowsBots(gameMode) ? bots : 0;
     const limit = lobbyCapacity(gameMode, map);
     if (room.members.size > limit) {
@@ -432,14 +435,16 @@ export class LobbyManager {
     } else if (bots + room.members.size > limit) {
       return this._error(meta, `This lobby allows up to ${limit} players and bots in total`);
     }
-    const arenaChanged = gameMode !== room.gameMode || map !== room.map;
-    if (!arenaChanged && bots === room.bots && duelKillLimit === room.duelKillLimit && traitorPercent === room.traitorPercent) return true;
+    const arenaChanged = gameMode !== room.gameMode || map !== room.map
+      || (gameMode === 'conquest' && conquestVariant !== room.conquestVariant);
+    if (!arenaChanged && bots === room.bots && duelKillLimit === room.duelKillLimit && traitorPercent === room.traitorPercent
+      && conquestVariant === room.conquestVariant) return true;
     if (arenaChanged) {
       // Build the replacement before changing the shared room. Sockets, ids and
       // the invite code stay attached to the same room throughout configuration.
       const engine = new GameEngine({
         broadcast: (obj) => this._broadcastJson(room, obj),
-        world: createMapState(map), mode: gameMode, mapMeta: getMapMeta(map),
+        world: createMapState(map), mode: gameMode, mapMeta: getMapMeta(map), conquestVariant,
       });
       const spawns = new Map();
       try {
@@ -481,6 +486,7 @@ export class LobbyManager {
     if (gameMode === 'ttt') room.engine.mode.rules.traitorPercent = traitorPercent;
     room.duelKillLimit = duelKillLimit;
     if (gameMode === 'duel') room.engine.mode.rules.killLimit = duelKillLimit;
+    room.conquestVariant = conquestVariant;
     room.bots = bots;
     this._syncWaitingBots(room);
     for (const human of room.members.values()) human.ready = false;
@@ -642,6 +648,7 @@ export class LobbyManager {
       phase: 'waiting',
       duelKillLimit: DEFAULT_DUEL_KILL_LIMIT,
       traitorPercent: DEFAULT_TRAITOR_PERCENT,
+      conquestVariant: DEFAULT_CONQUEST_VARIANT,
       bots: !modeAllowsBots(gameMode) ? 0 : Math.min(bots, lobbyCapacity(gameMode, map) - 1),
       botTeams: new Map(),
       botDifficulties: new Map(),
@@ -897,6 +904,7 @@ export class LobbyManager {
       members,
       duelKillLimit: room.duelKillLimit,
       traitorPercent: room.traitorPercent,
+      conquestVariant: room.conquestVariant,
       gameMode: room.gameMode,
       map: room.map,
     });

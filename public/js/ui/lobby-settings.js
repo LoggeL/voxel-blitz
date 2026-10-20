@@ -1,7 +1,9 @@
 import { DEFAULT_TRAITOR_PERCENT, TTT_TRAITOR_PERCENTS } from '../../../shared/ttt.js';
 import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, DUEL_WEAPONS, MAP_IDS, MODE_IDS, MODE_RULES, isModeMapCompatible, mapForMode, titanfallScoreLimit } from '../../../shared/modes.js';
 import { el, MAP_LABELS, MODE_LABELS, WEAPON_NAMES, savePref } from './hud-support.js';
-import { FRONTIER_PLAN, KIT_IDS, KITS, TEAM_DISPLAY } from '../../../shared/conquest-contract.js';
+import {
+  BREAKTHROUGH_RULES, CONQUEST_VARIANTS, DEFAULT_CONQUEST_VARIANT, FRONTIER_PLAN, KIT_IDS, KITS, TEAM_DISPLAY,
+} from '../../../shared/conquest-contract.js';
 import { MAX_BOTS, lobbyCapacity, modeAllowsBots } from '../../../shared/lobby-limits.js';
 
 /** Lobby summary of a Conquest match, read from the frozen plan so it never drifts from the map. */
@@ -9,6 +11,14 @@ const CONQUEST_HINT = `${FRONTIER_PLAN.dimensions.sx} × ${FRONTIER_PLAN.dimensi
   + `${FRONTIER_PLAN.flags.length} flags · kits: ${KIT_IDS.map(id => KITS[id].label.toLowerCase()).join(', ')}. `
   + 'Squads of four deploy on HQ, held flags, squadmates or vehicles. Drive jeeps and tanks, fly attack and transport helicopters and jets. '
   + 'Hold three or more flags to bleed enemy tickets.';
+const CONQUEST_VARIANT_LABELS = Object.freeze({ conquest: 'Conquest · five flags, ticket bleed', breakthrough: 'Breakthrough · attack and defend sectors' });
+/** Lobby summary of Breakthrough, read from BREAKTHROUGH_RULES and the Frontier sector table. */
+const BREAKTHROUGH_SECTORS = BREAKTHROUGH_RULES.sectors.frontier;
+const BREAKTHROUGH_HINT = `Breakthrough on ${FRONTIER_PLAN.dimensions.sx} × ${FRONTIER_PLAN.dimensions.sz}: ${TEAM_DISPLAY[BREAKTHROUGH_RULES.attackers]} attacks, `
+  + `${TEAM_DISPLAY[BREAKTHROUGH_RULES.attackers === 'alpha' ? 'bravo' : 'alpha']} defends ${BREAKTHROUGH_SECTORS.length} sectors `
+  + `(${BREAKTHROUGH_SECTORS.map(s => s.join(' + ')).join(' → ')}). Attackers start with ${BREAKTHROUGH_RULES.tickets} tickets, `
+  + `+${BREAKTHROUGH_RULES.refillPerSector} per sector taken; hold every flag of a sector to break through. Defenders fall back behind each lost sector. `
+  + 'Same kits, squads and vehicles; the attackers bring more armour.';
 
 /**
  * Map menu label: the map label without a trailing "W × H" size, which the
@@ -28,6 +38,7 @@ export class LobbySettings {
       ['bots', 'BOTS', 'bot-count'],
       ['duelKillLimit', '1V1 WIN CONDITION', 'duel-kill-limit'],
       ['traitorPercent', 'TRAITOR SHARE', 'traitor-percent'],
+      ['conquestVariant', 'CONQUEST RULES', 'conquest-variant'],
     ]) {
       const field = el('div', 'vb-menu-field-group', this.root);
       const caption = el('label', 'vb-label', field);
@@ -43,6 +54,7 @@ export class LobbySettings {
           gameMode: this.controls.gameMode.value,
           duelKillLimit: Number(this.controls.duelKillLimit.value),
           traitorPercent: Number(this.controls.traitorPercent.value),
+          conquestVariant: this.controls.conquestVariant.value,
           map: this.controls.map.value,
           bots: !modeAllowsBots(this.controls.gameMode.value) ? 0 : Math.max(0, Math.min(Number(this.controls.bots.value), limit - this.humanCount)),
         };
@@ -62,6 +74,8 @@ export class LobbySettings {
     this.options(this.controls.traitorPercent, TTT_TRAITOR_PERCENTS.map(String),
       Object.fromEntries(TTT_TRAITOR_PERCENTS.map(n => [n, `${n}%`])));
     this.controls.traitorPercent.value = String(DEFAULT_TRAITOR_PERCENT);
+    this.options(this.controls.conquestVariant, CONQUEST_VARIANTS, CONQUEST_VARIANT_LABELS);
+    this.controls.conquestVariant.value = DEFAULT_CONQUEST_VARIANT;
     this.traitorCount = el('div', 'vb-field-desc', this.controls.traitorPercent.parentNode, 'lobby-traitor-count');
     this.traitorCount.setAttribute('role', 'status');
     this.loadout = el('div', 'vb-field-desc', this.root, 'lobby-weapon-set');
@@ -101,6 +115,8 @@ export class LobbySettings {
     this.controls.duelKillLimit.parentNode.hidden = state.gameMode !== 'duel';
     this.controls.traitorPercent.value = String(state.traitorPercent ?? DEFAULT_TRAITOR_PERCENT);
     this.controls.traitorPercent.parentNode.hidden = state.gameMode !== 'ttt';
+    this.controls.conquestVariant.value = CONQUEST_VARIANTS.includes(state.conquestVariant) ? state.conquestVariant : DEFAULT_CONQUEST_VARIANT;
+    this.controls.conquestVariant.parentNode.hidden = state.gameMode !== 'conquest';
     this.traitorCount.textContent = `${state.traitorCount ?? 0} TRAITORS / ${state.members?.length || 0} PLAYERS (including bots). Rounded down, at least one per side. Roles after ${Math.round(MODE_RULES.ttt.prepMs / 1000)} seconds.`;
     this.controls.gameMode.value = state.gameMode;
     this.syncMaps(state.gameMode, state.map);
@@ -117,7 +133,7 @@ export class LobbySettings {
       ? `BASE 1V1 WEAPON SET: ${DUEL_WEAPONS.map(id => WEAPON_NAMES[id] || id).join(' · ')}. No throwables.` : '';
     this.capacity.textContent = `${state.members?.length || 0} / ${limit} SLOTS · ${MAP_LABELS[state.map] || state.map}`;
     this.hint.textContent = state.gameMode === 'conquest'
-      ? `${CONQUEST_HINT}` : state.gameMode === 'titanfall'
+      ? (this.controls.conquestVariant.value === 'breakthrough' ? BREAKTHROUGH_HINT : CONQUEST_HINT) : state.gameMode === 'titanfall'
       ? `Attrition, MILITIA vs IMC: pilots wallrun, call titans from orbit and rodeo enemy titans. First to ${titanfallScoreLimit(1)}-${titanfallScoreLimit(8)} points (scales with team size), up to 8 v 8.` : state.gameMode === 'bastion'
       ? `1–4 players defend ${MAP_LABELS[state.map] || state.map} stage by stage: build, hold, fall back, extract. No friendly bots.` : state.gameMode === 'duel'
       ? 'Share the invite link. Two players, no bots. Both players must be ready.' : isHost

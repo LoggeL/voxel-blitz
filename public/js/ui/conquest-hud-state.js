@@ -14,6 +14,7 @@ import {
   decodeConquestMatch, deployOptions, deployViewFromSnapshot, isBotId, oppositeTeam, parseSpawnChoice, resolveDeployChoice, teamSign,
 } from '../../../shared/conquest.js';
 import * as vehicleDefs from '../../../shared/vehicle-defs.js';
+import { breakthroughFront, outsideFront, sectorRole } from '../../../shared/breakthrough.js';
 import { vehicleHijackable } from '../../../shared/vehicle-seats.js';
 import {
   KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
@@ -88,14 +89,64 @@ export function ticketModel(cq, selfTeam, nowMs) {
   if (!cq) return null;
   const own = selfTeam === 'bravo' ? 'bravo' : 'alpha', enemy = oppositeTeam(own);
   const max = Math.max(1, finite(cq.maxTickets, CONQUEST_RULES.tickets));
+  const bt = cq.breakthrough ?? null;
   const side = (team, rel) => {
     const tickets = Math.max(0, cq.tickets?.[team] | 0);
     const bleedMs = Math.max(0, cq.bleed?.[team] | 0);
-    return { team, rel, name: teamDisplayName(team), tickets, max, fraction: clamp01(tickets / max), bleedMs,
+    const row = { team, rel, name: teamDisplayName(team), tickets, max, fraction: clamp01(tickets / max), bleedMs,
       bleeding: bleedMs > 0, bleed: bleedLabel(bleedMs), low: tickets <= max * CONQUEST_RULES.ticketLowFractions[0] };
+    if (!bt) return row;
+    // Breakthrough: only the attackers count tickets; the defenders' side names its job instead.
+    const attacking = team === bt.attackers;
+    return { ...row, role: attacking ? 'attack' : 'defend', name: attacking ? 'ATTACKERS' : 'DEFENDERS',
+      tickets: attacking ? tickets : null, fraction: attacking ? row.fraction : 1,
+      bleed: attacking ? (bt.overtime ? 'OVERTIME' : 'REINFORCEMENTS') : 'HOLD THE LINE', low: attacking && (bt.overtime || row.low) };
   };
   const timeLeftMs = Number.isFinite(cq.endsAt) && Number.isFinite(nowMs) ? Math.max(0, cq.endsAt - nowMs) : null;
-  return { own: side(own, 'own'), enemy: side(enemy, 'enemy'), timeLeftMs, clock: timeLeftMs === null ? '--:--' : clockText(timeLeftMs) };
+  return { own: side(own, 'own'), enemy: side(enemy, 'enemy'), timeLeftMs, clock: timeLeftMs === null ? '--:--' : clockText(timeLeftMs),
+    breakthrough: bt ? breakthroughModel(cq, own, nowMs) : null };
+}
+
+/* ------------------------------------------------------------ breakthrough */
+
+/**
+ * Breakthrough sector track (docs/conquest.md, Breakthrough) from the
+ * authoritative `match.conquest.bt` and flag rows: one entry per sector with
+ * its role (captured / active / locked) and, for the active one, the
+ * attackers' share of its flags' control; the local side's job (`role`
+ * attack | defend), the fall-back grace left and the overtime flag. Null in
+ * plain Conquest.
+ */
+export function breakthroughModel(cq, selfTeam, nowMs = null) {
+  const bt = cq?.breakthrough;
+  if (!bt) return null;
+  const own = selfTeam === 'bravo' ? 'bravo' : 'alpha';
+  const role = own === bt.attackers ? 'attack' : 'defend';
+  const sign = teamSign(bt.attackers);
+  const byId = new Map((cq.flags || []).map(f => [f.id, f]));
+  const sectors = bt.sectors.map((ids, index) => {
+    const state = index < bt.sector ? 'captured' : index === bt.sector ? 'active' : 'locked';
+    // Attackers' progress on the sector: each flag counts 1 when theirs, else its control toward them.
+    const progress = state === 'captured' ? 1 : state === 'locked' ? 0
+      : ids.reduce((sum, id) => { const f = byId.get(id); return sum + (f?.owner === bt.attackers ? 1 : clamp01(finite(f?.control) * sign)); }, 0) / Math.max(1, ids.length);
+    return { index, number: index + 1, flags: ids.slice(), role: state, label: `SECTOR ${index + 1}`, progress: clamp01(progress) };
+  });
+  const active = bt.done ? null : sectors[bt.sector];
+  const graceMs = Number.isFinite(bt.graceEndsAt) && Number.isFinite(nowMs) ? Math.max(0, bt.graceEndsAt - nowMs) : 0;
+  const tickets = Math.max(0, cq.tickets?.[bt.attackers] | 0);
+  const max = Math.max(1, finite(cq.maxTickets, tickets || 1));
+  const headline = bt.done ? (role === 'attack' ? 'BROKEN THROUGH' : 'LINE BROKEN')
+    : bt.overtime ? 'OVERTIME'
+      : `${role === 'attack' ? 'ATTACK' : 'DEFEND'} SECTOR ${active.number} OF ${sectors.length}`;
+  return { attackers: bt.attackers, role, sector: bt.sector, count: sectors.length, done: bt.done, overtime: bt.overtime, sectors,
+    active, activeFlags: active ? active.flags : [], tickets, maxTickets: max, fraction: clamp01(tickets / max), graceMs,
+    grace: graceMs > 0 ? Math.ceil(graceMs / 1000) : 0, headline,
+    tag: bt.overtime ? 'OVERTIME' : graceMs > 0 ? `${role === 'defend' ? 'FALL BACK' : 'SECTOR TAKEN'} ${Math.ceil(graceMs / 1000)}` : '' };
+}
+
+/** The Breakthrough front from the decoded match (statics from mapMeta), or null. */
+export function breakthroughFrontOf(cq) {
+  return cq?.breakthrough ? breakthroughFront(cq.breakthrough, cq.flags, cq.bases) : null;
 }
 
 /** One chip per flag: owner colour, progress fill toward the leaning side, contested hatch. */
@@ -115,6 +166,8 @@ export function flagChipModels(cq, selfTeam) {
       moving: mover ? relativeTeam(mover, selfTeam) : null,
       own: flag[selfTeam === 'bravo' ? 'bravo' : 'alpha'] | 0,
       enemy: flag[selfTeam === 'bravo' ? 'alpha' : 'bravo'] | 0,
+      // Breakthrough: captured | active | locked (null in plain Conquest).
+      role: cq.breakthrough ? sectorRole(cq.breakthrough, flag.id) : null,
     };
   });
 }
@@ -211,10 +264,30 @@ export function squadListModel({ cq, self, players = [], vehicles = [] } = {}) {
  * crews an aircraft, whose timer runs outside the combat airspace and whose
  * expiry destroys the aircraft (server/modes/conquest/bounds.js).
  */
-export function restrictedModel(self, cq = null, { aircraft = false } = {}) {
+export function restrictedModel(self, cq = null, { aircraft = false, nowMs = null } = {}) {
   const info = decodeConquestPlayer(self);
-  if (!info || !(info.restrictedMs > 0) || !alive(self)) return null;
+  if (!info || !alive(self)) return null;
   const team = playerTeam(self);
+  // Breakthrough: the front (shared/breakthrough.js) bounds both sides. A defender
+  // behind the lost sector's line first sees the fall-back grace run down.
+  const bt = !aircraft && team ? cq?.breakthrough ?? null : null;
+  const front = bt ? breakthroughFrontOf(cq) : null;
+  const pastFront = !!front && outsideFront(front, self, team, bt.attackers);
+  if (pastFront && !(info.restrictedMs > 0) && team !== bt.attackers) {
+    const graceMs = Number.isFinite(bt.graceEndsAt) && Number.isFinite(nowMs) ? Math.max(0, bt.graceEndsAt - nowMs) : 0;
+    if (graceMs > 0) {
+      return { ms: graceMs, seconds: Math.ceil(graceMs / 1000), title: 'SECTOR LOST · FALL BACK',
+        detail: `RETREAT TO SECTOR ${bt.sector + 1}`, urgency: 0, kind: 'grace' };
+    }
+  }
+  if (!(info.restrictedMs > 0)) return null;
+  if (pastFront) {
+    const attacker = team === bt.attackers;
+    return { ms: info.restrictedMs, seconds: Math.ceil(info.restrictedMs / 1000), kind: 'front',
+      title: attacker ? 'BEYOND THE FRONT' : 'SECTOR LOST · OUT OF BOUNDS',
+      detail: attacker ? `RETURN TO SECTOR ${bt.sector + 1}` : `RETREAT TO SECTOR ${bt.sector + 1}`,
+      urgency: clamp01(1 - info.restrictedMs / CONQUEST_RULES.outOfBoundsMs) };
+  }
   const enemyBase = team && cq?.bases?.[oppositeTeam(team)];
   const inEnemyHq = !aircraft && enemyBase && Number.isFinite(enemyBase.x)
     && Math.hypot(self.x - enemyBase.x, self.z - enemyBase.z) <= finite(enemyBase.radius, 56);
@@ -776,7 +849,7 @@ export function flagMarkerModels(cq, self, selfTeam, projector, insets) {
     const chip = chips.get(flag.id);
     return { id: flag.id, x: placed.x, y: placed.y, edge: placed.edge, angle: placed.angle,
       distance: Math.round(Math.hypot(flag.x - eye.x, flag.z - eye.z)), owner: chip.owner, lean: chip.lean,
-      fill: chip.fill, contested: chip.contested, moving: chip.moving, inside: zoneAt(cq, self)?.id === flag.id };
+      fill: chip.fill, contested: chip.contested, moving: chip.moving, inside: zoneAt(cq, self)?.id === flag.id, role: chip.role };
   });
 }
 
@@ -920,8 +993,9 @@ export function mapItems({ cq, self, players = [], vehicles = [], selfTeam }) {
     const flag = cq.flags.find(f => f.id === chip.id);
     if (!Number.isFinite(flag?.x)) continue;
     items.push({ kind: 'flag', id: flag.id, rel: chip.owner, lean: chip.lean, fill: chip.fill, contested: chip.contested,
-      x: flag.x, z: flag.z, radius: flag.radius, label: flag.id, name: flag.name });
+      x: flag.x, z: flag.z, radius: flag.radius, label: flag.id, name: flag.name, ...(chip.role ? { role: chip.role } : {}) });
   }
+  items.push(...frontLineItems(cq, selfTeam));
   for (const v of vehicles || []) {
     if (!v || !(v.hp > 0) || !Number.isFinite(v.x)) continue;
     const rel = relativeTeam(v.team, selfTeam);
@@ -947,6 +1021,29 @@ export function mapItems({ cq, self, players = [], vehicles = [], selfTeam }) {
     items.push({ kind: 'self', id: selfId, rel: 'self', x: self.x, z: self.z, yaw: finite(self.yaw) });
   }
   return items;
+}
+
+/**
+ * Breakthrough front lines for the maps (world segments square to the HQ
+ * axis, `half` metres either side of it): the line that bounds the local side
+ * (`edge` 'rear' for defenders, 'lead' for attackers, tone 'danger') and the
+ * other boundary of the active sector (tone 'border'). Empty in plain Conquest.
+ */
+export function frontLineItems(cq, selfTeam, { half = 900 } = {}) {
+  const bt = cq?.breakthrough, front = bt ? breakthroughFrontOf(cq) : null;
+  if (!front) return [];
+  const own = selfTeam === 'bravo' ? 'bravo' : 'alpha', attacking = own === bt.attackers;
+  const { axis } = front;
+  const ahead = bt.sector < front.lines.length ? front.lines[bt.sector] : null;
+  const rows = [
+    { edge: 'rear', t: front.rear, tone: attacking ? 'border' : 'danger' },
+    { edge: 'lead', t: attacking ? front.lead : ahead, tone: attacking ? 'danger' : 'border' },
+  ];
+  return rows.filter(row => Number.isFinite(row.t)).map(row => {
+    const x = axis.x + axis.dx * row.t, z = axis.z + axis.dz * row.t;
+    return { kind: 'front', id: `front:${row.edge}`, edge: row.edge, tone: row.tone, x, z,
+      a: { x: x - axis.dz * half, z: z + axis.dx * half }, b: { x: x + axis.dz * half, z: z - axis.dx * half } };
+  });
 }
 
 /** Heading-up minimap placement: px offsets from the map centre for a radius in metres. */
@@ -999,6 +1096,19 @@ export function bannerForEvent(ev, selfTeam, { flagOwner = null, flagName = null
         return { key: `atk:${ev.flag}`, tone: 'enemy', title: `${label(ev.flag)} UNDER ATTACK`, detail: ev.state === 'contested' ? 'CONTESTED' : 'DEFEND IT', flag: ev.flag, priority: 1 };
       }
       return null;
+    case 'sector_captured': {
+      const number = (ev.sector | 0) + 1, last = !(ev.next >= 0);
+      if (ev.team === selfTeam) {
+        return { key: `sec:${ev.sector}`, tone: 'own', title: last ? 'BROKEN THROUGH' : `SECTOR ${number} CAPTURED`,
+          detail: last ? 'THE LAST SECTOR FELL' : `${ev.refill > 0 ? `+${ev.refill} TICKETS · ` : ''}PUSH TO SECTOR ${ev.next + 1}`, priority: 6 };
+      }
+      return { key: `sec:${ev.sector}`, tone: 'enemy', title: last ? 'LINE BROKEN' : `SECTOR ${number} LOST`,
+        detail: last ? 'THE ATTACKERS BROKE THROUGH' : `FALL BACK TO SECTOR ${ev.next + 1}`, priority: 6 };
+    }
+    case 'sector_overtime':
+      return ev.team === selfTeam
+        ? { key: 'sec:ot', tone: 'enemy', title: 'OVERTIME', detail: 'NO TICKETS LEFT · HOLD THE FLAG', priority: 7 }
+        : { key: 'sec:ot', tone: 'own', title: 'ATTACKERS OUT OF TICKETS', detail: 'CLEAR THE FLAG TO WIN', priority: 7 };
     case 'ticket_low': {
       const own = ev.team === selfTeam;
       return { key: `tl:${ev.team}:${ev.tickets}`, tone: own ? 'enemy' : 'own', title: own ? 'REINFORCEMENTS LOW' : 'ENEMY REINFORCEMENTS LOW',
@@ -1015,8 +1125,10 @@ export function matchEndBanner(match, selfTeam) {
   const winner = match.winner ?? null;
   if (winner == null) return { key: 'end:draw', tone: 'neutral', title: 'DRAW', detail: 'TICKETS AND FLAGS EVEN', priority: 9, outcome: 'draw' };
   const won = winner === selfTeam;
+  const bt = decodeConquestMatch(match.conquest).breakthrough;
+  const detail = !bt ? `${teamDisplayName(winner)} WINS` : winner === bt.attackers ? 'ATTACKERS BROKE THROUGH' : 'DEFENDERS HELD THE LINE';
   return { key: `end:${winner}`, tone: won ? 'own' : 'enemy', title: won ? 'VICTORY' : 'DEFEAT',
-    detail: `${teamDisplayName(winner)} WINS`, priority: 9, outcome: won ? 'victory' : 'defeat' };
+    detail, priority: 9, outcome: won ? 'victory' : 'defeat' };
 }
 
 /** Hitmarker variant of a vehicle_hit by the local player: yellow when effective, white spark when not (ricochets and non-penetrations too). */
@@ -1070,6 +1182,7 @@ export function hullZoneFlash(ev, seatedRow) {
 export const DEPLOY_REFUSED_TEXT = Object.freeze({
   invalid: 'THAT SPAWN IS NOT AVAILABLE', contested: 'FLAG IS CONTESTED OR BEING NEUTRALIZED', enemy: 'ENEMIES IN THE ZONE',
   busy: 'TARGET IS BUSY', cooldown: 'SQUAD SPAWN COOLING DOWN', seat: 'NO FREE SEAT', locked: 'CLASS LOCKED',
+  tickets: 'NO REINFORCEMENTS LEFT',
 });
 /** Refusal text; a `locked` refusal names the level that opens the kit ('CLASS LOCKED · LV 5'). */
 export function deployRefusedText(reason, level = null) {
@@ -1193,8 +1306,12 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
   const names = new Map((players || []).map(p => [String(p.id), p.name || String(p.id)]));
   const decorated = options.map(option => {
     let label, detail, takeoverNames = null;
-    if (option.kind === 'hq') { label = `${teamDisplayName(team)} HQ`; detail = cq.bases?.[team]?.name || 'HEADQUARTERS'; }
-    else if (option.kind === 'flag') { const f = cq.flags.find(fl => fl.id === option.id); label = `FLAG ${option.id}`; detail = f?.name?.toUpperCase() || ''; }
+    if (option.kind === 'hq' && option.forward) { label = 'FORWARD HQ'; detail = `FLAGS ${(option.flags || []).join(' ')}`.trim(); }
+    else if (option.kind === 'hq') { label = `${teamDisplayName(team)} HQ`; detail = cq.bases?.[team]?.name || 'HEADQUARTERS'; }
+    else if (option.kind === 'flag') {
+      const f = cq.flags.find(fl => fl.id === option.id); label = `FLAG ${option.id}`;
+      detail = `${f?.name?.toUpperCase() || ''}${option.forward ? ' · FORWARD' : ''}`;
+    }
     else if (option.kind === 'squad') {
       label = String(names.get(option.id) || 'SQUADMATE').toUpperCase();
       // A mate in an aircraft seats you in it (a free seat, else a bot's).

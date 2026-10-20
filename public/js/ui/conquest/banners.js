@@ -96,6 +96,7 @@ export class RestrictedOverlay {
   update(model) {
     if (!model) { this.root.hidden = true; this._key = ''; return; }
     this.root.hidden = false;
+    this.root.dataset.kind = model.kind || '';
     const key = `${model.title}|${model.seconds}`;
     if (key === this._key) return;
     this._key = key;

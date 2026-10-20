@@ -51,10 +51,26 @@ export function paintVectorBase(ctx, meta, toCanvas, scale) {
   }
 }
 
-/** Flag zone ring with owner fill, progress arc toward the leaning side and the letter. */
+/** A Breakthrough front line between two canvas points (frontLineItems): red dashes for the side's own bound. */
+export function paintFrontLine(ctx, item, a, b, scale = 1) {
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+  ctx.lineWidth = (item.tone === 'danger' ? 2.5 : 1.5) * scale;
+  ctx.setLineDash(item.tone === 'danger' ? [7 * scale, 4 * scale] : [3 * scale, 5 * scale]);
+  ctx.strokeStyle = item.tone === 'danger' ? '#ff5b4ce6' : '#ffffff66';
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * Flag zone ring with owner fill, progress arc toward the leaning side and the
+ * letter. Breakthrough: a locked flag is drawn dim with a padlock, a captured
+ * one faded.
+ */
 export function paintFlag(ctx, item, c, radiusPx, { letterSize = 12, pulse = 0 } = {}) {
   const color = toneColor(item.rel);
   ctx.save();
+  if (item.role === 'locked' || item.role === 'captured') ctx.globalAlpha = item.role === 'locked' ? 0.5 : 0.62;
   ctx.beginPath();
   ctx.arc(c.x, c.y, Math.max(radiusPx, 4), 0, Math.PI * 2);
   ctx.fillStyle = `${color}33`;
@@ -85,6 +101,7 @@ export function paintFlag(ctx, item, c, radiusPx, { letterSize = 12, pulse = 0 }
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(item.label, 0, 1);
+  if (item.role === 'locked') { ctx.globalAlpha = 0.9; drawIcon(ctx, 'padlock', size * 0.62, -size * 0.62, letterSize * 0.95, '#e8eef2'); }
   ctx.restore();
 }
 
@@ -133,5 +150,5 @@ export function paintUnit(ctx, item, c, heading = 0, size = 1) {
   ctx.restore();
 }
 
-const ORDER = Object.freeze({ hq: 0, flag: 1, aura: 2, vehicle: 2, team: 3, squad: 4, down: 5, spotted: 6, self: 7 });
+const ORDER = Object.freeze({ front: 0, hq: 0, flag: 1, aura: 2, vehicle: 2, team: 3, squad: 4, down: 5, spotted: 6, self: 7 });
 export const sortItems = items => [...items].sort((a, b) => (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9));

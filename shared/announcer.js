@@ -63,6 +63,22 @@ export const TITANFALL_CUES = Object.freeze({
 export const TITANFALL_CUE_ROOT = '/assets/audio/announcer/titanfall';
 export const titanfallCueUrl = cue => Object.hasOwn(TITANFALL_CUES, cue) ? `${TITANFALL_CUE_ROOT}/${cue}.wav` : null;
 
+/**
+ * Breakthrough sector calls (docs/conquest.md, Breakthrough). No dedicated
+ * sector lines exist yet: a fallen sector reuses the Titanfall momentum calls
+ * ("We are winning / losing this fight"), the break-through itself is left to
+ * the victory / defeat call. Every id is a TITANFALL_CUES entry.
+ */
+export const BREAKTHROUGH_CUES = Object.freeze(['winning', 'losing']);
+
+/** One Breakthrough event (sector_captured, sector_overtime) → at most one call for the local team. */
+export function breakthroughAnnouncerCue(ev, selfTeam) {
+  if (!ev || !selfTeam) return null;
+  if (ev.kind === 'sector_captured') return ev.next >= 0 ? (ev.team === selfTeam ? 'winning' : 'losing') : null;
+  if (ev.kind === 'sector_overtime') return ev.team === selfTeam ? 'losing' : 'winning';
+  return null;
+}
+
 /** Every cue a local announcer voice may speak (multikill, objective and titanfall). */
 export function announcerCueInfo(cue) {
   if (typeof cue !== 'string') return null;

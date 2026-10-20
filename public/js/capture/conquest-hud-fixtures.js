@@ -4,7 +4,7 @@
  * for the static capture page and the Node UI suites. Positions come from the
  * frozen FRONTIER_PLAN; nothing here is read by the live game.
  */
-import { FRONTIER_PLAN, KIT_IDS, VEHICLE_STATUS, vehicleMountOrder } from '../../../shared/conquest-contract.js';
+import { BREAKTHROUGH_RULES, FRONTIER_PLAN, KIT_IDS, VEHICLE_STATUS, vehicleMountOrder } from '../../../shared/conquest-contract.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { encodeConquestFlag } from '../../../shared/conquest.js';
 
@@ -451,5 +451,57 @@ export function conquestHudFixtures() {
     match.results = roster(self).map(p => ({ id: p.id, name: p.name, team: p.team, kills: p.kills, deaths: p.deaths, score: p.score, cqs: p.cqs, squad: p.cq[1], bot: p.id !== 'me' }));
     out.push(state('result', 'Result · ticket graph and MVPs', { self, players: roster(self), match, screen: 'result', camera: cam(C.x, GROUND + 1.6, C.z, 0) }));
   }
+  // 21. Breakthrough (docs/conquest.md, Breakthrough): WEST attacks, sector 1 (A B) fell, C is active, D E locked.
+  const E = FRONTIER_PLAN.flags.find(f => f.id === 'E');
+  {
+    const self = meAt(C.x + 4, C.z + 6);
+    out.push(state('bt-attack', 'Breakthrough · attacking sector 2 · sector 1 captured, +20 tickets', { self,
+      players: roster(self, [player('sq3', 'Halden', 'alpha', C.x - 5, C.z + 2, { cq: { squad: 1 } })]), vehicles: [spottedTank],
+      match: breakthroughMatch({ sector: 1, tickets: 22, flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'),
+        flag('C', -0.38, 'bravo', 'neutralizing', 3, 1), flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')] }),
+      camera: cam(C.x + 4, GROUND + 1.6, C.z + 6, yawTo(C, D) + 0.35),
+      events: [{ kind: 'sector_captured', sector: 0, next: 1, team: 'alpha', flags: ['A', 'B'], refill: BREAKTHROUGH_RULES.refillPerSector, tickets: 22, graceEndsAt: null }] }));
+  }
+  // 22. Breakthrough defender (EAST attacks here, so WEST holds): sector E D just fell, the player stands behind the new line inside the grace.
+  {
+    const self = meAt(D.x - 30, D.z + 40, { cq: { squad: 1, kitId: 'support' } });
+    out.push(state('bt-fallback', 'Breakthrough · defending · sector lost, fall back inside the grace', { self, players: roster(self),
+      match: breakthroughMatch({ attackers: 'bravo', sector: 1, tickets: 26, graceEndsAt: FIXTURE_NOW + 12_400,
+        flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 1, 'alpha', 'idle'),
+          flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')] }),
+      camera: cam(D.x - 30, GROUND + 1.6, D.z + 40, yawTo({ x: D.x - 30, z: D.z + 40 }, C)),
+      events: [{ kind: 'sector_captured', sector: 0, next: 1, team: 'bravo', flags: ['E', 'D'], refill: BREAKTHROUGH_RULES.refillPerSector, tickets: 26, graceEndsAt: FIXTURE_NOW + 12_400 }] }));
+  }
+  // 23. Breakthrough overtime: the attackers ran out of tickets while contesting E in the last sector.
+  {
+    const self = meAt(E.x - 4, E.z + 3);
+    out.push(state('bt-overtime', 'Breakthrough · attacking the last sector · overtime at 0 tickets', { self, players: roster(self),
+      match: breakthroughMatch({ sector: 2, tickets: 0, overtime: true, flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'),
+        flag('C', 1, 'alpha', 'idle'), flag('D', 1, 'alpha', 'idle'), flag('E', -0.6, 'bravo', 'contested', 2, 2)] }),
+      camera: cam(E.x - 4, GROUND + 1.6, E.z + 3, yawTo(E, D) + Math.PI),
+      events: [{ kind: 'sector_overtime', team: 'alpha' }] }));
+  }
+  // 24. Breakthrough deploy: the attackers' HQ moved up to the taken sector (FORWARD HQ at A B).
+  {
+    const self = meAt(C.x, C.z, { hp: 0, state: 'dead', respawnAt: FIXTURE_NOW + 2600, cq: { squad: 1, kitId: 'assault' } });
+    out.push(state('bt-deploy', 'Breakthrough · deploy · forward HQ on the taken sector', { self, players: deployRoster(self), vehicles: [tankRow],
+      match: breakthroughMatch({ sector: 1, tickets: 22, flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'),
+        flag('C', -1, 'bravo', 'idle'), flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')] }),
+      dead: true, killer: { name: 'Rourke', weaponName: 'VK-77 RAPTOR', distance: 64 }, selection: { spawn: 'hq', kit: 'assault', variant: 0 },
+      camera: cam(C.x, 40, C.z, 0, -0.5) }));
+  }
   return out;
+}
+
+/**
+ * A Breakthrough match.conquest: attacker-only tickets (BREAKTHROUGH_RULES pool), no bleed
+ * field, the `bt` tuple [attackers, sector, 'AB.C.DE', graceEndsAt, overtime].
+ */
+function breakthroughMatch({ attackers = 'alpha', sector = 0, tickets = BREAKTHROUGH_RULES.tickets, graceEndsAt = 0, overtime = false, flags, phase = 'live', winner } = {}) {
+  const match = baseMatch({ flags, phase, winner, tickets: { alpha: attackers === 'alpha' ? tickets : 0, bravo: attackers === 'bravo' ? tickets : 0 } });
+  delete match.conquest.bleed;
+  match.conquest.maxTickets = BREAKTHROUGH_RULES.tickets;
+  match.conquest.endsAt = FIXTURE_NOW + 24 * 60_000 + 18_000;
+  match.conquest.bt = [attackers, sector, attackers === 'alpha' ? 'AB.C.DE' : 'ED.C.BA', graceEndsAt, overtime ? 1 : 0];
+  return match;
 }

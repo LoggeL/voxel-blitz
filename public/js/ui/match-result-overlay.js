@@ -3,6 +3,7 @@ import { isTeamMode } from '../../../shared/modes.js';
 import { Scoreboard } from './scoreboard.js';
 import { MODE_TITLES } from './mode-presentation.js';
 import { TEAM_DISPLAY } from '../../../shared/conquest-contract.js';
+import { decodeBreakthrough } from '../../../shared/breakthrough.js';
 import { conquestMvps, relativeTeam, ticketGraphModel } from './conquest/scoring.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -163,6 +164,20 @@ export class MatchResultOverlay {
         this.dom.title.textContent = 'DRAW';
         this.dom.detail.textContent = 'TICKETS AND FLAGS EVEN';
       } else this.dom.detail.textContent = `${winnerName} HOLDS THE FRONTIER`;
+      // Breakthrough (match.conquest.bt): the sectors taken tell the round, not a ticket pair.
+      const bt = decodeBreakthrough(match?.conquest?.bt);
+      if (bt) {
+        const taken = Math.min(bt.sector, bt.count);
+        this.dom.score.textContent = '';
+        const span = el('span', 'vb-result-alpha-score', this.dom.score);
+        span.dataset.rel = relativeTeam(bt.attackers, selfTeam);
+        span.textContent = `${taken} / ${bt.count}`;
+        span.title = 'Sectors captured by the attackers';
+        if (winner != null) {
+          this.dom.detail.textContent = winner === bt.attackers ? `${winnerName} BROKE THROUGH · ${bt.count} OF ${bt.count} SECTORS`
+            : `${winnerName} HELD THE LINE · ${taken} OF ${bt.count} SECTORS LOST`;
+        }
+      }
     }
     if (mode === 'bastion') {
       const b = match.bastion || {};

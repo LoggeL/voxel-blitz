@@ -11,6 +11,7 @@ import {
   VEHICLE_STATUS,
   VEHICLE_TOPOLOGY,
 } from './conquest-contract.js';
+import { breakthroughHqAnchor, breakthroughSpawnFlag, decodeBreakthrough } from './breakthrough.js';
 
 export { CONQUEST_TEAMS };
 
@@ -226,6 +227,8 @@ export function decodeConquestMatch(matchConquest, metaConquest = null) {
     bases: metaConquest?.bases ?? {},
     combatArea: metaConquest?.combatArea ?? null,
     ticketGraph: Array.isArray(match.ticketGraph) ? match.ticketGraph : null,
+    // Breakthrough variant state (shared/breakthrough.js), null in plain Conquest.
+    breakthrough: decodeBreakthrough(match.bt),
   };
 }
 
@@ -285,7 +288,13 @@ const insideZone = (flag, p, rules) => Number.isFinite(flag?.x) && Number.isFini
  *          vehicles: [{id, type, team, hp, seatOccupants, st?, disabled?}] }
  * self = { id, team, squad, bot? }
  *
- * Returns `[{spawn, kind, id, ok, reason, x, z, seats?, takeover?}]`. `reason`
+ * In Breakthrough the view also carries `breakthrough` (decodeBreakthrough
+ * plus the attackers' `tickets`): a side deploys only on the flags
+ * breakthroughSpawnFlag allows (the attackers' last captured sector is their
+ * `forward` base), and attackers out of tickets get every option refused as
+ * `tickets`.
+ *
+ * Returns `[{spawn, kind, id, ok, reason, x, z, seats?, takeover?, forward?}]`. `reason`
  * is a deploy_refused reason or null. A vehicle lists its free `seats` and,
  * for a human, the `takeover` seats a friendly bot holds: deploying there puts
  * the bot out. The server adds checks the client cannot see (squad damage lock
@@ -295,14 +304,20 @@ export function deployOptions(view, self, rules = CONQUEST_RULES) {
   const team = self?.team;
   if (!TEAM_SET.has(team)) return [];
   const selfId = self?.id == null ? null : String(self.id);
-  const options = [{ spawn: 'hq', kind: 'hq', id: team, ok: true, reason: null, x: null, z: null }];
   const flags = Array.isArray(view?.flags) ? view.flags : [];
+  const bt = view?.breakthrough ?? null;
+  // Breakthrough moves the HQ with the front (breakthroughHqAnchor): `forward` with its flags and centre.
+  const hq = bt ? breakthroughHqAnchor(bt, team, flags) : null;
+  const options = [{ spawn: 'hq', kind: 'hq', id: team, ok: true, reason: null, x: hq ? coord(hq.x) : null, z: hq ? coord(hq.z) : null,
+    ...(hq ? { forward: true, flags: hq.flags } : {}) }];
   for (const flag of flags) {
     if (flag?.owner !== team) continue;
+    const sector = bt ? breakthroughSpawnFlag(bt, flag.id, team) : null;
+    if (sector && !sector.allowed) continue;
     const enemies = flag[oppositeTeam(team)] | 0;
     const reason = DEPLOY_BLOCKING.has(flag.state) ? 'contested' : enemies > 0 ? 'enemy' : null;
     options.push({ spawn: `flag:${flag.id}`, kind: 'flag', id: String(flag.id), ok: !reason, reason,
-      x: coord(flag.x), z: coord(flag.z) });
+      x: coord(flag.x), z: coord(flag.z), ...(sector?.forward ? { forward: true } : {}) });
   }
   const vehicles = new Map((Array.isArray(view?.vehicles) ? view.vehicles : []).map(v => [String(v.id), v]));
   // Humans take seats from friendly bots (never the reverse, never from a human).
@@ -333,6 +348,8 @@ export function deployOptions(view, self, rules = CONQUEST_RULES) {
     options.push({ spawn: `vehicle:${hull.id}`, kind: 'vehicle', id: String(hull.id), ok: !reason, reason,
       x: coord(hull.x), z: coord(hull.z), type: hull.type, seats, ...(takeover.length ? { takeover } : {}) });
   }
+  // Breakthrough attackers without reinforcements: nobody deploys (the overtime is fought by the living).
+  if (bt && team === bt.attackers && !(bt.tickets > 0)) for (const option of options) Object.assign(option, { ok: false, reason: 'tickets' });
   return options;
 }
 
@@ -365,5 +382,7 @@ export function deployViewFromSnapshot(decodedMatch, players = [], vehicles = []
       bot: p.bot === true || isBotId(String(p.id)) })),
     vehicles: (vehicles || []).map(v => ({ id: v.id, type: v.type, team: v.team, hp: v.hp, x: v.x, z: v.z,
       seatOccupants: v.seatOccupants, occupantId: v.occupantId, st: v.st, disabled: v.disabled })),
+    breakthrough: decodedMatch?.breakthrough
+      ? { ...decodedMatch.breakthrough, tickets: decodedMatch.tickets?.[decodedMatch.breakthrough.attackers] ?? 0 } : null,
   };
 }
