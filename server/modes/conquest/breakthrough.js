@@ -1,8 +1,8 @@
 import { BREAKTHROUGH_RULES, CONQUEST_TEAMS } from '../../../shared/conquest-contract.js';
 import { buildCapturePresence, flagPresence, oppositeTeam, teamSign } from '../../../shared/conquest.js';
 import {
-  breakthroughAxis, breakthroughFront, breakthroughHqAnchor, breakthroughHqFlags, breakthroughSectors, breakthroughVehicleSpawns,
-  encodeBreakthrough, outsideFront, sectorRole,
+  boatLanePoints, breakthroughAxis, breakthroughFront, breakthroughHeldPads, breakthroughHqAnchor, breakthroughHqFlags, breakthroughSectors,
+  breakthroughVehicleSpawns, encodeBreakthrough, outsideFront, sectorRole,
 } from '../../../shared/breakthrough.js';
 import { ConquestPolicy } from '../conquest.js';
 import { TicketLedger } from './tickets.js';
@@ -109,7 +109,35 @@ export class BreakthroughPolicy extends ConquestPolicy {
   _createLedger() { return new BreakthroughLedger(this.rules); }
   _createBounds() { return new FrontBounds(this.rules); }
 
-  vehicleSpawns() { return breakthroughVehicleSpawns(super.vehicleSpawns(), this.rules); }
+  /**
+   * The Breakthrough hull list (breakthroughVehicleSpawns). Every reset is a
+   * round start, so the 'lane' pads held in the first sector start empty
+   * (`held`); _syncLanePads moves them with the front.
+   */
+  vehicleSpawns() {
+    const list = breakthroughVehicleSpawns(super.vehicleSpawns(), this.rules);
+    const held = this.sectors ? this._heldPads(list, { ...this.btView(), sector: 0, done: false }) : new Set();
+    return held.size ? list.map(s => (held.has(s.id) ? { ...s, held: true } : s)) : list;
+  }
+
+  /** Pads held at the sector of `bt`: 'lane' hulls whose side of the front keeps none of the boat lane. */
+  _heldPads(list, bt) {
+    const front = breakthroughFront(bt, this.capture.flags, this.mapMeta?.conquest?.bases, this.rules);
+    return breakthroughHeldPads(list, { bt, front, lanes: boatLanePoints(this.mapMeta?.conquest?.waterways), rules: this.rules });
+  }
+
+  /**
+   * Hold or release the 'lane' pads for the active sector (BREAKTHROUGH_RULES.vehicles.types):
+   * on Frontier the attackers' patrol boats launch with the Iron Bridge sector, the defenders'
+   * stand down once it falls (a crewed boat sails on until it is lost).
+   */
+  _syncLanePads() {
+    const vehicles = this.vehicleSystem;
+    if (typeof vehicles?.setPadHeld !== 'function' || !this.bt) return;
+    const list = breakthroughVehicleSpawns(super.vehicleSpawns(), this.rules);
+    const held = this._heldPads(list, this.btView());
+    for (const s of list) if (this.rules.vehicles?.types?.[s.type] === 'lane' && typeof s.flag !== 'string') vehicles.setPadHeld(s.id, held.has(s.id));
+  }
 
   /** Called by the base constructor too, so it only reads rules and map data. */
   _resetObjectives() {
@@ -123,6 +151,7 @@ export class BreakthroughPolicy extends ConquestPolicy {
     this.capture.locked = flag => sectorRole(this.btView(), flag.id) !== 'active';
     this._syncPads();
     this._updateFront();
+    this._syncLanePads();
   }
 
   /** The map's sector table restricted to its flags; without one, a sector per flag along the HQ axis. */
@@ -177,6 +206,7 @@ export class BreakthroughPolicy extends ConquestPolicy {
     this.bt.graceEndsAt = done ? 0 : now + this.rules.fallbackGraceMs;
     if (refill > 0) this.bt.overtime = false;
     this._updateFront();
+    this._syncLanePads();
     this._emit('sector_captured', { sector: taken, next: done ? -1 : this.bt.sector, team: this.attackerTeam, flags: flags.map(f => f.id),
       refill, tickets: this.ledger.tickets[this.attackerTeam], graceEndsAt: this.bt.graceEndsAt || null });
     if (done) this._finishMatch(this.attackerTeam);

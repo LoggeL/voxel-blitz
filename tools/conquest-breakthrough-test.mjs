@@ -12,7 +12,7 @@ import {
 } from '../shared/conquest-contract.js';
 import { decodeConquestMatch, deployOptions, deployViewFromSnapshot } from '../shared/conquest.js';
 import {
-  breakthroughFront, breakthroughHqFlags, breakthroughSpawnFlag, breakthroughVehicleSpawns, decodeBreakthrough, encodeBreakthrough,
+  boatLanePoints, breakthroughFront, breakthroughHeldPads, breakthroughHqFlags, breakthroughSpawnFlag, breakthroughVehicleSpawns, decodeBreakthrough, encodeBreakthrough,
   outsideFront, sectorRole,
 } from '../shared/breakthrough.js';
 import { BreakthroughPolicy } from '../server/modes/conquest/breakthrough.js';
@@ -27,13 +27,14 @@ const spot = (x, z) => ({ x: x + 0.5, y: 2, z: z + 0.5 });
 const ring = (x, z) => Array.from({ length: 12 }, (_, i) => spot(x + Math.round(Math.cos(i * Math.PI / 6) * 6), z + Math.round(Math.sin(i * Math.PI / 6) * 6)));
 const flagRow = (id, x, z, home) => ({ id, name: `Flag ${id}`, ...spot(x, z), radius: 10, home, spawns: ring(x, z) });
 
-function fixture({ variant = 'breakthrough', vehicles = [] } = {}) {
+function fixture({ variant = 'breakthrough', vehicles = [], waterways } = {}) {
   const hq = (team, x) => ({ id: team, name: `${team} HQ`, ...spot(x, 80), radius: 12,
     spawns: [spot(x, 74), spot(x, 77), spot(x, 80), spot(x, 83), spot(x, 86)] });
   const bases = { alpha: hq('alpha', 8), bravo: hq('bravo', SX - 9) };
   const mapMeta = { id: 'frontier', dimensions: { sx: SX, sy: SY, sz: SZ },
     spawns: { conquest: { alpha: bases.alpha.spawns, bravo: bases.bravo.spawns } },
     conquest: { version: 2, bases, combatArea: { minX: 2, maxX: SX - 2, minZ: 2, maxZ: SZ - 2 }, vehicleSpawns: vehicles,
+      ...(waterways ? { waterways } : {}),
       flags: [flagRow('A', 50, 40, 'alpha'), flagRow('B', 50, 120, 'alpha'), flagRow('C', 100, 80, null),
         flagRow('D', 150, 40, 'bravo'), flagRow('E', 150, 120, 'bravo')] } };
   const solid = (x, y, z) => x < 0 || z < 0 || x >= SX || z >= SZ || y < 2;
@@ -389,6 +390,70 @@ const park = (team, players) => players.forEach((p, i) => place(p, team === 'alp
     'attackers may push 40 m past the C | D/E line (x 480)');
 }
 
+// --- lane, hq and kit hulls: the patrol boats move with the river sector -----------------
+{
+  eq(BREAKTHROUGH_RULES.vehicles.types, { boat: 'lane', aa: 'hq', mortar: 'kit' });
+  const pad = (id, type, team, x, z) => ({ id, type, team, x: x + 0.5, y: 2, z: z + 0.5, yaw: 0 });
+  const vehicles = [pad('alpha-aa', 'aa', 'alpha', 14, 60), pad('bravo-aa', 'aa', 'bravo', SX - 15, 60),
+    pad('alpha-boat', 'boat', 'alpha', 20, 140), pad('bravo-boat', 'boat', 'bravo', SX - 21, 140), pad('alpha-mortar', 'mortar', 'alpha', 14, 100)];
+  // The river runs between C and D/E (x 120): inside the attackers' push only from sector 1.
+  const waterways = [{ kind: 'boat-lane', points: [[120, 1, 20], [120, 1, 140]] }];
+  ok(!breakthroughVehicleSpawns(vehicles).some(s => s.type === 'mortar'), "a 'kit' hull (the mortar) never gets a pad");
+  eq(boatLanePoints(waterways), [{ x: 120, z: 20 }, { x: 120, z: 140 }]);
+  eq(boatLanePoints([{ kind: 'channel', points: [[1, 1, 1]] }, null]), [], 'only boat lanes count');
+  const { game, policy } = fixture({ vehicles, waterways });
+  const { alpha, bravo } = roster(game, 4);
+  park('alpha', alpha); park('bravo', bravo);
+  run(game, TICK_MS);
+  const hull = id => game.vehicles.vehicles.get(id);
+  const live = id => { const v = hull(id); return !!v && v.hp > 0 && !v.padInactive; };
+  eq([live('alpha-aa'), live('bravo-aa')], [true, true], "'hq' hulls: both mobile AAs stand at their HQs");
+  eq(hull('alpha-mortar'), undefined, 'no mortar pad in the hull list');
+  eq([live('alpha-boat'), hull('alpha-boat').padHeld, live('bravo-boat')], [false, true, true],
+    'sector 0: the river lies past the attackers\' push, their boat waits; the defenders\' sails');
+  for (const id of ['A', 'B']) Object.assign(flagOf(policy, id), { owner: 'alpha', control: 1 });
+  run(game, TICK_MS);
+  eq(policy.btView().sector, 1);
+  run(game, 2 * TICK_MS);
+  eq([live('alpha-boat'), hull('alpha-boat').padHeld, live('bravo-boat')], [true, false, true], 'sector 1 (the river sector): both boats launch');
+  Object.assign(flagOf(policy, 'C'), { owner: 'alpha', control: 1 });
+  run(game, 2 * TICK_MS);
+  eq(policy.btView().sector, 2);
+  eq([live('alpha-boat'), live('bravo-boat'), hull('bravo-boat').padHeld], [true, false, true],
+    'sector 2: the river is lost ground for the defenders, their uncrewed boat at its pad is retired');
+  eq([live('alpha-aa'), live('bravo-aa')], [true, true], 'the AAs stay on in every sector');
+  // A wreck on a held pad stays gone.
+  const boat = hull('bravo-boat');
+  Object.assign(boat, { hp: 0, padInactive: false, respawnIn: 0, wreckAge: 0 });
+  run(game, 2000);
+  ok(!live('bravo-boat') && boat.padInactive, 'a held pad never respawns its hull');
+  // A rematch (round start) holds the attackers' boat again and brings the defenders' back.
+  policy.reset();
+  run(game, 2 * TICK_MS);
+  eq([policy.btView().sector, live('alpha-boat'), hull('alpha-boat').padHeld, live('bravo-boat'), !!hull('bravo-boat').padHeld],
+    [0, false, true, true, false], 'rematch: back to the sector 0 boats');
+}
+// Real Frontier: the held boat pads per sector.
+{
+  const { FRONTIER_LAYOUT } = await import('../shared/world/frontier-layout.js');
+  const meta = FRONTIER_LAYOUT.conquest;
+  const list = breakthroughVehicleSpawns(meta.vehicleSpawns);
+  const lanes = boatLanePoints(meta.waterways);
+  ok(lanes.length > 10, 'Frontier publishes its boat lane');
+  const heldAt = (sector, rules = BREAKTHROUGH_RULES) => {
+    const bt = decodeBreakthrough(encodeBreakthrough({ attackers: 'alpha', sector, sectors: BREAKTHROUGH_RULES.sectors.frontier }));
+    return [...breakthroughHeldPads(list, { bt, front: breakthroughFront(bt, meta.flags, meta.bases), lanes, rules })].sort();
+  };
+  const boats = list.filter(s => s.type === 'boat').map(s => s.id);
+  eq(boats.length, 4, 'two boats per side');
+  eq(heldAt(0), boats.filter(id => id.startsWith('alpha-')).sort(), "Frontier sector 0: the attackers' boats wait (only the south bend is in reach)");
+  eq(heldAt(0, { ...BREAKTHROUGH_RULES, vehicles: { ...BREAKTHROUGH_RULES.vehicles, laneShare: 0 } }), [], 'laneShare 0: any lane point in reach launches');
+  eq(heldAt(1), [], 'sector 1 (Iron Bridge): every boat sails');
+  eq(heldAt(2), boats.filter(id => id.startsWith('bravo-')).sort(), "sector 2: the defenders' boats stand down");
+  eq(['alpha', 'bravo'].map(team => list.filter(s => s.team === team && s.type === 'aa').length), [1, 1], 'one mobile AA per HQ');
+  ok(!list.some(s => s.type === 'mortar'), 'no mortar pads on Frontier');
+}
+
 // --- lobby: the host picks the variant ---------------------------------------------------
 {
   const { LobbyManager } = await import('../server/lobby.js');
@@ -411,4 +476,4 @@ const park = (team, players) => players.forEach((p, i) => place(p, team === 'alp
 }
 
 console.log(`Conquest Breakthrough: ${checks} checks passed (contract and wire, round start, locked flags, sector capture and refill, `
-  + 'fall-back grace and front, deploy options and client parity, overtime and tickets, break-through and rematch, hulls per side, lobby).');
+  + 'fall-back grace and front, deploy options and client parity, overtime and tickets, break-through and rematch, hulls per side, lane/hq/kit hulls, lobby).');

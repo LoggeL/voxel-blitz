@@ -217,6 +217,8 @@ export class VehicleSystem {
       this.freshCondition(v);
       this.mounts.reset(v);
       if (v.spawn.flag && (s.team == null)) Object.assign(v, { hp: 0, padInactive: true, wreckAge: Infinity });
+      // A held pad (`held`, setPadHeld) starts empty and waits for its release.
+      else if (s.held === true && !v.spawn.flag) Object.assign(v, { hp: 0, padInactive: true, padHeld: true, wreckAge: Infinity });
       this.vehicles.set(s.id, v);
     }
     for (const v of this.vehicles.values()) if (isAircraft(v.type) && v.hp > 0) {
@@ -770,6 +772,28 @@ export class VehicleSystem {
       if (!owner || !(v.hp > 0) || this.crew(v).length) continue;
       const pad = this.padPosition(v, v.team);
       if (Math.hypot(v.x - pad.x, v.z - pad.z) <= VEHICLE_LIFECYCLE.padSwitchDistance) v.team = owner;
+    }
+    return true;
+  }
+  /**
+   * Hold or release an HQ pad (Breakthrough's 'lane' hulls, server/modes/conquest/breakthrough.js).
+   * A held pad never respawns its hull; an uncrewed live hull at the pad is retired at once,
+   * one out in the field stays until it is lost. A release spawns the hull on the next step.
+   */
+  setPadHeld(vehicleId, held) {
+    const v = this.vehicles.get(String(vehicleId));
+    if (!v || v.spawn.flag) return false;
+    if (!held) {
+      if (!v.padHeld) return false;
+      v.padHeld = false;
+      if (v.padInactive) Object.assign(v, { padInactive: false, respawnIn: 0, wreckAge: Infinity, team: v.spawn.team ?? v.team });
+      return true;
+    }
+    if (v.padHeld) return false;
+    v.padHeld = true;
+    if (v.hp > 0 && !this.crew(v).length) {
+      const pad = this.padPosition(v, v.team);
+      if (Math.hypot(v.x - pad.x, v.z - pad.z) <= VEHICLE_LIFECYCLE.padSwitchDistance) Object.assign(v, { hp: 0, padInactive: true, wreckAge: Infinity });
     }
     return true;
   }
@@ -1750,7 +1774,8 @@ export class VehicleSystem {
         this.advanceWreck(v,dt);
         if (this.titans?.wreckDone(v) || this.mortars?.wreckDone(v)) { this.vehicles.delete(v.id); continue; }
         v.respawnIn=Math.max(0,v.respawnIn-dt);
-        if(v.respawnIn===0) this.tryRespawn(v, dt);
+        // A held pad (setPadHeld) takes the wreck away instead of respawning it.
+        if(v.respawnIn===0) { if (v.padHeld) v.padInactive = true; else this.tryRespawn(v, dt); }
         continue;
       }
       this.damageModel.step(v, dt);

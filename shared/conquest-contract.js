@@ -77,9 +77,18 @@ export const BREAKTHROUGH_RULES = Object.freeze({
   // bring a second tank (offset in metres in the attackers' frame, mirrored for bravo; 20 m
   // south of the HQ tank, past the mobile AA's bay at +9 m, just off the motor pool); the
   // defenders' HQ tank bay fields an AT jeep (their armour is the Iron Bridge tank while C holds).
+  // `types`, per hull type: 'lane' hulls (the patrol boat) wait at their pads while less than
+  // `laneShare` of the map's boat lane lies on their side of the front (Frontier's river runs through
+  // the Iron Bridge sector: the attackers' boats launch once it is active, the defenders' are retired
+  // once it falls; in sector 0 only the river's southern bend, ~10 %, reaches inside the attackers' push);
+  // 'hq' hulls (the mobile AA) stay at both HQs, as each side faces the other's aircraft in every
+  // sector; 'kit' hulls (the Support mortar, a deployable) never get a pad, and their operator obeys
+  // the front like infantry. The HQ pads themselves never move with the front (docs/conquest.md).
   vehicles: Object.freeze({
     attacker: Object.freeze({ add: Object.freeze([Object.freeze({ pad: 'tank-2', copy: 'tank', dx: 0, dz: 20 })]) }),
     defender: Object.freeze({ retype: Object.freeze({ tank: 'jeep_at' }) }),
+    types: Object.freeze({ boat: 'lane', aa: 'hq', mortar: 'kit' }),
+    laneShare: 0.25,
   }),
   // Bot commander: share of squads sent at enemy-held active flags (for the defenders: retakes).
   botAttackShare: Object.freeze({ attacker: 0.8, defender: 0.3 }),

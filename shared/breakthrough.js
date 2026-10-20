@@ -145,11 +145,14 @@ export function breakthroughSpawnFlag(bt, flagId, team) {
  * flag pad starts with the defenders (they hold every flag), the defenders'
  * HQ pads named in `retype` field another hull type, and the attackers' `add`
  * entries copy an HQ pad by a fixed offset (mirrored when bravo attacks).
+ * Hull types marked 'kit' in `vehicles.types` (deployables) are dropped.
  */
 export function breakthroughVehicleSpawns(spawns, rules = BREAKTHROUGH_RULES) {
   const attackers = TEAM_SET.has(rules?.attackers) ? rules.attackers : 'alpha', defenders = other(attackers);
   const retype = rules?.vehicles?.defender?.retype ?? {};
-  const list = (Array.isArray(spawns) ? spawns : []).map(s => {
+  const types = rules?.vehicles?.types ?? {};
+  // A 'kit' hull (a deployable) is never a pad hull, whatever the map lists.
+  const list = (Array.isArray(spawns) ? spawns : []).filter(s => types[s?.type] !== 'kit').map(s => {
     if (typeof s?.flag === 'string') return { ...s, team: defenders };
     const pad = typeof s?.id === 'string' && s.id.startsWith(`${defenders}-`) ? s.id.slice(defenders.length + 1) : null;
     return pad && retype[pad] ? { ...s, type: retype[pad] } : s;
@@ -168,4 +171,31 @@ export function breakthroughVehicleSpawns(spawns, rules = BREAKTHROUGH_RULES) {
     list.push(copy);
   }
   return list;
+}
+
+/** Points `{x, z}` of a map's boat lanes (`conquest.waterways` of kind 'boat-lane'). */
+export function boatLanePoints(waterways) {
+  return (Array.isArray(waterways) ? waterways : []).filter(w => w?.kind === 'boat-lane' && Array.isArray(w.points))
+    .flatMap(w => w.points.filter(p => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[2])).map(([x, , z]) => ({ x, z })));
+}
+
+/**
+ * Ids of the pads held this sector: the 'lane' hull pads (vehicles.types) of a
+ * side whose front keeps less than `vehicles.laneShare` of the boat lane
+ * (`lanes`, boatLanePoints). Flag pads follow their flag instead; without a
+ * front or a lane nothing is held.
+ */
+export function breakthroughHeldPads(spawns, { bt, front, lanes, rules = BREAKTHROUGH_RULES } = {}) {
+  const held = new Set();
+  const types = rules?.vehicles?.types ?? {};
+  const share = Number.isFinite(rules?.vehicles?.laneShare) ? rules.vehicles.laneShare : 0;
+  if (!bt || !front || !lanes?.length) return held;
+  const open = {};
+  for (const team of TEAM_SET) open[team] = lanes.filter(p => !outsideFront(front, p, team, bt.attackers, { rear: true })).length / lanes.length;
+  for (const s of Array.isArray(spawns) ? spawns : []) {
+    if (types[s?.type] !== 'lane' || typeof s.flag === 'string' || !TEAM_SET.has(s.team)) continue;
+    // No lane in reach always holds; laneShare raises the bar.
+    if (open[s.team] === 0 || open[s.team] < share) held.add(s.id);
+  }
+  return held;
 }
