@@ -58,12 +58,12 @@ export function bridgeStateBanner(cq, nowMs = 0, rules = IRON_BRIDGE_RULES) {
   return banner && { banner, key: Number.isFinite(bridge.fallAt) ? Math.round(bridge.fallAt) : 'failing' };
 }
 
-/** Countdown text and bar share of a banner at `nowMs`: { seconds, fraction } or null. */
+/** Countdown text and bar share of a banner at `nowMs`: { seconds, fraction, label? } or null. */
 export function bannerCountdown(banner, nowMs) {
   const cd = banner?.countdown;
   if (!cd || !Number.isFinite(cd.until)) return null;
   const left = Math.max(0, cd.until - nowMs);
-  return { seconds: Math.ceil(left / 1000), fraction: Math.max(0, Math.min(1, left / Math.max(1, cd.total))) };
+  return { seconds: Math.ceil(left / 1000), fraction: Math.max(0, Math.min(1, left / Math.max(1, cd.total))), ...(cd.label ? { label: cd.label } : {}) };
 }
 
 /** Badge on the bridge flag's top-bar chip: { flag, badge: 'hazard' (damaged, failing) | 'down' }, or null. */

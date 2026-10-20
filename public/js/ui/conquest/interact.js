@@ -1,10 +1,11 @@
 /**
- * Interact prompt with the revive / repair hold ring. While Interact is held
+ * Interact prompt with the revive / repair / map event `use` hold ring. While Interact is held
  * for at least repairHoldStartMs near a valid target, a support intent is
  * re-sent at 5 Hz (the server drops progress when the last intent is older
  * than supportIntentStaleMs). The ring shows authoritative progress, cq[6].
  */
 import { CONQUEST_RULES } from '../../../../shared/conquest-contract.js';
+import { MAP_EVENT_SUPPORT } from '../../../../shared/conquest-map-events.js';
 import { el } from '../hud-support.js';
 import { bindingLabel } from '../../keybindings.js';
 import { svgIcon } from './icons.js';
@@ -18,7 +19,8 @@ const R = 17, C = 2 * Math.PI * R;
  * last send time, decide whether to send `{type, targetId}` now.
  */
 export function supportPump(state, { model, heldMs, nowMs, rules = CONQUEST_RULES }) {
-  const holdable = model && (model.type === 'revive' || model.type === 'repair');
+  // `use`: a map event interaction point (contract v7), held like a revive.
+  const holdable = model && (model.type === 'revive' || model.type === 'repair' || model.type === MAP_EVENT_SUPPORT);
   const active = holdable && heldMs >= rules.repairHoldStartMs;
   if (!active) return { state: { lastAt: -Infinity, targetId: null, active: false }, send: null };
   const retarget = state.targetId !== model.targetId;
@@ -79,7 +81,7 @@ export class InteractPrompt {
     // Touch has no F-row: "ENTER JEEP · F2 GUNNER" reads "ENTER JEEP · GUNNER".
     const label = touch ? model.label.replace(/ · F\d+ /, ' · ') : model.label;
     const text = model.hold ? `HOLD ${label}` : label;
-    const sig = `${model.type}|${text}|${key}`;
+    const sig = `${model.type}|${text}|${key}|${model.glyph || ''}`;
     if (sig !== this._sig) {
       this._sig = sig;
       this.root.dataset.type = model.type;
@@ -87,7 +89,8 @@ export class InteractPrompt {
       this.key.hidden = !key;
       this.label.textContent = text;
       this.glyph.textContent = '';
-      const icon = svgIcon(globalThis.document, model.type === 'revive' ? 'revive' : model.type === 'repair' ? 'repair' : 'tank', 'cq-interact-icon');
+      const icon = svgIcon(globalThis.document, model.type === 'revive' ? 'revive' : model.type === 'repair' ? 'repair'
+        : model.type === MAP_EVENT_SUPPORT ? model.glyph || 'event' : 'tank', 'cq-interact-icon');
       if (icon && model.hold) this.glyph.appendChild(icon);
       this.root.setAttribute('aria-label', text);
     }

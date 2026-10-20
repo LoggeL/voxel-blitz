@@ -21,6 +21,7 @@ import {
   KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
 } from '../../../shared/conquest-kits.js';
 import { RECON_GADGET_RULES } from '../../../shared/recon-gadgets.js';
+import { MAP_EVENT_SUPPORT, mapEventPointKey, usableMapEventPoint } from '../../../shared/conquest-map-events.js';
 import { WEAPON_NAMES } from './hud-support.js';
 import { aaReticleModel } from './conquest/aa-hud.js';
 import { relativeTeam, squadName, teamDisplayName } from './conquest/scoring.js';
@@ -60,11 +61,13 @@ export function worldSize(mapMeta) {
 }
 
 /** Decoded Conquest state plus the map statics needed by the HUD, or null outside Conquest. */
-export function readConquest(match, mapMeta) {
+export function readConquest(match, mapMeta, { eventDefs } = {}) {
   if (match?.mode !== 'conquest' || !match.conquest) return null;
   const meta = mapMeta?.conquest ?? null;
-  const decoded = decodeConquestMatch(match.conquest, meta);
-  return { ...decoded, size: worldSize(mapMeta), meta };
+  // Map events decode against the map's registered events (`eventDefs` swaps them for fixtures).
+  const mapId = mapMeta?.id ?? match.map ?? null;
+  const decoded = decodeConquestMatch(match.conquest, meta, { mapId, ...(eventDefs ? { eventDefs } : {}) });
+  return { ...decoded, size: worldSize(mapMeta), meta, mapId };
 }
 
 /** The side moving a flag's control, recovered from its state and per-team counts. */
@@ -1496,7 +1499,7 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
  * there sees NEEDS MEDIC. Repair: an engineer within 3.5 m of a damaged friendly
  * hull. Progress of an action in flight comes from cq[6].
  */
-export function interactModel({ self, players = [], vehicles = [], nearbyVehicle = null, seated = null } = {}) {
+export function interactModel({ self, players = [], vehicles = [], nearbyVehicle = null, seated = null, mapEvents = null } = {}) {
   if (!self || !alive(self)) return null;
   const info = decodeConquestPlayer(self);
   const team = playerTeam(self);
@@ -1511,6 +1514,9 @@ export function interactModel({ self, players = [], vehicles = [], nearbyVehicle
     }
     const name = String(target?.name || 'TEAMMATE').toUpperCase();
     if (target && KITS[info?.kit]?.ability === 'revive') return { type: 'revive', targetId: String(target.id), label: `REVIVE ${name}`, progress, hold: true };
+    // A map event interaction point in reach (plant, defuse, turn the wheel, claim the crate): HOLD <VERB>.
+    const point = usableMapEventPoint(mapEvents?.points, self, team);
+    if (point) return { type: MAP_EVENT_SUPPORT, targetId: mapEventPointKey(point.event, point.index), label: point.verb, progress, hold: true, glyph: point.glyph, event: point.event };
     // Only a Medic revives: the others are told who can (after their own repair prompt, see below).
     if (target && !nearbyVehicle) needsMedic = { type: 'needs-medic', targetId: String(target.id), label: `${name} NEEDS A MEDIC`, progress: 0, hold: false };
   }

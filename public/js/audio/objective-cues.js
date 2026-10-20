@@ -13,6 +13,8 @@
  *   sector_overtime  (Breakthrough, own attackers)          → ticket_low + losing (defenders hear winning)
  *   match end (phase → post, winner)                       → victory / defeat
  *   bridge failing / down (Iron Bridge collapse, both teams) → ticket_low / neutralized
+ *   map_event (docs/conquest.md "Map events")              → the definition's `cues`
+ *                                                            (default ticket_low as it warns, neutralized as it strikes)
  *
  * Breakthrough has no sector lines of its own: the momentum calls come from
  * the Titanfall bank (BREAKTHROUGH_CUES, loaded with the objective WAVs).
@@ -35,6 +37,7 @@ import {
   BREAKTHROUGH_CUES, OBJECTIVE_CUES, breakthroughAnnouncerCue, objectiveAnnouncerCue, objectiveCueUrl, titanfallCueUrl,
 } from '../../../shared/announcer.js';
 import { CONQUEST_RULES, FRONTIER_PLAN } from '../../../shared/conquest-contract.js';
+import { MAP_EVENT_DEFS, mapEventDef } from '../../../shared/conquest-map-events.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 
 export const OBJECTIVE_STINGERS = Object.freeze(['capture_start', 'neutralized', 'captured', 'lost', 'ticket_low', 'victory', 'defeat', 'ribbon']);
@@ -109,9 +112,39 @@ export function stingerForEvent(ev, selfTeam, selfId = null) {
     case 'bridge':
       // The Iron Bridge collapse reuses the alarm and the loss stingers (no bridge recording or announcer line yet).
       return ev.name === 'failing' ? 'ticket_low' : ev.name === 'down' ? 'neutralized' : null;
+    case 'map_event':
+      // Map events (docs/conquest.md "Map events") reuse them too (mapEventAudio reads the definition's cues).
+      return mapEventAudio(ev, selfTeam).stinger;
     default:
       return null;
   }
+}
+
+/** Announcer cues a map event definition may name (shared/announcer.js); `under_attack` / `captured` / `lost` take its flag. */
+const EVENT_FLAG_CUES = new Set(['under_attack', 'captured', 'lost']);
+const EVENT_PLAIN_CUES = new Set(['tickets_low', ...BREAKTHROUGH_CUES]);
+
+/**
+ * Pure: the stinger and announcer cue of one `map_event` for the local team,
+ * from the definition's `cues[<phase>]` (shared/map-events/define.js): `own`
+ * when the event's team is the viewer's, `enemy` when it is the other one,
+ * else `any`. Without cues the alarm stinger plays as it warns and the hit
+ * as it strikes, with no announcer line. Notes stay silent.
+ */
+export function mapEventAudio(ev, selfTeam, defs = MAP_EVENT_DEFS) {
+  const none = { stinger: null, cue: null };
+  if (!ev || ev.kind !== 'map_event' || ev.note || !selfTeam) return none;
+  const def = mapEventDef(ev.event, defs);
+  const cues = def?.cues;
+  if (!cues) return { stinger: ev.phase === 'warning' ? 'ticket_low' : ev.phase === 'active' ? 'neutralized' : null, cue: null };
+  const c = cues[ev.phase];
+  if (!c) return none;
+  const side = ev.team ? (ev.team === selfTeam ? 'own' : 'enemy') : null;
+  let cue = (side ? c[side] : null) ?? c.any ?? null;
+  if (cue && EVENT_FLAG_CUES.has(cue)) cue = def.flag && OBJECTIVE_CUES[`${cue}_${def.flag}`] ? `${cue}_${def.flag}` : null;
+  else if (cue && !EVENT_PLAIN_CUES.has(cue) && !OBJECTIVE_CUES[cue]) cue = null;
+  const stinger = c.stinger && OBJECTIVE_STINGERS.includes(c.stinger) ? c.stinger : null;
+  return { stinger, cue };
 }
 
 /** Pure: the announcer cue of a match end. */
@@ -365,7 +398,8 @@ export function createObjectiveCues({ audioContext = null, announcer = null, fet
       let id = stingerForEvent(ev, selfTeam, selfId);
       let cue = ev.kind === 'match_end' ? matchEndCue(ev.winner, selfTeam)
         : ev.kind === 'sector_captured' || ev.kind === 'sector_overtime' ? breakthroughAnnouncerCue(ev, selfTeam)
-          : objectiveAnnouncerCue(ev, selfTeam, ownerBefore);
+          : ev.kind === 'map_event' ? mapEventAudio(ev, selfTeam).cue
+            : objectiveAnnouncerCue(ev, selfTeam, ownerBefore);
       if (id === 'capture_start' && ((selfKnown && !insideFlagZone(ev.flag, selfPos, zones))
         || repeatBlocked(`start:${ev.flag}`, CAPTURE_START_REPEAT_MS))) id = null;
       if (cue && cue.startsWith('under_attack_') && repeatBlocked(cue, UNDER_ATTACK_REPEAT_MS)) cue = null;

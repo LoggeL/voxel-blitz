@@ -43,6 +43,8 @@ import { MortarSight, mortarBanner, mortarSightModel } from './conquest/mortar-s
 import { RibbonToast, ribbonToastEntry } from './conquest/ribbons.js';
 import { WeatherChip } from './conquest/weather-chip.js';
 import { bridgeBanner, bridgeChipBadge, bridgeMapModel, bridgeStateBanner } from './conquest/bridge-hud.js';
+import { mapEventBanner, mapEventMapItems, mapEventMarkerModels, mapEventPoint, syncMapEventPhases, whereText } from './conquest/map-events.js';
+import { MAP_EVENT_DEFS, MAP_EVENT_KIND } from '../../../shared/conquest-map-events.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 /** Per-frame DOM writes compare first: an equal data-* or hidden write still invalidates style. */
@@ -91,6 +93,10 @@ export class ConquestHud {
     // The battlefield's overview image, picked before the minimap, big map and
     // deploy map load it (update() keeps it in step with mapMeta.id after).
     if (typeof mapId === 'string' && mapId) { this._overviewMap = mapId; setOverviewMap(mapId); }
+    // Map events (conquest/map-events.js): the definitions `ev` decodes against (setEventDefs swaps them
+    // for fixtures) and the phase of each event the HUD has bannered, from events and snapshots alike.
+    this.eventDefs = MAP_EVENT_DEFS;
+    this._eventPhases = new Map();
     // Comm rose picks ({comm: kind}), full-map orders ({order: flagId | ''}), the Input UI capture
     // (Input.setUiCapture: the rose and the map cursor own the aim while up) and the radio squelch.
     this.onComm = typeof onComm === 'function' ? onComm : () => {};
@@ -512,7 +518,7 @@ export class ConquestHud {
   /** State half of update(): mode, death and deploy transitions, the seated hull. False outside Conquest. */
   _ingest(args) {
     const { match, mapMeta = null, self = null, vehicleController = null, nowMs = null } = args;
-    const cq = readConquest(match, mapMeta);
+    const cq = readConquest(match, mapMeta, { eventDefs: this.eventDefs });
     if (!cq) { this._lastArgs = null; this.hide(); return false; }
     if (mapMeta?.id && mapMeta.id !== this._overviewMap) { this._overviewMap = mapMeta.id; setOverviewMap(mapMeta.id); }
     this._lastArgs = args;
@@ -544,6 +550,12 @@ export class ConquestHud {
     const collapsing = post ? null : bridgeStateBanner(cq, now);
     if (collapsing && collapsing.key !== this._bridgeFailing) this.banners.push(collapsing.banner, now);
     this._bridgeFailing = collapsing?.key ?? null;
+    // Map events likewise: a phase the snapshot shows that no `map_event` bannered yet (a joiner mid-event).
+    if (!post) {
+      const sync = syncMapEventPhases(cq, this._eventPhases, now);
+      this._eventPhases = sync.seen;
+      for (const ev of sync.fresh) this._pushMapEvent(ev, now);
+    }
     const end = matchEndBanner(match, selfTeam);
     if (end && end.key !== this._endKey) { this._endKey = end.key; this.banners.hold(end, now); }
     else if (!end && this._endKey) { this._endKey = null; this.banners.clear(); }
@@ -578,7 +590,8 @@ export class ConquestHud {
     // Squad order (the squad tuple's flag) and the comm requests this player should see.
     const order = orderFlagOf(cq, self);
     const requests = alive ? visibleRequests({ self, players, vehicles, seated }) : [];
-    const items = [...withOrderRing(mapItems({ cq, self, players, vehicles, selfTeam }), order), ...requestMapItems(requests)];
+    const items = [...withOrderRing(mapItems({ cq, self, players, vehicles, selfTeam }), order), ...requestMapItems(requests),
+      ...mapEventMapItems(cq, selfTeam, { nowMs: now })];
     const bridge = bridgeMapModel(cq);
     // The minimap paints before this frame's HUD DOM writes: its flag letters are canvas
     // text, and text on a canvas in the document first flushes every pending style change.
@@ -586,7 +599,7 @@ export class ConquestHud {
     if (touch !== this._touch) { this._touch = touch; this.minimap.invalidateSize(); } // --cq-minimap follows touch mode
     if (living) {
       setHidden(this.minimap.root, false);
-      this.minimap.draw({ items, center: { x: self.x, z: self.z }, yaw, size: cq.size, meta: cq.meta, nowMs: now, bridge });
+      this.minimap.draw({ items, center: { x: self.x, z: self.z }, yaw, size: cq.size, meta: cq.meta, nowMs: now, bridge, mapEvents: cq.mapEvents });
     }
 
     this.topBar.update(ticketModel(cq, selfTeam, now), flagChipModels(cq, selfTeam), { bridge: bridgeChipBadge(cq) });
@@ -679,7 +692,8 @@ export class ConquestHud {
       projector ? spreadEdgeMarkers(flagMarkerModels(cq, self, selfTeam, projector, insets), { width, height, insets,
         obstacles: [...this._markerObstacles(width, height, touch), crosshairZone(width, height), ...this.reticles.reserved] })
         .map(m => (order && m.id === order.flagId ? { ...m, order: order.stance } : m)) : [],
-      projector ? this._unitMarkers(unitMarkerModels({ self, players, vehicles, selfTeam, projector, insets }), requestMarkerModels(requests, { projector })) : [],
+      projector ? [...this._unitMarkers(unitMarkerModels({ self, players, vehicles, selfTeam, projector, insets }), requestMarkerModels(requests, { projector })),
+        ...mapEventMarkerModels(cq, { self, selfTeam, projector, insets, nowMs: now })] : [],
     );
     this.restricted.update(restrictedModel(self, cq, { aircraft: !!seated && isAircraftType(seated.row.type), nowMs: now }));
     // Assault ADRENALINE: the spent medkit came back (0 -> 1 on the authoritative row) right
@@ -698,9 +712,9 @@ export class ConquestHud {
     this._medkitLeft = medkitLeft;
     setHidden(this.healTick, now >= this._healUntil);
     if (this.healTick.hidden) this._healSum = 0;
-    const prompt = (!seated && chutePromptModel(args.chute)) || interactModel({ self, players, vehicles, nearbyVehicle, seated });
+    const prompt = (!seated && chutePromptModel(args.chute)) || interactModel({ self, players, vehicles, nearbyVehicle, seated, mapEvents: cq.mapEvents });
     this.interact.update(prompt, { heldMs: this._heldMs(vehicleController ?? this.vehicleController, interactHeld, clockNow(), interactDown), nowMs: now, touch });
-    this.bigMap.draw({ items, size: cq.size, meta: cq.meta, nowMs: now, bridge });
+    this.bigMap.draw({ items, size: cq.size, meta: cq.meta, nowMs: now, bridge, mapEvents: cq.mapEvents });
     // A short onboarding hint, not a permanent keybind line: it fades after
     // MAP_HINT_MS in the match or once the player has used M or Y.
     const hintLive = !this._hintUsed && clockNow() - this._shownAt < MAP_HINT_MS;
@@ -748,6 +762,21 @@ export class ConquestHud {
     if (!requests.length) return units;
     const calling = new Set(requests.map(r => r.by ?? r.id));
     return [...units.filter(m => !((m.kind === 'squad' || m.kind === 'team') && calling.has(m.id))), ...requests];
+  }
+
+  /** Swap the map event definitions `ev` / `evp` decode against (fixtures, captures, tests). */
+  setEventDefs(defs) { this.eventDefs = Array.isArray(defs) ? defs : MAP_EVENT_DEFS; this._eventPhases = new Map(); }
+
+  /** Banner for a `map_event` (or a snapshot phase), with the live distance and bearing from the viewer. */
+  _pushMapEvent(ev, now) {
+    const id = ev.event;
+    const where = () => {
+      const decoded = (this.cq?.mapEvents?.events ?? []).find(e => e.id === id);
+      const at = decoded ? mapEventPoint(decoded, this.cq) : Array.isArray(ev.pos) ? { x: ev.pos[0], y: ev.pos[1], z: ev.pos[2] } : null;
+      return this.dead || !this.self ? '' : whereText(this.self, at);
+    };
+    const banner = mapEventBanner(ev, { nowMs: now, selfTeam: this.selfTeam, selfId: this.self?.id ?? null, defs: this.eventDefs, where });
+    if (banner) this.banners.push(banner, now);
   }
 
   /** Kit id of the self row (decoded cq[0]). */
@@ -858,6 +887,15 @@ export class ConquestHud {
         if (banner) this.banners.push(banner, now);
         // The snapshot's stage then never repeats this collapse's banner (_ingest).
         if (ev.name === 'failing') this._bridgeFailing = Number.isFinite(ev.fallAt) ? Math.round(ev.fallAt) : 'failing';
+        break;
+      }
+      case MAP_EVENT_KIND: {
+        // Map events: one banner per phase (the snapshot may have shown this one already), notes always.
+        if (!ev.note) {
+          if (this._eventPhases.get(ev.event) === ev.phase) break;
+          this._eventPhases.set(ev.event, ev.phase);
+        }
+        this._pushMapEvent(ev, now);
         break;
       }
       case 'vehicle_hijacked': {

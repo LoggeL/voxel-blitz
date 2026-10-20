@@ -3,6 +3,7 @@ import { el } from '../hud-support.js';
 import { minimapPlacement } from '../conquest-hud-state.js';
 import { imageReady, overviewImage, paintFlag, paintFrontLine, paintSensorRing, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
 import { paintBridge, paintBridgeFlag } from './bridge-hud.js';
+import { paintMapEvents } from './map-events.js';
 
 export const MINIMAP_RANGE_M = 170;
 
@@ -51,7 +52,7 @@ export class Minimap {
   }
 
   /** items: mapItems(); center: self position; yaw: view yaw. */
-  draw({ items = [], center = null, yaw = 0, size = { x: 768, z: 768 }, meta = null, rangeM = MINIMAP_RANGE_M, nowMs = 0, bridge = null } = {}) {
+  draw({ items = [], center = null, yaw = 0, size = { x: 768, z: 768 }, meta = null, rangeM = MINIMAP_RANGE_M, nowMs = 0, bridge = null, mapEvents = null } = {}) {
     const ctx = this.context;
     if (!ctx || !center) return;
     const { css, px } = this._resize();
@@ -73,6 +74,8 @@ export class Minimap {
     }
     // The Iron Bridge state (bridge-hud.js) over the terrain, under every marker.
     paintBridge(ctx, bridge, { nowMs, px: s });
+    // Map event overlays (their presenters, map-events.js), likewise under the markers.
+    paintMapEvents(ctx, mapEvents, { nowMs, px: s });
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     // Range rings for scale.
     ctx.strokeStyle = '#ffffff1c'; ctx.lineWidth = 1;
@@ -110,6 +113,11 @@ export class Minimap {
         const dist = Math.hypot(p.x, p.y);
         if (dist > R - 10 * scale) continue;
         paintUnit(ctx, item, pos, 0, 0.8 * scale);
+      } else if (item.kind === 'event') {
+        // A map event badge past the rim stays pinned to the edge, as a flag.
+        const dist = Math.hypot(p.x, p.y), max = R - 12 * scale;
+        if (dist > max) { pos.x = R + p.x / dist * max; pos.y = R + p.y / dist * max; }
+        paintUnit(ctx, item, pos, 0, 0.85 * scale);
       } else {
         if (Math.hypot(p.x, p.y) > R - 4 * scale) continue;
         paintUnit(ctx, item, pos, item.kind === 'self' ? 0 : -p.heading, scale);

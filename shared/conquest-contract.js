@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 6;
+export const CONQUEST_CONTRACT_VERSION = 7;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -144,6 +144,8 @@ export const SCORE_POINTS = Object.freeze({
   beacon_spawn: 15, gadget_destroyed: 50,
   ribbon: 50 /* bonus for a ribbon earned (RIBBONS) */,
   bridge_destroyed: 200,
+  // Map events (shared/conquest-map-events.js, contract v7): triggering or stopping one, scaled per action.
+  map_event: 200,
 });
 export const SCORE_LABELS = Object.freeze({
   kill: 'KILL', headshot: 'HEADSHOT', assist: 'KILL ASSIST', attacker_kill: 'ATTACKER KILL', defender_kill: 'DEFENDER KILL',
@@ -154,6 +156,7 @@ export const SCORE_LABELS = Object.freeze({
   beacon_spawn: 'BEACON SPAWN', gadget_destroyed: 'GADGET DESTROYED',
   ribbon: 'RIBBON',
   bridge_destroyed: 'BRIDGE DESTROYED',
+  map_event: 'MAP OBJECTIVE',
 });
 
 /**
@@ -163,7 +166,7 @@ export const SCORE_LABELS = Object.freeze({
  */
 export const SCORE_CATEGORIES = Object.freeze({
   combat: Object.freeze(['kill', 'headshot', 'assist', 'attacker_kill', 'defender_kill', 'gadget_destroyed']),
-  objective: Object.freeze(['capture', 'neutralize', 'capture_assist', 'defend', 'order_capture', 'order_defend', 'bridge_destroyed']),
+  objective: Object.freeze(['capture', 'neutralize', 'capture_assist', 'defend', 'order_capture', 'order_defend', 'bridge_destroyed', 'map_event']),
   vehicles: Object.freeze(['vehicle_destroyed', 'vehicle_crew', 'vehicle_disabled', 'vehicle_damage', 'driver_assist']),
   support: Object.freeze(['revive', 'heal', 'repair', 'resupply', 'spot_assist', 'squad_spawn', 'beacon_spawn']),
   ribbons: Object.freeze(['ribbon']),
@@ -240,6 +243,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'bridge',            // {bridge, stage, integrity, fallAt?, by?}  Iron Bridge levolution stage change (shared/conquest-bridge.js; v6)
   'sector_captured',   // {sector, next, team, flags:[id], refill, tickets, graceEndsAt}  Breakthrough front advanced (next -1: none left)
   'sector_overtime',   // {team}                         Breakthrough attackers out of tickets fight on for an active flag
+  'map_event',         // {event, phase, team?, by?, endsAt?, note?, data?}  a map event phase change or note (shared/conquest-map-events.js; v7)
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);
@@ -259,7 +263,8 @@ export const CONQUEST_INTENT_SHAPE = Object.freeze({
   // upgrades (v6): {<vehicle type>: <upgrade id>} from shared/vehicle-upgrades.js; a type left out drives stock.
   deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>"|"beacon:<beaconId>", kit:KIT_ID, variant:0|1, gadget?:0|1, upgrades?:{type:upgradeId}}',
   spot: '1',
-  support: '{type:"revive"|"repair", targetId:string}',
+  // `use` (v7): hold an interaction point of a map event, targetId `<eventId>:<pointIndex>` (shared/conquest-map-events.js).
+  support: '{type:"revive"|"repair"|"use", targetId:string}',
   // In-game menu RESPAWN: die now (1 ticket, kill key `redeploy`) and open the deploy screen.
   redeploy: '1',
   // Comm rose pick (shared/conquest-comms.js COMM_KINDS); `order` names the flag under the crosshair.

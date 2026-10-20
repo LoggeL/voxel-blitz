@@ -23,6 +23,8 @@ import { evHit } from '../protocol/events.js';
 import { interruptMedkit } from '../sim/medkit.js';
 import { mortarIntent } from './conquest/mortar-intent.js';
 import { IronBridge } from './conquest/bridge.js';
+import { MapEventSystem, mapEventsOptionFromEnv } from './conquest/map-events/system.js';
+import { MAP_EVENT_SUPPORT } from '../../shared/conquest-map-events.js';
 
 /** Kill key of a fall death (kill feed "FELL"); see shared/conquest-contract.js DEATH_KEYS. */
 export const FALL_KILL_KEY = 'fall';
@@ -87,6 +89,11 @@ export class ConquestPolicy extends TdmPolicy {
     // Frontier's Iron Bridge levolution (inert on worlds without the bridge).
     this.bridge = new IronBridge({ engine: () => this.engine, now: () => this.now, emit: (kind, fields) => this._emit(kind, fields),
       award: (id, reason) => this.award(id, reason), canDamage: (a, b) => this.canDamage(a, b) });
+    // Map events (conquest/map-events/): the mode rule `mapEvents` (false: off, or a list of
+    // definitions for fixtures), else VB_CONQUEST_EVENTS ('off'), else the registry's events of the map.
+    const envEvents = typeof process !== 'undefined' ? mapEventsOptionFromEnv(process.env?.VB_CONQUEST_EVENTS) : undefined;
+    this.mapEvents = new MapEventSystem(this, { defs: context.rules?.mapEvents ?? envEvents,
+      ...(context.rules?.mapEventControllers ? { controllers: context.rules.mapEventControllers } : {}) });
     this._resetObjectives();
   }
 
@@ -183,6 +190,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.reconGadgets.reset();
     this.upgrades.reset();
     this.bridge?.reset();
+    this.mapEvents?.reset();
     // Stable per match: the bot flex kit of each squad (shared/conquest-kits.js botSquadKit).
     this.kitSeed = Math.floor(Math.random() * 2 ** 31);
     for (const state of this._players.values()) state.objectiveId = null;
@@ -247,6 +255,8 @@ export class ConquestPolicy extends TdmPolicy {
     this.upgrades.tick();
     this._stepWeather(now);
     this.bridge.tick(now);
+    this.mapEvents.tick(now, dt);
+    if (this.phase !== 'live') return;
     this.roles.tick(now, dt);
     this.squadOrders.sync();
     this.comms.tick(now);
@@ -408,6 +418,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.comms.remove(id);
     this.reconGadgets.removeOwner(id);
     this.ribbons.remove(id);
+    this.mapEvents.remove(id);
     if (entity) { this.score.detach(entity); this.roles.onRemove(entity); }
     return true;
   }
@@ -426,6 +437,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.squadOrders.rename(priorId, id);
     this.comms.rename(priorId, id);
     this.reconGadgets.rename(priorId, id);
+    this.mapEvents.rename(priorId, id);
     return true;
   }
 
@@ -653,6 +665,8 @@ export class ConquestPolicy extends TdmPolicy {
     if (intent.type === 'redeploy') return this.redeploy(entity);
     if (intent.type === 'comm') return this.comms.intent(entity, intent.comm);
     if (intent.type === 'order') return this.phase === 'live' && this.squadOrders.issue(entity, intent.flag);
+    // A map event's interaction point (`use`, contract v7) is held through the support plumbing.
+    if (intent.type === 'support' && intent.support === MAP_EVENT_SUPPORT) return this.phase === 'live' && this.mapEvents.intent(entity, intent.targetId);
     if ((intent.type === 'spot' || intent.type === 'support') && this.phase === 'live') {
       return this.roles.intent(entity, intent) === true;
     }
@@ -676,10 +690,11 @@ export class ConquestPolicy extends TdmPolicy {
     return accepted;
   }
 
-  /** An explosion (ProjectileSystem.explode): the Iron Bridge supports take their share. */
+  /** An explosion (ProjectileSystem.explode): the Iron Bridge supports and the map events' integrity targets take their share. */
   onBlast(origin, blast) {
     if (this.phase !== 'live') return;
     this.bridge.onBlast(origin, blast);
+    this.mapEvents.onBlast(origin, blast);
   }
 
   onVehicleEvent(kind, payload) {
@@ -730,6 +745,7 @@ export class ConquestPolicy extends TdmPolicy {
       squads: this.squads.map(),
       weather: this.weather.effects,
       bridge: this.bridge.view(),
+      mapEvents: this.mapEvents.view(),
       teamOf: p => this.teamFor(p),
       deployOptions: p => { const e = this._entity(p); return e && this._state(e) ? this.deploy.options(e) : []; },
     };
@@ -781,6 +797,9 @@ export class ConquestPolicy extends TdmPolicy {
     if (extra && typeof extra === 'object') {
       for (const [key, value] of Object.entries(extra)) if (value !== undefined && key !== 'stats') fields[key] = value;
     }
+    // A map event hold (`use`) shows on the same action ring as a revive or repair.
+    const held = this.mapEvents.progressOf(entity);
+    if (held > (fields.actionProgress ?? 0)) fields.actionProgress = held;
     fields.stats = this.score.statsRow(id);
     // A live comm rose request rides the requester's row as `cqc`.
     if (this.phase === 'live') fields.comm = this.comms.fieldOf(id);
@@ -836,6 +855,7 @@ export class ConquestPolicy extends TdmPolicy {
     const ledger = this.ledger;
     const recon = this.phase === 'live' ? this.reconGadgets.snapshot() : null;
     const bridge = this.bridge.snapshot();
+    const events = this.phase === 'live' ? this.mapEvents.snapshot() : null;
     return {
       ...super.matchSnapshot(),
       scores: { ...ledger.tickets },
@@ -855,6 +875,8 @@ export class ConquestPolicy extends TdmPolicy {
         ...(recon ? { recon } : {}),
         ...(this.weather.tuple ? { wx: this.weather.snapshot() } : {}),
         ...(bridge ? { br: bridge } : {}),
+        // Map events (contract v7): `ev` rows of the events that are not plain idle, `evp` the usable points.
+        ...(events ?? {}),
         ...(this.phase === 'post' ? { ticketGraph: ledger.graph.map(row => row.slice()) } : {}),
         ...this._conquestExtras(),
       },

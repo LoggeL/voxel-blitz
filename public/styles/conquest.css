@@ -1165,3 +1165,54 @@ body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conque
   .vb-touch-mode .cq-mortar-rounds { gap: 4px; font-size: 9px; }
   .vb-touch-mode .cq-mortar-weapon { display: none; }
 }
+
+/* ------------------------------------------------------------ map events */
+/* docs/conquest.md "Map events", design docs/design/conquest/events/framework/ (variant A):
+   the objective banner with a glyph badge at its left, hexagon world markers, disc point markers
+   and the amber HOLD ring. Tones: hazard amber, danger red, own / enemy team-relative. */
+.cq-banner-icon { display: none; }
+.cq-banner[data-icon="true"] {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: center;
+  text-align: left; padding-left: 18px;
+}
+.cq-banner[data-icon="true"] .cq-banner-icon {
+  display: grid; place-items: center; grid-row: 1 / span 3; width: 38px; height: 38px; border-radius: 4px;
+  background: var(--tone, #ffb020); color: #14100a; box-shadow: 0 0 10px color-mix(in srgb, var(--tone, #ffb020) 45%, transparent);
+}
+.cq-banner[data-icon="true"] .cq-banner-icon[hidden] { display: none; }
+.cq-banner-glyph { width: 26px; height: 26px; display: block; }
+.cq-banner[data-icon="true"] .cq-banner-title, .cq-banner[data-icon="true"] .cq-banner-detail { grid-column: 2; }
+.cq-banner[data-icon="true"] .cq-banner-bar { grid-column: 2; margin: 5px 0 0; }
+.cq-unit-marker[data-tone="hazard"] { --tone: #ffb020; }
+.cq-unit-marker[data-tone="danger"] { --tone: var(--cq-danger); }
+.cq-unit-marker[data-tone="own"] { --tone: var(--cq-own); }
+.cq-unit-marker[data-tone="enemy"] { --tone: var(--cq-enemy); }
+.cq-unit-marker[data-tone="neutral"] { --tone: #d8d8d8; }
+.cq-unit-marker[data-kind="event"] .cq-unit-glyph {
+  position: relative; width: 30px; height: 30px; margin: -15px 0 0; padding: 7px; box-sizing: border-box; color: var(--tone, #ffb020);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tone, #ffb020) 70%, transparent)) drop-shadow(0 1px 2px #000);
+}
+.cq-unit-marker[data-kind="event"] .cq-unit-glyph::before, .cq-unit-marker[data-kind="event"] .cq-unit-glyph::after {
+  content: ''; position: absolute; clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+}
+.cq-unit-marker[data-kind="event"] .cq-unit-glyph::before { inset: 0; background: var(--tone, #ffb020); }
+.cq-unit-marker[data-kind="event"] .cq-unit-glyph::after { inset: 2px; background: #14100ae8; }
+.cq-unit-marker[data-kind="event"] .cq-unit-icon { position: relative; z-index: 1; }
+.cq-unit-marker[data-kind="event"][data-tone="hazard"] .cq-unit-glyph { animation: cq-event-pulse 1.1s ease-in-out infinite; }
+.cq-unit-marker[data-kind="event"] .cq-unit-label, .cq-unit-marker[data-kind="event-point"] .cq-unit-label {
+  color: var(--tone, #ffb020); font-weight: 800; letter-spacing: 1px;
+}
+.cq-unit-marker[data-kind="event-point"] .cq-unit-glyph {
+  width: 20px; height: 20px; margin: -10px 0 0; padding: 3px; box-sizing: border-box; border-radius: 50%;
+  color: var(--tone, #ffb020); background: #14100ae0; border: 1.5px solid var(--tone, #ffb020); box-shadow: 0 1px 3px #000a;
+}
+@keyframes cq-event-pulse {
+  50% { filter: drop-shadow(0 0 9px color-mix(in srgb, var(--tone, #ffb020) 85%, transparent)) drop-shadow(0 1px 2px #000); }
+}
+.cq-interact[data-type="use"] .cq-interact-arc { stroke: #ffb020; }
+.cq-interact[data-type="use"] .cq-interact-glyph { color: #ffb020; }
+.cq-interact[data-type="use"].is-active { border-color: #ffb020; box-shadow: 0 0 14px #ffb02055; }
+.vb-touch-mode .cq-banner[data-icon="true"] { padding-left: 10px; column-gap: 8px; }
+.vb-touch-mode .cq-banner[data-icon="true"] .cq-banner-icon { width: 28px; height: 28px; }
+.vb-touch-mode .cq-banner-glyph { width: 19px; height: 19px; }
+@media (prefers-reduced-motion: reduce) { .cq-unit-marker[data-kind="event"] .cq-unit-glyph { animation: none; } }

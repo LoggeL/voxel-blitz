@@ -3,9 +3,12 @@
  * vehicle panel). 24x24 view boxes, filled with currentColor, so every icon
  * takes the team-relative colour of its container. No external assets.
  */
+import { MAP_EVENT_KILL_KEYS } from '../../../../shared/conquest-map-events.js';
+import { MAP_EVENT_GLYPHS } from './map-events/glyphs.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export const ICON_PATHS = Object.freeze({
+const BASE_PATHS = {
   // Mounted weapons.
   shell: 'M2 10.5h11l3-2h4.5a1.5 1.5 0 0 1 0 3V12.5a1.5 1.5 0 0 1 0 3H16l-3-2H2zM5 9h2v6H5z',
   mg: 'M2 11h14v2H2zM16 9.5h3l3 1.5-3 1.5h-3zM4 13h3l-1 4H4zM9 13h2v2H9zM3 8h5v3H3z',
@@ -84,7 +87,17 @@ export const ICON_PATHS = Object.freeze({
   'wx-overcast': 'M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 .5 9.5z',
   'wx-mist': 'M3 6h13v2H3zM6 10h15v2H6zM2 14h14v2H2zM8 18h12v2H8z',
   'wx-storm': 'M7 14a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 4.5a4.75 4.75 0 0 1 .5 9.5h-2.6l1.1-2.4h-5.2L8.9 14zM11.4 12.6h4.1l-2 3.6h2.8L10 23l1.6-5.4H9z',
-});
+
+  // Map events (docs/conquest.md "Map events"): the hexagon event badge, a relay mast, a supply crate under its
+  // canopy, flood waves and a demolition charge with its timer.
+  event: 'M12 1.5l9.1 5.25v10.5L12 22.5l-9.1-5.25V6.75zM12 4.4L4.9 8.2v7.6l7.1 3.8 7.1-3.8V8.2zM10.8 7.5h2.4V14h-2.4zM10.8 15.3h2.4v2.4h-2.4z',
+  'event-relay': 'M7.4 1.9A6.5 6.5 0 0 0 7.4 11.1L8.82 9.68A4.5 4.5 0 0 1 8.82 3.32zM16.6 1.9A6.5 6.5 0 0 1 16.6 11.1L15.18 9.68A4.5 4.5 0 0 0 15.18 3.32zM12 4.8a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4zM11.2 8.6h1.6V22h-1.6zM7.4 22l3.8-8.6v3.4L9.2 22zM16.6 22l-3.8-8.6v3.4l2 5.2z',
+  'event-crate': 'M4 8.2C4 4.8 7.6 2 12 2s8 2.8 8 6.2zM5 8.6h1.3l4.3 4.4H9.3zM19 8.6h-1.3l-4.3 4.4h1.3zM6 13h12v9H6zM8 15v5h8v-5z',
+  flood: 'M2 5q2.5-2 5 0t5 0t5 0t5 0v2.6q-2.5-2-5 0t-5 0t-5 0t-5 0zM2 11q2.5-2 5 0t5 0t5 0t5 0v2.6q-2.5-2-5 0t-5 0t-5 0t-5 0zM2 17q2.5-2 5 0t5 0t5 0t5 0v2.6q-2.5-2-5 0t-5 0t-5 0t-5 0z',
+  charge: 'M3 8h3.6v12H3zM7.2 8h3.6v12H7.2zM11.4 8H15v12h-3.6zM2.4 12h13.2v2H2.4zM16 10h5.5v6H16zM17.2 11.4v3.2h3.1v-3.2zM8.4 4.5h1.2V8H8.4z',
+};
+/** Glyph path data by name: the base set, `fire` (burning ground, as the Pyro flame) and the map events' own. */
+export const ICON_PATHS = Object.freeze({ ...BASE_PATHS, fire: BASE_PATHS.pyro, ...MAP_EVENT_GLYPHS });
 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */
 export const KILL_KEY_ICONS = Object.freeze({
@@ -97,6 +110,8 @@ export const KILL_KEY_ICONS = Object.freeze({
   electricSmoke: 'rocket', laserShot: 'rocket', laserCore: 'rocket', tripwire: 'rocket', thermalShield: 'rocket',
   incendiaryTrap: 'rocket', firewall: 'rocket', flameCore: 'rocket', tether: 'rocket', cluster: 'rocket',
   flightCore: 'rocket', arcWave: 'rocket', powerShot: 'rocket', thermite: 'rocket',
+  // Map event hazards (shared/map-events/<id>.js killKeys): each definition names its glyph.
+  ...Object.fromEntries(Object.entries(MAP_EVENT_KILL_KEYS).map(([key, meta]) => [key, meta.icon])),
 });
 
 /** A fresh inline SVG element for one glyph (DOM only). */

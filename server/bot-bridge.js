@@ -7,6 +7,7 @@
 // bridgehead on the bot's own bank, and a bot standing on the failing span
 // runs off it.
 import { IRON_BRIDGE, crossesBridgeSpan, onBridgeSpan } from '../shared/conquest-bridge.js';
+import { eventClosedCrossings } from './bot-map-events.js';
 
 const NONE = Object.freeze(new Set());
 /** Metres past the span edge a bridgehead point stands (on the quay road). */
@@ -20,10 +21,12 @@ export function bridgeView(game) {
   return view?.active ? view : null;
 }
 
-/** Road crossing ids bot drivers may not use (the Iron Bridge from its groan on). */
+/** Road crossing ids bot drivers may not use (the Iron Bridge from its groan on, plus what map events close). */
 export function closedCrossings(game) {
   const view = bridgeView(game);
-  return view?.closed ? new Set([view.crossing]) : NONE;
+  const events = eventClosedCrossings(game);
+  if (!events.size) return view?.closed ? new Set([view.crossing]) : NONE;
+  return new Set([...(view?.closed ? [view.crossing] : []), ...events]);
 }
 
 /** Bank side of a point relative to the bridge: -1 west, 1 east. */

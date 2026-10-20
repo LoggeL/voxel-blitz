@@ -280,7 +280,8 @@ export function parseTitanfallIntent(raw) {
 }
 
 const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'comm', 'order', 'mortar']);
-const SUPPORT_TYPES = Object.freeze(['revive', 'repair']);
+// `use` (contract v7): hold a map event's interaction point (shared/conquest-map-events.js).
+const SUPPORT_TYPES = Object.freeze(['revive', 'repair', 'use']);
 const ORDER_FLAG_PATTERN = /^[A-Z]$/;
 
 /**
@@ -291,7 +292,7 @@ const ORDER_FLAG_PATTERN = /^[A-Z]$/;
  *   (default 0), gadget is 0 or an index into that kit's `gadgets` (default 0:
  *   the Engineer's AT launcher; 1 is the STINGER, the Support's 1 the MORTAR);
  * - spot: 1 (or true);
- * - support {type: 'revive'|'repair', targetId: string <= 64};
+ * - support {type: 'revive'|'repair'|'use', targetId: string <= 64} (`use`: a map event point `<eventId>:<index>`);
  * - redeploy: 1 (or true), the in-game menu RESPAWN;
  * - mortar: 1 (or true), the Support places and mans his mortar.
  * Returns `{type:'deploy', spawn, kit, variant, gadget}`, `{type:'spot'}`,

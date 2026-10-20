@@ -4,6 +4,7 @@
  */
 import { el } from '../hud-support.js';
 import { bannerCountdown } from './bridge-hud.js';
+import { svgIcon } from './icons.js';
 
 export const BANNER_MS = 2800;
 const REPEAT_MS = 6000;
@@ -48,11 +49,28 @@ export function tickBanners(state, nowMs) {
   return { current: head ? { ...head, at: nowMs } : null, queue, seen: state.seen };
 }
 
+/**
+ * Detail line of a banner with a countdown and / or a live location:
+ * "<countdown label> 12 S · <detail> · 240 M NE" when the countdown names
+ * itself, else "<detail> · 12 S" (the Iron Bridge), then the location.
+ */
+export function bannerDetailText(banner, cd, where = '') {
+  const parts = [];
+  if (cd?.label) parts.push(`${cd.label} ${cd.seconds} S`);
+  if (banner?.detail) parts.push(banner.detail);
+  if (cd && !cd.label) parts.push(`${cd.seconds} S`);
+  if (where) parts.push(where);
+  return parts.join(' · ');
+}
+
 export class Banners {
   constructor(parent) {
     this.root = el('div', 'cq-banner', parent);
     this.root.hidden = true;
     this.root.setAttribute('role', 'alert');
+    // Glyph badge left of the text (map events, docs/design/conquest/events/framework/): hidden without `icon`.
+    this.icon = el('span', 'cq-banner-icon', this.root);
+    this.icon.hidden = true;
     this.title = el('div', 'cq-banner-title', this.root);
     this.detail = el('div', 'cq-banner-detail', this.root);
     // Countdown under a timed banner (the Iron Bridge collapse): seconds in the detail, a draining bar.
@@ -70,10 +88,12 @@ export class Banners {
     const banner = this.state.current;
     const cd = bannerCountdown(banner, nowMs);
     this.bar.hidden = !cd;
-    if (!cd) return;
-    const text = `${banner.detail || ''}${banner.detail ? ' · ' : ''}${cd.seconds} S`;
+    // `where()` (map events): live distance and bearing to the event from the viewer, after the detail.
+    const where = typeof banner?.where === 'function' ? banner.where() : '';
+    if (!cd && !where) return;
+    const text = bannerDetailText(banner, cd, where);
     if (this.detail.textContent !== text) this.detail.textContent = text;
-    this.bar.style.setProperty('--left', cd.fraction.toFixed(3));
+    if (cd) this.bar.style.setProperty('--left', cd.fraction.toFixed(3));
   }
 
   /** A persistent banner (match end) that stays until cleared. */
@@ -92,6 +112,11 @@ export class Banners {
     if (!banner) return;
     this.root.dataset.tone = banner.tone;
     this.root.dataset.outcome = banner.outcome || '';
+    this.icon.textContent = '';
+    const icon = banner.icon ? svgIcon(globalThis.document, banner.icon, 'cq-banner-glyph') : null;
+    if (icon) this.icon.appendChild(icon);
+    this.icon.hidden = !icon;
+    this.root.dataset.icon = String(!!icon);
     this.title.textContent = banner.title;
     this.detail.textContent = banner.detail || '';
     this.root.classList.remove('is-in');

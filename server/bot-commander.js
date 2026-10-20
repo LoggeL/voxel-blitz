@@ -37,6 +37,7 @@ import { committedFlag, keepAttackOrder, passingFlag } from './bot-flag-flow.js'
 import { MORTAR_BOT_RULES } from '../shared/mortar-rules.js';
 import { BOAT_PATROL, riverPatrolSlots } from './bot-boat-driving.js';
 import { avoidSpan, spanEscape } from './bot-bridge.js';
+import { goalOutOfHazards, hazardEscape, mapEventGoal, planMapEventTasks } from './bot-map-events.js';
 
 export const COMMANDER_PLAN_MS = 500;
 export const STAGE_MIN = 50, STAGE_MAX = 70;
@@ -482,6 +483,8 @@ export class BotCommander {
     planComms(this, ts, view, now);
     this.planHitches(ts, view, now);
     this.planWaits(ts, now);
+    // Map events (server/bot-map-events.js): book bots for the tasks the events post.
+    planMapEventTasks(this, ts, now);
   }
 
   isBot(id) { return this.game.entities.get(id)?.bot === true; }
@@ -1304,7 +1307,8 @@ export class BotCommander {
     const key = String(p?.id);
     const cached = this.goalCache.get(key);
     if (cached) return cached;
-    const goal = this.computeGoal(p, now);
+    // A goal point inside a map event hazard (burning ground, a flood's path) moves to its edge.
+    const goal = goalOutOfHazards(this.game, this.computeGoal(p, now), p, this.teamOf(p));
     this.goalCache.set(key, goal);
     return goal;
   }
@@ -1333,11 +1337,17 @@ export class BotCommander {
     // at once, the front's out-of-bounds timer below only after its grace).
     const escape = spanEscape(this.game, p);
     if (escape) return { kind: 'capture', target: null, interact: false, stance: 'attack', point: escape, arrive: 1.5, lookYaw: bearing(p, escape) };
+    // A map event hazard (open or about to open) around the bot: run out of it first.
+    const flee = hazardEscape(this.game, p, team);
+    if (flee) return flee;
     // Breakthrough: a body on the wrong side of the front (a defender behind the
     // lost sector's line, an attacker past the lead) walks back to the nearest
     // active flag first, shooting on the move, before the out-of-bounds timer runs out.
     const fallback = this.frontFallback(p, team, view);
     if (fallback) return fallback;
+    // A map event task the commander booked this bot for (plant, defuse, hold, claim).
+    const eventTask = mapEventGoal(this, p, ts);
+    if (eventTask) return eventTask;
     const kit = this.kitOf(p);
     const role = this.roleGoal(p, kit, ts, now);
     if (role) return role;

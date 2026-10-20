@@ -5,6 +5,7 @@
  */
 import { CQ_COLORS } from '../conquest-hud-state.js';
 import { drawIcon } from './icons.js';
+import { paintMapEventUnit } from './map-events.js';
 
 /** Top-down overview render per battlefield (tools/render-map-scenes.mjs overview shots). */
 export const OVERVIEW_URLS = Object.freeze({
@@ -130,7 +131,7 @@ export function paintFlag(ctx, item, c, radiusPx, { letterSize = 12, pulse = 0 }
   ctx.restore();
 }
 
-/** Units: self arrow, squad (green) and team (blue) dots, downed crosses, spotted red diamonds, hull glyphs. */
+/** Units: self arrow, squad (green) and team (blue) dots, downed crosses, spotted red diamonds, hull glyphs, map event badges. */
 export function paintUnit(ctx, item, c, heading = 0, size = 1) {
   ctx.save();
   ctx.translate(c.x, c.y);
@@ -196,12 +197,17 @@ export function paintUnit(ctx, item, c, heading = 0, size = 1) {
       drawIcon(ctx, 'hq', 0, 0, 13 * size, color);
       break;
     }
+    case 'event':
+    case 'event-point':
+      // Map events (map-events.js): the hexagon badge at the event, a disc per usable interaction point.
+      paintMapEventUnit(ctx, item, size);
+      break;
     default: break;
   }
   ctx.restore();
 }
 
-const ORDER = Object.freeze({ front: 0, hq: 0, flag: 1, aura: 2, vehicle: 2, beacon: 3, sensor: 3, team: 3, squad: 4, down: 5, request: 5, sensed: 6, spotted: 6, self: 7 });
+const ORDER = Object.freeze({ front: 0, hq: 0, flag: 1, event: 1.5, aura: 2, vehicle: 2, 'event-point': 2.5, beacon: 3, sensor: 3, team: 3, squad: 4, down: 5, request: 5, sensed: 6, spotted: 6, self: 7 });
 
 /** A motion sensor's sensing reach: a faint dashed ring (minimap and full map). */
 export function paintSensorRing(ctx, c, radiusPx, color, scale = 1) {

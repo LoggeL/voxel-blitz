@@ -181,6 +181,7 @@ class Game {
           this.objectiveCues?.handleEvent(event, this.selfRow?.team, this.myId);
           this.conquestSoundscape?.handleEvent(event);
           this.bridgeFx?.handleEvent(event);
+          this.mapEventFx?.handleEvent(event);
           // Conquest weather: lightning flash, bolt and (through the soundscape) delayed thunder.
           if (event.kind === 'weather_strike') { this.weatherView?.strike(event, this.camera?.position ?? null); return; }
           if (event.kind === 'vehicle_destroyed' || (event.kind === 'explosion' && event.type === 'vehicle')) {
@@ -576,6 +577,9 @@ class Game {
       cameraShake: this.cameraShake, getCamera: () => this.camera, tier: graphics.tier });
     // Conquest Iron Bridge collapse: groans, grit and the river burst around the structural fall.
     if (welcome.gameMode === 'conquest') this.bridgeFx = new rt.BridgeFx({ audio: sfx, cameraShake: this.cameraShake,
+      getCamera: () => this.camera, fx: this.particleField });
+    // Conquest map events (docs/conquest.md "Map events"): each event's world effects and the generic strike.
+    if (welcome.gameMode === 'conquest') this.mapEventFx = new rt.MapEventFx({ audio: sfx, cameraShake: this.cameraShake,
       getCamera: () => this.camera, fx: this.particleField });
     this.worldview.scene.add(this.camera);
     this.ownBody = rt.makeFirstPersonBody();
@@ -1519,6 +1523,7 @@ class Game {
       // After the terrain rebuild budget: proxies swap in the frame their chunk rebuilt.
       this.structureFx?.update(frameDt, this.net?.presentedServerTime?.(performance.now()) ?? null);
       this.bridgeFx?.update(frameDt);
+      this.mapEventFx?.update(frameDt, { match: this.matchState, mapId: this.mapMeta?.id ?? null });
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
       if (this.build) {
@@ -1709,6 +1714,7 @@ class Game {
     if (this.conquestSoundscape) { this.conquestSoundscape.dispose(); this.conquestSoundscape = null; sfx.unloadConquestBank?.(); }
     this.structureFx?.dispose(); this.structureFx = null;
     this.bridgeFx?.clear(); this.bridgeFx = null;
+    this.mapEventFx?.clear(); this.mapEventFx = null;
     this.particleField?.dispose(); this.particleField = null;
     this.cameraShake = null;
     this.vehicleAudio?.dispose(); this.vehicleAudio = null;

@@ -1,0 +1,8 @@
+Game UI design mockup, 1536x1024 first-person screenshot of a browser voxel shooter (Minecraft-like blocky world at golden hour: a red-rock desert canyon with a big blocky concrete dam wall ahead, a reservoir behind it, voxel scrub, warm orange sky). A soldier's rifle is held at the bottom right of the view.
+Existing HUD (keep exactly this style: dark translucent navy panels rgba(9,15,20,0.86) with 1px light borders and 6px radius, condensed bold uppercase sans-serif labels with wide letter spacing, cyan #4cc3ff friendly, orange #ff8a3d enemy, amber #ffd166 contested, red #ff4b4b danger, grey #9fb0bd sub text): top centre ticket bar "WEST 214 [A][B][C][D][E] 187 EAST" with blue and orange diamond flag chips and a "14:32" clock; bottom left round heading-up minimap with compass letters and an "ALPHA SQUAD" list beside it; bottom right weapon card "30 / 5" and a grenade tile.
+NEW MAP EVENT UI TO SHOW (variant B, event card with a phase track):
+1) Under the ticket bar a compact dark navy alert card (6px radius, amber left accent bar): an amber dam glyph on the left, title "REDROCK DAM" and sub line "CHARGES ARMED · EAST", and on the right a big "0:12" countdown; along its bottom edge a four-step phase track "ARMED > WARNING > FLOOD > DONE" with the first step lit amber.
+2) A world-space marker over the dam: a small amber diamond pin with a dam glyph, "240 M".
+3) Near the crosshair: a ring-only hold indicator (a thin amber circle 60 % filled around the crosshair) with a small text "DEFUSING 60 %" under it.
+4) In the round minimap, an amber dam glyph at the dam.
+Crisp flat game HUD, no extra decorations, no watermark, legible text.

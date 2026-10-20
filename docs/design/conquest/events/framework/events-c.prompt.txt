@@ -1,0 +1,8 @@
+Game UI design mockup, 1536x1024 first-person screenshot of a browser voxel shooter (Minecraft-like blocky world at golden hour: a red-rock desert canyon with a big blocky concrete dam wall ahead, a reservoir behind it, voxel scrub, warm orange sky). A soldier's rifle is held at the bottom right of the view.
+Existing HUD (keep exactly this style: dark translucent navy panels rgba(9,15,20,0.86) with 1px light borders and 6px radius, condensed bold uppercase sans-serif labels with wide letter spacing, cyan #4cc3ff friendly, orange #ff8a3d enemy, amber #ffd166 contested, red #ff4b4b danger, grey #9fb0bd sub text): top centre ticket bar "WEST 214 [A][B][C][D][E] 187 EAST" with blue and orange diamond flag chips and a "14:32" clock; bottom left round heading-up minimap with compass letters and an "ALPHA SQUAD" list beside it; bottom right weapon card "30 / 5" and a grenade tile.
+NEW MAP EVENT UI TO SHOW (variant C, siren strip):
+1) Directly under the ticket bar a narrow full-width strip of black and red diagonal hazard chevrons scrolling sideways, with centred white text "DAM BREACH IMMINENT" and at its right end a big red "12" seconds counter in a dark box.
+2) A world-space marker over the dam: a red triangle warning sign with "!" and "240 M".
+3) Near the crosshair: a segmented circular hold ring of 8 amber segments, 5 lit, with the label "DEFUSE" under it.
+4) The round minimap has a red pulsing danger circle over the canyon below the dam (the flood zone).
+Crisp flat game HUD, no extra decorations, no watermark, legible text.

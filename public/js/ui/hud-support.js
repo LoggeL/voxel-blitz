@@ -6,6 +6,7 @@ import { bubbleProfile } from '../../../shared/bubble-rules.js';
 import { MGL_RULES } from '../../../shared/mgl-rules.js';
 import { VEHICLE_WEAPON_META } from '../../../shared/conquest-contract.js';
 import { TITAN_WEAPON_META, TITAN_KILL_KEYS } from '../../../shared/titan-contract.js';
+import { MAP_EVENT_KILL_KEYS } from '../../../shared/conquest-map-events.js';
 
 export const GLYPH = Object.freeze({
   rifle: 'R',
@@ -69,12 +70,16 @@ export const WEAPON_NAMES = Object.freeze({
   redeploy: 'REDEPLOYED',
   // Crushed by a falling structure (shared/structure.js COLLAPSE_WEAPON), credited to whoever broke its support.
   collapse: 'COLLAPSE',
+  // Conquest map event hazards (shared/map-events/<id>.js killKeys), credited to the event's trigger.
+  ...Object.fromEntries(Object.entries(MAP_EVENT_KILL_KEYS).map(([key, meta]) => [key, meta.label])),
 });
 
 /** Kill keys that have no weapon-slot art; the kill feed draws a vector icon for them. */
 export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted', 'fall', 'crash', 'redeploy', 'collapse',
   // Titanfall (WP0 region): titan mounts, then the remaining titan kill keys.
-  ...new Set([...Object.keys(TITAN_WEAPON_META), ...Object.keys(TITAN_KILL_KEYS)])]);
+  ...new Set([...Object.keys(TITAN_WEAPON_META), ...Object.keys(TITAN_KILL_KEYS)]),
+  // Conquest map event hazards (drawn with their definition's glyph).
+  ...Object.keys(MAP_EVENT_KILL_KEYS)]);
 export const isVehicleKillKey = key => typeof key === 'string' && VEHICLE_KILL_KEYS.includes(key);
 
 export function weaponImagePath(weaponId) {

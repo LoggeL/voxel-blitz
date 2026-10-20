@@ -8,6 +8,7 @@ import { CQ_COLORS } from '../conquest-hud-state.js';
 import { drawIcon } from './icons.js';
 import { imageReady, overviewImage, paintFlag, paintFrontLine, paintSensorRing, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
 import { paintBridge, paintBridgeFlag } from './bridge-hud.js';
+import { paintMapEvents } from './map-events.js';
 
 /** Flag name size on the north-up maps, in CSS px (scaled down from the max on small maps). */
 const LABEL_MIN_PX = 8;
@@ -67,7 +68,7 @@ export class NorthUpMap {
   }
 
   /** Map square → canvas: the full world, with a little margin. */
-  draw({ items = [], size = { x: 768, z: 768 }, meta = null, spawns = null, selected = null, nowMs = 0, labels = true, bridge = null } = {}) {
+  draw({ items = [], size = { x: 768, z: 768 }, meta = null, spawns = null, selected = null, nowMs = 0, labels = true, bridge = null, mapEvents = null } = {}) {
     const ctx = this.context;
     if (!ctx) return;
     const { css, px } = this._resize();
@@ -90,6 +91,8 @@ export class NorthUpMap {
     if (imageReady(this.image)) ctx.drawImage(this.image, 0, 0, size.x, size.z);
     // The Iron Bridge state (bridge-hud.js) over the terrain, under every marker.
     paintBridge(ctx, bridge, { nowMs, px: s });
+    // Map event overlays (their presenters, map-events.js), likewise under the markers.
+    paintMapEvents(ctx, mapEvents, { nowMs, px: s });
     ctx.restore();
     // Combat area outline.
     const area = meta?.combatArea;

@@ -15,6 +15,7 @@ import {
 import { RECON_GADGET_RULES, decodeReconGadgets } from './recon-gadgets.js';
 import { decodeConquestWeather } from './conquest-weather.js';
 import { decodeBridge } from './conquest-bridge.js';
+import { MAP_EVENT_DEFS, decodeMapEvents } from './conquest-map-events.js';
 import { breakthroughHqAnchor, breakthroughSpawnFlag, decodeBreakthrough } from './breakthrough.js';
 
 export { CONQUEST_TEAMS };
@@ -196,7 +197,7 @@ export function encodeConquestFlag(flag) {
  * from atk/def; `atk` counts the side that does not own the flag (while
  * unowned, the side opposite the one control leans toward).
  */
-export function decodeConquestMatch(matchConquest, metaConquest = null) {
+export function decodeConquestMatch(matchConquest, metaConquest = null, { mapId = null, eventDefs = MAP_EVENT_DEFS } = {}) {
   const match = matchConquest && typeof matchConquest === 'object' ? matchConquest : {};
   const statics = new Map((Array.isArray(metaConquest?.flags) ? metaConquest.flags : [])
     .filter(f => f && typeof f.id === 'string').map(f => [f.id, f]));
@@ -238,6 +239,8 @@ export function decodeConquestMatch(matchConquest, metaConquest = null) {
     weather: decodeConquestWeather(match.wx),
     // Iron Bridge levolution (contract v6): intact unless `br` rides the snapshot.
     bridge: decodeBridge(match.br),
+    // Map events (contract v7, shared/conquest-map-events.js): `ev` / `evp` against the map's registered events.
+    mapEvents: decodeMapEvents(match.ev, match.evp, mapId, eventDefs),
     // Breakthrough variant state (shared/breakthrough.js), null in plain Conquest.
     breakthrough: decodeBreakthrough(match.bt),
   };

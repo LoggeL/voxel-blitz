@@ -11,6 +11,7 @@
 // over the banks keep standing.
 
 import { FRONTIER_PLAN } from './conquest-contract.js';
+import { boxDistance, insideBox, integrityBlastDamage } from './map-events/geometry.js';
 
 const CROSSING = FRONTIER_PLAN.crossings.find(c => c.id === 'iron-bridge');
 const RIVER_HALF = FRONTIER_PLAN.river.width / 2;
@@ -84,28 +85,12 @@ export const IRON_BRIDGE_RULES = Object.freeze({
 export const BRIDGE_STAGES = Object.freeze(['intact', 'damaged', 'failing', 'down']);
 export const BRIDGE_STAGE = Object.freeze({ intact: 0, damaged: 1, failing: 2, down: 3 });
 
-export const insideBox = (b, x, y, z) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1 && z >= b.z0 && z <= b.z1;
-
-/** Distance (m) from a point to an inclusive voxel box (0 inside). */
-export function boxDistance(b, x, y, z) {
-  const dx = Math.max(b.x0 - x, 0, x - (b.x1 + 1));
-  const dy = Math.max(b.y0 - y, 0, y - (b.y1 + 1));
-  const dz = Math.max(b.z0 - z, 0, z - (b.z1 + 1));
-  return Math.hypot(dx, dy, dz);
-}
+// Box helpers and the blast falloff are shared with the other map events (shared/map-events/geometry.js).
+export { boxDistance, insideBox };
 
 /** Integrity a blast takes off the bridge: `{ damage, support }` (damage 0 out of reach or for an inert key). */
 export function bridgeBlastDamage(origin, key, radius = 0, rules = IRON_BRIDGE_RULES, bridge = IRON_BRIDGE) {
-  const base = rules.supportDamage[key] ?? 0;
-  if (!(base > 0) || !Array.isArray(origin) || !origin.every(Number.isFinite)) return { damage: 0, support: null };
-  const reach = Math.max(Number.isFinite(radius) ? radius : 0, rules.minReach);
-  let best = null;
-  for (const support of bridge.supports) {
-    const d = boxDistance(support, origin[0], origin[1], origin[2]);
-    if (d < reach && (!best || d < best.d)) best = { d, support };
-  }
-  if (!best) return { damage: 0, support: null };
-  return { damage: base * (1 - best.d / reach), support: best.support.id };
+  return integrityBlastDamage(origin, key, radius, rules, bridge.supports);
 }
 
 /** True when a world point (feet or block) lies over the span footprint, from the water up to `above` m over the deck. */
