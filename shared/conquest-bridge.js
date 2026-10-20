@@ -51,9 +51,9 @@ export const IRON_BRIDGE = Object.freeze({
  * max(its damage radius, minReach) of a support box deals its
  * `supportDamage` entry (by weapon key) scaled linearly down to 0 at that
  * reach; the nearest support counts, never several. Keys not listed (bullets,
- * smoke, molotov, pulse, bubbles) do nothing. With 1000 integrity: 10 RX-8 or
- * TOW/guided missile hits, about 8 tank HE or 15 AP shells, 3 jet bombs,
- * 17 limpets.
+ * smoke, molotov, pulse, bubbles, the chin cannon) do nothing. `limpet` is
+ * the projectile type of the wall claymore. With 1000 integrity: 10 RX-8 or
+ * TOW/guided missile hits, about 8 tank HE or 15 AP shells, 3 jet bombs.
  */
 export const IRON_BRIDGE_RULES = Object.freeze({
   integrity: 1000,
@@ -65,7 +65,7 @@ export const IRON_BRIDGE_RULES = Object.freeze({
   minReach: 1.5,
   supportDamage: Object.freeze({
     rocket: 100, guidedMissile: 100, towMissile: 100, tankAP: 65, tankHE: 120, jetBomb: 420,
-    helicopterRocket: 30, atmine: 150, limpet: 60, mgl: 25, frag: 15, claymore: 10,
+    helicopterRocket: 30, atmine: 150, limpet: 10, mgl: 25, frag: 15,
   }),
   /** Bodies standing on the span when it goes: infantry damage and hull share of max HP (kill key `collapse`). */
   spanCrush: Object.freeze({ infantry: 45, hullFraction: 0.2, above: 4 }),

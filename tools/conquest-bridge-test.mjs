@@ -34,7 +34,8 @@ import {
   decodeBridge, encodeBridge, onBridgeSpan,
 } from '../shared/conquest-bridge.js';
 import { IRON_ARCH_TOP_Y } from '../shared/world/frontier-sites/bridge.js';
-import { CONQUEST_BRIDGE_KEY, CONQUEST_CONTRACT } from './lib/protocol-contract.mjs';
+import { CONQUEST_BRIDGE_KEY, CONQUEST_CONTRACT, CONQUEST_MATCH_BUDGET_BYTES } from './lib/protocol-contract.mjs';
+import { IronBridge } from '../server/modes/conquest/bridge.js';
 import {
   bannerCountdown, bridgeBanner, bridgeChipBadge, bridgeMapModel, hasIronBridge, paintBridge, paintBridgeFlag,
 } from '../public/js/ui/conquest/bridge-hud.js';
@@ -70,6 +71,8 @@ const strip = ev => Object.fromEntries(Object.entries(ev).filter(([k]) => !['at'
   assert.equal(hit.support, 'piers'); assert.equal(hit.damage, 100, 'a rocket on a pier takes its full share');
   assert.equal(bridgeBlastDamage(PIER, 'rifle', 3).damage, 0, 'bullets do nothing');
   assert.equal(bridgeBlastDamage(PIER, 'smoke', 6).damage, 0, 'smoke does nothing');
+  // The wall claymore explodes as projectile type `limpet`: its share is the claymore's.
+  assert.equal(bridgeBlastDamage(PIER, 'limpet', 3).damage, 10, 'a claymore barely scratches the supports');
   assert.equal(bridgeBlastDamage([IRON_BRIDGE.x, IRON_BRIDGE.deckY + 12, IRON_BRIDGE.z - 30], 'jetBomb', 6).damage, 0, 'out of reach');
   const feet = bridgeBlastDamage([IRON_ARCH.x0 + 0.5, IRON_BRIDGE.deckY + 1.5, IRON_ARCH.zs[0] + 0.5], 'tankHE', 3);
   assert(feet.support.startsWith('foot-w') && feet.damage === 120, 'a truss foot on the bank is a support too');
@@ -194,6 +197,7 @@ assert.equal(avoidSpan(game, { x: 300, y: 26, z: 300 }, a).x, 300, 'points off t
 run(TICK_MS * 2);
 const br = F.snap.match.conquest.br;
 assert.equal(br[0], 2); assert.equal(br[1], 0); assert.equal(br[2], Math.round(bridge.fallAt));
+assert(Buffer.byteLength(JSON.stringify(F.snap.match.conquest)) <= CONQUEST_MATCH_BUDGET_BYTES, 'match.conquest with br still fits its budget');
 run(IRON_BRIDGE_RULES.warnMs - 200);
 assert.equal(bridge.stage, BRIDGE_STAGE.failing, 'the span carries traffic through the groan');
 assert(spanLeft(F.world) === deckBlocks, 'nothing falls before fallAt');
@@ -233,6 +237,19 @@ console.log(`collapse: ${stages[2].blocks} blocks, ${events.filter(e => e.kind =
 // The crush.
 assert(a.hp <= 100 - IRON_BRIDGE_RULES.spanCrush.infantry || a.state === 'dead', `the soldier on the span takes the crush (${a.hp})`);
 assert(jeep.hp <= jeepHp - vehicleMaxHp('jeep') * IRON_BRIDGE_RULES.spanCrush.hullFraction + 1e-6, `the jeep on the span takes ${IRON_BRIDGE_RULES.spanCrush.hullFraction * 100} % (${jeep.hp}/${jeepHp})`);
+// A helicopter hovering low over the deck is not a ground hull; one parked on it is.
+{
+  const heli = [...game.vehicles.vehicles.values()].find(v => v.type === 'helicopter' && v.hp > 0);
+  const home = { x: heli.x, y: heli.y, z: heli.z, grounded: heli.grounded };
+  Object.assign(heli, { x: IRON_BRIDGE.x, y: IRON_BRIDGE.deckY + 3.5, z: IRON_BRIDGE.z, grounded: false });
+  const hp = heli.hp;
+  bridge._crushSpan();
+  assert.equal(heli.hp, hp, 'a hovering helicopter over the span flies on');
+  heli.grounded = true;
+  bridge._crushSpan();
+  assert(heli.hp < hp, 'a helicopter parked on the span goes down with it');
+  Object.assign(heli, home, { hp });
+}
 
 // Infantry nav: the deltas reach the surface graph; the short way is gone.
 const columns = watch.poll();
@@ -316,6 +333,21 @@ assert(cState.control < 0 || cState.owner === 'bravo', `bravo moves C's control 
   assert.equal(F.world.getBlock(IRON_BRIDGE.piers.x0, IRON_BRIDGE.waterY, IRON_BRIDGE.piers.z0 + 1), CONCRETE, 'and the pier stumps under the water');
   assert(!('br' in F.snap.match.conquest), 'and the snapshot field is gone');
   assert.equal(closedCrossings(game).size, 0, 'the crossing reopens');
+}
+
+// A span the structural pass already doomed on its own falls as it is: no instant removal on top.
+{
+  const world = createMapState('frontier'), deltas = [];
+  const engine = { world, mapMeta: meta, now: 0, mode: { phase: 'live' }, combatants: new Map(), tickEvents: [],
+    structure: { active: true, rules: { creakMs: 700 }, bringDown: () => null, attribute: () => {} },
+    pushBlockDelta: (x, y, z, v) => deltas.push(v) };
+  const lone = new IronBridge({ engine: () => engine, now: () => 0 });
+  assert.equal(lone.active, true);
+  const piers = (() => { let n = 0; for (let z = IRON_BRIDGE.piers.z0; z <= IRON_BRIDGE.piers.z1; z++) for (let x = IRON_BRIDGE.piers.x0; x <= IRON_BRIDGE.piers.x1; x++) for (let y = IRON_BRIDGE.waterY; y >= IRON_BRIDGE.piers.y0 && world.getBlock(x, y, z) === CONCRETE; y--) n++; return n; })();
+  assert(lone.collapse(0));
+  assert.equal(deltas.length, piers, 'only the drowned pier stumps change; the creaking span is left to the structural system');
+  assert.equal(lone.crushAt, 700, 'the crush still waits for the creak');
+  assert(isSolidBlock(world.getBlock(IRON_BRIDGE.x, IRON_BRIDGE.deckY, IRON_BRIDGE.z)), 'the deck is still there until it falls');
 }
 
 // Inert elsewhere: an ad-hoc world without the deck never takes part.

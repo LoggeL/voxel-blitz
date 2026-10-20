@@ -13,7 +13,7 @@
 // for late joiners. A rematch restores the world and resets the bridge.
 import { AIR, CONCRETE, FLUID_BLOCKS, MC_WATER, isSolidBlock } from '../../../shared/world/blocks.js';
 import { COLLAPSE_WEAPON, STRUCTURE_RULES } from '../../../shared/structure.js';
-import { vehicleMaxHp } from '../../../shared/vehicles.js';
+import { isAircraft, vehicleMaxHp } from '../../../shared/vehicles.js';
 import {
   BRIDGE_STAGE, BRIDGE_STAGES, IRON_BRIDGE, IRON_BRIDGE_RULES, bridgeBlastDamage, encodeBridge, insideBox, onBridgeSpan,
 } from '../../../shared/conquest-bridge.js';
@@ -105,14 +105,20 @@ export class IronBridge {
     this.fallAt = null;
     this.downAt = now;
     const { span, piers } = this.bridge;
+    const structure = engine.structure;
     // Pier stumps under the water would hold the falling deck above the
-    // surface: they become river water (scripted block deltas).
-    for (let z = piers.z0; z <= piers.z1; z++) for (let x = piers.x0; x <= piers.x1; x++) {
-      for (let y = Math.min(piers.y1, span.y0 - 1); y >= piers.y0 && world.getBlock(x, y, z) === CONCRETE; y--) {
-        world.setBlock(x, y, z, MC_WATER);
-        engine.pushBlockDelta(x, y, z, MC_WATER);
+    // surface: they become river water (scripted block deltas). Whatever
+    // the structural pass drops because of them is the final blow's, like
+    // the span itself.
+    structure?.attribute?.(this.by);
+    try {
+      for (let z = piers.z0; z <= piers.z1; z++) for (let x = piers.x0; x <= piers.x1; x++) {
+        for (let y = Math.min(piers.y1, span.y0 - 1); y >= piers.y0 && world.getBlock(x, y, z) === CONCRETE; y--) {
+          world.setBlock(x, y, z, MC_WATER);
+          engine.pushBlockDelta(x, y, z, MC_WATER);
+        }
       }
-    }
+    } finally { structure?.attribute?.(null); }
     // Columns of the footprint that stand on the bank (not over the river
     // in the pristine map) keep their blocks: a ledge of deck on the quay.
     const keys = [];
@@ -121,9 +127,11 @@ export class IronBridge {
       for (let y = span.y0; y <= span.y1; y++) if (isSolidBlock(world.getBlock(x, y, z))) keys.push(pack(x, y, z));
     }
     const origin = [this.bridge.x, this.bridge.deckY, this.bridge.z];
-    const structure = engine.structure;
-    this.creakId = structure?.active ? structure.bringDown(keys, { cause: this.by, origin, chunkCap: this.rules.chunkCap }) : null;
-    if (!this.creakId) {
+    const structural = !!structure?.active;
+    // bringDown returns null when every block is already creaking (the
+    // structural pass doomed the span on its own): those fall as they are.
+    this.creakId = structural ? structure.bringDown(keys, { cause: this.by, origin, chunkCap: this.rules.chunkCap }) : null;
+    if (!structural) {
       // No structural system (disabled, ad-hoc worlds): the span simply goes.
       for (const key of keys) {
         const x = key & 1023, z = (key >> 10) & 1023, y = key >> 20;
@@ -131,7 +139,7 @@ export class IronBridge {
         engine.pushBlockDelta(x, y, z, AIR);
       }
     }
-    this.crushAt = now + (this.creakId ? (structure.rules?.creakMs ?? STRUCTURE_RULES.creakMs) : 0);
+    this.crushAt = now + (structural ? (structure.rules?.creakMs ?? STRUCTURE_RULES.creakMs) : 0);
     if (this.by) this.award(this.by, this.rules.scoreReason);
     this._announce({ blocks: keys.length });
     return true;
@@ -163,6 +171,8 @@ export class IronBridge {
     }
     for (const hull of engine.vehicles?.vehicles?.values?.() ?? []) {
       if (!(hull.hp > 0) || !onBridgeSpan(hull.x, hull.y, hull.z, { bridge: this.bridge })) continue;
+      // Ground hulls only: a helicopter hovering low over the deck flies on (one parked on it goes down with it).
+      if (isAircraft(hull.type) && !hull.grounded) continue;
       engine.vehicles.damage(hull.id, (vehicleMaxHp(hull.type) || hull.maxHp || 0) * hullFraction, killer, { cls: 'collision',
         point: [hull.x, hull.y + 1, hull.z] });
     }
