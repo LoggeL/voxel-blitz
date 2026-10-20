@@ -18,7 +18,7 @@ import { WEATHER_STATES } from '../../../shared/conquest-weather.js';
 import { breakthroughFront, outsideFront, sectorRole } from '../../../shared/breakthrough.js';
 import { vehicleHijackable } from '../../../shared/vehicle-seats.js';
 import {
-  KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_POUCH_GADGETS, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
+  KIT_ABILITY_LABELS, KIT_GADGET_LABELS, KIT_MENU_ORDER, KIT_ROLE_RULES, kitAbilityHint, kitUnlockLevel, kitUnlocked,
 } from '../../../shared/conquest-kits.js';
 import { RECON_GADGET_RULES } from '../../../shared/recon-gadgets.js';
 import { WEAPON_NAMES } from './hud-support.js';
@@ -1350,14 +1350,14 @@ export function killerCard(ev, selfId, players = []) {
 
 /* ------------------------------------------------------------------ deploy */
 
+/** A primary's or gadget's name: weapons by the weapon name, the rest (pouch gadgets, the mortar, none) by KIT_GADGET_LABELS. */
 const KIT_WEAPON_LABEL = id => WEAPON_NAMES[id] || KIT_GADGET_LABELS[id]?.name || String(id || '').toUpperCase();
-/** A gadget's name: pouch gadgets (the Recon's SPAWN BEACON / MOTION SENSOR) by their label, weapons by the weapon name. */
-const gadgetLabel = id => (KIT_POUCH_GADGETS[id] ? KIT_GADGET_LABELS[id]?.name : null) ?? KIT_WEAPON_LABEL(id);
 /** Gadget index valid for a kit: 1 only where the kit offers a second gadget. */
 export const kitGadgetIndex = (kit, gadget) => (gadget === 1 && (KITS[kit]?.gadgets?.length ?? 0) > 1 ? 1 : 0);
 /**
  * Kit cards for the picker; variant 0/1 selects the primary and `gadget` 0/1
- * the gadget of kits that offer a choice (the Engineer: AT launcher or STINGER).
+ * the gadget of kits that offer a choice (Engineer: AT launcher or STINGER;
+ * Support: none or the MORTAR; Recon: SPAWN BEACON or MOTION SENSOR).
  * `gadget` on a card is the selected gadget's name (null for kits without one).
  */
 export function kitCards(selectedKit, variant = 0, gadget = 0, { unlocked = null, career = null } = {}) {
@@ -1369,7 +1369,7 @@ export function kitCards(selectedKit, variant = 0, gadget = 0, { unlocked = null
     const gadgets = (kit.gadgets ?? []).length > 1 ? kit.gadgets.map((choice, index) => {
       const weapon = choice ?? 'none';
       return { index, weapon, role: KIT_GADGET_LABELS[weapon]?.role ?? '', hint: KIT_GADGET_LABELS[weapon]?.hint ?? '',
-        label: gadgetLabel(weapon), selected: id === selectedKit && index === chosen };
+        label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === chosen };
     }) : [];
     const gadgetId = kit.gadgets?.[chosen] ?? kit.gadget;
     const unlockLevel = kitUnlockLevel(id);
@@ -1382,7 +1382,7 @@ export function kitCards(selectedKit, variant = 0, gadget = 0, { unlocked = null
       abilityId: kit.ability, hint: kitAbilityHint(id, CONQUEST_RULES), selected: id === selectedKit,
       row: unlockLevel > 1 ? 'unlock' : 'base', unlockLevel, unlocked: isOpen, lockText: isOpen ? '' : `LV ${unlockLevel}`, progress,
       primaries: kit.primaries.map((weapon, index) => ({ index, weapon, label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === (variant | 0) })),
-      gadget: gadgetId ? gadgetLabel(gadgetId) : null, gadgetId: gadgetId ?? null, gadgets,
+      gadget: gadgetId ? KIT_WEAPON_LABEL(gadgetId) : null, gadgetId: gadgetId ?? null, gadgets,
       grenades: Object.entries(kit.grenades).map(([type, count]) => `${count}× ${GRENADE_LABEL[type] || type.toUpperCase()}`) };
   });
 }
