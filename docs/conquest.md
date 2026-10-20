@@ -397,7 +397,7 @@ Added 2026-10-20, contract v6. Each pad hull type has 2-3 upgrades that open wit
 | Mobile AA | REACTIVE ARMOUR | LV 2 | as the tank |
 | Mobile AA | SEARCH RADAR | LV 5 | every crew seat spots at 450 m for 8 s in any weather (not through smoke) |
 | Attack heli | FLARE RELOAD | LV 3 | flare cooldown ×0.6 (18 → 10.8 s) |
-| Attack heli | EXTRA MISSILE | LV 6 | 3 guided missiles on the `atgm` rack instead of 2 |
+| Attack heli | EXTRA MISSILE | LV 6 | 3 guided missiles on the `atgm` rack instead of 2; the model hangs the third under the left rail missile (the rails fire left, right, left, so it goes first) |
 | Transport | FIELD REPAIR | LV 2 | Engineer repairs and self-regeneration restore ×1.5 |
 | Transport | HEAVY DOOR GUNS | LV 5 | door-gun damage ×1.3 |
 | Jet | EXTRA FLARES | LV 3 | 2 flare salvos, each on its own cooldown |

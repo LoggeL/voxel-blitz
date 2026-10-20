@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { makeHelicopterModel, HELICOPTER_ROTOR } from '../public/js/vehicles/models/helicopter.js';
 import { makeTransportModel, TRANSPORT_ROTOR } from '../public/js/vehicles/models/transport.js';
-import { VEHICLE_DEFS, mountPose } from '../shared/vehicle-defs.js';
+import { VEHICLE_DEFS, VEHICLE_WEAPONS, mountPose } from '../shared/vehicle-defs.js';
+import { vehicleUpgrade } from '../shared/vehicle-upgrades.js';
 
 let checks = 0;
 const check = (fn) => { fn(); checks++; };
@@ -62,6 +63,23 @@ for (const [type, make, rotorDef] of [['helicopter', makeHelicopterModel, HELICO
   check(() => assert.ok(chin.yawNode.parent === model.body));
   check(() => assert.deepEqual(chin.yawLimit, VEHICLE_DEFS.helicopter.mounts.chin.yawLimit));
   check(() => assert.ok(model.cockpitControls.leftHand && model.cockpitControls.rightHand && model.gunnerAnchors.left));
+  // Rail missiles per loaded round: the stock rack shows two; the EXTRA MISSILE rack's third
+  // hangs under the left rail and goes first, then the right one, then the left (the firing order).
+  const scaleOf = i => { const m = new THREE.Matrix4(); model.missiles.getMatrixAt(i, m); return new THREE.Vector3().setFromMatrixScale(m).x; };
+  const shown = () => [0, 1, 2].map(scaleOf);
+  const stock = VEHICLE_WEAPONS.guidedMissile.magazine, extra = stock + vehicleUpgrade('helicopter', 'extra_missile').effects.magazine.atgm;
+  check(() => assert.equal(model.missiles.count, extra, 'one instance per round of the upgraded rack'));
+  check(() => assert.deepEqual(shown(), [1, 1, 0], 'a fresh hull shows the stock rack'));
+  model.animate(1 / 60, { railAmmo: extra });
+  check(() => assert.deepEqual(shown(), [1, 1, 1], 'EXTRA MISSILE shows the third round'));
+  const at = i => { const m = new THREE.Matrix4(); model.missiles.getMatrixAt(i, m); return new THREE.Vector3().setFromMatrixPosition(m); };
+  check(() => assert.ok(Math.abs(at(2).x - at(0).x) < 1e-6 && at(2).y < at(0).y - 0.3, 'stacked under the left rail missile'));
+  model.animate(1 / 60, { railAmmo: 2 });
+  check(() => assert.deepEqual(shown(), [1, 1, 0]));
+  model.animate(1 / 60, { railAmmo: 1 });
+  check(() => assert.deepEqual(shown(), [1, 0, 0]));
+  model.animate(1 / 60, { railAmmo: 0 });
+  check(() => assert.deepEqual(shown(), [0, 0, 0]));
 }
 // Transport specifics: door guns on both flanks, an open cabin, five seats.
 {

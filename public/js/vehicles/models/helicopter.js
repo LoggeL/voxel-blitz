@@ -1,9 +1,11 @@
 import * as THREE from '../../vendor/three.module.js';
 import { VoxelPart } from '../voxel-model/dsl.js';
-import { VEHICLE_DEFS } from '../../../../shared/vehicle-defs.js';
+import { VEHICLE_DEFS, VEHICLE_WEAPONS } from '../../../../shared/vehicle-defs.js';
 import { blueprint, createKit, buildSeatAnchors, buildMounts, lightAnchor, finishModel } from './common.js';
 
 export const HELICOPTER_ROTOR = Object.freeze({ hub: [0, 3.1, -0.35], radius: 5.4, tail: [0.3, 2.1, 3.3], tailRadius: 0.8 });
+/** Rail missiles drawn: two on the wingtip rails, a third (EXTRA MISSILE) `stackDrop` m under the left one. */
+export const HELICOPTER_RACK = Object.freeze({ stackDrop: -0.45 });
 
 const PAINT = material => material === 'paint' || material === 'panel';
 
@@ -170,7 +172,10 @@ export function makeHelicopterModel(options = {}) {
   kit.part(chinPitch, parts.chinGun);
   const podRig = kit.node(body, 'helicopter-pods', pods.pivot);
   const railRig = kit.node(body, 'helicopter-rails', atgm.pivot);
-  const missileTransforms = atgm.sides.map(([x, y, z]) => ({ position: [x, y, z + 0.2] }));
+  // A third round (the EXTRA MISSILE upgrade's rack) hangs stacked under the left rail's missile.
+  const [left] = atgm.sides;
+  const missileTransforms = [...atgm.sides.map(([x, y, z]) => ({ position: [x, y, z + 0.2] })),
+    { position: [left[0], left[1] + HELICOPTER_RACK.stackDrop, left[2] + 0.2] }];
   const missiles = kit.instances(body, parts.missile, missileTransforms, 'helicopter-missiles');
   const seatAnchors = buildSeatAnchors(kit, 'helicopter', { body });
   const mounts = buildMounts(kit, 'helicopter', {
@@ -196,13 +201,15 @@ export function makeHelicopterModel(options = {}) {
   };
   const contacts = [-1.0, 1.0].map(x => ({ x, z: -1.6, radius: 0.45, stretch: 1, strength: 0.45 }))
     .concat([{ x: 0, z: 3.4, radius: 0.3, stretch: 1, strength: 0.35 }]);
-  // Rail missiles shown per loaded round (the atgm mount's ammo, animate railAmmo).
+  // Rail missiles shown per loaded round (the atgm mount's ammo, animate railAmmo): the left
+  // and right rails, then the stacked third, which only an upgraded 3-round rack ever fills.
+  // The rails fire left, right, left, so the left rail always holds the last round.
   const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), quaternion = new THREE.Quaternion();
   const unit = new THREE.Vector3(1, 1, 1), zero = new THREE.Vector3(0, 0, 0);
-  let loaded = [true, true];
+  let loaded = missileTransforms.map(() => true);
   const setMissiles = ammo => {
-    const next = [ammo >= 1, ammo >= 2];
-    if (next[0] === loaded[0] && next[1] === loaded[1]) return;
+    const next = missileTransforms.map((_, i) => ammo >= i + 1);
+    if (next.every((shown, i) => shown === loaded[i])) return;
     loaded = next;
     missileTransforms.forEach((transform, i) => {
       matrix.compose(position.fromArray(transform.position), quaternion.identity(), loaded[i] ? unit : zero);
@@ -210,6 +217,8 @@ export function makeHelicopterModel(options = {}) {
     });
     missiles.instanceMatrix.needsUpdate = true;
   };
+  // A fresh hull shows the stock rack until a row says otherwise.
+  setMissiles(VEHICLE_WEAPONS.guidedMissile.magazine);
   let rotorAngle = 0, tailAngle = 0;
   const animate = (dt, { rotorSpeed = 0, wreck = false, railAmmo = null } = {}) => {
     if (Number.isFinite(railAmmo)) setMissiles(railAmmo);

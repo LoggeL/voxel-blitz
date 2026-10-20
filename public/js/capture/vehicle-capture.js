@@ -96,12 +96,13 @@ function rowFor(id, rowTeam, x, z, yaw) {
   const occupants = Object.fromEntries(def.seats.map(seat => [seat.id, crew && state !== 'wreck' ? `${id}-${seat.id}` : null]));
   // Mount aims: tilt every articulated gun a little so the rigs read. The tank's ammo is
   // what the server sends (a full magazine, or -1 for a weapon without one), so its driver
-  // display shows no made-up round counts; other hulls keep their 2-round placeholder.
+  // display shows no made-up round counts; other hulls keep their 2-round placeholder
+  // (`ammo=n` overrides it: the heli's 3-round EXTRA MISSILE rack).
   const mounts = vehicleMountOrder(type).map((key, i) => {
     const [seatId, mountId] = key.split(':');
     const mount = def.mounts[mountId];
     const centre = mount.yawLimit ? mount.yawLimit[0] : 0;
-    const ammo = type !== 'tank' ? 2
+    const ammo = type !== 'tank' ? num('ammo', 2)
       : seatWeaponList(type, seatId).filter(w => w.mount === mountId).map(w => VEHICLE_WEAPONS[w.weapon]?.magazine).find(Number.isFinite) ?? -1;
     if (aimOffset !== null) return [yaw + centre + (mount.fixed ? 0 : aimOffset), mount.fixed ? 0 : aimPitch, ammo, 0, 0];
     // A high-angle tube (the mortar, 45..85 degrees) shows mid-band.
