@@ -54,7 +54,7 @@ import { ConquestMortarBots } from './bot-mortar.js';
 import { ConquestFpvBots } from './bot-fpv.js';
 import { TitanfallBots } from './bot-titanfall.js';
 import { BotRecon } from './bot-recon.js';
-import { mapEventShoot } from './bot-map-events.js';
+import { hullStructureFire, mapEventShoot, structureFireOrder } from './bot-map-events.js';
 import { isTitanType } from '../shared/titan-contract.js';
 import { PILOT_AT_RULES } from './sim/titanfall/pilot-projectiles.js';
 import { applyConquestVehicleCombat, applyMountedCombat, ballisticAim, bestWeaponFor, clearFlight, infantryArmorEffect, pickBotThreat, vehicleHullRules, STINGER_ENGAGE_RANGE } from './bot-vehicle-combat.js';
@@ -1192,6 +1192,11 @@ class BotManager {
           : applyMountedCombat(this.game, br, p, v, vehicleIntent.seatId, now, dtS, inp,
             { threatAxis, aircraft, sightRange: aircraft ? BOT_AIRCRAFT_SIGHT_RANGE : undefined, titan: vehicleIntent.titan === true });
         if (engaged?.target && engaged.recognized) this.callSpot(br, p, engaged.target, now, profile);
+        // A hull booked on a demolish task with nobody to fight fires on the structure's supports.
+        if (!engaged?.target && cq && !vehicleIntent.titan) {
+          const order = structureFireOrder(this.commander, v);
+          if (order) hullStructureFire(this.game, br, p, v, vehicleIntent.seatId, order, now, inp);
+        }
         // Titanfall: walk the titan and use its abilities once the aim is set.
         if (vehicleIntent.titan) this.titanfall.afterMounted(br, p, v, engaged, now, dtS, inp);
       } else { br.vehicleCombat = null; br.mounted = null; }
@@ -1895,7 +1900,7 @@ class BotManager {
 
     // Conquest map events: a launcher at a posted shoot target, over the fight.
     if (cq && !tf && combatAllowed && !inp.throwGrenade
-        && mapEventShoot(this.game, br, p, inp, now, dtS, ownedSlots, turnRate, pitchTurnRate, this.game.mode.teamFor?.(p) ?? p.team)) {
+        && mapEventShoot(this.game, br, p, inp, now, dtS, ownedSlots, turnRate, pitchTurnRate, this.game.mode.teamFor?.(p) ?? p.team, this.commander)) {
       moving = false; br.moveWish = null;
       inp.keys.f = inp.keys.b = inp.keys.l = inp.keys.r = false;
       inp.keys.sprint = false;

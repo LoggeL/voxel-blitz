@@ -248,12 +248,15 @@ export class MapEventSystem {
     return { ...(ev.length ? { ev } : {}), ...(evp.length ? { evp } : {}) };
   }
 
-  /** Bot tasks per team (BotCommander.plan), hazard zones and closed crossings (server/bot-map-events.js). */
+  /** Bot tasks per team (BotCommander.plan), hazard zones, closed crossings and the levolution structures (server/bot-map-events.js). */
   view() {
     const now = this.now;
     const tasks = { alpha: [], bravo: [] };
     const closed = new Set();
+    const structures = [];
     for (const instance of this.instances) {
+      const structure = instance.controller.structureView?.();
+      if (structure) structures.push(structure);
       for (const team of ['alpha', 'bravo']) {
         for (const task of instance.controller.botTasks(team, this) ?? []) {
           if (task?.point) tasks[team].push({ priority: 1, squad: 1, radius: 3, kind: 'hold', ...task, event: instance.id, id: `${instance.id}:${task.id ?? task.kind}` });
@@ -261,7 +264,7 @@ export class MapEventSystem {
       }
       for (const id of instance.controller.closedCrossings() ?? []) closed.add(id);
     }
-    return { active: this.instances.length > 0, tasks, hazards: this.hazards.avoidZones(now), closed,
+    return { active: this.instances.length > 0, tasks, hazards: this.hazards.avoidZones(now), closed, structures,
       events: this.instances.map(i => ({ id: i.id, phase: i.phase, team: i.team, by: i.by, anchor: this.anchorOf(i), endsAt: i.endsAt })) };
   }
 

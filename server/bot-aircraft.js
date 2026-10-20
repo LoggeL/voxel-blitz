@@ -29,6 +29,7 @@ import { botDifficulty, BOT_AIRCRAFT_SIGHT_RANGE } from '../shared/bot-difficult
 import { ROCKET_RULES } from '../shared/rocket-rules.js';
 import { AIRCRAFT_PROJECTILE_WEAPONS } from '../shared/weapon-aircraft-projectiles.js';
 import { raycastVoxels } from '../shared/raycast.js';
+import { arcReaches, bombLandsOn, structureFireOrder } from './bot-map-events.js';
 
 const AIRCRAFT = new Set(['helicopter', 'transport', 'plane']);
 const ROTOR = new Set(['helicopter', 'transport']);
@@ -223,6 +224,29 @@ export function aircraftCombatIntent(game, br, p, v, state, now, dt, { airOnly =
   return { yaw: wrap(yaw + wander.yaw), pitch: pitch + wander.pitch, target, point, distance, fire, reachable, weapon };
 }
 
+/**
+ * A pilot's fixed rockets on the support of the structure its commander
+ * booked the aircraft for (no threat in sight): the aim with the rocket's
+ * drop, fired once the airframe sits on it inside the order's fire band and
+ * the arc reaches the support. Shaped like aircraftCombatIntent's result.
+ */
+function structureAim(game, v, order) {
+  const weapon = pilotWeapon(game, v);
+  const band = order?.rules;
+  if (!weapon || !band || !band.weapons.includes(weapon.key)) return null;
+  const origin = weapon.origin, point = [order.point.x, order.point.y, order.point.z];
+  const dx = point[0] - origin[0], dy = point[1] - origin[1], dz = point[2] - origin[2];
+  const distance = Math.hypot(dx, dy, dz), flat = Math.hypot(dx, dz), flightTime = distance / weapon.speed;
+  const yaw = bearing({ x: origin[0], z: origin[2] }, { x: point[0], z: point[2] });
+  const pitch = Math.atan2(dy + weapon.gravity * flightTime * flightTime / 2, flat);
+  const def = rulesOf(v);
+  const reachable = pitch >= (def.minPitch ?? -0.45) && pitch <= (def.maxPitch ?? 0.4);
+  const aligned = Math.abs(wrap(v.yaw - yaw)) < 0.03 && Math.abs((v.pitch || 0) - pitch) < 0.03;
+  const fire = reachable && aligned && distance >= band.min && distance <= band.max
+    && arcReaches(game, origin, vehicleDirection(v.yaw, v.pitch || 0), weapon.speed, weapon.gravity, point, 4);
+  return { yaw, pitch, distance, fire, reachable, weapon, structure: true };
+}
+
 /** Riders leave an airborne hull that has had no pilot this long. */
 export const BAIL_PILOTLESS_MS = 1500;
 
@@ -401,7 +425,9 @@ export class ConquestAircraftDriving {
 
   attackHelicopter(br, p, v, state, assignment, goal, now, dt, inp) {
     const hp = v.hp / maxHullHp(v);
-    const center = assignment?.flag ?? goal?.target ?? v.spawn;
+    // A demolish order (server/bot-map-events.js) centres the strafing circle on the structure.
+    const order = structureFireOrder(this.commander, v);
+    const center = order?.point ?? assignment?.flag ?? goal?.target ?? v.spawn;
     const home = v.spawn ?? v;
     if (hp < HELI_BREAK_HP && state.phase !== 'breakoff' && state.phase !== 'land' && state.phase !== 'rest') {
       state.phase = 'breakoff'; state.phaseAt = now; state.landing = this.landingPoint(v, home);
@@ -436,7 +462,7 @@ export class ConquestAircraftDriving {
     const altitude = Math.min((rulesOf(v).ceiling ?? 180) - 5, this.groundHeight(point) + HELI_ORBIT.height);
     const nose = distance < HELI_ORBIT.max + 40 ? bearing(v, center) : null;
     this.rotorTo(v, point, Math.max(altitude, ground + 18), inp, { maxSpeed: 16, holdYaw: nose });
-    const combat = aircraftCombatIntent(this.game, br, p, v, state, now, dt);
+    const combat = aircraftCombatIntent(this.game, br, p, v, state, now, dt) ?? (order ? structureAim(this.game, v, order) : null);
     if (combat?.reachable && now >= (state.nextPassAt ?? 0)) state.passUntil ??= now + 1600;
     if (state.passUntil && now < state.passUntil && combat?.reachable && combat.distance < 220) {
       inp.yaw = combat.yaw; inp.pitch = clamp(combat.pitch, rulesOf(v).minPitch, rulesOf(v).maxPitch);
@@ -525,13 +551,15 @@ export class ConquestAircraftDriving {
       if (v.y >= ground + 8) this.boundaryGuard(v, this.jetBox(v), inp);
       this.planeAxes(v, inp); return;
     }
-    const focus = assignment?.flag ?? this.commander?.focusFlag(this.commander.teams.get(this.game.mode.teamFor?.(p) ?? p.team)) ?? v.spawn;
+    // A demolish order (server/bot-map-events.js) makes the structure the run's target: a bomb run on its support.
+    const order = structureFireOrder(this.commander, v);
+    const focus = order?.point ?? assignment?.flag ?? this.commander?.focusFlag(this.commander.teams.get(this.game.mode.teamFor?.(p) ?? p.team)) ?? v.spawn;
     const own = this.commander?.view?.bases?.[this.game.mode.teamFor?.(p) ?? p.team] ?? v.spawn ?? focus;
     // Air threats first: the AA missile once locked, else the cannon.
     const air = aircraftCombatIntent(this.game, br, p, v, state, now, dt, { airOnly: true });
     // The missile only once the target is inside the (weather-scaled) lock range; the cannon covers the rest.
     if (air && air.distance < 360 * weatherLockScale(this.game)) this.selectPilotWeapon(v, 'aaMissile', inp, state, now);
-    else if (state.phase === 'dive') this.selectPilotWeapon(v, 'planeCannon', inp, state, now);
+    else if (state.phase === 'dive') this.selectPilotWeapon(v, order ? 'jetBomb' : 'planeCannon', inp, state, now);
     // The VehicleSystem flight boundary hands a jet to its safety pilot when
     // its 2 s track leaves a speed-dependent interior box; every run point is
     // kept inside that box so the bot never triggers the handoff.
@@ -570,9 +598,13 @@ export class ConquestAircraftDriving {
     inp.pitch = clamp((v.pitch || 0) + (angleOfAttack - (v.angleOfAttack || 0)) / Math.max(0.45, Math.cos(v.roll || 0))
       + (desiredClimb - (v.vy || 0)) * 0.05, -0.3, 0.3);
     if (state.phase === 'dive') {
-      const combat = air ?? aircraftCombatIntent(this.game, br, p, v, state, now, dt);
+      const combat = air ?? (order ? null : aircraftCombatIntent(this.game, br, p, v, state, now, dt));
       if (combat?.reachable && combat.distance > 70) {
         inp.yaw = combat.yaw; inp.pitch = Math.max(-0.4, combat.pitch); inp.wantFire = combat.fire;
+      } else if (order && !air) {
+        // Bomb run: release once a bomb dropped now lands on the support.
+        const bombs = seatWeaponList(v.type, 'driver').findIndex(entry => entry.weapon === 'jetBomb');
+        inp.wantFire = bombs >= 0 && (v.sel?.driver | 0) === bombs && bombLandsOn(v, order.point);
       }
       const agl = v.y - this.groundHeight(v);
       if (agl < JET_RUN.pullUpAgl || flatDistance(v, focus) < 60 || now - state.phaseAt > 14000) {

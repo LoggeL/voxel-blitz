@@ -28,7 +28,7 @@ const box = (x0, y0, z0, x1, y1, z1) => Object.freeze({ x0, y0, z0, x1, y1, z1 }
  * between the banks, from just above the water to above the arch crown.
  * `piers` lists the mid-river pier columns (their parts below the water
  * surface turn into river water when the span goes). `supports` are the boxes
- * blasts are measured against.
+ * blasts are measured against, `heads` the two bridgeheads.
  */
 export const IRON_BRIDGE = Object.freeze({
   id: 'iron-bridge',
@@ -45,6 +45,9 @@ export const IRON_BRIDGE = Object.freeze({
     ...IRON_ARCH.zs.flatMap(z => [IRON_ARCH.x0, IRON_ARCH.x1].map(x => Object.freeze({
       id: `foot-${x < CROSSING.x ? 'w' : 'e'}${z < CROSSING.z ? 'n' : 's'}`, ...box(x - 1, DECK_Y - 3, z - 1, x + 1, DECK_Y + 1, z + 1) }))),
   ]),
+  /** The bridgeheads on the paved axis 9 m past the span, west then east (bots hold them; server/bot-bridge.js bridgeheadPoint). */
+  heads: Object.freeze([-1, 1].map(side => Object.freeze({
+    x: (side < 0 ? CROSSING.x - RIVER_HALF - 9 : CROSSING.x + RIVER_HALF + 9) + 0.5, y: DECK_Y + 1.02, z: CROSSING.z + 0.5 }))),
 });
 
 /**
