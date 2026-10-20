@@ -3,6 +3,7 @@ import { makeAvatar, setAvatarTeam, disposeAvatar } from '../avatar/avatar.js';
 import { UPPER_ARM, FOREARM } from '../avatar/operator-model.js';
 import { applyAvatarCosmetics } from '../cosmetics/skins.js';
 import { vehicleSeatDefinition } from '../../../shared/vehicle-seats.js';
+import { batchSeatedCrewBody } from './crew-body.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const LEG_LENGTH = .325;
@@ -63,6 +64,8 @@ export class AircraftPilot {
         thigh.rotation.x = thighAngle; knee.rotation.x = -thighAngle; boot.rotation.x = 0;
       }
     }
+    // The seated body is posed for good: bake its rigid meshes per material.
+    batchSeatedCrewBody(avatar);
     this.sync(player); this.update();
   }
 
@@ -124,6 +127,7 @@ export class AircraftPilot {
     this.firstPerson = hidden;
     const avatar = this.avatar;
     avatar.head.visible = avatar.torso.visible = !hidden;
+    avatar.crewBatch?.setUpperVisible(!hidden);
     for (const arm of [avatar.lArm, avatar.rArm]) {
       for (const child of arm.children) if (child !== avatar.lElbow && child !== avatar.rElbow) child.visible = !hidden;
     }
