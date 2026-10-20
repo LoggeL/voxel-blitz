@@ -8,7 +8,7 @@ The map is Conquest-only (`MAP_MODE_COMPATIBILITY.redrock = ['conquest']`, 16 pl
 
 The design reference is `docs/design/conquest/map2/map2-a-redrock-dam.png` (prompt in `prompt-a-redrock-dam.txt`). The two alternatives (`map2-b-high-pass`, `map2-c-salt-mesa`) were rejected: a mountain pass gives tanks too few routes, and a salt flat has no river for the crossing play. Real captures are in `docs/design/conquest/map2/captures/`.
 
-The generator is pure and deterministic, with one constant seed:
+The generator is pure and deterministic: it uses Frontier's noise with one constant salt, so the relief never repeats Frontier's.
 
 - `shared/world/redrock-plan.js` holds `REDROCK_PLAN`: dimensions, HQs, flags, the river and reservoir, crossings and reference heights. It is dependency-free data, like `FRONTIER_PLAN`.
 - `shared/world/redrock-terrain.js` builds the heightfield and its surfaces. It has no voxels.
@@ -20,7 +20,9 @@ Redrock reuses Frontier's architecture instead of copying it:
 - the site kit (`frontier-sites/kit.js`);
 - the HQ airfields (`frontier-sites/hq-airfield.js`): the plateaus are Frontier's, so runways, helipads, motor pools and every aircraft departure are shared;
 - the entrance, road and reserved-cell passes (`frontier-sites/generate.js`);
-- the cell kinds and road grading of `frontier-terrain.js`.
+- the cell kinds, noise, chamfer relax and graded-road solve of `frontier-terrain.js`;
+- the road clearance and spawn-cell picking of `frontier-sites/plan.js`;
+- the HQ, airfield, pad, road, crossing and landmark builders of `shared/world/battlefield-layout.js`, which `frontier-sites/layout.js` uses too.
 
 `shared/world/battlefields.js` lists the battlefields (`BATTLEFIELD_MAP_IDS = ['frontier', 'redrock']`, `isBattlefieldMap`, names and lobby taglines). Everything that used to test `map === 'frontier'` for the large-map render path now tests `isBattlefieldMap`: far terrain, the airspace apron, render distance, scorch pools, metadata prewarm, the HQ structure warm list and bot navigation cells. `conquestPlanFor(mapId)` in `shared/world/battlefield-plans.js` returns the plan of either map.
 

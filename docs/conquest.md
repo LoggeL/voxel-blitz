@@ -30,7 +30,7 @@ The flag states are `idle`, `capturing`, `neutralizing`, `contested` and `restor
 
 **Deploy before the first spawn.** A human never spawns without a deploy choice. The lobby gates every admission (`ConquestPolicy.gateDeploy`: lobby join, match start, a mid-match join and its bot takeover): instead of the immediate HQ spawn of a join, a lobby team change or a rematch, the human waits unspawned on the deploy screen. The server holds the body dead at the team's HQ with no death, ticket, kill-feed row or event, and a live body inherited from a bot leaves its seat and the field. DEPLOY spawns it at once at the chosen point through the same deploy intent and respawn path as after a death. The deploy timeout (15 s, then the last valid choice or HQ) also applies, but its clock only starts with the client's first input, so a slow map load never auto-deploys a player who has not seen the screen yet. The client takes such a dead row without a death event and without a new death as "not spawned yet" (`LocalPlayer.holdUnspawned`): no head camera, gore, death sound or killer card. Bots and engine-level fixtures (`GameEngine.addClient` without the lobby) still spawn at HQ at once. Covered by `tools/conquest-deploy-test.mjs` (engine) and `tools/conquest-lobby-test.mjs` (real server, start and mid-match join); captures in `docs/design/conquest/deploy-first/`.
 
-The round starts with every bot at its HQ. After each death, the **deploy screen** replaces the spectator overlay. It shows the map with every valid spawn, a kit picker (the picked class's variant toggle and, for the Engineer and the Recon, gadget toggle sit in one loadout slot under the class row, so picking a class never moves the rows or the Deploy button), a killer card and a countdown to the respawn time (6 s). If no choice arrives within 15 s of that time, the server deploys the player at the last valid choice, or else at HQ.
+The round starts with every bot at its HQ. After each death, the **deploy screen** replaces the spectator overlay. It shows the map with every valid spawn, a kit picker (the picked class's variant toggle and, for the Engineer, the Support and the Recon, gadget toggle sit in one loadout slot under the class row, so picking a class never moves the rows or the Deploy button), a killer card and a countdown to the respawn time (6 s). If no choice arrives within 15 s of that time, the server deploys the player at the last valid choice, or else at HQ.
 
 **Killcam.** A human killed by another player (bots included) first sees the killcam replay, then the deploy screen (it stays closed while the replay and its head-flight intro run, and opens the moment the replay ends or is skipped with Space, pad A or the SKIP button). The respawn time is unchanged: the replay window (`KILLCAM.respawnMs`, 4.8 s from the death) ends inside the 6 s delay, so the deploy countdown still reads the authoritative `respawnAt`. A killer seated in a hull is replayed from that seat's chase view (gunners over their gun, the chin gunner through its sight) with the recorded hulls drawn; the kill event names the hull and seat (`kv`, `ks`). A redeploy (kill key `redeploy`) and deaths without a killer show no replay. A medic revive during the replay ends it.
 
@@ -738,7 +738,7 @@ The browser sends `contract: CONQUEST_CONTRACT_VERSION` (currently 6; 4 added th
 The host picks the battlefield in the lobby map list. Only the battlefields are offered in Conquest, and Frontier is the default (`mapForMode('conquest', …)`). Both maps publish the same `mapMeta.conquest` v2 shape: 5 flags (A and B WEST, C neutral, D and E EAST), 2 HQs on the same plateaus, the same HQ fleet with the same pad ids (jeep, tank, AT jeep, mobile AA, attack and transport helicopters and the jet per side, plus the five flag pads), airfields, roads and crossings. Frontier adds its four boats on the river (23 hulls); Redrock Canyon's 12 m canyon has no boat lane (19 hulls). So the rules, deploy, bots, commander, HUD and protocol are unchanged, and nothing on the wire names a map beyond the existing `map` id. The differences are all data:
 
 - the plan: `FRONTIER_PLAN` or `REDROCK_PLAN`, through `conquestPlanFor(mapId)` in `shared/world/battlefield-plans.js`;
-- the generator and metadata: `shared/world/frontier-sites/` or `shared/world/redrock-sites/`;
+- the generator and metadata: `shared/world/frontier-sites/` or `shared/world/redrock-sites/`. Both layouts build their HQs, airfields, pads, roads, crossings and landmarks with the shared `battlefieldLayoutKit` in `shared/world/battlefield-layout.js`;
 - the load mood: `golden | mist | overcast` on Frontier, `desert | dusk` on Redrock. The dynamic weather (*Weather*) runs on both: on Redrock its clear state is the load mood, and overcast, mist and storm blend Frontier's presets over it;
 - the minimap overview image;
 - the soundscape sites;
@@ -785,17 +785,17 @@ On the efficiency cores (`taskpolicy -b`, a stand-in for the slower production h
 
 Not changed (each would change what bots do): per-tick re-route budgets, a resumable surface A*, the threat-scan cadence of bots in vehicles, a shared scrypt semaphore, admission by event-loop load, and worker threads. Vehicle stepping (about a third of a Conquest tick) is untouched.
 
-## Map metadata (`mapMeta.conquest`, built by `createFrontierMetadata`)
+## Map metadata (`mapMeta.conquest`, built by `createFrontierMetadata` and `createRedrockMetadata`)
 
 ```
 { version: 2,
   flags: [{ id, name, site, x, y, z, radius, home, spawns: [{x,y,z}] ×12 }],      // y = surface feet (+1.02)
   bases: { alpha: { id, name, x, y, z, radius, spawns ×8 }, bravo: … },
   combatArea: { minX, maxX, minZ, maxZ },
-  vehicleSpawns: [{ id, team, type, x, y, z, yaw, flag?, altX?, altZ?, walkingRoute?, exitRoute? }],  // 23 hulls
+  vehicleSpawns: [{ id, team, type, x, y, z, yaw, flag?, altX?, altY?, altZ?, altYaw?, walkingRoute?, exitRoute? }],  // 23 hulls (Redrock 19)
   airfields: […], roads: [{ id, kind, width, points: [[x,y,z]…] }], crossings: [{ id, kind, x, y, z, width }],
-  waterways: [{ id: 'river', kind: 'boat-lane', width, points: [[x,y,z]…] }],  // y = water face
-  weather: 'golden' | 'mist' | 'overcast' | 'storm' }   // the load mood; Conquest weather blends from it
+  waterways: [{ id: 'river', kind: 'boat-lane', width, points: [[x,y,z]…] }],  // Frontier only; y = water face
+  weather: 'golden' | 'mist' | 'overcast' | 'storm' | 'desert' | 'dusk' }   // the load mood; Conquest weather blends from it
 ```
 
 The top-level metadata adds these fields:
