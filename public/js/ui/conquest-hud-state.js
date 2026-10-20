@@ -22,6 +22,7 @@ import {
 } from '../../../shared/conquest-kits.js';
 import { RECON_GADGET_RULES } from '../../../shared/recon-gadgets.js';
 import { MAP_EVENT_SUPPORT, mapEventPointKey, usableMapEventPoint } from '../../../shared/conquest-map-events.js';
+import { DEPOT_EVENT } from '../../../shared/map-events/depot.js';
 import { WEAPON_NAMES } from './hud-support.js';
 import { aaReticleModel } from './conquest/aa-hud.js';
 import { relativeTeam, squadName, teamDisplayName } from './conquest/scoring.js';
@@ -507,9 +508,13 @@ export function vehiclePanelModel(seated, { selfId, players = [], selfTeam = nul
     hpText: maxHp ? `${Math.ceil(hp)} / ${Math.ceil(maxHp)}` : `${Math.ceil(hp)}`,
     // The driver's vehicle upgrade (row `upg`) leads the badges, outlined.
     badges: [...[upgradeBadge(row)].filter(Boolean), ...STATUS_BADGES.filter(([key]) => status[key]).map(([key, label, tone]) => ({ key, label, tone })),
-      ...(status.repairing ? [{ key: 'repairing', label: 'REPAIRING', tone: 'repair' }] : [])],
+      ...(status.repairing ? [{ key: 'repairing', label: 'REPAIRING', tone: 'repair' }] : []),
+      ...(status.servicing ? [{ key: 'servicing', label: 'SERVICING', tone: 'repair', icon: 'depot-service' }] : [])],
     // An Engineer in the crew is mending the hull (the snapshot's `repairing` bit).
     repairing: status.repairing === true,
+    // A forward service depot repairs and rearms it (the `servicing` bit): the HP bar glows and a line says what it gives.
+    servicing: status.servicing === true,
+    service: status.servicing ? (maxHp && hp < maxHp - 0.5 ? `DEPOT · HULL +${Math.round(DEPOT_EVENT.tuning.service.hpPerSecond * 100)} %/S` : 'DEPOT · REARMING') : null,
     weapons: seatWeapons(row, seat.id),
     cm: cmKind && drives ? { kind: cmKind, label: cmKind === 'smoke' ? 'SMOKE' : 'FLARES',
       ready: clamp01(finite(row.cmr) / 100), available: finite(row.cmr) >= 100, active: status[cmKind] === true } : null,

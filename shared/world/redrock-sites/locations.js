@@ -19,8 +19,13 @@ import { adobe, latticeTower } from './props.js';
 import { crateStack, wreckTruck, shed } from '../frontier-sites/props.js';
 
 const SX = 768;
-const WELL = { x: 208, z: 408, house: rect(214, 398, 226, 408), corral: rect(192, 414, 210, 428), pump: { x: 200.5, z: 404.5 } };
-const POST = { x: SX - 208, z: 408, store: rect(SX - 227, 398, SX - 213, 408), canopy: rect(SX - 211, 400, SX - 205, 406), sign: { x: SX - 196.5, z: 404.5 } };
+// The forward service depots (shared/map-events/depot.js DEPOT_SITES): three fuel tanks behind each
+// place, mirrored across x 384 (at Coyote Well they took the corral's ground), and a pump island by the windmill.
+const DEPOT_TANKS = Object.freeze([{ x: 566.5, z: 415.5 }, { x: 577.5, z: 415.5 }, { x: 572, z: 423.5 }]);
+const WELL = { x: 208, z: 408, house: rect(214, 398, 226, 408), pump: { x: 200.5, z: 404.5 }, island: rect(SX - 563, 400, SX - 557, 406),
+  tanks: DEPOT_TANKS.map(t => ({ x: SX - t.x, z: t.z })) };
+const POST = { x: SX - 208, z: 408, store: rect(SX - 227, 398, SX - 213, 408), canopy: rect(SX - 211, 400, SX - 205, 406), sign: { x: SX - 196.5, z: 404.5 },
+  tanks: DEPOT_TANKS };
 const ARCH = { x: 340, z: 470 };
 const BUTTE = { x: SX - 340, z: 470 };
 
@@ -33,8 +38,8 @@ const LANDMARKS = {
 
 /** The places: name, label centre, footprint, buildings; `landmark` reads the terrain on first access. */
 export const REDROCK_LOCATIONS = Object.freeze([
-  { id: 'coyote-well', name: 'Coyote Well', x: WELL.x, z: WELL.z, footprint: rect(188, 394, 230, 432), buildings: ['coyote-well-ranch'] },
-  { id: 'juniper-post', name: 'Juniper Trading Post', x: POST.x, z: POST.z, footprint: rect(SX - 231, 394, SX - 189, 432), buildings: ['juniper-post-store'] },
+  { id: 'coyote-well', name: 'Coyote Well', x: WELL.x, z: WELL.z, footprint: rect(185, 394, 230, 432), buildings: ['coyote-well-ranch'] },
+  { id: 'juniper-post', name: 'Juniper Trading Post', x: POST.x, z: POST.z, footprint: rect(SX - 231, 394, SX - 186, 432), buildings: ['juniper-post-store'] },
   { id: 'arch-rock', name: 'Arch Rock', x: ARCH.x, z: ARCH.z, footprint: rect(326, 458, 356, 482), buildings: [] },
   { id: 'signal-butte', name: 'Signal Butte', x: BUTTE.x, z: BUTTE.z, footprint: rect(SX - 357, 458, SX - 327, 482), buildings: ['signal-butte-bunker'] },
 ].map(l => {
@@ -52,19 +57,24 @@ export const REDROCK_LOCATIONS = Object.freeze([
 export const REDROCK_LOCATION_KEEP_OUT = Object.freeze(REDROCK_LOCATIONS.map(l => l.footprint));
 const landmarkOf = id => REDROCK_LOCATIONS.find(l => l.id === id).landmark;
 
+/** Three squat fuel tanks on concrete plinths (as at Hollin, Frontier): the integrity pool of a service depot. */
+function fuelTanks(kit, tanks) {
+  for (const t of tanks) {
+    const g = kit.top(t.x, t.z);
+    kit.cylinder(t.x, t.z, 4.6, g, g, CONCRETE);
+    kit.cylinder(t.x, t.z, 4.2, g + 1, g + 6, PALE);
+    kit.cylinder(t.x, t.z, 3.2, g + 7, g + 7, PALE);
+    kit.feature('cover', { cover: 'tank', x: t.x, z: t.z, height: 6 });
+  }
+}
+
 function coyoteWell(kit) {
   adobe(kit, WELL.house.minX, WELL.house.minZ, WELL.house.maxX, WELL.house.maxZ, { floors: 1, doors: ['w', 's', 'e'], id: 'coyote-well-ranch' });
-  // Corral: a timber rail fence with two gates, a feed trough and a water tank.
-  const c = WELL.corral;
-  for (let x = c.minX; x <= c.maxX; x++) for (const z of [c.minZ, c.maxZ]) {
-    if (Math.abs(x - (c.minX + c.maxX) / 2) < 2) continue;
-    const g = kit.top(x, z); kit.set(x, g + 1, z, x % 3 ? TIMBER : DUST_WOOD); if (x % 3 === 0) kit.set(x, g + 2, z, DUST_WOOD);
-  }
-  for (let z = c.minZ; z <= c.maxZ; z++) for (const x of [c.minX, c.maxX]) {
-    if (Math.abs(z - (c.minZ + c.maxZ) / 2) < 2) continue;
-    const g = kit.top(x, z); kit.set(x, g + 1, z, z % 3 ? TIMBER : DUST_WOOD); if (z % 3 === 0) kit.set(x, g + 2, z, DUST_WOOD);
-  }
-  kit.box(c.minX + 3, kit.top(c.minX + 3, c.minZ + 4) + 1, c.minZ + 4, c.minX + 7, kit.top(c.minX + 3, c.minZ + 4) + 1, c.minZ + 4, PLANK);
+  // The depot's tank farm on the old corral ground and a concrete pump island between the windmill and the ranch.
+  fuelTanks(kit, WELL.tanks);
+  const i = WELL.island, iy = kit.maxTop(i.minX, i.minZ, i.maxX, i.maxZ);
+  kit.box(i.minX, iy, i.minZ, i.maxX, iy, i.maxZ, CONCRETE);
+  for (const pz of [i.minZ + 2, i.maxZ - 2]) kit.box((i.minX + i.maxX) >> 1, iy + 1, pz, (i.minX + i.maxX) >> 1, iy + 2, pz, TRUCK_RED);
   // Windmill over the well head with its stock tank.
   const { x, z } = WELL.pump, g = kit.top(x, z), cx = Math.floor(x), cz = Math.floor(z);
   const top = latticeTower(kit, cx, cz, g + 1, 15, 2, { leg: DUST_WOOD, brace: TIMBER });
@@ -101,6 +111,7 @@ function tradingPost(kit) {
   kit.box(cx, g + 14, cz - 2, cx, g + 16, cz + 2, TRUCK_RED);
   kit.set(cx, g + 18, cz, METAL);
   shed(kit, SX - 230, 416, SX - 222, 424, 3, { roof: CORRUGATED_STEEL });
+  fuelTanks(kit, POST.tanks);
   crateStack(kit, SX - 214, 412, 2, 2, 1, DUST_CRATE);
   crateStack(kit, SX - 200, 424, 1, 2, 2, TIMBER);
   const l = landmarkOf('juniper-post');

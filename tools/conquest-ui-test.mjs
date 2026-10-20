@@ -48,7 +48,7 @@ const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restor
   'deploy-refused', 'deploy-classes', 'deploy-locked', 'deploy-down-medic', 'medic-heal', 'deploy-aa', 'recon-deploy', 'recon-sensor', 'ribbon',
   'ribbon-banner', 'deploy-vehicles', 'weather-storm', 'weather-fog', 'scoreboard', 'result', 'result-medals', 'orders-rose', 'orders-chip',
   'orders-map', 'mortar', 'mortar-ready', 'fpv', 'bt-attack', 'bt-fallback', 'bt-overtime', 'bt-deploy', 'callin-ready', 'callin-map',
-  'callin-incoming', 'depot-chain', 'depot-ablaze'];
+  'callin-incoming', 'depot-chain', 'depot-ablaze', 'depot-service'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
   assert.equal(f.match.mode, 'conquest');
@@ -202,6 +202,10 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
   assert.equal(repairing.repairing, true);
   assert.deepEqual(repairing.badges.map(b => [b.label, b.tone]), [['REACTIVE', 'upgrade'], ['REPAIRING', 'repair']], 'the driver\'s upgrade badge leads, then REPAIRING');
   assert.equal(state.driverHudModel({ ...mending.row, st: VEHICLE_STATUS.repairing }, 'driver').badges.length, 0, 'REPAIRING is no periscope danger badge');
+  // On a depot forecourt the servicing bit: a SERVICING badge with the depot glyph and the service line.
+  const serviced = panelOf(byId('depot-service'));
+  assert.equal(serviced.servicing, true); assert.equal(serviced.service, 'DEPOT · HULL +5 %/S');
+  assert.deepEqual(serviced.badges.filter(b => b.key === 'servicing').map(b => [b.label, b.icon]), [['SERVICING', 'depot-service']]);
 
   const pilot = panelOf(byId('heli-pilot'));
   assert.equal(pilot.weapons[0].label, 'ROCKET POD'); assert.equal(pilot.weapons[0].ammo, 9);

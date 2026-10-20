@@ -1,180 +1,205 @@
-// Hollin Fuel Depot explosion (docs/conquest.md "Hollin Fuel Depot") on the real
-// Frontier world: the tank geometry against the template, integrity (rockets
-// strongly, the mounted HMG through combat.fireMountedRay weakly, rifles not),
-// the chain reaction, blast credit and falloff, the staged craters, burning
-// ground, the smoke column blocking sight lines, the `ev` row, bot shoot tasks
-// and avoidance, Breakthrough and the rematch reset.
+// Forward service depots (docs/conquest.md "Forward service depots") on the
+// real worlds: the sites against the templates, the service loop and its
+// gameplay effect against the field regen (HP to full, rearm, damage pause,
+// one hull at a time, owner = flag holder), the pool and the chain reaction
+// (score, burning road, no service afterwards), the bots (return to base by
+// road metres, demolition only on evidence, AA guard), wire, HUD and reset.
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
-import { AIR, CONCRETE, PALE, SCORCHED_EARTH } from '../shared/world/blocks.js';
-import { WEAPON_IDS } from '../shared/combatmath.js';
-import { VEHICLE_WEAPONS } from '../shared/vehicle-defs.js';
-import { MAP_EVENT_DEFS, decodeMapEvents, mapEventsFor } from '../shared/conquest-map-events.js';
-import { DEPOT_EVENT, cylinderChord } from '../shared/map-events/depot.js';
+import { PALE, SCORCHED_EARTH, AIR } from '../shared/world/blocks.js';
+import { VEHICLE_STATUS } from '../shared/conquest-contract.js';
+import { decodeConquestMatch } from '../shared/conquest.js';
+import { MAP_EVENT_DEFS, mapEventsFor } from '../shared/conquest-map-events.js';
+import { vehicleMaxHp } from '../shared/vehicles.js';
+import { DEPOT_EVENT, DEPOT_EVENTS, DEPOT_SITES, DEPOT_WEST_EVENT } from '../shared/map-events/depot.js';
 import { DepotController } from '../server/modes/conquest/map-events/depot.js';
 import { MAP_EVENT_CONTROLLERS } from '../server/modes/conquest/map-events/registry.js';
-import { MapEventSystem } from '../server/modes/conquest/map-events/system.js';
-import { fireMountedRay } from '../server/sim/combat.js';
-import { avoidZonesFor, hazardEscape, mapEventShoot, planMapEventTasks } from '../server/bot-map-events.js';
-import { mapEventBanner, paintMapEvents } from '../public/js/ui/conquest/map-events.js';
-import { MapEventFx } from '../public/js/fx/map-event-fx.js';
-import { TICK_MS, eventFixture, mapEventWireBytes } from './lib/map-event-fixtures.mjs';
+import { planMapEventTasks } from '../server/bot-map-events.js';
+import { ConquestVehicleDriving, vehicleRoute } from '../server/bot-vehicle-driving.js';
+import { depotGuard, depotTrip, routeLength } from '../server/bot-depot.js';
+import { mapEventBanner, mapEventMapItems } from '../public/js/ui/conquest/map-events.js';
+import { vehiclePanelModel } from '../public/js/ui/conquest-hud-state.js';
+import { TICK_MS, eventFixture, groundY, mapEventWireBytes } from './lib/map-event-fixtures.mjs';
 
-const T = DEPOT_EVENT.tuning;
-assert(MAP_EVENT_DEFS.includes(DEPOT_EVENT) && MAP_EVENT_CONTROLLERS.depot === DepotController, 'registered in both slots');
-assert(mapEventsFor('frontier').includes(DEPOT_EVENT) && !mapEventsFor('redrock').includes(DEPOT_EVENT), 'Frontier only');
+const T = DEPOT_EVENT.tuning, S = T.service;
+const controllers = { depot: DepotController, 'depot-w': DepotController };
+assert(MAP_EVENT_DEFS.includes(DEPOT_EVENT) && MAP_EVENT_DEFS.includes(DEPOT_WEST_EVENT) && MAP_EVENT_CONTROLLERS['depot-w'] === DepotController, 'both slots');
+assert.deepEqual(mapEventsFor('frontier').map(d => d.id), ['comeback', 'depot', 'depot-w'], 'Frontier wire indices');
+assert.deepEqual(mapEventsFor('redrock').map(d => d.id), ['comeback', 'dam', 'depot', 'depot-w'], 'Redrock wire indices');
 
-const F = eventFixture({ defs: [DEPOT_EVENT], controllers: { depot: DepotController } });
+/** Every site's tank bodies as generated (a site change fails here). */
+function checkSites(world, map) {
+  for (const site of Object.values(DEPOT_SITES[map])) for (const t of site.tanks) {
+    for (let y = t.y0 + 2; y <= t.y0 + 6; y++) assert.equal(world.getBlock(Math.floor(t.x), y, Math.floor(t.z)), PALE, `${map} ${site.id} ${t.id} body at y ${y}`);
+  }
+}
+
+// ======================================================================== Frontier
+const F = eventFixture({ defs: DEPOT_EVENTS, controllers });
 const { game, policy, system, world } = F;
-// The tanks as generated: a concrete plinth at y0, the pale body from y0 + 1 to y0 + 6.
-for (const t of T.tanks) {
-  const x = Math.floor(t.x), z = Math.floor(t.z);
-  assert.equal(world.getBlock(x, t.y0, z), CONCRETE, `${t.id} plinth at y ${t.y0}`);
-  for (let y = t.y0 + 1; y <= t.y0 + 6; y++) assert.equal(world.getBlock(x, y, z), PALE, `${t.id} body at y ${y}`);
-}
-const [W, E, S] = T.tanks;
-const a = F.player('a', 'alpha'), a2 = F.player('a2', 'alpha'), b = F.player('b', 'bravo'), b2 = F.player('b2', 'bravo'), b3 = F.player('b3', 'bravo');
+checkSites(world, 'frontier');
+const onSite = s => ({ ...s, pump: { ...s.pump, site: true } });
+const kestrel = onSite(DEPOT_SITES.frontier.west);
+const west = system.instance('depot-w'), east = system.instance('depot');
+const hulls = game.vehicles.vehicles, V = id => hulls.get(id);
+const park = (v, at, dx = 0, dz = 0) => {
+  // From the site's own floor (a canopy roof is not the forecourt), else the column's top.
+  const x = at.x + dx, z = at.z + dz, probe = at.site ? at.y : groundY(world, x, z) ?? at.y;
+  v.y = probe + 0.5;
+  const y = game.vehicles.placement(v, x, z) ?? probe;
+  return Object.assign(v, { x, y, z, vx: 0, vy: 0, vz: 0, speed: 0, lastDamagedAt: -Infinity, grounded: true });
+};
+const frac = v => v.hp / vehicleMaxHp(v);
 F.run(TICK_MS * 2);
-const ev = system.instance('depot');
-assert(ev && ev.phase === 'idle' && !F.snap.match.conquest.ev, 'an intact depot rides no `ev` row');
-const centre = t => [t.x, t.y0 + 4, t.z];
-const blast = (key, t = W, by = 'a') => system.onBlast(centre(t), { key, radius: 3, ownerId: by });
+assert.deepEqual(F.snap.match.conquest.ev, [[0, 0], [1, 0]], 'a standing depot rides a 5 B idle row (the map badge)');
 
-// ---------------------------------------------------------------- integrity
-blast('rifle'); blast('molotov');
-assert.equal(system.targets.share(system.targets.get(ev, W.id)), 1, 'rifles and molotovs do nothing');
-// A real mounted HMG round on the tank wall (combat.fireMountedRay -> onBlast as a radius-0 hit).
-F.place(a, W.x - 30, W.z - 0.5);
-const origin = [W.x - 12, W.y0 + 4, W.z], dir = [1, 0, 0];
-for (let i = 0; i < 20; i++) fireMountedRay(a, origin, dir, VEHICLE_WEAPONS.hmg, game.contexts.combat, { vehicleId: null });
-const hmgShare = system.targets.share(system.targets.get(ev, W.id));
-assert(Math.abs(hmgShare - (1 - 20 * 1.5 / 300)) < 1e-6, `20 HMG hits take 10 % (${hmgShare})`);
-blast('rocket');
-F.run(TICK_MS);
-assert.equal(ev.phase, 'idle');
-const row = F.decoded().events[0];
-assert.deepEqual(row.extra, [57, 100, 100], 'each tank\'s integrity rides the extras');
-assert.equal(Math.round(row.progress * 100), 43, 'the gauge is the worst tank\'s lost share');
-assert(mapEventWireBytes(F.snap.match.conquest) <= 36, `a damaged depot rides ${mapEventWireBytes(F.snap.match.conquest)} B`);
-
-// ---------------------------------------------------------------- bots: shoot when enemies crowd the farm
-F.place(b, W.x - 9, W.z + 3); F.place(b2, W.x - 3, W.z - 6); F.place(b3, E.x + 6, E.z - 6); F.place(a2, S.x, S.z + 6);
-policy._view = null;
-const tasks = system.view().tasks;
-const shoot = tasks.alpha.find(t => t.kind === 'shoot');
-assert(shoot && shoot.point.x === W.x && !tasks.bravo.length, 'alpha posts a shoot task on the weakest tank, bravo none');
-const ts = { team: 'alpha', squads: new Map(), crews: new Map(), hitches: new Map(), memberSquad: new Map() };
-a.bot = true;
-planMapEventTasks({ game, teamBrains: () => [{ id: 'a' }], kitOf: () => 'engineer' }, ts, game.now);
-assert.equal(ts.eventAssign.size, 0, 'a shoot task never books a walk');
-{
-  const slot = WEAPON_IDS.indexOf('rocket');
-  F.place(a, W.x - 60, W.z);
-  a.mag[slot] = 1; a.reserve[slot] = 4;
-  const br = { aim: { steer: (_k, _from, to) => to } };
-  const inp = { keys: {}, yaw: a.yaw, pitch: a.pitch, wantFire: false, switchTo: undefined };
-  assert(mapEventShoot(game, br, a, inp, game.now, 1 / 60, [slot], 9, 9, 'alpha'), 'an Engineer in range takes it');
-  assert.equal(inp.switchTo, slot, 'and raises the RX-8');
-  a.weapon = slot; a.triggerPrev = false;
-  const inp2 = { keys: {}, yaw: a.yaw, pitch: a.pitch, wantFire: false, switchTo: undefined };
-  mapEventShoot(game, br, a, inp2, game.now, 1 / 60, [slot], 9, 9, 'alpha');
-  assert(inp2.wantFire && inp2.pitch > 0, 'then fires with the rocket\'s drop held over');
-  a.bot = false;
-}
-
-// ---------------------------------------------------------------- trigger and chain
-F.place(a, W.x - 30, W.z - 0.5);
-blast('rocket');
-assert.equal(ev.phase, 'idle', '23 % left after HMG fire and two rockets');
-const hpB = b.hp, hpA2 = a2.hp;
-const t0 = performance.now();
-blast('rocket');
-const triggerMs = performance.now() - t0;
-assert.equal(ev.phase, 'warning', 'the first failure sets the chain off');
-assert.deepEqual([ev.team, ev.by], ['alpha', 'a']);
-assert.equal(F.events.filter(e => e.kind === 'score' && e.id === 'a' && e.reason === 'map_event').length, 0, 'the score rides the next tick');
-assert(b.hp < hpB - 40 && b.hp > 0, `9 m off: heavy damage (${hpB} -> ${b.hp})`);
-assert.equal(b2.state, 'dead', '3 m off: dead');
-assert.equal(a2.hp, hpA2, 'the trigger\'s teammate is spared');
-policy._view = null;
-assert(avoidZonesFor(game, 'bravo').some(z => z.id === 'depot-chain'), 'bots run out of the blast radius');
-let maxTickMs = 0;
-const step = () => { const s = performance.now(); game.step(TICK_MS); maxTickMs = Math.max(maxTickMs, performance.now() - s); };
-for (let t = 0; t < 1600; t += TICK_MS) step();
-const notes = () => F.kinds().filter(e => e.note === 'burst').map(e => e.data.tank);
-assert.deepEqual(notes(), [0, 1], 'the nearest tank goes 1.5 s later');
-for (let t = 0; t < 1500; t += TICK_MS) step();
-assert.equal(ev.phase, 'active');
-assert.deepEqual(notes(), [0, 1, 2], 'the last at the active start');
-assert(F.events.some(e => e.kind === 'score' && e.id === 'a' && e.reason === 'map_event'), 'MAP EVENT score for the last blow');
-F.run(3000);
-assert(F.events.some(e => e.kind === 'kill' && e.victim === 'b2' && e.killer === 'a' && e.w === 'depotBlast'), 'the kill credits the trigger as FUEL DEPOT');
-
-// ---------------------------------------------------------------- craters, fire, column
-for (const t of T.tanks) {
-  const x = Math.floor(t.x), z = Math.floor(t.z);
-  assert.equal(world.getBlock(x, t.y0 + 3, z), AIR, `${t.id} is gone`);
-  assert.equal(world.getBlock(x, t.y0 - T.crater.depth, z), SCORCHED_EARTH, `${t.id} leaves a scorched bowl`);
-}
-assert.equal(system.edits.jobs.length, 0, 'every staged cell applied');
-const fireAt = { x: E.x + 2, z: E.z };
-F.place(b3, fireAt.x, fireAt.z);
-const hp0 = b3.hp;
+// ---------------------------------------------------------------- the service and its effect
+const tank = park(V('alpha-tank'), kestrel.pump, 9, 0), control = park(V('bravo-tank'), { x: 640, y: 37, z: 300 });
+tank.hp = control.hp = 0.3 * vehicleMaxHp(tank);
+const at = V('alpha-jeep_at');
+park(at, kestrel.pump, -9, 0); at.mounts[0].ammo = 0; at.mounts[0].rearm = [90, 90, 90];
+let t = 0;
+const fullAt = { tank: null };
+while (t < 30000 && fullAt.tank == null) { game.step(TICK_MS); t += TICK_MS; if (tank.hp >= vehicleMaxHp(tank)) fullAt.tank = t; }
+const regen = frac(control);
+console.log(`depot service: tank 30 % -> 100 % in ${(fullAt.tank / 1000).toFixed(1)} s on the Kestrel forecourt; `
+  + `field regen in the same time: 30 % -> ${Math.round(regen * 100)} % (caps at ${Math.round(0.6 * 100)} %)`);
+// 5 %/s on top of the field regen (2 %/s to 60 %): 30 -> 100 % in about 12 s, where the field alone stops at 60 %.
+assert(fullAt.tank >= 11500 && fullAt.tank <= 14500, `30 -> 100 % in about 12 s (${fullAt.tank} ms)`);
+assert(regen <= 0.6 + 1e-6, 'away from the depot the hull never passes 60 %');
+assert.equal(at.mounts[0].ammo, 0, 'one hull at a time: the AT jeep waited');
+F.run(500);
+const row = game.vehicles.snapshot().find(r => r.id === 'alpha-jeep_at');
+assert(row.st & VEHICLE_STATUS.servicing, 'the next hull carries the servicing bit');
+F.run(S.rearmMs + 300);
+assert.equal(at.mounts[0].ammo, 3, 'TOW magazine refilled over 6 s');
+assert.equal(at.mounts[0].rearm.length, 0, 'its pending rearm timers dropped');
+// Damage pauses it; an enemy hull is never served; the owner follows the flag.
+tank.hp = 0.5 * vehicleMaxHp(tank); park(tank, kestrel.pump, 9, 0);
 F.run(1000);
-assert(hp0 - b3.hp >= 25 && hp0 - b3.hp <= 35, `burning ground ~30 hp a second (${hp0 - b3.hp})`);
-assert(hazardEscape(game, b3, 'bravo'), 'and a bot inside runs out');
-assert(!hazardEscape(game, Object.assign({}, b3, { x: 560, z: 380 }), 'bravo'), 'outside: no escape goal');
-const smoke = game.projectiles.smoke;
-const across = [[T.column.radius ? 470 : 0, 45, 425], [560, 45, 425]], past = [[470, 45, 400], [560, 45, 400]];
-assert(smoke.blocksSight(...across, game.now), 'the column blocks a sight line through it');
-assert(!smoke.blocksSight(...past, game.now), 'one passing 25 m north is clear');
-assert(cylinderChord(512, 425, 9, 0, 140, [470, 45, 425], [560, 45, 425]) > 17.9, 'chord through the full column');
-const bytes = mapEventWireBytes(F.snap.match.conquest);
-const st = system.edits.stats;
-console.log(`depot: trigger blast ${triggerMs.toFixed(2)} ms, peak tick through the chain ${maxTickMs.toFixed(2)} ms, `
-  + `${st.cells} staged cells over ${st.ticks} ticks (edit step max ${st.maxTickMs.toFixed(2)} ms), ev ${bytes} B active`);
-assert(bytes <= 40, `the active row stays small (${bytes} B)`);
-const banner = mapEventBanner({ kind: 'map_event', event: 'depot', phase: 'warning', team: 'alpha', endsAt: 3000 }, { nowMs: 0, selfTeam: 'bravo' });
-assert.deepEqual([banner.title, banner.detail], ['HOLLIN FUEL DEPOT · CHAIN REACTION', 'GET OUT OF THE DEPOT']);
-F.run(T.fire.ms - 3000);
-assert.equal(system.hazards.of(ev).length, 0, 'the fire burns out a minute after the active start');
-assert(smoke.blocksSight(...across, game.now), 'the column still stands');
-F.run(DEPOT_EVENT.durations.activeMs - T.fire.ms + 500);
-assert.equal(ev.phase, 'done');
-assert(!smoke.blocksSight(...across, game.now), 'gone with the active phase');
-assert.deepEqual(F.decoded().events.map(e => e.phase), ['done']);
+const before = tank.hp;
+tank.hp -= 1; tank.lastDamagedAt = game.now; // what any hit writes (server/sim/vehicle-damage.js)
+F.run(S.quietMs - 500);
+assert(Math.abs(tank.hp - (before - 1)) < 1, `a hit pauses the service for 4 s (${before} -> ${tank.hp}, hit at ${tank.lastDamagedAt}, now ${game.now})`);
+F.run(1500);
+assert(tank.hp > before + 10, 'then it resumes');
+const enemy = park(V('bravo-jeep'), kestrel.pump, 6, 4); enemy.hp = 100;
+F.run(1500);
+assert(!(enemy.depotServiceUntil > 0) && west.controller.servicedHull() !== enemy, 'an enemy hull on the forecourt gets nothing');
+const flagA = policy.capture.flags.find(f => f.id === 'A'), heldA = { ...flagA };
+Object.assign(flagA, { owner: null, control: 0 });
+const hpNeutral = tank.hp; F.run(1000);
+assert.equal(tank.hp, hpNeutral, 'a neutral flag: no service');
+Object.assign(flagA, { owner: heldA.owner, control: heldA.control, state: heldA.state, mover: heldA.mover });
+park(enemy, { x: 600, y: 37, z: 360 });
 
-// ---------------------------------------------------------------- client: effects and map paint from the row alone
+// ---------------------------------------------------------------- bots: return to base, guard, evidence
 {
-  const emitters = new Set(), emitted = [], sounds = [];
-  const field = { emit: kind => { emitted.push(kind); return 1; }, addEmitter: spec => { const h = { ...spec }; emitters.add(h); return h; },
-    removeEmitter: h => emitters.delete(h) };
-  const fx = new MapEventFx({ defs: [DEPOT_EVENT], fx: field, audio: { explosion: (_p, type) => sounds.push(type), structureImpact: () => {}, structureCreak: () => {} },
-    cameraShake: { add: () => {} }, getCamera: () => ({ position: { x: 480, y: 40, z: 425 } }) });
-  fx.mapId = 'frontier';
-  assert(fx.handleEvent({ kind: 'map_event', event: 'depot', phase: 'warning', note: 'burst', data: { tank: 1 }, pos: [512, 31, 425] }));
-  assert(emitted.includes('fire') && emitted.includes('debris') && sounds[0] === 'bomb', 'a burst is a fireball with the bomb take');
-  // A joiner's first row in the active phase (10 s in): fire on the three tanks and the canopy, the column.
-  fx.update(1 / 60, { match: { conquest: { ev: [[0, 3, 0, 0, 1700]] } }, mapId: 'frontier' });
-  assert.equal(emitters.size, 4 * 2 + 5, 'four fires with their smoke and five column levels');
-  fx.update(1 / 60, { match: { conquest: { ev: [[0, 3, 0, 0, 1100]] } }, mapId: 'frontier' });
-  assert.equal(emitters.size, 5, 'the fire is out after a minute; the column stands');
-  fx.update(1 / 60, { match: { conquest: { ev: [[0, 4]] } }, mapId: 'frontier' });
-  assert.equal(emitters.size, 0, 'and goes with the active phase');
-  const calls = [];
-  const ctx = new Proxy({}, { get: (_t, k) => (k === 'setLineDash' || typeof k !== 'string' ? () => {} : (...args) => calls.push(k)), set: () => true });
-  paintMapEvents(ctx, decodeMapEvents([[0, 3, 0, 0, 1700]], null, 'frontier', [DEPOT_EVENT]), { nowMs: 0, px: 1, presenters: undefined });
-  assert.equal(calls.filter(k => k === 'arc').length, 5, 'the map paints the column and four burning discs');
+  const driving = new ConquestVehicleDriving(game);
+  const near = park(V('alpha-tank'), { x: 400, y: 30, z: 330 }); near.hp = 0.4 * vehicleMaxHp(near);
+  const crew = F.player('rtb', 'alpha');
+  const br = { id: 'rtb', rng: () => 0.5 };
+  const inp = {};
+  const road = routeLength(near, vehicleRoute(game, near, kestrel.pump));
+  assert(depotTrip(driving, br, crew, near, game.now, inp, vehicleRoute) && br.depotTrip.depotId === 'depot-w', '40 % HP, Kestrel in reach: drives to the depot');
+  console.log(`depot bots: return to base over ${Math.round(road)} m of road (limit ${T.bots.rtbRoadM} m)`);
+  assert(road <= T.bots.rtbRoadM && road > 100 && (inp.vehicleThrottle || inp.vehicleSteer), 'by road, at the wheel');
+  near.hp = 0.6 * vehicleMaxHp(near); br.depotTrip = null; br.depotScanAt = 0;
+  assert(!depotTrip(driving, br, crew, near, game.now, {}, vehicleRoute), 'above 45 %: no trip');
+  const far = park(near, { x: 384, y: 26, z: 560 }); far.hp = 0.3 * vehicleMaxHp(far); br.depotScanAt = 0;
+  assert(!depotTrip(driving, br, crew, far, game.now, {}, vehicleRoute), `${Math.round(routeLength(far, vehicleRoute(game, far, kestrel.pump)))} m of road away: no trip`);
+  const aa = park(V('alpha-aa'), kestrel.pump, 40, 40);
+  assert.equal(depotGuard(game, aa, 'alpha')?.threat.id ?? null, null, 'no enemy near: the AA is free');
+  park(enemy, kestrel.pump, 80, -60);
+  assert.equal(depotGuard(game, aa, 'alpha'), null, 'an empty enemy hull (or a parked boat) is no threat');
+  const driver = F.player('bd', 'bravo'); F.place(driver, enemy.x + 1, enemy.z, enemy.y);
+  assert(game.vehicles.enter(driver, enemy.id), 'a bravo driver boards');
+  assert.equal(depotGuard(game, aa, 'alpha')?.depotId, 'depot-w', 'an enemy hull within 150 m: the AA guards the forecourt');
+  game.vehicles.exit(driver);
+  park(enemy, { x: 600, y: 37, z: 360 }); park(aa, { x: 127, y: 37, z: 434 });
+}
+// Evidence: alpha serviced the tank and the AT jeep (two visits), so bravo may demolish; alpha never shoots its own.
+const tasks = system.view().tasks;
+assert(tasks.bravo.some(k => k.id === 'depot-w:demolish' && k.kits?.includes('engineer')) && tasks.bravo.some(k => k.kind === 'shoot'), 'bravo demolishes on evidence');
+assert(!tasks.alpha.length && !tasks.bravo.some(k => k.event === 'depot'), 'nobody targets an unused depot or its own');
+{
+  const eng = F.player('eng', 'bravo'); F.place(eng, kestrel.anchor.x + 70, kestrel.anchor.z + 30); eng.bot = true;
+  const ts = { team: 'bravo', squads: new Map(), crews: new Map(), hitches: new Map(), memberSquad: new Map() };
+  planMapEventTasks({ game, teamBrains: () => [{ id: 'eng' }], kitOf: () => 'engineer' }, ts, game.now);
+  assert.equal(ts.eventAssign.get('eng'), 'depot-w:demolish', 'an Engineer 76 m out walks in');
+  eng.bot = false;
 }
 
-// ---------------------------------------------------------------- rematch and Breakthrough
+// ---------------------------------------------------------------- HUD: badge, card, banner
+{
+  F.run(TICK_MS * 2);
+  const cq = decodeConquestMatch(F.snap.match.conquest, F.meta.conquest, { mapId: 'frontier', eventDefs: DEPOT_EVENTS });
+  const items = mapEventMapItems(cq, 'alpha').filter(i => i.kind === 'event');
+  assert.deepEqual(items.map(i => [i.id, i.tone]), [['depot', 'enemy'], ['depot-w', 'own']], 'badges in the flag owner\'s colour');
+  park(tank, kestrel.pump, 9, 0); tank.hp = 0.5 * vehicleMaxHp(tank); F.run(600);
+  const seated = { row: game.vehicles.snapshot().find(r => r.id === 'alpha-tank'), seat: { id: 'driver', role: 'driver', drives: true } };
+  const panel = vehiclePanelModel(seated, { selfId: 'x' });
+  assert(panel.servicing && panel.badges.some(b => b.key === 'servicing') && panel.service === 'DEPOT · HULL +5 %/S', 'the SERVICING card');
+  assert.deepEqual(F.snap.match.conquest.ev[1], [1, 0, 0, -1, -1, [1]], 'the badge pulses while a hull is serviced');
+}
+
+// ---------------------------------------------------------------- the pool and the chain
+const a = F.player('a', 'alpha'), b = F.player('b', 'bravo'), b2 = F.player('b2', 'bravo');
+F.place(b, 330, 300); F.place(b2, 331, 300);
+const w0 = kestrel.tanks[0];
+const rocket = (by, tk = w0) => system.onBlast([tk.x, tk.y0 + 4, tk.z], { key: 'rocket', radius: 3, ownerId: by });
+for (let i = 0; i < 4; i++) rocket('b2');
+for (let i = 0; i < 4; i++) rocket('b');
+system.onBlast([w0.x, w0.y0 + 4, w0.z], { key: 'rifle', radius: 0, ownerId: 'b' });
+assert.equal(west.phase, 'idle', '8 rockets of 9 (rifles do nothing)');
+assert(Math.abs(west.controller.progress() - 800 / 900) < 1e-6, 'the gauge is the pool\'s lost share');
+const t0 = performance.now();
+rocket('b', kestrel.tanks[2]);
+const triggerMs = performance.now() - t0;
+assert.deepEqual([west.phase, west.team, west.by], ['warning', 'bravo', 'b'], 'the 9th RX-8 sets the chain off');
+F.run(TICK_MS * 2);
+const score = id => F.events.filter(e => e.kind === 'score' && e.id === id && e.reason === 'map_event').reduce((s, e) => s + e.pts, 0);
+assert(score('b') > score('b2') && score('b2') > 0, `final blow ${score('b')} beats the assist ${score('b2')}`);
+assert.deepEqual(F.kinds().filter(e => e.event === 'depot-w' && e.note === 'burst').map(e => e.data.tank), [2], 'the wagon nearest the blast first');
+let peak = 0;
+for (let s = 0; s < 3500; s += TICK_MS) { const s0 = performance.now(); game.step(TICK_MS); peak = Math.max(peak, performance.now() - s0); }
+assert.equal(west.phase, 'active');
+const road = system.hazards.of(west).find(z => z.id === 'depot-w-road');
+assert(road && road.until - game.now > 40000 && system.view().hazards.includes(road), 'the a-c road stretch burns for 45 s and bots keep out');
+F.run(4000);
+assert.equal(world.getBlock(Math.floor(w0.x), w0.y0 + 3, Math.floor(w0.z)), AIR, 'the wagons are gone');
+assert.equal(world.getBlock(Math.floor(w0.x), w0.y0 - T.crater.depth, Math.floor(w0.z)), SCORCHED_EARTH, 'a scorched bowl');
+park(tank, kestrel.pump, 9, 0); tank.hp = 0.8 * vehicleMaxHp(tank); // above the field regen's cap
+const dead = tank.hp; F.run(2000);
+assert(tank.hp <= dead, 'a destroyed depot serves no one for the round');
+assert.equal(system.view().tasks.bravo.filter(k => k.event === 'depot-w').length, 0, 'and draws no more tasks');
+const banner = mapEventBanner({ kind: 'map_event', event: 'depot-w', phase: 'active', team: 'bravo', pos: [254, 31, 324] }, { nowMs: 0, selfTeam: 'alpha' });
+assert.equal(banner.title, 'KESTREL HALT DEPOT · DESTROYED', 'the banner names the site');
+const bytes = mapEventWireBytes(F.snap.match.conquest);
+console.log(`depot chain: trigger ${triggerMs.toFixed(2)} ms, peak tick ${peak.toFixed(2)} ms, ${system.edits.stats.cells} staged cells, ev ${bytes} B (${JSON.stringify(F.snap.match.conquest.ev)})`);
+assert(bytes <= 40, 'both rows stay small');
+
+// ---------------------------------------------------------------- rematch
 policy.reset();
 F.run(TICK_MS * 2);
-assert.equal(world.getBlock(Math.floor(W.x), W.y0 + 3, Math.floor(W.z)), PALE, 'the rematch restores the tanks');
-assert(system.instance('depot').phase === 'idle' && !F.snap.match.conquest.ev && smoke.occluders.size === 0, 'idle, no row, no column');
-assert.equal(system.targets.share(system.targets.get(system.instance('depot'), W.id)), 1, 'whole again');
-const bt = new MapEventSystem({ mapMeta: { id: 'frontier' }, variant: 'breakthrough', now: 0 });
-bt.reset();
-assert(bt.instance('depot'), 'Breakthrough keeps the depot');
-console.log('conquest map event depot: geometry, integrity, bots, chain, blast credit, craters, fire, column, wire, rematch passed');
+assert.equal(world.getBlock(Math.floor(w0.x), w0.y0 + 3, Math.floor(w0.z)), PALE, 'the rematch restores the wagons');
+assert(system.instance('depot-w').phase === 'idle' && system.targets.share(system.instance('depot-w').controller.pool) === 1, 'whole again');
+assert.deepEqual(F.snap.match.conquest.ev, [[0, 0], [1, 0]]);
+
+// ======================================================================== Redrock and Breakthrough
+{
+  const R = eventFixture({ map: 'redrock', variant: 'breakthrough', defs: DEPOT_EVENTS, controllers });
+  checkSites(R.world, 'redrock');
+  assert(R.system.instance('depot') && R.system.instance('depot-w'), 'Breakthrough keeps both depots');
+  const juniper = DEPOT_SITES.redrock.east, owner = R.policy.capture.flags.find(f => f.id === juniper.flag);
+  owner.owner = 'bravo';
+  const v = R.game.vehicles.vehicles.get('bravo-tank');
+  const x = juniper.pump.x + 9, z = juniper.pump.z;
+  v.y = juniper.pump.y + 0.5;
+  Object.assign(v, { x, z, y: R.game.vehicles.placement(v, x, z) ?? juniper.pump.y, lastDamagedAt: -Infinity, hp: 0.7 * vehicleMaxHp(v) });
+  R.run(2000);
+  const c = R.system.instance('depot').controller;
+  assert(c.onForecourt(v, 'bravo') && v.hp > 0.75 * vehicleMaxHp(v), `Juniper services EAST's tank on Redrock (${c.owner()}, ${Math.round(v.x)} ${v.y} ${Math.round(v.z)}, ${(v.hp / vehicleMaxHp(v)).toFixed(2)})`);
+}
+console.log('conquest map event depot: sites, service, effect, owner, bots, evidence, HUD, chain, road fire, wire, rematch, Redrock, Breakthrough passed');
 process.exit(0);

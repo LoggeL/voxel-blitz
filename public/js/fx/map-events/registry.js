@@ -36,7 +36,7 @@ export const MAP_EVENT_FX = Object.freeze({
   // slot dam:
   dam: DAM_FX,
   // slot depot:
-  depot: DEPOT_FX,
+  depot: DEPOT_FX, 'depot-w': DEPOT_FX,
   // slot sluice:
   // slot radar:
   // slot trestle:

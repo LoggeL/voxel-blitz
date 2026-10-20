@@ -46,14 +46,14 @@ export class IntegrityTargets {
   /** Remaining share 0..1 of a target. */
   share(target) { return target ? Math.max(0, 1 - target.damage / target.integrity) : 0; }
 
-  /** An explosion: every live target in reach takes its share. Returns [{target, damage}] (damage as a share). */
+  /** An explosion: every live target in reach takes its share (the hit carries the blast `origin`). Returns [{target, damage}] (damage as a share). */
   onBlast(origin, { key = null, radius = 0, ownerId = null, strike = null } = {}) {
     const hits = [];
     for (const target of this.targets) {
       if (target.destroyed || !target.enabled) continue;
       const { damage, support } = integrityBlastDamage(origin, key, radius, target.rules, target.boxes);
       const taken = strikeCapped(target, strike, damage, target.integrity);
-      if (taken > 0) hits.push(this.damage(target, taken, ownerId, { key, support }));
+      if (taken > 0) hits.push(this.damage(target, taken, ownerId, { key, support, origin }));
     }
     return hits.filter(Boolean);
   }

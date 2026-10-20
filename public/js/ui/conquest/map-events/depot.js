@@ -1,23 +1,31 @@
 /**
- * Hollin Fuel Depot on the HUD (docs/conquest.md "Hollin Fuel Depot"; design
- * docs/design/conquest/events/depot/). Reads only the decoded `ev` row (phase,
- * time left, the per-tank extras) and the definition's data:
+ * Forward service depots on the HUD (docs/conquest.md "Forward service
+ * depots"; design docs/design/conquest/depot/, variant A, and the chain
+ * reaction of docs/design/conquest/events/depot/). Reads only the decoded
+ * `ev` row (phase, gauge, time left, extras), the flag owners and the
+ * definition's data:
  *
- *   maps     while the chain builds, the 20 m blast radius as a pulsing amber
- *            ring; once a tank bursts, its burning ground as flickering orange
- *            discs (until the fire burns out); while the column stands, a dark
- *            disc of its current radius over the farm
+ *   maps     while the depot stands, a hexagon badge with the wrench and can
+ *            at its pump in the colour of the side holding its flag (own
+ *            cyan, enemy orange, grey and faded while the flag is neutral),
+ *            the pool's lost share as its arc and a slow pulse while a hull
+ *            is serviced; while the chain builds, the 20 m blast radius as a
+ *            pulsing amber ring; once a tank bursts, its burning ground as
+ *            flickering orange discs (until the fire burns out); while the
+ *            column stands, a dark disc of its current radius; afterwards the
+ *            badge stays grey and faded at the pump (no service this round)
  *   marker   "DEPOT · FIRE 42 S" while the ground burns, "DEPOT · SMOKE" after
- *            (on the minimap, where the depot is smaller than the event hex,
- *            the ring, the column and the fires keep a minimum pixel size so
- *            they show around the hex)
- *   banner   the generic phase banners from the definition's texts; the
- *            per-tank `burst` notes are effects only (no banner)
+ *   banner   the generic phase banners with the site's name ("KESTREL HALT
+ *            DEPOT · CHAIN REACTION"); the per-tank `burst` notes are effects only
+ * The SERVICING vehicle card is the hull row's `servicing` status bit
+ * (vehiclePanelModel in ../../conquest-hud-state.js).
  */
-import { depotColumnRadius } from '../../../../../shared/map-events/depot.js';
+import { depotColumnRadius, depotSiteNear } from '../../../../../shared/map-events/depot.js';
+import { mapEventGlyph } from '../../../../../shared/conquest-map-events.js';
 
 /** The framework's hazard amber (MAP_EVENT_COLORS.hazard in ../map-events.js, which imports this file through the registry). */
 const HAZARD = '#ffb020';
+const nowMs = () => globalThis.performance?.now?.() ?? 0;
 
 /** Seconds into the active phase of a decoded row (null outside it). */
 function activeAgeMs(event) {
@@ -25,9 +33,12 @@ function activeAgeMs(event) {
   return Math.max(0, (event.def.durations.activeMs ?? 0) - event.leftMs);
 }
 
+/** The site of a decoded row (its anchor is the site's on this map). */
+export const depotSiteOf = event => depotSiteNear(event?.def, event?.anchor);
+
 /** The burst tanks of a row: every tank once active, else those whose extra reads 0. */
 export function depotBurstTanks(event) {
-  const tanks = event?.def?.tuning?.tanks ?? [];
+  const tanks = depotSiteOf(event)?.tanks ?? [];
   if (event?.phase === 'active') return tanks;
   if (event?.phase !== 'armed' && event?.phase !== 'warning') return [];
   return tanks.filter((_, i) => Array.isArray(event.extra) && event.extra[i] === 0);
@@ -38,6 +49,14 @@ export function depotFireLeftMs(event) {
   if (event?.phase === 'armed' || event?.phase === 'warning') return Infinity;
   const age = activeAgeMs(event);
   return age == null ? 0 : Math.max(0, event.def.tuning.fire.ms - age);
+}
+
+/** The side a depot row serves now: the owner of its flag while it stands, else null. */
+export function depotOwner(event, cq) {
+  if (event?.phase !== 'idle') return null;
+  const flag = depotSiteOf(event)?.flag;
+  const owner = (cq?.flags ?? []).find(f => f.id === flag)?.owner ?? null;
+  return owner === 'alpha' || owner === 'bravo' ? owner : null;
 }
 
 /** Minimum screen radii in CSS px (the event hex is about 9 px). */
@@ -51,18 +70,32 @@ function disc(ctx, x, z, r, fill, stroke = null, width = 1) {
 }
 
 export const DEPOT_PRESENTER = Object.freeze({
-  banner(ev) {
+  banner(ev, ctx, base) {
     if (ev?.note === 'burst') return null;
-    return undefined;
+    const site = base ? depotSiteNear(ctx?.def, ev?.pos) : null;
+    return site ? { ...base, title: base.title.replace(ctx.def.name, site.name) } : undefined;
   },
 
-  paintMap(ctx, event, { nowMs = 0, px = 1 } = {}) {
-    const T = event?.def?.tuning;
+  /** The badge: at the pump while the depot stands or after it fell, over the tanks through the chain and the fire. */
+  mapItems(event, cq, selfTeam) {
+    const site = depotSiteOf(event);
+    if (!site) return [];
+    const standing = event.phase === 'idle', burning = event.phase === 'armed' || event.phase === 'warning' || event.phase === 'active';
+    const owner = depotOwner(event, cq);
+    const tone = burning ? (event.phase === 'active' ? 'danger' : 'hazard') : standing && owner ? (owner === selfTeam ? 'own' : 'enemy') : 'neutral';
+    const at = burning ? site.anchor : site.pump, t = nowMs();
+    const pulse = event.phase === 'warning' ? (Math.sin(t / 160) + 1) / 2 : standing && event.extra?.[0] === 1 ? (Math.sin(t / 320) + 1) / 2 : 0;
+    return [{ kind: 'event', id: event.id, x: at.x, z: at.z, glyph: mapEventGlyph(event.def), label: event.def.short, phase: event.phase, tone,
+      progress: standing ? event.progress : 0, pulse, faded: !burning && !owner, owner, servicing: standing && event.extra?.[0] === 1 }];
+  },
+
+  paintMap(ctx, event, { nowMs: now = 0, px = 1 } = {}) {
+    const T = event?.def?.tuning, site = depotSiteOf(event);
     const a = event?.anchor;
-    if (!T || !a) return;
+    if (!T || !a || !site) return;
     const unit = 1 / Math.max(0.05, px);
     if (event.phase === 'armed' || event.phase === 'warning') {
-      const pulse = (Math.sin(nowMs / 140) + 1) / 2;
+      const pulse = (Math.sin(now / 140) + 1) / 2;
       ctx.setLineDash([4 * unit, 3 * unit]);
       disc(ctx, a.x, a.z, Math.max(T.blast.radius, MIN_PX.ring * unit), `rgba(255, 176, 32, ${0.08 + 0.1 * pulse})`, HAZARD, 1.6 * unit);
       ctx.setLineDash([]);
@@ -72,9 +105,9 @@ export const DEPOT_PRESENTER = Object.freeze({
       if (r > 0) disc(ctx, a.x, a.z, Math.max(r, MIN_PX.column * unit), 'rgba(20, 18, 16, 0.55)', 'rgba(120, 112, 104, 0.7)', 1 * unit);
     }
     if (depotFireLeftMs(event) > 0) {
-      const flicker = 0.55 + 0.25 * Math.sin(nowMs / 90) + 0.1 * Math.sin(nowMs / 37);
+      const flicker = 0.55 + 0.25 * Math.sin(now / 90) + 0.1 * Math.sin(now / 37);
       const fires = depotBurstTanks(event).map(t => ({ x: t.x, z: t.z, r: T.fire.radius }));
-      if (event.phase === 'active') fires.push(T.fire.canopy);
+      if (event.phase === 'active') fires.push(site.canopy);
       if (!fires.length) return;
       // Too small to tell the tanks apart: one flickering halo around the hex instead.
       if (T.fire.radius < MIN_PX.fireSplit * unit) {

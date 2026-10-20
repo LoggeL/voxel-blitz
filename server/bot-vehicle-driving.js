@@ -8,8 +8,10 @@
 //
 //  - Boarding: walk the hull's authored pickup route, enter the assigned seat.
 //  - Tanks overwatch 40-80 m from the focus flag with line of sight, keep the
-//    front armour toward the threat, move every 6-10 s, and reverse out
-//    below 40 % HP to wait for an engineer.
+//    front armour toward the threat, move every 6-10 s; below 45 % HP they
+//    drive to their team's service depot when one is within 300 m of road
+//    (server/bot-depot.js), else they reverse out below 40 % to wait for an
+//    engineer. A mobile AA guards its depot's forecourt from enemy hulls.
 //  - Jeeps carry the squad to the staging point and everybody gets out there.
 //  - Routes follow mapMeta.conquest.roads joined at junctions and crossings
 //    (a closed crossing, the falling or fallen Iron Bridge, is never used:
@@ -32,6 +34,7 @@ import { navigationWaypoint } from './bot-navigation.js';
 import { BOAT_PATROL, boatPatrol } from './bot-boat-driving.js';
 import { avoidSpan, closedCrossings, crossesClosedSpan } from './bot-bridge.js';
 import { avoidHazards } from './bot-map-events.js';
+import { depotGuard, depotTrip } from './bot-depot.js';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -543,6 +546,15 @@ export class ConquestVehicleDriving {
     const threatYaw = commander?.threatAxis(p) ?? bearing(v, flag);
     const hp = v.hp / maxHullHp(v);
     const own = commander?.view?.bases?.[this.game.mode.teamFor?.(p) ?? p.team] ?? v.spawn ?? v;
+    // Below 45 % with the team's service depot within 300 m of road: drive there and get serviced (server/bot-depot.js).
+    if (depotTrip(this, br, p, v, now, inp, vehicleRoute)) return;
+    // A mobile AA guards its team's depot forecourt while an enemy hull is near it.
+    const guard = v.type === 'aa' ? depotGuard(this.game, v, this.game.mode.teamFor?.(p) ?? p.team) : null;
+    if (guard) {
+      const at = this.driverState(br, v, guard.point, now);
+      if (this.follow(br, v, at, now, inp, { arrive: 6, cruise: distance(v, guard.point) > 40 ? null : 6 }) < 6) this.faceThreat(v, bearing(v, guard.threat), inp);
+      return;
+    }
     let state = this.drivers.get(br.id);
     // Below 40 %: back out of the fight, guns still forward, and wait for repair.
     if (hp < TANK_RETREAT_HP && !(state?.retreat?.done && hp >= TANK_RETREAT_HP)) {

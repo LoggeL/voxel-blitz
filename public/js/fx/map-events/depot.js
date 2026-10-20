@@ -1,5 +1,7 @@
-// Hollin Fuel Depot in the world (docs/conquest.md "Hollin Fuel Depot"):
-// presentation only, from the `map_event` notes and the decoded `ev` row.
+// Forward service depots in the world (docs/conquest.md "Forward service
+// depots"): the chain reaction of a depot's fuel tanks, presentation only,
+// from the `map_event` notes and the decoded `ev` row. Both depot events
+// (`depot`, `depot-w`) use this hook; emitter keys carry the event id.
 //
 //   burst    (note, one per tank) a fireball: fire, embers, sparks, black smoke
 //            and debris at the tank, the heavy blast take of the bomb, a metal
@@ -7,13 +9,13 @@
 //   chain    (armed / warning) a metal groan from the structure voices
 //   fire     a fire and a smoke source on every burst tank (and the canopy
 //            once active) while the ground burns, from the row's time left
-//   column   a stack of `smokeColumn` sources over the farm up to about 110 m
+//   column   a stack of `smokeColumn` sources over the tanks up to about 110 m
 //            while the column stands (it thins out over its last seconds), so
 //            it reads across the map; a joiner starts the same sources from
 //            its first row
 // No dedicated recording: the blasts reuse the explosion bank.
-import { DEPOT_TANKS } from '../../../../shared/map-events/depot.js';
-import { depotBurstTanks, depotFireLeftMs } from '../../ui/conquest/map-events/depot.js';
+import { depotSiteNear } from '../../../../shared/map-events/depot.js';
+import { depotBurstTanks, depotFireLeftMs, depotSiteOf } from '../../ui/conquest/map-events/depot.js';
 
 /** Presentation tuning (no gameplay meaning). */
 export const DEPOT_FX_RULES = Object.freeze({
@@ -27,9 +29,10 @@ const tankPos = (tank, lift = 4) => [tank.x, tank.y0 + lift, tank.z];
 
 export const DEPOT_FX = Object.freeze({
   onEvent(ev, kit) {
-    const anchor = Array.isArray(ev.pos) ? ev.pos : kit.anchor('depot');
+    const anchor = Array.isArray(ev.pos) ? ev.pos : kit.anchor(ev.event);
     if (ev.note === 'burst') {
-      const tank = DEPOT_TANKS[ev.data?.tank | 0];
+      const def = kit.defs?.find?.(d => d.id === ev.event) ?? null;
+      const tank = depotSiteNear(def, anchor)?.tanks?.[ev.data?.tank | 0];
       const at = tank ? tankPos(tank) : anchor;
       if (!at) return true;
       const n = DEPOT_FX_RULES.fireball;
@@ -53,11 +56,12 @@ export const DEPOT_FX = Object.freeze({
   },
 
   sync(event, kit) {
-    const T = event.def.tuning, a = event.anchor;
-    // Burning ground on every burst tank (and under the canopy once active).
+    const T = event.def.tuning, a = event.anchor, site = depotSiteOf(event), id = event.id;
+    if (!site) return;
+    // Burning ground on every burst tank (and under the forecourt roof once active).
     const fireLeft = depotFireLeftMs(event);
-    const fires = fireLeft > 0 ? depotBurstTanks(event).map(t => ({ key: `depot:fire:${t.id}`, at: tankPos(t, 0.6) })) : [];
-    if (fireLeft > 0 && event.phase === 'active') fires.push({ key: 'depot:fire:canopy', at: [T.fire.canopy.x, a.y - 1.4, T.fire.canopy.z] });
+    const fires = fireLeft > 0 ? depotBurstTanks(event).map(t => ({ key: `${id}:fire:${t.id}`, at: tankPos(t, 0.6) })) : [];
+    if (fireLeft > 0 && event.phase === 'active') fires.push({ key: `${id}:fire:canopy`, at: [site.canopy.x, site.pump.y + 0.6, site.canopy.z] });
     const want = new Set();
     const F = DEPOT_FX_RULES.fire;
     for (const f of fires) {
@@ -71,7 +75,7 @@ export const DEPOT_FX = Object.freeze({
     const C = DEPOT_FX_RULES.column;
     if (event.phase === 'active' && a && (event.leftMs ?? 0) > C.stopLeftMs) {
       for (let k = 0; k < C.levels; k++) {
-        const key = `depot:column:${k}`;
+        const key = `${id}:column:${k}`;
         want.add(key);
         if (kit.emitters.has(key)) continue;
         kit.emitter(key, { kind: 'smokeColumn', pos: [a.x, a.y + 4 + k * C.stepM, a.z], rate: C.rate,
@@ -79,6 +83,6 @@ export const DEPOT_FX = Object.freeze({
             color0: [0.05, 0.047, 0.045], color1: [0.16, 0.155, 0.15] } });
       }
     }
-    for (const key of [...kit.emitters.keys()]) if (key.startsWith('depot:') && !want.has(key)) kit.stopEmitter(key);
+    for (const key of [...kit.emitters.keys()]) if (key.startsWith(`${id}:`) && !want.has(key)) kit.stopEmitter(key);
   },
 });

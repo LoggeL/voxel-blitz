@@ -159,7 +159,7 @@ export class MapEventInstance {
   /** `match.conquest.ev` state, or null while plainly idle. */
   wireState() {
     const progress = this.controller.progress();
-    if (this.phase === 'idle' && !(progress > 0) && !this.anchor) return null;
+    if (this.phase === 'idle' && !(progress > 0) && !this.anchor && !this.controller.listed()) return null;
     return { phase: this.phase, progress, team: this.team, leftMs: this.leftMs, anchor: this.anchor, extra: this.controller.wireExtra() };
   }
 }
@@ -194,6 +194,8 @@ export class MapEventController {
   onTarget(_target, _hit) {}
   /** The 0..100 gauge on the wire (`ev[i][2]`) as a 0..1 share. */
   progress() { return this.event.progress; }
+  /** True: the event rides `ev` even while plainly idle (an asset the HUD always shows, such as a service depot's badge). */
+  listed() { return false; }
   /** Up to MAP_EVENT_RULES.wire.extraMax small integers for `ev[i][5]` (a gauge per tank, a water level), or null. */
   wireExtra() { return null; }
   /** Bot tasks for `team` (see server/bot-map-events.js): [{id, kind, point, pointKey?, radius, priority, squad, range?}]. */

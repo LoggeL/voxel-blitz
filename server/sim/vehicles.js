@@ -233,7 +233,7 @@ export class VehicleSystem {
   freshCondition(v) {
     Object.assign(v, { disabled: false, burning: false, disabledBy: null, lastDamagedAt: -Infinity, damageLog: new Map(),
       lk: 0, spotted: {}, cmReadyAt: 0, flaresUntil: 0, smokeUntil: 0, crewlessFor: 0, padBlockedFor: 0, stuckFor: 0, crewRepairUntil: 0,
-      scraping: false, padInactive: false, sleepRevision: null });
+      depotServiceUntil: 0, scraping: false, padInactive: false, sleepRevision: null });
   }
   /** Metres of airspace beyond the map rectangle (shared/world/airspace.js), 0 without an apron. */
   airLimit() { return this.engine.world.apron?.limit ?? 0; }
@@ -2012,6 +2012,7 @@ export class VehicleSystem {
     if (isAircraft(v.type) ? v.grounded : !this.fallSpeeds.has(v.id)) st |= S.grounded;
     if (!(v.hp > 0)) st |= S.wreck;
     if (v.hp > 0 && v.crewRepairUntil > now) st |= S.repairing;
+    if (v.hp > 0 && v.depotServiceUntil > now) st |= S.servicing;
     return st;
   }
   /**

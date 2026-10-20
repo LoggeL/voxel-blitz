@@ -34,7 +34,7 @@ export const MAP_EVENT_PRESENTERS = Object.freeze({
   // slot dam:
   dam: DAM_PRESENTER,
   // slot depot:
-  depot: DEPOT_PRESENTER,
+  depot: DEPOT_PRESENTER, 'depot-w': DEPOT_PRESENTER,
   // slot sluice:
   // slot radar:
   // slot trestle:

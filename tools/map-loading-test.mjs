@@ -182,9 +182,9 @@ import { Client } from './lib/ws-client.mjs';
   assert.equal(store.size, 1);
   assert(MAP_CACHE_BYTE_BUDGET >= 2.5 * 1024 * 1024, 'the default budget holds one Frontier template plus arenas');
   // Both battlefields stay cached together (tools/atlastest.mjs pins their RLE sizes:
-  // Frontier 2 012 784 B, Redrock 1 561 879 B), so a Conquest player switching maps
+  // Frontier 2 014 979 B, Redrock 1 565 454 B), so a Conquest player switching maps
   // never re-downloads either; tools/redrock-map-test.mjs checks the live sizes.
-  assert(MAP_CACHE_BYTE_BUDGET >= 2_012_889 + 1_561_879 + 64 * 1024, 'the default budget holds Frontier and Redrock together');
+  assert(MAP_CACHE_BYTE_BUDGET >= 2_014_979 + 1_565_454 + 64 * 1024, 'the default budget holds Frontier and Redrock together');
   const none = new MapCache({ storage: null });
   await none.load();
   assert.equal(none.remember(world.mapFrame()), world.templateFingerprint, 'without storage the page session still caches');

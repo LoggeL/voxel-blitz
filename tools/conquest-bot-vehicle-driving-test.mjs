@@ -68,7 +68,7 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
     applyInput(id, input);
   };
   const tanks = [...game.vehicles.vehicles.values()].filter(v => v.type === 'tank' && v.team);
-  const track = new Map(tanks.map(v => [v.id, { travel: 0, overwatch: null, destroyed: false }]));
+  const track = new Map(tanks.map(v => [v.id, { travel: 0, overwatch: null, destroyed: false, serviced: false }]));
   let probesBefore = 0, probeWindowTicks = 0, maxProbeRate = 0;
   const ticks = Math.round(120000 / TICK_MS);
   for (let tick = 0; tick < ticks; tick++) {
@@ -79,6 +79,8 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
       t.travel = Math.max(t.travel, flat(v, v.spawn));
       const driverId = vehicleSeatOccupantId(v, 'driver');
       const state = driverId ? bots.vehicleDriving.drivers.get(driverId) : null;
+      // A hull shot below 45 % on its way drives to its service depot instead (server/bot-depot.js).
+      if (driverId && bots.brains.find(b => b.id === driverId)?.depotTrip) t.serviced = true;
       if (state?.spot && state.settleAt && !t.overwatch && Math.abs(v.speed) < 0.5 && flat(v, state.spot) < 6) {
         const flag = bots.commander.crewFor(driverId)?.flag;
         const threatYaw = bots.commander.threatAxis(game.entities.get(driverId));
@@ -95,12 +97,13 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
   const crewed = tanks.filter(v => actions.some(a => a.type === 'enter' && a.vehicleId === v.id));
   assert(crewed.length >= 2, `both HQ tanks get bot drivers through applyInput (${crewed.length})`);
   // A tank killed on its way (the enemy armour already overwatches the flag)
-  // may respawn too late to settle inside the window; every survivor settles.
+  // may respawn too late to settle inside the window; every survivor settles
+  // unless it went to its service depot for repairs.
   assert(crewed.some(v => track.get(v.id).overwatch), 'at least one HQ tank settles on an overwatch spot');
   for (const v of crewed) {
     const t = track.get(v.id);
     assert(t.travel > 100, `${v.id}: leaves its base by more than 100 m (${t.travel.toFixed(0)})`);
-    if (!t.destroyed) assert(t.overwatch, `${v.id}: settles on an overwatch spot`);
+    if (!t.destroyed && !t.serviced) assert(t.overwatch, `${v.id}: settles on an overwatch spot`);
     if (t.overwatch) assert(t.overwatch.flagDistance >= 36 && t.overwatch.flagDistance <= 84, `${v.id}: overwatch 40-80 m from its flag (${t.overwatch.flagDistance.toFixed(1)})`);
   }
   assert(maxProbeRate <= 4.2, `detour probes stay at or below 4 Hz per driver (${maxProbeRate.toFixed(2)})`);
@@ -142,7 +145,9 @@ function crewedTank() {
   assert(cmAt - lockAt >= reaction - TICK_MS && cmAt - lockAt <= reaction + 3 * TICK_MS, `countermeasure after the ${reaction} ms reaction (${cmAt - lockAt} ms)`);
   assert(reaction >= 300 && reaction <= 800, 'reflex delay is 0.3-0.8 s by difficulty');
   tank.lk = 0;
-  // Below 40 % the driver reverses out with the front still toward the threat.
+  // Below 40 % the driver reverses out with the front still toward the threat. Kestrel Halt's
+  // service depot is within reach here, so its trip is held off (tools/conquest-map-event-depot-test.mjs covers it).
+  bots.brains.find(b => b.id === driver.id).depotCoolUntil = Infinity;
   tank.hp = vehicleMaxHp('tank') * (TANK_RETREAT_HP - 0.05);
   let reversing = 0;
   for (let i = 0; i < 180; i++) { game.step(TICK_MS); if ((driver.input?.vehicleThrottle ?? 0) < 0) reversing++; }

@@ -8,8 +8,8 @@
 export const MAP_EVENT_GLYPHS = Object.freeze({
   // slot dam:
   // slot depot:
-  // Hollin Fuel Depot: a squat fuel tank with a flame over it.
-  'event-depot': 'M12 1.5c1.9 2.2 3.4 3.9 3.4 5.9a3.4 3.4 0 0 1-6.8 0c0-1.1.5-2.1 1.3-2.9.1 1.1.7 1.9 1.5 2.2-.2-1.8.1-3.5.6-5.2zM4 13.2C4 11.4 7.6 10 12 10s8 1.4 8 3.2V20c0 1.5-3.6 2.5-8 2.5S4 21.5 4 20zM6 14.6v1.6c1.5.6 3.6.9 6 .9s4.5-.3 6-.9v-1.6c-1.5.6-3.6.9-6 .9s-4.5-.3-6-.9z',
+  // Fuel depot (kill feed): a squat fuel tank with a flame over it; service depot (badge, banner): an open-end wrench beside a jerry can.
+  'depot-service': 'M3 2.5h2v3h2v-3h2v3.5a3 3 0 0 1-2 2.8V21a1 1 0 0 1-2 0V8.8A3 3 0 0 1 3 6zM13 3h4v2h-4zM13 6h5l3 3v12.5a1.5 1.5 0 0 1-1.5 1.5h-7a1.5 1.5 0 0 1-1.5-1.5V7.5A1.5 1.5 0 0 1 13 6zM16 11.5l-2.5 3.5 2.5 3.5 2.5-3.5z', 'event-depot': 'M12 1.5c1.9 2.2 3.4 3.9 3.4 5.9a3.4 3.4 0 0 1-6.8 0c0-1.1.5-2.1 1.3-2.9.1 1.1.7 1.9 1.5 2.2-.2-1.8.1-3.5.6-5.2zM4 13.2C4 11.4 7.6 10 12 10s8 1.4 8 3.2V20c0 1.5-3.6 2.5-8 2.5S4 21.5 4 20zM6 14.6v1.6c1.5.6 3.6.9 6 .9s4.5-.3 6-.9v-1.6c-1.5.6-3.6.9-6 .9s-4.5-.3-6-.9z',
   // slot sluice:
   // slot radar:
   // slot trestle:
