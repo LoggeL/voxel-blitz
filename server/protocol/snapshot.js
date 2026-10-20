@@ -215,6 +215,69 @@ function playerRow(p, nowMs) {
   return row;
 }
 
+/**
+ * Player-row fields only the row's own client reads (its HUD, prediction and
+ * weapon reconcile; remote avatars, killcam and spectating never do). The
+ * authoritative tick keeps them on every row for rewards, coalescing and mode
+ * views; only the socket text drops them from other players' rows, which keeps
+ * a 24-32 player tick inside the 32 KiB permessage-deflate window.
+ */
+export const OWNER_ONLY_FIELDS = new Set([
+  'medkit', 'reserve', 'reloadAck', 'reloadState', 'credits', 'grenades', 'impulse', 'teleport',
+  'concussedMs', 'exhaustion', 'breathReserve', 'breathExhausted', 'breathReleasedFor',
+]);
+
+function publicRowJson(row) {
+  const keys = Object.keys(row);
+  let i = 0;
+  while (i < keys.length && !OWNER_ONLY_FIELDS.has(keys[i])) i++;
+  if (i === keys.length) return null;
+  const pub = {};
+  for (const key of keys) if (!OWNER_ONLY_FIELDS.has(key)) pub[key] = row[key];
+  return JSON.stringify(pub);
+}
+
+/**
+ * Serialize one tick for every recipient at once: `text` is JSON.stringify(tick)
+ * with each player row stripped of its owner-only fields, and `spans` records
+ * where each stripped row sits so tickTextFor can put one recipient's own full
+ * row back.
+ */
+export function serializeTick(tick) {
+  const rows = tick.players;
+  if (!Array.isArray(rows)) return { text: JSON.stringify(tick), spans: null };
+  const spans = new Map();
+  let text = '{', sep = '';
+  for (const key of Object.keys(tick)) {
+    if (key !== 'players') {
+      const json = JSON.stringify(tick[key]);
+      if (json === undefined) continue;
+      text += sep + JSON.stringify(key) + ':' + json;
+    } else {
+      text += sep + '"players":[';
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (i) text += ',';
+        const pub = row && typeof row === 'object' && !Array.isArray(row) ? publicRowJson(row) : null;
+        if (pub === null) { text += JSON.stringify(row) ?? 'null'; continue; }
+        spans.set(row.id, { start: text.length, end: text.length + pub.length, row, full: null });
+        text += pub;
+      }
+      text += ']';
+    }
+    sep = ',';
+  }
+  return { text: text + '}', spans };
+}
+
+/** The tick text for one recipient: its own row, if it has one, keeps every field. */
+export function tickTextFor(serialized, recipientId) {
+  const span = serialized.spans?.get(String(recipientId));
+  if (!span) return serialized.text;
+  span.full ??= JSON.stringify(span.row);
+  return serialized.text.slice(0, span.start) + span.full + serialized.text.slice(span.end);
+}
+
 function defaultMatchSnapshot() {
   return {
     mode: DEFAULT_MODE_ID,

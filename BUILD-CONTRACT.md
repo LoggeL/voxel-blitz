@@ -229,6 +229,12 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   score,kills,deaths,ping,impulse,state,respawnAt,firing,ads,crouch,grounded,
   vaulting,proneT,leanT,moveSpeed,mag,reserve,reloading,reloadAck,reloadState,
   team,credits,owned,bomb,interaction,grenades,charge,minigun}`.
+  On the socket only the recipient's own row carries the owner-only fields
+  `medkit,reserve,reloadAck,reloadState,credits,grenades,impulse,teleport,
+  concussedMs,exhaustion,breathReserve,breathExhausted,breathReleasedFor`
+  (`OWNER_ONLY_FIELDS` in `server/protocol/snapshot.js`); every other row
+  omits them, which keeps a 24-32 player tick inside the 32 KiB
+  permessage-deflate window. The own row is byte-identical to the full row.
   `team` is `'alpha'|'bravo'|null`; `owned` is an array of weapon ids;
   `grenades` is the remaining per-type count array in `GRENADE_TYPE_IDS` order;
   `charge` is the normalized `0–1` capacitor charge of a held `charge`-mode

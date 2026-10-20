@@ -3,11 +3,14 @@ import { isModeMapCompatible } from '../shared/modes.js';
 import {
   MATCH_KEYS as MATCH_KEY_LIST,
   PLAYER_KEYS as PLAYER_KEY_LIST,
+  remoteRowKeys,
 } from './lib/protocol-contract.mjs';
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8070';
 const HARD_TIMEOUT_MS = 15_000;
 const PLAYER_KEYS = PLAYER_KEY_LIST.split(',');
+// Other players' rows arrive without the owner-only keys.
+const REMOTE_PLAYER_KEYS = remoteRowKeys(PLAYER_KEY_LIST).split(',');
 const MATCH_KEYS = MATCH_KEY_LIST.split(',');
 const WELCOME_KEYS = [
   'blockDamage', 'gameMode', 'id', 'lobby', 'map', 'mapBytes', 'mastery', 'phase', 'spawn', 't',
@@ -105,7 +108,10 @@ function validateTick(message, playerId, expectedMap) {
     `tick identity is ${JSON.stringify({ mode: message.match.mode, map: message.match.map })}`);
   requireCondition(Array.isArray(message.players) && message.players.length > 0,
     'tick has no players');
-  requireCondition(message.players.every((player) => hasExactKeys(player, Object.hasOwn(player, 'attachments') ? [...PLAYER_KEYS, 'attachments'].sort() : PLAYER_KEYS)),
+  requireCondition(message.players.every((player) => {
+    const keys = player.id === playerId ? PLAYER_KEYS : REMOTE_PLAYER_KEYS;
+    return hasExactKeys(player, Object.hasOwn(player, 'attachments') ? [...keys, 'attachments'].sort() : keys);
+  }),
     'tick contains an incomplete player');
   requireCondition(message.players.some((player) =>
     player.id === playerId && player.name === 'ContainerSmoke'),
