@@ -1,0 +1,77 @@
+{
+  "generated": "2026-10-20T16:10:59.063Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "quarry-warning",
+        "title": "Aldric Quarry · enemy set the rockslide off · 4 s",
+        "file": "docs/design/conquest/events/quarry/captures/desktop-quarry-warning.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "quarry-plunger",
+        "title": "Aldric Quarry · holding the detonator · 55 %",
+        "file": "docs/design/conquest/events/quarry/captures/desktop-quarry-plunger.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "quarry-done",
+        "title": "Aldric Quarry · full map after the rockslide",
+        "file": "docs/design/conquest/events/quarry/captures/desktop-quarry-done.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "quarry-warning",
+        "title": "Aldric Quarry · enemy set the rockslide off · 4 s",
+        "file": "docs/design/conquest/events/quarry/captures/portrait-quarry-warning.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "quarry-plunger",
+        "title": "Aldric Quarry · holding the detonator · 55 %",
+        "file": "docs/design/conquest/events/quarry/captures/portrait-quarry-plunger.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "quarry-done",
+        "title": "Aldric Quarry · full map after the rockslide",
+        "file": "docs/design/conquest/events/quarry/captures/portrait-quarry-done.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "quarry-warning",
+        "title": "Aldric Quarry · enemy set the rockslide off · 4 s",
+        "file": "docs/design/conquest/events/quarry/captures/landscape-quarry-warning.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "quarry-plunger",
+        "title": "Aldric Quarry · holding the detonator · 55 %",
+        "file": "docs/design/conquest/events/quarry/captures/landscape-quarry-plunger.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "quarry-done",
+        "title": "Aldric Quarry · full map after the rockslide",
+        "file": "docs/design/conquest/events/quarry/captures/landscape-quarry-done.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

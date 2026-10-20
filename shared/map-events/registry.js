@@ -16,7 +16,7 @@
 // slot elevator (Frontier Kestrel Halt grain elevator):
 // import { ELEVATOR_EVENT } from './elevator.js';
 // slot quarry (Frontier Aldric Quarry rockslide):
-// import { QUARRY_EVENT } from './quarry.js';
+import { QUARRY_EVENT } from './quarry.js';
 // slot comeback (both maps, trailing team call-in):
 // import { COMEBACK_EVENT } from './comeback.js';
 // slot airdrop (both maps, supply crate):
@@ -36,7 +36,7 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot elevator:
   // ELEVATOR_EVENT,
   // slot quarry:
-  // QUARRY_EVENT,
+  QUARRY_EVENT,
   // slot comeback:
   // COMEBACK_EVENT,
   // slot airdrop:

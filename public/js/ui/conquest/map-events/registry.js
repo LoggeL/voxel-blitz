@@ -29,7 +29,7 @@
 // slot elevator:
 // import { ELEVATOR_PRESENTER } from './elevator.js';
 // slot quarry:
-// import { QUARRY_PRESENTER } from './quarry.js';
+import { QUARRY_PRESENTER } from './quarry.js';
 // slot comeback:
 // import { COMEBACK_PRESENTER } from './comeback.js';
 // slot airdrop:
@@ -48,7 +48,7 @@ export const MAP_EVENT_PRESENTERS = Object.freeze({
   // slot elevator:
   // elevator: ELEVATOR_PRESENTER,
   // slot quarry:
-  // quarry: QUARRY_PRESENTER,
+  quarry: QUARRY_PRESENTER,
   // slot comeback:
   // comeback: COMEBACK_PRESENTER,
   // slot airdrop:
