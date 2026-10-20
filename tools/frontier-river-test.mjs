@@ -2,7 +2,7 @@
 // "Patrol boat"): the 20 m crossings and 36-44 m reaches, the 4-5 m channel and
 // the one-voxel fords, the end bridges' clearance for a boat afloat; a bot
 // helmsman sails the whole boat lane end to end for each team (under all three
-// decks, over both fords), a boat scrapes across a ford slowly, a jeep and a tank
+// decks, over both fords, through both sluice ponds), a boat scrapes across a ford slowly, a jeep and a tank
 // still drive through both fords, flag C is capturable from either bank, and
 // after the Iron Bridge collapse boats still pass where the span stood.
 import assert from 'node:assert/strict';
@@ -21,6 +21,7 @@ import { TICK_MS } from '../server/protocol/admission.js';
 import { BOAT_PATROL, boatLane, lanePoint, laneProgress } from '../server/bot-boat-driving.js';
 import { IRON_BRIDGE, IRON_BRIDGE_RULES } from '../shared/conquest-bridge.js';
 import { STRUCTURE_RULES } from '../shared/structure.js';
+import { WEIR } from '../shared/map-events/weir.js';
 import { BOAT_TOP } from '../public/js/vehicles/models/boat.js';
 import { mulberry32 } from '../shared/noise.js';
 
@@ -208,7 +209,8 @@ function sail(game, bots, boatId, team, from, to, seconds) {
     const run = sail(game, bots, boatId, team, from, to, 200);
     ok(run.arrived != null, `${team}: a bot sails ${boatId} the whole river, z ${run.from.z.toFixed(0)} to ${run.to.z.toFixed(0)} (${run.arrived?.toFixed(1)} s, at ${run.at.x.toFixed(0)},${run.at.z.toFixed(0)})`);
     ok(FRONTIER_CROSSINGS.every(c => run.crossed.has(c.id)), `${team}: under all three decks and over both fords (${[...run.crossed]})`);
-    ok(run.dry === 0 && run.minY >= FLOAT - 1e-6 && run.maxY <= FLOAT + BOAT_RULES.maxStep + 1e-6, `${team}: afloat all the way (${run.minY.toFixed(2)}..${run.maxY.toFixed(2)})`);
+    // Afloat: on the reach's face, or one voxel higher on a sluice pond (WEIR.pond.faceY), never on a bank.
+    ok(run.dry === 0 && run.minY >= FLOAT - 1e-6 && run.maxY <= FLOAT + (WEIR.pond.faceY - WATER_FACE) + 1e-6, `${team}: afloat all the way (${run.minY.toFixed(2)}..${run.maxY.toFixed(2)})`);
     ok(run.maxFord <= BOAT_PATROL.ford + 1, `${team}: it takes the fords slowly (${run.maxFord.toFixed(1)} m/s)`);
     ok(run.lost <= VEHICLE_RULES.boat.hp * 0.1, `${team}: no hard bank strikes (${run.lost.toFixed(0)} hp lost)`);
     notes.push(`${team} ${lane.length.toFixed(0)} m in ${run.arrived.toFixed(1)} s (fords at ${run.maxFord.toFixed(1)} m/s, ${run.lost.toFixed(0)} hp lost)`);

@@ -1,0 +1,40 @@
+{
+  "generated": "2026-10-20T19:14:34.692Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "sluice-washed",
+        "title": "Ford-North Sluice · washed out · the bore below the gates, the ford gone on the minimap",
+        "file": "docs/design/conquest/events/sluice/captures/desktop-sluice-washed.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "sluice-map",
+        "title": "Ford-North Sluice · washed out · full map: deep water over the ford, break marks, bore front",
+        "file": "docs/design/conquest/events/sluice/captures/desktop-sluice-map.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "sluice-washed",
+        "title": "Ford-North Sluice · washed out · the bore below the gates, the ford gone on the minimap",
+        "file": "docs/design/conquest/events/sluice/captures/portrait-sluice-washed.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "sluice-map",
+        "title": "Ford-North Sluice · washed out · full map: deep water over the ford, break marks, bore front",
+        "file": "docs/design/conquest/events/sluice/captures/portrait-sluice-map.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

@@ -22,7 +22,7 @@ import {
 import { mirroredKit, seededRandom } from './kit.js';
 import { roadClearance, inRect } from './plan.js';
 import { LOCATION_KEEP_OUT } from './locations.js';
-import { WEIR_KEEP_OUT } from './weir.js';
+import { WEIR_KEEP_OUT, WEIR_SOUTH_KEEP_OUT } from './weir.js';
 
 const OPEN_TOPS = new Set([MEADOW, DRY_GRASS, DIRT, MUD, SCORCHED_EARTH, GRAVEL]);
 const GRASS_TOPS = new Set([MEADOW, DRY_GRASS]);
@@ -67,8 +67,8 @@ export function buildRoadside(kit) {
   // but still counts as open for every placement decision, so the random
   // sequence, and with it the dressing everywhere else, is the same as
   // without the places.
-  // The sluice weir (built with the places) keeps its footprint the same way.
-  const reserved = (x, z) => [...LOCATION_KEEP_OUT, WEIR_KEEP_OUT].some(r => inRect(r, x, z) || inRect(r, kit.SX - 1 - x, kit.SZ - 1 - z));
+  // The ford sluices (built with the places) keep their footprints the same way.
+  const reserved = (x, z) => [...LOCATION_KEEP_OUT, WEIR_KEEP_OUT, WEIR_SOUTH_KEEP_OUT].some(r => inRect(r, x, z) || inRect(r, kit.SX - 1 - x, kit.SZ - 1 - z));
   const open = (x, z, tops = OPEN_TOPS, clear = 1.5) =>
     x < WEST_X && roadClearance(x + 0.5, z + 0.5) >= clear && banks.every(b => openOn(b, x, z, tops));
   const paint = (x, z, m) => { if (!reserved(x, z)) for (const b of banks) b.paint(x, z, m); };

@@ -766,6 +766,28 @@ export function conquestHudFixtures({ map = 'frontier' } = {}) {
         camera: cam(at.x + 10, 30 + 4.6, at.z + 6, yawTo({ x: at.x + 10, z: at.z + 6 }, pump), -0.12) }));
     }
   }
+  // 27. Ford sluices (docs/conquest.md "Ford sluices"; design docs/design/conquest/events/sluice/, variant A): the
+  // north sluice down 12 s into the release (the bore 60 m down the reach), from the west bank below the ford,
+  // then the full map (the washed-out ford, its break marks and the bore front).
+  {
+    const sluice = mapEventsFor('frontier').findIndex(d => d.id === 'sluice-north');
+    if (sluice >= 0) {
+      const at = { x: 380, z: 300 }, weir = { x: 389, z: 256 };
+      const flags = [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 0.2, 'alpha', 'restoring'),
+        flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')];
+      const row = () => [encodeMapEventRow(sluice, { phase: 'active', progress: 0, team: 'alpha', leftMs: 14000 })];
+      const events = [{ kind: 'map_event', event: 'sluice-north', phase: 'active', team: 'alpha', by: 'me', pos: [389.5, 26, 256] }];
+      const self = meAt(at.x, at.z);
+      const match = baseMatch({ flags });
+      match.conquest.ev = row();
+      out.push(state('sluice-washed', 'Ford-North Sluice · washed out · the bore below the gates, the ford gone on the minimap', { self, players: roster(self), match,
+        events, camera: cam(at.x, 25, at.z, yawTo(at, weir), -0.12) }));
+      const big = baseMatch({ flags });
+      big.conquest.ev = row();
+      out.push(state('sluice-map', 'Ford-North Sluice · washed out · full map: deep water over the ford, break marks, bore front', { self, players: roster(self), match: big,
+        events, camera: cam(at.x, GROUND + 1.6, at.z, yawTo(at, weir), -0.08), bigMap: true }));
+    }
+  }
   // Redrock Dam breach (docs/conquest.md "Redrock Dam breach"; --map redrock only, the `ev` index is Redrock's).
   if (map === 'redrock') out.push(...damFixtures(meAtY));
   return out;

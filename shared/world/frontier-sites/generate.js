@@ -1,7 +1,7 @@
 // Frontier v2 generator: fills the 768 x 80 x 768 heightfield from
 // shared/world/frontier-terrain.js, then builds the battlefield dressing, the
 // five flag sites, the two HQ airfields, the four places between the flags,
-// the sluice weir, the woodland and the roadside dressing on top of it.
+// the two ford sluices, the woodland and the roadside dressing on top of it.
 // Finally it re-opens every reserved cell (spawns, vehicle pads, roads) so no
 // set piece can ever block an authoritative spawn or route.
 
@@ -79,7 +79,7 @@ export function generateFrontierV2Into(world, blocks, heights) {
   // roadside pass, which keeps their footprints bare, so they never shift
   // the roadside dressing elsewhere on the map.
   buildLocations(kit);
-  // The sluice weir on the north reach (the planned ford sluices reuse it), with the places for the same reason.
+  // The ford sluices and their ponds (north and south reach), with the places for the same reason.
   buildWeir(kit);
   buildEntrances(kit);
   reopenRoads(kit);
