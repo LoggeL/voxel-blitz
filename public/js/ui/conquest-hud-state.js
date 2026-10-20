@@ -22,6 +22,7 @@ import {
 } from '../../../shared/conquest-kits.js';
 import { RECON_GADGET_RULES } from '../../../shared/recon-gadgets.js';
 import { SUPPLY_CRATE_RULES } from '../../../shared/supply-crates.js';
+import { flagCacheTeam, inFlagCacheReach } from '../../../shared/flag-cache.js';
 import { MAP_EVENT_SUPPORT, mapEventPointKey, usableMapEventPoint } from '../../../shared/conquest-map-events.js';
 import { DEPOT_EVENT } from '../../../shared/map-events/depot.js';
 import { WEAPON_NAMES } from './hud-support.js';
@@ -218,6 +219,23 @@ export function flagChipModels(cq, selfTeam) {
   });
 }
 
+/* ------------------------------------------------------- flag supply caches */
+
+/**
+ * The own-held flag whose supply cache serves the local player now (alive, on
+ * foot, within reach, no enemy in the zone: shared/flag-cache.js), or null.
+ */
+export function flagCacheServing(cq, self, selfTeam) {
+  if (!cq || !self || self.state === 'dead' || !(self.hp > 0) || self.vehicleId || !selfTeam) return null;
+  return cq.flags.find(f => f.cache && flagCacheTeam(f) === selfTeam && inFlagCacheReach(f.cache, self)) ?? null;
+}
+
+/** Map supply pip of a flag: 'on' (its cache pays the own side), 'off' (own flag, an enemy in the zone), else null. */
+export function flagSupplyPip(flag, selfTeam) {
+  if (!flag?.cache || !selfTeam || flag.owner !== selfTeam) return null;
+  return flagCacheTeam(flag) === selfTeam ? 'on' : 'off';
+}
+
 /* ------------------------------------------------------------ capture ring */
 
 /** The flag whose zone contains `pos` (2D radius and presenceDy), nearest first. */
@@ -265,6 +283,8 @@ export function captureRingModel(cq, self, selfTeam) {
     own: ownCount, enemy: enemyCount, counts: `${ownCount} vs ${enemyCount}`,
     control: relControl, fill: clamp01(Math.abs(flag.control)),
     lean: relControl > 0.001 ? 'own' : relControl < -0.001 ? 'enemy' : 'neutral',
+    // RESUPPLYING: the own flag cache pays this player now (shared/flag-cache.js).
+    supply: !!flagCacheServing(cq, self, selfTeam),
   };
 }
 
@@ -1118,7 +1138,8 @@ export function mapItems({ cq, self, players = [], vehicles = [], selfTeam }) {
     const flag = cq.flags.find(f => f.id === chip.id);
     if (!Number.isFinite(flag?.x)) continue;
     items.push({ kind: 'flag', id: flag.id, rel: chip.owner, lean: chip.lean, fill: chip.fill, contested: chip.contested,
-      x: flag.x, z: flag.z, radius: flag.radius, label: flag.id, name: flag.name, ...(chip.role ? { role: chip.role } : {}) });
+      x: flag.x, z: flag.z, radius: flag.radius, label: flag.id, name: flag.name, ...(chip.role ? { role: chip.role } : {}),
+      ...(flagSupplyPip(flag, selfTeam) ? { supply: flagSupplyPip(flag, selfTeam) } : {}) });
   }
   items.push(...frontLineItems(cq, selfTeam));
   for (const v of vehicles || []) {

@@ -40,6 +40,7 @@ import { BOAT_PATROL, riverPatrolSlots } from './bot-boat-driving.js';
 import { avoidSpan, spanEscape } from './bot-bridge.js';
 import { goalOutOfHazards, hazardEscape, mapEventGoal, mapEventsView, planMapEventTasks } from './bot-map-events.js';
 import { mapEventDef } from '../shared/conquest-map-events.js';
+import { flagCacheGoal } from './bot-flag-cache.js';
 
 export const COMMANDER_PLAN_MS = 500;
 export const STAGE_MIN = 50, STAGE_MAX = 70;
@@ -276,6 +277,8 @@ export class BotCommander {
     this.goalCache = new Map();
     this.goalAt = -1;
     this.roleClaims = new Map();
+    // Flag supply cache runs (bot-flag-cache.js): bot id -> {flagId, until}.
+    this.cacheRuns = new Map();
     this.supportTries = new Map();   // bot id -> { name, best, at }: progress of its revive/repair walk
     this.supportBlocked = new Map(); // `${bot id}|${name}` -> until: targets that bot gave up on
     this.supportReach = new Map();   // `${bot id}|${name}` -> { at, ok }: reachability, re-checked each second
@@ -1387,6 +1390,9 @@ export class BotCommander {
     if (eventTask) return eventTask;
     const squad = ts.memberSquad?.get(String(p.id));
     const order = squad?.order;
+    // Low on ammo or bandages: restock at the nearest held flag's supply cache first.
+    const restock = flagCacheGoal(this, p, team, { order, runs: this.cacheRuns, now });
+    if (restock) return { ...restock, point: avoidSpan(this.game, restock.point, p) };
     let flag = order ? view.flags.find(f => f.id === order.flagId) : null;
     if (!flag) flag = this.focusFlag(ts);
     if (!flag) return spectate;

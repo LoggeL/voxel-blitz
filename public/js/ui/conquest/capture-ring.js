@@ -30,12 +30,17 @@ export class CaptureRing {
     this.ownCount = el('b', 'cq-ring-own', this.counts);
     el('span', 'cq-ring-vs', this.counts).textContent = 'vs';
     this.enemyCount = el('b', 'cq-ring-enemy', this.counts);
+    // The own flag's supply cache pays this player now (flagCacheServing).
+    this.supply = el('div', 'cq-ring-supply', this.root);
+    this.supply.textContent = 'RESUPPLYING';
+    this.supply.hidden = true;
     this._key = '';
   }
 
   update(model) {
     if (!model) { if (!this.root.hidden) this.root.hidden = true; this._key = ''; return; }
     this.root.hidden = false;
+    if (this.supply.hidden === !!model.supply) this.supply.hidden = !model.supply;
     const key = `${model.flagId}|${model.label}|${model.own}|${model.enemy}|${model.tone}|${model.lean}`;
     if (key !== this._key) {
       this._key = key;

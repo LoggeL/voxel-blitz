@@ -7,6 +7,7 @@
 // Pure data: no voxels are built here.
 
 import { HQ_LAYOUT, hqTowerLadder } from './frontier-sites/hq-airfield.js';
+import { flagCacheSpot } from '../flag-cache.js';
 
 const FEET = 1.02;
 export const round2 = v => Math.round(v * 100) / 100;
@@ -20,9 +21,12 @@ export const deepFreeze = value => {
 
 /**
  * The builders of one battlefield: `dimensions` {sx, sz} and `topY(x, z)`, the
- * top terrain voxel y (every y is read from it: feet = top voxel + 1.02).
+ * top terrain voxel y (every y is read from it: feet = top voxel + 1.02);
+ * `waterY(x, z)` the water surface (0 on dry ground); `walkTopY(x, z)` the
+ * voxel feet stand on where a site builds it off the terrain height (the
+ * flag supply caches read it).
  */
-export function battlefieldLayoutKit({ dimensions, topY }) {
+export function battlefieldLayoutKit({ dimensions, topY, waterY = () => 0, walkTopY = topY }) {
   const { sx: SX, sz: SZ } = dimensions;
   /** Feet position on the terrain at continuous (x, z). */
   const feet = (x, z) => Object.freeze({ x, y: round2(topY(x, z) + FEET), z });
@@ -30,14 +34,17 @@ export function battlefieldLayoutKit({ dimensions, topY }) {
   const mirrorFeet = p => feet(SX - p.x, SZ - p.z);
   const mirrorYaw = yaw => Math.atan2(Math.sin(yaw + Math.PI), Math.cos(yaw + Math.PI));
 
-  /** Flag rows in plan order, each with its site's spawn cells. */
+  /** Flag rows in plan order, each with its site's spawn cells and its supply cache spot (shared/flag-cache.js). */
   function buildFlags(planFlags, sites) {
+    const center = { x: SX / 2, z: SZ / 2 };
     return planFlags.map(f => {
       const site = sites.find(s => s.flag === f.id);
-      return {
+      const row = {
         id: f.id, name: f.name, site: f.site, ...feet(f.x, f.z), radius: f.radius, home: f.home,
         spawns: site.spawns.map(([x, z]) => feet(x, z)),
       };
+      const cache = flagCacheSpot(row, { topY: walkTopY, waterY, center });
+      return cache ? { ...row, cache } : row;
     });
   }
 

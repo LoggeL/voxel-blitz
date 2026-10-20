@@ -216,6 +216,8 @@ export function decodeConquestMatch(matchConquest, metaConquest = null, { mapId 
       radius: Number.isFinite(meta.radius) ? meta.radius : DEFAULT_FLAG_RADIUS,
       home: TEAM_SET.has(meta.home) ? meta.home : null,
       spawns: Array.isArray(meta.spawns) ? meta.spawns : [],
+      // The flag's supply cache spot (shared/flag-cache.js), static from the map metadata.
+      cache: meta.cache && [meta.cache.x, meta.cache.y, meta.cache.z].every(Number.isFinite) ? meta.cache : null,
       control, owner: ownerTeam, state: STATE_SET.has(state) ? state : 'idle',
       atk: Math.max(0, atk | 0), def: Math.max(0, def | 0), alpha: counts.alpha, bravo: counts.bravo,
     };

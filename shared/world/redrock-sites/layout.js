@@ -10,7 +10,7 @@
 // roads and places are mirror-symmetric about x = 384.
 
 import { REDROCK_PLAN } from '../redrock-plan.js';
-import { REDROCK_ROAD_PLAN, REDROCK_CROSSINGS, redrockTopY, redrockSurfaceY } from '../redrock-terrain.js';
+import { REDROCK_ROAD_PLAN, REDROCK_CROSSINGS, redrockTopY, redrockSurfaceY, redrockWaterY, REDROCK_DAM } from '../redrock-terrain.js';
 import { OASIS_SITE } from './oasis.js';
 import { MINE_SITE } from './mine.js';
 import { DAM_SITE } from './dam.js';
@@ -22,7 +22,12 @@ import { battlefieldLayoutKit, battlefieldMetadata, battlefieldReservedCells, de
 export { redrockSurfaceY };
 
 export const REDROCK_DIMENSIONS = REDROCK_PLAN.dimensions;
-const LAYOUT = battlefieldLayoutKit({ dimensions: REDROCK_PLAN.dimensions, topY: redrockTopY });
+/** The dam's crest roadway is built one voxel under the terrain's crest height (dam.js damBody): what feet stand on. */
+function damWalkTopY(x, z) {
+  const ix = Math.floor(x), iz = Math.floor(z), d = REDROCK_DAM;
+  return ix >= d.x0 && ix < d.x1 && iz > d.z0 && iz < d.z1 - 1 ? d.crestY - 1 : redrockTopY(x, z);
+}
+const LAYOUT = battlefieldLayoutKit({ dimensions: REDROCK_PLAN.dimensions, topY: redrockTopY, waterY: redrockWaterY, walkTopY: damWalkTopY });
 /** Feet position on the terrain at continuous (x, z). */
 export const feet = LAYOUT.feet;
 

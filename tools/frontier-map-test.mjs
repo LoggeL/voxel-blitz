@@ -47,7 +47,7 @@ assert.ok(['golden', 'mist', 'overcast'].includes(c.weather));
 assert.deepEqual(c.flags.map(f => f.id), ['A', 'B', 'C', 'D', 'E']);
 for (const f of c.flags) {
   const p = plan.flags.find(q => q.id === f.id);
-  assert.deepEqual(Object.keys(f).sort(), ['home', 'id', 'name', 'radius', 'site', 'spawns', 'x', 'y', 'z']);
+  assert.deepEqual(Object.keys(f).sort(), ['cache', 'home', 'id', 'name', 'radius', 'site', 'spawns', 'x', 'y', 'z']);
   assert.deepEqual([f.name, f.site, f.x, f.z, f.radius, f.home], [p.name, p.site, p.x, p.z, p.radius, p.home]);
   assert.equal(f.y, feetY(f.x, f.z), `flag ${f.id} y is the terrain feet height`);
   assert.equal(f.spawns.length, 12);

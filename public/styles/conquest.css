@@ -223,6 +223,13 @@ body:has(#scoreboard.is-open[data-mode="conquest"]) .vb-conquest-hud .cq-weather
 .cq-ring-own { color: var(--cq-own); } .cq-ring-enemy { color: var(--cq-enemy); }
 .cq-ring-vs { font-size: 10px; color: var(--cq-sub); letter-spacing: 1px; }
 @keyframes cq-ring-shake { 25% { transform: translateX(-1px); } 75% { transform: translateX(1px); } }
+/* Flag supply cache paying (shared/flag-cache.js): a small amber tag under the counts. */
+.cq-ring-supply { margin-top: 2px; padding: 1px 7px 1px 18px; border-radius: 3px; position: relative;
+  background: #2a2208d9; border: 1px solid #ffd36a88; color: #ffd36a; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; }
+.cq-ring-supply::before { content: ''; position: absolute; left: 6px; top: 50%; width: 7px; height: 6px; margin-top: -3px;
+  background: #ffd36a; box-shadow: inset 0 -2px 0 #8a6a1c; animation: cq-supply-pulse 1.2s ease-in-out infinite; }
+@keyframes cq-supply-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .cq-ring-supply::before { animation: none; } }
 /* The infantry RELOADING hint normally sits where the ring is: lift it above the crosshair while the ring shows. */
 body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { top: -58px; }
 

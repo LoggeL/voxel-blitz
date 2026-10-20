@@ -4,6 +4,7 @@ import { buildCapturePresence, encodeConquestFlag, oppositeTeam } from '../../sh
 import { TdmPolicy } from './tdm.js';
 import { weaponId } from './base-policy.js';
 import { CaptureSystem } from './conquest/capture.js';
+import { FlagCaches } from './conquest/flag-caches.js';
 import { TicketLedger } from './conquest/tickets.js';
 import { DeploySystem } from './conquest/deploy.js';
 import { SquadRoster } from './conquest/squads.js';
@@ -87,6 +88,8 @@ export class ConquestPolicy extends TdmPolicy {
       entity: value => this._entity(value),
     });
     this.comms = new CommSystem(this);
+    // Flag supply caches (conquest/flag-caches.js): the holder's soldiers restock at their flags.
+    this.flagCaches = new FlagCaches(this);
     this.upgrades = new ConquestUpgrades(this);
     // Dynamic weather (conquest/weather.js): the mode rule `weather`, else VB_CONQUEST_WEATHER
     // ('off', or a state id such as 'storm' to pin it), else a seeded timeline per match.
@@ -197,6 +200,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.reconGadgets.reset();
     this.pouches?.reset();
     this.supplyCrates.reset();
+    this.flagCaches?.reset();
     this.upgrades.reset();
     this.bridge?.reset();
     this.mapEvents?.reset();
@@ -267,6 +271,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.mapEvents.tick(now, dt);
     if (this.phase !== 'live') return;
     this.roles.tick(now, dt);
+    this.flagCaches.tick(now);
     this.squadOrders.sync();
     this.comms.tick(now);
     this.reconGadgets.tick(now);
