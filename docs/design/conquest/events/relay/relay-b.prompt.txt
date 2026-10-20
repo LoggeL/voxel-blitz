@@ -1,0 +1,8 @@
+Game UI design mockup, 1536x1024 first-person screenshot of a browser voxel shooter (Minecraft-like blocky world at golden hour: a grassy rock knoll with a tall grey steel lattice radio mast with two platforms and a red light on top, a squat concrete bunker with a white dish on its roof beside it, a gravel road crossing the foreground, blocky pine trees, warm sky). A soldier's rifle is held at the bottom right of the view.
+Existing HUD (keep exactly this style: dark translucent navy panels rgba(9,15,20,0.86) with 1px light borders and 6px radius, condensed bold uppercase sans-serif labels with wide letter spacing, cyan #4cc3ff friendly, orange #ff8a3d enemy, amber #ffb020 hazard, red #ff4b4b danger, grey #9fb0bd sub text): top centre ticket bar "WEST 214 [A][B][C][D][E] 187 EAST" with blue and orange diamond flag chips and a "14:32" clock, a small weather tab under it; bottom left round heading-up minimap with compass letters and an "ALPHA SQUAD" list beside it; bottom right health row "100 HP", weapon card "30 / 5" and a grenade tile.
+NEW RELAY UI TO SHOW (variant B, persistent status chip):
+1) A small persistent status chip docked under the weather tab, below the ticket bar: dark navy pill with a cyan left accent, a radio-tower glyph, "RELAY · WEST" in cyan, and a scan countdown "SCAN 12 S" with a thin cyan bar filling up.
+2) A brief cyan toast under the chip: "RELAY SCAN · 3 ENEMIES MARKED".
+3) In the round minimap: three orange enemy diamonds with small expanding ping rings where the scan found them, and a small cyan tower icon at the bunker.
+4) A world-space orange spotted-enemy marker (a small orange diamond over a soldier at 60 m).
+Crisp flat game HUD, no extra decorations, no watermark, legible text.

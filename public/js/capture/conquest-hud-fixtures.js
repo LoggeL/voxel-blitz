@@ -10,6 +10,8 @@ import { encodeConquestFlag } from '../../../shared/conquest.js';
 import { mortarPitchForRange } from '../../../shared/mortar-rules.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
+import { encodeMapEventPoint, encodeMapEventRow, mapEventsFor } from '../../../shared/conquest-map-events.js';
+import { RELAY_SITE } from '../../../shared/map-events/relay.js';
 
 export const FIXTURE_NOW = 2_000_000;
 const GROUND = 26;
@@ -434,6 +436,44 @@ export function conquestHudFixtures() {
       vehicles: [spottedTank, vehicle('alpha-tank', 'tank', 'alpha', C.x - 80, C.z + 20, { hp: 700 })], match,
       events: [{ kind: 'bridge', bridge: 'iron-bridge', stage: 3, name: 'down', integrity: 0, by: 'en1', blocks: 608 }],
       camera: cam(C.x - 50, GROUND + 1.6, C.z + 40, 0), bigMap: true }));
+  }
+  // 16d-f. Signal Rock relay (docs/conquest.md "Signal Rock relay"): `ev` / `evp` rows as the server writes them.
+  {
+    const index = mapEventsFor('frontier').findIndex(d => d.id === 'relay');
+    const relayRows = (row, points) => ({ ev: [encodeMapEventRow(index, row)],
+      evp: points.map(([k, teams, progress = 0]) => encodeMapEventPoint(index, k, { teams: new Set(teams), progress, userTeam: progress ? 'alpha' : null })) });
+    const bunker = RELAY_SITE.bunker, mast = RELAY_SITE.mastCentre;
+    if (index >= 0) {
+      // Held by WEST, 0.6 s after a scan: the scan circle and its sweep, spotted enemies inside, RELAY · SCAN 25 S.
+      const at = { x: 446, z: 196 };
+      const self = meAt(at.x, at.z);
+      const match = baseMatch();
+      Object.assign(match.conquest, relayRows({ phase: 'active', team: 'alpha', progress: 0, leftMs: 24400 }, [[0, ['bravo']], [1, ['bravo']]]));
+      out.push(state('relay-held', 'Signal Rock relay held · scan circle and sweep, owner marker, RELAY SECURED', { self, players: roster(self), match,
+        events: [{ kind: 'map_event', event: 'relay', phase: 'active', team: 'alpha', by: 'me', reason: 'captured', endsAt: FIXTURE_NOW + 24400 },
+          { kind: 'map_event', event: 'relay', phase: 'active', team: 'alpha', note: 'scan', data: { team: 'alpha', n: 2 } }],
+        camera: cam(at.x, GROUND + 1.6, at.z, yawTo(at, bunker), -0.04) }));
+    }
+    if (index >= 0) {
+      // Held by EAST: WEST at the mast's north foot with the charge hold running.
+      const at = { x: 468.5, z: 164.9 };
+      const self = meAt(at.x, at.z, { y: 31, cq: { squad: 1, kitId: 'engineer', action: 40 } });
+      const match = baseMatch();
+      Object.assign(match.conquest, relayRows({ phase: 'active', team: 'bravo', progress: 0.25, leftMs: 9000 }, [[0, ['alpha']], [1, ['alpha'], 0.4]]));
+      out.push(state('relay-enemy', 'Signal Rock relay held by EAST · RELAY LOST, HOLD · PLANT CHARGE at the mast', { self, players: roster(self), match,
+        events: [{ kind: 'map_event', event: 'relay', phase: 'active', team: 'bravo', by: 'en1', reason: 'captured', endsAt: FIXTURE_NOW + 9000 }],
+        camera: cam(at.x, 32.6, at.z, yawTo(at, mast), 0.25), interactHeld: 2000 }));
+    }
+    if (index >= 0) {
+      // The mast groans: the fall line across the north loop on the minimap and the countdown banner.
+      const at = { x: 452, z: 146 };
+      const self = meAt(at.x, at.z);
+      const match = baseMatch();
+      Object.assign(match.conquest, relayRows({ phase: 'warning', team: 'alpha', progress: 1, leftMs: 2600 }, []));
+      out.push(state('relay-failing', 'Signal Rock mast failing · fall line on the map, MAST FAILING countdown', { self, players: roster(self), match,
+        events: [{ kind: 'map_event', event: 'relay', phase: 'warning', team: 'alpha', by: 'me', endsAt: FIXTURE_NOW + 2600 }],
+        camera: cam(at.x, GROUND + 1.6, at.z, yawTo(at, mast), 0.1) }));
+    }
   }
   // 17. Deploy screen: dead, 3.2 s to respawn, valid spawns plus a refused flag (enemies in B).
   const deployRoster = self => roster(self, [player('en9', 'Draves', 'bravo', B.x + 3, B.z - 2, { cq: { squad: 2 } })]);

@@ -1,0 +1,11 @@
+# Signal Rock relay HUD
+
+Feature: the Signal Rock relay on Frontier (docs/conquest.md "Signal Rock relay"). The HUD has to say who owns the relay, when its next scan comes and what it covers, that the rival can blow the mast (the charge prompt), and where the mast will fall while it groans.
+
+- `relay-a/b/c-reference.jpg` + `.prompt.txt`: gpt-image-2 alternatives (medium quality, 1536 x 1024), from the existing HUD style.
+  - **A (chosen)**: the existing objective banner in the owner's tone with the relay glyph badge (SIGNAL ROCK RELAY · RELAY SECURED), a world marker over the bunker (RELAY · SCAN 12 S), and on the minimap the dashed scan circle round the mast with a ring sweeping out after each scan and the relay hexagon at the bunker. It adds no new DOM panel: the banner, the world markers and the map paint are the framework's (docs/design/conquest/events/framework/, variant A).
+  - B: a persistent RELAY · WEST chip with a scan bar under the weather tab and a toast per scan. Dropped: the top centre is already full on phones (ticket bar, weather tab, banners), and the owner reads from the badge colour and the marker.
+  - C (its map part taken over for the groan): the amber MAST FAILING banner with its countdown, a MAST · 3 S marker, HOLD · PLANT CHARGE, and the fall line north across the road in hazard stripes on the minimap.
+- `captures/`: the implementation (`node tools/conquest-hud-capture.mjs --only relay-held,relay-enemy,relay-failing --out docs/design/conquest/events/relay/captures`, muted CDP), desktop 1440 x 900, portrait 390 x 844 and landscape 844 x 390, no overlaps.
+
+Compared with A: same banner, glyph badge and tones; the world marker names the scan seconds only for the owner's side (the rival sees RELAY). At the minimap's 170 m range the 180 m scan circle sits at the rim, so the sweep ring after a scan (1.5 s, from the snapshot's `leftMs`) is what reads there; the full map shows the whole circle. While the mast groans the badge is left off the maps (at minimap scale it would cover the 34 m fall line, which is drawn at least 6 px wide); once down the badge returns red and faded with the wreck line. The scan toast of B survives as a short low-priority banner (SCAN · 2 ENEMIES MARKED for the owner, ENEMY RELAY SCAN for the rival), only when the scan marked someone.

@@ -84,6 +84,8 @@ Rules the places keep, tested in `tools/frontier-sites-test.mjs`:
 - A one-voxel plinth or kerb runs under every roof overhang (station house, relay bunker, pump canopy, crusher). A transport (3 × 7 m hull) checks only its touchdown spot, so without it a transport could set down beside a wall and then climb into the eaves (`conquest-bot-aircraft-test` drops a squad at (264, 344), next to the station house).
 - The quarry is dug below the planned terrain. Its props read the dug level (a kit view whose `top()` returns it), and the woodland and roadside dressing skip its footprint.
 
+In Conquest, Signal Rock is a map event (docs/conquest.md "Signal Rock relay"): an 8 s hold inside the relay bunker (floor y27, interior x 475-482, z 156-161) owns the relay, whose scan marks enemies within 180 m of the mast every 25 s, and the mast (foundation top y30 at x 466-470, z 166-170; 181 solid cells up to the y62 light) can be blown at its feet. It then topples north about its north foot by 96° and lies across the north loop road (centreline z 140 at x 468, 7 m wide, surface y28), its tip at z 134; on the road the 147-cell wreck is one layer high, so hulls cross it. The geometry is not changed: the fall is a runtime voxel edit, and the template fingerprints stay as pinned. Aldric Quarry, the point mirror of Signal Rock, carries the quarry rockslide instead of a second relay.
+
 The metadata publishes each place twice in `landmarks`: a row `{ id, kind: 'place', name, x, y, z }` (feet height; for map labels) and its landmark top `{ id, kind, place, x, y, z }`. The big map does not label places yet.
 
 Every flag has the following, and `tools/frontier-sites-test.mjs` verifies each item:
