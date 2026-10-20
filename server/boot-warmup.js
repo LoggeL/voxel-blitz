@@ -23,6 +23,8 @@ import { CoverIndex } from './bot-cover.js';
 import { isBattlefieldMap } from '../shared/world/battlefields.js';
 import { GameEngine } from './game.js';
 import { attachBots } from './bots.js';
+import { mapEventsFor } from '../shared/conquest-map-events.js';
+import { MAP_EVENT_CONTROLLERS } from './modes/conquest/map-events/registry.js';
 import { TICK_MS } from './protocol/admission.js';
 
 /**
@@ -48,6 +50,8 @@ export function prepareBattlefield(id, { structural = true } = {}) {
   const fieldStarted = performance.now();
   if (structural) prepareStructureTemplate(world);
   const field = structural ? performance.now() - fieldStarted : null;
+  // Map event plans built from the pristine voxels (the Redrock Dam breach's ~50 ms flood timeline).
+  for (const def of mapEventsFor(id)) MAP_EVENT_CONTROLLERS[def.id]?.prepare?.(world, def);
   return { total: performance.now() - started, cover, field };
 }
 

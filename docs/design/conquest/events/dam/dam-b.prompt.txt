@@ -1,0 +1,7 @@
+Game UI design mockup, 1536x1024 screenshot of a browser voxel shooter's full-screen tactical map overlay (Minecraft-like blocky red-rock desert seen from straight above as a flat orthographic map image: a river running north to south, a wide reservoir in the north half held by a concrete dam across the middle, a narrow canyon south of it, five flags A B C D E as diamond chips, C on the dam).
+Existing HUD map style (keep exactly: dark navy frame rgba(9,15,20,0.86) with 1px light borders, condensed bold uppercase labels with wide letter spacing, cyan #4cc3ff friendly, orange #ff8a3d enemy, amber #ffb020 hazard, red #ff4b4b danger, grey #9fb0bd sub text, flag diamonds with letters, a legend column at the right).
+NEW DAM BREACH UI TO SHOW (variant B, "hazard hatching"):
+1) While the siren runs: the dam crest middle drawn as pulsing black-and-amber diagonal hazard stripes, the whole canyon floor south of the dam hatched in thin red diagonal lines labelled "FLOOD PATH", the gallery charges as two small amber charge glyph discs on the dam's downstream face.
+2) A side panel card at the right: "REDROCK DAM · BREACH IN 7 S" in amber with a draining amber bar, and below it "CREST ROAD CLOSED · CROSS AT THE TRESTLE OR THE NORTH BRIDGE" in grey, with the trestle and north bridge crossings outlined in cyan on the map.
+3) The reservoir outline drawn as a dashed tan line marking the future dry shore.
+Crisp flat game HUD, no extra decorations, no watermark, legible text.

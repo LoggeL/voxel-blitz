@@ -116,6 +116,40 @@ export function zoneExit(zone, from, margin = 3) {
   return { ...from, x, z };
 }
 
+/**
+ * The flat point `margin` m outside the zone nearest `toward` for a point
+ * inside it (a goal inside a hazard, moved to the edge on the side a bot
+ * outside it stands on, so the bot keeps out instead of crossing it). A point
+ * already outside comes back unchanged; `y` is kept from `point`.
+ */
+export function zoneExitToward(zone, point, toward, margin = 3) {
+  if (!zone || !point || zoneFlatDistance(zone, point.x, point.z) > 0) return point;
+  if (!toward || !finite(toward.x) || !finite(toward.z)) return zoneExit(zone, point, margin);
+  const near = list => list.sort((a, b) => Math.hypot(a[0] - toward.x, a[1] - toward.z) - Math.hypot(b[0] - toward.x, b[1] - toward.z))[0];
+  let x = point.x, z = point.z;
+  switch (zone.shape) {
+    case 'box':
+      [x, z] = near([[zone.x0 - margin, point.z], [zone.x1 + margin, point.z], [point.x, zone.z0 - margin], [point.x, zone.z1 + margin]]);
+      break;
+    case 'circle': {
+      const d = Math.hypot(toward.x - zone.x, toward.z - zone.z);
+      const ux = d > 1e-6 ? (toward.x - zone.x) / d : 1, uz = d > 1e-6 ? (toward.z - zone.z) / d : 0;
+      x = zone.x + ux * (zone.r + margin); z = zone.z + uz * (zone.r + margin);
+      break;
+    }
+    case 'line': {
+      const vx = zone.bx - zone.ax, vz = zone.bz - zone.az, len2 = vx * vx + vz * vz;
+      const t = len2 > 0 ? Math.max(0, Math.min(1, ((point.x - zone.ax) * vx + (point.z - zone.az) * vz) / len2)) : 0;
+      const px = zone.ax + vx * t, pz = zone.az + vz * t, len = Math.sqrt(len2) || 1;
+      const nx = -vz / len, nz = vx / len, side = (toward.x - px) * nx + (toward.z - pz) * nz >= 0 ? 1 : -1;
+      x = px + nx * side * (zone.w + margin); z = pz + nz * side * (zone.w + margin);
+      break;
+    }
+    default: return point;
+  }
+  return { ...point, x, z };
+}
+
 /** True when the flat segment a-b passes through the zone (grown by `pad`): sampled every 2 m. */
 export function segmentCrossesZone(zone, a, b, pad = 0) {
   if (!zone || !a || !b) return false;

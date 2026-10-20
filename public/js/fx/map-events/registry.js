@@ -21,7 +21,7 @@
  */
 
 // slot dam:
-// import { DAM_FX } from './dam.js';
+import { DAM_FX } from './dam.js';
 // slot depot:
 import { DEPOT_FX } from './depot.js';
 // slot weir:
@@ -40,7 +40,7 @@ import { AIRDROP_FX } from './airdrop.js';
 
 export const MAP_EVENT_FX = Object.freeze({
   // slot dam:
-  // dam: DAM_FX,
+  dam: DAM_FX,
   // slot depot:
   depot: DEPOT_FX,
   // slot weir:

@@ -6,7 +6,7 @@
 // `mapEventsFor` sorts a map's events by id.
 
 // slot dam (Redrock dam breach):
-// import { DAM_EVENT } from './dam.js';
+import { DAM_EVENT } from './dam.js';
 // slot depot (Frontier Hollin Fuel Depot):
 import { DEPOT_EVENT } from './depot.js';
 // slot weir (Frontier sluice gate):
@@ -26,7 +26,7 @@ import { AIRDROP_EVENT } from './airdrop.js';
 /** Every map event the game knows, in no particular order. */
 export const MAP_EVENT_DEFS = Object.freeze([
   // slot dam:
-  // DAM_EVENT,
+  DAM_EVENT,
   // slot depot:
   DEPOT_EVENT,
   // slot weir:
