@@ -259,8 +259,6 @@ const seatCameras = {
     'door-left': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.38, 0.45], eyeFrame: 'mount' },
     'door-right': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [0.22, 0.38, 0.45], eyeFrame: 'mount' } },
   plane: { driver: { mode: 'chase', distance: 17, height: 4.4, views: FLY_VIEWS } },
-  // Mortar view: a raised camera over the tube looking down the azimuth at the
-  // predicted impact (public/js/session/vehicle-camera.js), or first person.
   // The mortar's own view (public/js/session/vehicle-camera.js): raised behind the tube, toward the aimed impact.
   mortar: { operator: { mode: 'mortar', distance: 5.5, height: 3.2, views: ['mortar'], eye: [0.25, 1.0, 0.55] } },
 };

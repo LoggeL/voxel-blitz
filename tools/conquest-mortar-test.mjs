@@ -72,9 +72,11 @@ eq(MORTAR_REFUSALS, ['kit', 'state', 'cooldown', 'ground', 'blocked']);
 }
 
 // ---------------------------------------------------------- server rig --
-function fixture({ jeep = false } = {}) {
+function fixture({ jeep = false, holes = null } = {}) {
   const frames = [], dimensions = { sx: 512, sy: 64, sz: 512 };
-  const world = { dimensions, getBlock: (_x, y) => y === 0 ? 3 : 0, setBlock() { return true; }, findSpawns: () => [{ x: 20, y: 1, z: 20 }] };
+  // `holes`: a Set of 'x,z' columns whose ground voxel is gone.
+  const world = { dimensions, getBlock: (x, y, z) => y === 0 && !holes?.has(`${x},${z}`) ? 3 : 0, setBlock() { return true; },
+    findSpawns: () => [{ x: 20, y: 1, z: 20 }] };
   const game = new GameEngine({ mode: 'conquest', world, broadcast: frame => frames.push(frame),
     mapMeta: { id: 'frontier', dimensions, spawns: { conquest: { alpha: [{ x: 20, y: 1, z: 20 }], bravo: [{ x: 30, y: 1, z: 20 }] } },
       conquest: { flags: [], bases: {}, vehicleSpawns: jeep ? [{ id: 'j', type: 'jeep', team: 'bravo', x: 300, y: 1, z: 300, yaw: 0 }] : [] } } });
@@ -197,6 +199,46 @@ eq(f.mortarEvents('s').at(-1).reason, 'state');
   eq(g.game.vehicles.mortars.live().length, 0, 'a leaving owner takes his mortar');
 }
 
+// The ground under a placed mortar goes: it is lost (no credit), the operator survives.
+{
+  const holes = new Set();
+  const g = fixture({ holes });
+  const p = g.join('p', 'alpha', [100.5, 1, 100.5]);
+  g.policy.roles.applyLoadout(p, 'support', 0, 1);
+  ok(g.policy.conquestIntent(p, { type: 'mortar' }) === true);
+  const m = g.game.vehicles.vehicles.get(p.vehicleId);
+  g.step(2);
+  ok(m.hp > 0, 'standing on its ground');
+  holes.add(`${Math.floor(m.x)},${Math.floor(m.z)}`);
+  g.game.blockRevision++;
+  g.step(2);
+  ok(!(m.hp > 0), 'no ground: destroyed');
+  ok(p.state === 'alive' && !p.vehicleId, 'the operator survives');
+  eq(g.mortarEvents('p').at(-1)?.state, 'lost', 'lost event');
+  ok(g.events().some(e => e.kind === 'vehicle_destroyed' && e.vehicleId === m.id && e.attacker == null), 'no one is credited');
+}
+
+// A bot that left its mortar after a hit and walks back to it later stays at
+// the tube: the hull reading starts again from its hit points then.
+{
+  const { ConquestMortarBots } = await import('../server/bot-mortar.js');
+  const tube = { shots: 0, yaw: 0, pitch: 1, cooldown: 0, ammo: 5 };
+  const game = { mode: { mode: 'conquest', teamFor: p => p.team }, entities: new Map(), mapMeta: {}, now: 0,
+    vehicles: { mortars: {}, vehicles: new Map(), mounts: { state: () => tube } } };
+  const mb = new ConquestMortarBots(game, {});
+  const br = { id: 'b', rng: () => 0.5 }, bot = { id: 'b', team: 'alpha', x: 0, z: 0, state: 'alive' };
+  const m = { id: 'm', type: 'mortar', hp: 150, x: 0, y: 0, z: 0, yaw: 0 };
+  let inp = { keys: {} };
+  mb.operate(br, bot, m, 0, inp);
+  ok(!inp.vehicleAction, 'seated');
+  m.hp = 100; inp = { keys: {} };
+  mb.operate(br, bot, m, 100, inp);
+  eq(inp.vehicleAction, { type: 'exit' }, 'out when the mortar is hit');
+  inp = { keys: {} };
+  mb.operate(br, bot, m, 20000, inp);
+  ok(!inp.vehicleAction, 'back at the damaged mortar, no instant exit');
+}
+
 // ------------------------------------------------------------- client --
 const dom = installFakeDom({ width: 1440, height: 900 });
 const { VehicleController } = await import('../public/js/session/vehicle-controller.js');
@@ -290,6 +332,10 @@ const { KILL_KEY_ICONS, ICON_PATHS } = await import('../public/js/ui/conquest/ic
   game.addClient('foe', 'FOE');
   const foe = game.entities.get('foe');
   policy.setLobbyTeam(foe, 'bravo');
+  // A fire mission is a cluster (MORTAR_BOT_RULES.minCluster): a second spotted enemy beside the first.
+  game.addClient('foe2', 'FOE2');
+  const foe2 = game.entities.get('foe2');
+  policy.setLobbyTeam(foe2, 'bravo');
   for (let i = 0; i < 3; i++) game.step(TICK_MS);
   const C = meta.conquest.flags.find(fl => fl.id === 'C');
   // A firing spot 160..220 m from C, out of sight of it (bot sight 120 m), on any spawn of the map.
@@ -300,12 +346,37 @@ const { KILL_KEY_ICONS, ICON_PATHS } = await import('../public/js/ui/conquest/ic
   ok(bots.mortarBots.carriesMortar(bot), 'the bot carries the mortar');
   const target = C.spawns[0];
   Object.assign(foe, { x: target.x, y: target.y, z: target.z, hp: 100000, maxHp: 100000, spawnProtectedUntil: 0, input: { keys: {}, yaw: 0, pitch: 0 } });
+  const beside = { x: target.x + 3, y: target.y, z: target.z };
+  Object.assign(foe2, { ...beside, hp: 100000, maxHp: 100000, spawnProtectedUntil: 0, input: { keys: {}, yaw: 0, pitch: 0 } });
+  // An own soldier holds out on C, 22 m from the enemies, so the flag stays fought over (contested).
+  game.addClient('mate', 'MATE');
+  const mate = game.entities.get('mate');
+  policy.setLobbyTeam(mate, 'alpha');
+  const holdout = C.spawns.find(sp => Math.hypot(sp.x - target.x, sp.z - target.z) > 20 && Math.hypot(sp.x - C.x, sp.z - C.z) < C.radius - 4);
+  const hold = () => Object.assign(mate, { x: holdout.x, y: holdout.y, z: holdout.z, hp: 100000, maxHp: 100000, spawnProtectedUntil: 0, input: { keys: {}, yaw: 0, pitch: 0 } });
+  hold();
+  const markFoes = () => { for (const p of [foe, foe2]) policy.roles.spotting.markPlayer(p, { team: 'alpha', until: game.now + 60_000 }); };
   const place = () => Object.assign(bot, { x: spot.x, y: spot.y, z: spot.z, vx: 0, vy: 0, vz: 0, spawnProtectedUntil: 0,
     yaw: Math.atan2(-(target.x - spot.x), -(target.z - spot.z)) });
   place();
   let placedAt = null;
+  // One spotted enemy alone is no cluster: no mission.
+  game.step(TICK_MS);
+  policy.roles.spotting.markPlayer(foe, { team: 'alpha', until: game.now + 60_000 });
+  Object.assign(foe2, { x: 5, z: 5 });
+  game.step(TICK_MS);
+  eq(bots.mortarBots.mission(spot, 'alpha'), null, 'a lone spotted enemy is no fire mission');
+  Object.assign(foe2, beside);
+  markFoes();
+  for (let i = 0; i < 4; i++) game.step(TICK_MS);
+  const mission = bots.mortarBots.mission(spot, 'alpha');
+  ok(mission?.count === 2, 'two spotted enemies on the flag: a fire mission');
+  // Behind the line only: the same cluster from the enemy side of it (mirrored through C) is no mission.
+  const ahead = { x: 2 * C.x - spot.x, y: spot.y, z: 2 * C.z - spot.z };
+  eq(bots.mortarBots.mission(ahead, 'alpha'), null, 'no mission from in front of the target');
+  ok(bots.mortarBots.mission(ahead, 'bravo') === null && bots.mortarBots.mission(spot, 'bravo') === null, 'own soldiers are no mission');
   for (let i = 0; i < 60 * 40 && !placedAt; i++) {
-    policy.roles.spotting.markPlayer(foe, { team: 'alpha', until: game.now + 60_000 });
+    markFoes();
     if (!bot.vehicleId) place();
     game.step(TICK_MS);
     if (bot.vehicleId && game.vehicles.vehicles.get(bot.vehicleId)?.type === 'mortar') placedAt = i;
@@ -314,8 +385,10 @@ const { KILL_KEY_ICONS, ICON_PATHS } = await import('../public/js/ui/conquest/ic
   const hp0 = foe.hp;
   let landed = [];
   for (let i = 0; i < 60 * 45; i++) {
-    policy.roles.spotting.markPlayer(foe, { team: 'alpha', until: game.now + 60_000 });
+    markFoes();
+    hold();
     Object.assign(foe, { x: target.x, y: target.y, z: target.z });
+    Object.assign(foe2, beside);
     game.step(TICK_MS);
   }
   landed = events.filter(e => e.kind === 'projectileExplode' && e.vehicleWeapon === 'mortarHE');
@@ -325,6 +398,7 @@ const { KILL_KEY_ICONS, ICON_PATHS } = await import('../public/js/ui/conquest/ic
   ok(foe.hp < hp0, 'the target takes damage');
   // Once the mission dries up (the target gone), the bot leaves the tube for the rest of its brain.
   Object.assign(foe, { x: 5, z: 5 });
+  Object.assign(foe2, { x: 7, z: 5 });
   policy.roles.spotting.players.clear();
   for (let i = 0; i < 60 * ((MORTAR_BOT_RULES.idleExitMs + MORTAR_BOT_RULES.retargetMs) / 1000 + 2) && bot.vehicleId; i++) game.step(TICK_MS);
   ok(!bot.vehicleId, 'the bot gets out when there is nothing left to shell');

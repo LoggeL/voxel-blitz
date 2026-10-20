@@ -258,7 +258,8 @@ class Game {
    * The server refuses with a `mortar` event when the kit or the ground says no.
    */
   conquestGadgetDigit(intents) {
-    if (intents?.slot !== 2 || this.matchState?.mode !== 'conquest' || this.vehicleController?.vehicle) return intents;
+    if (intents?.slot !== 2 || this.matchState?.mode !== 'conquest' || this.vehicleController?.vehicle
+      || this.selfRow?.state !== 'alive') return intents;
     if (this.conquestHud?.deployableFor?.(this.selfRow) !== 'mortar') return intents;
     this.net?.sendConquest({ mortar: 1 });
     return { ...intents, slot: null };

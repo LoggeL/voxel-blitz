@@ -1,8 +1,9 @@
 /**
  * The Conquest `mortar` intent (`{t:'conquest', mortar:1}`): a living Support
  * who deployed with the MORTAR gadget (KITS.support.gadgets[1]) places his
- * mortar and mans it (server/sim/mortars.js). Every other kit, a downed body
- * or a player outside the live phase is refused with a `mortar` event.
+ * mortar and mans it (server/sim/mortars.js). Every other kit or a downed body
+ * is refused with a `mortar` event (ConquestPolicy.conquestIntent only
+ * passes the intent on in the live phase).
  */
 import { kitDeployable } from '../../../shared/conquest-kits.js';
 import { MORTAR_RULES } from '../../../shared/mortar-rules.js';

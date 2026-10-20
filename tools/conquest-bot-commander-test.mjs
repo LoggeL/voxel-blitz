@@ -307,9 +307,17 @@ function fixture(n = 16) {
   const { game, bots, commander, replan, bodies } = fixture();
   replan();
   const engineers = bodies('alpha').filter(p => commander.kitFor(p) === 'engineer');
-  const others = bodies('alpha').filter(p => commander.kitFor(p) !== 'engineer');
+  const others = bodies('alpha').filter(p => !['engineer', 'support'].includes(commander.kitFor(p)));
   assert(engineers.length >= 1, 'alpha has engineer bots');
-  assert(others.every(p => commander.gadgetFor(p) === 0), 'only engineers pick a gadget');
+  assert(others.every(p => commander.gadgetFor(p) === 0), 'only engineers and supports pick a gadget');
+  // Supports: a stable share (MORTAR_BOT_RULES.share, at least one) carries the MORTAR (gadget 1), the rest none.
+  const supports = bodies('alpha').filter(p => commander.kitFor(p) === 'support');
+  assert(supports.length >= 1, 'alpha has support bots');
+  {
+    const mortars = supports.filter(p => commander.gadgetFor(p) === 1).length;
+    assert(supports.every(p => [0, 1].includes(commander.gadgetFor(p))), 'a support picks none or the mortar');
+    assert.equal(mortars, Math.max(1, Math.round(supports.length * 0.4)), `a share of the supports carries the mortar (${mortars}/${supports.length})`);
+  }
   assert(engineers.every(p => commander.gadgetFor(p) === 0), 'no enemy aircraft in play: every engineer carries the AT launcher');
   assert.equal(commander.deployFor(engineers[0]).gadget, 0, 'deployFor carries the gadget choice');
   // An enemy helicopter is crewed: a share of the engineers switches to the STINGER on the next deploy.

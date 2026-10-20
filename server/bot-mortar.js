@@ -6,7 +6,9 @@
  * fought over, in range from where he stands, and he himself outside every
  * contested flag zone (so the tube goes down behind the line). He then places
  * the mortar through the same `mortar` intent a human sends, or walks back to
- * his own mortar when it still stands nearby.
+ * his own mortar when it still stands nearby. Only a point the tube stands
+ * behind (own side of it on the HQ-to-HQ axis) is a mission, so the mortar
+ * goes down behind the own line, never out in front of the fight.
  *
  * Seated, he lays the tube with the same high-arc solution the HUD shows
  * (mortarAim), fires once the mount has slewed onto it and walks the rounds
@@ -18,7 +20,7 @@ import { MORTAR_BOT_RULES, MORTAR_RULES, mortarAim } from '../shared/mortar-rule
 import { kitDeployable } from '../shared/conquest-kits.js';
 import { VEHICLE_DEFS } from '../shared/vehicle-defs.js';
 import { vehicleEnterDistance } from '../shared/vehicles.js';
-import { playerSpotted, readConquestView } from './bot-commander.js';
+import { homeAxis, playerSpotted, readConquestView } from './bot-commander.js';
 
 const R = MORTAR_BOT_RULES;
 const TYPE = MORTAR_RULES.type;
@@ -52,8 +54,13 @@ export class ConquestMortarBots {
    * between R.minRange and R.maxRange flat metres. { point:[x,y,z], count } or null.
    */
   mission(origin, team, now = this.game.now) {
-    const flags = readConquestView(this.game).flags.filter(f => ACTIVE_FLAG_STATES.has(f.state) && Number.isFinite(f.x));
+    const view = readConquestView(this.game);
+    const flags = view.flags.filter(f => ACTIVE_FLAG_STATES.has(f.state) && Number.isFinite(f.x));
     if (!flags.length) return null;
+    // Behind the line: the tube no farther toward the enemy HQ than the point (R.behindSlack m).
+    const axis = homeAxis(view.bases), length = axis ? Math.hypot(axis.b.x - axis.a.x, axis.b.z - axis.a.z) : 0;
+    const sign = team === 'bravo' ? -1 : 1;
+    const behind = point => !axis || sign * (axis.t(origin) - axis.t(point)) * length <= R.behindSlack;
     const near = o => flags.some(f => flat(o, f) <= (f.radius ?? 20) + R.flagSlack);
     const enemies = [], friends = [];
     for (const o of this.game.entities.values()) {
@@ -77,7 +84,7 @@ export class ConquestMortarBots {
       const point = { x: 0, y: 0, z: 0 };
       for (const m of members) { point.x += m.x / members.length; point.y += m.y / members.length; point.z += m.z / members.length; }
       const range = flat(point, origin);
-      if (range < R.minRange || range > R.maxRange) continue;
+      if (range < R.minRange || range > R.maxRange || !behind(point)) continue;
       // Never onto own soldiers: as many mates as enemies at the point drop it.
       if (friends.filter(f => flat(f, point) <= MORTAR_RULES.snapRadius / 6).length >= members.length) continue;
       if (!best || members.length > best.count || (members.length === best.count && range < best.range)) best = { point: [point.x, point.y, point.z], count: members.length, range };
@@ -106,9 +113,11 @@ export class ConquestMortarBots {
     if (now < s.checkAt) return null;
     s.checkAt = now + R.checkMs;
     if (this.inFight(p)) return null;
-    const mission = this.mission(own ?? p, team, now);
+    // A mission for the own mortar when it stands within reach, else for one placed here.
+    const near = own && flat(p, own) <= R.boardRange ? own : null;
+    const mission = this.mission(near ?? p, team, now);
     if (!mission) return null;
-    if (own && flat(p, own) <= R.boardRange) { s.boardMission = now + R.checkMs * 2; return null; }
+    if (near) { s.boardMission = now + R.checkMs * 2; return null; }
     if (br.rng() >= R.deployChance) return null;
     if (this.game.mode.conquestIntent?.(p, { type: 'mortar' }) !== true) return null;
     const placed = vehicles.vehicles.get(p.vehicleId);
@@ -129,8 +138,10 @@ export class ConquestMortarBots {
     const s = this._state(br), team = this.teamOf(p), seatId = MORTAR_RULES.seat;
     const leave = () => {
       // Out, and no straight walk back in: the next mission check waits a while.
+      // The hull and tube readings go too, so a later return to this (damaged)
+      // mortar starts from its hit points then, not an old reading.
       inp.vehicleAction = { type: 'exit' }; br.intendsMove = false;
-      Object.assign(s, { target: null, boardMission: 0, checkAt: now + R.checkMs * 4 });
+      Object.assign(s, { target: null, boardMission: 0, checkAt: now + R.checkMs * 4, hp: null, shots: -1 });
       return { vehicle: v, seatId, weapon: false };
     };
     inp.keys = { ...inp.keys, f: false, b: false, l: false, r: false, jump: false, sprint: false };

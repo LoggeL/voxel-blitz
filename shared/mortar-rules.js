@@ -49,8 +49,9 @@ export const MORTAR_RULES = freeze({
  * mortar. Every `checkMs` one on foot and out of a fight looks for a fire
  * mission: `minCluster`+ spotted enemies within `clusterRadius` m of each
  * other, near (`flagSlack` m beyond the radius) a flag that is contested or
- * being taken, between `minRange` and `maxRange` m away, and the bot himself
- * outside every contested flag zone. He then deploys with chance
+ * being taken, between `minRange` and `maxRange` m away, the bot no more than
+ * `behindSlack` m nearer the enemy HQ than the target (behind the line, on the
+ * HQ-to-HQ axis) and outside every contested flag zone. He then deploys with chance
  * `deployChance` and walks his rounds in: the first lands within `spreadStart`
  * m of the target, each next one `spreadShrink` closer (never under
  * `spreadMin`). He leaves the tube after `idleExitMs` without a mission, or
@@ -58,7 +59,7 @@ export const MORTAR_RULES = freeze({
  */
 export const MORTAR_BOT_RULES = freeze({
   share: 0.4, checkMs: 3000, deployChance: 0.5,
-  minRange: 60, maxRange: 235, clusterRadius: 10, minCluster: 1, flagSlack: 12,
+  minRange: 60, maxRange: 235, clusterRadius: 10, minCluster: 2, flagSlack: 12, behindSlack: 10,
   aimTolerance: 0.015, spreadStart: 8, spreadShrink: 0.6, spreadMin: 1.5,
   retargetMs: 2500, idleExitMs: 25000, threatRadius: 28, boardRange: 45,
 });
