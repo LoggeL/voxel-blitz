@@ -843,6 +843,8 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
   .vb-touch-mode .cq-ticker { top: calc(50% + 30px); bottom: auto; left: calc(50% - 122px); }
   .vb-touch-mode .vb-conquest-hud:has(.cq-interact:not([hidden])) .cq-ticker { top: calc(50% + 30px); bottom: auto; }
   .vb-touch-mode .cq-interact { top: auto; bottom: 64px; }
+  /* Inside a flag zone (an event point at a flag: the dam's DEFUSE at C) the ring's label reaches 290 px: the prompt drops below it. */
+  .vb-touch-mode .vb-conquest-hud:has(.cq-ring:not([hidden])) .cq-interact { bottom: 40px; }
   /* Bomb sight up: the prompt moves to the free corner left of the top bar. */
   .vb-touch-mode .vb-conquest-hud[data-bomb-sight="true"] .cq-interact { top: max(10px, env(safe-area-inset-top)); bottom: auto;
     left: calc(50% - 146px); transform: translateX(-100%); }
@@ -1174,7 +1176,10 @@ body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conque
 .cq-banner[data-icon="true"] {
   display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: center;
   text-align: left; padding-left: 18px;
+  /* Left-aligned text runs to the right edge: the panel stays solid under it and fades only past it. */
+  background: linear-gradient(90deg, transparent, var(--cq-panel) 5%, var(--cq-panel) 90%, transparent);
 }
+html:not(.vb-touch-mode) .cq-banner[data-icon="true"] { padding-right: 40px; }
 .cq-banner[data-icon="true"] .cq-banner-icon {
   display: grid; place-items: center; grid-row: 1 / span 3; width: 38px; height: 38px; border-radius: 4px;
   background: var(--tone, #ffb020); color: #14100a; box-shadow: 0 0 10px color-mix(in srgb, var(--tone, #ffb020) 45%, transparent);

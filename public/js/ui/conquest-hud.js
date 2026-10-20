@@ -693,12 +693,14 @@ export class ConquestHud {
     this.reticles.draw(reticle, locker, width, height, { touch });
     // Markers after the reticles: edge-clamped flags keep clear of the panels, the crosshair and the drawn instruments.
     const insets = !touch ? MARKER_INSETS_DESKTOP : width > height && height <= 500 ? MARKER_INSETS_TOUCH_LANDSCAPE : MARKER_INSETS_TOUCH;
+    // Map event hexagons share the flags' edge spread, so an edge-clamped event never sits on a flag marker.
+    const eventMarkers = projector ? mapEventMarkerModels(cq, { self, selfTeam, projector, insets, nowMs: now }) : [];
+    const spread = projector ? spreadEdgeMarkers([...flagMarkerModels(cq, self, selfTeam, projector, insets), ...eventMarkers.filter(m => m.kind === 'event')],
+      { width, height, insets, obstacles: [...this._markerObstacles(width, height, touch), crosshairZone(width, height), ...this.reticles.reserved] }) : [];
     this.markers.update(
-      projector ? spreadEdgeMarkers(flagMarkerModels(cq, self, selfTeam, projector, insets), { width, height, insets,
-        obstacles: [...this._markerObstacles(width, height, touch), crosshairZone(width, height), ...this.reticles.reserved] })
-        .map(m => (order && m.id === order.flagId ? { ...m, order: order.stance } : m)) : [],
+      spread.filter(m => m.kind !== 'event').map(m => (order && m.id === order.flagId ? { ...m, order: order.stance } : m)),
       projector ? [...this._unitMarkers(unitMarkerModels({ self, players, vehicles, selfTeam, projector, insets }), requestMarkerModels(requests, { projector })),
-        ...mapEventMarkerModels(cq, { self, selfTeam, projector, insets, nowMs: now })] : [],
+        ...spread.filter(m => m.kind === 'event'), ...eventMarkers.filter(m => m.kind !== 'event')] : [],
     );
     this.restricted.update(restrictedModel(self, cq, { aircraft: !!seated && isAircraftType(seated.row.type), nowMs: now }));
     // Assault ADRENALINE: the spent medkit came back (0 -> 1 on the authoritative row) right
