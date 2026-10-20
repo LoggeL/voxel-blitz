@@ -27,7 +27,7 @@ import { mountSystem, seatWeapons } from './bot-vehicle-combat.js';
 import { kitOfPlayer } from './bot-commander.js';
 import { isCombinedArms } from '../shared/modes.js';
 import { navigationWaypoint } from './bot-navigation.js';
-import { boatPatrol } from './bot-boat-driving.js';
+import { BOAT_PATROL, boatPatrol } from './bot-boat-driving.js';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -384,7 +384,7 @@ export class ConquestVehicleDriving {
   }
 
   /** Drive along a route; returns the remaining distance to its end. */
-  follow(br, v, state, now, inp, { arrive = 6, cruise = null } = {}) {
+  follow(br, v, state, now, inp, { arrive = 6, cruise = null, narrows = false } = {}) {
     inp.vehicleThrottle = 0; inp.vehicleSteer = 0; inp.vehicleBrake = 1;
     const goal = state.points.at(-1);
     if (!goal) return 0;
@@ -427,8 +427,11 @@ export class ConquestVehicleDriving {
     const error = wrap(desiredYaw - v.yaw), d = distance(v, target);
     const next = state.detour ? (state.detour[1] ?? state.points[state.index]) : state.points[state.index + 1];
     const corner = next ? Math.abs(wrap(bearing(target, next) - desiredYaw)) : 0;
-    // Tanks and boats pivot onto a waypoint behind them; wheeled hulls back up to it.
-    const reverse = v.type !== 'tank' && v.type !== 'boat' && Math.abs(error) > 1.9 && d < 42;
+    // Tanks pivot onto a waypoint behind them; wheeled hulls back up to it. A
+    // boat turns under way on open water; in the narrows of a bridge it backs
+    // straight onto a close waypoint astern, or stops and pivots (below).
+    const reverse = v.type === 'boat' ? narrows && Math.abs(error) > 2 && d < BOAT_PATROL.narrowsReverse
+      : v.type !== 'tank' && Math.abs(error) > 1.9 && d < 42;
     const steeringError = reverse ? wrap(error + Math.PI) : error;
     const rules = VEHICLE_RULES[v.type];
     inp.vehicleSteer = clamp(-steeringError * (v.type === 'tank' ? 2 : 2.5) * (reverse ? -1 : 1), -1, 1);
@@ -436,6 +439,9 @@ export class ConquestVehicleDriving {
     if (Math.abs(steeringError) > 0.35) speed = Math.min(speed, v.type === 'tank' ? 5 : 6);
     if (corner > 0.4 && d < 24) speed = Math.min(speed, 5 + d * 0.2);
     if (v.type === 'tank' && Math.abs(error) > 0.6) speed = 0;
+    // A boat turning back in the narrows stops and pivots on its waterjet: a
+    // U-turn under way swings 6 m wide, into a pier or the bank by the arch.
+    if (v.type === 'boat' && narrows && !reverse && Math.abs(error) > BOAT_PATROL.pivotError) speed = 0;
     if (remaining < 40) speed = Math.min(speed, Math.max(3, remaining * 0.35));
     inp.vehicleBrake = Math.abs(v.speed) > speed + 1 ? 0.8 : 0;
     inp.vehicleThrottle = reverse ? -0.8 : speed / rules.speed;

@@ -13,6 +13,8 @@ import { blueprint, createKit, buildSeatAnchors, buildMounts, lightAnchor, finis
 /** Outboard motor positions (x) and the transom face (z). */
 export const BOAT_OUTBOARDS = Object.freeze([-0.5, 0.5]);
 export const BOAT_TRANSOM_Z = 3.0;
+/** Highest point of the model above the keel (the canopy roof), m. */
+export const BOAT_TOP = 2.4;
 const BOW_Z = -3.4, FOREDECK_Z = -2.0, FLOOR_TOP = 0.6;
 const round = v => Math.round(v * 5) / 5;
 
@@ -85,24 +87,23 @@ function buildParts() {
   }
   hull.userData.priority = { ammo: 40, jerrycan: 40, rail: 30 };
 
-  // Canopy: windscreen, roof on four posts (its top is the air recognition
-  // panel with a roundel), the radar mast and a whip antenna. From the
-  // driver's first-person seat it folds away (model.firstPersonHidden).
+  // Canopy: windscreen and a low roof on four posts (its top is the air
+  // recognition panel with a roundel). Nothing stands above BOAT_TOP: afloat,
+  // the boat clears the Iron Bridge deck (underside 2.43 m over the hull's
+  // feet), so it carries no mast or whip antenna. From the driver's
+  // first-person seat the canopy folds away (model.firstPersonHidden).
   const canopy = new VoxelPart('boat-canopy');
   canopy.box([-1.0, 1.6, -1.0], [-0.8, 2.0, -0.8], 'paint', { tag: 'windscreen' });
   canopy.box([0.8, 1.6, -1.0], [1.0, 2.0, -0.8], 'paint', { tag: 'windscreen' });
   canopy.box([-0.8, 1.6, -1.0], [0.8, 2.0, -0.8], 'glass', { tag: 'windscreen' });
   for (const x of [-1.0, 0.8]) {
-    canopy.box([x, 2.0, -1.0], [x + 0.2, 2.4, -0.8], 'paint', { tag: 'roof' });
-    canopy.box([x, 1.4, 0.2], [x + 0.2, 2.4, 0.4], 'paint', { tag: 'roof' });
+    canopy.box([x, 2.0, -1.0], [x + 0.2, 2.2, -0.8], 'paint', { tag: 'roof' });
+    canopy.box([x, 1.4, 0.2], [x + 0.2, 2.2, 0.4], 'paint', { tag: 'roof' });
   }
-  canopy.box([-1.0, 2.4, -1.2], [1.0, 2.6, 0.4], 'panel', { tag: 'roof' });
-  canopy.skin([-1.0, 2.4, -1.2], [1.0, 2.6, 0.4], 'recog', { normal: [0, 1, 0], where: m => m === 'panel' });
-  canopy.roundel([0, 2.6, -0.4], 0.4, [0, 1, 0], { depth: 0.2 });
-  canopy.box([0.6, 2.6, 0.0], [0.8, 3.2, 0.2], 'dark', { tag: 'mast' });
-  canopy.box([0.4, 3.2, -0.2], [1.0, 3.4, 0.4], 'gunmetal', { tag: 'mast' });
-  canopy.box([-0.8, 2.6, 0.2], [-0.6, 3.8, 0.4], 'dark', { tag: 'antenna' });
-  canopy.userData.priority = { roof: 70, windscreen: 75, mast: 50, antenna: 20 };
+  canopy.box([-1.0, 2.2, -1.2], [1.0, BOAT_TOP, 0.4], 'panel', { tag: 'roof' });
+  canopy.skin([-1.0, 2.2, -1.2], [1.0, BOAT_TOP, 0.4], 'recog', { normal: [0, 1, 0], where: m => m === 'panel' });
+  canopy.roundel([0, BOAT_TOP, -0.4], 0.4, [0, 1, 0], { depth: 0.2 });
+  canopy.userData.priority = { roof: 70, windscreen: 75 };
 
   // Wheel on the console (spins with the steer input).
   const steering = new VoxelPart('boat-steering', { pivot: [round(dx), 1.5, -0.6] });

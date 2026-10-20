@@ -24,6 +24,9 @@ import { hullSeatIds } from '../server/bot-commander.js';
 import { BOAT_PATROL, boatLane, laneDistance, laneProgress, lanePoint, patrolStations, riverPatrolSlots } from '../server/bot-boat-driving.js';
 import { vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
 import { mulberry32 } from '../shared/noise.js';
+import * as THREE from '../public/js/vendor/three.module.js';
+import { VEHICLE_MODEL_FACTORIES } from '../public/js/engine/vehicle-view.js';
+import { BOAT_TOP } from '../public/js/vehicles/models/boat.js';
 
 Math.random = mulberry32(Number(process.env.VB_TEST_SEED ?? 1));
 const meta = getMapMeta('frontier'), world = createMapState('frontier');
@@ -159,6 +162,25 @@ const run = (vehicles, seconds, each = null) => { for (let i = 0; i < Math.round
   eq(v.hp, startHp, 'a well-steered run never touches a bank');
 }
 
+// ------------------------------------------------------------------ the model clears the bridge decks
+{
+  // Afloat and level, every part of the hull model stays under the lowest deck
+  // over the boat lane (the Iron Bridge arch): no roof, mast or antenna through
+  // a bridge (the presentation swell and trim graze it by centimetres at most).
+  const lane = boatLane({ mapMeta: meta });
+  let deck = Infinity;
+  for (let s = 0; s <= lane.length; s += 0.5) {
+    const p = lanePoint(lane, s);
+    for (let y = WATER_FACE; y < WATER_FACE + 8; y++) if (isSolidBlock(world.getBlock(Math.floor(p.x), y, Math.floor(p.z)))) { deck = Math.min(deck, y); break; }
+  }
+  ok(Number.isFinite(deck), `a bridge deck spans the lane (underside y ${deck})`);
+  const model = VEHICLE_MODEL_FACTORIES.boat({ team: 'alpha' });
+  model.group.updateMatrixWorld(true);
+  const top = new THREE.Box3().setFromObject(model.group).max.y;
+  ok(FLOAT + top <= deck + 1e-6, `the boat model (top ${top.toFixed(2)} m over the keel) passes under the deck at ${deck} afloat at ${FLOAT}`);
+  ok(Math.abs(top - BOAT_TOP) < 0.05, `the canopy roof is the model's highest point (${top.toFixed(2)})`);
+}
+
 // ------------------------------------------------------------------ banks: it never climbs onto land
 {
   const { engine, vehicles } = system();
@@ -284,6 +306,63 @@ const run = (vehicles, seconds, each = null) => { for (let i = 0; i < Math.round
   Object.assign(boat, { x: boat.x + 30, seatOccupants: { ...boat.seatOccupants, driver: 'bot-x' } });
   const out = riverPatrolSlots(game, hulls, 4, C, hullSeatIds, id => id === 'bot-x');
   eq(out.recall.map(s => [s.v.id, s.seat, s.recall]), [[boat.id, 'driver', true], [boat.id, 'gunner', true]], 'a bot crew out on the river is recalled');
+}
+{
+  // The commander's patrol booking: both boat seats inside the crew cap (in
+  // the jet's budget slot while the helicopter is down), sorties of sortieMs,
+  // then restMs with the boat at its mooring and no booking, then a new sortie.
+  const game = new GameEngine({ mode: 'conquest', world, mapMeta: meta, broadcast: () => {} });
+  const bots = attachBots(game, 16);
+  game.step(TICK_MS);
+  const commander = bots.commander, C = meta.conquest.flags.find(f => f.id === 'C');
+  commander.focusFlag = () => C;
+  const ts = commander.teams.get('alpha');
+  const alpha = bots.brains.map(br => game.entities.get(br.id)).filter(p => game.mode.teamFor(p) === 'alpha');
+  game.vehicles.vehicles.get('alpha-helicopter').hp = 0;
+  const boat = game.vehicles.vehicles.get('alpha-boat-south');
+  const types = () => [...ts.crews.values()].map(c => `${game.vehicles.vehicles.get(c.vehicleId)?.type}:${c.seatId}`).sort();
+  const boatCrews = () => types().filter(t => t.startsWith('boat:'));
+  const plan = now => { game.mode.policy._view = null; commander.viewAt = -1; commander.plan(now); };
+  const cap = Math.ceil(alpha.length / 3), t0 = game.now;
+  plan(t0 - 1000);
+  // Two bots booked on a squad ride stand on the bank by the mooring: they are
+  // not free, so the boat is not booked in the jet's place for nobody to man.
+  const riding = () => new Set([...ts.transits.values()].flatMap(t => [...t.seats.keys()]));
+  const free = () => { const busy = riding(); return alpha.filter(p => !ts.crews.has(p.id) && !ts.hitches.has(p.id) && !busy.has(p.id)); };
+  const riders = alpha.filter(p => riding().has(p.id)).slice(0, 2);
+  if (riders.length === 2) {
+    for (const p of riders) Object.assign(p, { state: 'alive', x: boat.x - 5, y: 23, z: boat.z, vehicleId: null });
+    plan(t0 - 500);
+    eq(boatCrews(), [], 'squad riders by the mooring are no boat crew');
+    ok(types().includes('plane:driver') || !game.vehicles.vehicles.get('alpha-plane').hp, `the jet keeps its pilot (${types()})`);
+    for (const p of riders) Object.assign(p, { x: p.x - 200 });
+  }
+  // Two free bots on the bank by the mooring: in walking reach of the boat.
+  for (const p of free().slice(0, 2)) Object.assign(p, { state: 'alive', x: boat.x - 5, y: 23, z: boat.z, vehicleId: null });
+  plan(t0);
+  eq(boatCrews(), ['boat:driver', 'boat:gunner'], `a sortie books helmsman and bow gunner (${types()})`);
+  ok(ts.crews.size <= cap, `inside the crew cap (${ts.crews.size} <= ${cap})`);
+  ok(!types().includes('plane:driver'), 'ranked before the jet: the jet waits for budget');
+  ok([...ts.crews.values()].every(c => game.vehicles.vehicles.get(c.vehicleId)?.type !== 'boat' || c.vehicleId === boat.id), 'one boat per team');
+  plan(t0 + BOAT_PATROL.sortieMs - 1000);
+  eq(boatCrews().length, 2, 'the sortie runs on');
+  plan(t0 + BOAT_PATROL.sortieMs + 500);
+  eq(boatCrews(), [], 'after sortieMs the booking ends (a moored boat needs no recall)');
+  plan(t0 + BOAT_PATROL.sortieMs + BOAT_PATROL.restMs - 1000);
+  eq(boatCrews(), [], 'the boat rests at its mooring for restMs');
+  // The rested crew went back to the fight; two other free bots come by the mooring.
+  for (const p of free().slice(0, 2)) Object.assign(p, { state: 'alive', x: boat.x - 5, y: 23, z: boat.z, vehicleId: null });
+  plan(t0 + BOAT_PATROL.sortieMs + BOAT_PATROL.restMs + 1000);
+  eq(boatCrews(), ['boat:driver', 'boat:gunner'], `then the next sortie books it again (${types()})`);
+  // Out on the river with a bot at the helm when the cap fills (the helicopter is back): a recall, not a bail-out.
+  const pilot = alpha.find(p => !ts.crews.has(p.id));
+  Object.assign(boat, { x: boat.x + 30, seatOccupants: { ...boat.seatOccupants, driver: [...ts.crews].find(([, c]) => c.vehicleId === boat.id && c.seatId === 'driver')[0] } });
+  game.vehicles.vehicles.get('alpha-helicopter').hp = vehicleDef('helicopter').hp;
+  game.vehicles.vehicles.get('alpha-plane').hp = 0;
+  plan(t0 + BOAT_PATROL.sortieMs + BOAT_PATROL.restMs + 2000);
+  ok(types().includes('helicopter:driver') && [...ts.crews.values()].filter(c => c.vehicleId === boat.id).every(c => c.slot?.recall), `the helicopter takes the cap back and the boat crew is recalled (${types()})`);
+  void pilot;
+  bots.dispose(); game.stop();
 }
 {
   // A live crew: sails the lane to its station by the Iron Bridge and works the bow gun on an enemy on the bank.

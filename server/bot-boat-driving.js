@@ -1,9 +1,9 @@
 // River patrol boats for Conquest bots (docs/conquest.md, Patrol boat).
 //
 // The commander books one boat per team as a river patrol (driver and bow
-// gunner) in the headroom between its crew budget and the ceil(bots / 3) cap
-// once the team fields BOAT_PATROL.minTeamBots bots (riverPatrolSlots and
-// BotCommander.planCrews). The driver steers along the map's boat lane
+// gunner, ranked after the attack helicopter and before the jet) when both
+// seats fit under the ceil(bots / 3) crew cap, once the team fields
+// BOAT_PATROL.minTeamBots bots (riverPatrolSlots and BotCommander.planCrews). The driver steers along the map's boat lane
 // (mapMeta.conquest.waterways) to a station beside the river crossing
 // nearest the team's focus flag, holds there bow toward the
 // crossing so the gunner's .50 covers it, and moves to the station on the
@@ -17,8 +17,12 @@ import { vehicleMaxHp } from '../shared/vehicles.js';
 export const BOAT_PATROL = Object.freeze({
   /** A team with fewer bots keeps every bot on land. */
   minTeamBots: 6,
-  /** A recalled boat this close to its mooring is home: the crew gets out (m). */
-  moorRadius: 12,
+  /**
+   * A recalled boat this close to its mooring is home: the crew gets out (m).
+   * Just past the `arrive` radius the helmsman brakes in, so the crew steps
+   * out at the pad (a short jump from the bank), not 10 m out in the river.
+   */
+  moorRadius: 7,
   /** A living bot farther than this from the boat does not walk (or swim) to it. */
   walkMax: 30,
   /** Commander priorities of the boat seats: after the attack helicopter, before the jet. */
@@ -35,6 +39,13 @@ export const BOAT_PATROL = Object.freeze({
   arrive: 6, faceMs: 3500,
   /** Cruise on the open lane, through a narrows (the Iron Bridge arch) and close to the station, m/s. */
   cruise: 15, narrows: 6, approach: 8,
+  /**
+   * In the narrows (a bridge within 20 m) a helmsman whose waypoint lies more
+   * than `pivotError` rad off the bow stops and pivots instead of turning under
+   * way, or backs onto it when it lies astern closer than `narrowsReverse` m
+   * (under the arch there is no room to pivot either).
+   */
+  pivotError: 1.2, narrowsReverse: 16,
   /** Hull share that sends the boat home to its mooring, and the share that sends it back out. */
   retreatHp: 0.35, returnHp: 0.6,
   /**
@@ -135,11 +146,14 @@ export function laneDistance(lane, p) {
  * Commander slots of the river patrol: { slots, recall }. `slots` is the
  * team's live boat already manned by a bot, else the one moored nearest the
  * focus flag: its driver, then its bow gunner, at priorities after the attack
- * helicopter, while the focus flag lies within BOAT_PATROL.focusReach of the lane. The commander books them only in the headroom between the crew
- * budget and the ceil(teamBots / 3) cap, so on Frontier (at most eight bots a
- * side) the boat sails while the tank or the helicopter is down. `recall` is a
- * bot-crewed boat out on the river, for when the patrol is not booked: its
- * crew sails home and gets out at the mooring, never mid-river.
+ * helicopter and before the jet, while the focus flag lies within
+ * BOAT_PATROL.focusReach of the lane. The commander books both seats or
+ * neither, only while they fit under the ceil(teamBots / 3) cap: on Frontier
+ * (at most eight bots a side: budget 2, cap 3) the boat sails while the tank
+ * or the helicopter is down, and then takes the budget slot the jet would get.
+ * `recall` is a bot-crewed boat out on the river, for when the patrol is not
+ * booked: its crew sails home and gets out at the mooring, never mid-river
+ * (the recall may run past the cap while it lasts).
  */
 export function riverPatrolSlots(game, hulls, teamBots, focus, hullSeatIds, isBot) {
   const none = { slots: [], recall: [] };
@@ -161,14 +175,20 @@ export function riverPatrolSlots(game, hulls, teamBots, focus, hullSeatIds, isBo
   return { slots: pick ? crew(pick, false) : [], recall };
 }
 
-/** Lane route state of a boat driver (reused while the target is unchanged). */
+/**
+ * Lane route state of a boat driver (reused while the target is unchanged).
+ * Like a ground hull's route, each leg starts with no stuck recoveries: the
+ * watchdog's MAX_RECOVERIES bail-out (abandon the hull, crew out) is for a
+ * hull boxed in on one leg, not the sum of every scrape over a long patrol,
+ * which would strand the boat mid-river and swim its crew ashore.
+ */
 function routeState(driving, br, v, lane, target, now) {
   const key = `boat:${Math.round(target.x)},${Math.round(target.z)}`;
   let state = driving.drivers.get(br.id);
   if (!state || state.vehicle !== v || state.key !== key) {
     const keep = state?.vehicle === v ? state : null;
     state = { vehicle: v, key, destination: target, points: laneRoute(lane, laneProgress(lane, v), laneProgress(lane, target)).concat([{ ...target }]),
-      index: 0, watchAt: now, watchX: v.x, watchZ: v.z, watchYaw: v.yaw, recoveries: keep?.recoveries ?? 0, reverseUntil: 0,
+      index: 0, watchAt: now, watchX: v.x, watchZ: v.z, watchYaw: v.yaw, recoveries: 0, reverseUntil: 0,
       probeAt: 0, detour: null, patrol: keep?.patrol ?? null };
     driving.drivers.set(br.id, state);
   }
@@ -212,7 +232,7 @@ export function boatPatrol(driving, br, p, v, assignment, now, inp) {
   // Slow through the narrows (the arches of a bridge within 20 m) and on the approach.
   const narrows = (driving.game.mapMeta?.conquest?.crossings ?? []).some(c => c.kind === 'bridge' && flat(c, v) < 20);
   const cruise = narrows ? BOAT_PATROL.narrows : toGo < 30 ? BOAT_PATROL.approach : BOAT_PATROL.cruise;
-  const remaining = driving.follow(br, v, state, now, inp, { arrive: BOAT_PATROL.arrive, cruise });
+  const remaining = driving.follow(br, v, state, now, inp, { arrive: BOAT_PATROL.arrive, cruise, narrows });
   if (remaining < BOAT_PATROL.arrive) {
     if (!patrol.retreat && !patrol.settleAt) {
       patrol.settleAt = now;

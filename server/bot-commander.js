@@ -553,9 +553,11 @@ export class BotCommander {
    * (only with >= 6 bots) > a second tank > helicopter gunner > tank commander.
    * The budget is ceil(teamBots / 4), inside the spec's ceil(teamBots / 3)
    * cap, so most of the team stays on foot around the flags. The river patrol
-   * boat (driver and gunner, priority after the helicopter) only sails in the
-   * headroom between the budget and the cap, in sorties of BOAT_PATROL.sortieMs
-   * with BOAT_PATROL.restMs at the mooring between them.
+   * boat (driver and gunner, after the helicopter and before the jet) is booked
+   * with both seats or not at all, only while they fit under the cap: it may
+   * take the crew count one past the budget, and the crews ranked after it get
+   * what budget is left. It sails in sorties of BOAT_PATROL.sortieMs with
+   * BOAT_PATROL.restMs at the mooring between them.
    */
   planCrews(ts, view, now) {
     const team = ts.team, brains = this.teamBrains(team);
@@ -585,7 +587,7 @@ export class BotCommander {
     push(hulls.filter(v => v.type === 'helicopter'), v => hullSeatIds(v).gunner, 4);
     push(hulls.filter(v => v.type === 'tank' || v.type === 'jeep_at'), v => hullSeatIds(v).gunner, 5);
     // The river patrol (server/bot-boat-driving.js): a two-bot boat crew that
-    // sails in the headroom between the budget and the ceil(teamBots / 3) cap.
+    // must fit under the ceil(teamBots / 3) cap (it may run past the budget).
     const cap = Math.ceil(brains.length / 3);
     const patrol = riverPatrolSlots(this.game, hulls, brains.length, this.focusFlag(ts), hullSeatIds, id => this.isBot(id));
     // Sortie duty cycle (BOAT_PATROL.sortieMs / restMs): between sorties the boat rests at its mooring.
@@ -668,15 +670,21 @@ export class BotCommander {
     ts.crewBudget = budget;
   }
 
-  /** Two bots that can man the patrol boat now: already aboard or booked, dead (they deploy aboard) or a short walk away. */
+  /**
+   * Two bots that can man the patrol boat now: already aboard or booked, dead
+   * (they deploy aboard) or a short walk away. A bot booked on a crew, a hitch
+   * or a squad ride is not free: the seat assignment in planCrews skips it too,
+   * so counting it would book an unmannable boat in the jet's place.
+   */
   patrolCrewInReach(ts, brains, v, view) {
     let count = 0;
+    const riding = new Set([...ts.transits.values()].flatMap(t => [...t.seats.keys()].map(String)));
     for (const br of brains) {
       const id = br.id, p = this.game.entities.get(id);
       if (!p) continue;
       const booked = ts.crews.get(String(id));
       if (p.vehicleId === v.id || booked?.vehicleId === v.id) count++;
-      else if (booked || ts.hitches.has(String(id))) continue;
+      else if (booked || ts.hitches.has(String(id)) || riding.has(String(id))) continue;
       else if (p.state !== 'alive' ? !!view.deployOptions : !p.vehicleId && flat(p, v) <= BOAT_PATROL.walkMax) count++;
       if (count >= 2) return true;
     }

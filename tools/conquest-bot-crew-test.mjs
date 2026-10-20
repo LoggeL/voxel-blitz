@@ -1,6 +1,6 @@
 // Conquest crew allocation (BotCommander.planCrews / planTransit) on the real
 // Frontier v2 map: the crew budget (<= ceil(teamBots/3), the river patrol boat
-// on top from eight team bots), the spec priority
+// included; only a recalled boat crew may run past it), the spec priority
 // (tank > attack helicopter > jeep rides > transport > plane with >= 6 bots),
 // unique seats, human-held seats, airborne pilots staying put, squad rides of
 // at most 40 s, rides called off when their driver is lost, passive
@@ -37,9 +37,11 @@ function assertCrewsValid(f) {
   for (const team of ['alpha', 'bravo']) {
     const ts = f.bots.commander.teams.get(team);
     const budget = Math.ceil(f.teamBots(team) / 3);
-    // The river patrol (one boat, driver and gunner) is crewed on top of the land and air budget.
+    // The river patrol (one boat, driver and gunner) is booked inside the cap
+    // too; only a crew recalled to its mooring may run past it until it is home.
     const boat = [...ts.crews.values()].filter(c => f.game.vehicles.vehicles.get(c.vehicleId)?.type === 'boat');
-    assert(ts.crews.size - boat.length <= budget, `${team}: ${ts.crews.size - boat.length} land and air crews within ceil(${f.teamBots(team)}/3)`);
+    const recalled = boat.filter(c => c.slot?.recall).length;
+    assert(ts.crews.size - recalled <= budget, `${team}: ${ts.crews.size - recalled} booked crews within ceil(${f.teamBots(team)}/3)`);
     assert(boat.length <= 2 && new Set(boat.map(c => c.vehicleId)).size <= 1, `${team}: at most one patrol boat crew`);
     assert(!boat.length || f.teamBots(team) >= BOAT_PATROL.minTeamBots, `${team}: no river patrol below ${BOAT_PATROL.minTeamBots} bots`);
     const seats = new Set();
