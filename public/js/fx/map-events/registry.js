@@ -31,7 +31,7 @@ import { RELAY_FX } from './relay.js';
 // slot elevator:
 import { ELEVATOR_FX } from './elevator.js';
 // slot quarry:
-// import { QUARRY_FX } from './quarry.js';
+import { QUARRY_FX } from './quarry.js';
 // slot comeback:
 import { COMEBACK_FX } from './comeback.js';
 // slot airdrop:
@@ -50,7 +50,7 @@ export const MAP_EVENT_FX = Object.freeze({
   // slot elevator:
   elevator: ELEVATOR_FX,
   // slot quarry:
-  // quarry: QUARRY_FX,
+  quarry: QUARRY_FX,
   // slot comeback:
   comeback: COMEBACK_FX,
   // slot airdrop:

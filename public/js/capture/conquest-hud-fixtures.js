@@ -15,6 +15,7 @@ import { airdropHudFixtures } from './map-events/airdrop-fixtures.js';
 import { encodeMapEventPoint, encodeMapEventRow, mapEventsFor } from '../../../shared/conquest-map-events.js';
 import { RELAY_SITE } from '../../../shared/map-events/relay.js';
 import { ELEVATOR_EVENT } from '../../../shared/map-events/elevator.js';
+import { QUARRY_EVENT } from '../../../shared/map-events/quarry.js';
 
 export const FIXTURE_NOW = 2_000_000;
 const GROUND = 26;
@@ -780,6 +781,27 @@ export function conquestHudFixtures() {
         events: [{ kind: 'map_event', event: 'depot', phase: 'active', team: 'bravo', by: 'en1', endsAt: FIXTURE_NOW + 170_000, pos: [512, 31, 425] }],
         camera: cam(near.x, GROUND + 1.6, near.z, yawTo(near, anchor)) }));
     }
+  }
+  // 25-27. Aldric Quarry rockslide (docs/conquest.md "Aldric Quarry rockslide"): the enemy's
+  // warning seen from the pit floor, holding the plunger in the hut, and the full map after the slide.
+  {
+    const q = mapEventsFor('frontier').findIndex(d => d.id === 'quarry');
+    const anchor = QUARRY_EVENT.anchor, plunger = QUARRY_EVENT.points[0];
+    const pit = meAt(262, 600, { y: 25.02 });
+    out.push(state('quarry-warning', 'Aldric Quarry · enemy set the rockslide off · 4 s', { self: pit, players: roster(pit),
+      match: { ...baseMatch(), conquest: { ...baseMatch().conquest, ev: [[q, 2, 0, 1, 40]] } },
+      camera: cam(262, 26.6, 600, 0.12, 0.12),
+      events: [{ kind: 'map_event', event: 'quarry', phase: 'warning', team: 'bravo', by: 'en1', endsAt: FIXTURE_NOW + 4000,
+        pos: [anchor.x, anchor.y, anchor.z] }] }));
+    const hut = meAt(plunger.x + 0.8, plunger.z, { y: plunger.y, cq: { squad: 1, kitId: 'assault', action: 55 } });
+    out.push(state('quarry-plunger', 'Aldric Quarry · holding the detonator · 55 %', { self: hut, players: roster(hut),
+      match: { ...baseMatch(), conquest: { ...baseMatch().conquest, evp: [[q, 0, 3, 55, 0]] } },
+      camera: cam(hut.x, plunger.y + 1.6, hut.z, Math.PI / 2 + 0.2, -0.35) }));
+    const rim = meAt(B.x + 12, B.z - 10, { y: 34.02 });
+    out.push(state('quarry-done', 'Aldric Quarry · full map after the rockslide', { self: rim, players: roster(rim), bigMap: true,
+      match: { ...baseMatch(), conquest: { ...baseMatch().conquest, ev: [[q, 4, 100, 0]] } },
+      camera: cam(rim.x, 35.6, rim.z, Math.PI, -0.2),
+      events: [{ kind: 'map_event', event: 'quarry', phase: 'done', team: 'alpha', by: 'me', pos: [anchor.x, anchor.y, anchor.z] }] }));
   }
   return out;
 }

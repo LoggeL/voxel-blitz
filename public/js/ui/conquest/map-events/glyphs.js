@@ -15,6 +15,8 @@ export const MAP_EVENT_GLYPHS = Object.freeze({
   // slot elevator:
   'event-elevator': 'M6 21V6.5L9.5 3l3.5 3.5V21H11v-4H8v4zM8 8.2v2.2h3V8.2zM8 12.2v2.2h3v-2.2zM14.6 21l6.8-6.8 1.4 1.4L17.4 21zM15.2 13.1l2.2-2.2 1.4 1.4-2.2 2.2zM2 21h20v1.5H2z',
   // slot quarry:
+  // A cut rock face shedding boulders onto a talus slope.
+  rockslide: 'M2 21l6.5-12 2.6 3.6L13 9.5l2.2 3.3L12 21zM14.4 21l3-5.2 1.7 1.9 2.9 3.3zM15.2 3.2h3.2v3.2h-3.2zM18.8 6.8h2.6v2.6h-2.6zM12.4 5.4h2.2v2.2h-2.2z',
   // slot comeback:
   // Call-in: a target reticle with its four ticks around a falling bomb.
   callin: 'M12 2a10 10 0 1 1 0 20a10 10 0 1 1 0-20zM12 4.4a7.6 7.6 0 1 0 0 15.2a7.6 7.6 0 1 0 0-15.2zM11.1 0h1.8v4.6h-1.8zM11.1 19.4h1.8V24h-1.8zM0 11.1h4.6v1.8H0zM19.4 11.1H24v1.8h-4.6zM12 8.6a2.3 2.3 0 0 1 2.3 2.3v2.5a2.3 2.7 0 0 1-4.6 0v-2.5A2.3 2.3 0 0 1 12 8.6zM10.5 6.4h3l-.7 1.7h-1.6z',
