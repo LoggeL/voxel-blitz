@@ -41,7 +41,7 @@ export const SUPPLY_CRATE_RULES = Object.freeze({
   half: Object.freeze([0.4, 0.26, 0.28]),
   centerY: 0.26,
   ammo: Object.freeze({ intervalMs: 3000, mags: 1, grenades: 1, gadgetRoundMs: 10000 }),
-  med: Object.freeze({ intervalMs: 1000, hp: 8, hurtQuietMs: 3000, bandageMs: 15000 }),
+  med: Object.freeze({ intervalMs: 1000, hp: 4, hurtQuietMs: 3000, bandageMs: 15000 }),
   /** Blast damage at the centre when the blast type has no rules, falling off to its radius. */
   blastDamage: 200,
   /** Bots: at most one placement per this long per bot, a check this often. */

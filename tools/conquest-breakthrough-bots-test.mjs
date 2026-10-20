@@ -35,9 +35,9 @@ let matchMax = 0;
 const game = atEpoch(() => new GameEngine({ mode: 'conquest', conquestVariant: 'breakthrough', world, mapMeta: meta,
   broadcast: snap => {
     for (const e of snap.events ?? []) events.push({ ...e, at: game.now });
-    // Measured without the Recon gadget block (`recon`) and the map event rows (`ev` / `evp`), which have budgets of
+    // Measured without the Recon gadget block (`recon`), the map event rows (`ev` / `evp`), the pouches (`pch`) and the crates (`crates`), which have budgets of
     // their own (tools/conquest-scale-test.mjs, docs/conquest.md "Map events").
-    { const { recon = null, ev = null, evp = null, ...base } = snap.match?.conquest ?? {}; const text = JSON.stringify(base); if (text.length > matchMax) { matchMax = text.length; globalThis.maxText = text; } }
+    { const { recon = null, ev = null, evp = null, pch = null, crates = null, ...base } = snap.match?.conquest ?? {}; const text = JSON.stringify(base); if (text.length > matchMax) { matchMax = text.length; globalThis.maxText = text; } }
   } }));
 const policy = game.mode.policy;
 const bots = attachBots(game, BOTS);

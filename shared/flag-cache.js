@@ -16,7 +16,7 @@ export const FLAG_CACHE_RULES = Object.freeze({
   /** One AT/AA gadget round every gadgetMs per player. */
   gadgetMs: 15000,
   /** One bandage every bandageMs per player. */
-  bandageMs: 12000,
+  bandageMs: 30000,
   /** The cache stands ringMin..ringMax m from the pole. */
   ringMin: 4,
   ringMax: 8,

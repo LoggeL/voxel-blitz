@@ -48,6 +48,8 @@ export const CONQUEST_MAP_EVENT_KEYS = 'ev,evp';
 export const CONQUEST_POUCH_KEY = 'pch';
 /** Bytes of a full `pch` list (AMMO_POUCH_RULES.maxActive rows). */
 export const CONQUEST_POUCH_BUDGET_BYTES = 900;
+/** `match.conquest.crates` (Support and Medic supply crates, about 45 B a standing crate) rides beside the 440 B base. */
+export const CONQUEST_CRATE_BUDGET_BYTES = 720;
 /** UTF-8 bytes of `match.conquest` that CONQUEST_MATCH_BUDGET_BYTES bounds: everything but the map event rows and the pouch list. */
 export function conquestMatchBytes(matchConquest) {
   const { ev = null, evp = null, pch = null, ...base } = matchConquest ?? {};

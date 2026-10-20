@@ -95,13 +95,16 @@ tick(FLAG_CACHE_RULES.tickMs - 100);
 eq(reserveOf(holder), r1, 'nothing before the next 3 s pulse');
 tick(100);
 ok(reserveOf(holder) > r1, 'the next magazine comes on the 3 s pulse');
-eq(holder.medkit.remaining, 1, 'no second bandage within 12 s');
+eq(holder.medkit.remaining, 1, 'no second bandage before bandageMs');
 holder.medkit.remaining = 0; holder.reserve[gslot] = 0;
-for (let t = FLAG_CACHE_RULES.tickMs; t < FLAG_CACHE_RULES.bandageMs; t += FLAG_CACHE_RULES.tickMs) tick(FLAG_CACHE_RULES.tickMs);
-eq(holder.medkit.remaining, 1, 'one bandage again 12 s after the last');
-eq(holder.reserve[gslot], 0, 'no AT round 12 s after the last');
-tick(FLAG_CACHE_RULES.tickMs);
-eq(holder.reserve[gslot], 1, 'the AT round comes back 15 s after the last');
+const paidAt = engine.now - FLAG_CACHE_RULES.tickMs, step = FLAG_CACHE_RULES.tickMs;
+while (engine.now + step < paidAt + FLAG_CACHE_RULES.gadgetMs) tick(step);
+eq(holder.reserve[gslot], 0, 'no AT round before gadgetMs');
+tick(step);
+eq(holder.reserve[gslot], 1, 'the AT round comes back gadgetMs after the last');
+eq(holder.medkit.remaining, 0, 'still no bandage before bandageMs');
+while (engine.now < paidAt + FLAG_CACHE_RULES.bandageMs) tick(step);
+eq(holder.medkit.remaining, 1, 'one bandage again bandageMs after the last');
 
 // Contested, neutral, lost floor and seated: inert.
 drain(holder);
@@ -188,4 +191,4 @@ ok(inFlagCacheReach(flag.cache, { x: 106.5, y: 12, z: 104 }) && !inFlagCacheReac
   world.dispose();
 }
 
-console.log(`Conquest flag supply caches passed (${checks} checks): every Frontier and Redrock flag has a dry, open cache spot 4-8 m from its pole; holder only, contested and neutral stop it, 3 s magazines and grenades, 12 s bandages, 15 s gadget rounds; HUD tag, map pip, world prop and bot runs.`);
+console.log(`Conquest flag supply caches passed (${checks} checks): every Frontier and Redrock flag has a dry, open cache spot 4-8 m from its pole; holder only, contested and neutral stop it, 3 s magazines and grenades, ${FLAG_CACHE_RULES.bandageMs / 1000} s bandages, ${FLAG_CACHE_RULES.gadgetMs / 1000} s gadget rounds; HUD tag, map pip, world prop and bot runs.`);

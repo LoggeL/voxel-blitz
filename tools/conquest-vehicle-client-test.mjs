@@ -17,6 +17,7 @@ import { LocalPlayer } from '../public/js/player/local-player.js';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { copySmokeFields } from '../shared/smoke-rules.js';
+import { medkitRulesFor } from '../shared/medkit.js';
 import { VEHICLE_STATUS, vehicleMountOrder, CONQUEST_RULES, decodeConquestPlayer } from '../shared/conquest-contract.js';
 import { vehicleDef, VEHICLE_RULES, vehicleWorldToLocal, vehicleDirection, mountPose } from '../shared/vehicle-defs.js';
 import { vehicleSeats } from '../shared/vehicle-seats.js';
@@ -847,8 +848,8 @@ function keyTarget() {
   const start = source.indexOf('class Game {'), end = source.indexOf('\nconst debugParams =', start);
   let now = 5000;
   // The class body is evaluated without main.js's imports: pass every free name it reaches here.
-  const Game = new Function('WEAPON_IDS', 'copySmokeFields', 'nowMs', 'bastionRepairAvailable', 'decodeConquestPlayer',
-    `return (${source.slice(start, end)});`)(WEAPON_IDS, copySmokeFields, () => now, () => false, decodeConquestPlayer);
+  const Game = new Function('WEAPON_IDS', 'copySmokeFields', 'nowMs', 'bastionRepairAvailable', 'decodeConquestPlayer', 'medkitRulesFor',
+    `return (${source.slice(start, end)});`)(WEAPON_IDS, copySmokeFields, () => now, () => false, decodeConquestPlayer, medkitRulesFor);
   const input = new Input({}); input.fallback = true; input._locked = true;
   const player = new LocalPlayer({ input, physics: { pos: { x: 10, y: 0, z: 10 }, vel: { x: 0, y: 0, z: 0 }, grounded: true,
     step: () => false, eyeY: () => 1.62, setMapMeta() {} } });

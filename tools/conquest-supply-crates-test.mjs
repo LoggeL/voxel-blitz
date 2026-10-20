@@ -232,7 +232,7 @@ function fixture() {
   assert.ok(mate.hp >= 40 + R.med.hp && mate.hp <= 40 + 3 * R.med.hp, `+${R.med.hp} HP a second (${mate.hp})`);
   assert.equal(hurt.hp, 40 - hits, 'a mate hurt in the last 3 s is not healed');
   assert.equal(enemy.hp, 40, 'never an enemy');
-  run(8000);
+  run(Math.ceil(60 / R.med.hp) * 1000 + 2000);
   assert.equal(mate.hp, 100, 'healed to full');
   assert.ok(f.scores(m.id, 'heal').length >= 1, 'heal award per healAwardHp given');
   assert.ok(f.events.some(e => e.kind === 'heal' && e.by === m.id && e.id === mate.id), 'heal events for the HUD');
