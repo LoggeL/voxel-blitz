@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { deflateSync } from 'node:zlib';
-import { AIR, MC_WATER, isSolidBlock } from '../shared/world/blocks.js';
+import { AIR, MC_WATER, STONE, isSolidBlock } from '../shared/world/blocks.js';
 import { WADE_RULES } from '../shared/vehicle-defs.js';
 import { DAM_EVENT, DAM_TUNING } from '../shared/map-events/dam.js';
 import { MAP_EVENT_DEFS, mapEventsFor } from '../shared/conquest-map-events.js';
@@ -115,6 +115,9 @@ const jeep = game.vehicles.vehicles.get('alpha-jeep'), tank = game.vehicles.vehi
 Object.assign(jeep, { x: 380.5, z: 440.5, y: 21, yaw: 0, speed: 0 });
 Object.assign(tank, { x: 384.5, z: 560.5, y: 21, yaw: 0, speed: 0 });
 const start = { victim: victim.z, jeep: jeep.z };
+// A block the round built in the canyon since the template (the trestle's berm): the commits keep it.
+const berm = plan.commits.find(j => j.cells[3] === MC_WATER).cells;
+world.setBlock(berm[0], berm[1], berm[2], STONE);
 let peak = 0, ticks = 0, deltas = 0, deltaPeakS = 0, deltasFirst20 = 0, bucket = 0, bucketT = 0, maxDepthTank = 0, floodedTank = false, victimDied = false, victimZ = victim.z, mateHurt = false, jeepWrecked = false, jeepZ = jeep.z, tankWrecked = false;
 const t0 = performance.now();
 while (dam.phase !== 'done' && ticks * TICK_MS < 200000) {
@@ -149,7 +152,8 @@ for (const job of plan.commits) for (let i = 0; i < job.cells.length; i += 4) {
   if (job.cells[i + 3] === AIR) dry += v === AIR; else wet += v === MC_WATER;
 }
 assert.equal(dry, plan.counts.drained, 'every basin cell above the sill drained');
-assert.equal(wet, plan.counts.canyon, 'the canyon\'s new water stands');
+assert.equal(wet, plan.counts.canyon - 1, 'the canyon\'s new water stands');
+assert.equal(world.getBlock(berm[0], berm[1], berm[2]), STONE, 'around a block the round built there (the trestle\'s berm)');
 // Joiner: the map-cache patch of every changed cell.
 const frame = world.mapFrame?.({ cached: true });
 const joinerKB = frame ? deflateSync(frame).length / 1024 : 0;

@@ -13,6 +13,7 @@ import { DepotController } from './depot.js';
 // slot radar:
 import { RADAR_CONTROLLERS } from './radar.js';
 // slot trestle:
+import { TrestleController } from './trestle.js';
 // slot comeback:
 import { ComebackController } from './comeback.js';
 // end of import slots
@@ -26,6 +27,7 @@ export const MAP_EVENT_CONTROLLERS = Object.freeze({
   // slot radar:
   ...RADAR_CONTROLLERS,
   // slot trestle:
+  trestle: TrestleController,
   // slot comeback:
   comeback: ComebackController,
   // end of map slots

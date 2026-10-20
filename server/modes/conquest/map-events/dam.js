@@ -31,6 +31,7 @@ import { floodSet } from '../../../../shared/world/flood-field.js';
 import { boxCollides } from '../../../../shared/player-movement.js';
 import { REDROCK_DAM } from '../../../../shared/world/redrock-terrain.js';
 import { markLaunched } from '../../../sim/player.js';
+import { AIR, FLUID_BLOCKS } from '../../../../shared/world/blocks.js';
 import { MapEventController } from './controller.js';
 import { damPlan } from './dam-plan.js';
 import { crossingDenialLocal } from './dam-bots.js';
@@ -193,6 +194,22 @@ export class DamController extends MapEventController {
   }
 
   /** Seconds of field time now (the breach's start), or null before it. */
+  /**
+   * A settled tile's commit against the live world: the plan was made from the
+   * template, so a cell the round has built since (the trestle's rubble berm, a
+   * wreck) keeps its block, and only water drains and only air floods.
+   */
+  _live(cells) {
+    const world = this.world;
+    if (!world) return cells;
+    const out = [];
+    for (let i = 0; i < cells.length; i += 4) {
+      const b = world.getBlock(cells[i], cells[i + 1], cells[i + 2]);
+      if (cells[i + 3] === AIR ? FLUID_BLOCKS.has(b) : b === AIR) out.push(cells[i], cells[i + 1], cells[i + 2], cells[i + 3]);
+    }
+    return Int32Array.from(out);
+  }
+
   since(now = this.system.now) { return this.breachAt == null ? null : Math.max(0, (now - this.breachAt) / 1000); }
 
   // ------------------------------------------------------------- tick --
@@ -216,7 +233,7 @@ export class DamController extends MapEventController {
     const gapMs = 1000 / t.commit.tilesPerS;
     while (this.commitNext < plan.commits.length && plan.commits[this.commitNext].t <= since && now >= this.commitAt) {
       const job = plan.commits[this.commitNext++];
-      this.system.edits.enqueue({ id: `dam-commit-${this.commitNext}`, instance: ev, cells: job.cells, by: ev.by });
+      this.system.edits.enqueue({ id: `dam-commit-${this.commitNext}`, instance: ev, cells: this._live(job.cells), by: ev.by });
       this.commitAt = Math.max(this.commitAt, now - gapMs) + gapMs;
     }
     if (field.arrival(384, t.closes.fordZ) <= since) this.closed.add(t.closes.ford);

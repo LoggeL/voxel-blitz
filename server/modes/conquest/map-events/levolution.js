@@ -23,7 +23,9 @@ import { AIR, CONCRETE, FLUID_BLOCKS, MC_WATER, isSolidBlock } from '../../../..
 import { COLLAPSE_WEAPON, STRUCTURE_RULES } from '../../../../shared/structure.js';
 import { isAircraft, vehicleMaxHp } from '../../../../shared/vehicles.js';
 import { insideBox } from '../../../../shared/map-events/geometry.js';
-import { LEVOLUTION_RULES, LEVOLUTION_STAGE, LEVOLUTION_STAGES, onLevolutionSpan } from '../../../../shared/map-events/levolution.js';
+import {
+  LEVOLUTION_RULES, LEVOLUTION_STAGE, LEVOLUTION_STAGES, levolutionFootprint, onLevolutionSpan,
+} from '../../../../shared/map-events/levolution.js';
 import { pack } from '../../../sim/structure-field.js';
 import { evHit } from '../../../protocol/events.js';
 import { MapEventController } from './controller.js';
@@ -34,7 +36,8 @@ export class Levolution {
    * @param {() => object|null} options.engine  the GameEngine (world, structure, vehicles, combatants)
    * @param {() => number} options.now
    * @param {(a, b) => boolean} options.canDamage
-   * @param {object} options.structure  {id, crossing, x, z, deckY, waterY?, span: [box], sinks: [box], supports, heads, fall?}
+   * @param {object} options.structure  {id, crossing, x, z, deckY, waterY?, span: [box], sinks: [box], supports, heads, fall?,
+   *                                     materials? (only these block ids fall), killKey? (the crush's kill feed key, default 'collapse')}
    * @param {object} options.rules      {integrity, damagedAt, warnMs, chunkCap, spanCrush}
    * @param {boolean} [options.autoFall]  true: the fall comes warnMs after the last blow (else `collapse()` is called)
    * @param {(stage, extra) => void} [options.onStage]  each stage change (and the fall, with {blocks})
@@ -132,11 +135,13 @@ export class Levolution {
     // the water in the pristine map) keep their blocks: a ledge on the quay.
     const keys = [];
     const seen = new Set();
+    const materials = s.materials ? new Set(s.materials) : null;
     for (const b of s.span) {
       for (let z = b.z0; z <= b.z1; z++) for (let x = b.x0; x <= b.x1; x++) {
         if (!this._overWater(world, x, z)) continue;
         for (let y = b.y0; y <= b.y1; y++) {
-          if (!isSolidBlock(world.getBlock(x, y, z))) continue;
+          const block = world.getBlock(x, y, z);
+          if (!isSolidBlock(block) || (materials && !materials.has(block))) continue;
           const key = pack(x, y, z);
           if (!seen.has(key)) { seen.add(key); keys.push(key); }
         }
@@ -181,6 +186,7 @@ export class Levolution {
     if (!engine || engine.mode?.phase !== 'live') return;
     const killer = this.by ? engine.combatants?.get?.(this.by) ?? null : null;
     const { infantry, hullFraction } = this.rules.spanCrush;
+    const weapon = this.structure.killKey ?? COLLAPSE_WEAPON;
     for (const victim of engine.combatants?.values?.() ?? []) {
       if (victim.state !== 'alive' || victim.vehicleId || victim.objective) continue;
       if (!this.onSpan(victim.x, victim.y, victim.z)) continue;
@@ -188,9 +194,9 @@ export class Levolution {
       // A team-mate's collapse spares you like their shots would; your own does not.
       const credited = killer && killer !== victim && !this.canDamage(killer, victim) ? null : killer;
       if (killer && killer !== victim && !credited) continue;
-      const lethal = victim.takeDamage(infantry, false, credited, COLLAPSE_WEAPON);
+      const lethal = victim.takeDamage(infantry, false, credited, weapon);
       engine.tickEvents.push(evHit(credited ? credited.id : '', victim.id, infantry, false, [victim.x, victim.y + 1, victim.z], victim.lastDamage));
-      if (lethal) engine.killPlayer(victim, credited, COLLAPSE_WEAPON, false, null);
+      if (lethal) engine.killPlayer(victim, credited, weapon, false, null);
     }
     for (const hull of engine.vehicles?.vehicles?.values?.() ?? []) {
       if (!(hull.hp > 0) || !this.onSpan(hull.x, hull.y, hull.z)) continue;
@@ -204,14 +210,17 @@ export class Levolution {
   _announce(extra = {}) { this.onStage?.(this.stage, extra); }
 
   /**
-   * The bots' read model of the structure (server/bot-map-events.js):
-   * {id, crossing, flag, stage, standing, closed, down, integrity, supports, heads, x, z}.
+   * The bots' read model of the structure (server/bot-map-events.js, server/bot-bridge.js):
+   * {id, crossing, flag, stage, standing, closed, down, integrity, supports, heads, x, z,
+   * span: the footprint {x0, z0, x1, z1} (upper edges exclusive) with the span's lowest block row y0, deckY, waterY, axis}.
    */
   structureView(extra = {}) {
     const s = this.structure;
+    if (!this._footprint) this._footprint = Object.freeze({ ...levolutionFootprint(s), y0: Math.min(...s.span.map(b => b.y0)) });
     return { id: s.id, crossing: s.crossing ?? null, flag: s.flag ?? null, stage: this.stage, name: LEVOLUTION_STAGES[this.stage],
       standing: this.active && this.stage < LEVOLUTION_STAGE.failing, closed: this.closed, down: this.down, integrity: this.integrity,
-      supports: s.supports, heads: s.heads ?? [], x: s.x, z: s.z, ...extra };
+      supports: s.supports, heads: s.heads ?? [], x: s.x, z: s.z, span: this._footprint, deckY: s.deckY, waterY: s.waterY ?? null,
+      axis: s.axis === 'z' ? 'z' : 'x', ...extra };
   }
 }
 
@@ -230,7 +239,8 @@ export class LevolutionController extends MapEventController {
     const policy = this.system.policy;
     this.levolution = new Levolution({
       engine: () => this.system.engine, now: () => this.system.now, canDamage: (a, b) => policy?.canDamage?.(a, b) ?? true,
-      structure: { ...structure, flag: this.def.flag, x: anchor.x ?? structure.supports[0].x0, z: anchor.z ?? structure.supports[0].z0 },
+      structure: { ...structure, flag: this.def.flag, x: anchor.x ?? structure.supports[0].x0, z: anchor.z ?? structure.supports[0].z0,
+        killKey: this.killKey },
       rules: { ...rules, integrity: target?.integrity ?? 1 }, autoFall: false,
       onStage: (stage, extra) => this._stage(stage, extra),
     });
