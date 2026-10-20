@@ -163,7 +163,7 @@ The waiting lobby with Conquest and Redrock picked is captured in `captures/lobb
 
 `node tools/redrock-lobby-test.mjs` (also in `npm run conquest:test`) runs the lobby over the real server: Conquest offers Redrock with Frontier as the default, other modes refuse it, the host's client receives Redrock's authoritative voxels, and the live match runs on Redrock's fleet and flags. `tools/lobby-settings-test.mjs` checks the lobby map menu and hint.
 
-`tools/atlastest.mjs` pins the template fingerprint (`9905ec8d`, 1 562 069 bytes; `385e4f55`, 1 561 879 bytes before the flag radars' Palmera antenna, the dish tower catwalk and the water tower's ladder column) and the spawn counts. Re-pin them after any change to Redrock's geometry.
+`tools/atlastest.mjs` pins the template fingerprint (`7c47d30e`, 1 565 649 bytes; `385e4f55`, 1 561 879 bytes before the event pass: flag C's split spawn cells, the flag radars' Palmera antenna, the dish tower catwalk and the water tower's ladder column, and the Juniper and Coyote Well depots' tanks and pump island) and the spawn counts. Re-pin them after any change to Redrock's geometry.
 
 ## Map events
 
