@@ -28,7 +28,10 @@ export const REDROCK_PLAN = Object.freeze({
     Object.freeze({ id: 'E', name: 'Sulphur Railhead', site: 'railhead', x: 518, z: 540, radius: 22, home: 'bravo' }),
   ]),
   // North of the dam the river (surface y26) widens into the reservoir; south
-  // of it the river (surface y19) runs in a canyon about 12 m deep.
+  // of it the river (surface y19) runs in a canyon about 12 m deep. The upper
+  // level holds over the whole reach north of reservoir.z1 (the north bridge
+  // and ford included); z0..z1 is the wide basin (riverSurfaceAt in
+  // shared/world/battlefield-plans.js).
   river: Object.freeze({
     points: Object.freeze([[384, 0], [384, 384], [384, 768]]),
     width: 12, depth: 3, surfaceY: 19,

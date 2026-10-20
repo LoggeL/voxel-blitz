@@ -66,7 +66,7 @@ Vehicles cross the river only at five points:
 | trestle | rail and road trestle | 500 | deck y32 over the canyon |
 | wash-ford | ford | 640 | canyon floor |
 
-- North of the dam (z214–378) the reservoir is wide and deep; boats are not part of the fleet, so infantry swim and vehicles go round.
+- North of the dam the whole reach stands at the reservoir level (y26), so the north bridge spans it and the north ford is one voxel deep. The basin itself (z214–378) is wide and deep; boats are not part of the fleet, so infantry swim and vehicles go round. The vehicle wading cue reads the same two levels (`riverSurfaceAt` in `shared/world/battlefield-plans.js`).
 - South of the dam the canyon floor (y20) is reachable from two gullies on each side (`CANYON_GULLIES`, z452 and z590), so infantry can work along the river under the trestle.
 
 ## Terrain (`redrock-terrain.js`)
@@ -93,13 +93,13 @@ The pipeline:
 ## Server and client loading
 
 - The server builds Frontier at boot. It builds Redrock's template after it starts listening, on the first room tick, so boot time does not grow; `VOXEL_BATTLEFIELD_WARM=0` skips that and builds it on first use.
-- The pristine template is about 1.56 MB run-length encoded (Frontier: 2.0 MB), well under the 3 MB budget. The map cache handles it like Frontier's.
+- The pristine template is about 1.56 MB run-length encoded (Frontier: 2.0 MB), well under the 3 MB payload budget that `tools/redrock-map-test.mjs` checks. The browser map cache (`MAP_CACHE_BYTE_BUDGET`, 4 MB) holds it next to Frontier's, so switching between the battlefields re-sends neither template.
 - The client derives Redrock's metadata in the metadata worker (`frontier-meta-worker.js` with `{ map: 'redrock' }`) as soon as a lobby picks the map, so joining skips the heightfield build.
 - The menu boot preloads 16 more modules (about 39 KB gzipped).
 
 ## Bots
 
-Bots use the same surface navigation graph as Frontier (cell 8 on the battlefields) and the same commander. The dam crest is the shortest route to C, and the gallery and the canyon gullies are the alternatives. Vehicle routes come from the road graph, so tanks and jeeps cross at the bridges, the dam, the trestle and the fords.
+Bots use the same surface navigation graph as Frontier (`mapMeta.navigation`: 4 m cells, 1-voxel steps) and the same commander. The dam crest is the shortest route to C, and the gallery and the canyon gullies are the alternatives. Vehicle routes come from the road graph, so tanks and jeeps cross at the bridges, the dam, the trestle and the fords.
 
 Measured with `node tools/conquest-action-test.mjs --map redrock` (16 bots, 180 s, normal; seeds 1–3, compared with Frontier):
 
@@ -125,6 +125,8 @@ node tools/conquest-hud-capture.mjs --map redrock --out <dir>                   
 
 The shots are in `shared/redrock-capture-shots.js` and stand on `redrockSurfaceY`. They all run in a muted headless browser.
 
+The waiting lobby with Conquest and Redrock picked is captured in `captures/lobby-redrock-desktop.jpg` (1536 × 1024) and `captures/lobby-redrock-mobile.jpg` (390 × 844, no horizontal scroll). On the phone's two-column grid the closed map menu cuts the label to "REDROCK CANY…", as it cuts Frontier's; the capacity line under it carries the full name.
+
 ## Tests
 
 `node tools/redrock-map-test.mjs` (in `npm run conquest:test`) checks:
@@ -137,9 +139,12 @@ The shots are in `shared/redrock-capture-shots.js` and stand on `redrockSurfaceY
 - that the roads stay drivable;
 - the landmarks and named places;
 - standable, dry spawns with headroom in the generated voxels;
-- the payload size and an exact round trip;
+- the payload size and an exact round trip, and that the browser map cache keeps Frontier and Redrock together;
+- the wading cue at both fords (reservoir level north of the dam, canyon level south);
 - the presentation wiring: preview, label, capture shots, weather, apron colours and soundscape sites;
 - the deploy options on the real map, including an accepted flag deploy and a refused enemy flag;
 - a 60 s, 12-bot match: flags move, the dam is contested, bots fight and crew the fleet, nobody drowns or wedges in the canyon.
+
+`node tools/redrock-lobby-test.mjs` (also in `npm run conquest:test`) runs the lobby over the real server: Conquest offers Redrock with Frontier as the default, other modes refuse it, the host's client receives Redrock's authoritative voxels, and the live match runs on Redrock's fleet and flags. `tools/lobby-settings-test.mjs` checks the lobby map menu and hint.
 
 `tools/atlastest.mjs` pins the template fingerprint (`385e4f55`, 1 561 879 bytes) and the spawn counts. Re-pin them after any change to Redrock's geometry.

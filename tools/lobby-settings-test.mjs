@@ -59,6 +59,27 @@ try {
   assert.match(frontier.textContent, /^FRONTIER · \d+ PLAYERS$/, `short Frontier option (${frontier.textContent})`);
   assert.ok(frontier.textContent.length <= 26, 'the Frontier option fits the closed menu');
   assert.match(settings.capacity.textContent, /FRONTIER · 768 × 768$/, 'the capacity line keeps the battlefield size');
+
+  // Conquest offers both battlefields, Frontier first (the default), and names the chosen one in the hint.
+  settings.update(lobby('conquest'), true);
+  assert.deepEqual(settings.controls.map.options.map(option => option.value), ['frontier', 'redrock'], 'Conquest lists only the battlefields');
+  assert.equal(settings.controls.map.value, 'frontier', 'Frontier stays the default Conquest map');
+  assert.match(settings.hint.textContent, /^Frontier: river valley/);
+  settings.update(lobby('conquest', { map: 'redrock' }), true);
+  assert.equal(settings.controls.map.value, 'redrock');
+  const redrock = settings.controls.map.options.find(option => option.value === 'redrock');
+  assert.match(redrock.textContent, /^REDROCK CANYON · \d+ PLAYERS$/, `short Redrock option (${redrock.textContent})`);
+  assert.ok(redrock.textContent.length <= 30, 'the Redrock option fits the closed menu');
+  assert.match(settings.capacity.textContent, /REDROCK CANYON · 768 × 768$/);
+  assert.match(settings.hint.textContent, /^Redrock Canyon: desert canyon/);
+  settings.controls.map.value = 'redrock';
+  settings.controls.map.dispatch('change');
+  assert.equal(changes.at(-1).map, 'redrock', 'the host requests Redrock');
+  assert.equal(changes.at(-1).gameMode, 'conquest');
+  // Leaving Conquest drops the Conquest-only map.
+  settings.controls.gameMode.value = 'tdm';
+  settings.controls.gameMode.dispatch('change');
+  assert.notEqual(changes.at(-1).map, 'redrock', 'TDM never requests Redrock');
 } finally {
   if (saved === undefined) delete globalThis.document;
   else globalThis.document = saved;

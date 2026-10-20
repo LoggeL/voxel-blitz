@@ -1205,6 +1205,30 @@ ok();
   ok();
 }
 
+/* ------------------------- battlefield overview image (Redrock Canyon) */
+
+{
+  // The minimap, big map and deploy map load the overview when ConquestHud is
+  // built: a Redrock match must never fetch Frontier's 1.6 MB overview first.
+  const { setOverviewMap, OVERVIEW_URLS } = await import('../public/js/ui/conquest/map-painter.js');
+  const savedImage = globalThis.Image, fetched = [];
+  globalThis.Image = class { constructor() { this.dataset = {}; } set src(url) { fetched.push(url); this._src = url; } get src() { return this._src; } };
+  try {
+    setOverviewMap('frontier');
+    const hud = new ConquestHud(document.body, { eventTarget: dom.window, mapId: 'redrock' });
+    assert.ok(fetched.length > 0 && fetched.every(url => url === OVERVIEW_URLS.redrock), `only Redrock's overview loads (${fetched.join(', ')})`);
+    hud.dispose();
+    fetched.length = 0;
+    const frontierHud = new ConquestHud(document.body, { eventTarget: dom.window, mapId: 'frontier' });
+    assert.ok(fetched.length > 0 && fetched.every(url => url === OVERVIEW_URLS.frontier), 'the next Frontier match loads Frontier\'s overview');
+    frontierHud.dispose();
+  } finally {
+    if (savedImage === undefined) delete globalThis.Image; else globalThis.Image = savedImage;
+    setOverviewMap('frontier');
+  }
+  ok();
+}
+
 /* ------------------------------------------ capture tool overlap rule */
 
 {

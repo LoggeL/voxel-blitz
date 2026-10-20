@@ -28,6 +28,10 @@ import { MAP_LABELS, MAP_PREVIEWS } from '../public/js/ui/hud-support.js';
 import { mapAtmosphere, resolveWeather } from '../public/js/engine/map-atmosphere.js';
 import { REDROCK_WEATHER } from '../public/js/engine/redrock-atmosphere.js';
 import { soundscapeSites } from '../public/js/audio/conquest-soundscape.js';
+import { VehicleAudio } from '../public/js/vehicles/vehicle-audio.js';
+import { MapCache, MAP_CACHE_BYTE_BUDGET } from '../public/js/engine/map-cache.js';
+import { riverSurfaceAt } from '../shared/world/battlefield-plans.js';
+import { FRONTIER_PLAN } from '../shared/conquest-contract.js';
 
 const started = performance.now();
 const meta = getMapMeta('redrock');
@@ -182,7 +186,30 @@ const serialized = world.serializeWorld();
 assert.ok(serialized.length <= 3 * 1024 * 1024, `payload ${serialized.length} bytes`);
 assert.deepEqual(createMapState('redrock', serialized).serializeWorld(), serialized, 'exact round trip');
 
+// -------------------- browser map cache: both battlefields stay cached
+{
+  const cache = new MapCache({ storage: null });
+  const frontierFrame = createMapState('frontier').mapFrame(), redrockFrame = world.mapFrame();
+  const frontierPrint = cache.remember(frontierFrame), redrockPrint = cache.remember(redrockFrame);
+  assert.ok(frontierPrint && redrockPrint && frontierPrint !== redrockPrint);
+  assert.deepEqual(cache.fingerprints(), [redrockPrint, frontierPrint],
+    `Frontier and Redrock fit the ${MAP_CACHE_BYTE_BUDGET} B cache budget together (switching re-sends neither)`);
+  assert.equal(cache.stats.evicted, 0);
+}
+
 // ------------------------------------------- presentation and audio
+// The wading cue reads the river level of each reach: y26 north of the dam (the north ford), y19 south.
+assert.equal(riverSurfaceAt(plan.river, 178), redrockWaterY(384, 178), 'north reach: the reservoir level');
+assert.equal(riverSurfaceAt(plan.river, 640), redrockWaterY(384, 640), 'south reach: the canyon river level');
+assert.equal(riverSurfaceAt(FRONTIER_PLAN.river, 100), FRONTIER_PLAN.river.surfaceY, 'Frontier keeps one river level');
+for (const ford of fords) {
+  const calls = [];
+  const sfx = new Proxy({}, { get: (_, name) => (...args) => { calls.push(name); } });
+  const audio = new VehicleAudio(sfx, { river: conquestPlanFor('redrock').river });
+  audio.update([{ id: 'j', type: 'jeep', x: ford.x, y: ford.y, z: ford.z, hp: 320, speed: 6, seatOccupants: { driver: 'me' } }],
+    [ford.x, ford.y + 1.6, ford.z], { self: { id: 'me' } });
+  assert.ok(calls.includes('vehicleWade'), `a jeep through ${ford.id} plays the wading cue`);
+}
 assert.equal(MAP_PREVIEWS.redrock, './assets/maps/redrock.jpg');
 assert.match(MAP_LABELS.redrock, /REDROCK CANYON/);
 const overview = findMapCaptureShot('redrock', 'overview');

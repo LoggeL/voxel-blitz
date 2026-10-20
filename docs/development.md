@@ -337,7 +337,8 @@ connection counts as held for later lobby map changes on it. Clients without
 
 In the browser, `public/js/engine/map-cache.js` keeps every received template in
 memory for the page and in Cache Storage (`vb-map-templates-v1`, newest 6,
-both within `MAP_CACHE_BYTE_BUDGET` = 3 MB, oldest evicted first, so a changed
+both within `MAP_CACHE_BYTE_BUDGET` = 4 MB, enough for Frontier and Redrock Canyon
+together, oldest evicted first, so a changed
 Frontier generator's new template pushes the stale 2 MB one out; a page load
 deletes entries past the budget without hashing them),
 verifies each against its fingerprint when it arrives and when it is read back

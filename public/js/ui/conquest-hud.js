@@ -54,8 +54,11 @@ export class ConquestHud {
   constructor(parent = globalThis.document?.body, {
     onInteract = () => {}, onDeploy = () => {}, onDeployOpen = () => {}, onSpot = () => {}, onSupport = () => {},
     combatHud = null, eventTarget = typeof window !== 'undefined' ? window : null, inputEnabled = () => true,
-    shellRaycast = null, careerProfile = () => null, replayHold = () => false,
+    shellRaycast = null, careerProfile = () => null, replayHold = () => false, mapId = null,
   } = {}) {
+    // The battlefield's overview image, picked before the minimap, big map and
+    // deploy map load it (update() keeps it in step with mapMeta.id after).
+    if (typeof mapId === 'string' && mapId) { this._overviewMap = mapId; setOverviewMap(mapId); }
     // True while the local killcam replay runs or waits for the death intro: the deploy screen opens after it.
     this.replayHold = typeof replayHold === 'function' ? replayHold : () => false;
     // Solid-block picker for the tank shell impact marker (the camera picker stops on water; shells don't).

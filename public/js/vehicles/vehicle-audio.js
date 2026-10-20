@@ -3,6 +3,7 @@ import { VEHICLE_WEAPONS, vehicleDef, vehicleMaxHp, mountAim } from '../../../sh
 import { vehicleStatus, vehicleMountOrder, decodeConquestPlayer, vehicleHullType } from '../../../shared/conquest-contract.js';
 import { isTitanType, decodeTitanRow } from '../../../shared/titan-contract.js';
 import { createVoices } from '../audio/primitives.js';
+import { riverSurfaceAt } from '../../../shared/world/battlefield-plans.js';
 import { LocalSampleBank } from '../audio/samples.js';
 
 /** Presentation limits for the state-driven vehicle sounds (metres, counts). */
@@ -61,7 +62,7 @@ const LOCK_MODES = Object.freeze([null, 'locking', 'locked', 'inbound']);
  * Weapon reports come from authoritative shoot events (VehicleFx).
  */
 export class VehicleAudio {
-  /** `river`: optional { points, width, surfaceY } (Conquest FRONTIER_PLAN.river) for the wading cue. */
+  /** `river`: optional { points, width, surfaceY, reservoir? } (conquestPlanFor(map).river) for the wading cue. */
   constructor(sfx, { river = null } = {}) {
     this.sfx = sfx;
     this.river = river && Array.isArray(river.points) ? river : null;
@@ -289,7 +290,7 @@ export class VehicleAudio {
 
     if ((kind === 'tank' || kind === 'jeep') && this.river) {
       const speed = Math.abs(finite(row.speed));
-      const inWater = finite(row.y) <= this.river.surfaceY + VEHICLE_AUDIO.wadeDepth
+      const inWater = finite(row.y) <= riverSurfaceAt(this.river, pos[2]) + VEHICLE_AUDIO.wadeDepth
         && polylineDistance(pos[0], pos[2], this.river.points) <= this.river.width / 2 + 1.5;
       const audible = self || distance <= VEHICLE_AUDIO.wadeRange;
       if (inWater && audible && speed > 0.4) {

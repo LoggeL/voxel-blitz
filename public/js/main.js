@@ -465,6 +465,7 @@ class Game {
       cameraShake: this.cameraShake, getBaseFov: () => this.session.baseFov,
     });
     this.conquestHud = new rt.ConquestHud(document.body, {
+      mapId: this.mapMeta?.id ?? welcome.map,
       onInteract: () => this.session.gameplayInputEnabled && this.vehicleController?.queueInteract(),
       onDeploy: (choice) => this.net?.sendConquest({ deploy: choice }),
       onDeployOpen: () => this.input.exit(),
