@@ -12,6 +12,7 @@ import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
 import { comebackHudFixtures } from './comeback-hud-fixtures.js';
 import { airdropHudFixtures } from './map-events/airdrop-fixtures.js';
+import { mapEventsFor } from '../../../shared/conquest-map-events.js';
 
 export const FIXTURE_NOW = 2_000_000;
 const GROUND = 26;
@@ -697,6 +698,29 @@ export function conquestHudFixtures() {
   out.push(...comebackHudFixtures({ state, roster, baseMatch, meAt, cam, yawTo, C, D, GROUND, meta: fixtureMapMeta(), now: FIXTURE_NOW }));
   // Map events: the supply airdrop (public/js/capture/map-events/airdrop-fixtures.js).
   out.push(...airdropHudFixtures({ state, roster, baseMatch, cam, yawTo, meAt, now: FIXTURE_NOW, ground: GROUND, from: B, to: C }));
+  // 25. Hollin Fuel Depot (docs/conquest.md "Hollin Fuel Depot"): the chain reaction 2 s from the last burst, then
+  // ablaze 10 s into the active phase (fire on the tanks and the canopy, the smoke column on the maps).
+  {
+    const depot = mapEventsFor('frontier').findIndex(d => d.id === 'depot');
+    const at = { x: 392, z: 431 }, anchor = { x: 512, z: 425 };
+    const flags = () => [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 0.4, 'alpha', 'restoring'),
+      flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')];
+    if (depot >= 0) {
+      const self = meAt(at.x, at.z);
+      const chain = baseMatch({ flags: flags() });
+      chain.conquest.ev = [[depot, 2, 0, 1, 20, [0, 100, 100]]];
+      out.push(state('depot-chain', 'Hollin Fuel Depot · chain reaction · blast radius on the map', { self, players: roster(self), match: chain,
+        events: [{ kind: 'map_event', event: 'depot', phase: 'warning', team: 'bravo', by: 'en1', endsAt: FIXTURE_NOW + 2000, pos: [512, 31, 425] }],
+        camera: cam(at.x, GROUND + 1.6, at.z, yawTo(at, anchor)) }));
+      const ablaze = baseMatch({ flags: flags() });
+      ablaze.conquest.ev = [[depot, 3, 0, 1, 1700]];
+      const near = { x: 452, z: 440 };
+      const self2 = meAt(near.x, near.z);
+      out.push(state('depot-ablaze', 'Hollin Fuel Depot · ablaze · burning ground and the smoke column', { self: self2, players: roster(self2), match: ablaze,
+        events: [{ kind: 'map_event', event: 'depot', phase: 'active', team: 'bravo', by: 'en1', endsAt: FIXTURE_NOW + 170_000, pos: [512, 31, 425] }],
+        camera: cam(near.x, GROUND + 1.6, near.z, yawTo(near, anchor)) }));
+    }
+  }
   return out;
 }
 

@@ -49,6 +49,8 @@ export function createSimulationContexts(engine) {
     attributeBlocks: (cause) => engine.structure?.attribute(cause),
     pushBlockDamage: (x, y, z, value, progress) => engine.pushBlockDamage(x, y, z, value, progress),
     pushEvent: (event) => engine.tickEvents.push(event),
+    // Mounted hitscan voxel hits reach the mode as radius-0 blasts (combat.fireMountedRay).
+    onBlast: (origin, blast) => engine.mode?.onBlast?.(origin, blast),
     computeConeDeg,
     chaosBlast: (player, origin, type, radius, damage, knockback, weaponKey) => (
       engine.projectiles.chaosBlast(player, origin, type, radius, damage, knockback, projectiles, weaponKey)

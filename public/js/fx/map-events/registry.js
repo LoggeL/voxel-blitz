@@ -23,7 +23,7 @@
 // slot dam:
 // import { DAM_FX } from './dam.js';
 // slot depot:
-// import { DEPOT_FX } from './depot.js';
+import { DEPOT_FX } from './depot.js';
 // slot weir:
 // import { WEIR_FX } from './weir.js';
 // slot relay:
@@ -42,7 +42,7 @@ export const MAP_EVENT_FX = Object.freeze({
   // slot dam:
   // dam: DAM_FX,
   // slot depot:
-  // depot: DEPOT_FX,
+  depot: DEPOT_FX,
   // slot weir:
   // weir: WEIR_FX,
   // slot relay:

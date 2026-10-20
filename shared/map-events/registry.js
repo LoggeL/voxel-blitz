@@ -8,7 +8,7 @@
 // slot dam (Redrock dam breach):
 // import { DAM_EVENT } from './dam.js';
 // slot depot (Frontier Hollin Fuel Depot):
-// import { DEPOT_EVENT } from './depot.js';
+import { DEPOT_EVENT } from './depot.js';
 // slot weir (Frontier sluice gate):
 // import { WEIR_EVENT } from './weir.js';
 // slot relay (Frontier Signal Rock radio mast):
@@ -28,7 +28,7 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot dam:
   // DAM_EVENT,
   // slot depot:
-  // DEPOT_EVENT,
+  DEPOT_EVENT,
   // slot weir:
   // WEIR_EVENT,
   // slot relay:

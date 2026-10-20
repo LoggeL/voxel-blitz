@@ -86,6 +86,8 @@ Rules the places keep, tested in `tools/frontier-sites-test.mjs`:
 - A one-voxel plinth or kerb runs under every roof overhang (station house, relay bunker, pump canopy, crusher). A transport (3 × 7 m hull) checks only its touchdown spot, so without it a transport could set down beside a wall and then climb into the eaves (`conquest-bot-aircraft-test` drops a squad at (264, 344), next to the station house).
 - The quarry is dug below the planned terrain. Its props read the dug level (a kit view whose `top()` returns it), and the woodland and roadside dressing skip its footprint.
 
+The Hollin Fuel Depot is also a map event (docs/conquest.md *Hollin Fuel Depot*): its three tanks (`DEPOT_TANKS` in `shared/map-events/depot.js`, centres (506.5, 421.5), (517.5, 421.5) and (512.5, 431.5), radius 4.2) can be shot open and go up in a chain reaction that cuts three craters into the bund, drops the pump canopy and the pipe rack and leaves a smoke column over the forecourt. The generated depot is unchanged (runtime block deltas only, so the map fingerprints stay), and `tools/conquest-map-event-depot-test.mjs` fails if the tanks move. The event breaks the point symmetry on purpose: the depot's mirror is Kestrel Halt, whose grain elevator is a map event of its own, so no fuel target was added on the west half.
+
 The metadata publishes each place twice in `landmarks`: a row `{ id, kind: 'place', name, x, y, z }` (feet height; for map labels) and its landmark top `{ id, kind, place, x, y, z }`. The big map does not label places yet.
 
 Every flag has the following, and `tools/frontier-sites-test.mjs` verifies each item:
