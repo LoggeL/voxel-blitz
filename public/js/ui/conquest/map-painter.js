@@ -10,6 +10,8 @@ export const OVERVIEW_URL = './assets/maps/frontier-overview.png';
 const TONE = Object.freeze({ own: CQ_COLORS.own, enemy: CQ_COLORS.enemy, neutral: CQ_COLORS.neutral,
   squad: CQ_COLORS.squad, spotted: CQ_COLORS.spotted, self: CQ_COLORS.self, contested: CQ_COLORS.contested });
 export const toneColor = rel => TONE[rel] ?? TONE.neutral;
+/** Request glyphs (comms-state.js REQUEST_ICONS; repeated so the shared painter keeps its imports light). */
+const REQUEST_GLYPHS = Object.freeze({ medic: 'revive', ammo: 'ammo', repair: 'repair', ride: 'jeep' });
 
 let overview = null;
 /** One shared overview image (top-down render of the whole map square). */
@@ -71,6 +73,18 @@ export function paintFlag(ctx, item, c, radiusPx, { letterSize = 12, pulse = 0 }
     ctx.lineWidth = 3;
     ctx.stroke();
   }
+  if (item.order) {
+    // The own squad's order: a pulsing double ring in squad green (design A).
+    const base = Math.max(radiusPx, 4) + letterSize * 0.55;
+    ctx.strokeStyle = CQ_COLORS.squad;
+    ctx.globalAlpha = 0.95;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(c.x, c.y, base + 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 0.35 + 0.3 * Math.min(1, pulse);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(c.x, c.y, base + 7 + pulse * 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   const size = letterSize + 6;
   ctx.translate(c.x, c.y);
   ctx.rotate(Math.PI / 4);
@@ -121,6 +135,14 @@ export function paintUnit(ctx, item, c, heading = 0, size = 1) {
       drawIcon(ctx, item.vehicleType || 'tank', 0, 0, 13 * size, color);
       break;
     }
+    case 'request': {
+      // A live comm rose request (NEED MEDIC / AMMO / REPAIR / RIDE): a dark disc with the glyph.
+      const color = item.rel === 'self' ? TONE.self : TONE.squad;
+      ctx.beginPath(); ctx.arc(0, 0, 7.5 * size, 0, Math.PI * 2); ctx.fillStyle = '#0b1218e6'; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = color; ctx.stroke();
+      drawIcon(ctx, REQUEST_GLYPHS[item.comm] || 'revive', 0, 0, 10 * size, color);
+      break;
+    }
     case 'hq': {
       const color = toneColor(item.rel);
       ctx.fillStyle = '#0b1218e6'; ctx.fillRect(-9 * size, -9 * size, 18 * size, 18 * size);
@@ -133,5 +155,5 @@ export function paintUnit(ctx, item, c, heading = 0, size = 1) {
   ctx.restore();
 }
 
-const ORDER = Object.freeze({ hq: 0, flag: 1, aura: 2, vehicle: 2, team: 3, squad: 4, down: 5, spotted: 6, self: 7 });
+const ORDER = Object.freeze({ hq: 0, flag: 1, aura: 2, vehicle: 2, team: 3, squad: 4, down: 5, request: 5, spotted: 6, self: 7 });
 export const sortItems = items => [...items].sort((a, b) => (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9));

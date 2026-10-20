@@ -67,6 +67,7 @@ const ok = (value, message) => { assert.ok(value, message); checks++; };
   Object.assign(a, { x: 5, z: 0 });
   ok(keepAttackOrder(commander, squad, prior, { stance: 'defend', flagId: 'B' }, view, ts, 1000), 'a squad taking its flag finishes before it answers a defend call');
   ok(keepAttackOrder(commander, squad, prior, { stance: 'attack', flagId: 'D' }, view, ts, FLAG_FLOW_RULES.attackCommitMs + 1000), 'squad bots in the zone extend the commitment');
+  ok(!keepAttackOrder(commander, squad, prior, { stance: 'attack', flagId: 'D', human: true }, view, ts, 1000), 'a human squad leader\'s order takes over at once, even mid-capture');
   ok(keepAttackOrder(commander, squad, prior, { stance: 'attack', flagId: 'D', flank: true }, view, ts, 1000), 'a capture under way is not abandoned for a flank');
   ok(!keepAttackOrder(commander, squad, prior, { stance: 'attack', flagId: 'D' }, view, ts, FLAG_FLOW_RULES.attackCommitMs * FLAG_FLOW_RULES.zoneCommitFactor), '... up to zoneCommitFactor times');
   flags[0].owner = 'alpha';

@@ -27,6 +27,8 @@ import { KIT_ROLE_RULES, botSquadKit } from '../shared/conquest-kits.js';
 import { VEHICLE_RULES, vehicleMaxHp } from '../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
 import { CoverIndex, bearing } from './bot-cover.js';
+import { commGoal, planComms } from './bot-comms.js';
+import { orderStance } from '../shared/conquest-comms.js';
 import { surfaceNavigation } from './bot-surface-nav.js';
 import { MEDIC_BOT_RULES, medicTrailMate, medicTrailSpot, reviveRunInTime } from './bot-medic.js';
 import { committedFlag, keepAttackOrder, passingFlag } from './bot-flag-flow.js';
@@ -377,9 +379,13 @@ export class BotCommander {
     ts.threatened = threatened;
     const lead = ((view.tickets?.[team] ?? 0) - (view.tickets?.[enemy] ?? 0)) / Math.max(1, view.maxTickets);
     const attackShare = Math.max(0.35, Math.min(0.85, ATTACK_SHARE - lead * 0.8));
-    const squads = [...live.values()].filter(s => s.members.some(id => this.isBot(id)));
     const centroid = squad => this.squadCentroid(squad) ?? view.bases?.[team] ?? view.flags[0];
     const orders = new Map();
+    // A human squad leader's order (comm rose or full map) binds the squad's bots; such squads
+    // leave the attack/defend split to the others. The stance follows the flag owner.
+    const humanOrders = this.humanOrders(team, live, view);
+    for (const [squadId, want] of humanOrders) orders.set(squadId, want);
+    const squads = [...live.values()].filter(s => s.members.some(id => this.isBot(id)) && !humanOrders.has(s.id));
     if (losing.length) {
       // All-in defence of a home flag being lost.
       const flag = losing.sort((a, b) => presence(b.id)[enemy] - presence(a.id)[enemy])[0];
@@ -441,27 +447,55 @@ export class BotCommander {
         orders.set(id, { stance: attackFlags.length ? 'attack' : 'defend', flagId: flag.id });
       }
     }
-    for (const squad of squads) {
+    for (const squad of [...squads, ...[...humanOrders.keys()].map(id => live.get(id))]) {
       const want = orders.get(squad.id);
       if (!want) { squad.order = null; continue; }
       const prior = squad.order;
       const same = prior && prior.flagId === want.flagId && prior.stance === want.stance;
-      // Defend orders hold for a while after the threat clears.
-      if (prior?.stance === 'defend' && !same && prior.issuedAt + DEFEND_HOLD_MS > now && !want.allIn
+      // Defend orders hold for a while after the threat clears (not over a human leader's order).
+      if (!want.human && prior?.stance === 'defend' && !same && prior.issuedAt + DEFEND_HOLD_MS > now && !want.allIn
           && view.flags.find(f => f.id === prior.flagId)?.owner === team && want.stance !== 'defend') continue;
       // Attack orders are committed for a while (bot-flag-flow.js), so a re-plan never flips a squad mid-walk.
       if (keepAttackOrder(this, squad, prior, want, view, ts, now)) { this.advanceOrder(squad, view, ts, now); continue; }
       if (!same) squad.order = this.newOrder(squad, want, view, ts, now);
-      else squad.order.allIn = !!want.allIn;
+      else { squad.order.allIn = !!want.allIn; squad.order.human = !!want.human; }
       this.advanceOrder(squad, view, ts, now);
     }
+    this.publishOrders(ts, live);
     this.planCrews(ts, view, now);
     this.planTransit(ts, view, now);
+    planComms(this, ts, view, now);
     this.planHitches(ts, view, now);
     this.planWaits(ts, now);
   }
 
   isBot(id) { return this.game.entities.get(id)?.bot === true; }
+
+  /** The mode's squad orders (server/modes/conquest/orders.js), or null outside Conquest v2. */
+  get squadOrders() { return this.game.mode?.policy?.squadOrders ?? null; }
+
+  /** Squad id -> order want for every squad of `team` a human leads with a standing order. */
+  humanOrders(team, live, view) {
+    const out = new Map();
+    const orders = this.squadOrders;
+    if (!orders) return out;
+    for (const squad of live.values()) {
+      const order = orders.get(team, squad.id);
+      const flag = order?.human ? view.flags.find(f => f.id === order.flagId) : null;
+      if (flag) out.set(squad.id, { stance: orderStance(flag, team), flagId: flag.id, human: true });
+    }
+    return out;
+  }
+
+  /** A squad a bot leads shows the commander's flag as its squad order (HUD, map, world marker, order bonus). */
+  publishOrders(ts, live) {
+    const orders = this.squadOrders;
+    if (!orders) return;
+    for (const squad of live.values()) {
+      if (!this.isBot(squad.leaderId)) continue;
+      orders.setBotOrder(ts.team, squad.id, squad.order?.flagId ?? null);
+    }
+  }
 
   squadCentroid(squad, { infantryOnly = true } = {}) {
     let x = 0, z = 0, y = 0, n = 0;
@@ -646,7 +680,7 @@ export class BotCommander {
       const squad = ts.squads.get(transit.squadId);
       // A human at the wheel (a seat takeover) ends the ride; its riders become
       // hitches of the human's ride (planHitches).
-      if (!v || v.hp <= 0 || !squad || now > transit.until || transit.done || this.transitDriverLost(v, transit, ts, now)
+      if (!v || v.hp <= 0 || (!squad && !transit.pickup) || now > transit.until || transit.done || this.transitDriverLost(v, transit, ts, now)
           || this.humanAtWheel(v, ts.team)) ts.transits.delete(id);
     }
     const busy = new Set([...ts.transits.values()].map(t => t.vehicleId));
@@ -658,7 +692,7 @@ export class BotCommander {
     for (const squad of ts.squads.values()) {
       // One squad ride per team at a time, and a squad that just rode walks
       // its next leg: rides shorten long hauls without parking the team in seats.
-      if (ts.transits.size >= MAX_TEAM_RIDES) break;
+      if ([...ts.transits.values()].filter(t => !t.pickup).length >= MAX_TEAM_RIDES) break;
       const order = squad.order;
       if (!order || order.stance !== 'attack' || [...ts.transits.values()].some(t => t.squadId === squad.id)) continue;
       if ((ts.rideCooldown.get(squad.id) ?? 0) > now) continue;
@@ -1247,13 +1281,13 @@ export class BotCommander {
   /**
    * A flag that overrides the squad order for one bot on foot, or null: the zone it
    * stands in while its team takes (or holds) it, else an undefended enemy flag it passes
-   * on an attack or a plain walk (never on a defend order).
+   * on an attack or a plain walk (never on a defend order or a human leader's order).
    */
   localFlag(p, team, ts, view, order, flag) {
     if (p.vehicleId) return null;
     const committed = committedFlag(this, p, team, view, order);
     if (committed) return committed.id === flag.id ? null : committed;
-    if (order?.stance === 'defend') return null;
+    if (order?.stance === 'defend' || order?.human) return null;
     return passingFlag(this, p, ts, view, flag.id);
   }
 
@@ -1317,6 +1351,9 @@ export class BotCommander {
           support: { type: 'support', support: 'revive', targetId: String(best.body.id) }, reach: 1.8, reach3 };
       }
     }
+    // A teammate's comm rose request this bot answers (server/bot-comms.js): medic, ammo, repair.
+    const answer = commGoal(this, p, kit, ts, now);
+    if (answer) return answer;
     if (KITS[kit]?.aura === 'heal') {
       const mate = this.hurtMate(p, ts, now);
       if (mate) {
@@ -1338,24 +1375,30 @@ export class BotCommander {
         if (this.game.fluidAt(Math.floor(v.x), Math.floor(v.y + 0.5), Math.floor(v.z))) continue;
         if (!best || d < best.d) best = { v, d };
       }
-      const repairPoint = best && (() => {
-        const v = best.v, r = (VEHICLE_RULES[v.type]?.radius ?? 2.5) + 1;
-        const side = bearing(v, p);
-        return this.walkablePoint({ x: v.x - Math.sin(side) * r, y: v.y, z: v.z - Math.cos(side) * r })
-          ?? { x: v.x - Math.sin(side) * r, y: p.y, z: v.z - Math.cos(side) * r };
-      })();
-      if (best && (!this.supportReachable(p, repairPoint, `repair:${best.v.id}`, now) || Math.abs(repairPoint.y - best.v.y) > 4)) {
-        this.supportBlocked.set(`${id}|repair:${best.v.id}`, now + SUPPORT_BLOCK_MS);
-        best = null;
-      }
-      if (best && !this.supportStalled(id, `repair:${best.v.id}`, flat(repairPoint, p), 2.5, now)) {
-        this.claimRole(`repair:${best.v.id}`, id, now);
-        const v = best.v, point = repairPoint;
-        return { kind: 'repair', target: { x: v.x, y: v.y, z: v.z, id: v.id }, interact: false, role: 'support', point, arrive: 1.2,
-          support: { type: 'support', support: 'repair', targetId: String(v.id) }, reach: 3.2 };
-      }
+      if (best) return this.repairGoal(p, best.v, now);
     }
     return null;
+  }
+
+  /**
+   * Walk to the near side of hull `v` and hold the repair intent there, or
+   * null when that spot is out of a walker's reach (blocked for a while) or
+   * the walk stalled.
+   */
+  repairGoal(p, v, now) {
+    const id = key(p);
+    const r = (VEHICLE_RULES[v.type]?.radius ?? 2.5) + 1;
+    const side = bearing(v, p);
+    const point = this.walkablePoint({ x: v.x - Math.sin(side) * r, y: v.y, z: v.z - Math.cos(side) * r })
+      ?? { x: v.x - Math.sin(side) * r, y: p.y, z: v.z - Math.cos(side) * r };
+    if (!this.supportReachable(p, point, `repair:${v.id}`, now) || Math.abs(point.y - v.y) > 4) {
+      this.supportBlocked.set(`${id}|repair:${v.id}`, now + SUPPORT_BLOCK_MS);
+      return null;
+    }
+    if (this.supportStalled(id, `repair:${v.id}`, flat(point, p), 2.5, now)) return null;
+    this.claimRole(`repair:${v.id}`, id, now);
+    return { kind: 'repair', target: { x: v.x, y: v.y, z: v.z, id: v.id }, interact: false, role: 'support', point, arrive: 1.2,
+      support: { type: 'support', support: 'repair', targetId: String(v.id) }, reach: 3.2 };
   }
 
   /**

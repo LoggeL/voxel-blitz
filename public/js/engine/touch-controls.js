@@ -80,8 +80,9 @@ export function shouldEnableTouchControls({
 export const TOUCH_ACTIONS = Object.freeze([
   'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy', 'medkit', 'build',
   'grenade', 'pouch', 'flightUp', 'flightDown', 'flightBrake',
-  // Conquest: seat cycle, countermeasure and camera view while seated, full map and spot on foot or seated, deploy while dead.
-  'vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy', 'vehicleView',
+  // Conquest: seat cycle, countermeasure and camera view while seated, full map, spot and the comm rose
+  // on foot or seated, deploy while dead.
+  'vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy', 'vehicleView', 'comms',
   // Titanfall (docs/titanfall.md §8.2): the pilot's context chip (call titan / rodeo / battery) and
   // tactical, the titan's dash, abilities, core, smoke and the doomed eject.
   'callTitan', 'pilotTactical', 'titanDash', 'titanDefensive', 'titanTactical', 'titanOrdnance', 'titanCore',
@@ -95,7 +96,7 @@ const ACTION_BITS = Object.freeze(Object.fromEntries(TOUCH_ACTIONS.map((action, 
  * CustomEvent ({detail: {action}}) on the document's window, which ConquestHud
  * listens for.
  */
-export const CONQUEST_TOUCH_ACTIONS = Object.freeze(['vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy', 'vehicleView']);
+export const CONQUEST_TOUCH_ACTIONS = Object.freeze(['vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy', 'vehicleView', 'comms']);
 export const CONQUEST_TOUCH_EVENT = 'vb-conquest-action';
 const CONQUEST_ACTION_SET = new Set(CONQUEST_TOUCH_ACTIONS);
 /**
@@ -138,7 +139,7 @@ function visibleTouchMask(context) {
   if (context?.deployOpen === true) return ACTION_BITS.deploy;
   if (!context || context.alive === false || context.wheelOpen || context.pouchOpen) return 0;
   let mask = ACTION_BITS.jump;
-  const conquest = context.conquest === true ? ACTION_BITS.bigMap | ACTION_BITS.spot : 0;
+  const conquest = context.conquest === true ? ACTION_BITS.bigMap | ACTION_BITS.spot | ACTION_BITS.comms : 0;
   const titanfall = context.titanfall && typeof context.titanfall === 'object' ? context.titanfall : null;
   if (titanfall?.layout === 'titan' && context.vehicleSeated) {
     // Seated in the own titan: fire plus the ability row; EJECT only while doomed.
@@ -500,6 +501,7 @@ export class TouchControls {
     d.spot = this._button(root, 'spot', 'SPOT', 'Spot the enemy you are aiming at');
     d.deploy = this._button(root, 'deploy', 'DEPLOY', 'Deploy at the selected spawn');
     d.vehicleView = this._button(root, 'vehicleView', 'VIEW', 'Next camera view');
+    d.comms = this._button(root, 'comms', 'COMMS', 'Comm rose: requests, callouts and squad orders');
     for (const action of TITANFALL_TOUCH_ACTIONS) {
       d[action] = this._button(root, action, TITANFALL_LABELS[action][0], TITANFALL_LABELS[action][1]);
       d[action].classList.add('vb-touch-titanfall');

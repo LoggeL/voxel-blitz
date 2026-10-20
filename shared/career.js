@@ -129,7 +129,7 @@ export const CAREER_REWARDS = Object.freeze({
   match: { xp: 100 }, victory: { xp: 50 },
   /** Conquest `score` reasons: major teamplay pays majorXp each; minor ones minorXp, capped per minute. */
   conquestObjective: Object.freeze({
-    major: Object.freeze(['revive', 'capture', 'neutralize', 'defend']), majorXp: 15,
+    major: Object.freeze(['revive', 'capture', 'neutralize', 'defend', 'order_capture', 'order_defend']), majorXp: 15,
     minor: Object.freeze(['heal', 'repair', 'resupply']), minorXp: 3, minorCapPerMinute: 30,
   }),
 });

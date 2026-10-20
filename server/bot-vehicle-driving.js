@@ -487,6 +487,12 @@ export class ConquestVehicleDriving {
     }
     const state = this.driverState(br, v, destination, now);
     const remaining = this.follow(br, v, state, now, inp, { arrive: UNLOAD_RADIUS });
+    // A NEED RIDE pickup (server/bot-comms.js) waits at the pickup point for the requester
+    // to board; the commander then points it at the requester's order flag.
+    if (transit?.pickup?.stage === 'pickup') {
+      if (remaining < UNLOAD_RADIUS) this.hold(br, v, now, inp);
+      return;
+    }
     const late = transit && now - transit.departAt > 40000;
     if ((remaining < UNLOAD_RADIUS || late || state.recoveries >= 4) ) {
       inp.vehicleThrottle = 0; inp.vehicleBrake = 1;

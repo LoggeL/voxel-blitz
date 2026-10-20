@@ -81,6 +81,19 @@ function defaultViewState(type, seatId) {
     views: views.map(view => ({ id: view, label: vehicleViewLabel(type, seatId, view) })), changedAt: -1e9 };
 }
 
+/** Comm rose / full-map cursor fixtures: open the rose on a segment, or rest the order cursor on the map. */
+function applyOrderStates(hud, state) {
+  if (state.rose) {
+    hud.openRose(state.rose.mode ?? 'hold');
+    const index = hud.rose.model?.segments?.findIndex(s => s.kind === state.rose.select) ?? -1;
+    hud.rose.highlight(index);
+  }
+  if (state.mapCursor) {
+    hud.bigMap.cursorAt = { ...state.mapCursor };
+    hud.bigMap.showCursor(true);
+  }
+}
+
 async function render(id, { touch: touchMode = false } = {}) {
   const state = fixtures.find(f => f.id === id);
   if (!state) throw new Error(`unknown fixture ${id}`);
@@ -130,6 +143,7 @@ async function render(id, { touch: touchMode = false } = {}) {
   conquest.update(args);
   if (state.dead) conquest.setDead(true, state.killer);
   if (state.bigMap) conquest.toggleBigMap(true);
+  applyOrderStates(conquest, state);
   for (const ev of state.events) {
     if (ev.kind === 'kill') h.killfeed(ev);
     else conquest.handleEvent(ev, 'me');

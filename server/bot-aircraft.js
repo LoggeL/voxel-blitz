@@ -477,9 +477,19 @@ export class ConquestAircraftDriving {
     }
     if (state.phase === 'drop') {
       inp.vehicleLift = 0;
+      const pickup = transit?.pickup ?? null;
+      // A NEED RIDE pickup (server/bot-comms.js) sits on the ground until the requester is
+      // aboard; the commander then sets the requester's order flag as the next leg.
+      if (pickup?.stage === 'pickup') return;
+      if (pickup && state.pickupLeg !== transit.destination) {
+        state.pickupLeg = transit.destination;
+        state.phase = 'takeoff'; state.phaseAt = now; state.leg = 'out';
+        state.landing = this.landingPoint(v, transit.destination);
+        return;
+      }
       const aboard = vehicleSeats(v).some(seat => !seat.drives && vehicleSeatOccupantId(v, seat.id) != null
-        && transit?.seats.has(vehicleSeatOccupantId(v, seat.id)));
-      if (!aboard || now - state.phaseAt > 6000) {
+        && (transit?.seats.has(vehicleSeatOccupantId(v, seat.id)) || String(vehicleSeatOccupantId(v, seat.id)) === pickup?.humanId));
+      if (!aboard || now - state.phaseAt > (pickup ? 15000 : 6000)) {
         this.commander?.markTransit(v.id, { done: true });
         state.phase = 'takeoff'; state.phaseAt = now; state.leg = 'home';
         state.landing = this.landingPoint(v, home);

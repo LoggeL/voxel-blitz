@@ -4,6 +4,7 @@ import { parseChaosPurchase } from '../../shared/chaos.js';
 import { MAX_BOTS } from '../../shared/lobby-limits.js';
 import { KIT_IDS, KITS } from '../../shared/conquest-contract.js';
 import { SPAWN_CHOICE_PATTERN } from '../../shared/conquest.js';
+import { COMM_KINDS } from '../../shared/conquest-comms.js';
 import { MAP_FINGERPRINT_PATTERN } from '../../shared/world/serialize.js';
 // Wire protocol constants and strict client-frame parsers. Pure data
 // functions only — no engine state or world access.
@@ -277,8 +278,9 @@ export function parseTitanfallIntent(raw) {
   }
 }
 
-const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy']);
+const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'comm', 'order']);
 const SUPPORT_TYPES = Object.freeze(['revive', 'repair']);
+const ORDER_FLAG_PATTERN = /^[A-Z]$/;
 
 /**
  * Conquest intent frame `{t:'conquest', deploy | spot | support | redeploy}` with exactly
@@ -302,6 +304,9 @@ export function parseConquestIntent(raw) {
   const key = intents[0], value = raw[key];
   if (key === 'spot') return value === 1 || value === true ? { type: 'spot' } : null;
   if (key === 'redeploy') return value === 1 || value === true ? { type: 'redeploy' } : null;
+  // Comm rose pick and full-map squad order (shared/conquest-comms.js).
+  if (key === 'comm') return COMM_KINDS.includes(value) ? { type: 'comm', comm: value } : null;
+  if (key === 'order') return typeof value === 'string' && (value === '' || ORDER_FLAG_PATTERN.test(value)) ? { type: 'order', flag: value } : null;
   if (key === 'support') {
     if (!isRecord(value) || !hasExactKeys(value, ['type', 'targetId'])) return null;
     if (!SUPPORT_TYPES.includes(value.type) || !isIdString(value.targetId, 64)) return null;

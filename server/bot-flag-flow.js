@@ -58,7 +58,8 @@ function squadInZone(commander, squad, flag) {
  */
 export function keepAttackOrder(commander, squad, prior, want, view, ts, now) {
   const r = FLAG_FLOW_RULES;
-  if (!prior || prior.stance !== 'attack' || !want || want.allIn) return false;
+  // A human squad leader's order (comm rose or full map) always takes over at once.
+  if (!prior || prior.stance !== 'attack' || !want || want.allIn || want.human) return false;
   if (want.stance === 'attack' && want.flagId === prior.flagId) return false;
   const flag = view.flags.find(f => f.id === prior.flagId);
   if (!flag || flag.owner === ts.team) return false;

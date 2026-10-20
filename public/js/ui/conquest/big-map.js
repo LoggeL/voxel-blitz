@@ -14,27 +14,47 @@ const LABEL_MAX_PX = 11;
 /** Below this map size (phone landscape deploy) names only clutter the spawn markers; the spawn list names flags. */
 const LABEL_MIN_MAP_PX = 220;
 
+/** A pick on the full map lands on a flag within this share of the map width (its diamond and zone). */
+const FLAG_PICK_RADIUS = 0.06;
+
 export class NorthUpMap {
-  constructor(parent, className = 'cq-northmap', { onPick = null } = {}) {
+  constructor(parent, className = 'cq-northmap', { onPick = null, onFlag = null } = {}) {
     this.root = el('div', className, parent);
     this.canvas = el('canvas', 'cq-northmap-canvas', this.root);
     this.context = this.canvas.getContext?.('2d') ?? null;
     this.image = overviewImage();
     this.spawnHits = [];
+    this.flagHits = [];
+    this.onFlag = onFlag;
     this._px = 0;
-    if (onPick) {
+    if (onPick || onFlag) {
       this.canvas.addEventListener('pointerdown', event => {
         const rect = this.canvas.getBoundingClientRect?.();
         if (!rect || !rect.width) return;
         const x = (event.clientX - rect.left) / rect.width, y = (event.clientY - rect.top) / rect.height;
-        let best = null, bestD = 0.045;
-        for (const hit of this.spawnHits) {
-          const d = Math.hypot(hit.u - x, hit.v - y);
-          if (d < bestD) { bestD = d; best = hit; }
+        if (onPick) {
+          let best = null, bestD = 0.045;
+          for (const hit of this.spawnHits) {
+            const d = Math.hypot(hit.u - x, hit.v - y);
+            if (d < bestD) { bestD = d; best = hit; }
+          }
+          if (best) { event.preventDefault?.(); onPick(best.spawn); return; }
         }
-        if (best) { event.preventDefault?.(); onPick(best.spawn); }
+        const flag = this.flagAt(x, y);
+        if (flag && this.onFlag) { event.preventDefault?.(); this.onFlag(flag); }
       });
     }
+  }
+
+  /** The flag id drawn nearest to a map point (u, v in 0..1 of the canvas), or null. */
+  flagAt(u, v) {
+    // Each flag takes picks within its own reach (its zone, at least FLAG_PICK_RADIUS); of two in reach the nearer wins.
+    let best = null, bestD = Infinity;
+    for (const hit of this.flagHits) {
+      const d = Math.hypot(hit.u - u, hit.v - v);
+      if (d < Math.max(FLAG_PICK_RADIUS, hit.r) && d < bestD) { bestD = d; best = hit.id; }
+    }
+    return best;
   }
 
   _resize() {
@@ -107,10 +127,12 @@ export class NorthUpMap {
     const spawnHulls = new Set(spawnBadges.filter(b => b.spawn.kind === 'vehicle').map(b => String(b.spawn.id)));
     const movable = [...badges.filter(b => !spawnHulls.has(String(b.item.id))), ...spawnBadges];
     declutter(movable, fixed, { px, maxShift: 30 * scale });
+    this.flagHits = [];
     for (const item of sorted) {
       const c = place(item);
       if (item.kind === 'flag') {
-        paintFlag(ctx, item, c, item.radius * s, { letterSize: 15 * scale, pulse: item.contested ? pulse : 0 });
+        paintFlag(ctx, item, c, item.radius * s, { letterSize: 15 * scale, pulse: item.contested || item.order ? pulse : 0 });
+        this.flagHits.push({ id: item.id, u: c.x / px, v: c.y / px, r: Math.min(0.12, item.radius * s / px) });
       } else if (item.kind === 'hq') {
         ctx.beginPath(); ctx.arc(c.x, c.y, item.radius * s, 0, Math.PI * 2);
         ctx.fillStyle = `${toneColor(item.rel)}1f`; ctx.fill();
@@ -228,9 +250,20 @@ export function declutter(movable, fixed, { px, maxShift = 30, iterations = 24, 
   return movable;
 }
 
-/** Full-screen map overlay toggled with the bigMap binding (M) or the touch map button. */
+/** Full-map order cursor speed for a fully deflected pad stick (share of the map per second). */
+const CURSOR_STICK_RATE = 0.7;
+
+/**
+ * Full-screen map overlay toggled with the bigMap binding (M) or the touch map
+ * button. A squad leader orders the squad from it (docs/conquest.md "Squad
+ * orders and the comm rose"): a click or tap on a flag sends `{order: id}`,
+ * on the current order flag `{order: ''}` clears it. With a locked pointer or
+ * a pad a cursor (the Input UI capture) does the pointing.
+ */
 export class BigMap {
-  constructor(parent) {
+  constructor(parent, { onOrder = null } = {}) {
+    this.onOrder = onOrder;
+    this.orders = { leader: false, orderFlag: null };
     this.root = el('section', 'cq-bigmap', parent);
     this.root.hidden = true;
     this.root.setAttribute('aria-label', 'Battlefield map');
@@ -243,7 +276,11 @@ export class BigMap {
     this.close.textContent = '✕';
     this.close.setAttribute('aria-label', 'Close map');
     this.close.addEventListener('click', () => this.setOpen(false));
-    this.map = new NorthUpMap(panel, 'cq-northmap cq-bigmap-map');
+    this.map = new NorthUpMap(panel, 'cq-northmap cq-bigmap-map', { onFlag: id => this.orderFlag(id) });
+    // Order cursor (locked pointer / pad), in 0..1 map coordinates.
+    this.cursor = el('i', 'cq-bigmap-cursor', this.map.root);
+    this.cursor.hidden = true;
+    this.cursorAt = { u: 0.5, v: 0.5 };
     const legend = el('div', 'cq-bigmap-legend', panel);
     for (const [cls, text] of [['own', 'FRIENDLY'], ['squad', 'SQUAD'], ['enemy', 'ENEMY FLAG'], ['spotted', 'SPOTTED'], ['neutral', 'NEUTRAL']]) {
       const item = el('span', `cq-legend cq-legend-${cls}`, legend);
@@ -256,7 +293,55 @@ export class BigMap {
   setOpen(open) {
     this.open = !!open;
     this.root.hidden = !this.open;
+    if (this.open) this.cursorAt = { u: 0.5, v: 0.5 };
+    this.showCursor(false);
     return this.open;
+  }
+
+  /** Who may order and on which flag the order stands ({leader, orderFlag}); the head hint follows. */
+  setOrders({ leader = false, orderFlag = null } = {}) {
+    this.orders = { leader: !!leader, orderFlag: orderFlag ?? null };
+    const hint = !this.open ? '' : leader ? (orderFlag ? `SQUAD ORDER ${orderFlag} · PICK A FLAG · SAME FLAG CLEARS` : 'PICK A FLAG TO ORDER YOUR SQUAD')
+      : 'SQUAD LEADERS ORDER FROM THIS MAP';
+    if (this.hint.textContent !== hint) this.hint.textContent = hint;
+    this.root.dataset.leader = String(!!leader);
+  }
+
+  /** A pick on a flag: the leader's order (the standing order flag clears it). */
+  orderFlag(id) {
+    if (!this.open || !this.orders.leader || !id || typeof this.onOrder !== 'function') return false;
+    this.onOrder(id === this.orders.orderFlag ? '' : id);
+    return true;
+  }
+
+  showCursor(on) { this.cursor.hidden = !on; this.cursorVisible = !!on; this._placeCursor(); }
+
+  /** Locked mouse pixels move the cursor across the map. */
+  steerCursor(dx, dy) {
+    const size = this.map.canvas.getBoundingClientRect?.()?.width || this.map._px || 560;
+    this._moveCursor(dx / size, dy / size);
+  }
+
+  /** Pad stick: a rate across the map. */
+  stickCursor(x, y, dt) {
+    const step = CURSOR_STICK_RATE * Math.max(0, Math.min(0.05, Number(dt) || 0));
+    this._moveCursor(x * step, y * step);
+  }
+
+  /** LMB / RT with the cursor up: pick the flag under it. */
+  clickCursor() { return this.orderFlag(this.map.flagAt(this.cursorAt.u, this.cursorAt.v)); }
+
+  _moveCursor(du, dv) {
+    this.cursorAt = { u: Math.max(0, Math.min(1, this.cursorAt.u + du)), v: Math.max(0, Math.min(1, this.cursorAt.v + dv)) };
+    this._placeCursor();
+  }
+
+  _placeCursor() {
+    if (!this.cursorVisible) return;
+    this.cursor.style.left = `${(this.cursorAt.u * 100).toFixed(2)}%`;
+    this.cursor.style.top = `${(this.cursorAt.v * 100).toFixed(2)}%`;
+    const over = this.map.flagAt(this.cursorAt.u, this.cursorAt.v);
+    this.cursor.dataset.over = String(!!over);
   }
   toggle() { return this.setOpen(!this.open); }
 

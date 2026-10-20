@@ -4,6 +4,8 @@ export const MATCH_KEYS = 'attackers,bomb,defenders,map,mode,phase,phaseEndsAt,r
 
 /** Conquest player rows add `cq` (decodeConquestPlayer) and `cqs` (decodeConquestStats); other modes never carry them. */
 export const CONQUEST_PLAYER_EXTRA_KEYS = 'cq,cqs';
+/** `cqc` = [seq, commKindIndex, responderId | null, vehicleId?] only while the player has a live comm rose request (shared/conquest-comms.js). */
+export const CONQUEST_PLAYER_OPTIONAL_KEYS = 'cqc';
 export const CONQUEST_PLAYER_KEYS = [...PLAYER_KEYS.split(','), ...CONQUEST_PLAYER_EXTRA_KEYS.split(',')].sort().join(',');
 /** `cq` = [kitIndex, squadId, down, spotted, restrictedDs, lockProgress100, actionProgress100, chute?]; `cqs` = [objective, vehicles, revives, captures].
  * The 8th entry (parachute 1 / ejection seat 2, shared/parachute.js) only rides rows of bodies under a canopy. */
@@ -17,13 +19,17 @@ export const CONQUEST_MATCH_KEYS = [...MATCH_KEYS.split(','), 'conquest'].sort()
 export const CONQUEST_STATE_KEYS = 'bleed,endsAt,flags,maxTickets,squads,tickets,v';
 /** Post-match `match.conquest` adds the 10 s ticket graph [[tMs, alpha, bravo], ...]. */
 export const CONQUEST_POST_STATE_KEYS = [...CONQUEST_STATE_KEYS.split(','), 'ticketGraph'].sort().join(',');
-/** `flags[i]` = [id, control100, owner, state, atk, def]; `squads[i]` = [team, squadId, leaderId]. */
+/**
+ * `flags[i]` = [id, control100, owner, state, atk, def]; `squads[i]` = [team, squadId, leaderId, orderFlag?]
+ * (contract v6: the order flag id rides as a 4th entry only while the squad has an order).
+ */
 export const CONQUEST_FLAG_TUPLE_LENGTH = 6;
 export const CONQUEST_SQUAD_TUPLE_LENGTH = 3;
+export const CONQUEST_SQUAD_TUPLE_MAX_LENGTH = 4;
 export const CONQUEST_MATCH_BUDGET_BYTES = 400;
 
 /** Conquest contract v3 (classes): `cq[0]` indexes this kit list (0-3 kept from v2, new kits appended, so cq[0] <= 8). */
-export const CONQUEST_CONTRACT = Object.freeze({ version: 5 });
+export const CONQUEST_CONTRACT = Object.freeze({ version: 6 });
 export const CONQUEST_KIT_IDS = 'assault,engineer,support,recon,medic,pyro,grenadier,raider,marksman';
 /** Event kinds added by the classes update: the Medic aura `heal {id, by, hp}` and `kit_unlocks {id, level, unlocked, newly}`. */
 export const CONQUEST_CLASS_EVENT_KINDS = 'heal,kit_unlocks';

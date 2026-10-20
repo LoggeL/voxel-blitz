@@ -467,6 +467,12 @@ class Game {
       onDeployOpen: () => this.input.exit(),
       onSpot: () => this.net?.sendConquest({ spot: 1 }),
       onSupport: (intent) => this.net?.sendConquest({ support: intent }),
+      // Comm rose picks and full-map squad orders (docs/conquest.md "Squad orders and the comm rose").
+      onComm: (comm) => this.net?.sendConquest({ comm }),
+      onOrder: (order) => this.net?.sendConquest({ order }),
+      // The rose and the map's order cursor own the aim while up: look and fire pause.
+      onCapture: (capture) => this.input?.setUiCapture?.(capture),
+      onRadio: () => this.objectiveCues?.radio?.(),
       combatHud: this.hud.combat,
       inputEnabled: () => this.session.gameplayInputEnabled,
       shellRaycast: (origin, direction, distance) => this.worldview?.pickSolidRay(origin, direction, distance) ?? null,
@@ -1247,7 +1253,7 @@ class Game {
     const pad = this.input.padButtons;
     this.vehicleController?.padInteract({ held: !!pad?.held.interact, pressed: !!pad?.pressed.interact },
       this.session.gameplayInputEnabled && !!pad);
-    this.conquestHud?.padInput({ pressed: pad?.pressed, blocked: !!this.hud.settingsOpen,
+    this.conquestHud?.padInput({ pressed: pad?.pressed, held: pad?.held, blocked: !!this.hud.settingsOpen,
       scoped: this.vehicleController?.active !== true && !!this.weapon?.scopeActive });
     const seated = this.vehicleController?.active === true;
     if (this.mapMeta?.id === 'frontier' && this.worldview?.scene.fog) {

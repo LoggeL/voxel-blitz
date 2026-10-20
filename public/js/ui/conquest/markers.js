@@ -6,6 +6,7 @@
  */
 import { el } from '../hud-support.js';
 import { svgIcon } from './icons.js';
+import { REQUEST_ICONS } from './comms-state.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ARC_R = 15;
@@ -34,6 +35,8 @@ function flagNode(parent) {
   node.letter = el('span', 'cq-flag-marker-letter', node);
   node.distance = el('span', 'cq-flag-marker-distance', node);
   node.arrow = el('i', 'cq-flag-marker-arrow', node);
+  // The own squad's order on this flag: an ATTACK / DEFEND tag above the diamond.
+  node.order = el('span', 'cq-flag-marker-order', node);
   return node;
 }
 
@@ -62,6 +65,8 @@ export class WorldMarkers {
       const near = !m.edge && viewWidth > 0 && Math.abs(m.x - viewWidth / 2) < NEAR_CROSSHAIR_PX && Math.abs(m.y - viewHeight / 2) < NEAR_CROSSHAIR_PX;
       if (n.dataset.near !== String(near)) n.dataset.near = String(near);
       n.dataset.moving = m.moving || '';
+      const order = m.order || '';
+      if (n.dataset.order !== order) { n.dataset.order = order; n.order.textContent = order.toUpperCase(); }
       const dist = `${m.distance} m`;
       if (n.distance.textContent !== dist) n.distance.textContent = dist;
       const r = (ARC_R + 3) * 2 * Math.PI;
@@ -81,13 +86,15 @@ export class WorldMarkers {
       i++;
       n.hidden = false;
       // Pooled nodes are reused across kinds and hull types: rebuild the glyph when either changes.
-      const glyphKey = m.kind === 'spotted-vehicle' ? `${m.kind}:${m.vehicleType || ''}` : m.kind;
+      const glyphKey = m.kind === 'spotted-vehicle' ? `${m.kind}:${m.vehicleType || ''}` : m.kind === 'request' ? `request:${m.comm}` : m.kind;
       if (n.glyphKey !== glyphKey) {
         n.glyphKey = glyphKey;
         n.dataset.kind = m.kind;
         n.glyph.textContent = '';
         const icon = m.kind === 'down' || m.kind === 'wounded' ? svgIcon(globalThis.document, 'revive', 'cq-unit-icon')
-          : m.kind === 'spotted-vehicle' ? svgIcon(globalThis.document, m.vehicleType || 'tank', 'cq-unit-icon') : null;
+          : m.kind === 'spotted-vehicle' ? svgIcon(globalThis.document, m.vehicleType || 'tank', 'cq-unit-icon')
+            : m.kind === 'request' ? svgIcon(globalThis.document, REQUEST_ICONS[m.comm] || 'revive', 'cq-unit-icon') : null;
+        n.dataset.comm = m.comm || '';
         if (icon) n.glyph.appendChild(icon);
       }
       // The glyph sits on the projected point; near a screen side the label hangs inward so it is never cut off.
@@ -95,7 +102,7 @@ export class WorldMarkers {
       if (n.dataset.align !== align) n.dataset.align = align;
       n.style.transform = `translate(${m.x.toFixed(1)}px, ${m.y.toFixed(1)}px) translateX(${UNIT_SHIFT[align]})`;
       const text = m.kind === 'down' ? `${m.name ? `${m.name} · ` : ''}${m.distance} m` : m.kind === 'squad' ? m.name
-        : m.kind === 'spotted-vehicle' ? `${m.name} ${m.distance} m` : '';
+        : m.kind === 'spotted-vehicle' || m.kind === 'request' ? `${m.name} ${m.distance} m` : '';
       if (n.label.textContent !== text) n.label.textContent = text;
     }
     for (; i < this.units.length; i++) this.units[i].hidden = true;

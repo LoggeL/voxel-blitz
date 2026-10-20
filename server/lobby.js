@@ -500,9 +500,9 @@ export class LobbyManager {
   }
 
   /**
-   * Conquest intent frame (deploy, spot, support, redeploy; spec 3.4), already
-   * parsed by parseConquestIntent. Rate limits per intent type mirror the
-   * client's sendConquest (deploy 4/s, spot 2/s, support 10/s, redeploy 1/s;
+   * Conquest intent frame (deploy, spot, support, redeploy, comm, order; spec 3.4),
+   * already parsed by parseConquestIntent. Rate limits per intent type mirror the
+   * client's sendConquest (deploy 4/s, spot, comm and order 2/s, support 10/s, redeploy 1/s;
    * the policy adds its own redeploy cooldown) with 25% slack: gaps are
    * measured on arrival, so network jitter must not drop frames the client
    * paced correctly (a dropped deploy would leave the server on a stale kit).
@@ -512,7 +512,8 @@ export class LobbyManager {
     if (!found || found.room.phase !== 'live' || !intent || typeof intent.type !== 'string') return false;
     const member = found.member;
     const now = performance.now();
-    const minGap = (intent.type === 'deploy' ? 250 : intent.type === 'spot' ? 500 : intent.type === 'redeploy' ? 1000 : 100) * 0.75;
+    const minGap = (intent.type === 'deploy' ? 250 : intent.type === 'spot' || intent.type === 'comm' || intent.type === 'order' ? 500
+      : intent.type === 'redeploy' ? 1000 : 100) * 0.75;
     member.conquestIntentAt ??= {};
     if (now - (member.conquestIntentAt[intent.type] ?? -Infinity) < minGap) return false;
     member.conquestIntentAt[intent.type] = now;

@@ -38,16 +38,16 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
   for (const action of CONQUEST_TOUCH_ACTIONS) assert.ok(TOUCH_ACTIONS.includes(action));
 
   const expected = {
-    'tank:driver': ['bigMap', 'countermeasure', 'fire', 'jump', 'spot', 'vehicleSeat', 'vehicleView'],
-    'tank:commander': ['bigMap', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
-    'helicopter:driver': ['bigMap', 'countermeasure', 'fire', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleSeat', 'vehicleView'],
-    'helicopter:gunner': ['bigMap', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
-    'transport:driver': ['bigMap', 'countermeasure', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleSeat', 'vehicleView'],
-    'transport:door-left': ['bigMap', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
-    'transport:rear-right': ['bigMap', 'spot', 'vehicleSeat', 'vehicleView'],
-    'plane:driver': ['bigMap', 'countermeasure', 'fire', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleView'],
-    'jeep:driver': ['bigMap', 'jump', 'spot', 'vehicleSeat', 'vehicleView'],
-    'jeep:gunner': ['bigMap', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
+    'tank:driver': ['bigMap', 'comms', 'countermeasure', 'fire', 'jump', 'spot', 'vehicleSeat', 'vehicleView'],
+    'tank:commander': ['bigMap', 'comms', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
+    'helicopter:driver': ['bigMap', 'comms', 'countermeasure', 'fire', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleSeat', 'vehicleView'],
+    'helicopter:gunner': ['bigMap', 'comms', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
+    'transport:driver': ['bigMap', 'comms', 'countermeasure', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleSeat', 'vehicleView'],
+    'transport:door-left': ['bigMap', 'comms', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
+    'transport:rear-right': ['bigMap', 'comms', 'spot', 'vehicleSeat', 'vehicleView'],
+    'plane:driver': ['bigMap', 'comms', 'countermeasure', 'fire', 'flightBrake', 'flightDown', 'flightUp', 'spot', 'vehicleView'],
+    'jeep:driver': ['bigMap', 'comms', 'jump', 'spot', 'vehicleSeat', 'vehicleView'],
+    'jeep:gunner': ['bigMap', 'comms', 'fire', 'spot', 'vehicleSeat', 'vehicleView'],
   };
   for (const [key, list] of Object.entries(expected)) {
     const [type, seatId] = key.split(':');
@@ -64,8 +64,8 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
   assert.equal(seatContext('tank', 'commander').vehicleViewCount, 2);
   assert.equal(visibleTouchActions({ ...seatContext('jeep', 'gunner'), vehicleViewCount: 1 }).has('vehicleView'), false, 'a single view needs no VIEW');
   assert.equal(visibleTouchActions({ ...infantry, conquest: true, vehicleViewCount: 4 }).has('vehicleView'), false, 'on foot: no VIEW');
-  // On foot in Conquest: infantry set plus MAP and SPOT; elsewhere no Conquest buttons.
-  assert.deepEqual(actions({ ...infantry, conquest: true }).filter(a => CONQUEST_TOUCH_ACTIONS.includes(a)), ['bigMap', 'spot']);
+  // On foot in Conquest: infantry set plus MAP, COMMS and SPOT; elsewhere no Conquest buttons.
+  assert.deepEqual(actions({ ...infantry, conquest: true }).filter(a => CONQUEST_TOUCH_ACTIONS.includes(a)), ['bigMap', 'comms', 'spot']);
   assert.deepEqual(actions(infantry).filter(a => CONQUEST_TOUCH_ACTIONS.includes(a)), []);
   assert.equal(visibleTouchActions({ ...seatContext('tank', 'driver'), alive: false }).size, 0, 'dead: nothing but pause');
   assert.deepEqual(actions({ alive: false, deployOpen: true }), ['deploy']);

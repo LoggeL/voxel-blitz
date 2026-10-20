@@ -58,6 +58,13 @@ export const ICON_PATHS = Object.freeze({
   lock: 'M12 2l2.5 5H20l-4.3 3.7L17.5 17 12 13.5 6.5 17l1.8-6.3L4 7h5.5z',
   flares: 'M12 2c2 4 5 6 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.8 1.2 2.8 2.2 3.2C10.8 8 11 5 12 2z',
   smoke: 'M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 .5 9.5z',
+  // Comm rose (docs/design/conquest/orders/): requests, callouts and squad orders.
+  ammo: 'M3 8h18v12H3zM5 5h5v3H5zM14 5h5v3h-5zM6 12h12v2.2H6z',
+  yes: 'M9 16.2 4.8 12l-1.9 1.9L9 20 21.1 7.9l-1.9-1.9z',
+  no: 'M6.3 4.4 12 10.1l5.7-5.7 1.9 1.9-5.7 5.7 5.7 5.7-1.9 1.9-5.7-5.7-5.7 5.7-1.9-1.9 5.7-5.7-5.7-5.7z',
+  attack: 'M3 3h3.5l9.8 9.8-2 2L4.5 5.1zM21 3h-3.5l-9.8 9.8 2 2 9.8-9.7zM5.6 14.3l4.1 4.1-1.5 1.5-1.1-1.1L4.5 21 3 19.5l2.2-2.6-1.1-1.1zM18.4 14.3l1.5 1.5-1.1 1.1 2.2 2.6-1.5 1.5-2.6-2.2-1.1 1.1-1.5-1.5z',
+  defend: 'M12 2 20 5v6.2c0 5-3.4 9.3-8 10.8-4.6-1.5-8-5.8-8-10.8V5zm0 3.1-5 1.9v4.2c0 3.3 2 6.3 5 7.6z',
+  comms: 'M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm3 5v2h2V9zm4 0v2h2V9zm4 0v2h2V9z',
 });
 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */

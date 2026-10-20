@@ -15,6 +15,7 @@ import { el, loadPref, savePref } from '../hud-support.js';
 import { deployModel } from '../conquest-hud-state.js';
 import { NorthUpMap } from './big-map.js';
 import { svgIcon } from './icons.js';
+import { downedMedicModel } from './comms-state.js';
 
 const KIT_PREF = 'vb-conquest-kit';
 /** A tapped locked class says when it opens for this long in the class info line. */
@@ -25,8 +26,10 @@ const SEAT_SHORT = Object.freeze({ driver: 'DRIVER', gunner: 'GUNNER', commander
 const seatLabel = id => SEAT_SHORT[id] || String(id).toUpperCase();
 
 export class DeployScreen {
-  constructor(parent, { onDeploy = () => {}, onOpen = () => {}, career = () => null } = {}) {
+  constructor(parent, { onDeploy = () => {}, onOpen = () => {}, career = () => null, onCallMedic = () => {} } = {}) {
     this.onDeploy = onDeploy;
+    // While down: CALL MEDIC sends the comm rose's NEED MEDIC (the rose itself cannot open here).
+    this.onCallMedic = typeof onCallMedic === 'function' ? onCallMedic : () => {};
     this.onOpen = onOpen;
     this.career = typeof career === 'function' ? career : () => null;
     this.unlocks = null;
@@ -49,6 +52,11 @@ export class DeployScreen {
     const titles = el('div', 'cq-deploy-titles', head);
     el('h2', 'cq-deploy-title', titles).textContent = 'DEPLOY';
     this.teamLabel = el('span', 'cq-deploy-team', titles);
+    // NEED MEDIC while down (U, D-pad right or a tap); its label follows the own row's `cqc` request.
+    this.medicButton = el('button', 'cq-deploy-medic', head);
+    this.medicButton.type = 'button';
+    this.medicButton.hidden = true;
+    this.medicButton.addEventListener('click', () => this.onCallMedic());
     // Status (refusals, revive wait, auto-deploy) sits in the header, always in view.
     this.status = el('div', 'cq-deploy-status', head);
     this.status.setAttribute('aria-live', 'polite');
@@ -232,6 +240,13 @@ export class DeployScreen {
 
   _render(model) {
     this.teamLabel.textContent = `${model.teamName}${model.down ? ' · AWAITING REVIVE' : ''}`;
+    const call = model.down ? downedMedicModel(this._modelArgs?.self, this._modelArgs?.players) : null;
+    this.medicButton.hidden = !call;
+    if (call) {
+      if (this.medicButton.textContent !== call.label) this.medicButton.textContent = call.label;
+      this.medicButton.dataset.state = call.requested ? 'called' : 'idle';
+      this.medicButton.disabled = call.requested;
+    }
     this.root.dataset.team = model.team;
     const spawnSig = JSON.stringify([model.selectedKey, this.selection.spawn, model.options.map(o => [o.spawn, o.ok, o.reason, o.label, o.detail, o.seats, o.takeoverNames])]);
     if (spawnSig !== this._spawnSig) {

@@ -59,11 +59,11 @@ try {
     }
   }
   assert.equal(setKeybinding('grenadeSmoke', 'KeyO').conflict, 'grenade', 'quick grenade keys conflict-check like other gameplay actions');
-  setKeybinding('weaponWheel', 'KeyU');
-  input._onKeyDown(key('KeyU'));
+  setKeybinding('weaponWheel', 'KeyP');
+  input._onKeyDown(key('KeyP'));
   assert.equal(input.takeWheelOpenRequest(), true);
   input.setWeaponWheelOpen(true);
-  input._onKeyUp(key('KeyU'));
+  input._onKeyUp(key('KeyP'));
   assert.equal(input.takeWheelRelease(), true, 'remapped wheel release confirms');
   input.setWeaponWheelOpen(false);
   setKeybinding('slot10', 'Numpad0');

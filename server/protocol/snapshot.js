@@ -196,7 +196,11 @@ function playerRow(p, nowMs) {
   row.owned = ownedWeapons(p.owned);
   if (p.tttKarma) row.karma = Math.round(p.tttKarma.base);
   if (p.chaosUpgrades) row.chaosUpgrades = { ...p.chaosUpgrades };
-  if (isRecord(p.conquest)) { row.cq = conquestPlayerRow(p, nowMs); row.cqs = conquestStatsRow(p); }
+  if (isRecord(p.conquest)) {
+    row.cq = conquestPlayerRow(p, nowMs); row.cqs = conquestStatsRow(p);
+    // A live comm rose request (shared/conquest-comms.js encodeCommField), only while one stands.
+    if (Array.isArray(p.conquest.comm)) row.cqc = p.conquest.comm.slice();
+  }
   if (isRecord(p.titanfall)) row.tf = encodeTitanfallPlayer(p.titanfall);
   if (p.bastion) { row.bastion = { ...p.bastion }; row.bastionUpgrades = { ...p.bastionUpgrades }; }
   if (p.npcRole) {
