@@ -525,6 +525,25 @@ export function conquestHudFixtures({ map = 'frontier' } = {}) {
       match, dead: true, killer: { name: 'Rourke', weaponName: 'VK-77 RAPTOR', distance: 64 },
       selection: { spawn: 'beacon:rb1', kit: 'recon', variant: 0, gadget: 0 }, camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
+  // 18f2. Supply crates (docs/design/conquest/supply/): the Support's deploy card with the AMMO CRATE picked,
+  // then on foot beside his own ammo crate and a mate's medical crate (screen and minimap markers, the placed banner).
+  {
+    const self = meAt(C.x, C.z, { hp: 0, state: 'dead', respawnAt: FIXTURE_NOW + 2600, cq: { squad: 1, kitId: 'support' } });
+    out.push(state('supply-deploy', 'Deploy · Support with the AMMO CRATE gadget', { self, players: deployRoster(self), vehicles: [tankRow, heliRow],
+      match: deployMatch(), dead: true, killer: { name: 'Rourke', weaponName: 'VK-77 RAPTOR', distance: 64 },
+      selection: { spawn: 'hq', kit: 'support', variant: 0, gadget: 0 }, camera: cam(C.x, 40, C.z, 0, -0.5) }));
+  }
+  {
+    const at = { x: C.x - 30, z: C.z + 24 };
+    const self = meAt(at.x, at.z, { cq: { squad: 1, kitId: 'support' } });
+    const ammo = { x: at.x + 1, z: at.z - 7 }, med = { x: at.x - 5, z: at.z - 12 };
+    const match = baseMatch();
+    match.conquest.crates = [['sc1', 'me', 0, 0, ammo.x, GROUND, ammo.z, 0, 100, 0], ['sc2', 'sq1', 0, 1, med.x, GROUND, med.z, 30, 75, 0]];
+    out.push(state('supply-crates', 'Support on foot · own AMMO CRATE and a mate\'s MEDICAL CRATE', { self, players: roster(self), match,
+      selection: { kit: 'support', variant: 0, gadget: 0 },
+      events: [{ kind: 'supply_crate', id: 'sc1', crate: 'ammocrate', owner: 'me', team: 'alpha', state: 'placed', pos: [ammo.x, GROUND + 0.26, ammo.z] }],
+      camera: cam(at.x, GROUND + 1.6, at.z, yawTo(at, { x: at.x - 1, z: at.z - 10 }), -0.12) }));
+  }
   // 18g. Recon in the field: own beacon behind, a MOTION SENSOR ahead revealing two moving enemies.
   {
     const at = { x: C.x - 30, z: C.z + 24 };

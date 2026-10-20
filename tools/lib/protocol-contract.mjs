@@ -53,7 +53,8 @@ export function conquestMatchBytes(matchConquest) {
 /** Conquest contract v3 (classes): `cq[0]` indexes this kit list (0-3 kept from v2, new kits appended, so cq[0] <= 8). */
 // v6: squad orders and the comm rose, the Recon gadgets, the Support MORTAR (`mortar` intent and event, deployable `mortar` hull rows with `own`), and ribbons and medals (`ribbon` / `medal` events, the `ribbon` score reason, results rows `cqr` / `cqm` / `cqp` / `cxp`), and vehicle upgrades (deploy `upgrades` map, row `upg`, locked `deploy_refused` with `vehicle` / `upgrade` / `level`), and the mobile AA (`aa` pad hull, `medium` armour class, `flak35` proximity-fused flak), and the patrol boat (`boat` pad hull after `aa`, `bow` mount, Frontier `waterways`), and dynamic weather (`match.conquest.wx` tuple, `weather_strike` event), and the Iron Bridge collapse (`match.conquest.br` tuple, `bridge` event, `bridge_destroyed` score reason).
 // v7: the map events (shared/conquest-map-events.js): `match.conquest.ev` / `evp` rows, the `map_event` event and score reason, the `use` support intent; and the Engineer's FPV drone (deploy `gadget` 2, `fpv` intent and event, deployable `fpv` hull rows with `own` and `fpv`, `drone` armour class, `fpv` kill key, `cqf` player field).
-export const CONQUEST_CONTRACT = Object.freeze({ version: 7 });
+// v8: infantry supply; the supply crates (shared/supply-crates.js): Support gadget 0 `ammocrate`, Medic gadget 0 `medcrate`, the `crate` intent, the `supply_crate` event, `match.conquest.crates` rows.
+export const CONQUEST_CONTRACT = Object.freeze({ version: 8 });
 export const CONQUEST_KIT_IDS = 'assault,engineer,support,recon,medic,pyro,grenadier,raider,marksman';
 /** Event kinds added by the classes update: the Medic aura `heal {id, by, hp}` and `kit_unlocks {id, level, unlocked, newly}`. */
 export const CONQUEST_CLASS_EVENT_KINDS = 'heal,kit_unlocks';

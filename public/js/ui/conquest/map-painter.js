@@ -22,6 +22,8 @@ export function setOverviewMap(mapId) {
 const TONE = Object.freeze({ own: CQ_COLORS.own, enemy: CQ_COLORS.enemy, neutral: CQ_COLORS.neutral,
   squad: CQ_COLORS.squad, spotted: CQ_COLORS.spotted, self: CQ_COLORS.self, contested: CQ_COLORS.contested });
 export const toneColor = rel => TONE[rel] ?? TONE.neutral;
+/** Supply crate glyph colours: the ammo crate's stencil yellow, the medical crate's red cross. */
+export const CRATE_TONE = Object.freeze({ ammocrate: '#ffd166', medcrate: '#ff6b6b' });
 /** Request glyphs (comms-state.js REQUEST_ICONS; repeated so the shared painter keeps its imports light). */
 const REQUEST_GLYPHS = Object.freeze({ medic: 'revive', ammo: 'ammo', repair: 'repair', ride: 'jeep' });
 
@@ -178,6 +180,14 @@ export function paintUnit(ctx, item, c, heading = 0, size = 1) {
       ctx.beginPath(); ctx.arc(0, 0, 7.5 * size, 0, Math.PI * 2); ctx.fillStyle = '#0b1218e6'; ctx.fill();
       ctx.lineWidth = 1.5 * size; ctx.strokeStyle = item.cooldownMs > 0 ? `${color}66` : color; ctx.stroke();
       drawIcon(ctx, 'beacon', 0, 0, 12 * size, color);
+      break;
+    }
+    case 'crate': {
+      // An own supply crate: the ammo box or the medical cross in a dark square (yours ringed in the self tone).
+      const color = item.crate === 'medcrate' ? CRATE_TONE.medcrate : CRATE_TONE.ammocrate;
+      ctx.fillStyle = '#0b1218e6'; ctx.fillRect(-6 * size, -6 * size, 12 * size, 12 * size);
+      ctx.strokeStyle = toneColor(item.rel); ctx.lineWidth = 1.2 * size; ctx.strokeRect(-6 * size, -6 * size, 12 * size, 12 * size);
+      drawIcon(ctx, item.glyph || 'ammo', 0, 0, 10 * size, color);
       break;
     }
     case 'sensor':

@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 7;
+export const CONQUEST_CONTRACT_VERSION = 8;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -109,9 +109,11 @@ export const KIT_IDS = Object.freeze(['assault', 'engineer', 'support', 'recon',
  * and AT MINES in the grenade pouch (`atmine`, shared/at-mine-rules.js). The
  * Recon's choices are pouch gadgets, not weapons (KIT_POUCH_GADGETS in
  * shared/conquest-kits.js): the SPAWN BEACON (0) or two MOTION SENSORS (1).
- * A gadget that is neither is a deployable (DEPLOYABLE_TYPE_IDS): the
- * Support picks no gadget (null, 0) or the MORTAR (1), placed with the
- * `mortar` intent (shared/mortar-rules.js). The Engineer's third choice (2) is
+ * A gadget that is neither is a deployable (DEPLOYABLE_TYPE_IDS) or a supply
+ * crate (CRATE_TYPE_IDS): the Support picks the AMMO CRATE (0, contract v8,
+ * the `crate` intent, shared/supply-crates.js) or the MORTAR (1), placed with
+ * the `mortar` intent (shared/mortar-rules.js); the Medic carries the
+ * MEDICAL CRATE (0, v8). The Engineer's third choice (2) is
  * the FPV kamikaze drone, launched with the `fpv` intent (shared/fpv-rules.js):
  * no launcher, the AT mines stay.
  * `unlockLevel` is the career level that opens the kit (1: a base kit); the
@@ -125,9 +127,9 @@ const KIT = (label, ability, primaries, gadgets, grenades, unlockLevel, extra = 
 export const KITS = Object.freeze({
   assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'shotgun'],       [],                    { frag: 2, pulse: 1 },    1),
   engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger', 'fpv'], { smoke: 1, frag: 1, atmine: 3 }, 1),
-  support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         [null, 'mortar'],      { frag: 2, molotov: 1 },  1),
+  support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         ['ammocrate', 'mortar'], { frag: 2, molotov: 1 }, 1),
   recon:     KIT('RECON',     'spot',       ['sniper', 'longarc'],      ['beacon', 'sensor'],  { limpet: 2, pulse: 1 },  1),
-  medic:     KIT('MEDIC',     'revive',     ['smg', 'longarc'],         [],                    { smoke: 2, frag: 1 },    1, { aura: 'heal' }),
+  medic:     KIT('MEDIC',     'revive',     ['smg', 'longarc'],         ['medcrate'],          { smoke: 2, frag: 1 },    1, { aura: 'heal' }),
   pyro:      KIT('PYRO',      'fireproof',  ['flamethrower', 'shotgun'], [],                   { molotov: 2, smoke: 1 }, 3),
   grenadier: KIT('GRENADIER', 'ordnance',   ['mgl', 'bubble'],          [],                    { frag: 2, smoke: 1 },    5),
   raider:    KIT('RAIDER',    'ghost',      ['glaive', 'smg'],          [],                    { frag: 1, limpet: 1 },   7),
@@ -247,6 +249,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'sector_overtime',   // {team}                         Breakthrough attackers out of tickets fight on for an active flag
   'map_event',         // {event, phase, team?, by?, endsAt?, note?, data?}  a map event phase change or note (shared/conquest-map-events.js; v7)
   'fpv',               // {id, state:'launched'|'refused'|'cut'|'detonated'|'lost', vehicleId?, reason?, waitMs?, pos?}  Engineer FPV drone (shared/fpv-rules.js; v7)
+  'supply_crate',      // {id, crate:'ammocrate'|'medcrate', owner, team, state:'placed'|'moved'|'refused'|'destroyed'|'expired'|'removed', pos?, reason?, waitMs?, by?}  (shared/supply-crates.js; v8)
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);
@@ -278,6 +281,8 @@ export const CONQUEST_INTENT_SHAPE = Object.freeze({
   mortar: '1',
   // Engineer with the FPV gadget: launch a drone and fly it, or cut the link of the one in the air (v7).
   fpv: '1',
+  // Support with the AMMO CRATE or Medic with the MEDICAL CRATE: place it ahead (one per player, again moves it; v8).
+  crate: '1',
 });
 /** input.vehicleAction types (parsed by parseVehicleAction). */
 export const VEHICLE_ACTION_TYPES = Object.freeze(['enter', 'exit', 'seat', 'cm', 'weapon']);
@@ -307,6 +312,13 @@ export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'tr
  */
 export const DEPLOYABLE_TYPE_IDS = Object.freeze(['mortar', 'fpv']);
 export const isDeployableType = type => typeof type === 'string' && DEPLOYABLE_TYPE_IDS.includes(type);
+/**
+ * Supply crates (contract v8, shared/supply-crates.js): kit gadgets placed with
+ * the `crate` intent. No hulls: they ride `match.conquest.crates`. Wire order
+ * (a crate row's kind index): append only.
+ */
+export const CRATE_TYPE_IDS = Object.freeze(['ammocrate', 'medcrate']);
+export const isCrateType = type => typeof type === 'string' && CRATE_TYPE_IDS.includes(type);
 export const VEHICLE_HULL_VARIANTS = Object.freeze({ jeep_at: 'jeep', aa: 'tank' });
 export const vehicleHullType = type => VEHICLE_HULL_VARIANTS[type] ?? type;
 export const VEHICLE_WEAPON_META = Object.freeze({

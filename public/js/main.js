@@ -292,6 +292,8 @@ class Game {
     const id = this.conquestDeployable();
     if (id === 'mortar') return !!this.net?.sendConquest({ mortar: 1 });
     if (id === 'fpv') return !!this.net?.sendConquest({ fpv: 1 });
+    // The Support's AMMO CRATE and the Medic's MEDICAL CRATE: place (move) it ahead.
+    if (id === 'ammocrate' || id === 'medcrate') return !!this.net?.sendConquest({ crate: 1 });
     return false;
   }
 

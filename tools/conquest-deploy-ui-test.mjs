@@ -59,11 +59,12 @@ let groups = 0;
     'the engineer card offers the AT launcher, the STINGER and the FPV drone');
   assert.deepEqual(model.kits.find(k => k.id === 'recon').gadgets.map(g => [g.weapon, g.role, g.selected]), [['beacon', 'BCN', false], ['sensor', 'MSN', false]],
     'the recon card offers the SPAWN BEACON and the MOTION SENSOR');
-  assert.deepEqual(model.kits.filter(k => !['engineer', 'recon', 'support'].includes(k.id)).map(k => k.gadgets.length), [0, 0, 0, 0, 0, 0],
+  assert.deepEqual(model.kits.filter(k => !['engineer', 'recon', 'support', 'medic'].includes(k.id)).map(k => k.gadgets.length), [0, 0, 0, 0, 0],
     'other kits have no gadget choice');
-  // The Support picks no gadget (the default) or the deployable M-81 MORTAR.
-  assert.deepEqual(model.kits.find(k => k.id === 'support').gadgets.map(g => [g.weapon, g.role, g.selected]), [['none', 'NONE', false], ['mortar', 'MORTAR', false]],
-    'the support card offers no gadget or the mortar');
+  // The Support picks the AMMO CRATE (the default) or the deployable M-81 MORTAR; the Medic shows its lone MEDICAL CRATE.
+  assert.deepEqual(model.kits.find(k => k.id === 'support').gadgets.map(g => [g.weapon, g.role, g.selected]), [['ammocrate', 'AMMO', false], ['mortar', 'MORTAR', false]],
+    'the support card offers the ammo crate or the mortar');
+  assert.deepEqual(model.kits.find(k => k.id === 'medic').gadgets.map(g => [g.weapon, g.role]), [['medcrate', 'MED']], 'the medic card shows the medical crate');
   const aa = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
     nowMs: FIXTURE_NOW, selection: { ...deploy.selection, gadget: 1 } });
   assert.deepEqual(aa.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1, upgrades: {} });

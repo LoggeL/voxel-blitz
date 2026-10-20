@@ -92,7 +92,7 @@ export class WorldMarkers {
       // Pooled nodes are reused across kinds and hull types: rebuild the glyph when either changes.
       const mapEvent = m.kind === 'event' || m.kind === 'event-point';
       const glyphKey = m.kind === 'spotted-vehicle' ? `${m.kind}:${m.vehicleType || ''}` : m.kind === 'request' ? `request:${m.comm}`
-        : mapEvent ? `${m.kind}:${m.glyph || 'event'}` : m.kind;
+        : mapEvent || m.kind === 'crate' ? `${m.kind}:${m.glyph || 'event'}` : m.kind;
       if (n.glyphKey !== glyphKey) {
         n.glyphKey = glyphKey;
         n.dataset.kind = m.kind;
@@ -101,8 +101,10 @@ export class WorldMarkers {
           : m.kind === 'spotted-vehicle' ? svgIcon(globalThis.document, m.vehicleType || 'tank', 'cq-unit-icon')
             : m.kind === 'request' ? svgIcon(globalThis.document, REQUEST_ICONS[m.comm] || 'revive', 'cq-unit-icon')
               // Map events (map-events.js): the event's glyph in its hexagon, a point's in a disc.
-              : mapEvent ? svgIcon(globalThis.document, m.glyph || 'event', 'cq-unit-icon') : null;
-        n.dataset.comm = m.comm || '';
+              : mapEvent ? svgIcon(globalThis.document, m.glyph || 'event', 'cq-unit-icon')
+                // Own supply crates (conquest-hud-state.js crateMarkerModels): the ammo box or the cross.
+                : m.kind === 'crate' ? svgIcon(globalThis.document, m.glyph || 'ammo', 'cq-unit-icon') : null;
+        n.dataset.comm = m.comm || m.crate || '';
         if (icon) n.glyph.appendChild(icon);
       }
       // The glyph sits on the projected point; near a screen side the label hangs inward so it is never cut off.
@@ -111,7 +113,7 @@ export class WorldMarkers {
       n.style.transform = `translate(${m.x.toFixed(1)}px, ${m.y.toFixed(1)}px) translateX(${UNIT_SHIFT[align]})`;
       if (n.dataset.tone !== (m.tone || '')) n.dataset.tone = m.tone || '';
       const text = m.kind === 'down' ? `${m.name ? `${m.name} · ` : ''}${m.distance} m` : m.kind === 'squad' ? m.name
-        : m.kind === 'spotted-vehicle' || m.kind === 'request' || mapEvent ? `${m.name} ${m.distance} m` : '';
+        : m.kind === 'spotted-vehicle' || m.kind === 'request' || mapEvent ? `${m.name} ${m.distance} m` : m.kind === 'crate' ? `${m.distance} m` : '';
       if (n.label.textContent !== text) n.label.textContent = text;
     }
     for (; i < this.units.length; i++) this.units[i].hidden = true;

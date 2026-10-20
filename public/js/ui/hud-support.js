@@ -95,7 +95,9 @@ export function weaponImagePath(weaponId) {
  * deploy-screen gadget toggles, the touch button and the kill feed show them
  * in the weapon art's style (docs/design/conquest/fpv/icons/, .../mortar/icons/).
  */
-export const DEPLOYABLE_ART = Object.freeze({ mortar: weaponImagePath('mortar'), fpv: weaponImagePath('fpv') });
+export const DEPLOYABLE_ART = Object.freeze({ mortar: weaponImagePath('mortar'), fpv: weaponImagePath('fpv'),
+  // The supply crates (docs/design/conquest/supply/icons/).
+  ammocrate: weaponImagePath('ammocrate'), medcrate: weaponImagePath('medcrate') });
 /** Kill keys drawn with a deployable's art in the kill feed (the drone's charge, the mortar's shell). */
 export const DEPLOYABLE_KILL_ART = Object.freeze({ fpv: DEPLOYABLE_ART.fpv, mortarHE: DEPLOYABLE_ART.mortar });
 

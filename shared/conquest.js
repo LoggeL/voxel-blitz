@@ -13,6 +13,7 @@ import {
   isDeployableType,
 } from './conquest-contract.js';
 import { RECON_GADGET_RULES, decodeReconGadgets } from './recon-gadgets.js';
+import { decodeSupplyCrates } from './supply-crates.js';
 import { decodeConquestWeather } from './conquest-weather.js';
 import { decodeBridge } from './conquest-bridge.js';
 import { MAP_EVENT_DEFS, decodeMapEvents } from './conquest-map-events.js';
@@ -235,6 +236,8 @@ export function decodeConquestMatch(matchConquest, metaConquest = null, { mapId 
     ticketGraph: Array.isArray(match.ticketGraph) ? match.ticketGraph : null,
     // Recon gadgets (shared/recon-gadgets.js): beacons, sensors and what each team's sensors reveal.
     recon: decodeReconGadgets(match.recon),
+    // Supply crates (shared/supply-crates.js, v8): every standing crate; the HUD shows its own team's.
+    crates: decodeSupplyCrates(match.crates),
     // Dynamic weather (`wx`, shared/conquest-weather.js), null while the server runs none.
     weather: decodeConquestWeather(match.wx),
     // Iron Bridge levolution (contract v6): intact unless `br` rides the snapshot.

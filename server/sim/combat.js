@@ -318,7 +318,16 @@ function meleeSwing(p, ctx, def = p.def, aim = p, quick = false) {
     best = { victim: v, dx, dy, dz, dist };
   }
   const mine = () => mineBlock(p, oEye, fwd, ctx, def.melee.reach);
-  if (!best) { mine(); return; }
+  if (!best) {
+    // No body in the arc: an enemy supply crate in front of the blade takes the blow (unless a wall is nearer).
+    const crate = ctx.meleeGadget?.(p, oEye, fwd, melee.reach) ?? null;
+    if (crate && !raycastVoxels(ctx.solidAt, ...oEye, fwd.x, fwd.y, fwd.z, Math.max(0.05, crate.t))) {
+      ctx.shootGadget(crate, p, meleeDamage(def));
+      return;
+    }
+    mine();
+    return;
+  }
 
   // Voxel line of sight: a wall between the blade and the body stops the swing.
   const dirX = best.dx / best.dist;

@@ -4,6 +4,7 @@ import { FLAG_STATES } from '../../../shared/conquest-contract.js';
 import { patchVoxelLitMaterial } from './voxel-light.js';
 import { disposeObjectTree } from './dispose.js';
 import { ReconGadgetView } from './recon-gadget-view.js';
+import { SupplyCrateView } from './supply-crate-view.js';
 
 // Conquest objectives in the world, Battlefield style: a mast whose cloth is
 // hoisted and lowered with the authoritative control scalar, a slim tall beam
@@ -370,6 +371,9 @@ export class ConquestWorld {
     // Recon spawn beacons and motion sensors (match.conquest.recon).
     this.recon = new ReconGadgetView(scene);
     this.recon.group.visible = false;
+    // Support ammo crates and Medic medical crates (match.conquest.crates).
+    this.crates = new SupplyCrateView(scene);
+    this.crates.group.visible = false;
   }
 
   build(lightUniforms, windYaw) {
@@ -539,11 +543,15 @@ export class ConquestWorld {
   setMode(mode) {
     this.group.visible = !this.disposed && mode === 'conquest' && this.flags.size > 0;
     if (this.recon) this.recon.group.visible = !this.disposed && mode === 'conquest';
+    if (this.crates) this.crates.group.visible = !this.disposed && mode === 'conquest';
   }
 
   sync(match) {
     if (this.disposed) return;
-    if (match?.mode === undefined || match.mode === 'conquest') this.recon?.sync(match?.conquest?.recon);
+    if (match?.mode === undefined || match.mode === 'conquest') {
+      this.recon?.sync(match?.conquest?.recon);
+      this.crates?.sync(match?.conquest?.crates);
+    }
     const states = conquestFlagStates(match, this.layout);
     if (!states) return;
     for (const state of states) {
@@ -660,6 +668,7 @@ export class ConquestWorld {
     if (this.disposed) return;
     this.disposed = true; this.group.visible = false;
     this.recon?.dispose();
+    this.crates?.dispose();
     this.group.removeFromParent();
     for (const mesh of [this.masts, this.cloths, this.beams]) mesh?.dispose();
     disposeObjectTree(this.group);

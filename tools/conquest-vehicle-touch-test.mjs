@@ -187,7 +187,8 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
     nowMs: FIXTURE_NOW, camera: cameraPose({ ...f.camera, aspect: 844 / 390 }), viewport: { width: 844, height: 390 } };
   hud.deploy.selection = { ...hud.deploy.selection, kit: 'support', gadget: 0 };
   hud.update(args);
-  assert.equal(hud.touchContextFields().canMortar, false, 'a Support without the gadget: no button');
+  // Gadget 0 is the AMMO CRATE (contract v8): the same button places it.
+  assert.deepEqual([hud.touchContextFields().canMortar, hud.touchContextFields().mortarLabel], [true, 'AMMO'], 'a Support with the ammo crate: AMMO');
   hud.deploy.selection = { ...hud.deploy.selection, gadget: 1 };
   hud.update(args);
   const fields = hud.touchContextFields();
@@ -202,8 +203,9 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
   assert.equal(mortars.length, 1, 'MORTAR sends the mortar intent through the HUD');
   touch.setContext({ ...infantry, ...fields, canMortar: false });
   assert.equal(touch.dom.mortar.classList.contains('is-hidden'), true);
-  // The HUD refuses on its own while the kit carries no mortar (a stale button press).
-  hud.deploy.selection = { ...hud.deploy.selection, gadget: 0 };
+  // The HUD refuses on its own while the kit carries no deployable (a stale button press).
+  const assault = { ...f.self, cq: [0, ...f.self.cq.slice(1)] };
+  hud.update({ ...args, self: assault, players: f.players.map(p => (p.id === f.self.id ? assault : p)) });
   assert.equal(hud.conquestAction('mortar'), false);
   assert.equal(mortars.length, 1);
   hud.dispose();
