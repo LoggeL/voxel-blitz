@@ -7,13 +7,19 @@ import { VehicleCamera, VEHICLE_CAMERA } from './vehicle-camera.js';
 import { isTitanType } from '../../../shared/titan-contract.js';
 import { vehicleDef } from '../../../shared/vehicle-defs.js';
 /**
- * Upper look limit of a ground driver: 0.65 rad, or higher when the seat lays
- * a turret gun that elevates further (the mobile AA's twin 35 mm to 1.35).
+ * Upper look limit of a ground seat: `floor` (a driver 0.65 rad, a gunner
+ * 0.9), or higher when the seat lays a gun that elevates further: a driver's
+ * turret gun (the mobile AA's twin 35 mm to 1.35), any aimed mount of a
+ * gunner (the AA commander's .50 to 1.1).
  */
-function driverLookMaxPitch(type, seat) {
+function seatLookMaxPitch(type, seat, floor, { turretOnly = false } = {}) {
   const mounts = vehicleDef(type)?.mounts ?? {};
-  let max = 0.65;
-  for (const id of seat?.mounts ?? []) if (mounts[id]?.turret && Number.isFinite(mounts[id].pitchLimit?.[1])) max = Math.max(max, mounts[id].pitchLimit[1]);
+  let max = floor;
+  for (const id of seat?.mounts ?? []) {
+    const mount = mounts[id];
+    if (!mount || mount.fixed || (turretOnly && !mount.turret) || !Number.isFinite(mount.pitchLimit?.[1])) continue;
+    max = Math.max(max, mount.pitchLimit[1]);
+  }
   return max;
 }
 
@@ -450,7 +456,7 @@ export class VehicleController {
       if (this.freeLook) this.view.addFreeLook(dx, dy);
       else {
         this.yaw = wrap(finite(this.yaw) - dx);
-        this.pitch = clamp(finite(this.pitch) - dy, -1.1, 0.9);
+        this.pitch = clamp(finite(this.pitch) - dy, -1.1, seatLookMaxPitch(type, this.seat, 0.9));
       }
       return { yaw: this.yaw, pitch: this.pitch, wantFire: wantsFire };
     }
@@ -549,7 +555,7 @@ export class VehicleController {
       if (this.freeLook) this.view.addFreeLook(dx, dy);
       else {
         this.yaw = wrap(finite(this.yaw) - dx);
-        this.pitch = clamp(finite(this.pitch) - dy, -0.35, driverLookMaxPitch(type, this.seat));
+        this.pitch = clamp(finite(this.pitch) - dy, -0.35, seatLookMaxPitch(type, this.seat, 0.65, { turretOnly: true }));
       }
       if (ride) this.yaw = wrap(hullYaw + clamp(wrap(this.yaw - hullYaw), -VEHICLE_CAMERA.driverHeadYaw, VEHICLE_CAMERA.driverHeadYaw));
     }

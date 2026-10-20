@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
-import { AA_BOT, aaCoverFlag, enemyAirThreats } from '../server/bot-aa.js';
+import { AA_BOT, aaCoverFlag, enemyAirThreats, stickyAaCover } from '../server/bot-aa.js';
 import { applyMountedCombat, pickBotThreat } from '../server/bot-vehicle-combat.js';
 import { flakTrigger, flakTargets } from '../server/sim/flak-fuse.js';
 import {
@@ -27,6 +27,8 @@ import { aaRadarModel, aaTrackTarget, rowAirborne } from '../public/js/ui/conque
 import { reticleModel } from '../public/js/ui/conquest-hud-state.js';
 import { cameraPose, createProjector } from '../public/js/ui/conquest/projection.js';
 import { makeAaModel } from '../public/js/vehicles/models/aa.js';
+import * as THREE from '../public/js/vendor/three.module.js';
+import { VehicleController } from '../public/js/session/vehicle-controller.js';
 
 const TICK = 1000 / 60;
 let passed = 0;
@@ -222,6 +224,18 @@ test('bots: the commander crews the AA only while the enemy flies; its gunner hu
   const flags = [{ id: 'A', owner: 'alpha', x: 90, z: 120 }, { id: 'B', owner: 'alpha', x: 400, z: 400 }, { id: 'C', owner: 'bravo', x: 100, z: 100 }];
   assert.equal(aaCoverFlag(flags, 'alpha', enemyAirThreats(vehicles, 'alpha'), null).id, 'A', 'the own flag under the enemy aircraft');
   assert.equal(aaCoverFlag(flags, 'alpha', [], flags[2]), flags[2], 'no air threat: the focus flag');
+  // The cover flag is held while the jet crosses the map, then re-chosen.
+  const jet = x => [{ id: 'j', type: 'plane', team: 'bravo', hp: 450, x, z: x }];
+  let cover = stickyAaCover(null, flags, 'alpha', jet(100), 0, flags[2]);
+  assert.equal(cover.flag.id, 'A');
+  cover = stickyAaCover(cover.held, flags, 'alpha', jet(400), 5000, flags[2]);
+  assert.equal(cover.flag.id, 'A', 'held while the jet crosses over B');
+  cover = stickyAaCover(cover.held, flags, 'alpha', jet(400), AA_BOT.coverHoldMs + 1, flags[2]);
+  assert.equal(cover.flag.id, 'B', 'then re-chosen under the jet');
+  const lost = flags.map(f => f.id === 'B' ? { ...f, owner: 'bravo' } : f);
+  cover = stickyAaCover(cover.held, lost, 'alpha', jet(400), AA_BOT.coverHoldMs + 2, flags[2]);
+  assert.equal(cover.flag.id, 'A', 'a held flag the team lost is dropped at once');
+  assert.deepEqual(stickyAaCover(null, flags, 'alpha', [], 0, flags[2]), { flag: flags[2], held: null }, 'no threat, no hold: the focus flag');
 
   // Mounted combat: a bot in the AA driver seat takes on a helicopter 300 m out, behind it, and fires.
   const floor = 2, dims = { sx: 640, sy: 160, sz: 640 };
@@ -275,9 +289,19 @@ test('bots on Frontier: no AA crew without enemy aircraft, an AA crew (before th
   assert(game.vehicles.enter(pilot, heli.id, 'driver'));
   replan();
   assert.ok(crewTypes('alpha').includes('aa:driver'), `the enemy flies: ${crewTypes('alpha')}`);
-  const crew = [...bots.commander.teams.get('alpha').crews.entries()].find(([, c]) => c.vehicleId === 'alpha-aa');
+  const crew = [...bots.commander.teams.get('alpha').crews.entries()].find(([, c]) => c.vehicleId === 'alpha-aa' && c.seatId === 'driver');
   const assignment = bots.commander.crewFor(crew[0]);
   assert.equal(assignment.flag?.owner ?? 'alpha', 'alpha', 'the AA covers an own flag (or the focus flag)');
+  // The crew bot boards; then the pilot gets out (or is shot down): the AA crew stays for AA_BOT.holdMs, then stands down.
+  const aaHull = game.vehicles.vehicles.get('alpha-aa'), gunnerBot = game.entities.get(crew[0]);
+  Object.assign(gunnerBot, { x: aaHull.x, y: aaHull.y, z: aaHull.z });
+  assert(game.vehicles.enter(gunnerBot, aaHull.id, 'driver'));
+  assert(game.vehicles.exit(pilot));
+  replan();
+  assert.ok(crewTypes('alpha').includes('aa:driver'), `the AA crew holds after the threat: ${crewTypes('alpha')}`);
+  const later = game.now + AA_BOT.holdMs + 1000;
+  game.mode.policy._view = null; bots.commander.viewAt = -1; bots.commander.plan(later);
+  assert.ok(!crewTypes('alpha').some(t => t.startsWith('aa:')), `and stands down once the hold ran out: ${crewTypes('alpha')}`);
   bots.dispose(); game.stop();
 });
 
@@ -311,6 +335,16 @@ test('client: radar scope, track and lead from snapshot rows; the model builds b
   assert.ok(model.mounts['commander:rws'] && model.radar && model.seatAnchors.commander);
   model.animate(0.5, {});
   assert.ok(model.radar.rotation.y !== 0, 'the search radar turns');
+  // The look reaches each seat's gun elevation: the driver's 35 mm to 1.35, the commander's .50 to 1.1.
+  const controller = new VehicleController({ camera: new THREE.PerspectiveCamera(70, 16 / 9), eventTarget: null, raycast: () => null });
+  const up = (seatId, id) => {
+    controller.sync({ self: { id, state: 'alive', hp: 100, team: 'alpha', x: 0, y: 1, z: 0, vehicleId: 'aa', vehicleSeatId: seatId },
+      vehicles: [{ ...self, seatOccupants: { [seatId]: id } }], enabled: true });
+    return controller.controls({}, { dx: 0, dy: -5 }).pitch;
+  };
+  assert.ok(Math.abs(up('driver', 'me') - VEHICLE_DEFS.aa.mounts.main.pitchLimit[1]) < 1e-9, 'driver look up to the guns\' limit');
+  assert.ok(Math.abs(up('commander', 'cm') - VEHICLE_DEFS.aa.mounts.rws.pitchLimit[1]) < 1e-9, 'commander look up to the .50\'s limit');
+  controller.dispose?.();
 });
 
 console.log(`conquest AA test: ${passed} passed`);
