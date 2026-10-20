@@ -4,6 +4,7 @@ import { FLAG_STATES } from '../../../shared/conquest-contract.js';
 import { patchVoxelLitMaterial } from './voxel-light.js';
 import { disposeObjectTree } from './dispose.js';
 import { ReconGadgetView } from './recon-gadget-view.js';
+import { PouchView } from './pouch-view.js';
 
 // Conquest objectives in the world, Battlefield style: a mast whose cloth is
 // hoisted and lowered with the authoritative control scalar, a slim tall beam
@@ -370,6 +371,9 @@ export class ConquestWorld {
     // Recon spawn beacons and motion sensors (match.conquest.recon).
     this.recon = new ReconGadgetView(scene);
     this.recon.group.visible = false;
+    // Ammo pouches of the fallen (match.conquest.pch, change and keyframe ticks only).
+    this.pouches = new PouchView(scene);
+    this.pouches.group.visible = false;
   }
 
   build(lightUniforms, windYaw) {
@@ -539,11 +543,16 @@ export class ConquestWorld {
   setMode(mode) {
     this.group.visible = !this.disposed && mode === 'conquest' && this.flags.size > 0;
     if (this.recon) this.recon.group.visible = !this.disposed && mode === 'conquest';
+    if (this.pouches) this.pouches.group.visible = !this.disposed && mode === 'conquest';
   }
 
   sync(match) {
     if (this.disposed) return;
-    if (match?.mode === undefined || match.mode === 'conquest') this.recon?.sync(match?.conquest?.recon);
+    if (match?.mode === undefined || match.mode === 'conquest') {
+      this.recon?.sync(match?.conquest?.recon);
+      // An absent `pch` keeps the shown pouches; no conquest block at all clears them.
+      this.pouches?.sync(match?.conquest ? match.conquest.pch : []);
+    }
     const states = conquestFlagStates(match, this.layout);
     if (!states) return;
     for (const state of states) {
@@ -619,6 +628,7 @@ export class ConquestWorld {
   update(dt = 0, camera = null) {
     if (this.disposed) return;
     this.recon?.update(dt);
+    this.pouches?.update(dt);
     if (!this.cloths) return;
     const step = Math.max(0, Number(dt) || 0);
     this.time.value += step;
@@ -660,6 +670,7 @@ export class ConquestWorld {
     if (this.disposed) return;
     this.disposed = true; this.group.visible = false;
     this.recon?.dispose();
+    this.pouches?.dispose();
     this.group.removeFromParent();
     for (const mesh of [this.masts, this.cloths, this.beams]) mesh?.dispose();
     disposeObjectTree(this.group);

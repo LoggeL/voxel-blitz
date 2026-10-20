@@ -35,7 +35,7 @@ const eq = (a, b, message) => { assert.deepEqual(a, b, message); checks++; };
 const flat = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]);
 
 // ------------------------------------------------------------ contract --
-eq(CONQUEST_CONTRACT_VERSION, 7, 'contract v6 carries the mortar');
+eq(CONQUEST_CONTRACT_VERSION, 8, 'contract v6 carries the mortar');
 eq(CONQUEST_EVENT_KINDS[CONQUEST_EVENT_KINDS.indexOf('recon_gadget') + 1], 'mortar', 'the mortar event kind is appended after the recon kind');
 eq(CONQUEST_INTENT_SHAPE.mortar, '1');
 eq(DEPLOYABLE_TYPE_IDS, ['mortar', 'fpv']);

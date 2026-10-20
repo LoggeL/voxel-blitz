@@ -193,6 +193,14 @@ export class CombatFeedback {
         if (ev.id === myId) this.hud.powerup(ev);
         break;
       }
+      case 'ammo_pouch': {
+        // Conquest ammo pouch of the fallen: the bastion pickup chime and a short '+1 MAG' toast.
+        if (String(ev.id) === String(myId)) {
+          this.sfx.bastionCue?.('bastion_pickup');
+          this.hud.powerup?.({ type: 'ammo', label: '+1 MAG' });
+        }
+        break;
+      }
       case 'shoot': {
         if (ev.chaosArc) { this.effects.railBeams?.shoot(ev); break; }
         // Extra Chaos jets are authoritative and have no local prediction.

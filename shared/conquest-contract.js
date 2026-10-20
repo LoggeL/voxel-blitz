@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 7;
+export const CONQUEST_CONTRACT_VERSION = 8;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -247,6 +247,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'sector_overtime',   // {team}                         Breakthrough attackers out of tickets fight on for an active flag
   'map_event',         // {event, phase, team?, by?, endsAt?, note?, data?}  a map event phase change or note (shared/conquest-map-events.js; v7)
   'fpv',               // {id, state:'launched'|'refused'|'cut'|'detonated'|'lost', vehicleId?, reason?, waitMs?, pos?}  Engineer FPV drone (shared/fpv-rules.js; v7)
+  'ammo_pouch',        // {id, pouch, rounds}            `id` took ammo pouch `pouch` (one magazine, `rounds` reserve); the list rides match.conquest.pch (shared/ammo-pouches.js; v8)
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);

@@ -57,9 +57,9 @@ export function eventFixture({ map = 'frontier', variant = 'conquest', defs = []
   };
 }
 
-/** `match.conquest` bytes without the blocks that carry budgets of their own (`recon`, `ev`, `evp`). */
+/** `match.conquest` bytes without the blocks that carry budgets of their own (`recon`, `ev`, `evp`, `pch`). */
 export function conquestBaseBytes(matchConquest) {
-  const { recon = null, ev = null, evp = null, ...base } = matchConquest ?? {};
+  const { recon = null, ev = null, evp = null, pch = null, ...base } = matchConquest ?? {};
   return JSON.stringify(base).length;
 }
 

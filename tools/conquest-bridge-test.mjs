@@ -52,8 +52,8 @@ const strip = ev => Object.fromEntries(Object.entries(ev).filter(([k]) => !['at'
 
 // ---------------------------------------------------------------- rules and contract
 {
-  assert.equal(CONQUEST_CONTRACT_VERSION, 7, 'the bridge is contract v6');
-  assert.equal(CONQUEST_CONTRACT.version, 7);
+  assert.equal(CONQUEST_CONTRACT_VERSION, 8, 'the bridge is contract v6');
+  assert.equal(CONQUEST_CONTRACT.version, 8);
   assert.equal(CONQUEST_BRIDGE_KEY, 'br');
   assert.equal(CONQUEST_EVENT_KINDS.indexOf('bridge'), CONQUEST_EVENT_KINDS.indexOf('weather_strike') + 1, 'the bridge event kind is appended after the weather');
   assert.equal(SCORE_POINTS.bridge_destroyed, 200);

@@ -124,7 +124,7 @@ const session = await source('public/js/session/session.js');
 assert(session.includes('...CONQUEST_EVENT_KINDS'), 'session forwards every CONQUEST_EVENT_KINDS entry');
 assert(session.includes("import { CONQUEST_EVENT_KINDS } from '../../../shared/conquest-contract.js'"));
 const consumers = await Promise.all(['public/js/ui/conquest-hud.js', 'public/js/ui/conquest-hud-state.js',
-  'public/js/vehicles/vehicle-fx.js', 'public/js/audio/objective-cues.js'].map(source));
+  'public/js/vehicles/vehicle-fx.js', 'public/js/audio/objective-cues.js', 'public/js/combat/feedback.js'].map(source));
 for (const kind of CONQUEST_EVENT_KINDS) {
   assert(consumers.some(text => text.includes(`'${kind}'`)), `${kind} has a client consumer`);
 }
