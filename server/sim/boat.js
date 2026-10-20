@@ -18,13 +18,20 @@ const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
 /** A swimmer leaving a boat in open water: feet this far under the surface (body centre in the water). */
 export const BOAT_SWIM_EXIT_DEPTH = 1.2;
 
-/** Top face of the highest water voxel of column (x, z) within reach of `around`, or null. */
+/**
+ * Top face of the highest water voxel of column (x, z) within reach of
+ * `around`, or a running flood field's level there when it stands higher
+ * (a bore lifts the boat; shared/world/flood-field.js), or null.
+ */
 export function waterSurfaceAt(world, x, z, around, up = 1.5, down = 2.5) {
   const bx = Math.floor(x), bz = Math.floor(z), d = world.dimensions;
   if (d && (bx < 0 || bz < 0 || bx >= d.sx || bz >= d.sz)) return null;
   const top = Math.min(d ? d.sy - 1 : Infinity, Math.floor(around + up)), bottom = Math.max(0, Math.floor(around - down));
-  for (let y = top; y >= bottom; y--) if (world.getBlock(bx, y, bz) === MC_WATER) return y + 1;
-  return null;
+  let voxel = null;
+  for (let y = top; y >= bottom && voxel == null; y--) if (world.getBlock(bx, y, bz) === MC_WATER) voxel = y + 1;
+  const level = world.flood?.active ? world.flood.level(x, z) : NaN;
+  if (level === level && level >= bottom && level <= top + 1) return voxel == null ? level : Math.max(voxel, level);
+  return voxel;
 }
 
 /**

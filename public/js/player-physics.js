@@ -6,6 +6,7 @@ import { leanBlocked, leanEyeOffset, stepBodyLean } from '../../shared/player-le
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
 import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canStartVault, findVault, findSwimExit, stepVault } from '../../shared/player-movement.js';
 import { getBlock, ladderContact, isSolidBlock, FLUID_BLOCKS } from '../../shared/worlddata.js';
+import { LOCAL_FLOOD } from '../../shared/world/flood-field.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 import { slideContact, stepSlideRide } from '../../shared/slide-rules.js';
 import { slidePlayerVehicleAxis, constrainPlayerVehicleMotion } from '../../shared/player-vehicle-collision.js';
@@ -46,7 +47,11 @@ export class PlayerPhysics {
     this.slide = null;
     this.mapMeta = null;
     this._solidAt = (x, y, z) => this.solid(x, y, z);
-    this._fluidAt = (x, y, z) => FLUID_BLOCKS.has(getBlock(x, y, z));
+    // A running flood field (LOCAL_FLOOD, shared/world/flood-field.js) answers for the cells it covers, as on the server.
+    this._fluidAt = (x, y, z) => {
+      const wet = LOCAL_FLOOD.fields.length ? LOCAL_FLOOD.wetCell(x, y, z) : undefined;
+      return wet ?? FLUID_BLOCKS.has(getBlock(x, y, z));
+    };
     this.swimming = false;
     // Conquest parachute / ejection seat (shared/parachute.js), predicted like the authority.
     this.airRules = false;

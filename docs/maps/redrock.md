@@ -76,9 +76,10 @@ Vehicles cross the river only at five points:
 The dam can be blown (rules in [conquest.md](../conquest.md), *Redrock Dam breach*; data in `shared/map-events/dam.js`). Map-side facts:
 
 - The two charges sit in the gallery's portal passages (west x371, east x397, z388, floor y24), not in the middle of the gallery: the bots' surface graph (2.5D, one standing height a cell) cannot reach the gallery under the crest, but it reaches the portal mouths. So the gallery is not a bot route either, whatever the *Bots* paragraph below suggests for players.
-- The breach cuts x374–393 (z378–403) from the sill (y21, which stays) to y37; both abutments and flag C's 12 spawn cells stand. The intake towers stay, their feet dry once the reservoir drains.
-- The reservoir (z0–377, x150–618) drains to y21: 64 283 water cells over 15 862 columns. The canyon (z391–767, x300–468) rises 2 m, from its y19 surface to y21 (17 725 cells), so the wash ford goes under water and is closed for bot drivers; vehicles cross at the trestle and the north bridge (ford-north drains dry).
-- Changes are runtime voxel edits only; the pristine template and its fingerprint are unchanged, and a rematch restores them. A joiner after the breach gets a 422 KB map-cache patch (150 KB deflated).
+- The breach cuts x374–393 (z378–403) from a raised sill (y24, which stays) to y37; both abutments stand, and flag C's 12 spawn cells sit 6 on each abutment (radii 27–48 m from the flag centre, two picks a side). The intake towers stay. The spillway face (x376–391, y20–33, z390–404) is the bombable second way in.
+- The water is a flood field (`shared/world/flood-field.js`) built from the template's column floors. The basin (12 664 columns, z214–377, x150–618, surface y27) falls to the y24 sill over about a minute (75 % of its 3 m in 30 s); a riffle at its head (z214–236) holds the north river's level, so the north bridge, ford-north and the north river keep their water and the drained basin keeps a channel at least 2.77 m deep (no lake-bed crossing for tanks). The canyon (z391–767, x300–468) takes a 1-D wave: 6.2 m over the floor at the dam foot, at the trestle (z500) after 16 s and 5.8 m deep (under the y32 deck), at the wash ford (z640) after 38 s, at the south edge after 58 s; it settles 2.2–2.5 m over its y20 floor (surface y23.2–23.5), so the wash ford and the canyon floor drown every hull for the round. Vehicles cross at the trestle and the north bridge.
+- Only settled water becomes voxels: 332 jobs of one 16 x 16 tile (36 402 basin cells removed as the level passes them, 30 302 canyon cells added once a row has settled), at most 4 jobs a second. A joiner after the breach gets a 343 KB map-cache patch (101 KB deflated) and runs the field from the snapshot's seconds since the breach.
+- Changes are runtime voxel edits only; the pristine template and its fingerprint are unchanged, and a rematch restores them.
 
 ## Terrain (`redrock-terrain.js`)
 
@@ -161,7 +162,7 @@ The waiting lobby with Conquest and Redrock picked is captured in `captures/lobb
 
 `node tools/redrock-lobby-test.mjs` (also in `npm run conquest:test`) runs the lobby over the real server: Conquest offers Redrock with Frontier as the default, other modes refuse it, the host's client receives Redrock's authoritative voxels, and the live match runs on Redrock's fleet and flags. `tools/lobby-settings-test.mjs` checks the lobby map menu and hint.
 
-`tools/atlastest.mjs` pins the template fingerprint (`385e4f55`, 1 561 879 bytes) and the spawn counts. Re-pin them after any change to Redrock's geometry.
+`tools/atlastest.mjs` pins the template fingerprint (`53094777`, 1 561 884 bytes) and the spawn counts. Re-pin them after any change to Redrock's geometry.
 
 ## Map events
 

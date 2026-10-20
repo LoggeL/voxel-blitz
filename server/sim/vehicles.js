@@ -1352,12 +1352,35 @@ export class VehicleSystem {
     if (memo) this.endRest(v, memo);
     else this.restMemos.delete(v);
   }
-  /** Water (m) standing over a ground hull's floor at its centre: top of the highest water voxel in that column minus its y. */
+  /**
+   * Water (m) standing over a ground hull's floor at its centre: top of the
+   * highest water voxel in that column minus its y, or a running flood
+   * field's level there when it stands higher (shared/world/flood-field.js).
+   */
   waterDepth(v) {
     const world = this.engine.world, bx = Math.floor(v.x), bz = Math.floor(v.z);
     let y = Math.floor(v.y + 0.05), top = null;
     while (y < (world.dimensions?.sy ?? 80) && world.getBlock(bx, y, bz) === MC_WATER) top = ++y;
-    return top == null ? 0 : top - v.y;
+    const voxel = top == null ? 0 : top - v.y;
+    const level = world.flood?.active ? world.flood.level(v.x, v.z) : NaN;
+    return level === level ? Math.max(voxel, level - v.y) : voxel;
+  }
+  /**
+   * Move a ground hull by (dx, dz) without driving it (a flood carrying a
+   * jeep): the full step, else either axis alone, wherever it fits and has
+   * support or room to fall. Returns true when it moved.
+   */
+  drift(v, dx, dz) {
+    if (!(v.hp > 0) || isAircraft(v.type) || !(Math.abs(dx) + Math.abs(dz) > 1e-6)) return false;
+    for (const [x, z] of [[v.x + dx, v.z + dz], [v.x + dx, v.z], [v.x, v.z + dz]]) {
+      if (x === v.x && z === v.z) continue;
+      const floor = this.placement(v, x, z);
+      if (floor == null && !this.clearHull(v, x, v.y, z)) continue;
+      v.x = x; v.z = z;
+      if (floor != null && floor >= v.y - 1e-8) v.y = floor;
+      return true;
+    }
+    return false;
   }
   /** True while a ground hull stands deeper than it wades (WADE_RULES.depth by type; hulls without a depth never flood). */
   flooded(v) {

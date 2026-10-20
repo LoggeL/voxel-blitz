@@ -55,15 +55,18 @@ export const DAM_SITE = Object.freeze({
     Object.freeze({ x: 426.5, z: 376.5, faces: 'axis' }),
   ]),
   // On the abutments, level with the crest (y34): south of the crest clear of
-  // the canyon rim, north of it clear of the reservoir shore. They read the
-  // terrain, so they resolve on first use (importing the site builds nothing).
+  // the canyon rim, north of it clear of the reservoir shore. Six on each
+  // abutment, so a breached dam (two abutments with the gap between) still
+  // spawns both halves of C. They read the terrain, so they resolve on first
+  // use (importing the site builds nothing).
   get spawns() {
-    spawnCells ??= pickSpawnCells(FLAG.x, FLAG.z, {
+    const side = sign => pickSpawnCells(FLAG.x, FLAG.z, {
       exclude: [CONTROL, TURBINE, rect(341, 390, 351, 400), rect(416, 390, 426, 400)],
-      radii: [27, 30, 34, 38, 42, 46],
-      accept: (x, z) => redrockTopY(x, z) >= CREST - 1
+      count: 6, radii: [27, 30, 34, 38, 42, 46, 48],
+      accept: (x, z) => (x - FLAG.x) * sign > 0 && redrockTopY(x, z) >= CREST - 1
         && ((z > REDROCK_DAM.z1 + 2 && Math.abs(x - FLAG.x) > 25) || (z < REDROCK_DAM.z0 - 2 && Math.abs(x - FLAG.x) > 44)),
     });
+    spawnCells ??= Object.freeze([...side(-1), ...side(1)]);
     return spawnCells;
   },
 });

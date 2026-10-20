@@ -211,7 +211,7 @@ frame();
 frame();
 
 // ?probe=1: scene handles for scripted render probes (hide a layer, re-export).
-if (params.get('probe') === '1') window.__vbProbe = { scene: worldview.scene, camera, worldview, frame, THREE };
+if (params.get('probe') === '1') window.__vbProbe = { scene: worldview.scene, camera, worldview, frame, THREE, world };
 document.documentElement.dataset.captureReady = 'true';
 document.documentElement.dataset.captureMap = map;
 document.documentElement.dataset.captureShot = shotId;
