@@ -38,7 +38,8 @@ function deployableEntry(id) {
     cls: label?.hint || '',
     icon: deployableIcon(id),
     key: bindingLabel(`slot${GADGET_DIGIT + 1}`),
-    ammo: 'PLACE',
+    // The mortar is placed; the FPV drone is launched (and, flying, its link cut).
+    ammo: id === 'fpv' ? 'LAUNCH' : 'PLACE',
     owned: true,
     current: false,
     slot: null,

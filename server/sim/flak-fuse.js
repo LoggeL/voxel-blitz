@@ -9,17 +9,17 @@
  * graze. Ground hulls, landed aircraft, friendly aircraft and infantry never
  * trigger it; those only take a contact hit or the end-of-life airburst.
  */
-import { isAircraftType } from '../../shared/vehicle-defs.js';
+import { isAircraftType, isDroneType } from '../../shared/vehicle-defs.js';
 import { nearestHullPoint, vehicleHullParts } from '../../shared/vehicle-collision.js';
 
 /** Segment samples are at most this far apart (m), well under the fuse radius. */
 const SAMPLE_STEP = 1;
 
-/** Airborne enemy aircraft the fuse looks for. */
+/** Airborne enemy aircraft the fuse looks for, and enemy FPV drones (always airborne). */
 export function flakTargets(vehicles, team) {
   const out = [];
   for (const v of vehicles?.values?.() ?? []) {
-    if (!(v.hp > 0) || v.grounded !== false || !isAircraftType(v.type)) continue;
+    if (!(v.hp > 0) || !(isDroneType(v.type) || (v.grounded === false && isAircraftType(v.type)))) continue;
     if (team != null && v.team === team) continue;
     out.push(v);
   }

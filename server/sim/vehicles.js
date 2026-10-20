@@ -27,6 +27,7 @@ import { isTitanfall } from '../../shared/modes.js';
 import { isTitanType } from '../../shared/titan-contract.js';
 import { isWalkerType, isBoatType } from '../../shared/vehicle-defs.js';
 import { MortarSystem } from './mortars.js';
+import { FpvSystem } from './fpv-drones.js';
 import { upgradeCode, upgradeScale } from '../../shared/vehicle-upgrades.js';
 import { advanceBoat, boatPlacement, boatSwimExit, sinkBoatWreck, updateBoatAttitude } from './boat.js';
 
@@ -196,6 +197,9 @@ export class VehicleSystem {
     // Support mortars (shared/mortar-rules.js): deployed hulls, Conquest only.
     this.mortars = this.combatProfile === 'conquest' ? (this.mortars ?? new MortarSystem(this)) : null;
     this.mortars?.reset();
+    // Engineer FPV drones (shared/fpv-rules.js): flown hulls, Conquest only.
+    this.fpv = this.combatProfile === 'conquest' ? (this.fpv ?? new FpvSystem(this)) : null;
+    this.fpv?.reset();
     this.ramGuards = this.ramGuardZones();
     for (const p of this.engine.entities.values()) if (p.vehicleId || p.vehicleSeatId) this.release(p);
     this.lastDrivers.clear();
@@ -1667,7 +1671,7 @@ export class VehicleSystem {
     for (const v of this.vehicles.values()) {
       if (!(v.hp > 0)) continue;
       // Walkers and emplacements (the mortar's level baseplate) keep their own attitude and never go home.
-      const own = isWalkerType(v.type) || vehicleDef(v).handling === 'emplacement';
+      const own = isWalkerType(v.type) || vehicleDef(v).handling === 'emplacement' || vehicleDef(v).handling === 'drone';
       if (!own) this.updateAttitude(v, duration);
       this.mounts.step(v, duration);
       if (!own) this.checkAbandoned(v, duration);
@@ -1772,7 +1776,7 @@ export class VehicleSystem {
       if(!(v.hp>0)) {
         if (v.padInactive) continue;
         this.advanceWreck(v,dt);
-        if (this.titans?.wreckDone(v) || this.mortars?.wreckDone(v)) { this.vehicles.delete(v.id); continue; }
+        if (this.titans?.wreckDone(v) || this.mortars?.wreckDone(v) || this.fpv?.wreckDone(v)) { this.vehicles.delete(v.id); continue; }
         v.respawnIn=Math.max(0,v.respawnIn-dt);
         // A held pad (setPadHeld) takes the wreck away instead of respawning it.
         if(v.respawnIn===0) { if (v.padHeld) v.padInactive = true; else this.tryRespawn(v, dt); }
@@ -1787,6 +1791,7 @@ export class VehicleSystem {
       if (p && p.seatGraceUntil > this.contactClock && p.seatGraceVehicleId === v.id && input.vehicleControlId !== v.id) input = TAKEOVER_HOLD_INPUT;
       if (this.titans && vehicleDef(v).handling === 'walker') { this.titans.advance(v, p, input, dt); if (v.hp > 0) this.syncCrew(v); continue; }
       if (vehicleDef(v).handling === 'emplacement') { this.mortars?.advance(v, dt); if (v.hp > 0) this.syncCrew(v); continue; }
+      if (vehicleDef(v).handling === 'drone') { this.fpv?.advance(v, dt); continue; }
       const k=input.keys || {};
       const allowed = this.canOperate(p);
       v.engineOn=allowed;
@@ -1884,6 +1889,7 @@ export class VehicleSystem {
     this.locks.breakLocks(v);
     this.titans?.onDestroyed(v, killer);
     this.mortars?.onDestroyed(v, killer);
+    this.fpv?.onDestroyed(v, killer);
     this.destructionQueue.push({vehicle:v,attacker:killer,sourceTeam:sourceTeam ?? v.team});
     // Marking every hull dead before adding it to this queue prevents both
     // recursive call stacks and a chain returning to the original chassis.
@@ -2046,6 +2052,7 @@ export class VehicleSystem {
     if (!(v.hp > 0)) row.wreckAge = Number.isFinite(v.wreckAge) ? q(v.wreckAge, 10) : 0;
     this.titans?.rowExtras(v, row);
     this.mortars?.rowExtras(v, row);
+    this.fpv?.rowExtras(v, row);
     return row;
   }
   snapshot() {

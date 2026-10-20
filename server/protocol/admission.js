@@ -279,7 +279,7 @@ export function parseTitanfallIntent(raw) {
   }
 }
 
-const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'comm', 'order', 'mortar']);
+const CONQUEST_INTENT_KEYS = Object.freeze(['deploy', 'spot', 'support', 'redeploy', 'comm', 'order', 'mortar', 'fpv']);
 const SUPPORT_TYPES = Object.freeze(['revive', 'repair']);
 const ORDER_FLAG_PATTERN = /^[A-Z]$/;
 
@@ -289,13 +289,14 @@ const ORDER_FLAG_PATTERN = /^[A-Z]$/;
  * - deploy {spawn, kit?, variant?, gadget?}: spawn matches the strict spawn
  *   grammar, kit is a KIT_IDS id (default assault), variant is 0 or 1
  *   (default 0), gadget is 0 or an index into that kit's `gadgets` (default 0:
- *   the Engineer's AT launcher; 1 is the STINGER, the Support's 1 the MORTAR);
+ *   the Engineer's AT launcher; 1 is the STINGER, 2 the FPV drone, the Support's 1 the MORTAR);
  * - spot: 1 (or true);
  * - support {type: 'revive'|'repair', targetId: string <= 64};
  * - redeploy: 1 (or true), the in-game menu RESPAWN;
- * - mortar: 1 (or true), the Support places and mans his mortar.
+ * - mortar: 1 (or true), the Support places and mans his mortar;
+ * - fpv: 1 (or true), the FPV Engineer launches his drone or cuts its link.
  * Returns `{type:'deploy', spawn, kit, variant, gadget}`, `{type:'spot'}`,
- * `{type:'support', support, targetId}`, `{type:'redeploy'}`, `{type:'mortar'}` or null.
+ * `{type:'support', support, targetId}`, `{type:'redeploy'}`, `{type:'mortar'}`, `{type:'fpv'}` or null.
  */
 export function parseConquestIntent(raw) {
   if (!isRecord(raw)) return null;
@@ -310,6 +311,7 @@ export function parseConquestIntent(raw) {
   if (key === 'comm') return COMM_KINDS.includes(value) ? { type: 'comm', comm: value } : null;
   if (key === 'order') return typeof value === 'string' && (value === '' || ORDER_FLAG_PATTERN.test(value)) ? { type: 'order', flag: value } : null;
   if (key === 'mortar') return value === 1 || value === true ? { type: 'mortar' } : null;
+  if (key === 'fpv') return value === 1 || value === true ? { type: 'fpv' } : null;
   if (key === 'support') {
     if (!isRecord(value) || !hasExactKeys(value, ['type', 'targetId'])) return null;
     if (!SUPPORT_TYPES.includes(value.type) || !isIdString(value.targetId, 64)) return null;
@@ -321,7 +323,7 @@ export function parseConquestIntent(raw) {
   if (Object.hasOwn(value, 'kit') && !KIT_IDS.includes(value.kit)) return null;
   if (Object.hasOwn(value, 'variant') && value.variant !== 0 && value.variant !== 1) return null;
   const kit = value.kit ?? KIT_IDS[0];
-  if (Object.hasOwn(value, 'gadget') && value.gadget !== 0 && !(value.gadget === 1 && (KITS[kit].gadgets?.length ?? 0) > 1)) return null;
+  if (Object.hasOwn(value, 'gadget') && value.gadget !== 0 && !((value.gadget === 1 || value.gadget === 2) && (KITS[kit].gadgets?.length ?? 0) > value.gadget)) return null;
   const upgrades = Object.hasOwn(value, 'upgrades') ? parseUpgradeChoice(value.upgrades) : undefined;
   if (upgrades === null) return null;
   return { type: 'deploy', spawn: value.spawn, kit, variant: value.variant ?? 0, gadget: value.gadget ?? 0, ...(upgrades ? { upgrades } : {}) };

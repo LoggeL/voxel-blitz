@@ -1165,3 +1165,75 @@ body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conque
   .vb-touch-mode .cq-mortar-rounds { gap: 4px; font-size: 9px; }
   .vb-touch-mode .cq-mortar-weapon { display: none; }
 }
+
+/* ---------------------------------------------------------------- FPV drone feed */
+/* Design docs/design/conquest/fpv/ (variant C): goggle vignette, analog static that
+   thickens with signal loss, a square reticle and one bottom instrument strip. */
+body[data-fpv="true"] :is(#ammo, #grenade-count, #weaponname, #pickaxe-meter, #charge-meter, #medkit-inventory, #medkit-progress, #grenade-readied, #grenade-aim, #healthbar, #crosshair, #hitmarker) { display: none !important; }
+.vb-conquest-hud[data-fpv="true"] :is(.cq-minimap, .cq-squad, .cq-order, .cq-radio, .cq-map-hint, .cq-ring, .cq-interact, .cq-weather, .cq-view) { display: none !important; }
+.cq-fpv { position: absolute; inset: 0; pointer-events: none; }
+.cq-fpv-static {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  mix-blend-mode: overlay; opacity: 0;
+}
+.cq-fpv-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 72% 70% at 50% 50%, transparent 58%, rgba(0, 0, 0, 0.42) 82%, rgba(0, 0, 0, 0.82) 100%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.06) 0 1px, transparent 1px 3px);
+}
+.cq-fpv-reticle {
+  position: absolute; left: 50%; top: 50%; width: 46px; height: 34px; transform: translate(-50%, -50%);
+  background:
+    linear-gradient(#f4f7f9, #f4f7f9) left top / 10px 2px no-repeat, linear-gradient(#f4f7f9, #f4f7f9) left top / 2px 10px no-repeat,
+    linear-gradient(#f4f7f9, #f4f7f9) right top / 10px 2px no-repeat, linear-gradient(#f4f7f9, #f4f7f9) right top / 2px 10px no-repeat,
+    linear-gradient(#f4f7f9, #f4f7f9) left bottom / 10px 2px no-repeat, linear-gradient(#f4f7f9, #f4f7f9) left bottom / 2px 10px no-repeat,
+    linear-gradient(#f4f7f9, #f4f7f9) right bottom / 10px 2px no-repeat, linear-gradient(#f4f7f9, #f4f7f9) right bottom / 2px 10px no-repeat,
+    radial-gradient(circle, #f4f7f9 0 1.5px, transparent 2px) center / 4px 4px no-repeat;
+  filter: drop-shadow(0 0 1px #000c);
+}
+.cq-fpv-horizon {
+  position: absolute; left: 50%; top: 50%; width: 220px; height: 2px; transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent 0 8%, #f4f7f9aa 8% 38%, transparent 38% 62%, #f4f7f9aa 62% 92%, transparent 92%);
+  filter: drop-shadow(0 0 1px #000c);
+}
+.cq-fpv-strip {
+  position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+  display: grid; grid-template-columns: auto repeat(5, minmax(86px, auto)); align-items: stretch;
+  background: var(--cq-panel); border: 1px solid var(--cq-line); border-radius: 6px; box-shadow: 0 6px 18px #0008;
+}
+.cq-fpv-id { display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 14px; }
+.cq-fpv-icon { width: 30px; height: 30px; color: var(--cq-text); }
+.cq-fpv-name { display: grid; gap: 3px; }
+.cq-fpv-name b { font-size: 13px; font-weight: 800; letter-spacing: 2px; }
+.cq-fpv-name span { font-size: 10px; font-weight: 700; letter-spacing: 1.6px; color: var(--cq-sub); }
+.cq-fpv-cell { display: grid; justify-items: center; align-content: center; gap: 4px; padding: 8px 12px; border-left: 1px solid var(--cq-line); }
+.cq-fpv-label { font-size: 10px; font-weight: 800; letter-spacing: 1.8px; color: var(--cq-sub); }
+.cq-fpv-value { font-size: 20px; font-weight: 800; letter-spacing: 1px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cq-fpv-meter { width: 74px; height: 6px; border: 1px solid var(--cq-line); border-radius: 2px; overflow: hidden; }
+.cq-fpv-meter i { display: block; height: 100%; background: var(--cq-contested); }
+.cq-fpv-battery[data-tone="low"] .cq-fpv-value { color: var(--cq-contested); }
+.cq-fpv-battery[data-tone="critical"] :is(.cq-fpv-value) { color: var(--cq-danger); }
+.cq-fpv-battery[data-tone="critical"] .cq-fpv-meter i { background: var(--cq-danger); }
+.cq-fpv-bars { display: flex; align-items: flex-end; gap: 4px; height: 22px; }
+.cq-fpv-bars i { display: block; width: 7px; border-radius: 1px; background: #ffffff1f; }
+.cq-fpv-bars i:nth-child(1) { height: 25%; } .cq-fpv-bars i:nth-child(2) { height: 50%; }
+.cq-fpv-bars i:nth-child(3) { height: 75%; } .cq-fpv-bars i:nth-child(4) { height: 100%; }
+.cq-fpv-bars i[data-on="true"] { background: var(--cq-own); }
+.cq-fpv-signal[data-tone="low"] .cq-fpv-bars i[data-on="true"] { background: var(--cq-contested); }
+.cq-fpv-signal[data-tone="critical"] .cq-fpv-bars i[data-on="true"] { background: var(--cq-danger); }
+.cq-fpv-hint {
+  position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); padding: 5px 14px; white-space: nowrap;
+  background: var(--cq-panel); border: 1px solid var(--cq-line); border-radius: 4px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: var(--cq-text);
+}
+/* Phones: the strip sits under the ticket bar (the sticks and buttons own the bottom), compact, no hints. */
+.vb-touch-mode .cq-fpv-strip { top: calc(max(10px, env(safe-area-inset-top)) + 64px); bottom: auto; grid-template-columns: repeat(5, auto); }
+.vb-touch-mode .cq-fpv-id { display: none; }
+.vb-touch-mode .cq-fpv-cell { padding: 4px 8px; gap: 2px; }
+.vb-touch-mode .cq-fpv-cell:nth-child(2) { border-left: 0; }
+.vb-touch-mode .cq-fpv-label { font-size: 8px; letter-spacing: 1px; }
+.vb-touch-mode .cq-fpv-value { font-size: 13px; }
+.vb-touch-mode .cq-fpv-meter { width: 46px; height: 4px; }
+.vb-touch-mode .cq-fpv-bars { height: 14px; gap: 2px; }
+.vb-touch-mode .cq-fpv-bars i { width: 4px; }
+.vb-touch-mode .cq-fpv-hint { display: none; }

@@ -25,7 +25,7 @@ const eq = (actual, expected, message) => { assert.deepEqual(actual, expected, m
 
 // ------------------------------------------------------------- contract --
 {
-  eq(CONQUEST_CONTRACT_VERSION, 6, 'ribbons and medals are contract v6');
+  eq(CONQUEST_CONTRACT_VERSION, 7, 'ribbons and medals are contract v6');
   eq(RIBBON_IDS, ['spree', 'medic', 'anti_vehicle', 'conquest', 'resupply', 'repair', 'intel', 'defender'], 'ribbon wire order');
   eq(MEDAL_IDS, ['valor', 'lifesaver', 'tank_hunter', 'conqueror', 'quartermaster', 'mechanic', 'pathfinder', 'guardian', 'service'], 'medal wire order');
   ok(CONQUEST_EVENT_KINDS.includes('ribbon') && CONQUEST_EVENT_KINDS.includes('medal'), 'ribbon and medal are Conquest events');

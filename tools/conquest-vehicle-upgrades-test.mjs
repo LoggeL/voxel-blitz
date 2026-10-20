@@ -82,7 +82,7 @@ await test('table: keyed by vehicle type, unique ids, career levels, bot default
   assert.ok(!upgradeUnlocked('tank', 'thermal', 7) && upgradeUnlocked('tank', 'thermal', 8), 'THERMAL OPTICS opens at LV 8');
   assert.deepEqual(normalizeUpgradeChoice({ tank: 'reactive', jeep: 'nope', boat: 'x' }), { tank: 'reactive' });
   assert.deepEqual(lockedUpgrades({ tank: 'thermal', jeep: 'reinforced' }, 4), [{ type: 'tank', id: 'thermal', level: 8 }]);
-  assert.equal(CONQUEST_CONTRACT_VERSION, 6, 'the deploy intent and the vehicle row changed: contract v6');
+  assert.equal(CONQUEST_CONTRACT_VERSION, 7, 'the deploy intent and the vehicle row changed: contract v6');
   assert.ok(CONQUEST_INTENT_SHAPE.deploy.includes('upgrades'));
 });
 

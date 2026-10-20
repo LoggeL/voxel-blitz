@@ -129,7 +129,7 @@ export class DeployScreen {
 
     const kit = loadPref(KIT_PREF, 'assault');
     this.selection = { spawn: 'hq', kit, variant: Number(loadPref(`${KIT_PREF}-variant`, '0')) === 1 ? 1 : 0,
-      gadget: Number(loadPref(`${KIT_PREF}-gadget`, '0')) === 1 ? 1 : 0, upgrades: loadUpgrades() };
+      gadget: [1, 2].includes(Number(loadPref(`${KIT_PREF}-gadget`, '0'))) ? Number(loadPref(`${KIT_PREF}-gadget`, '0')) : 0, upgrades: loadUpgrades() };
     this.readied = false;
     this._resend = false;
     this.refused = null;

@@ -192,7 +192,7 @@ let groups = 0;
   assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0, upgrades: {} }], 'Deploy sends {spawn, kit, variant, gadget, upgrades}');
   // The gadget toggle (AT / AA) on the engineer card re-sends the choice with the STINGER.
   const gadgetButtons = screen.kits.querySelectorAll('.cq-kit-gadget');
-  assert.deepEqual(gadgetButtons.map(b => b.dataset.gadget), ['rocket', 'stinger'], 'only the engineer card shows the gadget toggle');
+  assert.deepEqual(gadgetButtons.map(b => b.dataset.gadget), ['rocket', 'stinger', 'fpv'], 'only the engineer card shows the gadget toggle');
   gadgetButtons[1].click();
   update();
   assert.deepEqual(sent.at(-1), { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1, upgrades: {} }, 'picking the STINGER re-sends gadget 1');

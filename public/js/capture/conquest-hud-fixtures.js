@@ -85,9 +85,9 @@ function roster(self, more = []) {
 /** A state: everything ConquestHud.update needs plus events to replay and capture hints. */
 function state(id, title, { selfTeam = 'alpha', self, players, vehicles = [], match, camera, events = [], dead = false, killer = null,
   bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null, career = null, viewStrip = null,
-  flight = null, aim = null, groundPlane = null, rose = null, mapCursor = null } = {}) {
+  flight = null, aim = null, groundPlane = null, rose = null, mapCursor = null, fpv = null } = {}) {
   return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch, career, viewStrip,
-    flight, aim, ...(groundPlane != null ? { groundPlane } : {}), ...(rose ? { rose } : {}), ...(mapCursor ? { mapCursor } : {}) };
+    flight, aim, ...(groundPlane != null ? { groundPlane } : {}), ...(rose ? { rose } : {}), ...(mapCursor ? { mapCursor } : {}), ...(fpv ? { fpv } : {}) };
 }
 
 /** Every HUD state the acceptance list names, in capture order. */
@@ -652,6 +652,21 @@ export function conquestHudFixtures() {
     out.push(state('mortar-ready', 'Support on foot · M-81 MORTAR ready to place', { self, players: roster(self), vehicles: [spottedTank],
       match: baseMatch(), selection: { kit: 'support', variant: 0, gadget: 1 },
       camera: cam(C.x - 24, GROUND + 1.6, C.z + 150, yawTo({ x: C.x - 24, z: C.z + 150 }, C)) }));
+  }
+  // Engineer FPV drone: 22 m over the field, 268 m from the crouched operator, closing on the spotted tank by C.
+  // `fpv` is FpvPilot.telemetry of that row (the battery from the row, the signal from the distance).
+  {
+    const op = { x: C.x - 40, z: C.z + 260 }, tank = spottedTank;
+    const at = { x: tank.x - 40, z: tank.z + 60 }, yaw = yawTo(at, tank), up = 22;
+    const self = meAt(op.x, op.z, { cq: { squad: 1, kitId: 'engineer' }, cqf: 1, crouch: true });
+    const drone = vehicle('fpv-me', 'fpv', 'alpha', at.x, at.z, { y: GROUND + up, hp: 8, yaw, pitch: -0.18, roll: 0.1, speed: 24, own: 'me',
+      fpv: [64, 0, -32], mounts: [], st: VEHICLE_STATUS.engine });
+    out.push(state('fpv', 'Engineer FPV drone · 26 s battery · 3 / 4 signal · closing on the tank', { self, players: roster(self),
+      vehicles: [drone, spottedTank], match: baseMatch(), selection: { kit: 'engineer', variant: 0, gadget: 2 },
+      camera: { ...cam(at.x, GROUND + up + 0.14, at.z, yaw, Math.atan2(GROUND + 1 - (GROUND + up), Math.hypot(tank.x - at.x, tank.z - at.z))), fov: 104 },
+      fpv: { battery: 0.64, seconds: 26, bars: 3, maxBars: 4, quality: 0.82, degraded: true, speed: 24, altitude: up, distance: 268, range: 350,
+        noise: 0.25, left: 1, roll: 0.06, pitch: -0.32 },
+      events: [{ kind: 'fpv', id: 'me', state: 'launched', vehicleId: 'fpv-me', left: 1 }] }));
   }
   // 21. Breakthrough (docs/conquest.md, Breakthrough): WEST attacks, sector 1 (A B) fell, C is active, D E locked.
   const E = FRONTIER_PLAN.flags.find(f => f.id === 'E');

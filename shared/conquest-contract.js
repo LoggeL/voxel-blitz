@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 6;
+export const CONQUEST_CONTRACT_VERSION = 7;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -111,7 +111,9 @@ export const KIT_IDS = Object.freeze(['assault', 'engineer', 'support', 'recon',
  * shared/conquest-kits.js): the SPAWN BEACON (0) or two MOTION SENSORS (1).
  * A gadget that is neither is a deployable (DEPLOYABLE_TYPE_IDS): the
  * Support picks no gadget (null, 0) or the MORTAR (1), placed with the
- * `mortar` intent (shared/mortar-rules.js).
+ * `mortar` intent (shared/mortar-rules.js). The Engineer's third choice (2) is
+ * the FPV kamikaze drone, launched with the `fpv` intent (shared/fpv-rules.js):
+ * no launcher, the AT mines stay.
  * `unlockLevel` is the career level that opens the kit (1: a base kit); the
  * server refuses a locked kit at deploy (`deploy_refused {reason:'locked'}`),
  * bots ignore it. `aura` marks a passive team aura (the Medic's heal).
@@ -122,7 +124,7 @@ const KIT = (label, ability, primaries, gadgets, grenades, unlockLevel, extra = 
 });
 export const KITS = Object.freeze({
   assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'shotgun'],       [],                    { frag: 2, pulse: 1 },    1),
-  engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger'], { smoke: 1, frag: 1, atmine: 3 }, 1),
+  engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger', 'fpv'], { smoke: 1, frag: 1, atmine: 3 }, 1),
   support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         [null, 'mortar'],      { frag: 2, molotov: 1 },  1),
   recon:     KIT('RECON',     'spot',       ['sniper', 'longarc'],      ['beacon', 'sensor'],  { limpet: 2, pulse: 1 },  1),
   medic:     KIT('MEDIC',     'revive',     ['smg', 'longarc'],         [],                    { smoke: 2, frag: 1 },    1, { aura: 'heal' }),
@@ -240,6 +242,7 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'bridge',            // {bridge, stage, integrity, fallAt?, by?}  Iron Bridge levolution stage change (shared/conquest-bridge.js; v6)
   'sector_captured',   // {sector, next, team, flags:[id], refill, tickets, graceEndsAt}  Breakthrough front advanced (next -1: none left)
   'sector_overtime',   // {team}                         Breakthrough attackers out of tickets fight on for an active flag
+  'fpv',               // {id, state:'launched'|'refused'|'cut'|'detonated'|'lost', vehicleId?, reason?, waitMs?, pos?}  Engineer FPV drone (shared/fpv-rules.js; v7)
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);
@@ -257,7 +260,7 @@ export const CONQUEST_DEATH_KEYS = Object.freeze(['restricted', 'vehicle', 'fall
 /** Client -> server Conquest intent frame `{t:'conquest', ...}` (one field per frame is enough). */
 export const CONQUEST_INTENT_SHAPE = Object.freeze({
   // upgrades (v6): {<vehicle type>: <upgrade id>} from shared/vehicle-upgrades.js; a type left out drives stock.
-  deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>"|"beacon:<beaconId>", kit:KIT_ID, variant:0|1, gadget?:0|1, upgrades?:{type:upgradeId}}',
+  deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>"|"beacon:<beaconId>", kit:KIT_ID, variant:0|1, gadget?:0|1|2, upgrades?:{type:upgradeId}}',
   spot: '1',
   support: '{type:"revive"|"repair", targetId:string}',
   // In-game menu RESPAWN: die now (1 ticket, kill key `redeploy`) and open the deploy screen.
@@ -268,6 +271,8 @@ export const CONQUEST_INTENT_SHAPE = Object.freeze({
   order: '"A".."E"|""',
   // Support with the MORTAR gadget: place the mortar ahead and man it (one per player).
   mortar: '1',
+  // Engineer with the FPV gadget: launch a drone and fly it, or cut the link of the one in the air (v7).
+  fpv: '1',
 });
 /** input.vehicleAction types (parsed by parseVehicleAction). */
 export const VEHICLE_ACTION_TYPES = Object.freeze(['enter', 'exit', 'seat', 'cm', 'weapon']);
@@ -275,7 +280,8 @@ export const VEHICLE_ACTION_TYPES = Object.freeze(['enter', 'exit', 'seat', 'cm'
 
 export const DAMAGE_CLASSES = Object.freeze(['small', 'mg', 'hmg', 'autocannon', 'explosive', 'he', 'at', 'aa', 'fire']);
 // `medium`: the mobile AA hull's armour, between the jeep's light and the tank's heavy.
-export const ARMOR_CLASSES = Object.freeze(['light', 'heavy', 'air', 'medium']);
+// `drone`: the Engineer's FPV drone (v7), a frame any round or blast breaks.
+export const ARMOR_CLASSES = Object.freeze(['light', 'heavy', 'air', 'medium', 'drone']);
 export const HIT_ZONES = Object.freeze(['front', 'side', 'rear', 'top', 'bottom']);
 
 export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa', 'boat']);
@@ -294,7 +300,7 @@ export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'tr
  * never a deploy-screen spawn, never hijacked). They live in the hull tables
  * (topology, defs, rows) but stay out of VEHICLE_TYPE_IDS, the pad roster.
  */
-export const DEPLOYABLE_TYPE_IDS = Object.freeze(['mortar']);
+export const DEPLOYABLE_TYPE_IDS = Object.freeze(['mortar', 'fpv']);
 export const isDeployableType = type => typeof type === 'string' && DEPLOYABLE_TYPE_IDS.includes(type);
 export const VEHICLE_HULL_VARIANTS = Object.freeze({ jeep_at: 'jeep', aa: 'tank' });
 export const vehicleHullType = type => VEHICLE_HULL_VARIANTS[type] ?? type;
@@ -326,7 +332,7 @@ export const VEHICLE_WEAPON_META = Object.freeze({
   // `aa` class (strong on aircraft, weak on ground armour), the left and right gun in turn.
   flak35:           Object.freeze({ label: '35MM FLAK',  kind: 'shell',   cls: 'aa',         speed: 320, gravity: 4, rate: 8,       presentation: 'mgl' }),
 });
-export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, mortar: null, aa: 'smoke', boat: null });
+export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, mortar: null, aa: 'smoke', boat: null, fpv: null });
 
 /** Seat and mount topology. Order is significant (F1..F5, mounts[] in snapshot rows). Positions/anchors live in shared/vehicle-defs.js. */
 const S = (id, role, drives, exposed, personalWeapons, mounts) => Object.freeze({ id, role, drives, exposed, personalWeapons, mounts: Object.freeze(mounts) });
@@ -384,6 +390,9 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
     S('rear-left', 'passenger', false, true, true, []),
     S('rear-right', 'passenger', false, true, true, []),
   ]),
+  // Deployable (v7): the Engineer's FPV drone. No seat: its operator flies it
+  // from where he crouches (server/sim/fpv-drones.js), so nobody boards it.
+  fpv: Object.freeze([]),
 });
 /** Seat topology of a conquest or titan type (titan types: shared/titan-contract.js). */
 const topologyOf = type => VEHICLE_TOPOLOGY[type] || TITAN_TOPOLOGY[type];

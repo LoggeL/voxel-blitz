@@ -40,6 +40,8 @@ export const KIT_GADGET_LABELS = Object.freeze({
   // The Support's choice: no gadget (null), or the deployable MORTAR (shared/mortar-rules.js).
   none: Object.freeze({ role: 'NONE', name: 'NO GADGET', hint: 'LIGHTER KIT' }),
   mortar: Object.freeze({ role: 'MORTAR', name: 'M-81 MORTAR', hint: 'DEPLOYABLE INDIRECT FIRE' }),
+  // The Engineer's third choice: the FPV kamikaze drone (shared/fpv-rules.js), no launcher.
+  fpv: Object.freeze({ role: 'FPV', name: 'FPV DRONE', hint: 'KAMIKAZE DRONE · 2 PER LIFE' }),
 });
 
 /**
@@ -213,7 +215,7 @@ export function normalizeVariant(value) {
 /** Gadget index into the kit's `gadgets` (0 when the kit has no such choice). */
 export function normalizeGadget(kit, value) {
   const gadgets = KITS[normalizeKit(kit)].gadgets ?? [];
-  const index = value === 1 || value === '1' ? 1 : 0;
+  const index = value === 1 || value === '1' ? 1 : value === 2 || value === '2' ? 2 : 0;
   return index < gadgets.length ? index : 0;
 }
 

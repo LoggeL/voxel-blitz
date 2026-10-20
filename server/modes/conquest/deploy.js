@@ -17,8 +17,8 @@ const round2 = n => Math.round(n * 100) / 100;
 
 export function normalizeKit(kit) { return KIT_IDS.includes(kit) ? kit : DEFAULT_KIT; }
 export function normalizeVariant(variant) { return variant === 1 ? 1 : 0; }
-/** Gadget choice of a kit (0 default: the Engineer's AT launcher; 1 the STINGER). */
-export function normalizeGadget(kit, gadget) { return kitGadgetIndex(normalizeKit(kit), gadget === 1 ? 1 : 0); }
+/** Gadget choice of a kit (0 default: the Engineer's AT launcher; 1 the STINGER; 2 the FPV drone). */
+export function normalizeGadget(kit, gadget) { return kitGadgetIndex(normalizeKit(kit), gadget === 1 || gadget === 2 ? gadget : 0); }
 /**
  * Authoritative career level of an entity for the kit gate: the level the
  * server stamped from the player's career (guests 1). Bots skip the gate.
