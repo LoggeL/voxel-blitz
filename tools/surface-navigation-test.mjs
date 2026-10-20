@@ -9,11 +9,14 @@
 //  - terrain changes are applied incrementally and reroute around a crater;
 //  - pocket goals are proven unreachable cheaply; a crater replans only the
 //    cached routes it touches;
+//  - after every terrain change the component labels equal a full relabel,
+//    whether the change kept them, relabelled the later ones or all of them;
 //  - maps without navigation {mode:'surface'} keep the legacy navigation.
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
-import { FLUID_BLOCKS, AIR } from '../shared/world/blocks.js';
+import { FLUID_BLOCKS, AIR, STONE } from '../shared/world/blocks.js';
+import { mulberry32 } from '../shared/noise.js';
 import { SurfaceNav, surfaceNavigation, TerrainWatch } from '../server/bot-surface-nav.js';
 import { groundNavigation, groundSegmentClear } from '../server/bot-navigation.js';
 
@@ -218,6 +221,55 @@ assert(ratio <= 1.35, `median route length <= 1.35x the straight line (${ratio.t
   graph.waypoint(eFrom, eTo, far1, 60);
   assert.notEqual(far1.surfaceRoute, farRoute, 'a revision without a logged change replans');
   console.log(`pocket route: ${expanded} nodes expanded (component ${graph.component[pocket]})`);
+}
+
+// --- incremental component labels equal a full relabel ---------------------
+{
+  const fresh = createMapState('frontier');
+  const graph = surfaceNavigation(fresh);
+  const engine = { world: fresh, changedBlocks: new Set(), blockRevision: 0 };
+  const watch = new TerrainWatch(engine);
+  const { sx, sy, sz } = fresh.dimensions;
+  const rng = mulberry32(7);
+  const firsts = [];
+  graph.labelComponents = function (first) { firsts.push(first); return SurfaceNav.prototype.labelComponents.call(this, first); };
+  const set = (x, y, z, block) => {
+    if (x < 0 || z < 0 || y < 1 || x >= sx || z >= sz || y >= sy || fresh.getBlock(x, y, z) === block) return;
+    fresh.setBlock(x, y, z, block);
+    engine.changedBlocks.add((y * sz + z) * sx + x);
+    engine.blockRevision++;
+  };
+  const counts = { kept: 0, later: 0, full: 0 };
+  for (let i = 0; i < 48; i++) {
+    // Mostly shell craters, some deep pits, now and then a wall or a pillar, anywhere on the map.
+    const x0 = 8 + Math.floor(rng() * (sx - 16)), z0 = 8 + Math.floor(rng() * (sz - 16));
+    const top = fresh.heightAt?.(x0, z0) ?? Math.floor(sy / 2), kind = rng();
+    if (kind < 0.75) {
+      const big = kind < 0.15, r = big ? 3 + Math.floor(rng() * 4) : 1 + Math.floor(rng() * 2);
+      const depth = big ? 4 + Math.floor(rng() * 5) : 1 + Math.floor(rng() * 3);
+      for (let x = x0 - r; x <= x0 + r; x++) for (let z = z0 - r; z <= z0 + r; z++) for (let y = top - depth; y <= top + 3; y++) set(x, y, z, AIR);
+    } else if (kind < 0.85) {
+      const along = rng() < 0.5, length = 6 + Math.floor(rng() * 20), height = 2 + Math.floor(rng() * 4);
+      for (let k = 0; k < length; k++) for (let y = top + 1; y <= top + height; y++) set(along ? x0 + k : x0, y, along ? z0 : z0 + k, STONE);
+    } else {
+      const r = Math.floor(rng() * 3), height = 3 + Math.floor(rng() * 6);
+      for (let x = x0 - r; x <= x0 + r; x++) for (let z = z0 - r; z <= z0 + r; z++) for (let y = top + 1; y <= top + height; y++) set(x, y, z, STONE);
+    }
+    const columns = watch.poll();
+    if (!columns?.size) continue;
+    firsts.length = 0;
+    graph.applyChanges(columns);
+    counts[!firsts.length ? 'kept' : firsts[0] > 0 ? 'later' : 'full']++;
+    const component = graph.component.slice(), seeds = graph.seeds.slice(0, graph.labels), labels = graph.labels;
+    SurfaceNav.prototype.labelComponents.call(graph);
+    assert.equal(labels, graph.labels, `change ${i}: the label count equals a full relabel`);
+    assert.deepEqual(seeds, graph.seeds.slice(0, graph.labels), `change ${i}: the label seeds equal a full relabel`);
+    assert(component.every((label, node) => label === graph.component[node]), `change ${i}: every node's label equals a full relabel`);
+  }
+  const summary = `${counts.kept} kept, ${counts.later} relabelled from a later label, ${counts.full} in full`;
+  assert(counts.kept && counts.later && counts.full, `the changes exercise every relabel path (${summary})`);
+  delete graph.labelComponents;
+  console.log(`incremental labels equal a full relabel after every change: ${summary}`);
 }
 
 // --- other maps keep their navigation ----------------------------------------
