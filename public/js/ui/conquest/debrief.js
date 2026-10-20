@@ -13,6 +13,8 @@ import { medalBadge, ribbonBar } from './ribbons.js';
 
 export const SCORE_CATEGORY_LABELS = Object.freeze({ combat: 'COMBAT', objective: 'OBJECTIVE', vehicles: 'VEHICLES', support: 'SUPPORT', ribbons: 'RIBBONS' });
 const TEAMS = ['alpha', 'bravo'];
+/** Ribbons of one kind a medal asks for (MEDALS), for the empty medal line. */
+const MEDAL_RIBBON_COUNT = Math.min(...Object.values(MEDALS).filter(m => m.ribbon).map(m => m.count));
 const fmt = n => Math.round(n).toLocaleString('en-US');
 const nameOf = row => String(row?.name || row?.id || 'OPERATOR');
 const score = row => Math.max(0, row?.score | 0);
@@ -175,7 +177,7 @@ export class ConquestDebrief {
         medalBadge(this.doc, cell, m.id);
         el('span', '', cell).textContent = m.label;
       }
-    } else el('span', 'vb-debrief-empty', this.medals).textContent = 'NO MEDALS · 2 OF ONE RIBBON EARN ITS MEDAL';
+    } else el('span', 'vb-debrief-empty', this.medals).textContent = `NO MEDALS · ${MEDAL_RIBBON_COUNT} OF ONE RIBBON EARN ITS MEDAL`;
     const career = summary.career;
     this.career.dataset.state = career ? (career.levelUp ? 'level-up' : 'progress') : 'guest';
     if (!career) {

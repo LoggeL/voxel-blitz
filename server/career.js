@@ -236,7 +236,7 @@ export class CareerService {
     if (!self) return;
     let state = this.sessions.get(client);
     if (!state || state.engine !== client.room.engine) {
-      state = { engine: client.room.engine, now: -1, active: 0, participated: 0, post: false, objectiveAt: -Infinity, objectiveXp: 0, matchXp: 0 };
+      state = { engine: client.room.engine, now: -1, active: 0, participated: 0, post: false, objectiveAt: -Infinity, objectiveXp: 0, matchXp: 0, matchSeq: 0, pushedXp: 0 };
       this.sessions.set(client, state);
     }
     if (snapshot.now <= state.now) return;
@@ -308,7 +308,7 @@ export class CareerService {
       state.participated = 0;
     } else if (match.phase !== 'post') {
       // A rematch on the same engine starts a new match tally for the result screen.
-      if (state.post) state.matchXp = 0;
+      if (state.post) { state.matchXp = 0; state.matchSeq++; state.pushedXp = 0; }
       state.post = false;
     }
     state.matchXp += reward.xp;
@@ -316,9 +316,18 @@ export class CareerService {
     // until an authoritative event actually earns a nonzero reward.
     if (['xp', 'kills', 'matches', 'pvpKills', 'wins'].some(key => reward[key] > 0)) {
       const saved = this.applyProgress(client.profileId, reward);
-      const gained = state.matchXp;
-      if (saved && typeof saved.then === 'function') saved.then(profile => { this.syncLevel(client, profile); this.syncProgress(client, profile, gained); }, () => {});
-      else { this.syncLevel(client, saved); this.syncProgress(client, saved, gained); }
+      const gained = state.matchXp, seq = state.matchSeq;
+      const sync = profile => {
+        this.syncLevel(client, profile);
+        // A PostgreSQL save can resolve after a newer one, after the rematch reset
+        // the tally or after a room change: such a late save updates the total,
+        // never the match gain.
+        const fresh = state.matchSeq === seq && gained >= state.pushedXp && client.room?.engine === state.engine;
+        if (fresh) state.pushedXp = gained;
+        this.syncProgress(client, profile, fresh ? gained : undefined);
+      };
+      if (saved && typeof saved.then === 'function') saved.then(sync, () => {});
+      else sync(saved);
       return saved;
     }
   }

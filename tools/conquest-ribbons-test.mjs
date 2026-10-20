@@ -225,10 +225,55 @@ eq(policy.resultExtras('h2').cqr[1], 1, 'ribbons follow the takeover');
     tick(1300, 'live', []);
     tick(1400, 'live', [{ kind: 'score', id: 'p1', pts: 50, reason: 'ribbon' }]);
     eq(progress.at(-1), { xp: xp + CAREER_REWARDS.conquestRibbon.xp, gained: CAREER_REWARDS.conquestRibbon.xp }, 'a rematch starts a new match gain');
+    // Ribbon scores and medals pay career XP in Conquest only.
+    const tdmProfile = randomBytes(32).toString('hex');
+    const tdmClient = { id: 'p1', profileId: tdmProfile, room: { engine }, careerLevel: 1 };
+    service.observe(tdmClient, { t: 'tick', now: 1000, match: { mode: 'tdm', phase: 'live' }, players: [{ id: 'p1', team: 'alpha', state: 'alive' }],
+      events: [{ kind: 'score', id: 'p1', pts: 50, reason: 'ribbon' }, { kind: 'medal', id: 'p1', medal: 'valor' }] });
+    eq(service.profile(tdmProfile).xp, 0, 'no ribbon or medal XP outside Conquest');
   } finally {
     service.dispose();
     rmSync(directory, { recursive: true, force: true });
   }
+}
+
+// ------------------------------- career service, PostgreSQL-like async saves --
+{
+  // Saves that resolve late (after a newer save, or after the rematch reset the
+  // tally) update the career total but never overwrite the newer match gain.
+  const { CareerService } = await import('../server/career.js');
+  let total = 0;
+  const pending = [];
+  const store = {
+    pending: Promise.resolve(),
+    applyProgress: (id, changes) => new Promise(resolve => pending.push(() => {
+      total += changes.xp || 0;
+      resolve({ xp: total, kills: 0, matches: 0, owned: [], equipped: {}, mastery: {} });
+    })),
+  };
+  const service = new CareerService({ directory: path.join(root, '.conquest-work', 'wip', 'ribbons', 'unused'), store });
+  const entity = { id: 'p1', bot: false, team: 'alpha', input: null };
+  const progress = [];
+  const engine = { entities: new Map([['p1', entity]]), mode: { policy: { setCareerLevel: () => {}, setCareerProgress: (e, p) => progress.push(p) } } };
+  const client = { id: 'p1', profileId: 'account:async', room: { engine }, careerLevel: 1 };
+  const tick = (now, phase, events) => service.observe(client, { t: 'tick', now, match: { mode: 'conquest', phase, winner: phase === 'post' ? 'bravo' : undefined },
+    players: [{ id: 'p1', team: 'alpha', state: 'alive' }], events });
+  const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+  tick(1000, 'live', []);
+  tick(1100, 'live', [{ kind: 'score', id: 'p1', pts: 50, reason: 'ribbon' }]);
+  tick(1200, 'live', [{ kind: 'score', id: 'p1', pts: 50, reason: 'ribbon' }]);
+  pending[1](); await settle();
+  pending[0](); await settle();
+  eq(progress.map(p => p.gained), [2 * CAREER_REWARDS.conquestRibbon.xp, undefined], 'an older save resolving last keeps the newer match gain');
+  tick(1300, 'post', [{ kind: 'medal', id: 'p1', medal: 'valor' }]);
+  tick(1400, 'live', []);
+  pending[2](); await settle();
+  eq(progress.at(-1).gained, undefined, 'a post-match save resolving after the rematch leaves the new match gain alone');
+  eq(progress.at(-1).xp, 2 * CAREER_REWARDS.conquestRibbon.xp + CAREER_REWARDS.conquestMedal.xp, 'but still updates the career total');
+  tick(1500, 'live', [{ kind: 'score', id: 'p1', pts: 50, reason: 'ribbon' }]);
+  pending[3](); await settle();
+  eq(progress.at(-1).gained, CAREER_REWARDS.conquestRibbon.xp, 'the new match tally pushes again');
+  service.dispose();
 }
 
 // ------------------------------------------- toast and debrief (fake DOM) --
