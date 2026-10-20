@@ -173,7 +173,7 @@ export function stepMovement(p, dt, ctx) {
   p.jumpWasHeld = !!kf.jump;
   const fwdAmt = (kf.f ? 1 : 0) - (kf.b ? 1 : 0);
   const strafe = (kf.r ? 1 : 0) - (kf.l ? 1 : 0);
-  const ladderHere = ladderContact(ctx.mapMeta, p.x, p.y, p.z);
+  const ladderHere = ladderContact(ctx.mapMeta, p.x, p.y, p.z, 0, ctx.solidAt);
   const swimming = fluidContact(ctx.fluidAt, p.x, p.y, p.z);
   // A water slide carries the body on rails: a swimmer never starts a ride,
   // but a rider keeps sliding through the splash lane to the end of the path.
@@ -321,13 +321,13 @@ export function stepMovement(p, dt, ctx) {
   const dy = p.vy * dt;
   const impactVy = p.vy, wasAirborne = !p.grounded;
   const ladderBypass = ladderUp
-    || (ladderDown && ladderContact(ctx.mapMeta, p.x, p.y + dy, p.z));
+    || (ladderDown && ladderContact(ctx.mapMeta, p.x, p.y + dy, p.z, 0, ctx.solidAt));
   const hitY = ladderBypass ? false : slideAxis(p, 'y', dy, ctx.solidAt, null, false, ctx.vehicles);
   if (ladderBypass) {
     const start = p.y;
     p.y += dy;
     if (slidePlayerVehicleAxis(p, 'y', start, ctx.vehicles)) p.vy = 0;
-    if (ladderUp && !ladderContact(ctx.mapMeta, p.x, p.y, p.z)) p.vy = 0;
+    if (ladderUp && !ladderContact(ctx.mapMeta, p.x, p.y, p.z, 0, ctx.solidAt)) p.vy = 0;
   }
 
   // Ground bookkeeping. Upward head impacts are not landings.
