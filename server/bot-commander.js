@@ -29,6 +29,7 @@ import { vehicleSeats, vehicleSeatOccupantId } from '../shared/vehicle-seats.js'
 import { CoverIndex, bearing } from './bot-cover.js';
 import { commGoal, planComms } from './bot-comms.js';
 import { orderStance } from '../shared/conquest-comms.js';
+import { AA_BOT, enemyAirThreats, stickyAaCover } from './bot-aa.js';
 import { surfaceNavigation } from './bot-surface-nav.js';
 import { MEDIC_BOT_RULES, medicTrailMate, medicTrailSpot, reviveRunInTime } from './bot-medic.js';
 import { committedFlag, keepAttackOrder, passingFlag } from './bot-flag-flow.js';
@@ -613,6 +614,15 @@ export class BotCommander {
     const tanks = hulls.filter(v => v.type === 'tank').sort(byFront);
     push(tanks.slice(0, 1), v => hullSeatIds(v).driver, 0);
     push(hulls.filter(v => v.type === 'helicopter'), v => hullSeatIds(v).driver, 1);
+    // The mobile AA is crewed while the enemy has aircraft crewed; one with a
+    // bot in the driver seat keeps its crew for AA_BOT.holdMs after that (bot-aa.js).
+    const airThreat = enemyAirThreats(this.game.vehicles?.vehicles, team).length > 0;
+    if (airThreat) ts.aaThreatAt = now;
+    const aaHeld = now - (ts.aaThreatAt ?? -Infinity) < AA_BOT.holdMs;
+    const botDriven = v => { const id = vehicleSeatOccupantId(v, hullSeatIds(v).driver); return id != null && this.isBot(id); };
+    const aas = hulls.filter(v => v.type === 'aa' && (airThreat || (aaHeld && botDriven(v))));
+    push([...aas], v => hullSeatIds(v).driver, AA_BOT.driverPrio);
+    push([...aas], v => hullSeatIds(v).gunner, AA_BOT.gunnerPrio);
     if (brains.length >= 6) push(hulls.filter(v => v.type === 'plane'), v => hullSeatIds(v).driver, 2);
     push(tanks.slice(1), v => hullSeatIds(v).driver, 3);
     // The AT jeep is a two-bot tank hunter: a driver on overwatch and its TOW gunner.
@@ -992,7 +1002,16 @@ export class BotCommander {
     if (!ts) return null;
     const crew = ts.crews.get(String(id));
     if (crew) {
-      const flag = this.focusFlag(ts);
+      const focus = this.focusFlag(ts), hull = this.game.vehicles?.vehicles?.get?.(crew.vehicleId);
+      // An AA crew covers the own flag under the enemy aircraft instead (held a while, bot-aa.js).
+      let flag = focus;
+      if (hull?.type === 'aa') {
+        ts.aaCover ??= new Map();
+        const cover = stickyAaCover(ts.aaCover.get(hull.id) ?? null, this.view?.flags, ts.team,
+          enemyAirThreats(this.game.vehicles?.vehicles, ts.team), this.game.now ?? 0, focus);
+        if (cover.held) ts.aaCover.set(hull.id, cover.held); else ts.aaCover.delete(hull.id);
+        flag = cover.flag;
+      }
       return { role: 'crew', vehicleId: crew.vehicleId, seatId: crew.seatId, prio: crew.prio, flag,
         friendlyYaw: flag ? bearing(flag, this.view?.bases?.[ts.team] ?? flag) : null };
     }

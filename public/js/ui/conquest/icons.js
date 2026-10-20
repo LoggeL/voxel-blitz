@@ -30,6 +30,8 @@ export const ICON_PATHS = Object.freeze({
   // AT jeep: the jeep with the TOW tube over the bed.
   jeep_at: 'M3 11l2-4h8l2 4h5a1 1 0 0 1 1 1v3h-2.2a2.5 2.5 0 0 0-4.6 0H9.8a2.5 2.5 0 0 0-4.6 0H3zM7 8.2L5.9 11H9V8.2zM10.5 8.2V11h3l-1.2-2.8zM7.5 14.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM16.5 14.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM8 3.6h11v2.2H8zM12.3 5.8h1.4V7h-1.4z',
   tank: 'M7 8h7l1 2h7v1.6h-7.2L14 13H6zM2 13h19l-2 4.5H4zM5 14.6a1 1 0 1 0 0 .1zM8.5 14.5h1v1h-1zM12 14.5h1v1h-1zM15.5 14.5h1v1h-1z',
+  // Mobile AA: tracked hull, boxy turret, twin guns raised, the search radar on its mast.
+  aa: 'M7 8h8v5H7zM2 13h19l-2 4.5H4zM5 14.6a1 1 0 1 0 0 .1zM8.5 14.5h1v1h-1zM12 14.5h1v1h-1zM15.5 14.5h1v1h-1zM14.6 8.4l6-4.6.9 1.1-6 4.6zM14.6 11l6-4.6.9 1.1-6 4.6zM6.6 3.4h4.8v1.6H6.6zM8.3 5h1.4v3H8.3z',
   helicopter: 'M2 5h20v1.4H2zM11.3 6.4h1.4v2H11.3zM6 9h10a4 4 0 0 1 0 8H9l-2-2H4l-2-3h4zM17 10.5h2.2a2.6 2.6 0 0 1 0 3.5H17zM8 17.5h9v1.3H8z',
   transport: 'M1 5h11v1.3H1zM12 5h11v1.3H12zM5.5 6.3h1.2v2H5.5zM17.3 6.3h1.2v2h-1.2zM3 8.5h16l3 3.5v3.5H5L2 12zM6 10h2.5v2H6zM10 10h2.5v2H10zM5 15.5h14v1.4H5z',
   plane: 'M2 11.2l4-.2 3-5h2.2l-1.4 5H17l2.5-3H21l-1 3.4L22 12l-2 .6 1 3.4h-1.5L17 13H9.8l1.4 5H9l-3-5-4-.2z',
@@ -80,7 +82,7 @@ export const ICON_PATHS = Object.freeze({
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */
 export const KILL_KEY_ICONS = Object.freeze({
   tankAP: 'shell', tankHE: 'shell', coaxMG: 'mg', hmg: 'mg', doorMinigun: 'mg', planeCannon: 'autocannon',
-  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', guidedMissile: 'missile', towMissile: 'missile', jetBomb: 'bomb', mortarHE: 'mortar', vehicle: 'roadkill', restricted: 'restricted',
+  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', guidedMissile: 'missile', towMissile: 'missile', jetBomb: 'bomb', mortarHE: 'mortar', flak35: 'autocannon', vehicle: 'roadkill', restricted: 'restricted',
   fall: 'fall', crash: 'crash', redeploy: 'redeploy', collapse: 'collapse',
   // Titanfall kill keys (docs/titanfall.md §2.3) on existing glyphs; WP5 may add titan glyphs later.
   splitter: 'mg', predatorClose: 'mg', predatorLong: 'mg', railgun: 'autocannon', t203: 'shell', leadwall: 'shell',

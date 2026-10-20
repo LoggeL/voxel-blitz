@@ -211,6 +211,33 @@ export function conquestHudFixtures() {
       match: baseMatch(), camera: cam(tankAt.x + ex * c + ez * s, GROUND + ey, tankAt.z - ex * s + ez * c, yaw, 0),
       viewStrip: { type: 'tank', seatId: 'driver', view: 'driver', views }, aim: { yaw: gunYaw, pitch: 0.03 } }));
   }
+  // 10c. Mobile AA driver (design docs/design/conquest/aa/, variant A): guns laid 12° up toward an
+  // enemy attack helicopter crossing 300 m out (radar track box and lead pipper), a second enemy
+  // aircraft and our own helicopter on the scope, heat 46 %. 10d: the same guns overheated, no track.
+  const aaAt = { x: C.x - 95, z: C.z + 45 };
+  {
+    const yaw = yawTo(aaAt, C), gunYaw = yaw + 0.04, gunPitch = 0.3;
+    const self = meAt(aaAt.x, aaAt.z, { vehicleId: 'alpha-aa', vehicleSeatId: 'driver' });
+    const aa = vehicle('alpha-aa', 'aa', 'alpha', aaAt.x, aaAt.z, { hp: 600, yaw: yaw + 0.5, turretYaw: gunYaw, turretPitch: gunPitch,
+      seatOccupants: { driver: 'me', commander: 'sq2' }, mounts: [[gunYaw, gunPitch, -1, 46, 0], [yaw + 0.6, 0.1, -1, 0, 0]],
+      sel: { driver: 0 }, cmr: 100, speed: 5 });
+    const at = (bearing, range, height) => ({ x: aaAt.x - Math.sin(bearing) * range, z: aaAt.z - Math.cos(bearing) * range, y: GROUND + height });
+    const h = at(yaw + 0.14, 300, 128), j = at(yaw - 1.4, 380, 120), own = at(yaw + 2.6, 210, 50);
+    const enemyHeli = vehicle('bravo-helicopter', 'helicopter', 'bravo', h.x, h.z, { y: h.y, hp: 620, yaw: yaw + Math.PI / 2,
+      vx: -Math.cos(yaw) * 22, vy: 0, vz: Math.sin(yaw) * 22, grounded: false, seatOccupants: { driver: 'en1' } });
+    const enemyJet = vehicle('bravo-plane', 'plane', 'bravo', j.x, j.z, { y: j.y, hp: 450, vx: 60, vy: 0, vz: 0, grounded: false, seatOccupants: { driver: 'en2' } });
+    const ownHeli = vehicle('alpha-helicopter', 'helicopter', 'alpha', own.x, own.z, { y: own.y, hp: 650, grounded: false, seatOccupants: { driver: 'tm1' } });
+    const crew = roster(self).map(p => p.id === 'sq2' ? { ...p, x: aaAt.x, z: aaAt.z, vehicleId: 'alpha-aa', vehicleSeatId: 'commander' } : p);
+    // Chase eye behind and above the turret, looking along the guns.
+    const back = 10, eyeY = GROUND + 3.6 + 2.2;
+    out.push(state('aa-driver', 'Mobile AA driver · radar track and lead · heat 46 %', { self, players: crew,
+      vehicles: [aa, enemyHeli, enemyJet, ownHeli, spottedTank], match: baseMatch(),
+      camera: cam(aaAt.x + Math.sin(gunYaw) * back, eyeY, aaAt.z + Math.cos(gunYaw) * back, gunYaw, gunPitch - 0.02) }));
+    const hot = { ...aa, mounts: [[gunYaw, gunPitch, -1, 100, 0], [yaw + 0.6, 0.1, -1, 0, 0]] };
+    out.push(state('aa-overheat', 'Mobile AA driver · OVERHEAT · contacts off the gun line', { self, players: crew,
+      vehicles: [hot, enemyJet, ownHeli, spottedTank], match: baseMatch(),
+      camera: cam(aaAt.x + Math.sin(gunYaw) * back, eyeY, aaAt.z + Math.cos(gunYaw) * back, gunYaw, gunPitch - 0.02) }));
+  }
   // 11. Attack helicopter pilot: rocket pods 9 left, flares ready, lock state 1 (locking).
   const heliAt = { x: C.x - 120, z: C.z - 40 };
   {

@@ -317,6 +317,9 @@ function fixture(n = 16) {
     assert([0, 1].includes(commander.gadgetFor(recon)) && commander.gadgetFor(recon) === commander.gadgetFor(recon), 'recon gadget is stable');
   }
   // Supports: a stable share (MORTAR_BOT_RULES.share, at least one) carries the MORTAR (gadget 1), the rest none.
+  // Support is a flex kit drawn from the per-match random policy.kitSeed, so a
+  // seed may field none: pin the first seed that gives alpha a support.
+  for (let seed = 0; seed < 64 && !bodies('alpha').some(p => commander.kitFor(p) === 'support'); seed++) game.mode.policy.kitSeed = seed;
   const supports = bodies('alpha').filter(p => commander.kitFor(p) === 'support');
   assert(supports.length >= 1, 'alpha has support bots');
   {

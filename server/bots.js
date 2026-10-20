@@ -1478,8 +1478,8 @@ class BotManager {
       inp.keys.crouch = br.crouchFight && d > 10;
       moving = true;
       sprint = false;
-      // Heavy armour: work round to its side plate at 25-60 m, to cover there when any.
-      if (cq && hullTarget && enemy.armor === 'heavy') {
+      // Heavy (and the AA's medium) armour: work round to its side plate at 25-60 m, to cover there when any.
+      if (cq && hullTarget && (enemy.armor === 'heavy' || enemy.armor === 'medium')) {
         const flank = this.flankPoint(br, p, enemy, now);
         if (flank) {
           const wp = navigationWaypoint(this.game.world, p, flank, br, now);

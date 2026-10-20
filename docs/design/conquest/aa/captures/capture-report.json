@@ -1,0 +1,56 @@
+{
+  "generated": "2026-10-19T23:01:34.268Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "aa-driver",
+        "title": "Mobile AA driver · radar track and lead · heat 46 %",
+        "file": "docs/design/conquest/aa/captures/desktop-aa-driver.png",
+        "seated": "aa:driver",
+        "overlaps": []
+      },
+      {
+        "id": "aa-overheat",
+        "title": "Mobile AA driver · OVERHEAT · contacts off the gun line",
+        "file": "docs/design/conquest/aa/captures/desktop-aa-overheat.png",
+        "seated": "aa:driver",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "aa-driver",
+        "title": "Mobile AA driver · radar track and lead · heat 46 %",
+        "file": "docs/design/conquest/aa/captures/portrait-aa-driver.png",
+        "seated": "aa:driver",
+        "overlaps": []
+      },
+      {
+        "id": "aa-overheat",
+        "title": "Mobile AA driver · OVERHEAT · contacts off the gun line",
+        "file": "docs/design/conquest/aa/captures/portrait-aa-overheat.png",
+        "seated": "aa:driver",
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "aa-driver",
+        "title": "Mobile AA driver · radar track and lead · heat 46 %",
+        "file": "docs/design/conquest/aa/captures/landscape-aa-driver.png",
+        "seated": "aa:driver",
+        "overlaps": []
+      },
+      {
+        "id": "aa-overheat",
+        "title": "Mobile AA driver · OVERHEAT · contacts off the gun line",
+        "file": "docs/design/conquest/aa/captures/landscape-aa-overheat.png",
+        "seated": "aa:driver",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

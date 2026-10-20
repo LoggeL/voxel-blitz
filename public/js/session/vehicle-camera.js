@@ -116,7 +116,7 @@ export function vehicleViewLabel(type, seatId, view) {
   if (view !== 'cockpit') return VEHICLE_VIEW_LABELS[view] ?? String(view || '').toUpperCase();
   const def = vehicleDef(type), seat = def?.seats.find(entry => entry.id === seatId);
   if (AIRCRAFT.has(def?.handling) && seat?.drives) return 'COCKPIT';
-  if (def?.type === 'tank' && seat?.drives) return 'HATCH';
+  if (def?.handling === 'tracked' && seat?.drives) return 'HATCH';
   return 'FIRST PERSON';
 }
 

@@ -96,7 +96,7 @@ for (const field of meta.conquest.airfields) {
     assert.equal(frontierTopY(bay.x, bay.z), plateauY);
     assert.equal(get(Math.floor(bay.x), plateauY, Math.floor(bay.z)), CONCRETE, `${bay.id} concrete bay`);
   }
-  assert.ok(field.fuelFarm.w > 10 && field.taxiways.length >= 1 && field.walkingRoutes.length === 6);
+  assert.ok(field.fuelFarm.w > 10 && field.taxiways.length >= 1 && field.walkingRoutes.length === 7);
   for (const route of field.walkingRoutes) assert.ok(Math.hypot(route[0].x - hq.x, route[0].z - hq.z) < 1, 'pickup routes start at the HQ');
 }
 

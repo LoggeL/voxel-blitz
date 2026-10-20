@@ -211,15 +211,20 @@ export const VEHICLE_ACTION_TYPES = Object.freeze(['enter', 'exit', 'seat', 'cm'
 // enter {vehicleId, seatId?} | exit {} | seat {seatId} | cm {} | weapon {index}
 
 export const DAMAGE_CLASSES = Object.freeze(['small', 'mg', 'hmg', 'autocannon', 'explosive', 'he', 'at', 'aa', 'fire']);
-export const ARMOR_CLASSES = Object.freeze(['light', 'heavy', 'air']);
+// `medium`: the mobile AA hull's armour, between the jeep's light and the tank's heavy.
+export const ARMOR_CLASSES = Object.freeze(['light', 'heavy', 'air', 'medium']);
 export const HIT_ZONES = Object.freeze(['front', 'side', 'rear', 'top', 'bottom']);
 
-export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at']);
+export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa']);
 /**
  * Hull variants: a type that shares another type's hull (handling, collider,
  * seats, model and sounds) but arms it differently. The AT jeep is the jeep
  * with a TOW launcher on the pintle. `vehicleHullType` answers "which hull is
  * this" for every per-hull table and check; weapons stay keyed by the type.
+ * The mobile AA (`aa`) rides the tank's running gear (tracked drive, a turret
+ * that carries the commander's seat, engine and track sounds, cook-off) but
+ * fills every per-hull table of its own: HP, armour, collider, seats, mounts,
+ * model (shared/vehicle-defs.js).
  */
 /**
  * Deployables: hull types a player places in the match (never on a map pad,
@@ -228,7 +233,7 @@ export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'tr
  */
 export const DEPLOYABLE_TYPE_IDS = Object.freeze(['mortar']);
 export const isDeployableType = type => typeof type === 'string' && DEPLOYABLE_TYPE_IDS.includes(type);
-export const VEHICLE_HULL_VARIANTS = Object.freeze({ jeep_at: 'jeep' });
+export const VEHICLE_HULL_VARIANTS = Object.freeze({ jeep_at: 'jeep', aa: 'tank' });
 export const vehicleHullType = type => VEHICLE_HULL_VARIANTS[type] ?? type;
 export const VEHICLE_WEAPON_META = Object.freeze({
   // Tank main gun: real cannon shells (`shell` presentation: tracer streak, no rocket
@@ -254,8 +259,11 @@ export const VEHICLE_WEAPON_META = Object.freeze({
   towMissile:       Object.freeze({ label: 'TOW MSL',    kind: 'missile', cls: 'at',         speed: 65,  gravity: 0, rate: 1 / 2,   presentation: 'rocket' }),
   // Support mortar: a finned HE bomb (`bomb` presentation) lobbed on a high arc.
   mortarHE:         Object.freeze({ label: 'MORTAR HE',  kind: 'shell',   cls: 'he',         speed: 59,  gravity: 14, rate: 1 / 2,   presentation: 'bomb' }),
+  // Mobile AA twin 35 mm: radar-proximity-fused flak shells (VEHICLE_WEAPONS.flak35.flak),
+  // `aa` class (strong on aircraft, weak on ground armour), the left and right gun in turn.
+  flak35:           Object.freeze({ label: '35MM FLAK',  kind: 'shell',   cls: 'aa',         speed: 320, gravity: 4, rate: 8,       presentation: 'mgl' }),
 });
-export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, mortar: null });
+export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, mortar: null, aa: 'smoke' });
 
 /** Seat and mount topology. Order is significant (F1..F5, mounts[] in snapshot rows). Positions/anchors live in shared/vehicle-defs.js. */
 const S = (id, role, drives, exposed, personalWeapons, mounts) => Object.freeze({ id, role, drives, exposed, personalWeapons, mounts: Object.freeze(mounts) });
@@ -298,6 +306,12 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
   // Deployable (DEPLOYABLE_TYPE_IDS): the Support mortar, one exposed operator.
   mortar: Object.freeze([
     S('operator', 'gunner', false, true, false, [M('tube', ['mortarHE'])]),
+  ]),
+  // Mobile AA: the driver drives and fights the twin 35 mm turret (the tank's
+  // driver-gunner seat); the commander works the .50 on the turret roof.
+  aa: Object.freeze([
+    S('driver', 'driver', true, false, false, [M('main', ['flak35'])]),
+    S('commander', 'gunner', false, true, false, [M('rws', ['hmg'])]),
   ]),
 });
 /** Seat topology of a conquest or titan type (titan types: shared/titan-contract.js). */

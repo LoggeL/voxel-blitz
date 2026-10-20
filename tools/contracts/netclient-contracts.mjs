@@ -1,4 +1,5 @@
 import { deeplyFrozen } from '../lib/assert.mjs';
+import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
 import { CONQUEST_CONTRACT_VERSION } from '../../shared/conquest-contract.js';
 import { TITANFALL_CONTRACT_VERSION } from '../../shared/titan-contract.js';
 
@@ -186,7 +187,7 @@ export async function runNetClientContracts(ok, installGlobals) {
         viewAge: 80,
         throwGrenade: true,
         grenadeCharge: 0.6254,
-        grenadeType: 7,
+        grenadeType: GRENADE_TYPE_IDS.length + 1,
         grenadeCook: 99999,
       });
       const inputFrame = JSON.parse(joined.ws.sent.at(-1));
@@ -221,7 +222,7 @@ export async function runNetClientContracts(ok, installGlobals) {
         throwGrenade: true,
         grenadeCharge: 0.625,
         // Clamped to the last pouch slot (GRENADE_TYPE_IDS.length - 1).
-        grenadeType: 5,
+        grenadeType: GRENADE_TYPE_IDS.length - 1,
         grenadeCook: 0,
       }),
       'NetClient sends the exact nested held-interaction and clamped grenade charge/type/cook frame');

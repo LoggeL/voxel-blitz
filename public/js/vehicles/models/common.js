@@ -63,7 +63,10 @@ export function buildMounts(kit, type, nodes) {
     const { yawNode, pitchNode } = rig;
     const muzzles = [];
     if (anchor.sides) {
-      anchor.sides.forEach((side, i) => muzzles.push(kit.anchor(pitchNode, `${type}-${anchor.mountId}-muzzle-${i}`, side)));
+      // Fixed pods and rails fire from the side point itself; an aimed twin
+      // mount (the AA's guns) from each barrel's tip, `muzzle` ahead of it.
+      anchor.sides.forEach((side, i) => muzzles.push(kit.anchor(anchor.fixed ? pitchNode : rig.recoilNode || pitchNode,
+        `${type}-${anchor.mountId}-muzzle-${i}`, anchor.fixed ? side : [side[0], side[1], side[2] - anchor.muzzle])));
     } else {
       const pivot = anchor.pivot;
       const point = anchor.fixed ? pivot : [pivot[0], pivot[1], pivot[2] - anchor.muzzle];

@@ -25,6 +25,7 @@ import { raycastVoxels } from '../shared/raycast.js';
 import { cancelCharge } from './sim/combat.js';
 import { armorMultiplier as sharedArmorMultiplier, infantryDamageClass } from '../shared/vehicle-armor.js';
 import { VEHICLE_DEFS, LOCK_RULES, VEHICLE_WEAPONS } from '../shared/vehicle-defs.js';
+import { AA_BOT } from './bot-aa.js';
 
 /**
  * Conquest crews (not titans): an error floor under the skill-scaled sigma (a
@@ -54,12 +55,12 @@ export const TANK_OMNI_RANGE = 40;
 export const GUNNER_OMNI_RANGE = 30;
 /** A hull this effective or less is a danger to avoid, not a target to shoot. */
 export const MIN_ARMOR_EFFECT = 0.15;
-const HULL_THREAT = Object.freeze({ tank: 2.2, helicopter: 1.9, transport: 1.25, jeep: 1.4, plane: 0.9, jeep_at: 1.7, mortar: 0.8,
+const HULL_THREAT = Object.freeze({ tank: 2.2, helicopter: 1.9, transport: 1.25, jeep: 1.4, plane: 0.9, jeep_at: 1.7, mortar: 0.8, aa: 1.6,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, 2.4])) });
 /** Titanfall AT launchers (docs/titanfall.md §6): ARCHER lock range, THUNDERBOLT orb reach (30 m/s × 2.5 s). */
 const ARCHER_ENGAGE_RANGE = LOCK_RULES.archer?.range ?? 180;
 export const THUNDERBOLT_ENGAGE_RANGE = 68;
-const ARMOR_BY_TYPE = Object.freeze({ jeep: 'light', tank: 'heavy', helicopter: 'air', transport: 'air', plane: 'air', jeep_at: 'light', mortar: 'light' });
+const ARMOR_BY_TYPE = Object.freeze({ jeep: 'light', tank: 'heavy', helicopter: 'air', transport: 'air', plane: 'air', jeep_at: 'light', mortar: 'light', aa: 'medium' });
 
 /** Armour class of a hull type from the shared registry (spec 5.1). */
 export function vehicleArmorClass(type) {
@@ -180,12 +181,13 @@ function hostileHulls(game, p, ignoreId = null) {
  */
 export function pickBotThreat(game, p, br, {
   observer = p, effectFor = () => 1, omniRange = 0, sightRange, scan = true, now = game.now,
-  ignoreVehicleId = null, includeInfantry = true, includeHulls = true, exclude = null, airSightRange = null,
+  ignoreVehicleId = null, includeInfantry = true, includeHulls = true, exclude = null, airSightRange = null, airOmniRange = null,
 } = {}) {
   // Titanfall: the cloak gate in observeBotTarget (docs/titanfall.md §9).
   const options = isTitanfall(game.mode.mode) ? { omniRange, sightRange, titanfall: true } : { omniRange, sightRange };
   // An AA-armed bot watches the sky farther out (airborne aircraft only).
-  const airOptions = airSightRange ? { omniRange, sightRange: Math.max(airSightRange, sightRange ?? 0) } : options;
+  // A radar-equipped mount (the mobile AA) also sees them all round (`airOmniRange`).
+  const airOptions = airSightRange ? { omniRange: Math.max(omniRange, airOmniRange ?? 0), sightRange: Math.max(airSightRange, sightRange ?? 0) } : options;
   const smoke = game.projectiles?.smoke;
   const heldId = br.enemyId;
   const shooterId = br.damageFrom && now - br.damageFrom.at < 3000 ? br.damageFrom.id : null;
@@ -517,9 +519,12 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   const primary = weapons[0].mount;
   const { observer } = mountedObserver(game, v, seatId, primary, p);
   // A seat armed only with a sight-guided missile (the AT jeep) hunts hulls first.
+  // Flak (the mobile AA) is wasted on infantry: aircraft and light hulls come first.
   const effectFor = target => target.kind === 'hull'
     ? Math.max(...weapons.map(w => armorMultiplier(vehicleWeaponMeta(w.weapon)?.cls, target.armor)))
-    : Math.max(...weapons.map(w => VEHICLE_WEAPONS[w.weapon]?.beam ? BEAM_SUITABILITY.infantry : 1));
+    : Math.max(...weapons.map(w => VEHICLE_WEAPONS[w.weapon]?.beam ? BEAM_SUITABILITY.infantry
+      : VEHICLE_WEAPONS[w.weapon]?.flak ? AA_BOT.infantryEffect : 1));
+  const radar = weapons.some(w => VEHICLE_WEAPONS[w.weapon]?.flak);
   // While its sight-guided missile flies the gunner keeps the sight on that
   // target: no full sweeps and no weapon change until it has arrived. A
   // missile still riding this gunner's sight counts too (one launched on the
@@ -533,7 +538,7 @@ export function applyMountedCombat(game, br, p, v, seatId, now, dtS, inp, { thre
   // picker, so the next-best visible threat is engaged meanwhile.
   const blacklisted = id => (state.blacklist.get(id) ?? 0) > now;
   const observed = pickBotThreat(game, p, heldBr, { observer, effectFor, omniRange, ignoreVehicleId: v.id,
-    sightRange, scan: !guiding && ((br.index + (game.tickCounter ?? Math.floor(now / 50))) % 2 === 0 || !state.targetId), now,
+    sightRange, ...(radar ? { airSightRange: AA_BOT.airSightRange, airOmniRange: AA_BOT.airOmniRange } : {}), scan: !guiding && ((br.index + (game.tickCounter ?? Math.floor(now / 50))) % 2 === 0 || !state.targetId), now,
     exclude: state.blacklist.size ? blacklisted : null });
   const profile = botDifficulty(br.difficulty);
   const pers = BOT_PERSONALITIES[br.personality] ?? BOT_PERSONALITIES[DEFAULT_BOT_PERSONALITY];

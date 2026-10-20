@@ -14,6 +14,7 @@
 import { el } from '../hud-support.js';
 import { bindingLabel } from '../../keybindings.js';
 import { clampToEdge } from './projection.js';
+import { drawAaReticle } from './aa-hud.js';
 
 const AMBER = '#ffcf5c', WHITE = '#f4f7f9', RED = '#ff4b4b', GREEN = '#7ef29a', CYAN = '#4cc3ff';
 /** Sight-guided missile status: `GUIDED MSL ×2 · READY`, the crosshair steers the round in flight. */
@@ -108,6 +109,8 @@ export class Reticles {
         case 'jet': this._jet(ctx, model, width, height); break;
         case 'flight': this._nose(ctx, model.nose); break;
         case 'mg': this._mg(ctx, model); break;
+        case 'aa': this.reserved.push(drawAaReticle(ctx, model, width, height,
+          { touch, text: (c, text, x, y, color) => this._text(c, text, x, y, color), shadowed })); break;
         default: break;
       }
       if (model.hull) this._hull(ctx, model.hull, width, height, touch);

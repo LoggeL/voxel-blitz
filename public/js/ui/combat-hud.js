@@ -26,7 +26,7 @@ const KILLMARK_MS = 520;
 
 const EMPTY = Object.freeze({});
 const VEHICLE_TYPE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP',
-  mortar: 'MORTAR' });
+  aa: 'MOBILE AA', mortar: 'MORTAR' });
 const TITANFALL_MINION_ID = /^tfg\d+$/;
 /** Armour hit confirmations: yellow when the hit did damage, a white spark when the armour shrugged it off. */
 const ARMOR_MARKS = Object.freeze({ armor: 'vb-armor-hit', spark: 'vb-armor-spark' });

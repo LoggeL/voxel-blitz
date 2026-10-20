@@ -155,7 +155,7 @@ function visibleTouchMask(context) {
       mask = ACTION_BITS.flightUp | ACTION_BITS.flightDown | ACTION_BITS.flightBrake;
     }
     // The seat's weapon list decides (vehicleCanFire); legacy contexts fall back to the hull type.
-    const canFire = context.vehicleCanFire ?? (['tank', 'helicopter', 'plane'].includes(context.vehicleType) ? context.canFire : false);
+    const canFire = context.vehicleCanFire ?? (['tank', 'helicopter', 'plane', 'aa'].includes(context.vehicleType) ? context.canFire : false);
     if (context.vehicleRole !== 'passenger' && canFire === true) mask |= ACTION_BITS.fire;
     if (Number(context.vehicleSeatCount) > 1) mask |= ACTION_BITS.vehicleSeat;
     if (drives && context.vehicleCountermeasure) mask |= ACTION_BITS.countermeasure;

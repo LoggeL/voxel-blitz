@@ -29,7 +29,7 @@ export const CONQUEST_SQUAD_TUPLE_MAX_LENGTH = 4;
 export const CONQUEST_MATCH_BUDGET_BYTES = 400;
 
 /** Conquest contract v3 (classes): `cq[0]` indexes this kit list (0-3 kept from v2, new kits appended, so cq[0] <= 8). */
-// v6: squad orders and the comm rose, the Recon gadgets, the Support MORTAR (`mortar` intent and event, deployable `mortar` hull rows with `own`), and ribbons and medals (`ribbon` / `medal` events, the `ribbon` score reason, results rows `cqr` / `cqm` / `cqp` / `cxp`), and vehicle upgrades (deploy `upgrades` map, row `upg`, locked `deploy_refused` with `vehicle` / `upgrade` / `level`).
+// v6: squad orders and the comm rose, the Recon gadgets, the Support MORTAR (`mortar` intent and event, deployable `mortar` hull rows with `own`), and ribbons and medals (`ribbon` / `medal` events, the `ribbon` score reason, results rows `cqr` / `cqm` / `cqp` / `cxp`), and vehicle upgrades (deploy `upgrades` map, row `upg`, locked `deploy_refused` with `vehicle` / `upgrade` / `level`), and the mobile AA (`aa` pad hull, `medium` armour class, `flak35` proximity-fused flak).
 export const CONQUEST_CONTRACT = Object.freeze({ version: 6 });
 export const CONQUEST_KIT_IDS = 'assault,engineer,support,recon,medic,pyro,grenadier,raider,marksman';
 /** Event kinds added by the classes update: the Medic aura `heal {id, by, hp}` and `kit_unlocks {id, level, unlocked, newly}`. */

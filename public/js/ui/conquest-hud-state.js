@@ -20,6 +20,7 @@ import {
 } from '../../../shared/conquest-kits.js';
 import { RECON_GADGET_RULES } from '../../../shared/recon-gadgets.js';
 import { WEAPON_NAMES } from './hud-support.js';
+import { aaReticleModel } from './conquest/aa-hud.js';
 import { relativeTeam, squadName, teamDisplayName } from './conquest/scoring.js';
 import {
   angleTo, ballisticAtTime, ballisticImpact, ballisticPoint, clampToEdge, forwardFromAngles, leadPoint, localPlanar,
@@ -33,7 +34,7 @@ export const CQ_COLORS = Object.freeze({
   spotted: '#ff4b4b', down: '#ff6b6b', contested: '#ffd166',
 });
 export const VEHICLE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP',
-  mortar: 'MORTAR' });
+  aa: 'MOBILE AA', mortar: 'MORTAR' });
 const ROLE_LABELS = Object.freeze({ driver: 'DRIVER', pilot: 'PILOT', gunner: 'GUNNER', passenger: 'PASSENGER' });
 const SEAT_LABELS = Object.freeze({
   driver: 'DRIVER', gunner: 'GUNNER', commander: 'COMMANDER', 'front-passenger': 'PASSENGER', 'rear-left': 'REAR LEFT',
@@ -270,7 +271,7 @@ export function seatStrip(row, selfId, players = []) {
     const occupantId = seatOccupant(row, seat.id);
     const who = occupantId ? nameOf(players, occupantId) : { name: null, bot: false };
     const you = occupantId != null && String(occupantId) === String(selfId);
-    const label = row?.type === 'tank' && seat.id === 'commander' ? 'COMMANDER' : SEAT_LABELS[seat.id] || ROLE_LABELS[seat.role] || seat.id.toUpperCase();
+    const label = (row?.type === 'tank' || row?.type === 'aa') && seat.id === 'commander' ? 'COMMANDER' : SEAT_LABELS[seat.id] || ROLE_LABELS[seat.role] || seat.id.toUpperCase();
     return { key: `F${index + 1}`, id: seat.id, role: seat.role, label, occupantId, name: who.name, bot: who.bot, you,
       free: occupantId == null, exposed: seat.exposed,
       text: `${`F${index + 1}`} ${label}${you ? ' (you)' : occupantId ? (who.bot ? ' [bot]' : '') : ' · free'}` };
@@ -426,7 +427,7 @@ export function nextFreeSeatIndex(row, seatId) {
 
 /** Tank gunner range ladder: horizontal ranges (m) marked along the shell's arc. */
 export const TANK_RANGE_TICKS = Object.freeze([100, 200, 300, 400, 500]);
-const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1, jeep_at: 2.15, mortar: 0.4 });
+const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1, jeep_at: 2.15, mortar: 0.4, aa: 2.3 });
 
 /** Muzzle pose from the shared vehicle registry (mountPose), else from the row mount angles at the hull. */
 export function mountPoseOf(row, seatId, mountId, registry = vehicleDefs) {
@@ -550,6 +551,8 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
   }
   const meta = VEHICLE_WEAPON_META[selected.weapon] || {};
   const pose = mountPoseOf(row, seat.id, selected.mount, registry);
+  // Mobile AA driver: flak reticle, radar track and lead, the radar scope (conquest/aa-hud.js).
+  if (row.type === 'aa' && selected.weapon === 'flak35') return aaReticleModel(base, row, selected, pose, { project, vehicles, selfTeam, viewYaw, hullYaw });
   if (row.type === 'tank' && seat.id === 'driver') {
     // Shells drop (VEHICLE_WEAPON_META gravity): the impact marker sits where the
     // arc from the barrel meets solid terrain (`raycast`, which must skip water like

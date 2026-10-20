@@ -1,4 +1,5 @@
 import { MODE_IDS, GUN_GAME_WEAPON_ORDER } from '../../shared/modes.js';
+import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
 import { makeSnapshot } from '../../server/protocol/snapshot.js';
 import { WEAPONS } from '../../shared/combatmath.js';
 import { combatDamage } from '../../shared/combat-balance.js';
@@ -630,10 +631,11 @@ export async function runHudContracts(ok, installGlobals) {
         const pouchKey = document.querySelector('.vb-grenade-pouch-key');
         const pouchHint = document.querySelector('.vb-grenade-pouch');
         const mouse = { touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false };
-        setKeybinding('grenade', 'KeyU');
+        // KeyU is the Conquest comm rose (commRose), so the remap uses a free key.
+        setKeybinding('grenade', 'KeyP');
         setKeybinding('grenadeType', 'KeyO');
         hud.setDeviceInfo(mouse);
-        const keyboardLabels = grenadeKey.textContent === 'U'
+        const keyboardLabels = grenadeKey.textContent === 'P'
           && pouchKey.textContent === 'O'
           && pouchHint.title === 'Tap O for the next grenade, hold for the pouch';
         hud.setDeviceInfo({ ...mouse, padActive: true });
@@ -809,7 +811,7 @@ export async function runHudContracts(ok, installGlobals) {
       const card = document.getElementById('grenade-count');
       const dots = card.querySelectorAll('.vb-grenade-dot');
       ok(card.querySelectorAll('.vb-grenade-type').length === 0
-        && dots.length === 6
+        && dots.length === GRENADE_TYPE_IDS.length
         && dots[0].classList.contains('is-stocked') && dots[0].classList.contains('is-ready')
         && dots[1].classList.contains('is-stocked') && !dots[1].classList.contains('is-ready')
         && !dots[2].classList.contains('is-stocked')
@@ -907,8 +909,8 @@ export async function runHudContracts(ok, installGlobals) {
       const pouch = document.getElementById('grenade-pouch');
       const pouchSlots = pouch.querySelectorAll('.vb-pouch-slot');
       const pouchOpen = pouch.getAttribute('aria-hidden') === 'false'
-        && pouchSlots.length === 6
-        && pouchSlots.map((slot) => slot.dataset.type).join(',') === 'frag,limpet,pulse,molotov,smoke,atmine'
+        && pouchSlots.length === GRENADE_TYPE_IDS.length
+        && pouchSlots.map((slot) => slot.dataset.type).join(',') === GRENADE_TYPE_IDS.join(',')
         && pouchSlots[0].style['--vb-pouch-angle'] === '270deg'
         && pouchSlots[1].classList.contains('is-empty') && pouchSlots[2].classList.contains('is-empty')
         && pouchSlots[0].classList.contains('is-ready')
@@ -920,7 +922,7 @@ export async function runHudContracts(ok, installGlobals) {
       const fragRole = pouch.querySelector('.vb-pouch-hub-role').textContent === 'Timed fuse · cookable · 7.5 m blast';
       hud.setState({ grenadePouchOpen: false });
       ok(pouchOpen && fragRole && pouch.getAttribute('aria-hidden') === 'true' && !hud.isGrenadePouchOpen(),
-        'pouch radial lays six fixed wedges, snaps hover off empty slots, and generates the role line from the rules');
+        'pouch radial lays one fixed wedge per pouch type, snaps hover off empty slots, and generates the role line from the rules');
       // Down-right points at the empty pulse slot and snaps to molotov; the dead zone picks nothing.
       ok(grenadePouchSlotFromVector(0, -1, [1, 0, 0, 1, 1]) === 0
         && grenadePouchSlotFromVector(0.8, 0.6, [1, 0, 0, 1, 1]) === 3

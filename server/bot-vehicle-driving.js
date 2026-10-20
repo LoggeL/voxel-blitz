@@ -30,9 +30,11 @@ const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
 const bearing = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
-const GROUND = new Set(['jeep', 'tank', 'jeep_at']);
-/** Armour that holds an overwatch spot on the focus flag (the AT jeep stands off like a tank destroyer). */
-const OVERWATCH = new Set(['tank', 'jeep_at']);
+const GROUND = new Set(['jeep', 'tank', 'jeep_at', 'aa']);
+/** Armour that holds an overwatch spot on the focus flag (the AT jeep stands off like a tank destroyer, the AA over its cover flag). */
+const OVERWATCH = new Set(['tank', 'jeep_at', 'aa']);
+/** Tracked hulls: pivot in place instead of reversing out of a wrong heading. */
+const TRACKED = new Set(['tank', 'aa']);
 /**
  * Titanfall walkers (docs/titanfall.md §9): titan hulls walk like ground
  * vehicles but strafe, and the hull yaw follows the aim. `near`/`far` is the
@@ -423,14 +425,14 @@ export class ConquestVehicleDriving {
     const error = wrap(desiredYaw - v.yaw), d = distance(v, target);
     const next = state.detour ? (state.detour[1] ?? state.points[state.index]) : state.points[state.index + 1];
     const corner = next ? Math.abs(wrap(bearing(target, next) - desiredYaw)) : 0;
-    const reverse = v.type !== 'tank' && Math.abs(error) > 1.9 && d < 42;
+    const reverse = !TRACKED.has(v.type) && Math.abs(error) > 1.9 && d < 42;
     const steeringError = reverse ? wrap(error + Math.PI) : error;
     const rules = VEHICLE_RULES[v.type];
-    inp.vehicleSteer = clamp(-steeringError * (v.type === 'tank' ? 2 : 2.5) * (reverse ? -1 : 1), -1, 1);
+    inp.vehicleSteer = clamp(-steeringError * (TRACKED.has(v.type) ? 2 : 2.5) * (reverse ? -1 : 1), -1, 1);
     let speed = cruise ?? rules.speed;
-    if (Math.abs(steeringError) > 0.35) speed = Math.min(speed, v.type === 'tank' ? 5 : 6);
+    if (Math.abs(steeringError) > 0.35) speed = Math.min(speed, TRACKED.has(v.type) ? 5 : 6);
     if (corner > 0.4 && d < 24) speed = Math.min(speed, 5 + d * 0.2);
-    if (v.type === 'tank' && Math.abs(error) > 0.6) speed = 0;
+    if (TRACKED.has(v.type) && Math.abs(error) > 0.6) speed = 0;
     if (remaining < 40) speed = Math.min(speed, Math.max(3, remaining * 0.35));
     inp.vehicleBrake = Math.abs(v.speed) > speed + 1 ? 0.8 : 0;
     inp.vehicleThrottle = reverse ? -0.8 : speed / rules.speed;

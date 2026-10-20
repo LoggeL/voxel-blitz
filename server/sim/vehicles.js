@@ -32,8 +32,16 @@ import { upgradeCode, upgradeScale } from '../../shared/vehicle-upgrades.js';
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(n) ? n : 0));
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
 const q = (value, scale) => Math.round(finite(value) * scale) / scale;
-/** Handling dispatch: ground drive steppers and flight steppers by def.handling. */
-const GROUND_STEPPERS = Object.freeze({ wheeled: stepJeepDrive, tracked: stepTankDrive });
+/**
+ * Handling dispatch: ground drive steppers and flight steppers by def.handling.
+ * Ground steppers get (v, input, dt, rules, tune): the tracked stepper drives on
+ * the hull's own rules (the tank's or the mobile AA's), the wheeled one on the
+ * jeep rules scaled by the upgrade tune.
+ */
+const GROUND_STEPPERS = Object.freeze({
+  wheeled: (v, input, dt, rules, tune) => stepJeepDrive(v, input, dt, tune),
+  tracked: (v, input, dt, rules) => stepTankDrive(v, input, dt, rules),
+});
 /** Drive tuning of a hull's upgrade (a jeep's turbo); the tracked stepper ignores it. */
 const groundTune = v => ({ speed: upgradeScale(v, 'speed'), acceleration: upgradeScale(v, 'acceleration') });
 const FLIGHT_STEPPERS = Object.freeze({
@@ -1293,7 +1301,7 @@ export class VehicleSystem {
     const now = this.nowMs(), tracks = v.subsystems && subsystemBroken(v, 'tracks', now);
     const drive = (v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1)
       * (tracks ? 0 : v.subsystems && subsystemBroken(v, 'engine', now) ? TANK_SUBSYSTEMS.engine.drive : 1);
-    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: tracks ? 0 : controls.steer, brake: controls.brake }, dt, groundTune(v));
+    GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: tracks ? 0 : controls.steer, brake: controls.brake }, dt, def, groundTune(v));
     // A driverless hull at rest with no body in reach: its collision pass is a
     // pure function of the fields, terrain and nearby hulls it reads, so when
     // they all equal the previous pass's inputs, that pass's result is reused.

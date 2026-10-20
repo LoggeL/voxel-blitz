@@ -13,6 +13,7 @@ import { TITAN_DEFS_INPUT } from './vehicle-handling/titan.js';
 import { TITAN_WEAPONS } from './vehicle-handling/titan-weapons.js';
 import { JEEP_RULES } from './vehicle-handling/jeep.js';
 import { TANK_RULES } from './vehicle-handling/tank.js';
+import { AA_RULES } from './vehicle-handling/aa.js';
 import { HELICOPTER_RULES } from './vehicle-handling/helicopter.js';
 import { TRANSPORT_RULES } from './vehicle-handling/transport.js';
 import { PLANE_RULES } from './vehicle-handling/plane.js';
@@ -48,7 +49,7 @@ export const VEHICLE_LIFECYCLE = freeze({
 });
 
 /** Hull mass in tonnes: momentum transfer when a hull shoves a wreck. */
-export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, mortar: 0.12,
+export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, mortar: 0.12, aa: 30,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, TITAN_DEFS_INPUT[type].mass])) });
 
 /**
@@ -71,6 +72,8 @@ export const VEHICLE_RAM = freeze({
   jeep: { pushForce: 0, maxPushMass: 3, classes: { brush: 2, wood: 8 }, armor: 12, perTick: 4, burst: 12, refill: 6 },
   jeep_at: { pushForce: 0, maxPushMass: 3, classes: { brush: 2, wood: 8 }, armor: 12, perTick: 4, burst: 12, refill: 6 },
   tank: { pushForce: 600, maxPushMass: 60, classes: { brush: 1, wood: 2, thin: 3, masonry: 7 }, armor: 55, perTick: 8, burst: 40, refill: 16 },
+  // The 30 t AA: flattens brush, fences and thin sheet, but no masonry.
+  aa: { pushForce: 360, maxPushMass: 40, classes: { brush: 1, wood: 3, thin: 5 }, armor: 35, perTick: 6, burst: 28, refill: 12 },
 });
 /** A hit whose share into the wall is under `glancingNormal` (30°) scrapes along it and breaks only brush. */
 export const RAM_RULES = freeze({ speedLoss: 0.15, damage: 0.5, glancingNormal: 0.5, flagGuardRadius: 5, baseGuardMargin: 0 });
@@ -81,7 +84,7 @@ export const RAM_RULES = freeze({ speedLoss: 0.15, damage: 0.5, glancingNormal: 
  * full hp at top speed and stops dead. A 45 t tank rocks back off a wall and
  * loses at most a tenth of its hull.
  */
-export const WALL_CRASH_RULES = freeze({ tank: { maxShare: 0.1, bounce: 0.3 } });
+export const WALL_CRASH_RULES = freeze({ tank: { maxShare: 0.1, bounce: 0.3 }, aa: { maxShare: 0.15, bounce: 0.25 } });
 
 /**
  * A ground hull driving into another hull. The contact is perfectly inelastic
@@ -176,6 +179,16 @@ export const VEHICLE_WEAPONS = freeze({
   // scatters each round so a salvo walks around the aim point.
   mortarHE: weapon('mortarHE', { cooldown: 2, magazine: 5, reloadSeconds: 8, damage: 60, splash: 120, splashRadius: 5.5, splashCls: 'he',
     terrainRadius: 1.6, terrainPower: 90, maxDestroyedBlocks: 14, lifetimeMs: 14000, knockback: 12, spreadDeg: 0.6 }),
+  // Mobile AA twin 35 mm, the left and right gun in turn. `flak` is the radar
+  // proximity fuse (server/sim/flak-fuse.js): past `armDistance` m of flight a
+  // shell bursts once it passes within `proximity` m of an airborne enemy
+  // aircraft's hull, so the burst's splash falls off with the miss distance.
+  // A shell that meets nothing airbursts at the end of its life (~470 m).
+  // Sustained fire overheats in ~3.2 s (26 shots: 8 x 0.07 against 0.25 cooling a second).
+  // `aa` class: a heli takes ~25 near bursts (about one heat bar), a tank shrugs it off.
+  flak35: weapon('flak35', { cooldown: 1 / 8, damage: 30, splash: 40, splashRadius: 5, splashCls: 'aa',
+    heatPerShot: 0.07, coolPerSecond: 0.25, overheatSeconds: 3.5, terrainRadius: 0.8, terrainPower: 40, maxDestroyedBlocks: 2,
+    lifetimeMs: 1500, knockback: 3, infantrySplashScale: 0.5, flak: { proximity: 4, armDistance: 25 } }),
   // Titan mount weapons (shared/vehicle-handling/titan-weapons.js, WP3 numbers).
   ...TITAN_WEAPONS,
 });
@@ -220,6 +233,7 @@ export const STINGER_RULES = freeze({
 const seatHips = {
   jeep: { driver: [-0.4, 1.15, 0.13], gunner: [0, 1.55, 1.05], 'front-passenger': [0.4, 1.15, 0.13], 'rear-left': [-0.45, 1.205, 1.25] },
   tank: { driver: [-0.64, 0.9, -1.3], commander: [0.6, 2.2, 0.4] },
+  aa: { driver: [-0.6, 0.9, -1.55], commander: [0.6, 2.4, 0.55] },
   helicopter: { driver: [-0.36, 1.4, -0.95], gunner: [0.36, 1.4, -0.95] },
   transport: { driver: [-0.36, 1.4, -0.95], 'door-left': [-0.95, 1.35, 0.4], 'door-right': [0.95, 1.35, 0.4], 'rear-left': [-0.45, 1.4, 1.2], 'rear-right': [0.45, 1.4, 1.2] },
   plane: { driver: [0, 1.4, -1.17] },
@@ -256,6 +270,11 @@ const seatCameras = {
   tank: { driver: { mode: 'chase', distance: 9.5, height: 3.4, optic: 3, views: [...DRIVE_VIEWS, 'driver'], eye: [0, 3.35, 0.3], eyeFrame: 'turret',
     sight: [0, 0.3, 0], periscope: [-0.6, 1.5, -2.55] },
     commander: { mode: 'mount', distance: 5, height: 1.4, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.3, 0.6, 0.55], eyeFrame: 'mount' } },
+  // AA: the driver lays the guns from a turret eye between them; RMB is the
+  // gun sight (2.5x) on the trunnion line.
+  aa: { driver: { mode: 'chase', distance: 10, height: 3.6, optic: 2.5, views: DRIVE_VIEWS, eye: [0, 3.25, 0.7], eyeFrame: 'turret',
+    sight: [0, 0.4, 0.2] },
+    commander: { mode: 'mount', distance: 5, height: 1.4, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.3, 0.6, 0.55], eyeFrame: 'mount' } },
   helicopter: { driver: { mode: 'chase', distance: 13, height: 3.6, views: FLY_VIEWS },
     gunner: { mode: 'gimbal', distance: 0, height: 0, optic: 4, views: ['gimbal', 'cockpit'], sight: [0, 0.22, 0.25] } },
   transport: { driver: { mode: 'chase', distance: 15, height: 4.2, views: FLY_VIEWS },
@@ -274,7 +293,8 @@ const defaultCamera = { mode: 'passenger', distance: 6, height: 2.2, views: ['co
  * yaw ([centre, halfRange]); null means 360 degrees. pitchLimit is relative
  * to the hull slope along the aim.
  */
-const T = TANK_RULES;
+const T = TANK_RULES, A = AA_RULES;
+const aaGunZ = -A.turretForward - A.gunPivotForward;
 const mountAnchors = {
   jeep: { pintle: { pivot: [0, 2.15, 0.75], muzzle: 1, yawLimit: null, pitchLimit: [-0.3, 0.75], yawRate: 3, pitchRate: 2.4 } },
   // The TOW launcher on the jeep's pintle post: its own tube is the sight.
@@ -285,6 +305,14 @@ const mountAnchors = {
     coax: { frame: 'turret', pivot: [0.38, T.gunPivotHeight - 0.06, -T.turretForward - T.gunPivotForward], muzzle: 1.25,
       yawLimit: null, pitchLimit: [T.turretMinPitch, T.turretMaxPitch], yawRate: T.turretRate, pitchRate: T.turretPitchRate, slavedTo: 'main' },
     rws: { frame: 'turret', pivot: [0.75, 2.75, 0.45], muzzle: 1.1, yawLimit: null, pitchLimit: [-0.35, 0.9], yawRate: 2.2, pitchRate: 1.6 },
+  },
+  // The twin 35 mm on the turret flanks share one trunnion (`pivot`); `sides`
+  // are the two guns, fired in turn. `main` drives turretYaw/turretPitch.
+  aa: {
+    main: { frame: 'turret', pivot: [0, A.gunPivotHeight, aaGunZ], sides: [[-A.gunSide, A.gunPivotHeight, aaGunZ], [A.gunSide, A.gunPivotHeight, aaGunZ]],
+      muzzle: A.barrelLength, yawLimit: null, pitchLimit: [A.turretMinPitch, A.turretMaxPitch], yawRate: A.turretRate, pitchRate: A.turretPitchRate,
+      turret: true },
+    rws: { frame: 'turret', pivot: [0.7, 2.95, 0.55], muzzle: 1.1, yawLimit: null, pitchLimit: [-0.35, 1.1], yawRate: 2.4, pitchRate: 1.8 },
   },
   helicopter: {
     pods: { fixed: true, sides: [[-1.235, 1.13, -0.742], [1.235, 1.13, -0.742]], pivot: [0, 1.13, -0.742], muzzle: 0, yawRate: 0, pitchRate: 0 },
@@ -333,6 +361,7 @@ const PLANE_BOXES = [
 const handlingRules = {
   jeep: { ...JEEP_RULES, hp: 320, respawnSeconds: 15, enterDistance: 4 },
   tank: { ...TANK_RULES, hp: 1000, respawnSeconds: 30, enterDistance: 4.5 },
+  aa: { ...AA_RULES, hp: 600, respawnSeconds: 30, enterDistance: 4.5 },
   helicopter: { ...HELICOPTER_RULES, hp: 650, respawnSeconds: 35, enterDistance: 5.5 },
   transport: { ...TRANSPORT_RULES, hp: 600, respawnSeconds: 35, enterDistance: 6 },
   plane: { ...PLANE_RULES, hp: 450, respawnSeconds: 40, enterDistance: 7.5 },
@@ -348,6 +377,8 @@ const handlingRules = {
 const shapes = {
   jeep: { handling: 'wheeled', armor: 'light', openCrew: true, collider: { halfWidth: 1.15, halfLength: 2.12 } },
   tank: { handling: 'tracked', armor: 'heavy', armorModel: 'tank', openCrew: false, collider: { halfWidth: 1.95, halfLength: 2.6 } },
+  // Medium armour, one box: no plate-angle model (the AT zones still apply).
+  aa: { handling: 'tracked', armor: 'medium', openCrew: false, collider: { halfWidth: 1.7, halfLength: 2.7 } },
   helicopter: { handling: 'rotor', armor: 'air', openCrew: false, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   transport: { handling: 'rotor', armor: 'air', openCrew: true, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   plane: { handling: 'fixedwing', armor: 'air', openCrew: false, collider: { halfWidth: 4.5, halfLength: 5 }, hullBoxes: PLANE_BOXES, gearBoxes: [7, 8] },
@@ -359,6 +390,7 @@ const shapes = {
 const destruction = {
   jeep: { radius: 7, damage: 150, damageFalloffExponent: 1.22 },
   tank: { radius: 9, damage: 220, damageFalloffExponent: 1.22 },
+  aa: { radius: 8, damage: 190, damageFalloffExponent: 1.22 },
   helicopter: { radius: 9, damage: 180, damageFalloffExponent: 1.22 },
   transport: { radius: 9, damage: 190, damageFalloffExponent: 1.22 },
   plane: { radius: 10, damage: 200, damageFalloffExponent: 1.22 },
