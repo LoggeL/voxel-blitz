@@ -1,7 +1,8 @@
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { WEAPON_NAMES, WEAPON_CLASSES, weaponImagePath } from '../ui/hud-support.js';
 import { usesOwnedLoadout } from '../../../shared/modes.js';
-import { KIT_GADGET_LABELS, kitWeaponRole as kitRole, kitWeaponDigit } from '../../../shared/conquest-kits.js';
+import { KIT_DIGIT_ROLES, KIT_GADGET_LABELS, kitWeaponRole as kitRole, kitWeaponDigit } from '../../../shared/conquest-kits.js';
+import { ICON_PATHS } from '../ui/conquest/icons.js';
 import { bindingLabel } from '../keybindings.js';
 import { titanWeaponRole, TITANFALL_DIGIT_ROLES } from '../../../shared/titan-contract.js';
 
@@ -16,6 +17,36 @@ function kitSlotAction(id) {
   return index >= 0 ? `slot${index + 1}` : null;
 }
 
+/** Kit-relative digit of the gadget role (slot key 3): a deployable gadget answers to it too. */
+const GADGET_DIGIT = KIT_DIGIT_ROLES.indexOf('gadget');
+
+/** Wheel art for a deployable gadget: its Conquest glyph (public/js/ui/conquest/icons.js) as an SVG image. */
+function deployableIcon(id) {
+  const path = ICON_PATHS[id];
+  return path ? `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#f2f4f5" d="${path}"/></svg>`)}` : '';
+}
+
+/**
+ * Wheel entry for a deployable gadget (the Support's M-81 MORTAR): no weapon
+ * slot; picking it asks to place the deployable (`onDeployable`), like slot key 3.
+ */
+function deployableEntry(id) {
+  const label = KIT_GADGET_LABELS[id];
+  return {
+    id,
+    name: label?.name || id.toUpperCase(),
+    cls: label?.hint || '',
+    icon: deployableIcon(id),
+    key: bindingLabel(`slot${GADGET_DIGIT + 1}`),
+    ammo: 'PLACE',
+    owned: true,
+    current: false,
+    slot: null,
+    deployable: id,
+    role: `GADGET · ${label?.role || id.toUpperCase()}`,
+  };
+}
+
 /** Wheel ammo text for one weapon id in the given mode. */
 function ammoLabel(context, id, mode) {
   if (WEAPONS[id].mode === 'melee') return '∞';
@@ -25,10 +56,15 @@ function ammoLabel(context, id, mode) {
 
 /** Coordinates wheel input, ownership, and HUD presentation for one live session. */
 export class WeaponWheelController {
-  constructor({ input, hud, getContext, forceOpen = false }) {
+  /**
+   * `onDeployable(id)` places a deployable gadget picked on the Conquest kit wheel
+   * (the `mortar` intent); `getContext().deployable` names the one the kit carries.
+   */
+  constructor({ input, hud, getContext, forceOpen = false, onDeployable = null }) {
     this.input = input;
     this.hud = hud;
     this.getContext = getContext;
+    this.onDeployable = typeof onDeployable === 'function' ? onDeployable : null;
     this.forceOpen = forceOpen;
     this.open = false;
     this._entriesSig = '';
@@ -71,14 +107,18 @@ export class WeaponWheelController {
    * authoritative `owned` list, one segment per role in KIT_WHEEL_ROLES order
    * (primary, gadget, sidearm, melee; a kit without a gadget gets three).
    * `key` is the kit-relative slot key that equips the weapon outside the wheel
-   * (KIT_DIGIT_ROLES: 1 primary, 2 sidearm, 3 gadget, 4 melee).
+   * (KIT_DIGIT_ROLES: 1 primary, 2 sidearm, 3 gadget, 4 melee). A deployable
+   * gadget (`context.deployable`, the Support's MORTAR: no owned weapon) takes the
+   * gadget segment; picking it places the deployable instead of drawing a weapon.
    */
   kitEntries(context = this.getContext(), mode = 'conquest') {
     const titanfall = mode === 'titanfall';
     const roleOf = titanfall ? titanWeaponRole : kitRole;
     const owned = context.self.owned.filter(id => Object.hasOwn(WEAPONS, id) && WEAPON_IDS.includes(id));
     const ordered = (titanfall ? TITANFALL_WHEEL_ROLES : KIT_WHEEL_ROLES).flatMap(role => owned.filter(id => roleOf(id) === role));
-    return ordered.map((id) => {
+    const deployable = !titanfall && typeof context.deployable === 'string' && !ordered.some(id => roleOf(id) === 'gadget')
+      ? deployableEntry(context.deployable) : null;
+    const entries = ordered.map((id) => {
       const slot = WEAPON_IDS.indexOf(id);
       const role = roleOf(id);
       const digit = titanfall ? TITANFALL_DIGIT_ROLES.indexOf(role) : -1;
@@ -97,6 +137,12 @@ export class WeaponWheelController {
         role: gadgetRole ? `${role.toUpperCase()} · ${gadgetRole}` : role === 'at' ? 'AT' : role.toUpperCase(),
       };
     });
+    // The gadget segment sits right after the primary (KIT_WHEEL_ROLES order).
+    if (deployable) {
+      const at = entries.findIndex(entry => kitRole(entry.id) !== 'primary');
+      entries.splice(at < 0 ? entries.length : at, 0, deployable);
+    }
+    return entries;
   }
 
   /**
@@ -110,7 +156,7 @@ export class WeaponWheelController {
     if (this.getContext()?.match?.mode === 'titanfall') {
       return entries.findIndex(entry => TITANFALL_DIGIT_ROLES.indexOf(titanWeaponRole(entry.id)) === digitSlot);
     }
-    return entries.findIndex(entry => kitWeaponDigit(entry.id) === digitSlot);
+    return entries.findIndex(entry => (entry.deployable ? GADGET_DIGIT : kitWeaponDigit(entry.id)) === digitSlot);
   }
 
   /**
@@ -157,6 +203,11 @@ export class WeaponWheelController {
     const context = this.getContext();
     if (!this.open) return;
     const entry = this.entries()[index];
+    if (entry?.deployable) {
+      this.close();
+      this.onDeployable?.(entry.deployable);
+      return;
+    }
     const slot = entry?.slot ?? index;
     if (!entry?.owned || entry.current || slot === context.weapon?.slot) {
       this.close();

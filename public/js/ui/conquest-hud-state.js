@@ -1570,12 +1570,13 @@ export function chutePromptModel(state) {
 /**
  * Conquest fields for the touch context (merged by the integrator into the
  * TouchControls context): map and spot buttons while alive, seat cycle and
- * countermeasure while seated, the DEPLOY button while the deploy screen is up.
+ * countermeasure while seated, the DEPLOY button while the deploy screen is up,
+ * MORTAR on foot for a Support carrying the M-81.
  */
 export const CONQUEST_TOUCH_DEFAULTS = Object.freeze({
   conquest: false, deployOpen: false, deployValid: true, deployLabel: 'DEPLOY',
   vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false, vehicleViewCount: 0,
-  vehicleViewLabel: '',
+  vehicleViewLabel: '', canMortar: false,
 });
 
 /**
@@ -1583,10 +1584,12 @@ export const CONQUEST_TOUCH_DEFAULTS = Object.freeze({
  * this into one persistent context object, so an omitted key would keep a
  * stale value from an earlier seat or deploy screen.
  */
-export function conquestTouchFields({ active = false, dead = false, deployOpen = false, deploy = null, seated = null, viewLabel = '' } = {}) {
+export function conquestTouchFields({ active = false, dead = false, deployOpen = false, deploy = null, seated = null, viewLabel = '', deployable = null } = {}) {
   const fields = { ...CONQUEST_TOUCH_DEFAULTS };
   if (!active) return fields;
   fields.conquest = true;
+  // MORTAR button: alive on foot with the Support's M-81 picked (`deployable` from the kit and gadget).
+  fields.canMortar = !dead && !seated?.row && deployable === 'mortar';
   fields.deployOpen = !!(dead && deployOpen);
   if (fields.deployOpen) {
     const valid = deploy?.valid !== false;

@@ -81,8 +81,8 @@ export const TOUCH_ACTIONS = Object.freeze([
   'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy', 'medkit', 'build',
   'grenade', 'pouch', 'flightUp', 'flightDown', 'flightBrake',
   // Conquest: seat cycle, countermeasure and camera view while seated, full map, spot and the comm rose
-  // on foot or seated, deploy while dead.
-  'vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy', 'vehicleView', 'comms',
+  // on foot or seated, deploy while dead, the Support's MORTAR (place and man it) on foot.
+  'vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy', 'vehicleView', 'comms', 'mortar',
   // Titanfall (docs/titanfall.md §8.2): the pilot's context chip (call titan / rodeo / battery) and
   // tactical, the titan's dash, abilities, core, smoke and the doomed eject.
   'callTitan', 'pilotTactical', 'titanDash', 'titanDefensive', 'titanTactical', 'titanOrdnance', 'titanCore',
@@ -96,7 +96,7 @@ const ACTION_BITS = Object.freeze(Object.fromEntries(TOUCH_ACTIONS.map((action, 
  * CustomEvent ({detail: {action}}) on the document's window, which ConquestHud
  * listens for.
  */
-export const CONQUEST_TOUCH_ACTIONS = Object.freeze(['vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy', 'vehicleView', 'comms']);
+export const CONQUEST_TOUCH_ACTIONS = Object.freeze(['vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy', 'vehicleView', 'comms', 'mortar']);
 export const CONQUEST_TOUCH_EVENT = 'vb-conquest-action';
 const CONQUEST_ACTION_SET = new Set(CONQUEST_TOUCH_ACTIONS);
 /**
@@ -164,6 +164,8 @@ function visibleTouchMask(context) {
     return mask | conquest;
   }
   mask |= conquest;
+  // MORTAR: a Support carrying the M-81 places and mans it (slot key 3 on a keyboard).
+  if (conquest && context.canMortar === true) mask |= ACTION_BITS.mortar;
   if (titanfall?.layout === 'pilot') mask |= ACTION_BITS.pilotTactical | (titanfall.context ? ACTION_BITS.callTitan : 0);
   if (context.canFire !== false) {
     mask |= ACTION_BITS.fire | ACTION_BITS.ads;
@@ -502,6 +504,7 @@ export class TouchControls {
     d.deploy = this._button(root, 'deploy', 'DEPLOY', 'Deploy at the selected spawn');
     d.vehicleView = this._button(root, 'vehicleView', 'VIEW', 'Next camera view');
     d.comms = this._button(root, 'comms', 'COMMS', 'Comm rose: requests, callouts and squad orders');
+    d.mortar = this._button(root, 'mortar', 'MORTAR', 'Place the M-81 mortar ahead and man it');
     for (const action of TITANFALL_TOUCH_ACTIONS) {
       d[action] = this._button(root, action, TITANFALL_LABELS[action][0], TITANFALL_LABELS[action][1]);
       d[action].classList.add('vb-touch-titanfall');

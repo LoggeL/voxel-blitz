@@ -3,7 +3,7 @@
  * Muted CDP captures of the weapon wheel over the static Conquest HUD fixture
  * page (public/conquest-hud-capture.html, window.__cq.wheel): the real wheel
  * overlay fed by the session WeaponWheelController with each kit's
- * authoritative owned list and issued ammo, at desktop 1440x900, phone
+ * authoritative owned list and issued ammo (the Support's MORTAR segment too), at desktop 1440x900, phone
  * portrait 390x844 and phone landscape 844x390 (touch). A TDM case renders the
  * unchanged full wheel for comparison. No live match, no audio.
  *
@@ -33,6 +33,7 @@ const CASES = Object.freeze([
   { id: 'engineer-aa', kit: 'engineer', variant: 1, gadget: 1, current: 'gadget', hover: 1 },
   { id: 'assault', kit: 'assault', variant: 0, current: 'primary', hover: 2 },
   { id: 'support-minigun', kit: 'support', variant: 1, current: 'sidearm', hover: 0 },
+  { id: 'support-mortar', kit: 'support', variant: 0, gadget: 1, current: 'primary', hover: 1 },
   { id: 'tdm-full', kit: 'assault', mode: 'tdm', current: 'primary', hover: 1 },
 ]);
 
@@ -42,6 +43,7 @@ const EXPECTED = Object.freeze({
   'engineer-aa': [['PRIMARY', '1'], ['GADGET · AA', '3'], ['SIDEARM', '2'], ['MELEE', '4']],
   assault: [['PRIMARY', '1'], ['SIDEARM', '2'], ['MELEE', '4']],
   'support-minigun': [['PRIMARY', '1'], ['SIDEARM', '2'], ['MELEE', '4']],
+  'support-mortar': [['PRIMARY', '1'], ['GADGET · MORTAR', '3'], ['SIDEARM', '2'], ['MELEE', '4']],
 });
 /** What a flick to each segment equips with the melee drawn (melee itself is already current). */
 const FLICK = Object.freeze({
@@ -49,6 +51,8 @@ const FLICK = Object.freeze({
   'engineer-aa': ['shotgun', 'stinger', 'revolver', null],
   assault: ['rifle', 'revolver', null],
   'support-minigun': ['minigun', 'revolver', null],
+  // The MORTAR segment places the mortar (onDeployable) instead of drawing a weapon.
+  'support-mortar': ['lmg', 'mortar', 'revolver', null],
 });
 
 const server = startServer({ entry: 'tools/capture-server.mjs', failureContext: 'conquest weapon wheel capture' });

@@ -15,7 +15,7 @@ import { WEAPONS } from '../../../shared/combatmath.js';
 import { conquestHudFixtures, fixtureMapMeta, FIXTURE_NOW } from './conquest-hud-fixtures.js';
 import { WeaponWheelController as WheelSession } from '../session/weapon-wheel-controller.js';
 import { wheelAngleForSlot } from '../ui/weapon-wheel.js';
-import { kitLoadout } from '../../../shared/conquest-kits.js';
+import { kitDeployable, kitLoadout } from '../../../shared/conquest-kits.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { seatViews, vehicleViewLabel } from '../session/vehicle-camera.js';
 
@@ -246,6 +246,8 @@ async function wheel({ fixture = 'defending', kit = 'engineer', variant = 0, gad
   const context = {
     match: { mode }, self: { owned: mode === 'conquest' ? loadout.owned : undefined, state: 'alive' },
     enabled: true, alive: true, spectating: false,
+    // The Support's M-81 MORTAR (a deployable) takes the gadget segment, as main.js passes it.
+    deployable: mode === 'conquest' ? kitDeployable(kit, gadget) : null,
     weapon: { slot: WEAPON_IDS.indexOf(equipped), ammoOf: id => (mode === 'conquest' ? ammo[id] : { mag: WEAPONS[id].magSize, reserve: 3 }), forceWeapon() {} },
   };
   h.setWeaponWheelState({ open: false });
@@ -253,6 +255,8 @@ async function wheel({ fixture = 'defending', kit = 'engineer', variant = 0, gad
   context.weapon.forceWeapon = slot => picks.push(WEAPON_IDS[slot]);
   const session = new WheelSession({
     input: { setWeaponWheelOpen() {}, isWeaponWheelClosing: () => false }, hud: h, getContext: () => context,
+    // A deployable pick places it (the mortar intent in main.js): recorded by its id.
+    onDeployable: id => picks.push(id),
   });
   // The live wiring (main.js): a pick from the overlay commits through the session controller.
   h.setupWeaponWheel({ onPick: index => session.commit(index), onCancel: () => session.close() });

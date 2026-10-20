@@ -154,6 +154,36 @@ for (const mode of ['tdm', 'fun', 'snd', 'gungame', 'ttt']) {
     }
     overlay.close();
   }
+  // A Support with the M-81 MORTAR (a deployable, no owned weapon): the gadget segment
+  // places it. Key 3 inside the wheel picks it, and the pick sends onDeployable, never a draw.
+  {
+    const placed = [], forced = [];
+    const ctx = { ...context, deployable: 'mortar', self: { ...context.self, owned: [...kitWeapons('support', 0, 1).owned] },
+      weapon: { ...context.weapon, forceWeapon: slot => forced.push(slot) } };
+    let open = false;
+    const wheel = new WeaponWheelController({ input: { setWeaponWheelOpen: v => { open = v; }, isWeaponWheelClosing: () => false },
+      hud: { setWeaponWheelState() {} }, getContext: () => ctx, onDeployable: id => placed.push(id) });
+    const entries = wheel.entries();
+    overlay.open(entries);
+    check(() => assert.equal(overlay.dom.slots.map(item => `${item.role.textContent}=${item.key.textContent}`).join(' '),
+      'PRIMARY=1 GADGET · MORTAR=3 SIDEARM=2 MELEE=4', 'Support with the mortar: four segments'));
+    overlay.close();
+    const index = wheel.directIndex(2, entries);
+    check(() => assert.equal(entries[index]?.deployable, 'mortar', 'wheel key 3 is the MORTAR segment'));
+    check(() => assert.ok(entries[index].icon.startsWith('data:image/svg+xml,') && entries[index].slot === null, 'glyph art, no weapon slot'));
+    wheel.openWheel();
+    wheel.commit(index);
+    check(() => assert.deepEqual(placed, ['mortar'], 'picking MORTAR places the mortar'));
+    check(() => assert.equal(forced.length, 0, 'and draws no weapon'));
+    check(() => assert.equal(open, false, 'the wheel closes'));
+    // Without the deployable (gadget NONE, dead, seated: main passes null) the wheel has three segments.
+    ctx.deployable = null;
+    check(() => assert.ok(!wheel.entries().some(entry => entry.deployable), 'no mortar: no MORTAR segment'));
+    // An Engineer's launcher keeps its segment even if a deployable were passed.
+    ctx.deployable = 'mortar';
+    ctx.self.owned = [...kitWeapons('engineer', 0, 0).owned];
+    check(() => assert.ok(!wheel.entries().some(entry => entry.deployable), 'a weapon gadget keeps the segment'));
+  }
   context.match.mode = 'tdm';
   context.self.owned = undefined;
   overlay.open(controller.entries());

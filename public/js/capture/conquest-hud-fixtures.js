@@ -645,6 +645,13 @@ export function conquestHudFixtures() {
       camera: cam(camAt.x, camAt.y, camAt.z, yaw, Math.atan2(GROUND - camAt.y, Math.hypot(C.x - camAt.x, C.z - camAt.z))),
       groundPlane: GROUND, events: [{ kind: 'mortar', id: 'me', state: 'placed', vehicleId: 'alpha-mortar-me' }] }));
   }
+  // Support on foot with the M-81 MORTAR picked, 150 m behind C: the kit wheel and the touch MORTAR place it.
+  {
+    const self = meAt(C.x - 24, C.z + 150, { cq: { squad: 1, kitId: 'support' } });
+    out.push(state('mortar-ready', 'Support on foot · M-81 MORTAR ready to place', { self, players: roster(self), vehicles: [spottedTank],
+      match: baseMatch(), selection: { kit: 'support', variant: 0, gadget: 1 },
+      camera: cam(C.x - 24, GROUND + 1.6, C.z + 150, yawTo({ x: C.x - 24, z: C.z + 150 }, C)) }));
+  }
   // 21. Breakthrough (docs/conquest.md, Breakthrough): WEST attacks, sector 1 (A B) fell, C is active, D E locked.
   const E = FRONTIER_PLAN.flags.find(f => f.id === 'E');
   {

@@ -119,7 +119,10 @@ class Game {
         weapon: this.weapon, self: this.selfRow, match: this.matchState,
         enabled: this.session?.gameplayInputEnabled, alive: !!this.player?.alive,
         spectating: this.spectator?.active === true,
+        // The Support's MORTAR takes the kit wheel's gadget segment.
+        deployable: this.conquestDeployable(),
       }),
+      onDeployable: (id) => { if (id === 'mortar') this.requestMortar(); },
     });
     this.grenadePouch = new GrenadePouchSessionController({
       input: this.input,
@@ -263,11 +266,24 @@ class Game {
    * The server refuses with a `mortar` event when the kit or the ground says no.
    */
   conquestGadgetDigit(intents) {
-    if (intents?.slot !== 2 || this.matchState?.mode !== 'conquest' || this.vehicleController?.vehicle
-      || this.selfRow?.state !== 'alive') return intents;
-    if (this.conquestHud?.deployableFor?.(this.selfRow) !== 'mortar') return intents;
-    this.net?.sendConquest({ mortar: 1 });
+    if (intents?.slot !== 2 || !this.conquestDeployable()) return intents;
+    this.requestMortar();
     return { ...intents, slot: null };
+  }
+
+  /** The deployable gadget the own kit carries while alive on foot in Conquest ('mortar'), else null. */
+  conquestDeployable() {
+    if (this.matchState?.mode !== 'conquest' || this.vehicleController?.vehicle || this.selfRow?.state !== 'alive') return null;
+    return this.conquestHud?.deployableFor?.(this.selfRow) ?? null;
+  }
+
+  /**
+   * Place the Support mortar: slot key 3, the kit wheel's MORTAR segment (mouse,
+   * pad Y hold, touch) and the touch MORTAR button all send this one intent.
+   */
+  requestMortar() {
+    if (this.conquestDeployable() !== 'mortar') return false;
+    return !!this.net?.sendConquest({ mortar: 1 });
   }
 
   /**
@@ -492,6 +508,7 @@ class Game {
       onDeploy: (choice) => this.net?.sendConquest({ deploy: choice }),
       onDeployOpen: () => this.input.exit(),
       onSpot: () => this.net?.sendConquest({ spot: 1 }),
+      onMortar: () => this.requestMortar(),
       onSupport: (intent) => this.net?.sendConquest({ support: intent }),
       // Comm rose picks and full-map squad orders (docs/conquest.md "Squad orders and the comm rose").
       onComm: (comm) => this.net?.sendConquest({ comm }),
@@ -1160,7 +1177,8 @@ class Game {
     // Conquest MAP, SPOT, DEPLOY, SEAT and FLARES/SMOKE buttons. ctx persists, so the
     // fallback lists every key: a missing one would keep a stale value.
     Object.assign(ctx, this.conquestHud ? this.conquestHud.touchContextFields() : { conquest: false, deployOpen: false, deployValid: true,
-      deployLabel: 'DEPLOY', vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false, vehicleViewCount: 0, vehicleViewLabel: '' });
+      deployLabel: 'DEPLOY', vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false, vehicleViewCount: 0, vehicleViewLabel: '',
+      canMortar: false });
     this.input.setTouchContext(ctx);
     const seatKey = ctx.vehicleSeated ? `${ctx.vehicleId}:${ctx.vehicleSeatId}` : '';
     if (seatKey !== this._inputVehicleSeatKey) {

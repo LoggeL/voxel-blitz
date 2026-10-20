@@ -714,12 +714,13 @@ html:not(.vb-touch-mode) .vb-conquest-hud[data-vehicle-view="driver"] .cq-intera
 .vb-touch-mode .cq-team[data-role] .cq-bleed, .vb-touch-mode .cq-team[data-role] .cq-team-name { font-size: 8px; letter-spacing: 0; }
 .vb-touch-mode .cq-sector-tag { font-size: 9px; line-height: 12px; padding: 0 4px; }
 /* Portrait: the card row (HP, grenade, ammo) and the minimap fill the top 228 px and COMMS (beside the minimap, under
-   MAP / SPOT) reaches 262 px, so banners sit just below it; while seated, below VIEW (270 + 44 px). */
+   MAP / SPOT) reaches 262 px, so banners sit just below it; while seated, below VIEW (270 + 44 px), and below MORTAR
+   (same spot, on foot). */
 .vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 270px); min-width: 0; width: max-content; max-width: calc(100vw - 40px); padding: 6px 14px; }
 .vb-touch-mode .cq-banner-title { font-size: 15px; letter-spacing: 1px; }
 .vb-touch-mode .cq-banner-detail { font-size: 10px; }
 @media (orientation: portrait) {
-  .vb-touch-mode body:has(.vb-touch-vehicleView:not(.is-hidden)) .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 322px); }
+  .vb-touch-mode body:has(:is(.vb-touch-vehicleView, .vb-touch-mortar):not(.is-hidden)) .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 322px); }
 }
 /* Breakthrough fall-back on phones: the restricted card already says SECTOR LOST, so the banner gives way to it. */
 .vb-touch-mode .vb-conquest-hud:has(.cq-restricted:not([hidden])) .cq-banner { display: none; }
@@ -1049,6 +1050,11 @@ body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conque
 .vb-touch-comms {
   right: auto; bottom: auto; left: calc(max(12px, env(safe-area-inset-left)) + 112px); top: calc(max(10px, env(safe-area-inset-top)) + 218px);
   width: 44px; height: 44px; border-radius: 8px; font-size: 8px; letter-spacing: 0.4px; border-color: #7ef29aaa; color: #d9ffe3;
+}
+/* Touch: MORTAR (a Support with the M-81, on foot) under COMMS, where VIEW sits while seated. */
+.vb-touch-mortar {
+  right: auto; bottom: auto; left: calc(max(12px, env(safe-area-inset-left)) + 112px); top: calc(max(10px, env(safe-area-inset-top)) + 270px);
+  width: 44px; height: 44px; border-radius: 8px; font-size: 8px; letter-spacing: 0.4px; border-color: #ffd166aa; color: #ffe9b0;
 }
 .vb-touch-mode .cq-rose-dial { width: min(340px, 88vmin); }
 .vb-touch-mode .cq-rose-seg { font-size: 10px; letter-spacing: 0.8px; gap: 2px; }

@@ -83,7 +83,7 @@ export class ConquestHud {
     onInteract = () => {}, onDeploy = () => {}, onDeployOpen = () => {}, onSpot = () => {}, onSupport = () => {},
     combatHud = null, eventTarget = typeof window !== 'undefined' ? window : null, inputEnabled = () => true,
     shellRaycast = null, careerProfile = () => null, replayHold = () => false, mapId = null,
-    onComm = () => {}, onOrder = () => {}, onCapture = () => {}, onRadio = () => {},
+    onComm = () => {}, onOrder = () => {}, onCapture = () => {}, onRadio = () => {}, onMortar = () => {},
   } = {}) {
     // The battlefield's overview image, picked before the minimap, big map and
     // deploy map load it (update() keeps it in step with mapMeta.id after).
@@ -101,6 +101,8 @@ export class ConquestHud {
     // Keys for spot and the full map only act while gameplay input is live (not in menus).
     this.inputEnabled = typeof inputEnabled === 'function' ? inputEnabled : () => true;
     this.onSpot = onSpot;
+    // Touch MORTAR: place the Support's mortar (the `mortar` intent, like slot key 3).
+    this.onMortar = typeof onMortar === 'function' ? onMortar : () => {};
     this.combatHud = combatHud;
     this.root = el('section', 'vb-conquest-hud', parent);
     this.root.hidden = true;
@@ -383,7 +385,8 @@ export class ConquestHud {
 
   /**
    * One Conquest touch button (touch-controls CONQUEST_TOUCH_ACTIONS): full
-   * map, spot, deploy, next free seat and countermeasure. Seat and
+   * map, spot, deploy, next free seat, countermeasure, camera view, comm rose
+   * and the Support's MORTAR. Seat and
    * countermeasure requests go through the vehicle controller as on keyboard.
    */
   conquestAction(action) {
@@ -401,6 +404,8 @@ export class ConquestHud {
       case 'countermeasure': return !!this.vehicleController?.queueCountermeasure?.();
       // VIEW: the seat's next camera view, like V and the pad's D-pad down.
       case 'vehicleView': return this.seated ? !!this.vehicleController?.cycleView?.() : false;
+      // MORTAR: a Support with the M-81 on foot places and mans it (the server checks kit and ground).
+      case 'mortar': return !this.dead && !this.seated && this.deployableFor(this.self) === 'mortar' ? this.onMortar() !== false : false;
       default: return false;
     }
   }
@@ -408,7 +413,7 @@ export class ConquestHud {
   /** Conquest fields the integrator merges into the TouchControls context. */
   touchContextFields() {
     return conquestTouchFields({ active: this.active, dead: this.dead, deployOpen: this.deploy.open,
-      deploy: this.deploy.model, seated: this.seated,
+      deploy: this.deploy.model, seated: this.seated, deployable: this.dead ? null : this.deployableFor(this.self),
       viewLabel: this.seated ? viewButtonLabel(this.vehicleController?.viewState?.()) : '' });
   }
 

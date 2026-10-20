@@ -1,6 +1,7 @@
 // Conquest touch controls (WP7): per-seat button sets (drive, fly, fire, seat
 // cycle, camera view, countermeasure, map, spot), Conquest button routing through the HUD
-// to the vehicle controller, the seat-change release and the seated HUD flag.
+// to the vehicle controller, the seat-change release and the seated HUD flag; the
+// Support's MORTAR button on foot (shown with the M-81, routed to the mortar intent).
 import assert from 'node:assert/strict';
 import { installFakeDom } from './lib/conquest-ui-dom.mjs';
 import { COUNTERMEASURES, VEHICLE_TOPOLOGY, seatWeaponList } from '../shared/conquest-contract.js';
@@ -163,5 +164,51 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
   touch.dispose();
 }
 
+/* ------------------------------- MORTAR: the Support's mortar on touch */
+
+{
+  // The button follows the HUD's canMortar: on foot with the M-81 picked, never seated, dead or outside Conquest.
+  assert.equal(state.conquestTouchFields({ active: true, deployable: 'mortar' }).canMortar, true);
+  assert.equal(state.conquestTouchFields({ active: true, deployable: null }).canMortar, false, 'no mortar gadget: no button');
+  assert.equal(state.conquestTouchFields({ active: true, dead: true, deployable: 'mortar' }).canMortar, false, 'dead: no button');
+  const row = { id: 'alpha-tank', type: 'tank', team: 'alpha', hp: 100, seatOccupants: { driver: 'me' } };
+  assert.equal(state.conquestTouchFields({ active: true, deployable: 'mortar', seated: { row, seat: VEHICLE_TOPOLOGY.tank[0] } }).canMortar, false, 'seated: no button');
+  assert.equal(state.conquestTouchFields({ active: false, deployable: 'mortar' }).canMortar, false, 'outside Conquest: no button');
+  assert.ok(actions({ ...infantry, conquest: true, canMortar: true }).includes('mortar'), 'on foot with the mortar: MORTAR shown');
+  assert.ok(!actions({ ...infantry, conquest: true }).includes('mortar'));
+  assert.ok(!actions({ ...infantry, canMortar: true }).includes('mortar'), 'outside Conquest: never');
+  assert.ok(!actions({ ...seatContext('tank', 'driver'), canMortar: true }).includes('mortar'), 'seated: never');
+
+  const mortars = [];
+  const hud = new ConquestHud(document.body, { onMortar: () => { mortars.push(1); return true; }, eventTarget: dom.window });
+  const f = fixture('capturing');
+  const support = { ...f.self, cq: [2, ...f.self.cq.slice(1)] };
+  const args = { match: f.match, mapMeta, self: support, players: f.players.map(p => (p.id === f.self.id ? support : p)), vehicles: f.vehicles,
+    nowMs: FIXTURE_NOW, camera: cameraPose({ ...f.camera, aspect: 844 / 390 }), viewport: { width: 844, height: 390 } };
+  hud.deploy.selection = { ...hud.deploy.selection, kit: 'support', gadget: 0 };
+  hud.update(args);
+  assert.equal(hud.touchContextFields().canMortar, false, 'a Support without the gadget: no button');
+  hud.deploy.selection = { ...hud.deploy.selection, gadget: 1 };
+  hud.update(args);
+  const fields = hud.touchContextFields();
+  assert.equal(fields.canMortar, true, 'a Support with the M-81 on foot: MORTAR');
+  const touch = new TouchControls({ documentRef: document });
+  touch.mount(document.body); touch.setEnabled(true);
+  touch.setContext({ ...infantry, ...fields });
+  assert.equal(touch.dom.mortar.textContent, 'MORTAR');
+  assert.equal(touch.dom.mortar.classList.contains('is-hidden'), false);
+  touch.dom.mortar.dispatchEvent({ type: 'pointerdown', pointerId: 11 });
+  touch.dom.mortar.dispatchEvent({ type: 'pointerup', pointerId: 11 });
+  assert.equal(mortars.length, 1, 'MORTAR sends the mortar intent through the HUD');
+  touch.setContext({ ...infantry, ...fields, canMortar: false });
+  assert.equal(touch.dom.mortar.classList.contains('is-hidden'), true);
+  // The HUD refuses on its own while the kit carries no mortar (a stale button press).
+  hud.deploy.selection = { ...hud.deploy.selection, gadget: 0 };
+  assert.equal(hud.conquestAction('mortar'), false);
+  assert.equal(mortars.length, 1);
+  hud.dispose();
+  touch.dispose();
+}
+
 dom.restore();
-console.log('Conquest vehicle touch: per-seat buttons, seat cycle, view cycle, countermeasure, map and spot routing, seat-change release passed');
+console.log('Conquest vehicle touch: per-seat buttons, seat cycle, view cycle, countermeasure, map and spot routing, seat-change release, MORTAR passed');
