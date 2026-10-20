@@ -81,6 +81,12 @@ function mission(kit) {
   kit.box(bx0 + 1, y + 19, bz0 + 1, bx1 - 1, y + 19, bz1 - 1, TERRACOTTA_ROOF);
   kit.box(bx0 + 2, y + 20, bz0 + 2, bx0 + 2, y + 23, bz0 + 2, DUST_WOOD);
   kit.box(bx0 + 1, y + 22, bz0 + 2, bx0 + 3, y + 22, bz0 + 2, DUST_WOOD);
+  // The flag radar's antenna (shared/map-events/radar.js `radar-palmera`): a
+  // steel mast on the roof's north-east corner with a dish facing the canyon.
+  kit.box(bx1 - 1, y + 20, bz0 + 1, bx1 - 1, y + 27, bz0 + 1, METAL);
+  kit.box(bx1, y + 24, bz0, bx1, y + 26, bz0 + 2, PALE);
+  kit.set(bx1, y + 25, bz0 + 1, METAL);
+  kit.set(bx1 - 1, y + 28, bz0 + 1, ACCENT);
   kit.feature('landmark', { id: 'palmera-bell-tower', x: (bx0 + bx1 + 1) / 2, y: y + 23, z: (bz0 + bz1 + 1) / 2 });
   kit.feature('hard-building', { flag: 'A', id: 'palmera-mission', ...MISSION });
 }

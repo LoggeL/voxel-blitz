@@ -4,7 +4,7 @@
 
 import {
   AIR, COBBLE_WALL, WHITE_PLASTER, TERRACOTTA_ROOF, PLANK, GLASS, METAL, TIMBER, MC_COBBLE,
-  DIRT, DUST_CRATE, ACCENT,
+  DIRT, DUST_CRATE, ACCENT, PALE, TRUCK_RED,
 } from '../blocks.js';
 import { FRONTIER_PLAN } from '../../conquest-contract.js';
 import { rect, pickSpawnCells, roadClearance } from './plan.js';
@@ -15,6 +15,21 @@ const FLAG = FRONTIER_PLAN.flags.find(f => f.id === 'B');
 const NAVE = rect(266, 540, 286, 552);
 const TOWER = rect(258, 542, 265, 550);
 export const SPIRE_TOP_Y = FRONTIER_PLAN.heights.landmarkMax;
+/** The bell tower's cornice and the belfry floor at the louvre sill (the perch the ladder reaches). */
+const BELFRY_Y = 60, BELFRY_FLOOR_Y = BELFRY_Y - 5;
+/** The church's footprint (tower and nave): its floor is the highest terrain top under it. */
+export const CHURCH_RECT = Object.freeze(rect(TOWER.minX, NAVE.minZ, NAVE.maxX, NAVE.maxZ));
+/**
+ * Ladder volume up the bell tower's west wall from the floor (`floorY`, the
+ * church's foundation top) through every storey to the belfry floor, beside
+ * the west door. `support` is the wall column it hangs on: the ladder holds
+ * only while that column stands (ladderContact), so it goes with the tower.
+ */
+export function belfryLadder(floorY) {
+  const x = TOWER.minX + 1, z = TOWER.minZ + 2;
+  return { minX: x, maxX: x + 1, minY: floorY + 1, maxY: BELFRY_FLOOR_Y + 1.2, minZ: z, maxZ: z + 2, face: 'x-',
+    support: { x: TOWER.minX, z: TOWER.minZ + 1, y0: floorY + 1, y1: BELFRY_Y } };
+}
 const HOUSES = [
   { r: rect(240, 512, 251, 524), axis: 'z', doors: ['e', 'w'] },
   { r: rect(244, 530, 255, 540), axis: 'x', doors: ['n', 'e'] },
@@ -100,7 +115,7 @@ function church(kit) {
 
   // Bell tower and spire.
   const { minX: tx0, minZ: tz0, maxX: tx1, maxZ: tz1 } = TOWER;
-  const belfry = 60;
+  const belfry = BELFRY_Y;
   // Lime-washed tower on a rubble base with stone quoins: the white shaft
   // reads against the hillside from both HQs.
   kit.walls(tx0, tz0, tx1, tz1, y + 1, belfry, WHITE_PLASTER);
@@ -112,9 +127,14 @@ function church(kit) {
   for (let fy = y + 7; fy < belfry - 2; fy += 6) {
     kit.box(tx0 + 1, fy, tz0 + 1, tx1 - 1, fy, tz1 - 1, PLANK);
     kit.box(tx0 + 2, fy, tz0 + 2, tx0 + 3, fy, tz0 + 3, AIR);
+    kit.box(tx0 + 1, fy, tz0 + 2, tx0 + 1, fy, tz0 + 3, AIR);           // the ladder shaft (belfryLadder)
     kit.box(tx0 + 4, fy + 2, tz0 - 0, tx0 + 4, fy + 3, tz0, AIR);       // lancets
     kit.box(tx0 + 4, fy + 2, tz1, tx0 + 4, fy + 3, tz1, AIR);
   }
+  // The belfry floor at the louvre sill (a perch: the eye at the open louvre
+  // rows over the timber slat), the ladder shaft up the west wall through it.
+  kit.box(tx0 + 1, BELFRY_FLOOR_Y, tz0 + 1, tx1 - 1, BELFRY_FLOOR_Y, tz1 - 1, PLANK);
+  kit.box(tx0 + 1, BELFRY_FLOOR_Y, tz0 + 2, tx0 + 1, BELFRY_FLOOR_Y, tz0 + 3, AIR);
   // Belfry louvres, a cornice and the bell.
   for (const [ax, az, bx, bz] of [[tx0 + 2, tz0, tx1 - 2, tz0], [tx0 + 2, tz1, tx1 - 2, tz1], [tx0, tz0 + 2, tx0, tz1 - 2], [tx1, tz0 + 2, tx1, tz1 - 2]]) {
     kit.box(ax, belfry - 5, az, bx, belfry - 2, bz, AIR);
@@ -134,6 +154,14 @@ function church(kit) {
   const top = { x: Math.floor(cx), z: Math.floor(cz) };
   kit.box(top.x, SPIRE_TOP_Y - 3, top.z, top.x, SPIRE_TOP_Y, top.z, METAL);
   kit.box(top.x - 1, SPIRE_TOP_Y - 1, top.z, top.x + 1, SPIRE_TOP_Y - 1, top.z, METAL);
+  // The flag radar's antenna (shared/map-events/radar.js `radar-aldric`): a
+  // steel mast on the cornice's north-east corner with a dish facing the river.
+  const mx = tx1 + 1, mz = tz0 - 1;
+  kit.box(mx, belfry + 1, mz, mx, belfry + 10, mz, METAL);
+  kit.box(mx + 1, belfry + 6, mz - 1, mx + 1, belfry + 8, mz + 1, PALE);
+  kit.set(mx + 1, belfry + 7, mz, METAL);
+  kit.set(mx, belfry + 11, mz, TRUCK_RED);
+  kit.feature('ladder', belfryLadder(y));
   kit.feature('landmark', { id: 'st-aldric-spire', x: top.x + 0.5, y: SPIRE_TOP_Y, z: top.z + 0.5 });
   kit.feature('hard-building', { flag: 'B', id: 'st-aldric-church', ...NAVE });
 }

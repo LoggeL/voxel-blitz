@@ -85,10 +85,27 @@ function dishTower(kit) {
   }
   kit.box(cx + 1, top + 3, cz, cx + 1, DISH.rise + g, cz, METAL);
   kit.set(cx + 1, g + DISH.rise + 1, cz, TRUCK_RED);
-  // Ladder up the south-east leg.
+  // Ladder up the south-east leg (dishLadder) and a catwalk from its head
+  // through a gap in the rail onto the platform: the station's overwatch.
   for (let y = g + 1; y <= top; y += 2) kit.set(cx + 4, y, cz + 3, METAL);
+  kit.box(cx + 3, top + 1, cz + 2, cx + 4, top + 1, cz + 3, METAL);
+  kit.set(cx + 2, top + 2, cz + 2, AIR);
+  kit.feature('ladder', dishLadder(g));
   kit.feature('landmark', { id: 'mesa-radar-dish', x: DISH.x, y: g + DISH.rise, z: DISH.z });
 }
+
+/**
+ * Ladder volume up the dish tower's south-east leg (its rungs every other
+ * voxel) to the catwalk at the platform. `groundY` is the terrain top under
+ * the tower (its concrete pad); `support` the rung column, so the ladder goes
+ * with the tower (the flag radar's topple, shared/map-events/radar.js).
+ */
+export function dishLadder(groundY) {
+  const x = Math.floor(DISH.x) + 4, z = Math.floor(DISH.z) + 3, top = groundY + 19;
+  return { minX: x + 1, maxX: x + 2, minY: groundY + 1, maxY: top + 2.2, minZ: z, maxZ: z + 1, face: 'x-',
+    support: { x, z, y0: groundY + 1, y1: top + 1 } };
+}
+export const DISH_TOWER = Object.freeze({ x: DISH.x, z: DISH.z });
 
 /** Two-storey concrete operations block with a flat, sandbagged roof: the hard point. */
 function opsBlock(kit) {

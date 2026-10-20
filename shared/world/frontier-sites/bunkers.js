@@ -116,10 +116,17 @@ function pillbox(kit, r, door, slits) {
   kit.feature('building', { minX: x0, minZ: z0, maxX: x1, maxZ: z1, floorY: y, eave: y + 4, enterable: true, hard: true, pillbox: true });
 }
 
-/** Ladder volume inside the observation tower (east face, through the hatch). */
+/**
+ * Ladder volume inside the observation tower: the climber faces east onto
+ * the steel ladder column and goes up through the hatch beside it. (The
+ * volume used to be the column cell itself, where no body fits.) `support`
+ * is the column: the ladder holds only while it stands (ladderContact), so
+ * it goes with the tower (the flag radar's topple).
+ */
 export function observationTowerLadder(groundY) {
   const fx = Math.floor(TOWER.x), fz = Math.floor(TOWER.z);
-  return { minX: fx + 1, maxX: fx + 2, minY: groundY + 1, maxY: groundY + 21.2, minZ: fz, maxZ: fz + 1, face: 'x-' };
+  return { minX: fx, maxX: fx + 1, minY: groundY + 1, maxY: groundY + 21.2, minZ: fz, maxZ: fz + 1, face: 'x+',
+    support: { x: fx + 1, z: fz, y0: groundY + 1, y1: groundY + 19 } };
 }
 export const OBSERVATION_TOWER = Object.freeze({ x: TOWER.x, z: TOWER.z });
 

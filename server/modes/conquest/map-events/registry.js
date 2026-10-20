@@ -11,6 +11,7 @@ import { DamController } from './dam.js';
 import { DepotController } from './depot.js';
 // slot sluice:
 // slot radar:
+import { RADAR_CONTROLLERS } from './radar.js';
 // slot trestle:
 // slot comeback:
 import { ComebackController } from './comeback.js';
@@ -23,6 +24,7 @@ export const MAP_EVENT_CONTROLLERS = Object.freeze({
   depot: DepotController,
   // slot sluice:
   // slot radar:
+  ...RADAR_CONTROLLERS,
   // slot trestle:
   // slot comeback:
   comeback: ComebackController,

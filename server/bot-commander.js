@@ -38,7 +38,8 @@ import { MORTAR_BOT_RULES } from '../shared/mortar-rules.js';
 import { FPV_BOT_RULES } from '../shared/fpv-rules.js';
 import { BOAT_PATROL, riverPatrolSlots } from './bot-boat-driving.js';
 import { avoidSpan, spanEscape } from './bot-bridge.js';
-import { goalOutOfHazards, hazardEscape, mapEventGoal, planMapEventTasks } from './bot-map-events.js';
+import { goalOutOfHazards, hazardEscape, mapEventGoal, mapEventsView, planMapEventTasks } from './bot-map-events.js';
+import { mapEventDef } from '../shared/conquest-map-events.js';
 
 export const COMMANDER_PLAN_MS = 500;
 export const STAGE_MIN = 50, STAGE_MAX = 70;
@@ -117,6 +118,23 @@ const AA_ENGINEER_SHARE = Object.freeze([0, 0.4, 0.6]);
 const AIR_THREAT_CACHE_MS = 1000;
 const opposite = team => (team === 'alpha' ? 'bravo' : 'alpha');
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+/**
+ * Flags a standing map event makes worth more (a flag radar): flag id ->
+ * metres its attack cost drops (definition `tuning.bots.flagWeightM` on an
+ * event bound to a `flag`, while the event is idle or active). The
+ * commander also counts such a flag as one more threat when it orders
+ * defenders (a flag-equivalent of weight both ways).
+ */
+export function eventFlagWeights(game) {
+  const out = new Map();
+  for (const e of mapEventsView(game).events ?? []) {
+    if (e.phase !== 'idle' && e.phase !== 'active') continue;
+    const def = mapEventDef(e.id), m = def?.tuning?.bots?.flagWeightM;
+    if (def?.flag && m > 0) out.set(def.flag, (out.get(def.flag) ?? 0) + m);
+  }
+  return out;
+}
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const finitePoint = p => p && Number.isFinite(p.x) && Number.isFinite(p.z);
 const isAircraftType = type => type === 'helicopter' || type === 'plane' || type === 'transport';
@@ -382,6 +400,7 @@ export class BotCommander {
     ts.tiers = tiers;
     const owned = f => f.owner === team;
     const presence = id => this.presence.get(id) ?? { alpha: 0, bravo: 0 };
+    const weights = eventFlagWeights(this.game), weightM = f => weights.get(f.id) ?? 0;
     const knownNear = (flag, r) => ts.knowledge.some(k => flat(k, flag) <= r);
     // Threatened owned flags: contested, being taken, or enemies close.
     const threatened = view.flags.filter(f => owned(f) && (f.state === 'contested' || f.state === 'neutralizing'
@@ -413,7 +432,9 @@ export class BotCommander {
       if (attackCount + defendCount > squads.length) attackCount = squads.length - defendCount;
       const free = new Set(squads.map(s => s.id));
       // Defenders: nearest squads to the threatened flags, keeping prior defenders.
-      const defendTargets = threatened.slice().sort((a, b) => presence(b.id)[enemy] - presence(a.id)[enemy]);
+      // A flag a standing map event weighs (a radar) counts one threat more.
+      const threat = f => presence(f.id)[enemy] + (weightM(f) > 0 ? 1 : 0);
+      const defendTargets = threatened.slice().sort((a, b) => threat(b) - threat(a));
       for (let i = 0; i < defendCount && defendTargets.length; i++) {
         const flag = defendTargets[i % defendTargets.length];
         const pick = [...free].map(id => live.get(id)).sort((a, b) =>
@@ -457,7 +478,7 @@ export class BotCommander {
         const keep = squad.order && targets.some(f => f.id === squad.order.flagId)
           && (squad.order.stance === 'attack') === !!attackFlags.length ? squad.order.flagId : null;
         // Within the attack tier the weakest-held flag first, then the nearest.
-        const cost = f => flat(centroid(squad), f) + (attackFlags.length ? this.defenders(f, ts) * 60 : 0);
+        const cost = f => flat(centroid(squad), f) + (attackFlags.length ? this.defenders(f, ts) * 60 : 0) - weightM(f);
         const flag = keep ? targets.find(f => f.id === keep)
           : targets.slice().sort((a, b) => cost(a) - cost(b))[lane++ % targets.length];
         if (!flag) continue;

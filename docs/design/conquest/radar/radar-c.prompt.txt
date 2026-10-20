@@ -1,0 +1,7 @@
+Game UI design mockup, 1536x1024 first-person screenshot of a browser voxel shooter (Minecraft-like blocky world at golden hour) from the cockpit of a blocky attack helicopter flying over a voxel river valley toward a hilltop village with a white church tower carrying a small grey radar dish.
+Existing HUD (keep exactly this style: dark translucent navy panels rgba(9,15,20,0.86) with 1px light borders and 6px radius, condensed bold uppercase sans-serif labels with wide letter spacing, cyan #4cc3ff friendly, orange #ff8a3d enemy, amber #ffb020 hazard, red #ff4b4b danger, grey #9fb0bd sub text): top centre ticket bar "WEST 214 [A][B][C][D][E] 187 EAST" and a "14:32" clock; bottom left round heading-up minimap; bottom centre an aircraft card "HELI 88 % · ALT 46 M".
+NEW FLAG RADAR UI TO SHOW (variant C, the moment of the sweep):
+1) Top right corner, a compact alert chip with a red #ff4b4b 2px left border and a pulsing red glow: radar-dish glyph, bold "RADAR · SWEPT", sub text "SPOTTED 5 S · ENEMY RADAR B" in grey.
+2) In the round minimap a thin red circle edge (the 400 m air range) centred on an orange B flag diamond, a short red sweep line, and the player's helicopter arrow inside it with a red ring around it.
+3) A thin red frame flash along the top screen edge.
+Crisp flat game HUD, no extra decorations, no watermark, legible text.

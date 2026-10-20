@@ -67,10 +67,24 @@ function waterTower(kit) {
   kit.cylinder(x, z, 3.6, g + 22, g + 22, RUST);
   kit.cylinder(x, z, 2.2, g + 23, g + 23, RUST);
   kit.set(fx, g + TOWER.rise, fz, METAL);
-  // Ladder on the south leg.
-  kit.box(fx + 4, g + 1, fz + 3, fx + 4, g + 17, fz + 3, METAL);
+  // Ladder on the south leg (waterTowerLadder), up to the tank's rim.
+  kit.box(fx + 4, g + 1, fz + 3, fx + 4, g + 21, fz + 3, METAL);
+  kit.feature('ladder', waterTowerLadder(g));
   kit.feature('landmark', { id: 'sulphur-water-tower', x, y: g + TOWER.rise, z });
 }
+
+/**
+ * Ladder volume on the south face of the water tower's ladder column, from
+ * the ground (`groundY`, the terrain top under the tower) to the tank's rim
+ * (the column rises to the rim, so the climber steps across onto it);
+ * `support` is the column (ladderContact).
+ */
+export function waterTowerLadder(groundY) {
+  const x = Math.floor(TOWER.x) + 4, z = Math.floor(TOWER.z) + 3;
+  return { minX: x, maxX: x + 1, minY: groundY + 1, maxY: groundY + 22.2, minZ: z + 1, maxZ: z + 2, face: 'z-',
+    support: { x, z, y0: groundY + 1, y1: groundY + 21 } };
+}
+export const WATER_TOWER = Object.freeze({ x: TOWER.x, z: TOWER.z });
 
 /** Brick station house with a platform canopy along the siding: the hard point. */
 function station(kit) {
