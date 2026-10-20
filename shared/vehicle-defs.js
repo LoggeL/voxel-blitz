@@ -91,6 +91,18 @@ export const WALL_CRASH_RULES = freeze({ tank: { maxShare: 0.1, bounce: 0.3 }, a
   boat: { maxShare: 0.25, bounce: 0.25, crashSeconds: 1 } });
 
 /**
+ * Ground hulls in deep water (a flooded ford, a hull driven off a bank into
+ * the river). The depth is the water standing over the hull's floor at its
+ * centre (top of the highest water voxel in that column minus the hull's y).
+ * A hull deeper than its `depth` (m) floods its engine: its drive is cut and
+ * it crawls at `crawl` m/s at most, either way, until it is out or the water
+ * drops. The fords' authored metre of water passes every hull; a flooded
+ * ford's three metres (the Frontier sluice weir) stall them all. Boats float
+ * (server/sim/boat.js), aircraft and titans keep their own rules.
+ */
+export const WADE_RULES = freeze({ depth: freeze({ jeep: 1.4, jeep_at: 1.4, aa: 1.7, tank: 1.9 }), crawl: 1 });
+
+/**
  * A ground hull driving into another hull. The contact is perfectly inelastic
  * along its normal, so each hull's crash speed is its share of the closing
  * speed, Δv = v_close · m_other / (m_self + m_other) (VEHICLE_MASS): a 45 t

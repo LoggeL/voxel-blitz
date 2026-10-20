@@ -7,6 +7,7 @@
 import { BREAKTHROUGH_RULES, FRONTIER_PLAN, KIT_IDS, VEHICLE_STATUS, vehicleMountOrder } from '../../../shared/conquest-contract.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { encodeConquestFlag } from '../../../shared/conquest.js';
+import { encodeMapEventRow } from '../../../shared/conquest-map-events.js';
 import { mortarPitchForRange } from '../../../shared/mortar-rules.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
@@ -434,6 +435,23 @@ export function conquestHudFixtures() {
       vehicles: [spottedTank, vehicle('alpha-tank', 'tank', 'alpha', C.x - 80, C.z + 20, { hp: 700 })], match,
       events: [{ kind: 'bridge', bridge: 'iron-bridge', stage: 3, name: 'down', integrity: 0, by: 'en1', blocks: 608 }],
       camera: cam(C.x - 50, GROUND + 1.6, C.z + 40, 0), bigMap: true }));
+  }
+  // 16d. Frontier sluice weir: fords flooded, red banner with the recession countdown, flood patches on the minimap and the full map.
+  {
+    const ford = { x: 392, z: 270 }, weir = { x: 388.5, z: 256 };
+    const self = meAt(ford.x - 46, ford.z + 18);
+    const weirMatch = () => {
+      const match = baseMatch({ flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 0.2, null, 'capturing', 1, 0),
+        flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')] });
+      match.conquest.ev = [encodeMapEventRow(0, { phase: 'active', progress: 1, team: 'alpha', leftMs: 84000 })];
+      return match;
+    };
+    const events = [{ kind: 'map_event', event: 'weir', phase: 'active', team: 'alpha', endsAt: FIXTURE_NOW + 84000 }];
+    const stalled = vehicle('bravo-jeep', 'jeep', 'bravo', ford.x + 10, ford.z - 2, { hp: 300 });
+    out.push(state('weir-flooded', 'Sluice weir · fords flooded banner, flood patches on the minimap', { self, players: roster(self), vehicles: [stalled],
+      match: weirMatch(), events, camera: cam(self.x, GROUND + 1.6, self.z, yawTo(self, weir), -0.05) }));
+    out.push(state('weir-flooded-map', 'Sluice weir · full map with both fords flooded', { self, players: roster(self), vehicles: [stalled],
+      match: weirMatch(), events, camera: cam(self.x, GROUND + 1.6, self.z, 0), bigMap: true }));
   }
   // 17. Deploy screen: dead, 3.2 s to respawn, valid spawns plus a refused flag (enemies in B).
   const deployRoster = self => roster(self, [player('en9', 'Draves', 'bravo', B.x + 3, B.z - 2, { cq: { squad: 2 } })]);

@@ -12,6 +12,25 @@
 // the same throttle, steer and brake a human does.
 import { vehicleSeatOccupantId } from '../shared/vehicle-seats.js';
 import { vehicleMaxHp } from '../shared/vehicles.js';
+import { BOAT_RULES } from '../shared/vehicle-handling/boat.js';
+import { MC_WATER, isSolidBlock } from '../shared/world/blocks.js';
+
+/**
+ * True while a ford crossing has less water than BOAT_RULES.shallowDepth over
+ * its bed (the hull scrapes), read from the voxels at the crossing, so a
+ * flooded ford reads deep and a drained one shallow again.
+ */
+export function fordShallow(world, crossing, depth = BOAT_RULES.shallowDepth) {
+  if (!world?.getBlock) return true;
+  const x = Math.floor(crossing.x), z = Math.floor(crossing.z), top = world.dimensions?.sy ?? 80;
+  let surface = null;
+  for (let y = top - 1; y > 0; y--) {
+    const b = world.getBlock(x, y, z);
+    if (b === MC_WATER) { surface ??= y + 1; continue; }
+    if (surface != null && isSolidBlock(b)) return surface - (y + 1) < depth;
+  }
+  return true;
+}
 
 /** Data, not code: tuning of the bot river patrol. */
 export const BOAT_PATROL = Object.freeze({
@@ -236,7 +255,8 @@ export function boatPatrol(driving, br, p, v, assignment, now, inp) {
   // Slow through the narrows (the arches of a bridge within 20 m), over a ford and on the approach.
   const crossings = driving.game.mapMeta?.conquest?.crossings ?? [];
   const narrows = crossings.some(c => c.kind === 'bridge' && flat(c, v) < 20);
-  const ford = crossings.some(c => c.kind === 'ford' && flat(c, v) < BOAT_PATROL.fordReach);
+  // A flooded ford (the Frontier sluice weir) is deep water: no scrape, no slowdown.
+  const ford = crossings.some(c => c.kind === 'ford' && flat(c, v) < BOAT_PATROL.fordReach && fordShallow(driving.game.world, c));
   const cruise = narrows ? BOAT_PATROL.narrows : ford ? BOAT_PATROL.ford : toGo < 30 ? BOAT_PATROL.approach : BOAT_PATROL.cruise;
   const remaining = driving.follow(br, v, state, now, inp, { arrive: BOAT_PATROL.arrive, cruise, narrows });
   if (remaining < BOAT_PATROL.arrive) {

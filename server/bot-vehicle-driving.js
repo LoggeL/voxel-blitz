@@ -386,8 +386,9 @@ export class ConquestVehicleDriving {
 
   driverState(br, v, destination, now) {
     let state = this.drivers.get(br.id);
-    // A crossing closing (the Iron Bridge groan) replans every route.
-    const key = destination ? `${Math.round(destination.x)},${Math.round(destination.z)}${closedCrossings(this.game).size ? ':closed' : ''}` : '';
+    // A crossing closing or opening (the Iron Bridge groan, a map event's flood) replans every route.
+    const closed = closedCrossings(this.game);
+    const key = destination ? `${Math.round(destination.x)},${Math.round(destination.z)}${closed.size ? `:${[...closed].sort().join(',')}` : ''}` : '';
     if (!state || state.vehicle !== v || state.key !== key) {
       state = { vehicle: v, key, destination, points: destination ? vehicleRoute(this.game, v, destination) : [], index: 0,
         watchAt: now, watchX: v.x, watchZ: v.z, watchYaw: v.yaw, recoveries: 0, reverseUntil: 0,

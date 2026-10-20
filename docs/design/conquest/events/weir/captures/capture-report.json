@@ -1,0 +1,56 @@
+{
+  "generated": "2026-10-20T16:20:32.870Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "weir-flooded",
+        "title": "Sluice weir · fords flooded banner, flood patches on the minimap",
+        "file": "docs/design/conquest/events/weir/captures/desktop-weir-flooded.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weir-flooded-map",
+        "title": "Sluice weir · full map with both fords flooded",
+        "file": "docs/design/conquest/events/weir/captures/desktop-weir-flooded-map.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "weir-flooded",
+        "title": "Sluice weir · fords flooded banner, flood patches on the minimap",
+        "file": "docs/design/conquest/events/weir/captures/portrait-weir-flooded.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weir-flooded-map",
+        "title": "Sluice weir · full map with both fords flooded",
+        "file": "docs/design/conquest/events/weir/captures/portrait-weir-flooded-map.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "weir-flooded",
+        "title": "Sluice weir · fords flooded banner, flood patches on the minimap",
+        "file": "docs/design/conquest/events/weir/captures/landscape-weir-flooded.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weir-flooded-map",
+        "title": "Sluice weir · full map with both fords flooded",
+        "file": "docs/design/conquest/events/weir/captures/landscape-weir-flooded-map.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

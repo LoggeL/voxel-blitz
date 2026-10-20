@@ -1,7 +1,7 @@
 // Frontier v2 generator: fills the 768 x 80 x 768 heightfield from
 // shared/world/frontier-terrain.js, then builds the battlefield dressing, the
 // five flag sites, the two HQ airfields, the four places between the flags,
-// the woodland and the roadside dressing on top of it.
+// the sluice weir, the woodland and the roadside dressing on top of it.
 // Finally it re-opens every reserved cell (spawns, vehicle pads, roads) so no
 // set piece can ever block an authoritative spawn or route.
 
@@ -21,6 +21,7 @@ import { buildForests } from './forest.js';
 import { buildDressing } from './dressing.js';
 import { buildRoadside } from './roadside.js';
 import { buildLocations } from './locations.js';
+import { buildWeir } from './weir.js';
 import { frontierReservedCells } from './layout.js';
 
 /** Fill terrain columns. Deep subsoil is single-material to keep runs low. */
@@ -78,6 +79,8 @@ export function generateFrontierV2Into(world, blocks, heights) {
   // roadside pass, which keeps their footprints bare, so they never shift
   // the roadside dressing elsewhere on the map.
   buildLocations(kit);
+  // The sluice weir on the north reach (the Conquest weir event), with the places for the same reason.
+  buildWeir(kit);
   buildEntrances(kit);
   reopenRoads(kit);
   reopenReserved(kit, [...frontierReservedCells(), ...kit.reserved]);

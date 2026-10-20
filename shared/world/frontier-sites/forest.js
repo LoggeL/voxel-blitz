@@ -30,6 +30,7 @@ import { WORKS_SITE, WORKS_KEEP_OUT } from './works.js';
 import { HQ_LAYOUT } from './hq-airfield.js';
 import { frontierWrecks, frontierHulks, DRESSING_HEDGES, DRESSING_WALLS, DRESSING_RUINS } from './dressing.js';
 import { LOCATION_KEEP_OUT } from './locations.js';
+import { WEIR_KEEP_OUT } from './weir.js';
 
 const { sx: SX, sz: SZ } = FRONTIER_PLAN.dimensions;
 const SITES = [FARM_SITE, VILLAGE_SITE, BRIDGE_SITE, BUNKERS_SITE, WORKS_SITE];
@@ -74,6 +75,8 @@ function keepOuts() {
   for (const r of [...VILLAGE_LOTS, ...WORKS_KEEP_OUT, ...DRESSING_RUINS]) rects.push(pad(r, 3));
   // The places between the flags (halt, depot, quarry, relay) and their drives.
   for (const r of LOCATION_KEEP_OUT) rects.push(pad(r, 2));
+  // The sluice weir on the north reach and its bank approaches.
+  rects.push(pad(WEIR_KEEP_OUT, 2));
   for (const w of [...frontierWrecks(), ...frontierHulks()]) circles.push({ x: w.x, z: w.z, r: 9 });
   for (const points of [...DRESSING_HEDGES, ...DRESSING_WALLS]) { lines.push({ points, r: 2 }); lines.push({ points: mirrorLine(points), r: 2 }); }
   for (const c of FRONTIER_PLAN.crossings) circles.push({ x: c.x, z: c.z, r: 18 });
