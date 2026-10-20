@@ -42,6 +42,7 @@ const ROUTE_TTL_MS = 6000;
 const SEARCH_BUDGET_NODES = 12000;
 const REVERSE_PROBE_NODES = 2048;    // reverse flood from a goal in another component before the full A*
 const PARTIAL_SEARCH_NODES = 4096;   // A* budget toward a goal known to be unreachable
+const DETOUR_PROBE_NODES = 2048;     // flood proving a link a terrain change cut still has a way round
 const CHANGE_LOG = 32;               // applyChanges entries kept for route invalidation
 const UNREACHED_TARGET_SLACK = 8;    // m an unreachable (partial) route's target may move before a replan
 
@@ -78,6 +79,8 @@ export class SurfaceNav {
     this.flags = new Uint8Array(this.nodes);
     this.edges = new Uint16Array(this.nodes);   // 8 directions x 2 bits: target layer 0 / 1
     this.component = new Int32Array(this.nodes).fill(-1);
+    this.seeds = new Int32Array(this.nodes);    // first (lowest) node of each label, ascending
+    this.labels = 0;
     this.revision = 0;
     this.buildMs = 0;
     // A* scratch, reused by every query.
@@ -130,12 +133,13 @@ export class SurfaceNav {
       this.build();
       if (!PRISTINE_GRAPHS.has(template)) PRISTINE_GRAPHS.set(template, new Map());
       PRISTINE_GRAPHS.get(template).set(key, { height: this.height.slice(), flags: this.flags.slice(),
-        edges: this.edges.slice(), component: this.component.slice() });
+        edges: this.edges.slice(), component: this.component.slice(), seeds: this.seeds.slice(0, this.labels) });
       return this;
     }
     const start = performance.now();
     this.height.set(cached.height); this.flags.set(cached.flags);
     this.edges.set(cached.edges); this.component.set(cached.component);
+    this.seeds.set(cached.seeds); this.labels = cached.seeds.length;
     this.buildMs = performance.now() - start;
     return this;
   }
@@ -318,18 +322,24 @@ export class SurfaceNav {
     return (this.flags[c1 * 2] || this.flags[c1 * 2 + 1]) && (this.flags[c2 * 2] || this.flags[c2 * 2 + 1]);
   }
 
-  labelComponents() {
+  /**
+   * Labels below `first` are kept (applyChanges proved they stand): the scan
+   * resumes after their last seed, exactly where a full pass would be then.
+   */
+  labelComponents(first = 0) {
     // Strongly connected components are overkill here: label by forward
     // reachability from the largest region, others get their own labels.
     // Edges only join in-bounds neighbours, so a neighbour is node base + offset.
     const component = this.component, flags = this.flags, edges = this.edges, off = this.dirOffsets;
-    const nodes = this.nodes, queue = (this.floodQueue ??= new Int32Array(nodes));
-    component.fill(-1);
-    let label = 0;
-    for (let s = 0; s < nodes; s++) {
+    const nodes = this.nodes, queue = (this.floodQueue ??= new Int32Array(nodes)), seeds = this.seeds;
+    first = Math.max(0, Math.min(first, this.labels));
+    if (!first) component.fill(-1);
+    else for (let i = 0; i < nodes; i++) if (component[i] >= first) component[i] = -1;
+    let label = first;
+    for (let s = first ? seeds[first - 1] + 1 : 0; s < nodes; s++) {
       if (!flags[s] || component[s] >= 0) continue;
       let read = 0, write = 0;
-      queue[write++] = s; component[s] = label;
+      queue[write++] = s; component[s] = label; seeds[label] = s;
       while (read < write) {
         const node = queue[read++];
         let mask = edges[node];
@@ -344,6 +354,7 @@ export class SurfaceNav {
       }
       label++;
     }
+    this.labels = label;
   }
 
   // --------------------------------------------------------------- queries --
@@ -707,7 +718,9 @@ export class SurfaceNav {
 
   /**
    * Apply block changes (voxel indices from the engine's changed-block log).
-   * Recomputes the touched cells, then all edges around them.
+   * Recomputes the touched cells, then all edges around them, then relabels
+   * the components from the lowest label the change can move (none for most
+   * craters): the labels come out exactly as a full relabel would give them.
    */
   applyChanges(columns) {
     if (!columns.size) return false;
@@ -716,21 +729,111 @@ export class SurfaceNav {
       const x = key % this.sx, z = (key / this.sx) | 0;
       cells.add(Math.floor(z / this.cell) * this.gw + Math.floor(x / this.cell));
     }
-    const ring = new Set();
+    const ring = this.around(cells);
+    // computeEdgesFrom(c) rewrites c's links and its neighbours' links back
+    // to it, so links can change one cell beyond the ring.
+    const touched = this.around(ring), flags = this.flags, edges = this.edges, component = this.component;
+    const before = [], gained = [];
+    for (const c of touched) before.push(edges[c * 2], edges[c * 2 + 1]);
+    let first = Infinity;
     for (const c of cells) {
+      const a = flags[c * 2], b = flags[c * 2 + 1];
       this.computeCell(c, false);
-      const cx = c % this.gw, cz = (c / this.gw) | 0;
-      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
-        const x = cx + dx, z = cz + dz;
-        if (x >= 0 && z >= 0 && x < this.gw && z < this.gd) ring.add(z * this.gw + x);
+      for (let l = 0; l < 2; l++) {
+        const node = c * 2 + l;
+        if (!(l ? b : a) === !flags[node]) continue;
+        if (flags[node]) gained.push(node);
+        else first = Math.min(first, component[node]);
       }
     }
     for (const c of ring) this.computeEdgesFrom(c, false);
-    this.labelComponents();
+    for (const node of gained) first = Math.min(first, this.labelAbove(node));
+    first = this.firstMovedLabel(touched, before, first);
+    if (first !== Infinity) this.labelComponents(first);
     this.revision++;
     this.changes.push({ revision: this.revision, cells: ring });
     if (this.changes.length > CHANGE_LOG) this.changes.shift();
     return true;
+  }
+
+  /** The cells and their eight neighbours, in insertion order. */
+  around(cells) {
+    const out = new Set();
+    for (const c of cells) {
+      const cx = c % this.gw, cz = (c / this.gw) | 0;
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        const x = cx + dx, z = cz + dz;
+        if (x >= 0 && z >= 0 && x < this.gw && z < this.gd) out.add(z * this.gw + x);
+      }
+    }
+    return out;
+  }
+
+  /** The first label whose seed comes after `node` (a new layer may seed a label there). */
+  labelAbove(node) {
+    let lo = 0, hi = this.labels;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (this.seeds[mid] < node) lo = mid + 1; else hi = mid; }
+    return lo;
+  }
+
+  /**
+   * The lowest label below `bound` whose region the link changes of
+   * `touched` (from `before`) can move, else `bound`. Labels are forward
+   * floods in seed order, so a region stands when its own nodes gained no
+   * link into a later region (or a new layer) and every link it lost inside
+   * itself has a detour within the region; by induction from label 0 every
+   * region and seed below the returned label then stands.
+   */
+  firstMovedLabel(touched, before, bound) {
+    const edges = this.edges, component = this.component, off = this.dirOffsets;
+    let i = 0;
+    for (const c of touched) for (let l = 0; l < 2; l++) {
+      const node = c * 2 + l, was = before[i++], now = edges[node], label = component[node];
+      // A new layer (label -1) is placed by labelAbove and the regions linking into it.
+      if (was === now || label < 0 || label >= bound) continue;
+      const base = c * 2;
+      for (let d = 0, diff = was ^ now; diff; d++, diff >>= 2) {
+        const bits = diff & 3;
+        if (!bits) continue;
+        for (let lb = 0; lb < 2; lb++) {
+          if (!(bits & (1 << lb))) continue;
+          const next = base + off[d] + lb;
+          const moved = (now >> (d * 2)) & (1 << lb)
+            ? component[next] > label || component[next] < 0
+            : component[next] === label && !this.detour(node, next, label);
+          if (moved) { bound = label; break; }
+        }
+        if (bound === label) break;
+      }
+    }
+    return bound;
+  }
+
+  /** Whether `goal` is reachable forward from `start` through nodes labelled `label` (budgeted). */
+  detour(start, goal, label, budget = DETOUR_PROBE_NODES) {
+    if (++this.rsearch >= 0xffffffff) { this.rstamp.fill(0); this.rsearch = 1; }
+    const s = this.rsearch, queue = this.rqueue, stamp = this.rstamp;
+    const edges = this.edges, component = this.component, off = this.dirOffsets;
+    let read = 0, write = 0;
+    queue[write++] = start; stamp[start] = s;
+    while (read < write) {
+      const node = queue[read++];
+      let mask = edges[node];
+      const base = node & ~1;
+      for (let d = 0; mask; d++, mask >>= 2) {
+        const bits = mask & 3;
+        if (!bits) continue;
+        for (let lb = 0; lb < 2; lb++) {
+          if (!(bits & (1 << lb))) continue;
+          const next = base + off[d] + lb;
+          if (next === goal) return true;
+          if (stamp[next] === s || component[next] !== label) continue;
+          if (write >= budget) return false;
+          stamp[next] = s; queue[write++] = next;
+        }
+      }
+    }
+    return false;
   }
 }
 
