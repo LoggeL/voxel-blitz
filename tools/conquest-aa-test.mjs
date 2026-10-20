@@ -93,7 +93,7 @@ test('contract v6: `aa` appended, a tank hull variant with its own seats, mounts
   assert.equal(AA_RULES.turretForward, TANK_RULES.turretForward, 'the ring sits where turretLocal expects it');
 });
 
-test('armour: medium sits between light and heavy; flak shreds aircraft and barely scratches armour', () => {
+test('armour: medium sits between light and heavy; flak wears aircraft down and barely scratches armour', () => {
   for (const cls of Object.keys(ARMOR_MATRIX)) {
     const row = ARMOR_MATRIX[cls];
     assert.ok(row.medium <= row.light + 1e-9 && row.medium >= row.heavy - 1e-9, `${cls}: light >= medium >= heavy`);
@@ -102,7 +102,9 @@ test('armour: medium sits between light and heavy; flak shreds aircraft and bare
   assert.equal(armorMultiplier('at', 'medium', 'front'), 0.75);
   const w = VEHICLE_WEAPONS.flak35, direct = w.damage + w.splash;
   const hits = type => Math.ceil(vehicleMaxHp(type) / (direct * armorMultiplier('aa', VEHICLE_DEFS[type].armor)));
-  assert.ok(hits('helicopter') <= 10 && hits('plane') <= 8, `aircraft fall to a short burst (${hits('helicopter')}, ${hits('plane')} direct hits)`);
+  // About one heat bar of hits each, so a crew needs two bursts and an aircraft has time to break off.
+  assert.ok(hits('helicopter') >= 20 && hits('helicopter') <= 30 && hits('plane') >= 14 && hits('plane') <= 22,
+    `aircraft take a sustained burst (${hits('helicopter')}, ${hits('plane')} direct hits)`);
   assert.ok(hits('tank') >= 100, `a tank shrugs it off (${hits('tank')})`);
   assert.ok(hits('jeep') >= 12, `a jeep takes a long burst (${hits('jeep')})`);
   // The Engineer's RX-8 (380 AT) kills it in two side hits.
@@ -194,7 +196,7 @@ test('flak fuse: bursts beside an airborne enemy aircraft, ignores friendlies an
   assert.equal(gf.hp, vehicleMaxHp('helicopter'));
 });
 
-test('a full heat bar laid on a hovering attack helicopter brings it down or close to it', () => {
+test('a hovering attack helicopter caught in the open takes most of a heat bar to bring down', () => {
   const at = [300, 50, 280];
   const f = fixture([{ id: 'aa', type: 'aa', team: 'alpha', x: 300, y: 1, z: 400, yaw: 0 },
     { id: 'enemy', type: 'helicopter', team: 'bravo', x: 300, y: 1, z: 280, yaw: Math.PI / 2 }]);
@@ -202,9 +204,13 @@ test('a full heat bar laid on a hovering attack helicopter brings it down or clo
   const driver = f.board(f.player('driver', 'alpha'), 'aa', 'driver');
   const aim = () => { if (enemy.hp > 0) hover(enemy, ...at); return aimAt(f, v, [at[0], at[1] + 1.6 + 0.4, at[2]]); };
   for (let i = 0; i < 120; i++) { f.game.applyInput(driver.id, { keys: {}, ...aim() }); f.game.step(TICK); }
-  for (let i = 0; i < 220; i++) { f.game.applyInput(driver.id, { keys: {}, ...aim(), wantFire: true }); f.game.step(TICK); }
-  for (let i = 0; i < 60; i++) { f.game.applyInput(driver.id, { keys: {}, ...aim() }); f.game.step(TICK); }
-  assert.ok(!(enemy.hp > vehicleMaxHp('helicopter') * 0.25), `the helicopter is down to ${Math.round(enemy.hp)} hp`);
+  let downAt = null;
+  for (let i = 0; i < 220; i++) {
+    f.game.applyInput(driver.id, { keys: {}, ...aim(), wantFire: true }); f.game.step(TICK);
+    if (downAt == null && !(enemy.hp > 0)) downAt = i / 60;
+  }
+  // Every shell laid true: it still lasts well past two seconds of fire (bot crews, with their aim error, need about six).
+  assert.ok(downAt != null && downAt > 2.4, `the helicopter falls after ${downAt?.toFixed(2)} s of fire`);
 });
 
 test('Frontier parks one AA per HQ in the motor pool, point-mirrored, with a pickup and an exit route', () => {

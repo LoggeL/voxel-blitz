@@ -189,10 +189,11 @@ export const VEHICLE_WEAPONS = freeze({
   // aircraft's hull, so the burst's splash falls off with the miss distance.
   // A shell that meets nothing airbursts at the end of its life (~470 m).
   // Sustained fire overheats in ~3.2 s (26 shots: 8 x 0.07 against 0.25 cooling a second).
-  // `aa` class: a heli takes ~25 near bursts (about one heat bar), a tank shrugs it off.
-  flak35: weapon('flak35', { cooldown: 1 / 8, damage: 30, splash: 40, splashRadius: 5, splashCls: 'aa',
+  // `aa` class: a heli takes ~24 direct hits or more near bursts (bot crews need two
+  // heat bars, about 6 s; tools/conquest-aa-ttk.mjs), a tank shrugs it off.
+  flak35: weapon('flak35', { cooldown: 1 / 8, damage: 12, splash: 16, splashRadius: 4, splashCls: 'aa',
     heatPerShot: 0.07, coolPerSecond: 0.25, overheatSeconds: 3.5, terrainRadius: 0.8, terrainPower: 40, maxDestroyedBlocks: 2,
-    lifetimeMs: 1500, knockback: 3, infantrySplashScale: 0.5, flak: { proximity: 4, armDistance: 25 } }),
+    lifetimeMs: 1500, knockback: 3, infantrySplashScale: 0.5, flak: { proximity: 3, armDistance: 25 } }),
   // Titan mount weapons (shared/vehicle-handling/titan-weapons.js, WP3 numbers).
   ...TITAN_WEAPONS,
 });
