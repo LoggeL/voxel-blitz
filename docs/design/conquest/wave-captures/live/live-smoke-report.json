@@ -1,0 +1,2857 @@
+{
+  "started": "2026-10-20T02:57:20.949Z",
+  "seconds": 120,
+  "bots": 15,
+  "viewport": "1280x720",
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+  "timings": {
+    "menuReadyS": 0.3,
+    "joinToRunningS": 2.7,
+    "chunksAtSpawn": {
+      "chunks": 450,
+      "queued": 0,
+      "pendingLoads": 0,
+      "streaming": true,
+      "maxChunks": 841,
+      "detailRadius": 192,
+      "wantedChunks": 450,
+      "meshes": 599
+    },
+    "walkProbeM": 5.29
+  },
+  "steps": [
+    {
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+      "at": 2.1,
+      "text": "browser up"
+    },
+    {
+      "seconds": 0.3,
+      "at": 2.4,
+      "text": "menu ready"
+    },
+    {
+      "at": 3.5,
+      "text": "screenshot 00-lobby (Conquest lobby on Frontier with bots)"
+    },
+    {
+      "at": 3.6,
+      "text": "match start clicked"
+    },
+    {
+      "at": 6.3,
+      "text": "screenshot 01-loading (loading screen after start)"
+    },
+    {
+      "seconds": 2.7,
+      "at": 6.3,
+      "text": "match running"
+    },
+    {
+      "at": 6.3,
+      "text": "deploy screen open (round start)"
+    },
+    {
+      "at": 8,
+      "text": "screenshot deploy-screen (round start)"
+    },
+    {
+      "feet": [
+        85,
+        375
+      ],
+      "seat": null,
+      "vehicle": null,
+      "at": 9,
+      "text": "deployed"
+    },
+    {
+      "team": "alpha",
+      "feet": [
+        84.5,
+        37,
+        374.5
+      ],
+      "avatars": 15,
+      "vehicles": 22,
+      "chunks": {
+        "chunks": 450,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 192,
+        "wantedChunks": 450,
+        "meshes": 599
+      },
+      "at": 13.5,
+      "text": "spawned"
+    },
+    {
+      "at": 13.7,
+      "text": "screenshot 02-hq-spawn (alpha HQ spawn)"
+    },
+    {
+      "radPerPx": -0.003,
+      "at": 14.4,
+      "text": "look calibrated"
+    },
+    {
+      "moved": 5.29,
+      "focus": true,
+      "active": "BODY#",
+      "at": 15.9,
+      "text": "walk probe (W 1.2 s)"
+    },
+    {
+      "id": "alpha-jeep",
+      "type": "jeep",
+      "distance": 61,
+      "driverFree": false,
+      "at": 15.9,
+      "text": "walking to vehicle"
+    },
+    {
+      "id": "alpha-tank",
+      "driverFree": false,
+      "at": 17.2,
+      "text": "switching vehicle"
+    },
+    {
+      "seat": {
+        "id": "commander",
+        "role": "gunner",
+        "canDrive": false,
+        "canFire": true
+      },
+      "vehicle": "tank:alpha-tank",
+      "at": 25.6,
+      "text": "entered vehicle on foot"
+    },
+    {
+      "at": 26.6,
+      "text": "screenshot 03-vehicle-entered (tank commander seat (walked up, T))"
+    },
+    {
+      "at": 32.8,
+      "text": "screenshot 04-vehicle-riding (commander seat, bot driver)"
+    },
+    {
+      "distance": 167,
+      "at": 41.9,
+      "text": "walking to flag A"
+    },
+    {
+      "at": 59.1,
+      "text": "deploy screen open (after death)"
+    },
+    {
+      "at": 60.7,
+      "text": "screenshot deploy-screen-2 (after death)"
+    },
+    {
+      "choice": "AT JEEP / DRIVER",
+      "at": 60.7,
+      "text": "deploy choice"
+    },
+    {
+      "at": 61.5,
+      "text": "screenshot deploy-screen-vehicle (AT JEEP / DRIVER)"
+    },
+    {
+      "feet": [
+        126,
+        414
+      ],
+      "seat": "driver",
+      "vehicle": "jeep_at:alpha-jeep_at",
+      "at": 62.6,
+      "text": "deployed"
+    },
+    {
+      "at": 64.4,
+      "text": "screenshot 03-vehicle-deployed (deployed into jeep_at driver seat)"
+    },
+    {
+      "distance": 259,
+      "at": 64.4,
+      "text": "driving jeep_at toward C"
+    },
+    {
+      "at": 71.6,
+      "text": "screenshot 04-vehicle-driving (jeep_at driver, 24 m/s, 133 m to C)"
+    },
+    {
+      "distance": 30,
+      "alive": true,
+      "seated": true,
+      "at": 75.9,
+      "text": "drive ended"
+    },
+    {
+      "at": 76.1,
+      "text": "screenshot 06-vehicle-at-flag (seated near flag C, 30 m)"
+    },
+    {
+      "at": 78.3,
+      "text": "screenshot 06-flag-on-foot (dismounted near flag C, 23 m)"
+    },
+    {
+      "at": 85.7,
+      "text": "deploy screen open (after death)"
+    },
+    {
+      "feet": [
+        85,
+        375
+      ],
+      "seat": null,
+      "vehicle": null,
+      "at": 94.9,
+      "text": "deployed"
+    },
+    {
+      "at": 130.6,
+      "text": "screenshot 09-late-match (t=121 s)"
+    },
+    {
+      "at": 131.4,
+      "text": "screenshot 10-scoreboard (Tab scoreboard)"
+    },
+    {
+      "fps": {
+        "frames": 6000,
+        "p50Ms": 16.7,
+        "p95Ms": 16.8,
+        "maxMs": 666.7,
+        "fpsP50": 59.9,
+        "over50ms": 9
+      },
+      "gameFps": {
+        "samples": 44,
+        "min": 0.8,
+        "p10": 52,
+        "median": 59
+      },
+      "at": 131.5,
+      "text": "match phase done"
+    }
+  ],
+  "timeline": [
+    {
+      "t": 3.5,
+      "running": false,
+      "alive": false,
+      "menu": false,
+      "hud": false,
+      "feet": null,
+      "yaw": 0,
+      "seat": null,
+      "ring": 0,
+      "snapAge": null,
+      "avatars": 0,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "ready": false,
+        "hidden": false,
+        "limit": {
+          "code": "measuring",
+          "label": "MEASURING",
+          "detail": "Collecting a fresh second of gameplay timing."
+        }
+      },
+      "probe": {
+        "msgs": 8,
+        "bytes": 2495853,
+        "longMs": 368,
+        "longCount": 3,
+        "maxLag": 165.40000009536743
+      }
+    },
+    {
+      "t": 6.3,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        84.5,
+        37,
+        374.5
+      ],
+      "yaw": 0,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 0,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 0.821962847279303,
+        "callbackFps": 0.821962847279303,
+        "callbackSamples": 1,
+        "callbackMs": 1216.6,
+        "callbackP95Ms": 1216.6,
+        "cpuMs": 13.100000023841858,
+        "cpuRenderFrameMs": 13.100000023841858,
+        "renderSubmitMs": 5.399999976158142,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "unknown",
+          "label": "LIMIT UNCLEAR",
+          "detail": "Frame callbacks are uneven. GPU load, other browser tasks, or OS scheduling may be involved. These timings cannot isolate the cause."
+        }
+      },
+      "probe": {
+        "msgs": 125,
+        "bytes": 5252260,
+        "longMs": 2078,
+        "longCount": 8,
+        "maxLag": 1165.6000000238419
+      }
+    },
+    {
+      "t": 9,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        84.5,
+        37,
+        374.5
+      ],
+      "yaw": 0,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 14,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.700000000000728,
+        "cpuMs": 7.388333334525426,
+        "cpuRenderFrameMs": 7.388333334525426,
+        "renderSubmitMs": 2.4850000003973642,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 334,
+        "bytes": 10220706,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 10.800000071525574
+      }
+    },
+    {
+      "t": 13.5,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        84.5,
+        37,
+        374.5
+      ],
+      "yaw": 0,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 8,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60.00393468424157,
+        "callbackFps": 60.00393468424157,
+        "callbackSamples": 61,
+        "callbackMs": 16.66557377049181,
+        "callbackP95Ms": 16.799999999999272,
+        "cpuMs": 4.816393443795501,
+        "cpuRenderFrameMs": 4.816393443795501,
+        "renderSubmitMs": 2.431147548018909,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 608,
+        "bytes": 16836264,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 5.699999928474426
+      }
+    },
+    {
+      "t": 15.9,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        84.5,
+        37,
+        369.2
+      ],
+      "yaw": 0,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 6,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60.00393468424157,
+        "callbackFps": 60.00393468424157,
+        "callbackSamples": 61,
+        "callbackMs": 16.66557377049181,
+        "callbackP95Ms": 16.700000000000728,
+        "cpuMs": 4.891803276343424,
+        "cpuRenderFrameMs": 4.891803276343424,
+        "renderSubmitMs": 2.463934419585056,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 751,
+        "bytes": 20325120,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 2
+      }
+    },
+    {
+      "t": 17.9,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        95.5,
+        37,
+        372.9
+      ],
+      "yaw": -2.02,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 12,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.700000000000728,
+        "cpuMs": 8.801666675011317,
+        "cpuRenderFrameMs": 8.801666675011317,
+        "renderSubmitMs": 5.01833333770434,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 873,
+        "bytes": 23299559,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 2.200000047683716
+      }
+    },
+    {
+      "t": 20,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        108,
+        37,
+        377.6
+      ],
+      "yaw": -1.87,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 10,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.799999999999272,
+        "cpuMs": 7.496666673819224,
+        "cpuRenderFrameMs": 7.496666673819224,
+        "renderSubmitMs": 5.030000005165736,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 1004,
+        "bytes": 26527576,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 0.30000007152557373
+      }
+    },
+    {
+      "t": 22.1,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        120,
+        37,
+        381.2
+      ],
+      "yaw": -1.81,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 16,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.700000000000728,
+        "cpuMs": 7.503333326180776,
+        "cpuRenderFrameMs": 7.503333326180776,
+        "renderSubmitMs": 5.049999988079071,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 1127,
+        "bytes": 29536964,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 0
+      }
+    },
+    {
+      "t": 24.2,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        132.7,
+        37,
+        384.3
+      ],
+      "yaw": -1.81,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 18,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60.00393468424168,
+        "callbackFps": 60.00393468424168,
+        "callbackSamples": 61,
+        "callbackMs": 16.66557377049178,
+        "callbackP95Ms": 16.799999999999272,
+        "cpuMs": 8.291803275952574,
+        "cpuRenderFrameMs": 8.291803275952574,
+        "renderSubmitMs": 5.0737704839862765,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 1254,
+        "bytes": 32668311,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 3.399999976158142
+      }
+    },
+    {
+      "t": 26.6,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        144.2,
+        37.6,
+        384.6
+      ],
+      "yaw": -1.61,
+      "seat": "commander",
+      "ring": 32,
+      "snapAge": 3,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.700000000000728,
+        "cpuMs": 7.6449999888738,
+        "cpuRenderFrameMs": 7.6449999888738,
+        "renderSubmitMs": 4.901666655143102,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 1404,
+        "bytes": 36356222,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 4.399999976158142
+      }
+    },
+    {
+      "t": 32.8,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        218.6,
+        32.6,
+        384.1
+      ],
+      "yaw": -1.61,
+      "seat": "commander",
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 12,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60.00393468424168,
+        "callbackFps": 60.00393468424168,
+        "callbackSamples": 61,
+        "callbackMs": 16.66557377049178,
+        "callbackP95Ms": 16.700000000000728,
+        "cpuMs": 11.747540989860159,
+        "cpuRenderFrameMs": 11.747540989860159,
+        "renderSubmitMs": 7.0098360718273725,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 1778,
+        "bytes": 45620235,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 23.799999952316284
+      }
+    },
+    {
+      "t": 41.9,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        325.5,
+        25,
+        386.7
+      ],
+      "yaw": -1.61,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 59.02026362384427,
+        "callbackFps": 59.02026362384427,
+        "callbackSamples": 60,
+        "callbackMs": 16.94333333333331,
+        "callbackP95Ms": 16.700000000004366,
+        "cpuMs": 13.288333344459534,
+        "cpuRenderFrameMs": 13.288333344459534,
+        "renderSubmitMs": 7.218333339691162,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 59 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 2321,
+        "bytes": 59204094,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 22.09999990463257
+      }
+    },
+    {
+      "t": 43.9,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        322.3,
+        22,
+        377.3
+      ],
+      "yaw": 0.59,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 14,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.799999999995634,
+        "cpuMs": 8.788333330551783,
+        "cpuRenderFrameMs": 8.788333330551783,
+        "renderSubmitMs": 4.12666665315628,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 2447,
+        "bytes": 62402240,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 0
+      }
+    },
+    {
+      "t": 46.1,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        322.3,
+        22,
+        377.3
+      ],
+      "yaw": 0.59,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 20,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.700000000004366,
+        "cpuMs": 7.211666657527288,
+        "cpuRenderFrameMs": 7.211666657527288,
+        "renderSubmitMs": 4.049999994039536,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 2575,
+        "bytes": 65601605,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 4.100000023841858
+      }
+    },
+    {
+      "t": 48.1,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        321.3,
+        24,
+        376.3
+      ],
+      "yaw": 0.59,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 6,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60.00393468424168,
+        "callbackFps": 60.00393468424168,
+        "callbackSamples": 61,
+        "callbackMs": 16.66557377049178,
+        "callbackP95Ms": 16.700000000004366,
+        "cpuMs": 7.193442620214869,
+        "cpuRenderFrameMs": 7.193442620214869,
+        "renderSubmitMs": 3.9180327927479977,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 2700,
+        "bytes": 68727807,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 1.7000000476837158
+      }
+    },
+    {
+      "t": 51.2,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        317.4,
+        26,
+        374.2
+      ],
+      "yaw": 0.59,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 15,
+      "avatars": 13,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 59,
+        "callbackFps": 59,
+        "callbackSamples": 59,
+        "callbackMs": 16.949152542372882,
+        "callbackP95Ms": 16.80000000000291,
+        "cpuMs": 7.944067803479857,
+        "cpuRenderFrameMs": 7.944067803479857,
+        "renderSubmitMs": 4.101694917274734,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 59 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 2888,
+        "bytes": 73488291,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 3.899999976158142
+      }
+    },
+    {
+      "t": 53.3,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        316.4,
+        26.4,
+        373.7
+      ],
+      "yaw": 0.65,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 2,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60.003934684241244,
+        "callbackFps": 60.003934684241244,
+        "callbackSamples": 61,
+        "callbackMs": 16.6655737704919,
+        "callbackP95Ms": 16.700000000004366,
+        "cpuMs": 7.060655730669616,
+        "cpuRenderFrameMs": 7.060655730669616,
+        "renderSubmitMs": 3.6885245960266864,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 3017,
+        "bytes": 76751010,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 17.09999990463257
+      }
+    },
+    {
+      "t": 55.4,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        316.2,
+        27,
+        370.3
+      ],
+      "yaw": 0.6,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 7,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60.00393468424168,
+        "callbackFps": 60.00393468424168,
+        "callbackSamples": 61,
+        "callbackMs": 16.66557377049178,
+        "callbackP95Ms": 16.700000000004366,
+        "cpuMs": 7.811475400064812,
+        "cpuRenderFrameMs": 7.811475400064812,
+        "renderSubmitMs": 3.8639344250569576,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 3142,
+        "bytes": 79898367,
+        "longMs": 2224,
+        "longCount": 9,
+        "maxLag": 2.700000047683716
+      }
+    },
+    {
+      "t": 57.6,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        316.2,
+        27,
+        370.3
+      ],
+      "yaw": 0.6,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 17,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 49.183553019870224,
+        "callbackFps": 49.183553019870224,
+        "callbackSamples": 50,
+        "callbackMs": 20.331999999999972,
+        "callbackP95Ms": 33.400000000001455,
+        "cpuMs": 15.290000002384186,
+        "cpuRenderFrameMs": 15.290000002384186,
+        "renderSubmitMs": 7.48400000333786,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "unknown",
+          "label": "LIMIT UNCLEAR",
+          "detail": "Frame callbacks are uneven. GPU load, other browser tasks, or OS scheduling may be involved. These timings cannot isolate the cause."
+        }
+      },
+      "probe": {
+        "msgs": 3273,
+        "bytes": 83201156,
+        "longMs": 2740,
+        "longCount": 13,
+        "maxLag": 38.799999952316284
+      }
+    },
+    {
+      "t": 60.7,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        316.2,
+        27,
+        370.3
+      ],
+      "yaw": 0.6,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 14,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 56,
+        "callbackFps": 56,
+        "callbackSamples": 56,
+        "callbackMs": 17.857142857142858,
+        "callbackP95Ms": 33.30000000000291,
+        "cpuMs": 14.396428568022591,
+        "cpuRenderFrameMs": 14.396428568022591,
+        "renderSubmitMs": 7.324999998722758,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 14.4 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 3465,
+        "bytes": 88056539,
+        "longMs": 2740,
+        "longCount": 13,
+        "maxLag": 44.39999997615814
+      }
+    },
+    {
+      "t": 64.4,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        126.5,
+        37,
+        414.5
+      ],
+      "yaw": -1.57,
+      "seat": "driver",
+      "ring": 32,
+      "snapAge": 15,
+      "avatars": 12,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 52,
+        "callbackFps": 52,
+        "callbackSamples": 52,
+        "callbackMs": 19.23076923076923,
+        "callbackP95Ms": 33.400000000001455,
+        "cpuMs": 16.967307693683185,
+        "cpuRenderFrameMs": 16.967307693683185,
+        "renderSubmitMs": 8.161538461079964,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 17.0 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 3683,
+        "bytes": 93576062,
+        "longMs": 3013,
+        "longCount": 14,
+        "maxLag": 13.299999952316284
+      }
+    },
+    {
+      "t": 66.5,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        142.2,
+        37,
+        407
+      ],
+      "yaw": -0.81,
+      "seat": "driver",
+      "ring": 32,
+      "snapAge": 18,
+      "avatars": 9,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 58,
+        "callbackFps": 58,
+        "callbackSamples": 58,
+        "callbackMs": 17.24137931034483,
+        "callbackP95Ms": 16.799999999995634,
+        "cpuMs": 14.210344826353007,
+        "cpuRenderFrameMs": 14.210344826353007,
+        "renderSubmitMs": 8.729310335784122,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 14.2 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 3811,
+        "bytes": 96775433,
+        "longMs": 3013,
+        "longCount": 14,
+        "maxLag": 1.6999999284744263
+      }
+    },
+    {
+      "t": 68.7,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        187.9,
+        34,
+        397.6
+      ],
+      "yaw": -1.39,
+      "seat": "driver",
+      "ring": 32,
+      "snapAge": 19,
+      "avatars": 11,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 54.10723069355632,
+        "callbackFps": 54.10723069355632,
+        "callbackSamples": 55,
+        "callbackMs": 18.48181818181818,
+        "callbackP95Ms": 33.30000000000291,
+        "cpuMs": 15.405454553257336,
+        "cpuRenderFrameMs": 15.405454553257336,
+        "renderSubmitMs": 8.992727279663086,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 15.4 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 3943,
+        "bytes": 100056498,
+        "longMs": 3013,
+        "longCount": 14,
+        "maxLag": 4.200000047683716
+      }
+    },
+    {
+      "t": 70.9,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        239.8,
+        31.3,
+        391.8
+      ],
+      "yaw": -1.56,
+      "seat": "driver",
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 53.11301268810874,
+        "callbackFps": 53.11301268810874,
+        "callbackSamples": 54,
+        "callbackMs": 18.827777777777722,
+        "callbackP95Ms": 33.30000000000291,
+        "cpuMs": 16.124074072749526,
+        "cpuRenderFrameMs": 16.124074072749526,
+        "renderSubmitMs": 9.475925933431697,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 16.1 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 4076,
+        "bytes": 103410287,
+        "longMs": 3013,
+        "longCount": 14,
+        "maxLag": 20.800000071525574
+      }
+    },
+    {
+      "t": 72.9,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        287.1,
+        29.3,
+        390.3
+      ],
+      "yaw": -1.62,
+      "seat": "driver",
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 52,
+        "callbackFps": 52,
+        "callbackSamples": 52,
+        "callbackMs": 19.23076923076923,
+        "callbackP95Ms": 33.30000000000291,
+        "cpuMs": 16.907692306316815,
+        "cpuRenderFrameMs": 16.907692306316815,
+        "renderSubmitMs": 10.399999999083006,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 16.9 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 4196,
+        "bytes": 106438798,
+        "longMs": 3013,
+        "longCount": 14,
+        "maxLag": 11
+      }
+    },
+    {
+      "t": 75.1,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        338.4,
+        26.3,
+        388.5
+      ],
+      "yaw": -1.6,
+      "seat": "driver",
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 54.10190832185686,
+        "callbackFps": 54.10190832185686,
+        "callbackSamples": 55,
+        "callbackMs": 18.48363636363647,
+        "callbackP95Ms": 33.40000000000873,
+        "cpuMs": 16.07999999739907,
+        "cpuRenderFrameMs": 16.07999999739907,
+        "renderSubmitMs": 9.630909087441184,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 16.1 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 4327,
+        "bytes": 109736496,
+        "longMs": 3013,
+        "longCount": 14,
+        "maxLag": 0.8999999761581421
+      }
+    },
+    {
+      "t": 77.5,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        360.9,
+        26,
+        384.3
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 23,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 57.05853418593212,
+        "callbackFps": 57.05853418593212,
+        "callbackSamples": 58,
+        "callbackMs": 17.525862068965516,
+        "callbackP95Ms": 33.29999999998836,
+        "cpuMs": 13.694827583329431,
+        "cpuRenderFrameMs": 13.694827583329431,
+        "renderSubmitMs": 8.120689659283078,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "unknown",
+          "label": "LIMIT UNCLEAR",
+          "detail": "Frame callbacks are uneven. GPU load, other browser tasks, or OS scheduling may be involved. These timings cannot isolate the cause."
+        }
+      },
+      "probe": {
+        "msgs": 4470,
+        "bytes": 113386722,
+        "longMs": 3013,
+        "longCount": 14,
+        "maxLag": 2.100000023841858
+      }
+    },
+    {
+      "t": 80.2,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        367.6,
+        26,
+        384.3
+      ],
+      "yaw": -1.61,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 19,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 59.99803285138209,
+        "callbackFps": 59.99803285138209,
+        "callbackSamples": 61,
+        "callbackMs": 16.667213114754052,
+        "callbackP95Ms": 16.80000000000291,
+        "cpuMs": 12.536065570643691,
+        "cpuRenderFrameMs": 12.536065570643691,
+        "renderSubmitMs": 7.850819673694548,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 4635,
+        "bytes": 117598987,
+        "longMs": 3013,
+        "longCount": 14,
+        "maxLag": 16.899999976158142
+      }
+    },
+    {
+      "t": 82.5,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        370.4,
+        26,
+        384.3
+      ],
+      "yaw": -1.6,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 12,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 58,
+        "callbackFps": 58,
+        "callbackSamples": 58,
+        "callbackMs": 17.24137931034483,
+        "callbackP95Ms": 16.79999999998836,
+        "cpuMs": 12.962068960584443,
+        "cpuRenderFrameMs": 12.962068960584443,
+        "renderSubmitMs": 7.470689652294948,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 58 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 4763,
+        "bytes": 120884128,
+        "longMs": 3299,
+        "longCount": 16,
+        "maxLag": 184.5
+      }
+    },
+    {
+      "t": 84.5,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        370.4,
+        26,
+        384.3
+      ],
+      "yaw": -1.6,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 12,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 59.02026362384469,
+        "callbackFps": 59.02026362384469,
+        "callbackSamples": 60,
+        "callbackMs": 16.94333333333319,
+        "callbackP95Ms": 16.70000000001164,
+        "cpuMs": 12.8949999888738,
+        "cpuRenderFrameMs": 12.8949999888738,
+        "renderSubmitMs": 7.281666668256124,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 59 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 4896,
+        "bytes": 124300918,
+        "longMs": 3299,
+        "longCount": 16,
+        "maxLag": 15
+      }
+    },
+    {
+      "t": 87.2,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        370.4,
+        26,
+        384.3
+      ],
+      "yaw": -1.6,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 16,
+      "avatars": 12,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 59.020263623843846,
+        "callbackFps": 59.020263623843846,
+        "callbackSamples": 60,
+        "callbackMs": 16.94333333333343,
+        "callbackP95Ms": 16.80000000000291,
+        "cpuMs": 13.546666665871937,
+        "cpuRenderFrameMs": 13.546666665871937,
+        "renderSubmitMs": 3.32000000278155,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 59 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 5062,
+        "bytes": 128486796,
+        "longMs": 3299,
+        "longCount": 16,
+        "maxLag": 21.600000023841858
+      }
+    },
+    {
+      "t": 89.6,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        359.7,
+        27.1,
+        385.8
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 57.05292150304987,
+        "callbackFps": 57.05292150304987,
+        "callbackSamples": 58,
+        "callbackMs": 17.5275862068964,
+        "callbackP95Ms": 33.19999999999709,
+        "cpuMs": 14.079310345238653,
+        "cpuRenderFrameMs": 14.079310345238653,
+        "renderSubmitMs": 6.393103445398396,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 14.1 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 5167,
+        "bytes": 131149698,
+        "longMs": 3299,
+        "longCount": 16,
+        "maxLag": 673.6000000238419
+      }
+    },
+    {
+      "t": 91.7,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        359.7,
+        27.1,
+        385.8
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 40.64647246685365,
+        "callbackFps": 40.64647246685365,
+        "callbackSamples": 42,
+        "callbackMs": 24.602380952381022,
+        "callbackP95Ms": 33.40000000000873,
+        "cpuMs": 21.102380959760573,
+        "cpuRenderFrameMs": 21.102380959760573,
+        "renderSubmitMs": 9.278571446736654,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 21.1 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 5336,
+        "bytes": 135448173,
+        "longMs": 4042,
+        "longCount": 18,
+        "maxLag": 33.10000002384186
+      }
+    },
+    {
+      "t": 93.8,
+      "running": true,
+      "alive": false,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        359.7,
+        27.1,
+        385.8
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 47.42547425474268,
+        "callbackFps": 47.42547425474268,
+        "callbackSamples": 49,
+        "callbackMs": 21.085714285714225,
+        "callbackP95Ms": 33.40000000000873,
+        "cpuMs": 18.116326529152538,
+        "cpuRenderFrameMs": 18.116326529152538,
+        "renderSubmitMs": 9.81428571623199,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 18.1 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 5463,
+        "bytes": 138678482,
+        "longMs": 4042,
+        "longCount": 18,
+        "maxLag": 25.40000009536743
+      }
+    },
+    {
+      "t": 96.8,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        91.1,
+        37,
+        374.6
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 4,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 58.03659256344728,
+        "callbackFps": 58.03659256344728,
+        "callbackSamples": 59,
+        "callbackMs": 17.230508474576123,
+        "callbackP95Ms": 16.80000000000291,
+        "cpuMs": 12.938983048422863,
+        "cpuRenderFrameMs": 12.938983048422863,
+        "renderSubmitMs": 8.581355933415688,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 58 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 5647,
+        "bytes": 143331397,
+        "longMs": 4042,
+        "longCount": 18,
+        "maxLag": 7.5
+      }
+    },
+    {
+      "t": 100.8,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        104.3,
+        37,
+        374.7
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60.003934684242104,
+        "callbackFps": 60.003934684242104,
+        "callbackSamples": 61,
+        "callbackMs": 16.66557377049166,
+        "callbackP95Ms": 16.70000000001164,
+        "cpuMs": 12.37704918228212,
+        "cpuRenderFrameMs": 12.37704918228212,
+        "renderSubmitMs": 8.24262294417522,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 5884,
+        "bytes": 149359427,
+        "longMs": 4042,
+        "longCount": 18,
+        "maxLag": 30.299999952316284
+      }
+    },
+    {
+      "t": 104.7,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        117.7,
+        37,
+        374.8
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 58.036592563446455,
+        "callbackFps": 58.036592563446455,
+        "callbackSamples": 59,
+        "callbackMs": 17.23050847457637,
+        "callbackP95Ms": 16.80000000000291,
+        "cpuMs": 13.013559325266693,
+        "cpuRenderFrameMs": 13.013559325266693,
+        "renderSubmitMs": 8.25084745681892,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 58 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 6125,
+        "bytes": 155540787,
+        "longMs": 4042,
+        "longCount": 18,
+        "maxLag": 20.399999976158142
+      }
+    },
+    {
+      "t": 106.7,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        124.4,
+        37,
+        374.8
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 15,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.79999999998836,
+        "cpuMs": 12.944999992847443,
+        "cpuRenderFrameMs": 12.944999992847443,
+        "renderSubmitMs": 8.696666661898295,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 6246,
+        "bytes": 158662076,
+        "longMs": 4042,
+        "longCount": 18,
+        "maxLag": 34.699999928474426
+      }
+    },
+    {
+      "t": 110.6,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        137.7,
+        37,
+        374.9
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 13,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.70000000001164,
+        "cpuMs": 12.723333332935969,
+        "cpuRenderFrameMs": 12.723333332935969,
+        "renderSubmitMs": 8.458333333333334,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 6485,
+        "bytes": 164862568,
+        "longMs": 4042,
+        "longCount": 18,
+        "maxLag": 22.100000023841858
+      }
+    },
+    {
+      "t": 112.6,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        144.3,
+        37,
+        375
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 1,
+      "avatars": 13,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 59.02026362384469,
+        "callbackFps": 59.02026362384469,
+        "callbackSamples": 60,
+        "callbackMs": 16.94333333333319,
+        "callbackP95Ms": 16.80000000000291,
+        "cpuMs": 13.025000003973643,
+        "cpuRenderFrameMs": 13.025000003973643,
+        "renderSubmitMs": 8.828333336114884,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 59 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 6606,
+        "bytes": 167996510,
+        "longMs": 4042,
+        "longCount": 18,
+        "maxLag": 4.700000047683716
+      }
+    },
+    {
+      "t": 114.6,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        151.1,
+        36,
+        375.1
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 18,
+      "avatars": 13,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 59.020263623843846,
+        "callbackFps": 59.020263623843846,
+        "callbackSamples": 60,
+        "callbackMs": 16.94333333333343,
+        "callbackP95Ms": 16.70000000001164,
+        "cpuMs": 13.636666663487752,
+        "cpuRenderFrameMs": 13.636666663487752,
+        "renderSubmitMs": 9.504999999205271,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 13.6 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 6727,
+        "bytes": 171086935,
+        "longMs": 4042,
+        "longCount": 18,
+        "maxLag": 0
+      }
+    },
+    {
+      "t": 118.6,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        160.7,
+        36,
+        375.2
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 18,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 57.052921503049056,
+        "callbackFps": 57.052921503049056,
+        "callbackSamples": 58,
+        "callbackMs": 17.52758620689665,
+        "callbackP95Ms": 33.30000000000291,
+        "cpuMs": 14.674137933500882,
+        "cpuRenderFrameMs": 14.674137933500882,
+        "renderSubmitMs": 9.151724149440897,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "work",
+          "label": "FRAME WORK LIKELY",
+          "detail": "Game updates and render submission take 14.7 ms per rendered frame. That uses most of the observed frame interval. CPU work or graphics-driver stalls may contribute."
+        }
+      },
+      "probe": {
+        "msgs": 6969,
+        "bytes": 177316791,
+        "longMs": 4186,
+        "longCount": 19,
+        "maxLag": 64.19999992847443
+      }
+    },
+    {
+      "t": 122.5,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        160.7,
+        36,
+        375.3
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 17,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60,
+        "callbackFps": 60,
+        "callbackSamples": 60,
+        "callbackMs": 16.666666666666668,
+        "callbackP95Ms": 16.79999999998836,
+        "cpuMs": 12.905000001192093,
+        "cpuRenderFrameMs": 12.905000001192093,
+        "renderSubmitMs": 8.709999996423722,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 7206,
+        "bytes": 183435302,
+        "longMs": 4186,
+        "longCount": 19,
+        "maxLag": 21.5
+      }
+    },
+    {
+      "t": 126.4,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        161.7,
+        36,
+        375.4
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 19,
+      "avatars": 13,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 59,
+        "callbackFps": 59,
+        "callbackSamples": 59,
+        "callbackMs": 16.949152542372882,
+        "callbackP95Ms": 16.79999999998836,
+        "cpuMs": 12.88644067311691,
+        "cpuRenderFrameMs": 12.88644067311691,
+        "renderSubmitMs": 8.620338973352464,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 59 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 7442,
+        "bytes": 189469440,
+        "longMs": 4186,
+        "longCount": 19,
+        "maxLag": 20.299999952316284
+      }
+    },
+    {
+      "t": 130.3,
+      "running": true,
+      "alive": true,
+      "menu": false,
+      "hud": true,
+      "feet": [
+        161.7,
+        36,
+        375.5
+      ],
+      "yaw": -1.58,
+      "seat": null,
+      "ring": 32,
+      "snapAge": 33,
+      "avatars": 14,
+      "fr": {
+        "mode": "native",
+        "targetFps": 0,
+        "hidden": false,
+        "ready": true,
+        "renderedFps": 60.003934684242104,
+        "callbackFps": 60.003934684242104,
+        "callbackSamples": 61,
+        "callbackMs": 16.66557377049166,
+        "callbackP95Ms": 16.70000000001164,
+        "cpuMs": 11.911475416089667,
+        "cpuRenderFrameMs": 11.911475416089667,
+        "renderSubmitMs": 7.9540983712086915,
+        "skippedFrames": 0,
+        "limit": {
+          "code": "browser",
+          "label": "BROWSER PACING",
+          "detail": "The browser currently provides about 60 frame callbacks/s. Rendering cannot exceed that cadence. Display sync, browser/OS power limits, or GPU load can cause this; monitor Hz is not detected."
+        }
+      },
+      "probe": {
+        "msgs": 7681,
+        "bytes": 195603072,
+        "longMs": 4186,
+        "longCount": 19,
+        "maxLag": 23.700000047683716
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "00-lobby",
+      "file": "docs/design/conquest/wave-captures/live/00-lobby.jpg",
+      "note": "Conquest lobby on Frontier with bots",
+      "feet": null,
+      "vehicle": null,
+      "alive": false
+    },
+    {
+      "name": "01-loading",
+      "file": "docs/design/conquest/wave-captures/live/01-loading.jpg",
+      "note": "loading screen after start",
+      "feet": {
+        "x": 84.5,
+        "y": 37,
+        "z": 374.5
+      },
+      "vehicle": null,
+      "alive": false
+    },
+    {
+      "name": "deploy-screen",
+      "file": "docs/design/conquest/wave-captures/live/deploy-screen.jpg",
+      "note": "round start",
+      "feet": {
+        "x": 84.5,
+        "y": 37,
+        "z": 374.5
+      },
+      "vehicle": null,
+      "alive": false
+    },
+    {
+      "name": "02-hq-spawn",
+      "file": "docs/design/conquest/wave-captures/live/02-hq-spawn.jpg",
+      "note": "alpha HQ spawn",
+      "feet": {
+        "x": 84.5,
+        "y": 37,
+        "z": 374.5
+      },
+      "vehicle": null,
+      "alive": true
+    },
+    {
+      "name": "03-vehicle-entered",
+      "file": "docs/design/conquest/wave-captures/live/03-vehicle-entered.jpg",
+      "note": "tank commander seat (walked up, T)",
+      "feet": {
+        "x": 144.2,
+        "y": 37.6,
+        "z": 384.6
+      },
+      "vehicle": "tank:commander",
+      "alive": true
+    },
+    {
+      "name": "04-vehicle-riding",
+      "file": "docs/design/conquest/wave-captures/live/04-vehicle-riding.jpg",
+      "note": "commander seat, bot driver",
+      "feet": {
+        "x": 218.6,
+        "y": 32.6,
+        "z": 384.1
+      },
+      "vehicle": "tank:commander",
+      "alive": true
+    },
+    {
+      "name": "deploy-screen-2",
+      "file": "docs/design/conquest/wave-captures/live/deploy-screen-2.jpg",
+      "note": "after death",
+      "feet": {
+        "x": 316.2,
+        "y": 27,
+        "z": 370.3
+      },
+      "vehicle": null,
+      "alive": false
+    },
+    {
+      "name": "deploy-screen-vehicle",
+      "file": "docs/design/conquest/wave-captures/live/deploy-screen-vehicle.jpg",
+      "note": "AT JEEP / DRIVER",
+      "feet": {
+        "x": 316.2,
+        "y": 27,
+        "z": 370.3
+      },
+      "vehicle": null,
+      "alive": false
+    },
+    {
+      "name": "03-vehicle-deployed",
+      "file": "docs/design/conquest/wave-captures/live/03-vehicle-deployed.jpg",
+      "note": "deployed into jeep_at driver seat",
+      "feet": {
+        "x": 126.5,
+        "y": 37,
+        "z": 414.5
+      },
+      "vehicle": "jeep_at:driver",
+      "alive": true
+    },
+    {
+      "name": "04-vehicle-driving",
+      "file": "docs/design/conquest/wave-captures/live/04-vehicle-driving.jpg",
+      "note": "jeep_at driver, 24 m/s, 133 m to C",
+      "feet": {
+        "x": 256.8,
+        "y": 30.3,
+        "z": 390.9
+      },
+      "vehicle": "jeep_at:driver",
+      "alive": true
+    },
+    {
+      "name": "06-vehicle-at-flag",
+      "file": "docs/design/conquest/wave-captures/live/06-vehicle-at-flag.jpg",
+      "note": "seated near flag C, 30 m",
+      "feet": {
+        "x": 359.7,
+        "y": 26,
+        "z": 386.2
+      },
+      "vehicle": "jeep_at:driver",
+      "alive": true
+    },
+    {
+      "name": "06-flag-on-foot",
+      "file": "docs/design/conquest/wave-captures/live/06-flag-on-foot.jpg",
+      "note": "dismounted near flag C, 23 m",
+      "feet": {
+        "x": 360.9,
+        "y": 26,
+        "z": 384.3
+      },
+      "vehicle": null,
+      "alive": true
+    },
+    {
+      "name": "09-late-match",
+      "file": "docs/design/conquest/wave-captures/live/09-late-match.jpg",
+      "note": "t=121 s",
+      "feet": {
+        "x": 161.7,
+        "y": 36,
+        "z": 375.5
+      },
+      "vehicle": null,
+      "alive": true
+    },
+    {
+      "name": "10-scoreboard",
+      "file": "docs/design/conquest/wave-captures/live/10-scoreboard.jpg",
+      "note": "Tab scoreboard",
+      "feet": {
+        "x": 161.7,
+        "y": 36,
+        "z": 375.5
+      },
+      "vehicle": null,
+      "alive": true
+    }
+  ],
+  "samples": [
+    {
+      "t": 70.7,
+      "alive": true,
+      "hp": 62,
+      "avatars": 15,
+      "vehicles": 23,
+      "drawCalls": 1486,
+      "chunks": {
+        "chunks": 729,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 729,
+        "meshes": 1132
+      },
+      "lastSnapAgeMs": 18,
+      "ping": 13
+    },
+    {
+      "t": 72.9,
+      "alive": false,
+      "hp": 0,
+      "avatars": 12,
+      "vehicles": 23,
+      "drawCalls": 941,
+      "chunks": {
+        "chunks": 729,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 729,
+        "meshes": 1123
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 10
+    },
+    {
+      "t": 87.3,
+      "alive": true,
+      "hp": 100,
+      "avatars": 14,
+      "vehicles": 23,
+      "drawCalls": 1895,
+      "chunks": {
+        "chunks": 513,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 513,
+        "meshes": 696
+      },
+      "lastSnapAgeMs": 4,
+      "ping": 33
+    },
+    {
+      "t": 89.3,
+      "alive": true,
+      "hp": 100,
+      "avatars": 15,
+      "vehicles": 23,
+      "drawCalls": 2079,
+      "chunks": {
+        "chunks": 540,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 540,
+        "meshes": 736
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 22
+    },
+    {
+      "t": 91.2,
+      "alive": true,
+      "hp": 100,
+      "avatars": 15,
+      "vehicles": 23,
+      "drawCalls": 2089,
+      "chunks": {
+        "chunks": 540,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 540,
+        "meshes": 736
+      },
+      "lastSnapAgeMs": 19,
+      "ping": 20
+    },
+    {
+      "t": 93.2,
+      "alive": true,
+      "hp": 100,
+      "avatars": 15,
+      "vehicles": 23,
+      "drawCalls": 1958,
+      "chunks": {
+        "chunks": 540,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 540,
+        "meshes": 736
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 19
+    },
+    {
+      "t": 95.2,
+      "alive": true,
+      "hp": 100,
+      "avatars": 14,
+      "vehicles": 23,
+      "drawCalls": 1974,
+      "chunks": {
+        "chunks": 567,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 567,
+        "meshes": 779
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 14
+    },
+    {
+      "t": 97.2,
+      "alive": true,
+      "hp": 100,
+      "avatars": 15,
+      "vehicles": 23,
+      "drawCalls": 2088,
+      "chunks": {
+        "chunks": 567,
+        "queued": 2,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 567,
+        "meshes": 779
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 15
+    },
+    {
+      "t": 99.2,
+      "alive": true,
+      "hp": 100,
+      "avatars": 14,
+      "vehicles": 23,
+      "drawCalls": 2080,
+      "chunks": {
+        "chunks": 594,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 594,
+        "meshes": 820
+      },
+      "lastSnapAgeMs": 3,
+      "ping": 15
+    },
+    {
+      "t": 101.1,
+      "alive": true,
+      "hp": 100,
+      "avatars": 13,
+      "vehicles": 23,
+      "drawCalls": 2062,
+      "chunks": {
+        "chunks": 594,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 594,
+        "meshes": 820
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 13
+    },
+    {
+      "t": 103.1,
+      "alive": true,
+      "hp": 100,
+      "avatars": 13,
+      "vehicles": 23,
+      "drawCalls": 2090,
+      "chunks": {
+        "chunks": 621,
+        "queued": 2,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 621,
+        "meshes": 871
+      },
+      "lastSnapAgeMs": 2,
+      "ping": 14
+    },
+    {
+      "t": 105.1,
+      "alive": true,
+      "hp": 100,
+      "avatars": 13,
+      "vehicles": 23,
+      "drawCalls": 2199,
+      "chunks": {
+        "chunks": 621,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 621,
+        "meshes": 871
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 11
+    },
+    {
+      "t": 107.1,
+      "alive": true,
+      "hp": 100,
+      "avatars": 14,
+      "vehicles": 23,
+      "drawCalls": 2192,
+      "chunks": {
+        "chunks": 621,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 621,
+        "meshes": 871
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 13
+    },
+    {
+      "t": 109.1,
+      "alive": true,
+      "hp": 100,
+      "avatars": 14,
+      "vehicles": 23,
+      "drawCalls": 2114,
+      "chunks": {
+        "chunks": 648,
+        "queued": 1,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 648,
+        "meshes": 935
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 17
+    },
+    {
+      "t": 111,
+      "alive": true,
+      "hp": 100,
+      "avatars": 14,
+      "vehicles": 23,
+      "drawCalls": 1918,
+      "chunks": {
+        "chunks": 648,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 648,
+        "meshes": 935
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 17
+    },
+    {
+      "t": 113,
+      "alive": true,
+      "hp": 100,
+      "avatars": 14,
+      "vehicles": 23,
+      "drawCalls": 1918,
+      "chunks": {
+        "chunks": 648,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 648,
+        "meshes": 935
+      },
+      "lastSnapAgeMs": 17,
+      "ping": 10
+    },
+    {
+      "t": 114.9,
+      "alive": true,
+      "hp": 100,
+      "avatars": 13,
+      "vehicles": 23,
+      "drawCalls": 1866,
+      "chunks": {
+        "chunks": 648,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 648,
+        "meshes": 935
+      },
+      "lastSnapAgeMs": 1,
+      "ping": 12
+    },
+    {
+      "t": 116.9,
+      "alive": true,
+      "hp": 100,
+      "avatars": 13,
+      "vehicles": 23,
+      "drawCalls": 1863,
+      "chunks": {
+        "chunks": 648,
+        "queued": 0,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 648,
+        "meshes": 935
+      },
+      "lastSnapAgeMs": 18,
+      "ping": 9
+    },
+    {
+      "t": 118.8,
+      "alive": true,
+      "hp": 100,
+      "avatars": 14,
+      "vehicles": 23,
+      "drawCalls": 1871,
+      "chunks": {
+        "chunks": 648,
+        "queued": 1,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 648,
+        "meshes": 935
+      },
+      "lastSnapAgeMs": 2,
+      "ping": 7
+    },
+    {
+      "t": 120.8,
+      "alive": true,
+      "hp": 100,
+      "avatars": 14,
+      "vehicles": 23,
+      "drawCalls": 1973,
+      "chunks": {
+        "chunks": 648,
+        "queued": 2,
+        "pendingLoads": 0,
+        "streaming": true,
+        "maxChunks": 841,
+        "detailRadius": 208,
+        "wantedChunks": 648,
+        "meshes": 935
+      },
+      "lastSnapAgeMs": 2,
+      "ping": 10
+    }
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "consoleWarnings": [],
+  "webgl": [],
+  "failedRequests": [],
+  "httpErrors": [],
+  "serverErrors": [],
+  "fps": {
+    "frames": 6000,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "maxMs": 666.7,
+    "fpsP50": 59.9,
+    "over50ms": 9
+  },
+  "gameFps": {
+    "samples": 44,
+    "min": 0.8,
+    "p10": 52,
+    "median": 59
+  },
+  "final": {
+    "alive": true,
+    "avatars": 13,
+    "vehicles": [
+      "jeep/alpha",
+      "tank/alpha",
+      "jeep_at/alpha",
+      "aa/alpha",
+      "helicopter/alpha/wreck",
+      "transport/alpha",
+      "plane/alpha",
+      "jeep/bravo",
+      "tank/bravo/wreck",
+      "jeep_at/bravo",
+      "aa/bravo",
+      "helicopter/bravo",
+      "transport/bravo",
+      "plane/bravo",
+      "boat/alpha",
+      "boat/bravo",
+      "boat/alpha",
+      "boat/bravo",
+      "jeep/alpha",
+      "jeep/alpha",
+      "tank/bravo",
+      "jeep/bravo",
+      "jeep/bravo"
+    ],
+    "chunks": {
+      "chunks": 648,
+      "queued": 0,
+      "pendingLoads": 0,
+      "streaming": true,
+      "maxChunks": 841,
+      "detailRadius": 208,
+      "wantedChunks": 648,
+      "meshes": 935
+    },
+    "drawCalls": 2148,
+    "geometries": 1295,
+    "textures": 76,
+    "shaderErrors": [],
+    "ping": 10,
+    "lastSnapAgeMs": 1,
+    "lastError": null,
+    "hud": {
+      "conquest": true,
+      "top": "WEST 263 ▼ 1/3S A B C D E 17:53 EAST 281 CLEAR SPOT 300 M LOCK 320 M OVERCAST IN 2:47"
+    }
+  },
+  "consoleLog": [],
+  "serverStdoutTail": [
+    "[voxel-blitz] Frontier prepared in 760 ms (cover sets 14 ms, structure field 174 ms)",
+    "voxel-blitz listening on :51236",
+    "[voxel-blitz] Redrock Canyon prepared in 669 ms (cover sets 12 ms, structure field 119 ms)",
+    "[voxel-blitz] ground grids warmed: 5 maps by 3678 ms after listening (work 35 ms, longest slice 2.3 ms)",
+    "[voxel-blitz] structure templates warmed: 15 maps by 4928 ms after listening (work 206 ms in 105 slices, longest slice 2.8 ms)"
+  ],
+  "failures": 0
+}

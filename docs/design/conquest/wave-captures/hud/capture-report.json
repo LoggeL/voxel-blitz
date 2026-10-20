@@ -1,0 +1,561 @@
+{
+  "generated": "2026-10-20T02:57:49.810Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "capturing",
+        "title": "Capturing C \u00b7 3 vs 1 \u00b7 enemy bleeding",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-capturing.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "out-of-bounds",
+        "title": "Out of bounds \u00b7 7 s",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-out-of-bounds.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "tank-driver",
+        "title": "Tank driver \u00b7 AP reloading \u00b7 disabled",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-tank-driver.jpg",
+        "seated": "tank:driver",
+        "overlaps": []
+      },
+      {
+        "id": "aa-driver",
+        "title": "Mobile AA driver \u00b7 radar track and lead \u00b7 heat 46 %",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-aa-driver.jpg",
+        "seated": "aa:driver",
+        "overlaps": []
+      },
+      {
+        "id": "aa-overheat",
+        "title": "Mobile AA driver \u00b7 OVERHEAT \u00b7 contacts off the gun line",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-aa-overheat.jpg",
+        "seated": "aa:driver",
+        "overlaps": []
+      },
+      {
+        "id": "jet-oob",
+        "title": "Jet \u00b7 over the airspace apron past the combat airspace \u00b7 OUT OF BOUNDS countdown",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-jet-oob.jpg",
+        "seated": "plane:driver",
+        "overlaps": []
+      },
+      {
+        "id": "bridge-failing",
+        "title": "Iron Bridge collapsing \u00b7 countdown banner, map hazard, C chip badge",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-bridge-failing.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bridge-down",
+        "title": "Iron Bridge destroyed \u00b7 full map gap, fords, destroyed banner",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-bridge-down.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy \u00b7 valid spawns, countdown, kit picker",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "medic-heal",
+        "title": "Medic \u00b7 heal aura, wounded and downed markers, heal awards",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-medic-heal.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "recon-deploy",
+        "title": "Deploy \u00b7 squad SPAWN BEACON, one cooling down, Recon beacon gadget",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-recon-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "ribbon",
+        "title": "Ribbon earned \u00b7 MEDIC RIBBON \u00d72 toast and ticker",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-ribbon.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "ribbon-banner",
+        "title": "Ribbon earned under a capture banner \u00b7 CONQUEST RIBBON",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-ribbon-banner.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-vehicles",
+        "title": "Deploy \u00b7 VEHICLES tab, LV 4, hull upgrades, tank spawn",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-deploy-vehicles.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weather-storm",
+        "title": "Weather \u00b7 storm: spot 210 m, lock 240 m, clearing 2:10",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-weather-storm.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weather-fog",
+        "title": "Weather \u00b7 fog lifting: spot 203 m, lock 251 m, clear in 0:31",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-weather-fog.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result",
+        "title": "Result \u00b7 ticket graph, MVPs and debrief",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-result.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result-medals",
+        "title": "Result \u00b7 medals and a level-up in the debrief",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-result-medals.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-rose",
+        "title": "Comm rose \u00b7 leader aims at C \u00b7 NEED MEDIC marker",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-orders-rose.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-chip",
+        "title": "Squad order ATTACK C \u00b7 radio: AFFIRMATIVE, AMMO RESPONDING",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-orders-chip.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-map",
+        "title": "Full map \u00b7 leader picks a flag for the squad order",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-orders-map.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "mortar",
+        "title": "Support mortar \u00b7 laid on C \u00b7 4 / 5 rounds \u00b7 loading",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-mortar.jpg",
+        "seated": "mortar:operator",
+        "overlaps": []
+      },
+      {
+        "id": "bt-attack",
+        "title": "Breakthrough \u00b7 attacking sector 2 \u00b7 sector 1 captured, +20 tickets",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-bt-attack.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-fallback",
+        "title": "Breakthrough \u00b7 defending \u00b7 sector lost, fall back inside the grace",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-bt-fallback.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-overtime",
+        "title": "Breakthrough \u00b7 attacking the last sector \u00b7 overtime at 0 tickets",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-bt-overtime.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-deploy",
+        "title": "Breakthrough \u00b7 deploy \u00b7 forward HQ on the taken sector",
+        "file": "docs/design/conquest/wave-captures/hud/desktop-bt-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "capturing",
+        "title": "Capturing C \u00b7 3 vs 1 \u00b7 enemy bleeding",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-capturing.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "out-of-bounds",
+        "title": "Out of bounds \u00b7 7 s",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-out-of-bounds.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "tank-driver",
+        "title": "Tank driver \u00b7 AP reloading \u00b7 disabled",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-tank-driver.jpg",
+        "seated": "tank:driver",
+        "overlaps": []
+      },
+      {
+        "id": "aa-driver",
+        "title": "Mobile AA driver \u00b7 radar track and lead \u00b7 heat 46 %",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-aa-driver.jpg",
+        "seated": "aa:driver",
+        "overlaps": []
+      },
+      {
+        "id": "aa-overheat",
+        "title": "Mobile AA driver \u00b7 OVERHEAT \u00b7 contacts off the gun line",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-aa-overheat.jpg",
+        "seated": "aa:driver",
+        "overlaps": []
+      },
+      {
+        "id": "jet-oob",
+        "title": "Jet \u00b7 over the airspace apron past the combat airspace \u00b7 OUT OF BOUNDS countdown",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-jet-oob.jpg",
+        "seated": "plane:driver",
+        "overlaps": []
+      },
+      {
+        "id": "bridge-failing",
+        "title": "Iron Bridge collapsing \u00b7 countdown banner, map hazard, C chip badge",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-bridge-failing.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bridge-down",
+        "title": "Iron Bridge destroyed \u00b7 full map gap, fords, destroyed banner",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-bridge-down.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy \u00b7 valid spawns, countdown, kit picker",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "medic-heal",
+        "title": "Medic \u00b7 heal aura, wounded and downed markers, heal awards",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-medic-heal.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "recon-deploy",
+        "title": "Deploy \u00b7 squad SPAWN BEACON, one cooling down, Recon beacon gadget",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-recon-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "ribbon",
+        "title": "Ribbon earned \u00b7 MEDIC RIBBON \u00d72 toast and ticker",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-ribbon.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "ribbon-banner",
+        "title": "Ribbon earned under a capture banner \u00b7 CONQUEST RIBBON",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-ribbon-banner.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-vehicles",
+        "title": "Deploy \u00b7 VEHICLES tab, LV 4, hull upgrades, tank spawn",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-deploy-vehicles.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weather-storm",
+        "title": "Weather \u00b7 storm: spot 210 m, lock 240 m, clearing 2:10",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-weather-storm.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weather-fog",
+        "title": "Weather \u00b7 fog lifting: spot 203 m, lock 251 m, clear in 0:31",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-weather-fog.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result",
+        "title": "Result \u00b7 ticket graph, MVPs and debrief",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-result.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result-medals",
+        "title": "Result \u00b7 medals and a level-up in the debrief",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-result-medals.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-rose",
+        "title": "Comm rose \u00b7 leader aims at C \u00b7 NEED MEDIC marker",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-orders-rose.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-chip",
+        "title": "Squad order ATTACK C \u00b7 radio: AFFIRMATIVE, AMMO RESPONDING",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-orders-chip.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-map",
+        "title": "Full map \u00b7 leader picks a flag for the squad order",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-orders-map.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "mortar",
+        "title": "Support mortar \u00b7 laid on C \u00b7 4 / 5 rounds \u00b7 loading",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-mortar.jpg",
+        "seated": "mortar:operator",
+        "overlaps": []
+      },
+      {
+        "id": "bt-attack",
+        "title": "Breakthrough \u00b7 attacking sector 2 \u00b7 sector 1 captured, +20 tickets",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-bt-attack.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-fallback",
+        "title": "Breakthrough \u00b7 defending \u00b7 sector lost, fall back inside the grace",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-bt-fallback.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-overtime",
+        "title": "Breakthrough \u00b7 attacking the last sector \u00b7 overtime at 0 tickets",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-bt-overtime.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-deploy",
+        "title": "Breakthrough \u00b7 deploy \u00b7 forward HQ on the taken sector",
+        "file": "docs/design/conquest/wave-captures/hud/portrait-bt-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "capturing",
+        "title": "Capturing C \u00b7 3 vs 1 \u00b7 enemy bleeding",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-capturing.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "out-of-bounds",
+        "title": "Out of bounds \u00b7 7 s",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-out-of-bounds.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "tank-driver",
+        "title": "Tank driver \u00b7 AP reloading \u00b7 disabled",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-tank-driver.jpg",
+        "seated": "tank:driver",
+        "overlaps": []
+      },
+      {
+        "id": "aa-driver",
+        "title": "Mobile AA driver \u00b7 radar track and lead \u00b7 heat 46 %",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-aa-driver.jpg",
+        "seated": "aa:driver",
+        "overlaps": []
+      },
+      {
+        "id": "aa-overheat",
+        "title": "Mobile AA driver \u00b7 OVERHEAT \u00b7 contacts off the gun line",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-aa-overheat.jpg",
+        "seated": "aa:driver",
+        "overlaps": []
+      },
+      {
+        "id": "jet-oob",
+        "title": "Jet \u00b7 over the airspace apron past the combat airspace \u00b7 OUT OF BOUNDS countdown",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-jet-oob.jpg",
+        "seated": "plane:driver",
+        "overlaps": []
+      },
+      {
+        "id": "bridge-failing",
+        "title": "Iron Bridge collapsing \u00b7 countdown banner, map hazard, C chip badge",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-bridge-failing.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bridge-down",
+        "title": "Iron Bridge destroyed \u00b7 full map gap, fords, destroyed banner",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-bridge-down.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy \u00b7 valid spawns, countdown, kit picker",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "medic-heal",
+        "title": "Medic \u00b7 heal aura, wounded and downed markers, heal awards",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-medic-heal.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "recon-deploy",
+        "title": "Deploy \u00b7 squad SPAWN BEACON, one cooling down, Recon beacon gadget",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-recon-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "ribbon",
+        "title": "Ribbon earned \u00b7 MEDIC RIBBON \u00d72 toast and ticker",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-ribbon.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "ribbon-banner",
+        "title": "Ribbon earned under a capture banner \u00b7 CONQUEST RIBBON",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-ribbon-banner.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-vehicles",
+        "title": "Deploy \u00b7 VEHICLES tab, LV 4, hull upgrades, tank spawn",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-deploy-vehicles.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weather-storm",
+        "title": "Weather \u00b7 storm: spot 210 m, lock 240 m, clearing 2:10",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-weather-storm.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "weather-fog",
+        "title": "Weather \u00b7 fog lifting: spot 203 m, lock 251 m, clear in 0:31",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-weather-fog.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result",
+        "title": "Result \u00b7 ticket graph, MVPs and debrief",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-result.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result-medals",
+        "title": "Result \u00b7 medals and a level-up in the debrief",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-result-medals.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-rose",
+        "title": "Comm rose \u00b7 leader aims at C \u00b7 NEED MEDIC marker",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-orders-rose.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-chip",
+        "title": "Squad order ATTACK C \u00b7 radio: AFFIRMATIVE, AMMO RESPONDING",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-orders-chip.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "orders-map",
+        "title": "Full map \u00b7 leader picks a flag for the squad order",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-orders-map.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "mortar",
+        "title": "Support mortar \u00b7 laid on C \u00b7 4 / 5 rounds \u00b7 loading",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-mortar.jpg",
+        "seated": "mortar:operator",
+        "overlaps": []
+      },
+      {
+        "id": "bt-attack",
+        "title": "Breakthrough \u00b7 attacking sector 2 \u00b7 sector 1 captured, +20 tickets",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-bt-attack.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-fallback",
+        "title": "Breakthrough \u00b7 defending \u00b7 sector lost, fall back inside the grace",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-bt-fallback.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-overtime",
+        "title": "Breakthrough \u00b7 attacking the last sector \u00b7 overtime at 0 tickets",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-bt-overtime.jpg",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "bt-deploy",
+        "title": "Breakthrough \u00b7 deploy \u00b7 forward HQ on the taken sector",
+        "file": "docs/design/conquest/wave-captures/hud/landscape-bt-deploy.jpg",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": [],
+  "note": "Full run covered all 54 fixtures x 3 sizes (162 states, 0 overlaps, 0 page errors); the states kept here are listed."
+}
