@@ -13,6 +13,7 @@ import { TICK_MS } from '../server/protocol/admission.js';
 import { BotCommander, COMMANDER_PLAN_MS, STAGE_MIN, STAGE_MAX, STAGE_ANGLE, frontlineTiers, readConquestView } from '../server/bot-commander.js';
 import { KIT_IDS } from '../shared/conquest-contract.js';
 import { BOT_FLEX_POOL } from '../shared/conquest-kits.js';
+import { FPV_BOT_RULES } from '../shared/fpv-rules.js';
 import { surfaceNavigation } from '../server/bot-surface-nav.js';
 
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -327,8 +328,13 @@ function fixture(n = 16) {
     assert(supports.every(p => [0, 1].includes(commander.gadgetFor(p))), 'a support picks none or the mortar');
     assert.equal(mortars, Math.max(1, Math.round(supports.length * 0.4)), `a share of the supports carries the mortar (${mortars}/${supports.length})`);
   }
-  assert(engineers.every(p => commander.gadgetFor(p) === 0), 'no enemy aircraft in play: every engineer carries the AT launcher');
-  assert.equal(commander.deployFor(engineers[0]).gadget, 0, 'deployFor carries the gadget choice');
+  // No enemy aircraft in play: no STINGER; FPV_BOT_RULES.share of the engineers fly the FPV drone (gadget 2), the rest keep the AT launcher.
+  assert(engineers.every(p => [0, 2].includes(commander.gadgetFor(p))), 'no enemy aircraft in play: every engineer carries the AT launcher or the FPV drone');
+  if (engineers.length >= 2) {
+    const fpv = engineers.filter(p => commander.gadgetFor(p) === 2).length;
+    assert.equal(fpv, Math.max(1, Math.round(engineers.length * FPV_BOT_RULES.share)), `a share of the engineers flies the FPV drone (${fpv}/${engineers.length})`);
+  }
+  assert.equal(commander.deployFor(engineers[0]).gadget, commander.gadgetFor(engineers[0]), 'deployFor carries the gadget choice');
   // An enemy helicopter is crewed: a share of the engineers switches to the STINGER on the next deploy.
   const heli = [...game.vehicles.vehicles.values()].find(v => v.team === 'bravo' && v.type === 'helicopter');
   const pilot = bodies('bravo').find(p => !p.vehicleId);

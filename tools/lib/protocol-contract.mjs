@@ -13,8 +13,9 @@ export const MATCH_KEYS = 'attackers,bomb,defenders,map,mode,phase,phaseEndsAt,r
 
 /** Conquest player rows add `cq` (decodeConquestPlayer) and `cqs` (decodeConquestStats); other modes never carry them. */
 export const CONQUEST_PLAYER_EXTRA_KEYS = 'cq,cqs';
-/** `cqc` = [seq, commKindIndex, responderId | null, vehicleId?] only while the player has a live comm rose request (shared/conquest-comms.js). */
-export const CONQUEST_PLAYER_OPTIONAL_KEYS = 'cqc';
+/** `cqc` = [seq, commKindIndex, responderId | null, vehicleId?] only while the player has a live comm rose request (shared/conquest-comms.js);
+ * `cqf` = drones left, only on an Engineer with the FPV gadget (shared/fpv-rules.js fpvDronesOf). */
+export const CONQUEST_PLAYER_OPTIONAL_KEYS = 'cqc,cqf';
 export const CONQUEST_PLAYER_KEYS = [...PLAYER_KEYS.split(','), ...CONQUEST_PLAYER_EXTRA_KEYS.split(',')].sort().join(',');
 /** `cq` = [kitIndex, squadId, down, spotted, restrictedDs, lockProgress100, actionProgress100, chute?]; `cqs` = [objective, vehicles, revives, captures].
  * The 8th entry (parachute 1 / ejection seat 2, shared/parachute.js) only rides rows of bodies under a canopy. */

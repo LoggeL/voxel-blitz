@@ -66,7 +66,8 @@ const near = (a, b, tolerance, message) => assert(Math.abs(a - b) <= tolerance, 
     he: [1, 0.35, 1, 0.6], at: [1, 1, 0.8, 1], aa: [0.3, 0.1, 1, 0.2], fire: [0.3, 0, 0, 0.1],
   };
   for (const [cls, [light, heavy, air, medium]] of Object.entries(expected)) {
-    assert.deepEqual(ARMOR_MATRIX[cls], { light, heavy, air, medium }, `${cls} row matches spec 5.3 (+ the AA's medium column)`);
+    // The FPV drone's `drone` column (contract v7): every class kills it at full damage.
+    assert.deepEqual(ARMOR_MATRIX[cls], { light, heavy, air, medium, drone: 1 }, `${cls} row matches spec 5.3 (+ the AA's medium and the FPV drone's column)`);
   }
   assert.deepEqual(HEAVY_ZONE_MULTIPLIERS, { front: 0.75, side: 1, rear: 1.5, top: 1.3, bottom: 1.5 });
   assert.equal(armorMultiplier('at', 'heavy', 'rear') / armorMultiplier('at', 'heavy', 'front'), 2);

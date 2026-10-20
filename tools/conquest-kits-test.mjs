@@ -120,7 +120,7 @@ const TICK = 1000 / 60;
   assert.equal(aa.gadgetIndex, 1); assert.equal(at.gadgetIndex, 0);
   assert.deepEqual(kitWeapons('engineer', 1, 1).owned.sort(), ['knife', 'revolver', 'shotgun', 'stinger']);
   const menu = KIT_MENU.find(k => k.id === 'engineer');
-  assert.deepEqual(menu.gadgets.map(g => [g.gadget, g.role]), [['rocket', 'AT'], ['stinger', 'AA']]);
+  assert.deepEqual(menu.gadgets.map(g => [g.gadget, g.role]), [['rocket', 'AT'], ['stinger', 'AA'], ['fpv', 'FPV']]);
   assert.deepEqual(KIT_MENU.find(k => k.id === 'assault').gadgets, []);
   // STINGER resupply: one missile per gadget round, capped at 1 + 2.
   aa.mag[slot('stinger')] = 0; aa.reserve[slot('stinger')] = 0;

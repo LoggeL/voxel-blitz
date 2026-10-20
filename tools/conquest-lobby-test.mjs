@@ -11,7 +11,7 @@ import { decodeConquestMatch } from '../shared/conquest.js';
 import {
   CONQUEST_CQ_LENGTH, CONQUEST_CQ_MAX_LENGTH, CONQUEST_CQS_LENGTH, CONQUEST_FLAG_TUPLE_LENGTH, CONQUEST_MATCH_BUDGET_BYTES, CONQUEST_MATCH_KEYS,
   CONQUEST_PLAYER_KEYS, CONQUEST_SQUAD_TUPLE_LENGTH, CONQUEST_SQUAD_TUPLE_MAX_LENGTH, CONQUEST_STATE_KEYS, CONQUEST_WEATHER_TUPLE_LENGTH,
-  CONQUEST_MAP_EVENT_KEYS, conquestMatchBytes, remoteRowKeys,
+  CONQUEST_MAP_EVENT_KEYS, CONQUEST_PLAYER_OPTIONAL_KEYS, conquestMatchBytes, remoteRowKeys,
 } from './lib/protocol-contract.mjs';
 
 const server = startServer();
@@ -83,7 +83,7 @@ try {
     // A grounded body has 7 cq entries; the optional 8th is the parachute state (1 or 2).
     assert((row.cq.length === CONQUEST_CQ_LENGTH || (row.cq.length === CONQUEST_CQ_MAX_LENGTH && [1, 2].includes(row.cq[7])))
       && row.cqs.length === CONQUEST_CQS_LENGTH);
-    assert.equal(Object.keys(row).filter(k => k !== 'attachments').sort().join(','),
+    assert.equal(Object.keys(row).filter(k => k !== 'attachments' && !CONQUEST_PLAYER_OPTIONAL_KEYS.split(',').includes(k)).sort().join(','),
       row.id === welcome.id ? CONQUEST_PLAYER_KEYS : remoteRowKeys(CONQUEST_PLAYER_KEYS), `${row.id} carries the complete Conquest row`);
   }
 

@@ -359,6 +359,7 @@ assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'flag:C',
   'no gadget field: the engineer keeps the AT launcher (backward compatible)');
 assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'flag:C', kit: 'engineer', variant: 0, gadget: 1 } }), { type: 'deploy', spawn: 'flag:C', kit: 'engineer', variant: 0, gadget: 1 },
   'the engineer may deploy with the STINGER');
+assert.equal(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'hq', kit: 'engineer', gadget: 2 } }).gadget, 2, 'or with the FPV drone (gadget 2, contract v7)');
 assert.equal(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', gadget: 0 } }).gadget, 0);
 assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'vehicle:alpha-tank:commander', kit: 'recon', variant: 0 } }).spawn, 'vehicle:alpha-tank:commander');
 assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'squad:p3_abc123' } }), { type: 'deploy', spawn: 'squad:p3_abc123', kit: 'assault', variant: 0, gadget: 0 });
@@ -369,7 +370,7 @@ for (const bad of [
   { t: 'conquest', deploy: { spawn: 'flag:F' } }, { t: 'conquest', deploy: { spawn: 'flag:a' } },
   { t: 'conquest', deploy: { spawn: 'hq', kit: 'medicine' } }, { t: 'conquest', deploy: { spawn: 'hq', variant: 2 } },
   { t: 'conquest', deploy: { spawn: 'hq', extra: 1 } }, { t: 'conquest', deploy: { spawn: 'squad:' } },
-  { t: 'conquest', deploy: { spawn: 'hq', kit: 'engineer', gadget: 2 } }, { t: 'conquest', deploy: { spawn: 'hq', kit: 'engineer', gadget: '1' } },
+  { t: 'conquest', deploy: { spawn: 'hq', kit: 'engineer', gadget: 3 } }, { t: 'conquest', deploy: { spawn: 'hq', kit: 'engineer', gadget: '1' } },
   { t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', gadget: 1 } }, { t: 'conquest', deploy: { spawn: 'hq', gadget: 1 } },
   { t: 'conquest', deploy: { spawn: `squad:${'x'.repeat(65)}` } }, { t: 'conquest', deploy: { spawn: 'vehicle:a:b:c' } },
   { t: 'conquest', deploy: { spawn: 'hq ' } }, { t: 'conquest', spot: 2 }, { t: 'conquest', spot: 1, deploy: { spawn: 'hq' } },
