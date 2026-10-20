@@ -97,6 +97,8 @@ function applyOrderStates(hud, state) {
     hud.bigMap.cursorAt = { ...state.mapCursor };
     hud.bigMap.showCursor(true);
   }
+  // A map event's designator kind (the comeback call-in's BOMBER RUN / ARTILLERY card).
+  if (state.toolKind) hud.bigMap.tool?.setKind?.(state.toolKind);
 }
 
 async function render(id, { touch: touchMode = false } = {}) {

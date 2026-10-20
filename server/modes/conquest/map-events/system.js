@@ -118,10 +118,19 @@ export class MapEventSystem {
     return this.targets.onBlast(origin, blast);
   }
 
-  /** A `use` support intent (targetId `<event>:<point>`). */
+  /**
+   * A `use` support intent: targetId `<event>:<point>` holds an interaction
+   * point; any other `<event>:<rest>` goes to that event's controller
+   * (`onIntent(entity, rest)`, e.g. a call-in's target designation).
+   */
   intent(entity, targetId) {
     if (!this.instances.length) return false;
-    return this.points.intent(this.entity(entity), targetId);
+    const key = String(targetId ?? ''), split = key.indexOf(':');
+    if (!this.points.points.has(key) && split > 0) {
+      const instance = this.instance(key.slice(0, split));
+      if (instance && typeof instance.controller.onIntent === 'function') return instance.controller.onIntent(this.entity(entity), key.slice(split + 1)) === true;
+    }
+    return this.points.intent(this.entity(entity), key);
   }
 
   /** 0..1 progress of the entity's own hold (cq[6]). */

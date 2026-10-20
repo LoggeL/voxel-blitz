@@ -10,6 +10,7 @@ import { encodeConquestFlag } from '../../../shared/conquest.js';
 import { mortarPitchForRange } from '../../../shared/mortar-rules.js';
 import { conquestPlanFor } from '../../../shared/world/battlefield-plans.js';
 import { BATTLEFIELD_INFO } from '../../../shared/world/battlefields.js';
+import { comebackHudFixtures } from './comeback-hud-fixtures.js';
 
 export const FIXTURE_NOW = 2_000_000;
 const GROUND = 26;
@@ -85,9 +86,9 @@ function roster(self, more = []) {
 /** A state: everything ConquestHud.update needs plus events to replay and capture hints. */
 function state(id, title, { selfTeam = 'alpha', self, players, vehicles = [], match, camera, events = [], dead = false, killer = null,
   bigMap = false, nearbyVehicle = null, interactHeld = null, selection = null, screen = 'hud', touch = null, career = null, viewStrip = null,
-  flight = null, aim = null, groundPlane = null, rose = null, mapCursor = null } = {}) {
+  flight = null, aim = null, groundPlane = null, rose = null, mapCursor = null, toolKind = null } = {}) {
   return { id, title, selfTeam, self, players, vehicles, match, camera, events, dead, killer, bigMap, nearbyVehicle, interactHeld, selection, screen, touch, career, viewStrip,
-    flight, aim, ...(groundPlane != null ? { groundPlane } : {}), ...(rose ? { rose } : {}), ...(mapCursor ? { mapCursor } : {}) };
+    flight, aim, ...(groundPlane != null ? { groundPlane } : {}), ...(rose ? { rose } : {}), ...(mapCursor ? { mapCursor } : {}), ...(toolKind ? { toolKind } : {}) };
 }
 
 /** Every HUD state the acceptance list names, in capture order. */
@@ -692,6 +693,7 @@ export function conquestHudFixtures() {
       dead: true, killer: { name: 'Rourke', weaponName: 'VK-77 RAPTOR', distance: 64 }, selection: { spawn: 'hq', kit: 'assault', variant: 0 },
       camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
+  out.push(...comebackHudFixtures({ state, roster, baseMatch, meAt, cam, yawTo, C, D, GROUND, meta: fixtureMapMeta(), now: FIXTURE_NOW }));
   return out;
 }
 

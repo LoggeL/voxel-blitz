@@ -1,0 +1,77 @@
+{
+  "generated": "2026-10-20T16:19:22.986Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "callin-ready",
+        "title": "Comeback call-in · READY for the trailing WEST · squad leader",
+        "file": "docs/design/conquest/events/comeback/captures/desktop-callin-ready.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "callin-map",
+        "title": "Comeback call-in · full map designator · bomber run over D",
+        "file": "docs/design/conquest/events/comeback/captures/desktop-callin-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "callin-incoming",
+        "title": "Comeback call-in · EAST artillery on the player · 4 s telegraph",
+        "file": "docs/design/conquest/events/comeback/captures/desktop-callin-incoming.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "callin-ready",
+        "title": "Comeback call-in · READY for the trailing WEST · squad leader",
+        "file": "docs/design/conquest/events/comeback/captures/portrait-callin-ready.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "callin-map",
+        "title": "Comeback call-in · full map designator · bomber run over D",
+        "file": "docs/design/conquest/events/comeback/captures/portrait-callin-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "callin-incoming",
+        "title": "Comeback call-in · EAST artillery on the player · 4 s telegraph",
+        "file": "docs/design/conquest/events/comeback/captures/portrait-callin-incoming.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "callin-ready",
+        "title": "Comeback call-in · READY for the trailing WEST · squad leader",
+        "file": "docs/design/conquest/events/comeback/captures/landscape-callin-ready.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "callin-map",
+        "title": "Comeback call-in · full map designator · bomber run over D",
+        "file": "docs/design/conquest/events/comeback/captures/landscape-callin-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "callin-incoming",
+        "title": "Comeback call-in · EAST artillery on the player · 4 s telegraph",
+        "file": "docs/design/conquest/events/comeback/captures/landscape-callin-incoming.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

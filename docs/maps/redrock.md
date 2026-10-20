@@ -150,3 +150,7 @@ The waiting lobby with Conquest and Redrock picked is captured in `captures/lobb
 `node tools/redrock-lobby-test.mjs` (also in `npm run conquest:test`) runs the lobby over the real server: Conquest offers Redrock with Frontier as the default, other modes refuse it, the host's client receives Redrock's authoritative voxels, and the live match runs on Redrock's fleet and flags. `tools/lobby-settings-test.mjs` checks the lobby map menu and hint.
 
 `tools/atlastest.mjs` pins the template fingerprint (`385e4f55`, 1 561 879 bytes) and the spawn counts. Re-pin them after any change to Redrock's geometry.
+
+## Map events
+
+- **Comeback call-in** (docs/conquest.md "Comeback call-in"): the same call-in as Frontier, with no geometry of its own; targets keep 8 m inside the combat area and off both HQ circles. Bomber headings from the caller's HQ: WEST over A 48°, B 131°, C 90°, D 72°, E 109°; EAST over A 288°, B 251°, C 270°, D 312°, E 229°. Shells around C land both on the river floor (21–23 m) and up the banks (34–47 m). Measured with 12 enemies standing around a flag: C bomber 3 kills, C artillery 4, D bomber 4, B artillery 0 (7 hurt).

@@ -188,6 +188,8 @@ export class MapEventController {
   onTimer(_phase) { return false; }
   /** An interaction point's hold completed by `entity` of `team`. */
   onUse(_point, _entity, _team) {}
+  /** A `use` intent `<eventId>:<rest>` that names no point of the event (a designation); return true when accepted. */
+  onIntent(_entity, _rest) { return false; }
   /** An integrity target took `damage` (share 0..1) from `by`; `destroyed` once it reached 0. */
   onTarget(_target, _hit) {}
   /** The 0..100 gauge on the wire (`ev[i][2]`) as a 0..1 share. */

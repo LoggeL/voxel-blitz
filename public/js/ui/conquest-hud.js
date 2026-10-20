@@ -43,7 +43,7 @@ import { MortarSight, mortarBanner, mortarSightModel } from './conquest/mortar-s
 import { RibbonToast, ribbonToastEntry } from './conquest/ribbons.js';
 import { WeatherChip } from './conquest/weather-chip.js';
 import { bridgeBanner, bridgeChipBadge, bridgeMapModel, bridgeStateBanner } from './conquest/bridge-hud.js';
-import { mapEventBanner, mapEventMapItems, mapEventMarkerModels, mapEventPoint, syncMapEventPhases, whereText } from './conquest/map-events.js';
+import { mapEventBanner, mapEventHud, mapEventMapItems, mapEventMarkerModels, mapEventPoint, syncMapEventPhases, whereText } from './conquest/map-events.js';
 import { MAP_EVENT_DEFS, MAP_EVENT_KIND } from '../../../shared/conquest-map-events.js';
 
 const clockNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
@@ -97,6 +97,8 @@ export class ConquestHud {
     // for fixtures) and the phase of each event the HUD has bannered, from events and snapshots alike.
     this.eventDefs = MAP_EVENT_DEFS;
     this._eventPhases = new Map();
+    // Map event presenters send their own intents (a call-in designation) through the support route.
+    this.onSupport = onSupport;
     // Comm rose picks ({comm: kind}), full-map orders ({order: flagId | ''}), the Input UI capture
     // (Input.setUiCapture: the rose and the map cursor own the aim while up) and the radio squelch.
     this.onComm = typeof onComm === 'function' ? onComm : () => {};
@@ -619,6 +621,9 @@ export class ConquestHud {
     }
     setData(this.root, 'seated', seated ? seated.row.type : '');
     setData(this.root, 'touch', String(touch));
+
+    // Map event presenters' own HUD parts (a call-in's READY pill and full-map designator).
+    mapEventHud({ hud: this, cq, self, selfTeam, leader: isSquadLeader(cq, self), living, touch, nowMs: now });
 
     if (!living) {
       this.ring.update(null);

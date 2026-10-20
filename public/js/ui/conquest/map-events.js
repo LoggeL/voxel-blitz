@@ -136,7 +136,7 @@ export function syncMapEventPhases(cq, seen = new Map(), nowMs = 0) {
     next.set(e.id, e.phase);
     if (seen.get(e.id) === e.phase || !STATE_BANNER_PHASES.has(e.phase)) continue;
     fresh.push({ kind: MAP_EVENT_KIND, event: e.id, phase: e.phase, ...(e.team ? { team: e.team } : {}),
-      ...(Number.isFinite(e.leftMs) ? { endsAt: nowMs + e.leftMs } : {}), fromSnapshot: true });
+      ...(Number.isFinite(e.leftMs) ? { endsAt: nowMs + e.leftMs } : {}), ...(e.extra ? { extra: e.extra } : {}), fromSnapshot: true });
   }
   return { seen: next, fresh };
 }
@@ -243,6 +243,19 @@ export function paintMapEvents(ctx, mapEvents, { nowMs = 0, px = 1, presenters =
     if (typeof presenter?.paintMap !== 'function') continue;
     ctx.save();
     try { presenter.paintMap(ctx, e, { nowMs, px }); } finally { ctx.restore(); }
+  }
+}
+
+/**
+ * The presenters' own HUD parts (ConquestHud._render, every frame): each
+ * presenter's optional `hud(ctx)` gets {hud, cq, self, selfTeam, leader,
+ * living, touch, nowMs} and owns its DOM (a call-in's READY pill and map
+ * designator). A throwing presenter never breaks the HUD frame.
+ */
+export function mapEventHud(ctx, presenters = MAP_EVENT_PRESENTERS) {
+  for (const presenter of Object.values(presenters ?? {})) {
+    if (typeof presenter?.hud !== 'function') continue;
+    try { presenter.hud(ctx); } catch (error) { globalThis.console?.warn?.('map event hud', error); }
   }
 }
 

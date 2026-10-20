@@ -226,3 +226,7 @@ sips -s format jpeg -s formatOptions 88 .conquest-work/captures/wp4/frontier-vis
 ```
 
 The `overview` shot is orthographic and north-up: x = 0 is on the left, z = 0 is at the top, and its scale is 768.
+
+## Map events
+
+- **Comeback call-in** (docs/conquest.md "Comeback call-in"): the trailing side's squad leader marks a bomber run or an artillery barrage on the full map; no geometry of its own. Bomber headings come from the caller's HQ: WEST over A 50°, B 124°, C 90°, D 72°, E 106°; EAST over A 286°, B 252°, C 270°, D 304°, E 230°. A run over C crosses the Iron Bridge along the deck: 3 of the 7 bombs burst on the truss (40–46 m) instead of the deck, and the call-in never wears the bridge supports down. Measured with 12 enemies standing around a flag: C bomber 7 kills, C artillery 6, D bomber 3, D artillery 1.
