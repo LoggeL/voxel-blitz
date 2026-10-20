@@ -1,4 +1,4 @@
-import { hullFootprint, footprintCells, footprintsOverlap, footprintContact, vehicleHullParts, vehicleSupportOffset, hullBoxesOverlap, voxelHullBox, rayHullPartSpan, nearestHullPoint, solidHull, solidWreck } from '../../shared/vehicle-collision.js';
+import { hullFootprint, footprintCells, footprintsOverlap, footprintContact, vehicleHullParts, vehicleSupportOffset, hullBoxesOverlap, voxelHullBox, rayHullPartSpan, nearestHullPoint, solidHull, solidWreck, blocksHulls } from '../../shared/vehicle-collision.js';
 import { isSolidBlock } from '../../shared/worlddata.js';
 import { RAM_CLASS, RAM_HARDNESS, BLOCK_HARDNESS } from '../../shared/world/blocks.js';
 import { VEHICLE_RULES, isAircraft, vehicleEnterDistance, vehicleDirection, vehicleSeatPose, vehicleLocalPoint } from '../../shared/vehicles.js';
@@ -26,6 +26,7 @@ import { TitanSystem } from './titans.js';
 import { isTitanfall } from '../../shared/modes.js';
 import { isTitanType } from '../../shared/titan-contract.js';
 import { isWalkerType } from '../../shared/vehicle-defs.js';
+import { MortarSystem } from './mortars.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(n) ? n : 0));
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
@@ -180,6 +181,9 @@ export class VehicleSystem {
       : (this.engine.mode?.mode === 'conquest' || spawns.length ? 'conquest' : null);
     this.titans = this.combatProfile === 'titanfall' ? (this.titans ?? new TitanSystem(this)) : null;
     this.titans?.reset();
+    // Support mortars (shared/mortar-rules.js): deployed hulls, Conquest only.
+    this.mortars = this.combatProfile === 'conquest' ? (this.mortars ?? new MortarSystem(this)) : null;
+    this.mortars?.reset();
     this.ramGuards = this.ramGuardZones();
     for (const p of this.engine.entities.values()) if (p.vehicleId || p.vehicleSeatId) this.release(p);
     this.lastDrivers.clear();
@@ -249,7 +253,7 @@ export class VehicleSystem {
   /** Other hulls a pose must avoid: live hulls and fresh ground wrecks. */
   obstacles(v) {
     const result = [];
-    for (const other of this.vehicles.values()) if (other !== v && other.id !== v.id && solidHull(other)) result.push(other);
+    for (const other of this.vehicles.values()) if (other !== v && other.id !== v.id && blocksHulls(other)) result.push(other);
     return result;
   }
   clearHull(v, x, y, z, yaw = v.yaw) {
@@ -265,7 +269,7 @@ export class VehicleSystem {
       for (let by = bottom; by <= top; by++)
         if (isSolidBlock(world.getBlock(cells[i], by, cells[i + 1]))) return false;
     for (const other of this.vehicles.values()) {
-      if (other === v || other.id === v.id || !solidHull(other)) continue;
+      if (other === v || other.id === v.id || !blocksHulls(other)) continue;
       if(Math.hypot(x-other.x,z-other.z)>VEHICLE_RULES[v.type].radius+VEHICLE_RULES[other.type].radius+VEHICLE_RULES[other.type].height)continue;
       if (isAircraft(other.type)) {
         const box=vehicleHullParts(v,x,y,z,yaw)[0];
@@ -294,7 +298,7 @@ export class VehicleSystem {
           }
     }
     for(const other of this.vehicles.values()) {
-      if (other === v || other.id === v.id || !solidHull(other)) continue;
+      if (other === v || other.id === v.id || !blocksHulls(other)) continue;
       if(Math.hypot(x-other.x,z-other.z)>VEHICLE_RULES[v.type].radius+VEHICLE_RULES[other.type].radius+VEHICLE_RULES[v.type].height+VEHICLE_RULES[other.type].height)continue;
       const otherParts=vehicleHullParts(other);
       for (const part of parts) for (const body of otherParts) if (hullBoxesOverlap(part,body)) return false;
@@ -391,7 +395,7 @@ export class VehicleSystem {
   }
   /** An enemy hull nobody crews may be boarded by `team`; titans never (shared/vehicle-seats.js vehicleBoardable). */
   hijackable(v, team) {
-    if (!v || v.team == null || team == null || v.team === team || isTitanType(v.type)) return false;
+    if (!v || v.team == null || team == null || v.team === team || isTitanType(v.type) || vehicleDef(v)?.deployable) return false;
     this.cleanCrew(v);
     return this.crew(v).length === 0;
   }
@@ -1365,7 +1369,7 @@ export class VehicleSystem {
     let blocked = false;
     if (this.hullCrashes.size > 64) for (const [key, at] of this.hullCrashes) if (this.contactClock - at >= H.pairSeconds) this.hullCrashes.delete(key);
     for (const other of this.vehicles.values()) {
-      if (other === v || other.id === v.id || !solidHull(other)) continue;
+      if (other === v || other.id === v.id || !blocksHulls(other)) continue;
       const or = VEHICLE_RULES[other.type];
       if (Math.hypot(x - other.x, z - other.z) > rules.radius + or.radius + or.height) continue;
       let nx, nz;
@@ -1485,7 +1489,7 @@ export class VehicleSystem {
     const W = WRECK_PUSH_RULES, mp = VEHICLE_MASS[v.type], mx = dir[0] * sign, mz = dir[2] * sign;
     const plans = [];
     for (const w of this.vehicles.values()) {
-      if (w === v || w.id === v.id || !solidHull(w)) continue;
+      if (w === v || w.id === v.id || !blocksHulls(w)) continue;
       const wr = VEHICLE_RULES[w.type];
       if (Math.hypot(x - w.x, z - w.z) > rules.radius + wr.radius + wr.height) continue;
       if (isAircraft(w.type)) {
@@ -1556,7 +1560,7 @@ export class VehicleSystem {
     const own = VEHICLE_RULES[v.type], reach = own.radius + own.height + 2;
     let j = 0;
     for (const other of this.vehicles.values()) {
-      if (other === v || other.id === v.id || !solidHull(other)) continue;
+      if (other === v || other.id === v.id || !blocksHulls(other)) continue;
       const rules = VEHICLE_RULES[other.type];
       if (Math.hypot(v.x - other.x, v.z - other.z) > reach + rules.radius + rules.height) continue;
       if (!list) { (this.neighborScratch ??= []).push(other, other.x, other.y, other.z, other.yaw, other.pitch, other.roll, other.gearDown); continue; }
@@ -1620,10 +1624,11 @@ export class VehicleSystem {
     for(let i=0;i<steps;i++) this.advance(h);
     for (const v of this.vehicles.values()) {
       if (!(v.hp > 0)) continue;
-      const walker = isWalkerType(v.type);
-      if (!walker) this.updateAttitude(v, duration);
+      // Walkers and emplacements (the mortar's level baseplate) keep their own attitude and never go home.
+      const own = isWalkerType(v.type) || vehicleDef(v).handling === 'emplacement';
+      if (!own) this.updateAttitude(v, duration);
       this.mounts.step(v, duration);
-      if (!walker) this.checkAbandoned(v, duration);
+      if (!own) this.checkAbandoned(v, duration);
       if (v.hp > 0) this.syncCrew(v);
     }
     this.titans?.step(duration);
@@ -1722,7 +1727,7 @@ export class VehicleSystem {
       if(!(v.hp>0)) {
         if (v.padInactive) continue;
         this.advanceWreck(v,dt);
-        if (this.titans?.wreckDone(v)) { this.vehicles.delete(v.id); continue; }
+        if (this.titans?.wreckDone(v) || this.mortars?.wreckDone(v)) { this.vehicles.delete(v.id); continue; }
         v.respawnIn=Math.max(0,v.respawnIn-dt);
         if(v.respawnIn===0) this.tryRespawn(v, dt);
         continue;
@@ -1735,6 +1740,7 @@ export class VehicleSystem {
       // their client's first mounted packet (vehicleControlId) arrives.
       if (p && p.seatGraceUntil > this.contactClock && p.seatGraceVehicleId === v.id && input.vehicleControlId !== v.id) input = TAKEOVER_HOLD_INPUT;
       if (this.titans && vehicleDef(v).handling === 'walker') { this.titans.advance(v, p, input, dt); if (v.hp > 0) this.syncCrew(v); continue; }
+      if (vehicleDef(v).handling === 'emplacement') { this.mortars?.advance(v, dt); if (v.hp > 0) this.syncCrew(v); continue; }
       const k=input.keys || {};
       const allowed = this.canOperate(p);
       v.engineOn=allowed;
@@ -1800,6 +1806,8 @@ export class VehicleSystem {
     else rest(v);
     const crew=this.crew(v);
     let crewKilled=0;
+    // An emplacement's operator (the Support mortar) is put beside it, not killed with it.
+    if (vehicleDef(v).crewSurvives) { for (const p of crew) this.exit(p); crew.length = 0; }
     // A hull lost to its own crash (no enemy behind it) kills its crew with the
     // kill key 'crash' and no killer, never a "roadkill" of the driver itself.
     const crashed = !attacker && sourceTeam == null && !!physicalImpact;
@@ -1828,6 +1836,7 @@ export class VehicleSystem {
     v.damageLog.clear();
     this.locks.breakLocks(v);
     this.titans?.onDestroyed(v, killer);
+    this.mortars?.onDestroyed(v, killer);
     this.destructionQueue.push({vehicle:v,attacker:killer,sourceTeam:sourceTeam ?? v.team});
     // Marking every hull dead before adding it to this queue prevents both
     // recursive call stacks and a chain returning to the original chassis.
@@ -1987,6 +1996,7 @@ export class VehicleSystem {
     if (v.spawn.flag) row.flag = v.spawn.flag;
     if (!(v.hp > 0)) row.wreckAge = Number.isFinite(v.wreckAge) ? q(v.wreckAge, 10) : 0;
     this.titans?.rowExtras(v, row);
+    this.mortars?.rowExtras(v, row);
     return row;
   }
   snapshot() {

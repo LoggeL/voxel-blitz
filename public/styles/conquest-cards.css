@@ -90,6 +90,10 @@ html:not(.vb-touch-mode) body:has(> .vb-conquest-hud:not([hidden])) #charge-mete
 
 /* Seated: the vehicle panel takes the weapon and grenade cards' place, on the health row. */
 html:not(.vb-touch-mode) body:has(> .vb-conquest-hud:not([hidden])) .vb-conquest-hud .cq-vehicle { bottom: var(--cqc-stack); width: var(--cqc-width); }
+/* Support mortar fire control: on the vehicle card (its height measured into --cq-vehicle-h by ConquestHud). */
+html:not(.vb-touch-mode) body:has(> .vb-conquest-hud:not([hidden])) .vb-conquest-hud .cq-mortar {
+  bottom: calc(var(--cqc-stack) + var(--cq-vehicle-h, 156px) + var(--cqc-gap));
+}
 
 /* Tank driver periscope: its console fills the bottom centre, so the health row returns
    to the bottom left and the minimap stands on it again (ConquestHud --cq-floor). */

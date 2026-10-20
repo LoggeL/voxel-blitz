@@ -32,6 +32,7 @@ import { orderStance } from '../shared/conquest-comms.js';
 import { surfaceNavigation } from './bot-surface-nav.js';
 import { MEDIC_BOT_RULES, medicTrailMate, medicTrailSpot, reviveRunInTime } from './bot-medic.js';
 import { committedFlag, keepAttackOrder, passingFlag } from './bot-flag-flow.js';
+import { MORTAR_BOT_RULES } from '../shared/mortar-rules.js';
 
 export const COMMANDER_PLAN_MS = 500;
 export const STAGE_MIN = 50, STAGE_MAX = 70;
@@ -1066,13 +1067,16 @@ export class BotCommander {
    * engineers, ranked by id hash, takes the STINGER while enemy aircraft are in
    * play; the rest keep the AT launcher. Recons split between the SPAWN
    * BEACON (0) and the MOTION SENSOR (1) by id hash, and one whose beacon still
-   * stands keeps it (another gadget would take it down). Other kits have no choice (0).
+   * stands keeps it (another gadget would take it down). A stable
+   * MORTAR_BOT_RULES.share of the supports carries the mortar (1,
+   * server/bot-mortar.js). Other kits have no choice (0).
    */
   gadgetFor(p) {
     if (this.kitFor(p) === 'recon') {
       if (this.game.mode?.policy?.reconGadgets?.beaconOf(p.id)) return 0;
       return stableHash(`${p.id}:recon`) % 2;
     }
+    if (this.kitFor(p) === 'support') return this.mortarGadgetFor(p);
     if (this.kitFor(p) !== 'engineer') return 0;
     const team = this.teamOf(p);
     const share = AA_ENGINEER_SHARE[Math.min(AA_ENGINEER_SHARE.length - 1, this.enemyAirThreat(team))];
@@ -1085,6 +1089,18 @@ export class BotCommander {
     engineers.sort((a, b) => stableHash(`${a}:aa`) - stableHash(`${b}:aa`) || (a < b ? -1 : 1));
     const aa = Math.max(1, Math.round(engineers.length * share));
     return engineers.indexOf(String(p.id)) < aa ? 1 : 0;
+  }
+
+  /** Support gadget: 1 (the mortar) for a stable share of the team's supports, ranked by id hash. */
+  mortarGadgetFor(p) {
+    const team = this.teamOf(p), supports = [];
+    for (const o of this.game.entities.values()) {
+      if (o.bot && this.teamOf(o) === team && this.kitFor(o) === 'support') supports.push(String(o.id));
+    }
+    if (!supports.includes(String(p.id))) supports.push(String(p.id));
+    supports.sort((a, b) => stableHash(`${a}:mortar`) - stableHash(`${b}:mortar`) || (a < b ? -1 : 1));
+    const mortars = Math.max(1, Math.round(supports.length * MORTAR_BOT_RULES.share));
+    return supports.indexOf(String(p.id)) < mortars ? 1 : 0;
   }
 
   /**

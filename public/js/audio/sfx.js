@@ -2290,6 +2290,26 @@ export const sfx = {
     return { near, far };
   },
 
+  /**
+   * Support mortar round leaving the tube: a deep hollow thump, no crack.
+   * Reuses the tank cannon take pitched far down and quiet (no mortar bank
+   * yet), else a synthesized thump.
+   */
+  vehicleMortar(pos, { self = false } = {}) {
+    const at = positionFrom(pos);
+    if (!self && listenerDistance(at) > VEHICLE_SOUND.farRange) return false;
+    run('vehicleMortar', () => {
+      if (cqOneShot('cq.cannon.near', { pos: self ? null : at, priority: 2, range: 'far' }, {
+        gain: CONQUEST_MIX.cannon * (self ? 0.5 : 0.4), rate: 0.62 + Math.random() * 0.05, echo: 0.18 })) return;
+      const output = pool.acquire({ pos: self ? null : at, priority: 2, range: 'far' }, 1.2);
+      const t = primitives.nowT();
+      primitives.tone(output, { t0: t, type: 'sine', f0: 92, f1: 34, att: 0.002, dec: 0.38, g: 0.8 });
+      primitives.hiss(output, { t0: t, filter: 'lowpass', f: 520, q: 0.6, dec: 0.3, g: 0.5 });
+      primitives.hiss(output, { t0: t, filter: 'bandpass', f: 1400, q: 1.2, dec: 0.05, g: 0.18 });
+    });
+    return true;
+  },
+
   /** Chin autocannon round: a hard pop and a short body thump. */
   vehicleAutocannon(pos, { self = false } = {}) {
     const at = positionFrom(pos);

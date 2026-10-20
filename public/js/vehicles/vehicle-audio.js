@@ -138,6 +138,8 @@ export class VehicleAudio {
       const rotorSpeed = Math.max(0, Math.min(1, finite(row.rotorSpeed)));
       const enginePower = Math.max(0, Math.min(1, finite(row.enginePower)));
       const handling = def.handling;
+      // A deployed mortar has no engine: no loop.
+      if (handling === 'emplacement') continue;
       const flying = handling === 'rotor' || handling === 'fixedwing';
       if (handling === 'rotor' ? rotorSpeed <= 0.01
         : handling === 'fixedwing' ? !occupied || row.engineOn === false || enginePower <= 0.01

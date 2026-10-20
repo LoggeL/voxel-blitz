@@ -69,7 +69,7 @@ function predictImpact(f) {
 const place = (p, at, dx, dz) => Object.assign(p, { x: at[0] + dx, y: FLOOR + 1, z: at[2] + dz, vx: 0, vy: 0, vz: 0,
   spawnProtectedUntil: 0, spawnProtected: false, state: 'alive', hp: 100 });
 
-// Contract (v5): cannon, AA missiles and bombs on three mounts; no store mounts or ground-only loadout left.
+// Contract (v5, unchanged since): cannon, AA missiles and bombs on three mounts; no store mounts or ground-only loadout left.
 assert.equal(contract.CONQUEST_CONTRACT_VERSION, 6);
 assert.deepEqual(seatWeaponList('plane', 'driver'), [{ mount: 'nose', weapon: 'planeCannon' }, { mount: 'rails', weapon: 'aaMissile' },
   { mount: 'bombs', weapon: 'jetBomb' }]);

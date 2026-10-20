@@ -31,7 +31,7 @@ const B = RECON_GADGET_RULES.beacon, S = RECON_GADGET_RULES.sensor;
 // ---------------------------------------------------------------- rules, kit and codec
 {
   assert.equal(CONQUEST_CONTRACT_VERSION, 6);
-  assert.ok(CONQUEST_EVENT_KINDS.at(-1) === 'recon_gadget', 'recon_gadget is appended');
+  assert.equal(CONQUEST_EVENT_KINDS[CONQUEST_EVENT_KINDS.indexOf('comm_answer') + 1], 'recon_gadget', 'recon_gadget is appended after the orders kinds');
   assert.deepEqual(GRENADE_TYPE_IDS.slice(-2), ['beacon', 'sensor'], 'the gadget pouch types are appended');
   assert.ok(!FREE_GRENADE_TYPE_IDS.includes('beacon') && !FREE_GRENADE_TYPE_IDS.includes('sensor'), 'kit-only types');
   assert.deepEqual(KITS.recon.gadgets, ['beacon', 'sensor']);

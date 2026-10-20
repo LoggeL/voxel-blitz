@@ -932,3 +932,67 @@ body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conque
   .cq-radio-line, .cq-unit-marker[data-kind="request"] .cq-unit-glyph { animation: none; }
   .cq-rose-wedge { transition: none; }
 }
+
+/* Support mortar fire control (docs/design/conquest/mortar/, variant A): right edge above the vehicle card. */
+.cq-mortar {
+  position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: 196px; width: 262px;
+  display: grid; gap: 6px; padding: 8px 10px 8px; background: var(--cq-panel); border: 1px solid var(--cq-line);
+  border-radius: 6px; box-shadow: 0 6px 18px #0008;
+}
+.cq-mortar-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cq-mortar-title { font-size: 11px; font-weight: 800; letter-spacing: 2px; color: var(--cq-text); }
+.cq-mortar-status { font-size: 10px; font-weight: 800; letter-spacing: 1.4px; color: var(--cq-squad); }
+.cq-mortar-status:is([data-state="laying"], [data-state="loading"]) { color: var(--cq-contested); }
+.cq-mortar-status[data-state="reloading"] { color: var(--cq-danger); }
+.cq-mortar-map { position: relative; width: 100%; aspect-ratio: 1; border: 1px solid var(--cq-line); border-radius: 3px; overflow: hidden; }
+.cq-mortar-canvas { display: block; width: 100%; height: 100%; }
+.cq-mortar-readouts { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--cq-line); border-radius: 3px; }
+.cq-mortar-cell { display: grid; gap: 1px; padding: 3px 5px 4px; }
+.cq-mortar-cell + .cq-mortar-cell { border-left: 1px solid var(--cq-line); }
+.cq-mortar-label { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; color: var(--cq-sub); }
+.cq-mortar-value { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--cq-text); }
+.cq-mortar-rounds { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; }
+.cq-mortar-weapon { flex: 1; }
+.cq-mortar-pips { display: inline-flex; gap: 4px; }
+.cq-mortar-pip { width: 7px; height: 12px; border-radius: 4px 4px 1px 1px; border: 1px solid #ffd166aa; }
+.cq-mortar-pip[data-full="true"] { background: #ffd166; border-color: #ffd166; }
+.cq-mortar-count { font-variant-numeric: tabular-nums; color: var(--cq-sub); }
+.cq-mortar-reload { height: 4px; border-radius: 2px; background: #ffffff1a; overflow: hidden; }
+.cq-mortar-reload-fill { height: 100%; background: #ffd166; }
+.cq-mortar-reload-fill[data-state="ready"] { background: var(--cq-squad); }
+.cq-mortar-hints { font-size: 9px; font-weight: 700; letter-spacing: 1.3px; color: var(--cq-sub); text-align: center; white-space: nowrap; }
+/* The impact ring in the world: a flat ellipse on the ground with its range. */
+.cq-mortar-impact { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.cq-mortar-impact::before {
+  content: ""; position: absolute; left: -26px; top: -9px; width: 52px; height: 18px; border-radius: 50%;
+  border: 2px solid #ffd166; box-shadow: 0 0 8px #ffd16688, inset 0 0 6px #ffd16655;
+}
+.cq-mortar-impact[data-laid="false"]::before { border-style: dashed; }
+.cq-mortar-impact-label {
+  position: absolute; left: 0; bottom: 12px; transform: translateX(-50%); white-space: nowrap;
+  font-size: 12px; font-weight: 800; letter-spacing: 1px; color: #ffd166; text-shadow: 0 1px 2px #000c;
+}
+/* Phones (portrait): under the banner on the right, clear of the vehicle card above and FIRE below. */
+.vb-touch-mode .cq-mortar {
+  top: calc(max(10px, env(safe-area-inset-top)) + 284px); bottom: auto; right: max(12px, env(safe-area-inset-right));
+  width: 176px; gap: 4px; padding: 6px 8px;
+}
+.vb-touch-mode .cq-mortar-title { font-size: 8px; letter-spacing: 0.8px; white-space: nowrap; }
+.vb-touch-mode .cq-mortar-status { font-size: 8px; letter-spacing: 0.8px; }
+.vb-touch-mode .cq-mortar-rounds { font-size: 10px; }
+.vb-touch-mode .cq-mortar-value { font-size: 11px; }
+.vb-touch-mode .cq-mortar-label { font-size: 8px; }
+.vb-touch-mode .cq-mortar-cell { padding: 2px 3px 3px; }
+.vb-touch-mode .cq-mortar-hints { display: none; }
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Phone landscape: under the vehicle card on the right, above FIRE, the map beside the readouts. */
+  .vb-touch-mode .cq-mortar { top: calc(max(8px, env(safe-area-inset-top)) + 112px); right: max(12px, env(safe-area-inset-right));
+    width: 236px; grid-template-columns: 96px 1fr; align-items: start; column-gap: 6px; }
+  .vb-touch-mode .cq-mortar-head { grid-column: 1 / -1; }
+  .vb-touch-mode .cq-mortar-map { grid-row: span 3; }
+  .vb-touch-mode .cq-mortar-readouts { grid-template-columns: 1fr 1fr; }
+  .vb-touch-mode .cq-mortar-cell:nth-child(3) { border-left: 0; }
+  .vb-touch-mode .cq-mortar-cell:nth-child(n + 3) { border-top: 1px solid var(--cq-line); }
+  .vb-touch-mode .cq-mortar-rounds { gap: 4px; font-size: 9px; }
+  .vb-touch-mode .cq-mortar-weapon { display: none; }
+}

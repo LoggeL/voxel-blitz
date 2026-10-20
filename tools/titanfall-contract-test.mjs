@@ -17,7 +17,7 @@ const {
   decodeTitanfallSelf, encodeTitanRow, decodeTitanRow,
 } = contract;
 const {
-  VEHICLE_TYPE_IDS, VEHICLE_TOPOLOGY, VEHICLE_WEAPON_META, vehicleMountOrder, seatWeaponList, vehicleWeaponMeta,
+  VEHICLE_TYPE_IDS, DEPLOYABLE_TYPE_IDS, VEHICLE_TOPOLOGY, VEHICLE_WEAPON_META, vehicleMountOrder, seatWeaponList, vehicleWeaponMeta,
 } = await import('../shared/conquest-contract.js');
 const {
   VEHICLE_DEFS, VEHICLE_RULES, VEHICLE_HANDLING, VEHICLE_WEAPONS, VEHICLE_MASS, LOCK_RULES, VEHICLE_LIFECYCLE,
@@ -133,7 +133,7 @@ const hasExports = (mod, names, label) => {
     for (const key of order) ok(def.mounts[key.split(':')[1]], `${type} mount anchor ${key}`);
   }
   // Conquest registries: key order conquest first, conquest entries carry no titan data.
-  eq(Object.keys(VEHICLE_DEFS), [...VEHICLE_TYPE_IDS, ...TITAN_TYPE_IDS], 'VEHICLE_DEFS order');
+  eq(Object.keys(VEHICLE_DEFS), [...VEHICLE_TYPE_IDS, ...TITAN_TYPE_IDS, ...DEPLOYABLE_TYPE_IDS], 'VEHICLE_DEFS order (deployables last)');
   eq(Object.keys(VEHICLE_RULES), Object.keys(VEHICLE_DEFS), 'VEHICLE_RULES keys');
   for (const type of VEHICLE_TYPE_IDS) {
     const def = VEHICLE_DEFS[type];

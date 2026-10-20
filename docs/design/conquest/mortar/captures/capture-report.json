@@ -1,0 +1,35 @@
+{
+  "generated": "2026-10-19T23:08:16.654Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "mortar",
+        "title": "Support mortar · laid on C · 4 / 5 rounds · loading",
+        "file": "docs/design/conquest/mortar/captures/desktop-mortar.png",
+        "seated": "mortar:operator",
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "mortar",
+        "title": "Support mortar · laid on C · 4 / 5 rounds · loading",
+        "file": "docs/design/conquest/mortar/captures/portrait-mortar.png",
+        "seated": "mortar:operator",
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "mortar",
+        "title": "Support mortar · laid on C · 4 / 5 rounds · loading",
+        "file": "docs/design/conquest/mortar/captures/landscape-mortar.png",
+        "seated": "mortar:operator",
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

@@ -7,6 +7,7 @@
 import { FRONTIER_PLAN, KIT_IDS, VEHICLE_STATUS, vehicleMountOrder } from '../../../shared/conquest-contract.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { encodeConquestFlag } from '../../../shared/conquest.js';
+import { mortarPitchForRange } from '../../../shared/mortar-rules.js';
 
 export const FIXTURE_NOW = 2_000_000;
 const GROUND = 26;
@@ -508,6 +509,22 @@ export function conquestHudFixtures() {
       vehicles: [alphaHeli],
       match: baseMatch({ squads: [['alpha', 1, 'me', 'B'], ['alpha', 2, 'tm1', 'A'], ['bravo', 1, 'en1']] }),
       camera: cam(C.x - 50, GROUND + 1.6, C.z + 40, 0), bigMap: true, mapCursor: { u: D.x / 768, v: D.z / 768 + 0.012 } }));
+  }
+  // Support mortar: laid on two spotted enemies taking C, 150 m out; four rounds left, the next one loading.
+  {
+    const at = { x: C.x - 24, z: C.z + 148 }, yaw = yawTo(at, C), pitch = mortarPitchForRange(Math.hypot(C.x - at.x, C.z - at.z));
+    const self = meAt(at.x + 0.2, at.z + 0.6, { vehicleId: 'alpha-mortar-me', vehicleSeatId: 'operator', cq: { squad: 1, kitId: 'support' } });
+    const mortar = vehicle('alpha-mortar-me', 'mortar', 'alpha', at.x, at.z, { hp: 150, yaw, own: 'me', seatOccupants: { operator: 'me' },
+      mounts: [[yaw, pitch, 4, 0, 35]], st: 0 });
+    const players = roster(self, [player('en4', 'Dahl', 'bravo', C.x + 3, C.z - 2, { cq: { squad: 2, spotted: 1 } }),
+      player('en5', 'Moreau', 'bravo', C.x - 4, C.z + 3, { cq: { squad: 2, spotted: 1, kitId: 'engineer' } })]);
+    const back = 5.5, lift = 3.2 + Math.hypot(C.x - at.x, C.z - at.z) * 0.03;
+    const camAt = { x: at.x + Math.sin(yaw) * back, y: GROUND + 0.82 + lift, z: at.z + Math.cos(yaw) * back };
+    out.push(state('mortar', 'Support mortar · laid on C · 4 / 5 rounds · loading', { self, players, vehicles: [mortar, spottedTank],
+      match: baseMatch({ flags: [flag('A', 1, 'alpha', 'idle'), flag('B', 1, 'alpha', 'idle'), flag('C', 0.3, 'bravo', 'neutralizing', 0, 2),
+        flag('D', -1, 'bravo', 'idle'), flag('E', -1, 'bravo', 'idle')] }),
+      camera: cam(camAt.x, camAt.y, camAt.z, yaw, Math.atan2(GROUND - camAt.y, Math.hypot(C.x - camAt.x, C.z - camAt.z))),
+      groundPlane: GROUND, events: [{ kind: 'mortar', id: 'me', state: 'placed', vehicleId: 'alpha-mortar-me' }] }));
   }
   return out;
 }

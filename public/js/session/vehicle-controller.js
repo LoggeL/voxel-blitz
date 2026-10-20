@@ -5,6 +5,8 @@ import { isBotId } from '../../../shared/conquest.js';
 import { isTypingTarget, matchesBinding } from '../keybindings.js';
 import { VehicleCamera, VEHICLE_CAMERA } from './vehicle-camera.js';
 import { isTitanType } from '../../../shared/titan-contract.js';
+import { MORTAR_RULES, mortarAim, mortarSnapTargets } from '../../../shared/mortar-rules.js';
+import { VEHICLE_DEFS } from '../../../shared/vehicle-defs.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
@@ -113,7 +115,19 @@ export class VehicleController {
     this._embarkQueuedFor = null;
     this._key = event => this._keyDown(event);
     this._keyUp = event => this._keyRelease(event);
-    this._mouseDown = event => { if (event.button === 2) this._setOptic(true); };
+    this._mouseDown = event => {
+      if (event.button !== 2) return;
+      // The mortar's RMB lays the tube on the spotted enemy nearest the aimed impact.
+      if (this.active && this.type === MORTAR_RULES.type) { this.snapMortar(); return; }
+      this._setOptic(true);
+    };
+    /**
+     * Mortar RMB snap: optional () => [[x, y, z], ...] override of the candidates
+     * (default: the spotted enemies of the last synced roster); the last snap { target, at }.
+     */
+    this.mortarTargets = null;
+    this.mortarSnap = null;
+    this.players = [];
     this._mouseUp = event => { if (event.button === 2) this._setOptic(false); };
     this._blur = () => { this.freeLook = false; this._setOptic(false); this._interactDownAt = null; this._padInteractAt = null; };
     eventTarget?.addEventListener('keydown', this._key, true);
@@ -296,8 +310,10 @@ export class VehicleController {
     return true;
   }
 
-  sync({ self, vehicles = [], enabled = false } = {}) {
+  sync({ self, vehicles = [], players = null, enabled = false } = {}) {
     const oldId = this.vehicle?.id, oldSeatId = this.seatId;
+    // The roster of the snapshot: the mortar's RMB snap reads the spotted enemies from it.
+    if (Array.isArray(players)) this.players = players;
     this.enabled = !!enabled && self?.state === 'alive'; this.self = self;
     this.rows = this.enabled && Array.isArray(vehicles) ? vehicles : [];
     this.vehicle = null; this.seat = null;
@@ -434,6 +450,16 @@ export class VehicleController {
     const type = this.type, flying = aircraft(type);
     const dx = finite(look?.dx), dy = finite(look?.dy);
     const wantsFire = this.canFire && !!fire && !this.freeLook;
+    if (!this.isDriver && type === MORTAR_RULES.type) {
+      // Mortar: mouse X traverses, mouse forward lowers the tube toward 45 degrees
+      // (farther), back raises it (nearer), at half the look rate for fine laying.
+      if (this.freeLook) this.view.addFreeLook(dx, dy);
+      else {
+        this.yaw = wrap(finite(this.yaw) - dx);
+        this.pitch = clamp(finite(this.pitch, MORTAR_RULES.restPitch) + dy * 0.5, MORTAR_RULES.minPitch, MORTAR_RULES.maxPitch);
+      }
+      return { yaw: this.yaw, pitch: this.pitch, wantFire: wantsFire };
+    }
     if (!this.isDriver) {
       // Gunners aim their mount; passengers look around (and aim personal weapons).
       if (this.freeLook) this.view.addFreeLook(dx, dy);
@@ -555,6 +581,35 @@ export class VehicleController {
       vehicleBrake: Number(flying ? !!(keys.flightBrake || keys.brake || keys.crouch) : !!(keys.jump ?? keys.brake)),
       vehicleLift: flying ? lift : 0,
       ...flightControls, yaw: this.yaw, pitch: this.pitch, wantFire: wantsFire };
+  }
+
+  /**
+   * Mortar RMB: lay the tube on the spotted enemy (`mortarTargets()`) nearest
+   * the aimed flat impact, within MORTAR_RULES.snapRadius m, with the shared
+   * arc solve (mortarAim). Returns the snap { target, at } or null.
+   */
+  snapMortar() {
+    if (!this.active || this.type !== MORTAR_RULES.type) return null;
+    const impact = this.view.mortarImpact;
+    let targets = [];
+    try {
+      targets = typeof this.mortarTargets === 'function' ? this.mortarTargets() || []
+        : mortarSnapTargets({ players: this.players, vehicles: this.rows, team: this.self?.team ?? null });
+    } catch (_) { targets = []; }
+    if (!impact || !targets.length) return null;
+    let best = null, bestDistance = MORTAR_RULES.snapRadius;
+    for (const target of targets) {
+      if (!Array.isArray(target) || !target.every(Number.isFinite)) continue;
+      const distance = Math.hypot(target[0] - impact[0], target[2] - impact[2]);
+      if (distance > bestDistance) continue;
+      const aim = mortarAim(this.vehicle, VEHICLE_DEFS.mortar.mounts[MORTAR_RULES.mount], target);
+      if (!Number.isFinite(aim?.pitch)) continue;
+      best = { target, aim }; bestDistance = distance;
+    }
+    if (!best) return null;
+    this.yaw = wrap(best.aim.yaw); this.pitch = best.aim.pitch;
+    this.mortarSnap = { target: [...best.target], at: this.now() };
+    return this.mortarSnap;
   }
 
   /** Pose the camera for the current seat (renderVehicle = the presented hull row). */

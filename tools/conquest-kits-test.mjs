@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { CONQUEST_RULES, KITS, KIT_IDS, KIT_SIDEARM, VEHICLE_STATUS, decodeConquestPlayer } from '../shared/conquest-contract.js';
 import {
-  KIT_GADGET_AMMO, KIT_MELEE, KIT_MENU, KIT_POUCH_GADGETS, KIT_ROLE_RULES, applyResupply, isUnsuppressedWeapon, kitGadget, kitIndex,
+  KIT_GADGET_AMMO, KIT_MELEE, KIT_MENU, KIT_POUCH_GADGETS, KIT_ROLE_RULES, applyResupply, isUnsuppressedWeapon, kitGadget, kitDeployable, kitIndex,
   kitLoadout, kitMaxGrenades, kitMaxReserve, kitWeapons, normalizeGadget, normalizeKit, normalizeVariant, reserveUnitsPerMagazine,
 } from '../shared/conquest-kits.js';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
@@ -95,10 +95,18 @@ const TICK = 1000 / 60;
 {
   assert.deepEqual(KITS.engineer.gadgets, ['rocket', 'stinger'], 'the engineer picks the AT launcher or the STINGER');
   assert.equal(KITS.engineer.gadget, 'rocket', 'the AT launcher stays the default gadget');
-  for (const kit of ['assault', 'support', 'medic']) {
+  for (const kit of ['assault', 'medic']) {
     assert.equal(normalizeGadget(kit, 1), 0, `${kit} has no gadget choice`);
     assert.equal(kitGadget(kit, 1), null);
   }
+  // The Support picks no gadget (0) or the deployable MORTAR (1): never a weapon in the inventory.
+  assert.deepEqual(KITS.support.gadgets, [null, 'mortar']);
+  assert.equal(KITS.support.gadget, null, 'no gadget by default');
+  assert.equal(normalizeGadget('support', 1), 1);
+  assert.equal(kitGadget('support', 0), null); assert.equal(kitGadget('support', 1), null, 'the mortar is no weapon');
+  assert.equal(kitDeployable('support', 0), null); assert.equal(kitDeployable('support', 1), 'mortar');
+  assert.equal(kitDeployable('engineer', 1), null);
+  assert.deepEqual(kitLoadout('support', 0, 1).owned, kitLoadout('support', 0, 0).owned, 'the mortar adds nothing to the owned list');
   assert.equal(normalizeGadget('engineer', 1), 1);
   assert.equal(normalizeGadget('engineer', 7), 0, 'an unknown gadget index is the default');
   assert.equal(normalizeGadget('engineer', undefined), 0, 'backward compatible: no gadget means AT');

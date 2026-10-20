@@ -8,6 +8,7 @@ import { makeTankModel } from '../vehicles/models/tank.js';
 import { makeHelicopterModel } from '../vehicles/models/helicopter.js';
 import { makeTransportModel } from '../vehicles/models/transport.js';
 import { makePlaneModel } from '../vehicles/models/plane.js';
+import { makeMortarModel } from '../vehicles/models/mortar.js';
 import { JeepDriver } from '../vehicles/jeep-driver.js';
 import { AircraftPilot } from '../vehicles/aircraft-pilot.js';
 import { hasCockpitOverlay, makeCockpitOverlay } from '../vehicles/cockpit-overlay.js';
@@ -34,6 +35,8 @@ const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 export const VEHICLE_MODEL_FACTORIES = Object.freeze({
   jeep: makeJeepModel, tank: makeTankModel, helicopter: makeHelicopterModel, transport: makeTransportModel, plane: makePlaneModel,
   jeep_at: makeAtJeepModel,
+  // Support mortar (deployable, shared/mortar-rules.js).
+  mortar: makeMortarModel,
   // Titanfall walkers: the installed walker presentation picks the model (docs/titanfall.md §7).
   ...Object.fromEntries(TITAN_TYPES.map(type => [type, (options) => {
     if (!walkerPresentation) throw new Error(`vehicle-view: no walker presentation installed for ${type}`);

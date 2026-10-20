@@ -1,0 +1,11 @@
+# Support mortar fire control
+
+Request: a deployable Support mortar with indirect fire, bots that use it, and a HUD the operator lays the tube with.
+
+- `ref-a/b/c-*.jpg` + `prompt-*.txt`: gpt-image-2 alternatives, prompted from the current HUD (captured with `node tools/conquest-hud-capture.mjs --only tank-driver,heli-gunner --sizes desktop`).
+  - **A (chosen)**: a MORTAR FIRE-CONTROL panel on the right edge above the vehicle card: heading-up map with the mortar at the bottom centre, the 45 / 250 m range arcs, the azimuth line to a yellow impact crosshair with its blast ring and the spotted enemies; an AZ / ELEV / RANGE / TOF strip, shell pips and a reload bar; a yellow ground ring with the range in the world.
+  - B: a centred elevation dial and azimuth tape with a dotted arc into the world (it covers the centre of the view, which the mortar camera spends on the impact area, and gives no picture of where the enemies stand around it).
+  - C: a full-screen artillery map (clear, but it hides the world and the threats near the operator, who sits exposed).
+- `captures/`: the implementation (`node tools/conquest-hud-capture.mjs --only mortar --out docs/design/conquest/mortar/captures`), desktop 1440×900, phone portrait 390×844 and phone landscape 844×390, all free of HUD overlaps.
+
+Compared with A: same placement and order (title with a status chip, map, readout strip, rounds row with pips, reload bar, key hints) and the same colour split (amber impact, azimuth line and pips, orange enemies, blue own mortar). The map uses the real Frontier overview under the HUD's own map painter, and the range arcs read the real band (43 / 249 m). The vehicle card under it stays the standard one (HP, seat strip, MORTAR HE row; DEPLOYED in place of the speed). The key hints show for 10 s after manning the tube instead of permanently (the HUD rule: no permanent keybind line). On phones the panel sits under the vehicle card on the right (portrait: under the banner, compact; landscape: the map beside the readouts) and drops the hints. The fixture's camera does not match the static backdrop of the capture page, so the world ring there is not on the drawn flag; in the game the camera looks at the flat impact and the ring sits on the ground.

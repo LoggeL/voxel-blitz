@@ -10,6 +10,7 @@ import {
   FLAG_STATES,
   VEHICLE_STATUS,
   VEHICLE_TOPOLOGY,
+  isDeployableType,
 } from './conquest-contract.js';
 import { RECON_GADGET_RULES, decodeReconGadgets } from './recon-gadgets.js';
 
@@ -334,7 +335,8 @@ export function deployOptions(view, self, rules = CONQUEST_RULES) {
     }
   }
   for (const hull of vehicles.values()) {
-    if (hull.team !== team || !(hull.hp > 0) || ((hull.st | 0) & VEHICLE_STATUS.wreck)) continue;
+    // A deployable (the Support mortar) is never a deploy-screen spawn.
+    if (hull.team !== team || !(hull.hp > 0) || ((hull.st | 0) & VEHICLE_STATUS.wreck) || isDeployableType(hull.type)) continue;
     const seats = vehicleFreeSeats(hull);
     const takeover = vehicleBotSeats(hull, bots);
     const reason = vehicleDisabled(hull) ? 'busy' : seats.length || takeover.length ? null : 'seat';

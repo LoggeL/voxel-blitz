@@ -54,7 +54,8 @@ const actions = ctx => [...visibleTouchActions(ctx)].sort();
     assert.deepEqual(actions(seatContext(type, seatId)), list, key);
   }
   // Countermeasures belong to types that carry one (COUNTERMEASURES) and to the driving seat.
-  for (const [type, cm] of Object.entries(COUNTERMEASURES)) {
+  // (Deployables such as the mortar have no driving seat and no countermeasure.)
+  for (const [type, cm] of Object.entries(COUNTERMEASURES).filter(([type]) => VEHICLE_TOPOLOGY[type].some(s => s.id === 'driver'))) {
     assert.equal(seatContext(type, 'driver').vehicleCountermeasure, cm, `${type} countermeasure kind`);
   }
   assert.equal(seatContext('tank', 'driver', { cmr: 40 }).vehicleCountermeasureReady, false);

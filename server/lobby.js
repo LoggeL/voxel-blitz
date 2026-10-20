@@ -513,7 +513,7 @@ export class LobbyManager {
     const member = found.member;
     const now = performance.now();
     const minGap = (intent.type === 'deploy' ? 250 : intent.type === 'spot' || intent.type === 'comm' || intent.type === 'order' ? 500
-      : intent.type === 'redeploy' ? 1000 : 100) * 0.75;
+      : intent.type === 'redeploy' || intent.type === 'mortar' ? 1000 : 100) * 0.75;
     member.conquestIntentAt ??= {};
     if (now - (member.conquestIntentAt[intent.type] ?? -Infinity) < minGap) return false;
     member.conquestIntentAt[intent.type] = now;

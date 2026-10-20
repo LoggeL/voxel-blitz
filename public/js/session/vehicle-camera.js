@@ -23,6 +23,9 @@
 //            the chin turret (the seat's default view). The local hull is
 //            hidden while it is up, so no barrel or nose fills the screen.
 //   passenger  an orbit around the seat hip with free look.
+//   mortar   the Support mortar's operator: raised behind the tube along its
+//            azimuth, looking toward the flat-ground impact of the aimed
+//            elevation (`mortarImpact`; the HUD sight solves the real arc).
 // Every seat starts in first person (cockpit; the chin gunner in its gimbal).
 // V (vehicleView) cycles the seat's `views`; only a V press stores a choice,
 // per hull type and seat, in localStorage (VEHICLE_VIEW_PREF_KEY).
@@ -33,6 +36,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { vehicleDef, mountPose, vehicleDirection, vehicleLocalPoint, turretLocal } from '../../../shared/vehicle-defs.js';
 import { vehicleSeatPose } from '../../../shared/vehicles.js';
+import { mortarFlatRange } from '../../../shared/mortar-rules.js';
 
 /** Camera tuning (presentation only). */
 export const VEHICLE_CAMERA = Object.freeze({
@@ -59,6 +63,7 @@ export const VEHICLE_CAMERA = Object.freeze({
 /** HUD names of the views (VEHICLE_VIEW_LABELS[view]; the first-person name depends on the seat). */
 export const VEHICLE_VIEW_LABELS = Object.freeze({
   chase: 'CHASE', action: 'ACTION', cockpit: 'COCKPIT', flyby: 'FLYBY', mount: 'GUN', gimbal: 'SIGHT', passenger: 'ORBIT', driver: 'DRIVER',
+  mortar: 'MORTAR',
 });
 /** localStorage key: { [hullType]: { [seatId]: view } }. */
 export const VEHICLE_VIEW_PREF_KEY = 'vb-vehicle-view-v1';
@@ -223,6 +228,8 @@ export class VehicleCamera {
     this._head = new THREE.Quaternion();
     this._euler = new THREE.Euler(0, 0, 0, 'YXZ');
     this._forward = new THREE.Vector3();
+    /** Mortar view: the flat-ground impact [x, y, z] of the aimed elevation (null otherwise). */
+    this.mortarImpact = null;
   }
 
   /** Start a new seat: capture the base FOV and drop smoothing state. */
@@ -411,6 +418,8 @@ export class VehicleCamera {
       return this._finish(step);
     }
     this.mode = view;
+    this.mortarImpact = null;
+    if (view === 'mortar') return this._mortar(step, { row, seatId, aimYaw, aimPitch, profile });
     if (view === 'cockpit') return this._cockpit(step, { row, seatId, aircraft, aimYaw, aimPitch, flightAim, freeLook });
     if (view === 'flyby' && aircraft) return this._flyby(step, { row, def, wide });
     if (view === 'driver' && profile.periscope) return this._periscope(step, { row, eye: profile.periscope });
@@ -603,6 +612,41 @@ export class VehicleCamera {
     camera.fov = clamp(2 * Math.atan2(span, range) * 180 / Math.PI, tune.minFov, wide);
     this.zoom = 1;
     this._seeded = true;
+    return this._finish(step);
+  }
+
+  /**
+   * Mortar: the camera rides `distance` m behind and `height` m above the tube
+   * pivot on the azimuth (aim yaw), rising further with the range so a long
+   * shot still shows the ground around the impact, and looks at the
+   * flat-ground impact of the aimed elevation. Wall safe like the orbit.
+   */
+  _mortar(step, { row, seatId, aimYaw, aimPitch, profile }) {
+    const camera = this.camera;
+    const seat = vehicleDef(row.type ?? row.kind)?.seats.find(entry => entry.id === seatId);
+    const pose = seat?.mounts?.length ? mountPose(row, seatId, seat.mounts[0]) : null;
+    const pivot = pose?.pivot || [finite(row.x), finite(row.y) + 0.4, finite(row.z)];
+    const yaw = wrap(aimYaw + this._freeYaw);
+    const range = Math.max(0, mortarFlatRange(aimPitch));
+    const forward = [-Math.sin(yaw), -Math.cos(yaw)];
+    const impact = [pivot[0] + forward[0] * range, finite(row.y), pivot[2] + forward[1] * range];
+    this.mortarImpact = impact;
+    const focus = this._focus.set(pivot[0], pivot[1] + 0.6, pivot[2]);
+    const lift = profile.height + range * 0.03;
+    this._direction.set(-forward[0] * profile.distance, lift, -forward[1] * profile.distance);
+    const length = this._direction.length();
+    this._direction.divideScalar(length);
+    let reach = length;
+    const hit = this.raycast(focus, this._direction, length);
+    if (Number.isFinite(hit?.t)) reach = clamp(hit.t - VEHICLE_CAMERA.clearance, 0, length);
+    if (!this._seeded || reach < this._distance) this._distance = reach;
+    else this._distance += (reach - this._distance) * (1 - Math.exp(-step * 8));
+    this._seeded = true;
+    camera.position.copy(focus).addScaledVector(this._direction, this._distance);
+    camera.up.set(0, 1, 0);
+    const dx = impact[0] - camera.position.x, dz = impact[2] - camera.position.z;
+    const pitch = clamp(Math.atan2(impact[1] - camera.position.y, Math.hypot(dx, dz)) + this._freePitch, -0.9, 0.5);
+    camera.rotation.set(pitch, yaw, 0, 'YXZ');
     return this._finish(step);
   }
 

@@ -98,7 +98,9 @@ function rowFor(id, rowTeam, x, z, yaw) {
     const ammo = type !== 'tank' ? 2
       : seatWeaponList(type, seatId).filter(w => w.mount === mountId).map(w => VEHICLE_WEAPONS[w.weapon]?.magazine).find(Number.isFinite) ?? -1;
     if (aimOffset !== null) return [yaw + centre + (mount.fixed ? 0 : aimOffset), mount.fixed ? 0 : aimPitch, ammo, 0, 0];
-    return [yaw + centre + (mount.fixed ? 0 : 0.35 - i * 0.15), mount.fixed ? 0 : 0.12, ammo, 0, 0];
+    // A high-angle tube (the mortar, 45..85 degrees) shows mid-band.
+    const rest = mount.pitchLimit && mount.pitchLimit[0] > 0.5 ? (mount.pitchLimit[0] + mount.pitchLimit[1]) / 2 : 0.12;
+    return [yaw + centre + (mount.fixed ? 0 : 0.35 - i * 0.15), mount.fixed ? 0 : rest, ammo, 0, 0];
   });
   return {
     id, type, team: rowTeam, x, y: GROUND_Y + (flying ? altitude : 0), z, yaw, pitch: aircraft ? num('pitch', 0) : 0, roll: aircraft ? num('roll', 0) : 0,
