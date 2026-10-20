@@ -9,6 +9,8 @@
 //    groundRoute's reused BFS scratch and closest() memo against the old route;
 //  - Frontier's boot cover sets against a cold build, and a Conquest room
 //    taking them without sampling;
+//  - the boot tick warm-up room: a seeded Conquest room plays the same after
+//    it, and it leaves no room ticking;
 //  - the ray budget of a room start (TDM Harbor 31 bots, Conquest Frontier 16);
 //  - diagnostics: long-tick log and the event-loop / GC window fields.
 import assert from 'node:assert/strict';
@@ -19,8 +21,8 @@ import { createMapState, getMapMeta } from '../shared/worlddata.js';
 import { STONE } from '../shared/world/blocks.js';
 import { groundNavigation, groundNavigationSteps, groundRoute, groundSegmentClear } from '../server/bot-navigation.js';
 import { CoverIndex } from '../server/bot-cover.js';
-import { prepareFrontier, warmGroundGrids, groundGridMaps, runSliced } from '../server/boot-warmup.js';
-import { GameEngine } from '../server/game.js';
+import { prepareFrontier, warmConquestRoom, warmGroundGrids, groundGridMaps, runSliced } from '../server/boot-warmup.js';
+import { GameEngine, afterRoomTick } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
 import { ServerDiagnostics, TickTiming } from '../server/diagnostics.js';
 import { TICK_PHASES } from '../server/game.js';
@@ -320,6 +322,42 @@ console.log(`spawn pick: ${spawnPicks} picks equal to the full scan (variety, pr
   assert.equal(sampled, 0, 'the first Conquest room clones the boot sets instead of sampling ~1000 points per flag');
   bots.dispose();
   console.log('Frontier warm-up: cover sets equal a cold build, the first room samples none');
+}
+
+// ---------------------------------------------------------------------------
+// 4b. Boot tick warm-up: a throwaway room changes no later room's play.
+// ---------------------------------------------------------------------------
+{
+  // Weather off: its seed is drawn from the CSPRNG, not the seeded Math.random.
+  const weather = process.env.VB_CONQUEST_WEATHER;
+  process.env.VB_CONQUEST_WEATHER = 'off';
+  const realNow = Date.now;
+  const replay = () => {
+    Math.random = mulberry32(5);
+    Date.now = () => 1_800_000_000_000;
+    const frames = [];
+    const game = new GameEngine({ mode: 'conquest', world: createMapState('frontier'), mapMeta: getMapMeta('frontier'),
+      broadcast: (msg) => frames.push(JSON.stringify(msg, (key, value) => ArrayBuffer.isView(value) ? Array.from(value) : value)) });
+    const bots = attachBots(game, 15);
+    for (let i = 0; i < 300; i++) game.step(game.intervalMs);
+    const bodies = [...game.combatants.values()].map(e => [e.id, e.x, e.y, e.z, e.hp, e.state]);
+    bots.dispose(); game.stop();
+    Date.now = realNow; Math.random = realRandom;
+    return { frames, bodies };
+  };
+  const before = replay();
+  const { total, first } = warmConquestRoom('frontier');
+  const after = replay();
+  if (weather === undefined) delete process.env.VB_CONQUEST_WEATHER; else process.env.VB_CONQUEST_WEATHER = weather;
+  assert.equal(after.frames.length, before.frames.length);
+  for (let i = 0; i < before.frames.length; i++) assert.equal(after.frames[i], before.frames[i], `snapshot ${i} equal after the warm-up room`);
+  assert.deepEqual(after.bodies, before.bodies, 'bodies equal after the warm-up room');
+  // It never started its clock: an after-tick task still runs at once.
+  let ran = false;
+  afterRoomTick(() => { ran = true; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.ok(ran, 'no room counts as ticking after the warm-up room');
+  console.log(`Conquest tick warm-up: ${Math.round(total)} ms (first tick ${first.toFixed(1)} ms), 300 seeded ticks equal before and after it`);
 }
 
 // ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@ import { MAP_IDS } from '../shared/modes.js';
 import { isBattlefieldMap, BATTLEFIELD_INFO } from '../shared/world/battlefields.js';
 import { warmStructureTemplates } from './sim/structure.js';
 import { afterRoomTick } from './game.js';
-import { prepareBattlefield, warmGroundGrids } from './boot-warmup.js';
+import { prepareBattlefield, warmConquestRoom, warmGroundGrids } from './boot-warmup.js';
 import { coalesceTick, resetHeldTicks, tickSent, tickSettled } from './protocol/tick-backlog.js';
 import { TICK_MS, parseAdmissionFrame, parseBuyFrame, parseConquestIntent, parseTitanfallIntent, sanitizeName } from './protocol/admission.js';
 
@@ -480,6 +480,15 @@ async function main() {
       + (structural ? `, structure field ${Math.round(field)} ms)` : ')'));
   };
   prepareBattlefieldLogged('frontier');
+  // Then one throwaway Frontier room with bots, stepped a second (~0.1 s here),
+  // so the first player's room does not run its first tick cold: 16-22 ms,
+  // about 4x a later room's (VOXEL_ROOM_WARM=0 skips it). It warms Redrock's too.
+  if (process.env.VOXEL_ROOM_WARM !== '0') {
+    try {
+      const { total, first } = warmConquestRoom('frontier');
+      console.log(`[voxel-blitz] Conquest tick warmed in ${Math.round(total)} ms (cold first tick ${first.toFixed(1)} ms)`);
+    } catch (err) { console.error('[voxel-blitz] Conquest tick warm-up failed:', err); }
+  }
 
   server.listen(port, () => {
     const address = server.address();
