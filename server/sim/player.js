@@ -17,6 +17,7 @@ import { mulberry32 } from '../../shared/noise.js';
 import { freshGrenadeLoadout } from '../../shared/grenade-rules.js';
 import { POWERUP_RULES } from '../../shared/powerups.js';
 import { interruptMedkit } from './medkit.js';
+import { MEDKIT_RULES } from '../../shared/medkit.js';
 
 import { PHYSICS } from '../../shared/player-movement.js';
 
@@ -90,8 +91,10 @@ function freshLoadout() {
 
 /** One combatant. Humans and bots share the same simulation state. */
 export class PlayerEntity {
-  constructor(id, name, spawn, isBot, dimensions = null) {
+  constructor(id, name, spawn, isBot, dimensions = null, { medkitRules = MEDKIT_RULES } = {}) {
     this.dimensions = dimensions || worldDimensions();
+    // The mode's kit rule (shared/medkit.js medkitRulesFor): Conquest carries bandages.
+    this.medkitRules = medkitRules;
     this.id = id;
     this.name = name;
     this.bot = !!isBot;
@@ -117,7 +120,7 @@ export class PlayerEntity {
     );
     this.yaw = centerAim.yaw; this.pitch = 0;
     this.hp = 100;
-    this.medkit = { remaining: 1, active: false, elapsed: 0, ack: this.medkit?.ack || 0, interrupted: false };
+    this.medkit = { remaining: (this.medkitRules ?? MEDKIT_RULES).count, active: false, elapsed: 0, ack: this.medkit?.ack || 0, interrupted: false };
     this.medkitRequest = 0;
     this.armor = 0;
     this.lastDamage = null;

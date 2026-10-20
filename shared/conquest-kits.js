@@ -92,9 +92,9 @@ export const KIT_ROLE_RULES = Object.freeze({
   healSelfFraction: 0.5,
   /** One `heal` award per this many HP restored to others. */
   healAwardHp: 50,
-  /** A mate in the aura gets a spent medkit back at most this often. */
+  /** A mate in the aura below the bandage cap gets one bandage back at most this often. */
   medkitRestockMs: 30000,
-  /** Assault ADRENALINE: an enemy infantry kill re-arms the medkit and returns grenades, at most this often. */
+  /** Assault ADRENALINE: an enemy infantry kill gives one bandage back and returns grenades, at most this often. */
   adrenalineCooldownMs: 10000,
   adrenalineGrenade: 'frag',
   adrenalineGrenades: 1,
@@ -147,7 +147,7 @@ export function kitAbilityHint(kit, rules = {}) {
   const ability = KITS[kit]?.ability;
   const hps = r.healPerPulse * 1000 / r.healIntervalMs;
   switch (ability) {
-    case 'adrenaline': return `ENEMY KILL RE-ARMS YOUR MEDKIT · +${r.adrenalineGrenades} ${r.adrenalineGrenade.toUpperCase()} · ${secs(r.adrenalineCooldownMs)} COOLDOWN`;
+    case 'adrenaline': return `ENEMY KILL: +1 BANDAGE · +${r.adrenalineGrenades} ${r.adrenalineGrenade.toUpperCase()} · ${secs(r.adrenalineCooldownMs)} COOLDOWN`;
     case 'revive': return `REVIVE DOWNED MATES · HEAL ${+hps.toFixed(1)} HP/S WITHIN ${r.healRadius} M`;
     case 'repair': return `REPAIR FRIENDLY HULLS WITHIN ${r.repairRange} M · MENDS YOUR OWN HULL FROM INSIDE`;
     case 'resupply': return `AMMO AND GRENADES TO MATES WITHIN ${r.resupplyRadius} M EVERY ${secs(r.resupplyIntervalMs)}`;

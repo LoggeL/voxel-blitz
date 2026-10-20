@@ -20,7 +20,7 @@ import { TICK_MS } from './protocol/admission.js';
 import { TickTiming } from './diagnostics.js';
 import { KILLCAM, isTitanHullKillKey, killcamEligible } from '../shared/killcam-rules.js';
 import { makeSnapshot } from './protocol/snapshot.js';
-import { medkitMovement, medkitCombat } from '../shared/medkit.js';
+import { medkitMovement, medkitCombat, medkitRulesFor } from '../shared/medkit.js';
 import { interruptMedkit, updateMedkit } from './sim/medkit.js';
 import { evKill, evRespawn, evDie, evHit } from './protocol/events.js';
 import { KillAnnouncer } from './sim/kill-announcer.js';
@@ -375,7 +375,7 @@ export class GameEngine {
     if (!existing) {
       const normalizedName = String(name || '').trim().slice(0, 24)
         || 'Player-' + pid.slice(-4);
-      const player = new PlayerEntity(pid, normalizedName, this.nextSpawnFor(null, -1), false, this.world.dimensions);
+      const player = new PlayerEntity(pid, normalizedName, this.nextSpawnFor(null, -1), false, this.world.dimensions, { medkitRules: medkitRulesFor(this.mode.mode) });
       this.entities.set(pid, player);
       this.mode.onPlayerAdd(player);
     }
@@ -388,7 +388,7 @@ export class GameEngine {
     const existing = this.entities.get(pid);
     if (existing) return this.spawnInfoFor(existing);
     if (!normalizedName) normalizedName = 'BOT-' + pid.replace(/[^0-9]/g, '');
-    const player = new PlayerEntity(pid, normalizedName, this.nextSpawnFor(null, -1), true, this.world.dimensions);
+    const player = new PlayerEntity(pid, normalizedName, this.nextSpawnFor(null, -1), true, this.world.dimensions, { medkitRules: medkitRulesFor(this.mode.mode) });
     this.entities.set(pid, player);
     this.mode.onPlayerAdd(player);
     return this.spawnInfoFor(player);

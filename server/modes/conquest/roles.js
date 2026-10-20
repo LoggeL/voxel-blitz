@@ -345,7 +345,7 @@ export class ConquestRoles {
 
   /**
    * Assault ADRENALINE: an enemy infantry kill by a living, on-foot Assault
-   * re-arms its spent medkit and returns grenades, at most once per cooldown.
+   * gives one bandage back (up to the cap) and returns grenades, at most once per cooldown.
    */
   _adrenaline(killer, victim, context = null) {
     if (!this._live() || killer === victim || idOf(killer) === idOf(victim)) return false;
@@ -357,7 +357,7 @@ export class ConquestRoles {
     const now = this.now;
     if (!state || now < state.nextAdrenalineAt) return false;
     state.nextAdrenalineAt = now + KIT_ROLE_RULES.adrenalineCooldownMs;
-    if (killer.medkit && typeof killer.medkit === 'object') killer.medkit.remaining = 1;
+    this.supply(killer, { mags: 0, grenades: 0, bandages: 1 });
     const slot = GRENADE_TYPE_IDS.indexOf(KIT_ROLE_RULES.adrenalineGrenade);
     if (slot >= 0 && Array.isArray(killer.grenades)) {
       const cap = kitMaxGrenades(state.kit)[slot] ?? 0;
@@ -811,8 +811,8 @@ export class ConquestRoles {
    * living, on-foot teammate within healRadius by healPerPulse (itself at
    * healSelfFraction). Mates hurt in the last healDamagePauseMs are skipped,
    * and lastHealedAt gates a mate to one pulse per interval however many
-   * Medics stand around it. A spent medkit is restocked at most every
-   * medkitRestockMs per mate. `heal` awards accrue per healAwardHp given to others.
+   * Medics stand around it. A mate below the bandage cap gets one bandage
+   * back at most every medkitRestockMs. `heal` awards accrue per healAwardHp given to others.
    */
   _heal(entities, now) {
     const r = KIT_ROLE_RULES;
@@ -832,8 +832,7 @@ export class ConquestRoles {
         if (now - mateState.lastHealedAt < r.healIntervalMs - 1e-6) continue;
         const self = mate === medic;
         if (!self && now - mateState.lastMedkitRestockAt >= r.medkitRestockMs
-            && mate.medkit && typeof mate.medkit === 'object' && mate.medkit.remaining === 0) {
-          mate.medkit.remaining = 1;
+            && this.supply(mate, { mags: 0, grenades: 0, bandages: 1 }).bandages > 0) {
           mateState.lastMedkitRestockAt = now;
         }
         if (now - mateState.lastDamagedAt < r.healDamagePauseMs) continue;

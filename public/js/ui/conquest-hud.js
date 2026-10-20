@@ -63,7 +63,7 @@ const OBSTACLE_MS = 400;
 const crosshairZone = (width, height) => ({ left: width / 2 - 70, right: width / 2 + 70, top: height / 2 - 50, bottom: height / 2 + 60 });
 /** A snapshot within this long of the last refresh() leaves drawing to the next frame. */
 const FRAME_DRIVEN_MS = 250;
-/** An Assault medkit re-arm and an own kill this close together read as ADRENALINE. */
+/** An Assault bandage refill and an own kill this close together read as ADRENALINE. */
 const ADRENALINE_KILL_WINDOW_MS = 1500;
 /** How long the M / Y hint above the minimap stays after the HUD appears (until first use). */
 export const MAP_HINT_MS = 30000;
@@ -654,7 +654,7 @@ export class ConquestHud {
       this.orderChip.update(null);
       if (this.rose.open) this.rose.close();
       this.deploy.update({ cq, self, players, vehicles, nowMs: now, mapItems: items, meta: cq.meta });
-      // A fresh life restocks the medkit: that is no ADRENALINE re-arm.
+      // A fresh life restocks the bandages: that is no ADRENALINE refill.
       this._medkitLeft = null;
       return;
     }
@@ -715,15 +715,15 @@ export class ConquestHud {
         ...spread.filter(m => m.kind === 'event'), ...eventMarkers.filter(m => m.kind !== 'event')] : [],
     );
     this.restricted.update(restrictedModel(self, cq, { aircraft: !!seated && isAircraftType(seated.row.type), nowMs: now }));
-    // Assault ADRENALINE: the spent medkit came back (0 -> 1 on the authoritative row) right
-    // after an own kill. A Medic aura restock or a respawn refill is not adrenaline.
+    // Assault ADRENALINE: a bandage came back (the authoritative count rose) right after an
+    // own kill. A Medic aura restock alone or a respawn refill is not adrenaline.
     const medkitLeft = Number.isFinite(self?.medkit?.remaining) ? self.medkit.remaining : Array.isArray(self?.medkit) ? self.medkit[0] : null;
     // The row and the kill event may land a frame apart in either order, so the two are paired in a window.
-    if (this._medkitLeft === 0 && medkitLeft === 1 && KITS[this._selfKit(self)]?.ability === 'adrenaline') this._rearmAt = now;
+    if (Number.isFinite(this._medkitLeft) && medkitLeft > this._medkitLeft && KITS[this._selfKit(self)]?.ability === 'adrenaline') this._rearmAt = now;
     if (this._rearmAt != null && now - this._rearmAt > ADRENALINE_KILL_WINDOW_MS) this._rearmAt = null;
     if (this._rearmAt != null && Math.abs(this._rearmAt - (this._ownKillAt ?? -Infinity)) <= ADRENALINE_KILL_WINDOW_MS) {
       this._rearmAt = null;
-      this.spotFlash.textContent = 'ADRENALINE · MEDKIT RE-ARMED';
+      this.spotFlash.textContent = 'ADRENALINE · +1 BANDAGE';
       this.spotFlash.dataset.tone = 'heal';
       this._spotUntil = now + 1800;
       this.spotFlash.hidden = false;

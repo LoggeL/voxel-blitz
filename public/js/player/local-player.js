@@ -344,7 +344,7 @@ export class LocalPlayer {
 
   /** Reset all player-owned state when returning to the menu. */
   resetForMenu({ physics = new PlayerPhysics(), body = null, baseFov = this.baseFov } = {}) {
-    this.medkit = new MedkitState();
+    this.medkit = new MedkitState(this.medkit?.rules);
     if (!physics || typeof physics.step !== 'function' || typeof physics.eyeY !== 'function') {
       throw new TypeError('resetForMenu requires a PlayerPhysics-compatible adapter');
     }

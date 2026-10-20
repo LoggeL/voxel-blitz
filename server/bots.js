@@ -167,7 +167,7 @@ const BUBBLE_SWAP_CD_MS = 2500;   // between SUDSBLASTER range swaps
 const MGL_MAX_RANGE = 52;          // reliable lower-arc reach with room for lead and aim error
 const SUPPORT_HOLD_MARGIN = 0.4;  // m: a revive/repair hold stops the legs this far inside the 3D reach ...
 const SUPPORT_HOLD_FLAT = 1.2;    // m: ... or this close on the flat (a body on a step above)
-const MEDKIT_BOT_HP = 50;         // Conquest bots patch up with the medkit (J) below this HP ...
+const MEDKIT_BOT_HP = 60;         // Conquest bots bandage (J) below this HP (a second bandage if still under) ...
 const MEDKIT_QUIET_MS = 2000;     // ... once no contact has been seen this long
 const FLAME_SLOT = WEAPON_IDS.indexOf('flamethrower');
 // F-4 FIRESTORM bands (hysteresis): any packet that lands sets the target alight, so a
@@ -1951,12 +1951,12 @@ class BotManager {
     // surface and climb out over the bank (never tread water into drowning).
     if (swimming) inp.keys.jump = true;
 
-    // Medkit (J): below half HP and out of contact, stand still and use it until it
-    // finishes or a fight starts again. Assault ADRENALINE kills and the Medic aura's
-    // restock hand a spent one back, so every kit's bots patch up between fights.
+    // Bandage (J): below MEDKIT_BOT_HP and out of contact, stand still and use one until it
+    // finishes or a fight starts again; still under, the next one follows. Assault ADRENALINE
+    // kills, the Medic aura and the supply sources hand bandages back between fights.
     if (cq && enemy) br.contactAt = now;
     if (cq && !p.vehicleId && p.medkit && !enemy && !objectiveUrgent && !swimming
-        && (p.medkit.active || (p.medkit.remaining === 1 && p.hp < MEDKIT_BOT_HP && p.grounded
+        && (p.medkit.active || (p.medkit.remaining >= 1 && p.hp < MEDKIT_BOT_HP && p.grounded
           && now - (br.contactAt ?? -Infinity) >= MEDKIT_QUIET_MS))) {
       for (const key of ['f', 'b', 'l', 'r', 'jump', 'sprint', 'crouch', 'prone', 'interact']) inp.keys[key] = false;
       inp.wantFire = false; inp.wantAds = false; inp.reload = false; inp.switchTo = undefined;

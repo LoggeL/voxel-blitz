@@ -174,10 +174,10 @@ function fixture() {
   f.setHp(mate, 30); f.run(KIT_ROLE_RULES.healIntervalMs * 2 + 50);
   eq(mate.hp, 30, 'a seated Medic does not heal');
   medic.vehicleId = null; medic2.vehicleId = null;
-  // Medkit restock: a spent medkit comes back at most every medkitRestockMs.
+  // Bandage restock: one bandage back at most every medkitRestockMs.
   mate.medkit.remaining = 0;
   f.run(KIT_ROLE_RULES.healIntervalMs + 50);
-  eq(mate.medkit.remaining, 1, 'the aura restocks a spent medkit');
+  eq(mate.medkit.remaining, 1, 'the aura gives a bandage back');
   mate.medkit.remaining = 0;
   f.run(KIT_ROLE_RULES.healIntervalMs * 3);
   eq(mate.medkit.remaining, 0, 'restock waits medkitRestockMs');
@@ -197,7 +197,7 @@ function fixture() {
   assault.grenades[gslot('frag')] = 0;
   victim.hp = 0; victim.state = 'dead';
   f.roles.onDeath(victim, assault, { weapon: 'rifle' });
-  eq(assault.medkit.remaining, 1, 'an enemy kill re-arms the spent medkit');
+  eq(assault.medkit.remaining, 1, 'an enemy kill gives a bandage back');
   eq(assault.grenades[gslot('frag')], KIT_ROLE_RULES.adrenalineGrenades, 'and returns a frag');
   assault.medkit.remaining = 0;
   victim2.hp = 0; victim2.state = 'dead';
@@ -208,7 +208,7 @@ function fixture() {
   const v3 = f.add('e3', 'bravo', 'recon', 0, 62, 50); f.step();
   v3.hp = 0; v3.state = 'dead';
   f.roles.onDeath(v3, assault, { weapon: 'rifle' });
-  eq(assault.medkit.remaining, 1, 'after the cooldown a kill re-arms again');
+  eq(assault.medkit.remaining, 1, 'after the cooldown a kill gives one again');
   eq(assault.grenades[gslot('frag')], kitMaxGrenades('assault')[gslot('frag')], 'frags stay capped at the kit maximum');
   // Teamkills and seated killers earn nothing.
   f.run(KIT_ROLE_RULES.adrenalineCooldownMs + 50);

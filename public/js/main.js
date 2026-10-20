@@ -17,6 +17,7 @@ import { WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { decodeConquestPlayer } from '../../shared/conquest-contract.js';
 import { TITANFALL_PLAYER_FLAGS } from '../../shared/titan-contract.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
+import { medkitRulesFor } from '../../shared/medkit.js';
 import { deserializeWorld, worldBlocks, getBlock, getMapMeta, getMapDimensions, setBlock } from '../../shared/worlddata.js';
 import { isMapFrame, parseMapFrame } from '../../shared/world/serialize.js';
 import { mapCache } from './engine/map-cache.js';
@@ -847,6 +848,8 @@ class Game {
     this.selfRow = self;
     this.vehicleView?.sync(snapshot.vehicles, players, self, { events: snapshot.events, snapSeq: snapshot.snapSeq });
     this.vehicleDestructionFX?.sync(snapshot.vehicles);
+    // Conquest and Breakthrough carry bandages; every other mode the one full-heal medkit.
+    if (this.player?.medkit) this.player.medkit.rules = medkitRulesFor(match?.mode);
     if (this.player?.physics) {
       this.player.physics.vehicleColliders = Array.isArray(snapshot.vehicles) ? snapshot.vehicles : [];
       // Conquest predicts the parachute and ejection seat (shared/parachute.js).
@@ -1175,7 +1178,7 @@ class Game {
     ctx.weaponCount = Array.isArray(owned) ? owned.length + (this.matchState?.mode === 'ttt' ? 1 : 0) : WEAPON_IDS.length;
     ctx.canBuy = this.session.canOpenBuyMenu();
     ctx.canBuild = !!this.build?.available();
-    ctx.canMedkit = this.player.medkit.active || (this.player.medkit.remaining === 1 && this.player.hp < 100);
+    ctx.canMedkit = this.player.medkit.active || (this.player.medkit.remaining >= 1 && this.player.hp < 100);
     ctx.wheelOpen = this.weaponWheel.open;
     // Grenade + pouch buttons: authoritative counts, the ready face and the held power stop.
     const counts = Array.isArray(this.selfRow?.grenades) ? this.selfRow.grenades : null;

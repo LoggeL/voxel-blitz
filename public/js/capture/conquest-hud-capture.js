@@ -11,6 +11,7 @@ import { cameraPose } from '../ui/conquest/projection.js';
 import { readConquest, seatedVehicle, vehiclePanelModel } from '../ui/conquest-hud-state.js';
 import { KIT_IDS, KITS, seatWeaponList } from '../../../shared/conquest-contract.js';
 import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
+import { CONQUEST_MEDKIT_RULES } from '../../../shared/medkit.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { conquestHudFixtures, fixtureMapMeta, fpvFixtureTelemetry, FIXTURE_NOW } from './conquest-hud-fixtures.js';
 import { WeaponWheelController as WheelSession } from '../session/weapon-wheel-controller.js';
@@ -61,8 +62,9 @@ function touchContext(state, seated, fields) {
 /**
  * The local-player HUD bag main.js feeds HUD.setState every frame, built from
  * the fixture's own row: the kit's first primary with a full magazine, the
- * kit's grenade stock and an unused medkit. Without it the infantry cards
- * (ammo, grenade Ready Card, medkit) paint their unset defaults.
+ * kit's grenade stock and full bandages (a fixture's `medkit` overrides them).
+ * Without it the infantry cards (ammo, grenade Ready Card, bandages) paint
+ * their unset defaults.
  */
 function localHudState(state) {
   const self = state.self;
@@ -71,7 +73,7 @@ function localHudState(state) {
   const grenades = GRENADE_TYPE_IDS.map(type => kit.grenades[type] || 0);
   const alive = !state.dead && self.state !== 'dead';
   return {
-    alive, hp: alive ? self.hp : 0, medkit: { remaining: 1, active: false, progress: 0 }, armor: 0,
+    alive, hp: alive ? self.hp : 0, medkit: { remaining: CONQUEST_MEDKIT_RULES.count, active: false, progress: 0, ...state.medkit, rules: CONQUEST_MEDKIT_RULES }, armor: 0,
     wid: weapon.id, wname: weapon.name, mag: weapon.magSize, reserve: Math.max(1, (weapon.spareMags ?? 3) - 1), infiniteMagazines: false,
     grenades, grenadeType: Math.max(0, grenades.findIndex(n => n > 0)), grenadeReady: Math.max(0, grenades.findIndex(n => n > 0)),
     grenadeCharge: 0, grenadeCharging: false, grenadePouchOpen: false, grenadePouchHover: -1,

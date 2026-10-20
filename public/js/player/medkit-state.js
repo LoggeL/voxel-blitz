@@ -1,18 +1,22 @@
+import { MEDKIT_RULES } from '../../../shared/medkit.js';
+
 /** Predict presentation only. Health and kit consumption always come from snapshots. */
 export class MedkitState {
-  constructor() {
+  /** `rules`: the mode's kit rule (shared/medkit.js medkitRulesFor); main.js keeps it in step with the match. */
+  constructor(rules = MEDKIT_RULES) {
+    this.rules = rules;
     this.nextId = 0;
     this.ack = 0;
     this.pendingId = 0;
     this.canceledThrough = 0;
     this.cancelQueued = false;
-    this.remaining = 1;
+    this.remaining = rules.count;
     this.active = false;
     this.progress = 0;
   }
 
   begin() {
-    if (this.active || this.remaining !== 1) return false;
+    if (this.active || !(this.remaining >= 1)) return false;
     this.pendingId = ++this.nextId;
     this.cancelQueued = false;
     this.active = true;
@@ -33,7 +37,7 @@ export class MedkitState {
     if (!row) return;
     this.ack = Math.max(this.ack, row.ack || 0);
     this.nextId = Math.max(this.nextId, this.ack);
-    this.remaining = row.remaining === 1 ? 1 : 0;
+    this.remaining = Math.max(0, Math.trunc(Number(row.remaining) || 0));
     if (this.pendingId > this.ack) return;
     this.pendingId = 0;
     this.active = !!row.active && this.ack > this.canceledThrough;

@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { installFakeDom } from './lib/conquest-ui-dom.mjs';
 import { VEHICLE_TOPOLOGY, seatWeaponList } from '../shared/conquest-contract.js';
 import { WEAPONS } from '../shared/combatmath.js';
+import { CONQUEST_MEDKIT_RULES } from '../shared/medkit.js';
 
 const dom = installFakeDom({ width: 844, height: 390 });
 const { document } = dom;
@@ -120,6 +121,13 @@ function viewState(type, seatId, view = seatViews(type, seatId)[0]) {
   check(medkit.inventory.dataset.key === 'J' && medkit.inventory.dataset.compact === 'MEDKIT ×1', 'unused medkit: key J and MEDKIT ×1');
   medkit.update({ remaining: 0, active: false }, true, 74);
   check(medkit.inventory.dataset.key === '' && medkit.inventory.dataset.compact === 'MEDKIT USED', 'used: no key badge');
+  // Conquest bandages: BANDAGE ×N with the key, ×0 once both are spent, the 2.5 s timer.
+  medkit.update({ remaining: 2, active: false, rules: CONQUEST_MEDKIT_RULES }, true, 74);
+  check(medkit.inventory.dataset.key === 'J' && medkit.inventory.dataset.compact === 'BANDAGE ×2', 'bandages: key J and BANDAGE ×2');
+  medkit.update({ remaining: 1, active: true, progress: 0.2, rules: CONQUEST_MEDKIT_RULES }, true, 74);
+  check(medkit.time.textContent === '2.0s' && !medkit.root.hidden, 'bandaging: the 2.5 s timer counts down');
+  medkit.update({ remaining: 0, active: false, rules: CONQUEST_MEDKIT_RULES }, true, 74);
+  check(medkit.inventory.dataset.key === '' && medkit.inventory.dataset.compact === 'BANDAGE ×0', 'no bandages left: BANDAGE ×0, no key');
   medkit.dispose();
   // Fire mode: the weapon card's tag reads the weapon table's trigger mode.
   const source = readFileSync(new URL('../public/js/ui/gameplay-hud.js', import.meta.url), 'utf8');

@@ -1,7 +1,8 @@
 import { normalizeCosmeticLoadout } from '../../shared/career.js';
 import { normalizeAttachments } from '../../shared/weapon-attachments.js';
 import { WEAPON_IDS } from '../../shared/combatmath.js';
-import { MEDKIT_SECONDS } from '../../shared/medkit.js';
+import { medkitRemaining } from '../../shared/medkit.js';
+import { medkitRulesOf } from '../sim/medkit.js';
 import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
 import {
   DEFAULT_MODE_ID,
@@ -136,9 +137,10 @@ function playerRow(p, nowMs) {
     pitch: round(p.pitch, D3),
     hp: round(p.hp, 1),
     medkit: {
-      remaining: p.medkit?.remaining === 1 ? 1 : 0,
+      // 0..1 for the classic kit, 0..BANDAGE_RULES.count bandages in Conquest.
+      remaining: medkitRemaining(p.medkit, medkitRulesOf(p)),
       active: !!p.medkit?.active,
-      progress: round(Math.max(0, Math.min(1, (p.medkit?.elapsed || 0) / MEDKIT_SECONDS)), D3),
+      progress: round(Math.max(0, Math.min(1, (p.medkit?.elapsed || 0) / medkitRulesOf(p).seconds)), D3),
       ack: Number.isSafeInteger(p.medkit?.ack) ? p.medkit.ack : 0,
     },
     armor: round(Math.max(0, Math.min(POWERUP_RULES.maxArmor, Number.isFinite(p.armor) ? p.armor : 0)), 1),

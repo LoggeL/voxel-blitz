@@ -1,4 +1,9 @@
-import { MEDKIT_SECONDS, medkitMovement, medkitCombat } from '../../shared/medkit.js';
+import { MEDKIT_RULES, medkitMovement, medkitCombat, medkitRemaining } from '../../shared/medkit.js';
+
+/** The player's kit rule (the engine sets it from the mode; see medkitRulesFor). */
+export function medkitRulesOf(player) {
+  return player?.medkitRules ?? MEDKIT_RULES;
+}
 
 export function interruptMedkit(player) {
   const kit = player.medkit;
@@ -17,7 +22,8 @@ export function updateMedkit(player, dt, allowed) {
   const starting = request > kit.ack;
   if (starting) kit.ack = request;
   const input = player.input || {};
-  const blocked = !allowed || player.state !== 'alive' || kit.remaining !== 1 ||
+  const rules = medkitRulesOf(player);
+  const blocked = !allowed || player.state !== 'alive' || medkitRemaining(kit, rules) < 1 ||
     player.hp >= 100 || !player.grounded || player.vault || player.proneT > 0 ||
     Math.hypot(player.vx, player.vz) > 0.18 || Math.abs(player.vy) > 0.1 ||
     player.reloading || player.firing || player.quickMeleeT > 0 || player.deployT > 0 ||
@@ -40,10 +46,11 @@ export function updateMedkit(player, dt, allowed) {
   }
   if (!kit.active) return;
   kit.elapsed += Math.max(0, dt);
-  if (kit.elapsed + 1e-9 < MEDKIT_SECONDS) return;
-  player.hp = 100;
+  if (kit.elapsed + 1e-9 < rules.seconds) return;
+  // The classic kit heals in full; a Conquest bandage adds rules.hp (cap 100).
+  player.hp = Math.min(100, (Number.isFinite(player.hp) ? player.hp : 0) + rules.hp);
   player.pain = 0;
-  kit.remaining = 0;
+  kit.remaining = medkitRemaining(kit, rules) - 1;
   kit.active = false;
   kit.elapsed = 0;
 }
