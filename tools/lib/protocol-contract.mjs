@@ -1,5 +1,14 @@
 export const PLAYER_KEYS = 'ads,adsT,armor,bomb,breathExhausted,breathReleasedFor,breathReserve,burning,charge,concussedMs,cosmetics,credits,crouch,deaths,deploying,exhaustion,firing,grenadeHandling,grenades,grounded,hp,id,impulse,interaction,kills,leanT,mag,medkit,minigun,moveSpeed,name,owned,pain,panic,ping,pitch,proneT,reloadAck,reloadState,reloading,reserve,respawnAt,scopeZoom,score,spawnProtected,state,swimming,team,teleport,vaulting,vehicleId,vehicleSeatId,weapon,x,y,yaw,z';
 
+/**
+ * Owner-only row keys (server/protocol/snapshot.js OWNER_ONLY_FIELDS): on the socket only the
+ * recipient's own row carries them; authoritative in-process snapshots keep them on every row.
+ */
+export const OWNER_ONLY_PLAYER_KEYS = 'breathExhausted,breathReleasedFor,breathReserve,concussedMs,credits,exhaustion,grenades,impulse,medkit,reloadAck,reloadState,reserve,teleport';
+const OWNER_ONLY = new Set(OWNER_ONLY_PLAYER_KEYS.split(','));
+/** A sorted row key list as a socket recipient sees it on someone else's row. */
+export const remoteRowKeys = keys => keys.split(',').filter(key => !OWNER_ONLY.has(key)).join(',');
+
 export const MATCH_KEYS = 'attackers,bomb,defenders,map,mode,phase,phaseEndsAt,round,roundWinner,scores,winner';
 
 /** Conquest player rows add `cq` (decodeConquestPlayer) and `cqs` (decodeConquestStats); other modes never carry them. */

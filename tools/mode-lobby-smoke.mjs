@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 
 import { pass as assertPass } from './lib/assert.mjs';
 import { sleep, withTimeout } from './lib/async.mjs';
-import { PLAYER_KEYS, MATCH_KEYS } from './lib/protocol-contract.mjs';
+import { PLAYER_KEYS, MATCH_KEYS, remoteRowKeys } from './lib/protocol-contract.mjs';
 import { startServer as startManagedServer, stopServer as stopManagedServer } from './lib/server-process.mjs';
 import { Client, SocketTracker } from './lib/ws-client.mjs';
 import { AIR, createMapState } from '../shared/worlddata.js';
@@ -214,10 +214,12 @@ function playerRow(tick, client) {
   return tick?.players?.find((row) => row.id === client.welcome.id);
 }
 
-function assertPlayerRows(tick, clientsInRoom, label) {
+function assertPlayerRows(tick, clientsInRoom, label, recipient = clientsInRoom[0]) {
   const expectedIds = clientsInRoom.map((client) => client.welcome.id);
+  // Only the recipient's own row carries the owner-only keys on the socket.
   pass(Array.isArray(tick?.players) && tick.players.length === expectedIds.length &&
-    tick.players.every((row) => Object.keys(row).filter(key => key !== 'attachments').sort().join(',') === PLAYER_KEYS &&
+    tick.players.every((row) => Object.keys(row).filter(key => key !== 'attachments').sort().join(',') ===
+      (row.id === recipient.welcome.id ? PLAYER_KEYS : remoteRowKeys(PLAYER_KEYS)) &&
       Number.isFinite(row.burning) && row.burning >= 0 && row.burning <= 8 &&
       Number.isFinite(row.pain) && row.pain >= 0 && row.pain <= 1 &&
       Number(row.pain.toFixed(3)) === row.pain && typeof row.spawnProtected === 'boolean') &&
@@ -1110,8 +1112,11 @@ async function runSndCitadel(port, depotBytes, signal) {
   'S&D prep tick exposes round, timer, and exact attacker/defender roles');
   const hostPrep = playerRow(prepTick, host);
   const guestPrep = playerRow(prepTick, guest);
+  // Credits are owner-only: the guest reads its own on its own tick, the host never sees them.
+  const guestOwnPrep = playerRow(await nextTick(guest, liveMarks.get(guest),
+    (tick) => tick.match?.phase === 'prep' && playerRow(tick, guest), 'guest S&D preparation tick', signal), guest);
   pass(hostPrep?.team === 'alpha' && guestPrep?.team === 'bravo' &&
-    hostPrep.credits === 800 && guestPrep.credits === 800 &&
+    hostPrep.credits === 800 && guestOwnPrep.credits === 800 && guestPrep.credits === undefined &&
     JSON.stringify(hostPrep.owned) === '["revolver"]' &&
     JSON.stringify(guestPrep.owned) === '["revolver"]' &&
     hostPrep.weapon === REVOLVER_SLOT && guestPrep.weapon === REVOLVER_SLOT &&
@@ -1303,7 +1308,7 @@ async function runSndCitadel(port, depotBytes, signal) {
     signal,
   );
   const lateRow = playerRow(lateTickFrame.value, late);
-  assertPlayerRows(lateTickFrame.value, allMembers, 'S&D late-join tick');
+  assertPlayerRows(lateTickFrame.value, allMembers, 'S&D late-join tick', late);
   pass(lateRow?.team === 'alpha' && lateRow.state === 'dead' && lateRow.hp === 0 &&
     lateRow.firing === false && lateRow.credits === 800 &&
     JSON.stringify(lateRow.owned) === '["revolver"]' && lateRow.bomb === false,
@@ -1430,7 +1435,7 @@ async function runSndCitadel(port, depotBytes, signal) {
 
   const roundTwo = nextRoundFrame.value;
   const lateRoundTwo = playerRow(roundTwo, late);
-  assertPlayerRows(roundTwo, allMembers, 'S&D round-two tick');
+  assertPlayerRows(roundTwo, allMembers, 'S&D round-two tick', late);
   assertMatchShape(roundTwo, selection, 'S&D round-two tick');
   pass(lateRoundTwo.team === 'alpha' && lateRoundTwo.state === 'alive' && lateRoundTwo.hp === 100 &&
     lateRoundTwo.weapon === REVOLVER_SLOT && JSON.stringify(lateRoundTwo.owned) === '["revolver"]' &&

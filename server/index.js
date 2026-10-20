@@ -18,6 +18,7 @@ import { warmStructureTemplates } from './sim/structure.js';
 import { afterRoomTick } from './game.js';
 import { prepareBattlefield, warmGroundGrids } from './boot-warmup.js';
 import { coalesceTick, resetHeldTicks, tickSent, tickSettled } from './protocol/tick-backlog.js';
+import { serializeTick, tickTextFor } from './protocol/snapshot.js';
 import { TICK_MS, parseAdmissionFrame, parseBuyFrame, parseConquestIntent, parseTitanfallIntent, sanitizeName } from './protocol/admission.js';
 
 const MAX_CONNECTIONS = 256;
@@ -112,7 +113,9 @@ async function main() {
     }
   }
 
-  // One tick snapshot reaches every member of a room; serialize it once.
+  // One tick snapshot reaches every member of a room; serialize it once. Each
+  // recipient's text differs only in its own row, which keeps the owner-only
+  // fields stripped from everyone else's (snapshot.js OWNER_ONLY_FIELDS).
   const payloadCache = new WeakMap();
 
   // `source` is the authoritative tick behind a per-recipient view (TTT hides
@@ -142,7 +145,7 @@ async function main() {
       if (out === null) return true;
       if (out !== obj) {
         let merged;
-        try { merged = JSON.stringify(out); } catch { return false; }
+        try { merged = tickTextFor(serializeTick(out), c.id); } catch { return false; }
         tickSent(c);
         if (sendFrame(c, merged, tickSettled)) return true;
         tickSettled(c);
@@ -151,12 +154,12 @@ async function main() {
     }
     let payload = payloadCache.get(obj);
     if (payload === undefined) {
-      try { payload = JSON.stringify(obj); } catch { return false; }
+      try { payload = obj.t === 'tick' ? serializeTick(obj) : JSON.stringify(obj); } catch { return false; }
       if (obj.t === 'tick') payloadCache.set(obj, payload);
     }
     if (obj.t !== 'tick') return sendFrame(c, payload);
     tickSent(c);
-    if (sendFrame(c, payload, tickSettled)) return true;
+    if (sendFrame(c, tickTextFor(payload, c.id), tickSettled)) return true;
     tickSettled(c);
     return false;
   }
