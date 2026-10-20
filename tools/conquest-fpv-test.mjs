@@ -13,6 +13,9 @@ import { FPV_RULES, decodeFpvRow, fpvSignal, fpvStatic, fpvRowOf } from '../shar
 import { flakTargets } from '../server/sim/flak-fuse.js';
 import { ConquestFpvBots } from '../server/bot-fpv.js';
 import { normalizeGadget } from '../server/modes/conquest/deploy.js';
+import { FPV_TRANSITION, FpvTransition } from '../public/js/session/fpv-transition.js';
+import { FPV_LOST_STATIC, fpvFeedModel } from '../public/js/ui/conquest/fpv-feed.js';
+import { fpvPilotIds } from '../public/js/avatar/avatar-handset.js';
 
 let checks = 0;
 const measured = {};
@@ -35,6 +38,38 @@ eq([fpvSignal(100).bars, fpvSignal(300).degraded, fpvSignal(351).lost], [4, true
   ok(at(40) <= 0.06 && at(200) >= 0.3 && at(345) >= 0.9 && [40, 80, 130, 200, 250, 300, 345].every((d, i, a) => !i || at(d) > at(a[i - 1])), 'static rises with the distance');
   ok(near.tear === 0 && near.bleed === 0 && near.drop === 0 && edge.tear > 0.8 && edge.bleed > 0.8 && edge.drop > 1, 'tears, bleed and dropouts near the range only');
   ok(fpvStatic(150, true).level - at(150) === FPV_RULES.static.occlusion, 'terrain across the link adds static');
+}
+
+// ------------------------------------------- launch / link-loss presentation (client) --
+{
+  const R = FPV_TRANSITION, run = (t, plan) => plan.map(([ms, active, opts = {}]) => ({ ms, ...t.update(ms, { active, ...opts }) }));
+  const [idle, , raise, boot, feed, lost, lower, back] = run(new FpvTransition(), [[0, false], [100, true], [100 + R.raiseMs / 2, true], [100 + R.raiseMs + 10, true],
+    [100 + R.raiseMs + R.bootMs + 10, true], [2000, false], [2000 + R.lostMs + 10, false], [2000 + R.lostMs + R.lowerMs + 10, false]]);
+  ok(idle.phase === 'idle' && !idle.weaponHidden && idle.camera === 'body', 'idle: the gun out, the body camera');
+  ok(raise.phase === 'raise' && raise.camera === 'body' && raise.handset > 0.2 && raise.handset < 0.8 && raise.weaponHidden && !raise.feed, 'raise: the handset comes up on the body camera, the gun stowed');
+  ok(boot.phase === 'boot' && boot.camera === 'drone' && boot.boot > 0.9 && boot.feed, `boot: in the drone ${R.raiseMs} ms after the launch, the feed under full static`);
+  ok(feed.phase === 'feed' && feed.boot === 0 && R.raiseMs + R.bootMs <= 750, 'feed: clear within 0.75 s of the launch');
+  ok(lost.phase === 'lost' && lost.lost && lost.camera === 'frozen' && lost.feed, 'link gone: SIGNAL LOST on the frozen last frame');
+  ok(lower.phase === 'lower' && lower.camera === 'body' && lower.handset > 0.9 && lower.weaponHidden, `after ${R.lostMs} ms the handset lowers on the body camera`);
+  ok(back.phase === 'idle' && back.redraw && !back.weaponHidden && back.handset === 0, `after ${R.lowerMs} ms more the weapon draws again`);
+  const hit = new FpvTransition();
+  run(hit, [[0, true], [800, true]]);
+  hit.noteCut('hit');
+  ok(run(hit, [[900, false], [900 + R.hitLostMs + 10, false]])[1].phase === 'lower', `a cut by a hit on the operator keeps SIGNAL LOST to ${R.hitLostMs} ms`);
+  const early = run(new FpvTransition(), [[0, true], [200, false], [201, false]]);
+  ok(early[1].phase === 'lower' && !early[1].lost && early[1].handset < 0.8, 'a drone gone mid-raise skips SIGNAL LOST and lowers from where it was');
+  const calm = run(new FpvTransition(), [[0, true, { reducedMotion: true }], [1, true, { reducedMotion: true }], [500, false, { reducedMotion: true }], [500 + R.lostMs + 1, false, { reducedMotion: true }]]);
+  ok(calm[0].phase === 'boot' && calm[0].camera === 'drone' && calm[2].lost && calm[3].phase === 'idle', 'reduced motion: no handset raise or lower, the static and SIGNAL LOST stay');
+  const dead = run(new FpvTransition(), [[0, true], [1000, true], [1100, false, { alive: false }]]);
+  ok(dead[2].phase === 'idle' && !dead[2].redraw, 'death drops the sequence (the death camera takes over)');
+  // The feed: boot static over the telemetry's own, SIGNAL LOST snow with the instruments gone.
+  const telemetry = { battery: 0.6, seconds: 24, bars: 4, maxBars: 4, speed: 20, altitude: 18, distance: 60, noise: 0.04, tear: 0, bleed: 0, drop: 0, roll: 0 };
+  const booting = fpvFeedModel(telemetry, { boot: 0.7 }), live = fpvFeedModel(telemetry), gone = fpvFeedModel(telemetry, { lost: true });
+  ok(booting.phase === 'boot' && booting.noise === 0.7 && booting.blank > 0 && live.phase === 'live' && live.noise === 0.04 && live.blank === 0, 'the feed boots out of static into the distance static');
+  ok(gone.phase === 'lost' && gone.noise === FPV_LOST_STATIC.noise && gone.tear === FPV_LOST_STATIC.tear && gone.drop === 0, 'SIGNAL LOST: heavy snow and tears');
+  // Third person: the operators of live drones hold the handset (bots too: the rows carry `own`).
+  eq([...fpvPilotIds([{ type: 'fpv', own: 'bot7', hp: 8, fpv: [80, 0, 0] }, { type: 'fpv', own: 'p2', hp: 8, fpv: [80, 1] }, { type: 'fpv', own: 'p3', hp: 0, fpv: [0, 0] }, { type: 'tank', own: 'p4', hp: 900 }])],
+    ['bot7'], 'only a live link shows the handset in third person');
 }
 
 // ------------------------------------------------------------------------- rig --

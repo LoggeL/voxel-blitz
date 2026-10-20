@@ -103,11 +103,15 @@ function applyOrderStates(hud, state) {
   if (state.toolKind) hud.bigMap.tool?.setKind?.(state.toolKind);
 }
 
-/** `linkM` re-flies an FPV fixture over that link length (the static captures at several distances). */
-async function render(id, { touch: touchMode = false, linkM = null } = {}) {
+/**
+ * `linkM` re-flies an FPV fixture over that link length (the static captures at several distances);
+ * `boot` (0..1) and `lost` show the launch static and the SIGNAL LOST frame (FpvTransition, docs/design/conquest/fpv-handset/).
+ */
+async function render(id, { touch: touchMode = false, linkM = null, boot = 0, lost = false } = {}) {
   const fixture = fixtures.find(f => f.id === id);
   if (!fixture) throw new Error(`unknown fixture ${id}`);
-  const state = fixture.fpv && Number.isFinite(linkM) ? { ...fixture, fpv: fpvFixtureTelemetry(linkM, { altitude: fixture.fpv.altitude }) } : fixture;
+  let state = fixture.fpv && Number.isFinite(linkM) ? { ...fixture, fpv: fpvFixtureTelemetry(linkM, { altitude: fixture.fpv.altitude }) } : fixture;
+  if (state.fpv && (boot > 0 || lost)) state = { ...state, fpv: { ...state.fpv, boot, lost: !!lost } };
   const h = ensureHud();
   conquest?.dispose();
   h.setScoreboard?.(false);

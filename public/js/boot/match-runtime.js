@@ -36,6 +36,7 @@ export { VehicleAudio } from "../vehicles/vehicle-audio.js";
 export { VehicleDestructionFX } from "../vehicles/vehicle-destruction-fx.js";
 export { VehicleController } from "../session/vehicle-controller.js";
 export { FpvPilot } from "../session/fpv-controller.js";
+export { FpvTransition } from "../session/fpv-transition.js";
 export { VehicleFx } from "../vehicles/vehicle-fx.js";
 export { ParticleField } from "../fx/particle-field.js";
 export { StructureFx } from "../fx/structure-fx.js";

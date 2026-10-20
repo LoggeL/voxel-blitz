@@ -513,6 +513,9 @@ class Game {
       cameraShake: this.cameraShake, getBaseFov: () => this.session.baseFov,
     });
     this.fpvPilot = new rt.FpvPilot({ getBlock });
+    // Launch and link-loss presentation of the own drone: the handset up, static, SIGNAL LOST, the handset down.
+    this.fpvTransition = new rt.FpvTransition();
+    this._fpvFrozen = { position: new rt.THREE.Vector3(), quaternion: new rt.THREE.Quaternion(), fov: 75, ok: false };
     this.conquestHud = new rt.ConquestHud(document.body, {
       mapId: this.mapMeta?.id ?? welcome.map,
       onInteract: () => this.session.gameplayInputEnabled && this.vehicleController?.queueInteract(),
@@ -862,6 +865,12 @@ class Game {
     this.vehicleController?.sync({ self, vehicles: snapshot.vehicles, players: snapshot.players, enabled: match?.mode === 'conquest' || match?.mode === 'titanfall' });
     // The own FPV drone in the air (Conquest Engineer): the camera and the keys go to it.
     this.fpvPilot?.sync({ self, vehicles: snapshot.vehicles, myId: this.myId, enabled: match?.mode === 'conquest' && !this.vehicleController?.active });
+    // A cut from a hit on the operator keeps the SIGNAL LOST frame short (he is under fire).
+    for (const event of Array.isArray(snapshot.events) ? snapshot.events : []) {
+      if (event?.kind === 'fpv' && event.state === 'cut' && String(event.id) === String(this.myId)) this.fpvTransition?.noteCut(event.reason);
+    }
+    // Other operators hold their handset while their drone flies.
+    this.roster?.setFpvPilots?.(match?.mode === 'conquest' ? snapshot.vehicles : null);
     // Before this.serverNow advances: the tick's step is the authoritative clock delta.
     this.titanfall?.tick(snapshot, Number.isFinite(snapshot.serverNow) && Number.isFinite(this.serverNow)
       ? Math.max(0, (snapshot.serverNow - this.serverNow) / 1000) : 0);
@@ -974,7 +983,25 @@ class Game {
     return transition;
   }
 
+  /**
+   * The feed HUD's telemetry this frame: the drone's (FpvPilot.telemetry) with
+   * the boot static on it, the last frame's marked `lost` through SIGNAL LOST,
+   * else null (fpv-feed.js, FpvTransition).
+   */
+  fpvFeedTelemetry(droneCamera, view) {
+    if (droneCamera) {
+      const telemetry = this.fpvPilot.telemetry(this.player.physics.pos);
+      this._fpvLastTelemetry = telemetry;
+      if (telemetry && view?.boot > 0) telemetry.boot = view.boot;
+      return telemetry;
+    }
+    if (view?.lost && this._fpvLastTelemetry) return { ...this._fpvLastTelemetry, boot: 0, lost: true };
+    return null;
+  }
+
   isAuthoritativeFireAllowed(grenade = false, options = {}) {
+    // The handset is up or coming down after a drone (FpvTransition): the gun is stowed.
+    if (this.fpvTransition?.frame.weaponHidden === true && this.fpvPilot?.active !== true) return false;
     if (this.vehicleController?.active || !this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.grenadePouch?.open ||
         (this.player.physics.vault && !options.ignoreVault) || this.player.physics.chute > 0) return false;
@@ -1346,6 +1373,14 @@ class Game {
     const seated = this.vehicleController?.active === true;
     // Flying the FPV drone: the body stands still on the server, the keys and the look fly the drone.
     const piloting = !seated && this.fpvPilot?.active === true;
+    // The handset raise, the boot static, SIGNAL LOST and the lowering (presentation only): the drone takes
+    // the keys at once, the camera moves into it after the raise and holds its last frame through SIGNAL LOST.
+    const fpvView = this.fpvTransition?.update(now, { active: piloting, alive: this.player.alive && !seated,
+      reducedMotion: displaySettings().reducedMotion }) ?? null;
+    const droneCamera = piloting && (!fpvView || fpvView.camera === 'drone');
+    const frozenCamera = !seated && fpvView?.camera === 'frozen' && this._fpvFrozen?.ok === true;
+    const handsetUp = !!fpvView && fpvView.camera === 'body' && fpvView.handset > 0;
+    if (document.body.dataset.fpvHandset !== String(handsetUp)) document.body.dataset.fpvHandset = String(handsetUp);
     if (this._battlefieldFog && this.worldview?.scene.fog) {
       const row = this.vehicleController?.vehicle;
       const flying = seated && ['helicopter', 'transport', 'plane'].includes(row.type) && row.grounded === false;
@@ -1477,12 +1512,19 @@ class Game {
     // The vehicle camera applies the shake bus itself; the infantry camera applies it below.
     // Seated, the hulls are presented first so the camera rides this frame's
     // pose (a cockpit eye a frame behind a 100 m/s jet would sit metres back).
-    if (!seated && !piloting) this.vehicleView?.setLocalView(null);
-    if (piloting) {
+    if (!seated && !droneCamera) this.vehicleView?.setLocalView(null);
+    if (droneCamera) {
       // The drone's own frame would fill the lens: it hides like a mount sight's hull.
       this.vehicleView?.setLocalView({ id: this.fpvPilot.vehicleId, seatId: 'fpv', sight: true });
       try { this.vehicleView?.update(dt, this.camera); } catch (error) { this.phaseError('fx/rig', error); }
-      this.fpvPilot.updateCamera(this.camera, this.vehicleView?.presentedRow(this.fpvPilot.vehicleId));
+      if (this.fpvPilot.updateCamera(this.camera, this.vehicleView?.presentedRow(this.fpvPilot.vehicleId)) && this._fpvFrozen) {
+        // The last drone frame: SIGNAL LOST holds the camera here.
+        this._fpvFrozen.position.copy(this.camera.position); this._fpvFrozen.quaternion.copy(this.camera.quaternion);
+        this._fpvFrozen.fov = this.camera.fov; this._fpvFrozen.ok = true;
+      }
+    } else if (frozenCamera) {
+      this.camera.position.copy(this._fpvFrozen.position); this.camera.quaternion.copy(this._fpvFrozen.quaternion);
+      if (this.camera.fov !== this._fpvFrozen.fov) { this.camera.fov = this._fpvFrozen.fov; this.camera.updateProjectionMatrix(); }
     } else if (seated) {
       const sight = this.vehicleController.sightActive === true;
       const fp = sight || this.vehicleController.view?.firstPerson === true;
@@ -1505,7 +1547,7 @@ class Game {
     // Markers and reticles follow the camera every frame; snapshots only ingest.
     this.conquestHud?.refresh({ camera: this.camera, nowMs: (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now)),
       interactDown: !!this.player?.keys?.interact, chute: this.player?.alive ? this.player.physics.chutePrompt?.() ?? null : null,
-      fpv: piloting ? this.fpvPilot.telemetry(this.player.physics.pos) : null });
+      fpv: this.fpvFeedTelemetry(droneCamera, fpvView) });
     this.titanfall?.frame(dt, { camera: this.camera, nowMs: (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now)) });
     try {
       // Body velocity in the camera frame: +x strafing right, +z backing up. The rig uses
@@ -1541,6 +1583,8 @@ class Game {
         shotYaw: this.player.shotYaw,
         shotPitch: this.player.shotPitch,
         viewRoll: this.player.leanViewRoll,
+        fpvHandset: fpvView ? { level: fpvView.handset, weaponHidden: fpvView.weaponHidden,
+          screen: fpvView.phase === 'lower' ? 'lost' : 'static', reducedMotion: displaySettings().reducedMotion } : null,
       });
       this.weapon.syncRigAds();
       const flameDirection = fwdFromAngles(this.player.shotYaw, this.player.shotPitch);
@@ -1548,7 +1592,7 @@ class Game {
         [flameDirection.x, flameDirection.y, flameDirection.z],
         [this.camera.position.x, this.camera.position.y, this.camera.position.z]);
       this.effects.update(dt, frameDt);
-      if (!seated && !piloting) this.vehicleView?.update(dt, this.camera);
+      if (!seated && !droneCamera) this.vehicleView?.update(dt, this.camera);
       this.vehicleFx?.update(dt, this.camera);
       this.particleField?.update(dt, this.camera);
       this.vehicleDestructionFX?.update(dt);
@@ -1597,7 +1641,7 @@ class Game {
     this.syncDeviceInfo(now);
     if (this.rig?.root) {
       this.rig.root.visible = this.rt.shouldShowViewmodel({
-        spectating: spectating || dying || seated || piloting,
+        spectating: spectating || dying || seated || droneCamera || frozenCamera,
         scopeActive: this.weapon?.scopeActive,
       });
     }
@@ -1747,6 +1791,8 @@ class Game {
     this.titanfall?.dispose(); this.titanfall = null;
     this.vehicleController?.dispose(); this.vehicleController = null;
     this.fpvPilot?.clear(); this.fpvPilot = null;
+    this.fpvTransition = null; this._fpvLastTelemetry = null;
+    delete document.body.dataset.fpvHandset;
     this.vehicleView?.dispose(); this.vehicleView = null;
     this.vehicleDestructionFX?.dispose(); this.vehicleDestructionFX = null;
     this.vehicleFx?.dispose(); this.vehicleFx = null;

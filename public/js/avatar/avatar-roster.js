@@ -8,6 +8,7 @@ import { isTeamMode } from '../../../shared/modes.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
 import { AvatarDebugView } from './debug-view.js';
+import { fpvPilotIds, poseAvatarHandset } from './avatar-handset.js';
 import { nowMs, smooth01 } from '../util/math.js';
 import { boundedMapSet } from '../util/bounded-map.js';
 import { hashInt } from '../util/hash.js';
@@ -40,6 +41,7 @@ export class AvatarRoster {
   constructor({ scene, getBlock = null, gore = null, getMyId = () => null, now = nowMs, footstep = null, vehicle = null, presentation = null }) {
     // Mode presentation hook (titanfall pilots: docs/titanfall.md §4.2): avatarState(row, avatar, dt).
     this._presentation = presentation;
+    this._fpvPilots = new Set();
     this._footstep = typeof footstep === 'function' ? footstep : null;
     // Positional engine drone: vehicle(id, [x,y,z], kind) while alive, vehicle(id, null) to stop.
     this._vehicleSfx = typeof vehicle === 'function' ? vehicle : null;
@@ -253,6 +255,9 @@ export class AvatarRoster {
     }
   }
 
+  /** The operators whose FPV drone flies (snapshot vehicle rows; null clears): they hold the handset. */
+  setFpvPilots(vehicles) { fpvPilotIds(vehicles, this._fpvPilots); }
+
   sync(remotes, dt, now, persistentCorpses = false) {
     if (this._disposed) return;
     for (const [id, until] of this._pickaxeSwings) {
@@ -416,6 +421,8 @@ export class AvatarRoster {
         },
       });
       if (!persistentCorpses && Array.isArray(remote.owned) && remote.owned.length === 0) avatar.weaponModel.root.visible = false;
+      // An operator flying his FPV drone holds the handset (setFpvPilots).
+      poseAvatarHandset(avatar, this._fpvPilots.has(String(remote.id)));
       updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
       avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch + (avatar.leanRoll || 0) - avatar.torso.rotation.z) * poseBlend;
       avatar.hips.rotation.z += (swing * stride * 0.045 - avatar.hips.rotation.z) * poseBlend;

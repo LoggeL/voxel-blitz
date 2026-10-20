@@ -27,6 +27,7 @@ import { VaultHands } from './vault-hands.js';
 import { ViewmodelArms } from './viewmodel-arms.js';
 import { ThrowableHands } from './throwable-hands.js';
 import { MedkitHands } from './medkit-hands.js';
+import { FpvHandset } from './fpv-handset.js';
 import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
 import { PICKAXE_SWING_SECONDS as SWING_S, pickaxeSwingPose } from './pickaxe-swing.js';
 
@@ -60,6 +61,9 @@ export class ViewmodelRig {
     this.pivot.add(this.comp); this.comp.add(this.content);
     this._vaultHands = new VaultHands(this.root);
     this._medkitHands = new MedkitHands(this.root);
+    // The Engineer's FPV handset (raised on a drone launch, lowered on link loss): ctx.fpvHandset.
+    this._fpvHandset = new FpvHandset(this.root);
+    this._fpvStowed = false;
     this._throwableHands = new ThrowableHands(this.root, (event) => this.onGrenadeCue?.(event));
     // Arms live in the same camera-local, fov-counter-scaled space as the gun,
     // so they follow the held weapon's gloves through every bob, kick and aim.
@@ -183,6 +187,7 @@ export class ViewmodelRig {
     this._cosmetics = loadout;
     this._vaultHands.setCosmetics(loadout);
     this._medkitHands.setCosmetics(loadout);
+    this._fpvHandset.setCosmetics(loadout);
     this._arms.setCosmetics(loadout);
     for (const [weapon, model] of Object.entries(this._models)) applyGunCosmetics(model, weapon, loadout);
   }
@@ -655,6 +660,7 @@ export class ViewmodelRig {
     this.camera.remove(this.root);
     this._vaultHands.dispose();
     this._medkitHands.dispose();
+    this._fpvHandset.dispose();
     this._throwableHands.dispose();
     this._arms.dispose();
 
@@ -731,7 +737,14 @@ export class ViewmodelRig {
     const throwableBlend = this._throwableHands.update(elapsed, { suppressed: vaulting });
     const healing = !!ctx.medkitActive && !vaulting;
     const medkitBlend = this._medkitHands.update(elapsed, healing, ctx.medkitProgress, ctx.reducedMotion, viewPitch);
-    this.content.visible = throwableBlend < 0.92 && !healing && medkitBlend < 0.05;
+    // The FPV handset (FpvTransition frame): the gun stays stowed from the launch until the handset is down,
+    // then draws again with the deploy curve.
+    const fpv = ctx.fpvHandset;
+    this._fpvHandset.update(elapsed, fpv || {}, viewPitch);
+    const fpvStowed = !!fpv?.weaponHidden;
+    if (this._fpvStowed && !fpvStowed) this._depT = 0;
+    this._fpvStowed = fpvStowed;
+    this.content.visible = throwableBlend < 0.92 && !healing && medkitBlend < 0.05 && !fpvStowed;
     this._now += elapsed;
     this._drainQueue();
 
