@@ -11,12 +11,11 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
 import { ServerDiagnostics } from './diagnostics.js';
-import { createMapState, getMapDimensions, getMapMeta } from '../shared/worlddata.js';
+import { createMapState, getMapDimensions } from '../shared/worlddata.js';
 import { MAP_IDS } from '../shared/modes.js';
-import { prepareStructureTemplate, warmStructureTemplates } from './sim/structure.js';
+import { warmStructureTemplates } from './sim/structure.js';
 import { afterRoomTick } from './game.js';
-import { surfaceNavigation } from './bot-navigation.js';
-import { roadGraph } from './bot-vehicle-driving.js';
+import { prepareFrontier, warmGroundGrids } from './boot-warmup.js';
 import { coalesceTick, resetHeldTicks, tickSent, tickSettled } from './protocol/tick-backlog.js';
 import { TICK_MS, parseAdmissionFrame, parseBuyFrame, parseConquestIntent, parseTitanfallIntent, sanitizeName } from './protocol/admission.js';
 
@@ -467,24 +466,15 @@ async function main() {
   }, 30000);
   heartbeat.unref();
 
-  // Frontier's template, metadata, wire bytes, surface graph and road graph
-  // are built on first use (~0.7 s of synchronous work). Build them before
-  // accepting players, so the first Conquest room does not stall every match.
+  // Frontier's template, metadata, wire bytes, surface graph, road graph and
+  // cover sets are built on first use (~0.8 s of synchronous work). Build them
+  // before accepting players, so the first Conquest room does not stall every
+  // match (server/boot-warmup.js).
   const structural = process.env.VOXEL_STRUCTURAL !== '0';
   {
-    const started = performance.now();
-    const mapMeta = getMapMeta('frontier');
-    const world = createMapState('frontier');
-    world.serializeWorld();
-    world.mapFrame();
-    surfaceNavigation(world);
-    roadGraph({ mapMeta });
-    // Its structural template field too (~110 ms here, ~400 ms on the production host):
-    // built at the first Frontier room's creation it stalled every running room.
-    const fieldStarted = performance.now();
-    if (structural) prepareStructureTemplate(world);
-    console.log(`[voxel-blitz] Frontier prepared in ${Math.round(performance.now() - started)} ms`
-      + (structural ? ` (structure field ${Math.round(performance.now() - fieldStarted)} ms)` : ''));
+    const { total, cover, field } = prepareFrontier({ structural });
+    console.log(`[voxel-blitz] Frontier prepared in ${Math.round(total)} ms (cover sets ${Math.round(cover)} ms`
+      + (structural ? `, structure field ${Math.round(field)} ms)` : ')'));
   }
 
   server.listen(port, () => {
@@ -507,6 +497,19 @@ async function main() {
           + ` after listening (work ${Math.round(timings.reduce((sum, row) => sum + row.ms, 0))} ms in ${timings.reduce((sum, row) => sum + row.slices, 0)}`
           + ` slices, longest slice ${(Math.max(0, ...timings.map(row => row.longest))).toFixed(1)} ms)`);
         for (const row of failed) console.error('[voxel-blitz] structure template warm failed:', row.error);
+      });
+    }
+    // The bots' ground grids of the flat-floor maps, the same way: the first bot
+    // room on Harbor, Canyon, Depot, Ashfall or Waterworld copies its grid instead
+    // of sweeping it (20-60 ms) inside its first tick.
+    if (process.env.VOXEL_NAV_WARM !== '0') {
+      const started = performance.now();
+      void warmGroundGrids(undefined, { schedule: afterRoomTick, sliceMs: 2 }).then((timings) => {
+        const built = timings.filter(row => row.built && !row.error), failed = timings.filter(row => row.error);
+        console.log(`[voxel-blitz] ground grids warmed: ${built.length} maps by ${Math.round(performance.now() - started)} ms`
+          + ` after listening (work ${Math.round(timings.reduce((sum, row) => sum + row.ms, 0))} ms,`
+          + ` longest slice ${(Math.max(0, ...timings.map(row => row.longest))).toFixed(1)} ms)`);
+        for (const row of failed) console.error(`[voxel-blitz] ground grid warm failed (${row.label}):`, row.error);
       });
     }
   });

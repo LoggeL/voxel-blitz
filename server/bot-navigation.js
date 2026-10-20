@@ -10,6 +10,9 @@ import { surfaceNavigation } from './bot-surface-nav.js';
 export { surfaceNavigation } from './bot-surface-nav.js';
 
 const GRIDS = new WeakMap();
+// Grids of pristine template worlds, per template voxels and grid shape.
+const PRISTINE_GRIDS = new WeakMap();
+const NEAR_MEMO = 4096;   // closest() answers kept per grid until the voxels change
 const CELL = 2;
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const LOOKAHEAD = 12;
@@ -84,6 +87,63 @@ function refreshEdges(graph, node) {
   });
 }
 
+function createGrid(world) {
+  const { sx, sz } = worldDimensions(world);
+  const cell = Math.max(CELL, Math.min(16, Math.trunc(world.meta.navigationCell ?? (world.meta.id === 'frontier' ? 8 : CELL))));
+  const width = Math.ceil(sx / cell), depth = Math.ceil(sz / cell);
+  return { world, width, depth, cell, walk: new Uint8Array(width * depth), edges: new Uint8Array(width * depth),
+    floor: world.meta.navigationFloor + 1, revision: -1, solid: (x, y, z) => world.getBlock(x, y, z) !== 0,
+    // groundRoute's breadth-first scratch (parent valid where seen === search) and closest()'s memo.
+    parent: null, queue: null, seen: null, search: 0, near: new Map(), nearAt: NaN, nearRevision: -1 };
+}
+
+/** The full sweep of every cell, then every edge, as a generator (one yield per `chunk` cells). */
+function* fullBuildSteps(graph, chunk = Infinity) {
+  const nodes = graph.walk.length;
+  for (let node = 0; node < nodes; node++) { refreshNode(graph, node); if ((node + 1) % chunk === 0) yield; }
+  for (let node = 0; node < nodes; node++) { refreshEdges(graph, node); if ((node + 1) % chunk === 0) yield; }
+}
+
+/** Cache slot of a grid while its world matches the pristine template, else null. */
+function pristineSlot(graph) {
+  const template = graph.world.matchesTemplate?.() ? graph.world.templateBlocks : null;
+  if (!template) return null;
+  if (!PRISTINE_GRIDS.has(template)) PRISTINE_GRIDS.set(template, new Map());
+  return { map: PRISTINE_GRIDS.get(template), key: `${graph.cell}:${graph.floor}:${graph.width}:${graph.depth}` };
+}
+
+/**
+ * The full build, except that a world matching its pristine template copies
+ * the template's grid (a pure function of the voxels, swept once per process):
+ * a new room skips 20-60 ms of segment sweeps in its first tick.
+ */
+function fullBuild(graph) {
+  const slot = pristineSlot(graph), cached = slot?.map.get(slot.key);
+  if (cached) { graph.walk.set(cached.walk); graph.edges.set(cached.edges); return; }
+  for (const _ of fullBuildSteps(graph)) { /* one step: no chunking */ }
+  slot?.map.set(slot.key, { walk: graph.walk.slice(), edges: graph.edges.slice() });
+}
+
+/**
+ * groundNavigation(world) for a template world as a generator of short work
+ * steps (one yield per 256 cells swept), so a boot warm-up fills the pristine
+ * cache in slices between room ticks. Returns the grid, or null for maps
+ * without a flat navigation floor (and for surface maps).
+ */
+export function* groundNavigationSteps(world) {
+  if (world?.meta?.navigation?.mode === 'surface' || !Number.isFinite(world?.meta?.navigationFloor)) return null;
+  const graph = createGrid(world), slot = pristineSlot(graph), mutations = world.mutationCount;
+  if (!GRIDS.has(world) && slot && !slot.map.has(slot.key)) {
+    yield* fullBuildSteps(graph, 256);
+    // Only a sweep of voxels that stayed pristine throughout is the template's grid.
+    if (world.mutationCount === mutations && world.matchesTemplate()) {
+      slot.map.set(slot.key, { walk: graph.walk.slice(), edges: graph.edges.slice() });
+    }
+  }
+  // Registers the world's own grid (a copy of the cached one when pristine).
+  return groundNavigation(world);
+}
+
 /** Shared bounded graph; only changed floor/body columns invalidate cells.
  * High crane lights and material changes outside navigation height do no work. */
 export function groundNavigation(world) {
@@ -96,16 +156,11 @@ export function groundNavigation(world) {
   let changed;
   if (graph) changed = world.navigationChangesSince?.(graph.revision);
   if (!graph) {
-    const { sx, sz } = worldDimensions(world);
-    const cell = Math.max(CELL, Math.min(16, Math.trunc(world.meta.navigationCell ?? (world.meta.id === 'frontier' ? 8 : CELL))));
-    const width = Math.ceil(sx / cell), depth = Math.ceil(sz / cell);
-    graph = { world, width, depth, cell, walk: new Uint8Array(width * depth), edges: new Uint8Array(width * depth),
-      floor: world.meta.navigationFloor + 1, revision: -1, solid: (x, y, z) => world.getBlock(x, y, z) !== 0 };
+    graph = createGrid(world);
     GRIDS.set(world, graph);
   }
   if (!changed) {
-    for (let node = 0; node < graph.walk.length; node++) refreshNode(graph, node);
-    for (let node = 0; node < graph.walk.length; node++) refreshEdges(graph, node);
+    fullBuild(graph);
   } else {
     const affected = new Set();
     for (const { x, z } of changed) {
@@ -125,6 +180,21 @@ export function groundNavigation(world) {
 /** Nearest walkable node in a straight, clear line from `point`; `loose` falls back to the
  * nearest walkable node when none is in line. */
 function closest(graph, point, loose = false) {
+  // The answer is a pure function of the point's x/z, the grid and the voxels:
+  // a bot that cannot route (its roam search asks 14 times from one spot, each
+  // failing after ~100 swept segments) asks once per terrain change.
+  const mutations = graph.world.mutationCount;
+  if (!Number.isFinite(mutations)) return closestNode(graph, point, loose);
+  if (graph.nearAt !== mutations || graph.nearRevision !== graph.revision || graph.near.size >= NEAR_MEMO) {
+    graph.near.clear(); graph.nearAt = mutations; graph.nearRevision = graph.revision;
+  }
+  const key = `${point.x},${point.z},${loose ? 1 : 0}`;
+  let node = graph.near.get(key);
+  if (node === undefined) graph.near.set(key, node = closestNode(graph, point, loose));
+  return node;
+}
+
+function closestNode(graph, point, loose) {
   const x = Math.round((point.x - 0.5) / graph.cell), z = Math.round((point.z - 0.5) / graph.cell);
   const candidates = [];
   for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) {
@@ -152,19 +222,27 @@ export function groundRoute(world, from, to) {
   // standing up there to the nearest floor node instead of giving up.
   const start = closest(graph, from), end = closest(graph, to, Array.isArray(world.meta?.climbs));
   if (start < 0 || end < 0) return [];
-  const parent = new Int32Array(graph.walk.length).fill(-1), queue = new Int32Array(parent.length);
-  let read = 0, write = 1;
-  queue[0] = start; parent[start] = start;
-  while (read < write && parent[end] < 0) {
-    const current = queue[read++];
-    DIRECTIONS.forEach(([dx, dz], direction) => {
-      if (!(graph.edges[current] & (1 << direction))) return;
-      const next = current + dz * graph.width + dx;
-      if (parent[next] >= 0) return;
-      parent[next] = current; queue[write++] = next;
-    });
+  // Scratch reused by every search of this grid; a node counts as seen only
+  // when stamped with this search (no per-route allocation or fill).
+  if (!graph.parent) {
+    graph.parent = new Int32Array(graph.walk.length);
+    graph.queue = new Int32Array(graph.walk.length);
+    graph.seen = new Uint32Array(graph.walk.length);
   }
-  if (parent[end] < 0) return [];
+  if (++graph.search >= 0xFFFFFFFF) { graph.seen.fill(0); graph.search = 1; }
+  const { parent, queue, seen, search, edges, width } = graph;
+  let read = 0, write = 1;
+  queue[0] = start; parent[start] = start; seen[start] = search;
+  while (read < write && seen[end] !== search) {
+    const current = queue[read++], open = edges[current];
+    for (let direction = 0; direction < DIRECTIONS.length; direction++) {
+      if (!(open & (1 << direction))) continue;
+      const next = current + DIRECTIONS[direction][1] * width + DIRECTIONS[direction][0];
+      if (seen[next] === search) continue;
+      seen[next] = search; parent[next] = current; queue[write++] = next;
+    }
+  }
+  if (seen[end] !== search) return [];
   const route = [{ x: to.x, y: graph.floor + 0.02, z: to.z }];
   for (let node = end; ; node = parent[node]) {
     route.push(pointAt(graph, node));

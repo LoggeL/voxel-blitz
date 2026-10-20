@@ -1048,9 +1048,17 @@ separately; settings-closed frames have their own summary. The report also recor
 snapshot arrival jitter, interpolation buffer, client/server send queues, room
 tick duration and interval maxima over overlapping two-second windows, plus
 process CPU and event-loop delay over approximately one-second windows. The
-event-loop monitor has 20 ms sampling resolution, so its normal baseline is
-around 20 ms. Process CPU uses one full core as 100%. Window percentiles are not
-percentiles of all individual ticks. Both RTTs include processing delays.
+event-loop monitor has 5 ms sampling resolution, so an idle server reads about
+5 ms (it was 20 ms before). Process CPU uses one full core as 100%. Window percentiles are not
+percentiles of all individual ticks. Both RTTs include processing delays. Each
+server sample also carries the window's event-loop utilization (0–1, the busy
+share of the one JS thread), its garbage-collection pauses (`gc: {count,
+totalMs, maxMs}`), the room's `longTicks` count, the socket's `skippedTicks`
+(snapshots dropped under backpressure) and `mergedSends` (snapshots sent carrying
+the dropped ones' deltas). They appear in the per-probe samples of a copied
+report. The server log names every room tick of at least `max(25 ms, 2 × tick
+interval)` (33.3 ms at 60 Hz) with its slow phases, at most one line per room per
+second; see *Server load* in [docs/conquest.md](conquest.md).
 
 Each snapshot also records its relative client reception time, original server
 timestamp, reception gap and consecutive server-clock step. These clocks have

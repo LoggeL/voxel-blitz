@@ -47,7 +47,10 @@ export function coalesceTick(client, tick) {
     client.skippedTicks = (client.skippedTicks ?? 0) + 1;
     return null;
   }
-  const out = mergeHeldDeltas(client.heldTick ?? null, tick);
+  const held = client.heldTick ?? null;
+  // A send that carries held deltas (the diagnostics report the count).
+  if (held) client.mergedSends = (client.mergedSends ?? 0) + 1;
+  const out = mergeHeldDeltas(held, tick);
   client.heldTick = null;
   return out;
 }
