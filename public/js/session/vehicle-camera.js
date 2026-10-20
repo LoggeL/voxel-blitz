@@ -462,14 +462,7 @@ export class VehicleCamera {
       : clamp(-0.18 - lookPitch * 0.35, -0.6, -0.05) - (height > 0 ? Math.atan2(height, distance) * 0.25 : 0)
       + (action ? 0.08 : 0);
     this._direction.set(Math.sin(lookYaw) * Math.cos(orbitPitch), -Math.sin(orbitPitch), Math.cos(lookYaw) * Math.cos(orbitPitch));
-    let reach = distance;
-    const hit = this.raycast(focus, this._direction, distance);
-    if (Number.isFinite(hit?.t)) reach = clamp(hit.t - VEHICLE_CAMERA.clearance, 0, distance);
-    if (!this._seeded || reach < this._distance) this._distance = reach;
-    else this._distance += (reach - this._distance) * (1 - Math.exp(-step * 8));
-    this._seeded = true;
-    camera.position.copy(focus).addScaledVector(this._direction, this._distance);
-    camera.up.set(0, 1, 0);
+    this._boom(focus, distance, step);
     const bore = aircraft && seat?.drives && !freeLook && !aimLook ? aircraftBoresight(row) : null;
     if (bore) {
       // The crosshair sits on the guns' convergence point.
@@ -636,18 +629,27 @@ export class VehicleCamera {
     this._direction.set(-forward[0] * profile.distance, lift, -forward[1] * profile.distance);
     const length = this._direction.length();
     this._direction.divideScalar(length);
-    let reach = length;
-    const hit = this.raycast(focus, this._direction, length);
-    if (Number.isFinite(hit?.t)) reach = clamp(hit.t - VEHICLE_CAMERA.clearance, 0, length);
-    if (!this._seeded || reach < this._distance) this._distance = reach;
-    else this._distance += (reach - this._distance) * (1 - Math.exp(-step * 8));
-    this._seeded = true;
-    camera.position.copy(focus).addScaledVector(this._direction, this._distance);
-    camera.up.set(0, 1, 0);
+    this._boom(focus, length, step);
     const dx = impact[0] - camera.position.x, dz = impact[2] - camera.position.z;
     const pitch = clamp(Math.atan2(impact[1] - camera.position.y, Math.hypot(dx, dz)) + this._freePitch, -0.9, 0.5);
     camera.rotation.set(pitch, yaw, 0, 'YXZ');
     return this._finish(step);
+  }
+
+  /**
+   * Wall-safe boom (orbit and mortar views): the camera out from `focus` along
+   * `_direction`, at most `distance` m and short of the first wall; it pulls in
+   * at once and eases back out.
+   */
+  _boom(focus, distance, step) {
+    let reach = distance;
+    const hit = this.raycast(focus, this._direction, distance);
+    if (Number.isFinite(hit?.t)) reach = clamp(hit.t - VEHICLE_CAMERA.clearance, 0, distance);
+    if (!this._seeded || reach < this._distance) this._distance = reach;
+    else this._distance += (reach - this._distance) * (1 - Math.exp(-step * 8));
+    this._seeded = true;
+    this.camera.position.copy(focus).addScaledVector(this._direction, this._distance);
+    this.camera.up.set(0, 1, 0);
   }
 
   _finish(step) {
