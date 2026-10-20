@@ -13,6 +13,7 @@ import { DEPOT_EVENT } from './depot.js';
 // slot sluice (Frontier ford sluices, reserved):
 // slot radar (flag radars on both maps, reserved):
 // slot trestle (Redrock canyon trestle collapse, reserved):
+import { TRESTLE_EVENT } from './trestle.js';
 // slot comeback (both maps, trailing team call-in):
 import { COMEBACK_EVENT } from './comeback.js';
 // end of import slots
@@ -26,6 +27,7 @@ export const MAP_EVENT_DEFS = Object.freeze([
   // slot sluice:
   // slot radar:
   // slot trestle:
+  TRESTLE_EVENT,
   // slot comeback:
   COMEBACK_EVENT,
   // end of list slots

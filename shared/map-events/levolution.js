@@ -53,6 +53,8 @@ const point = p => Object.freeze({ x: p.x, y: p.y, z: p.z });
  *   integrity   the support pool (rockets 100, tank HE 120, a bomb 420, an AT mine 150 ...)
  *   supports    [{id, x0..z1}] the boxes blasts are measured against (the bots aim at them)
  *   span        [{x0..z1}] everything that falls (one box or several)
+ *   materials   optional [block id]: only these blocks of the span boxes fall
+ *               (a trestle's plank, steel and rust; the canyon walls inside stay)
  *   deckY       the deck's top block row (crush band, FX, the HUD's stripes)
  *   waterY      optional: only span columns over water in the pristine map fall
  *               (the rest keeps a ledge on the bank)
@@ -79,6 +81,7 @@ export function defineLevolution(spec) {
     heads: Object.freeze((spec.heads ?? []).map(point)), axis: spec.axis === 'z' ? 'z' : 'x',
     fall: spec.fall ? Object.freeze({ ...spec.fall }) : null,
     detect: Array.isArray(spec.detect) ? Object.freeze([...spec.detect]) : null,
+    materials: Array.isArray(spec.materials) && spec.materials.length ? Object.freeze([...spec.materials]) : null,
   });
   return defineMapEvent({
     id: spec.id, maps: spec.maps, kind: 'levolution', name: spec.name, short: spec.short, glyph: spec.glyph ?? 'collapse',

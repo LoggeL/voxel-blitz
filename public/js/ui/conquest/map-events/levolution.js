@@ -9,7 +9,7 @@
  *   failing  (warning) "NAME · COLLAPSING · GET OFF THE SPAN" held to the
  *                      fall with its countdown, pulsing hazard stripes
  *   down     (active, done)  the definition's `active` texts (a reason
- *                      variant `active:<reason>` first), the gap and white
+ *                      variant `active:<reason>` first; `done` banners nothing), the gap and white
  *                      break marks on the maps, "SHORT · DOWN" on the marker
  *
  * An event registers it in its presenter slot: `trestle: levolutionPresenter()`;
@@ -33,7 +33,8 @@ export function levolutionPresenter({ water = true } = {}) {
   return Object.freeze({
     banner(ev, ctx, base) {
       // The `fallen` note is effects only; the active phase banners the fall.
-      if (ev?.note) return null;
+      // `done` (the dust settled) repeats the fall's banner: none.
+      if (ev?.note || ev?.phase === 'done') return null;
       if (!base) return undefined;
       if (ev.phase === 'armed' && Number.isFinite(ev.data?.integrity)) return { ...base, detail: `SUPPORTS AT ${Math.round(ev.data.integrity)} %` };
       return undefined;

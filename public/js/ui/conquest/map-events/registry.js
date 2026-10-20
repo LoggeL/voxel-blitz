@@ -26,6 +26,7 @@ import { DEPOT_PRESENTER } from './depot.js';
 // slot sluice:
 // slot radar:
 // slot trestle:
+import { levolutionPresenter } from './levolution.js';
 // slot comeback:
 import { COMEBACK_PRESENTER } from './comeback.js';
 // end of import slots
@@ -38,6 +39,7 @@ export const MAP_EVENT_PRESENTERS = Object.freeze({
   // slot sluice:
   // slot radar:
   // slot trestle:
+  trestle: levolutionPresenter({ water: false }),
   // slot comeback:
   comeback: COMEBACK_PRESENTER,
   // end of map slots

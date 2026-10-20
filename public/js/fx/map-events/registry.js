@@ -28,6 +28,7 @@ import { DEPOT_FX } from './depot.js';
 // slot sluice:
 // slot radar:
 // slot trestle:
+import { levolutionFx } from './levolution.js';
 // slot comeback:
 import { COMEBACK_FX } from './comeback.js';
 // end of import slots
@@ -40,6 +41,7 @@ export const MAP_EVENT_FX = Object.freeze({
   // slot sluice:
   // slot radar:
   // slot trestle:
+  trestle: levolutionFx({ material: 'metal' }),
   // slot comeback:
   comeback: COMEBACK_FX,
   // end of map slots
