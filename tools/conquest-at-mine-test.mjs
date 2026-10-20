@@ -66,6 +66,15 @@ const near = (a, b, tolerance, message) => assert(Math.abs(a - b) <= tolerance, 
   assert.ok(!atMineTriggeredBy(mine, hull('tank', { y: 5 })), 'a hull passing high above (bridge, jump)');
   assert.ok(!atMineTriggeredBy(mine, hull('jeep', { x: 50 + VEHICLE_DEFS.jeep.collider.halfWidth + 0.5 })), 'beside the jeep');
   assert.ok(atMineTriggeredBy(mine, hull('jeep', { x: 50 + VEHICLE_DEFS.jeep.collider.halfWidth })), 'under the jeep wheel line');
+  // Along the hull the charge waits until the mine is triggerInset inside either end (under the belly, not the nose lip).
+  for (const [type, yaw] of [['tank', 0], ['tank', Math.PI / 2], ['jeep', 0], ['jeep', -Math.PI / 2]]) {
+    const end = VEHICLE_DEFS[type].collider.halfLength, axis = yaw ? [1, 0] : [0, 1];
+    for (const sign of [1, -1]) {
+      const at = d => hull(type, { yaw, x: 50 + sign * axis[0] * d, z: 50 + sign * axis[1] * d });
+      assert.ok(!atMineTriggeredBy(mine, at(end - AT_MINE_RULES.triggerInset + 0.1)), `${type} yaw ${yaw.toFixed(2)}: mine under the ${sign > 0 ? 'front' : 'rear'} lip stays live`);
+      assert.ok(atMineTriggeredBy(mine, at(end - AT_MINE_RULES.triggerInset - 0.1)), `${type} yaw ${yaw.toFixed(2)}: mine under the ${sign > 0 ? 'front' : 'rear'} belly goes off`);
+    }
+  }
   assert.ok(!atMineTriggeredBy({ ...mine, team: null }, hull('jeep')), 'teamless mine');
 }
 

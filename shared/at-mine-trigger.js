@@ -7,7 +7,8 @@ import { vehicleDef, vehicleWorldToLocal } from './vehicle-defs.js';
 
 /**
  * True when live hull `vehicle` sets off `mine` ({x,y,z,team}): an enemy
- * ground hull whose collider footprint covers the mine at ground height.
+ * ground hull whose collider footprint covers the mine at ground height
+ * (`footprintMargin` wider, `triggerInset` short of either end).
  * A mine without a team (owner gone) never triggers.
  */
 export function atMineTriggeredBy(mine, vehicle) {
@@ -19,6 +20,6 @@ export function atMineTriggeredBy(mine, vehicle) {
     || Math.abs(vehicle.z - mine.z) > half.halfLength + half.halfWidth + 1) return false;
   const local = vehicleWorldToLocal(vehicle, [mine.x, mine.y, mine.z]);
   return Math.abs(local[0]) <= half.halfWidth + r.footprintMargin
-    && Math.abs(local[2]) <= half.halfLength + r.footprintMargin
+    && Math.abs(local[2]) <= half.halfLength - r.triggerInset
     && local[1] >= r.triggerBelow && local[1] <= r.triggerAbove;
 }
