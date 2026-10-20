@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { VoxelPart, VOXEL, snap } from '../public/js/vehicles/voxel-model/dsl.js';
 import { meshVoxelPart } from '../public/js/vehicles/voxel-model/mesher.js';
-import { createPaletteResolver, createVehicleMaterial, setVehicleMaterialState, VEHICLE_MATERIAL_KEY, TEAM_SCHEMES, camoIndex } from '../public/js/vehicles/voxel-model/material.js';
+import { createPaletteResolver, createVehicleMaterial, instancedVehicleMaterial, setVehicleMaterialState, VEHICLE_MATERIAL_KEY, TEAM_SCHEMES, camoIndex } from '../public/js/vehicles/voxel-model/material.js';
 import { createVehicleFragments, fragmentMaterial } from '../public/js/vehicles/vehicle-fragments.js';
 import { VEHICLE_MODEL_FACTORIES, VehicleView } from '../public/js/engine/vehicle-view.js';
 import { VEHICLE_TYPE_IDS, vehicleMountOrder } from '../shared/conquest-contract.js';
@@ -123,14 +123,40 @@ for (const type of VEHICLE_TYPE_IDS) {
     const { draws, triangles } = model.stats;
     check(() => assert.ok(draws <= 10, `${type} ${team}: ${draws} draws`));
     check(() => assert.ok(triangles <= 12000, `${type} ${team}: ${triangles} triangles`));
-    // Draws counted by the kit match what three would actually submit.
+    // Draws counted by the kit match what three would actually submit (a
+    // two-sided surface's front-face pass rides with its back-face draw).
     let meshes = 0;
-    model.group.traverse(object => { if (object.isMesh) meshes++; });
+    model.group.traverse(object => { if (object.isMesh && !object.userData.frontFaces) meshes++; });
     check(() => assert.equal(meshes, draws, `${type} draw count matches the scene graph`));
-    // One class material per hull (glass and rotor blur aside).
-    const lit = new Set();
-    model.group.traverse(object => { if (object.isMesh && object.material.vertexColors && !object.material.transparent) lit.add(object.material); });
+    // One class material per hull (glass and rotor blur aside); instanced
+    // parts draw its twin, so neither material switches instancing per draw.
+    const lit = new Set(), instanced = new Set();
+    model.group.traverse(object => { if (object.isMesh && object.material.vertexColors && !object.material.transparent) (object.isInstancedMesh ? instanced : lit).add(object.material); });
     check(() => assert.equal(lit.size, 1, `${type} uses one lit voxel material`));
+    const [hullMaterial] = lit;
+    check(() => assert.deepEqual([...instanced], instanced.size ? [instancedVehicleMaterial(hullMaterial)] : [], `${type} instanced parts share one twin`));
+    for (const twin of instanced) {
+      check(() => assert.notEqual(twin, hullMaterial));
+      check(() => assert.equal(twin.userData.vehicleState, hullMaterial.userData.vehicleState, `${type} twin shares the hull state`));
+      check(() => assert.equal(twin.customProgramCacheKey(), hullMaterial.customProgramCacheKey(), `${type} twin keeps the class key`));
+      check(() => assert.equal(twin.onBeforeCompile, hullMaterial.onBeforeCompile, `${type} twin keeps the patches`));
+    }
+    // Two-sided glass and blur: the material draws back faces, a child the front faces right after.
+    model.group.traverse(object => {
+      if (!object.isMesh || !object.material.transparent || object.userData.frontFaces) return;
+      check(() => assert.notEqual(object.material.side, THREE.DoubleSide, `${type} ${object.name} never flips sides per draw`));
+      const front = object.children.find(child => child.userData.frontFaces);
+      check(() => assert.ok(front && object.material.side === THREE.BackSide && front.material.side === THREE.FrontSide, `${type} ${object.name} front pass`));
+      check(() => assert.ok(front.geometry === object.geometry && front.renderOrder === object.renderOrder && front.id > object.id));
+      check(() => assert.ok(front.material.transparent && front.material.depthWrite === object.material.depthWrite && front.material.fog === object.material.fog));
+      // The front pass follows the opacity written to the material (rotor spin, glass seen from inside).
+      const opacity = object.material.opacity;
+      object.material.opacity = 0.123;
+      front.material.onBeforeRender();
+      check(() => assert.equal(front.material.opacity, 0.123, `${type} ${object.name} front opacity follows`));
+      object.material.opacity = opacity;
+      front.material.onBeforeRender();
+    });
     // Contract mounts: every id has a yaw node, a pitch node and a muzzle.
     const order = vehicleMountOrder(type);
     check(() => assert.deepEqual(Object.keys(model.mounts).sort(), [...order].sort(), `${type} mount keys`));
