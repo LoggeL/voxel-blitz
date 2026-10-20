@@ -37,6 +37,7 @@ import { smokeBlocksSight, copySmokeFields } from '../../shared/smoke-rules.js';
 import { fwdFromAngles } from './util/look.js';
 import { nowMs } from './util/math.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS, grenadeEffectRadius, grenadeThrowFuseMs } from '../../shared/grenade-rules.js';
+import { beaconRestricted } from '../../shared/recon-gadgets.js';
 import { chaosLevel } from '../../shared/chaos.js';
 import { AssetScheduler } from './boot/asset-scheduler.js';
 
@@ -955,9 +956,19 @@ class Game {
     input.setGrenadeCounts?.(this.selfRow?.grenades);
     const pending = input.peekGrenadeThrow?.();
     const type = pending && GRENADE_TYPES[GRENADE_TYPE_IDS[pending.type]];
-    if ((type?.wallMine || type?.groundMine) && this.player.alive && !this.player.grenadeLaunchState(pending.charge, type.id)) {
-      input.cancelGrenade(type.groundMine ? 'noGround' : 'noWall');
-    }
+    // A Recon SPAWN BEACON is laid on the floor like the AT MINE.
+    const floorPlaced = type?.groundMine || type?.reconGadget === 'beacon';
+    if (!(type?.wallMine || floorPlaced) || !this.player.alive) return;
+    const launch = this.player.grenadeLaunchState(pending.charge, type.id);
+    if (!launch) input.cancelGrenade(floorPlaced ? 'noGround' : 'noWall');
+    // The authority refuses a beacon in an enemy HQ or outside the combat area (same rule).
+    else if (this.beaconSpotRestricted(type, launch)) input.cancelGrenade('restricted');
+  }
+
+  /** True when `launch` is a Recon SPAWN BEACON spot the authority refuses (shared beaconRestricted). */
+  beaconSpotRestricted(type, launch) {
+    return type?.reconGadget === 'beacon' && !!launch
+      && !!beaconRestricted(launch, this.selfRow?.team, this.mapMeta?.conquest);
   }
 
   /**
@@ -1024,9 +1035,11 @@ class Game {
     this.applyGrenadeUiEvents();
     if (!canThrow && !this.player.alive) this.rig?.cancelGrenade();
     else this.rig?.grenadeCharge(power, typeIndex, heldMs, charging);
-    const preview = charging ? this.player.grenadeLaunchState(power, type.id) : null;
+    const launchPreview = charging ? this.player.grenadeLaunchState(power, type.id) : null;
+    // A beacon spot the authority would refuse shows no ghost, like a missing floor.
+    const preview = this.beaconSpotRestricted(type, launchPreview) ? null : launchPreview;
     // Placed mines (wall claymore, AT MINE) show a ghost only where they would land.
-    this._claymorePlacementValid = (type.wallMine || type.groundMine) && !!preview;
+    this._claymorePlacementValid = (type.wallMine || type.groundMine || type.reconGadget === 'beacon') && !!preview;
     const mineProfile = claymoreProfile(this.selfRow?.chaosUpgrades?.limpet || 0);
     const level = chaosLevel(this.selfRow, type.id);
     this.effects?.projectilePreview(preview ? { ...preview,
@@ -1047,6 +1060,11 @@ class Game {
     const launch = this.player.grenadeLaunchState(thrown.charge, thrownType.id, thrown.grenadeAim);
     if (!launch) {
       this.rig?.cancelGrenade();
+      return;
+    }
+    // The beacon is no projectile: the authority lays it and match.conquest.recon draws it.
+    if (thrownType.reconGadget === 'beacon') {
+      this.rig?.grenadeThrow(thrown.charge, thrown.type);
       return;
     }
     this.effects?.projectileLaunch({
@@ -1902,7 +1920,7 @@ function observeResources(pattern, report, run) {
 
 /** Warm the HTTP cache for the skyboxes and HUD icons the first match will request. */
 async function prefetchArt(report) {
-  const grenadeIcon = (id) => `./assets/grenades/hud/${id}.${['smoke', 'limpet', 'atmine'].includes(id) ? 'svg' : 'png'}`;
+  const grenadeIcon = (id) => `./assets/grenades/hud/${id}.${['smoke', 'limpet', 'atmine', 'beacon', 'sensor'].includes(id) ? 'svg' : 'png'}`;
   const urls = [...new Set([
     ...Object.keys(MAP_LABELS).map((map) => mapAtmosphere(map)?.skybox).filter(Boolean),
     ...WEAPON_IDS.map(weaponImagePath),

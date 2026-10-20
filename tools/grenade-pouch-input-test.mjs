@@ -167,13 +167,13 @@ try {
   {
     const input = make();
     setKeybinding('grenadeSmoke', 'KeyO');
-    setKeybinding('grenadePrevious', 'KeyU');
+    setKeybinding('grenadePrevious', 'KeyI'); // KeyU is the Conquest comm rose
     input._onKeyDown(key('KeyG', 0));
     tapKey(input, 'KeyH', 100);
     input._onKeyDown(key('KeyH', 200));
     input.poll(200 + GRENADE_POUCH_HOLD_MS + 50);
     input._onKeyUp(key('KeyH', 600));
-    tapKey(input, 'KeyU', 700);
+    tapKey(input, 'KeyI', 700);
     tapKey(input, 'KeyO', 800);
     check(input.getGrenadeHoldType() === 0 && input.getGrenadeType() === 0 && !input.isGrenadePouchOpen()
       && input.selectGrenadeType(3) === false && input.cycleGrenadeType(1) === 0,
@@ -184,7 +184,7 @@ try {
     const quick = input.consumeGrenadeThrow();
     check(quick?.type === 4 && quick.charge === 0.6 && input.getGrenadeType() === 4,
       'a quick key readies its type and a tap quick-throws it');
-    tapKey(input, 'KeyU', 3000);
+    tapKey(input, 'KeyI', 3000);
     check(input.getGrenadeType() === 3, 'the previous key readies the previous stocked type');
     input.setGrenadeCounts([1, 1, 1, 1, 0]);
     input.consumeGrenadeUiEvents();

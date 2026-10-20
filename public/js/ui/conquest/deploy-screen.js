@@ -261,7 +261,7 @@ export class DeployScreen {
         b.setAttribute('role', 'option');
         b.setAttribute('aria-selected', String(option.spawn === model.selectedKey));
         b.classList.toggle('is-selected', option.spawn === model.selectedKey);
-        const icon = svgIcon(globalThis.document, option.kind === 'hq' ? 'hq' : option.kind === 'squad' ? 'squad' : option.kind === 'vehicle' ? option.type || 'tank' : 'hq', 'cq-spawn-icon');
+        const icon = svgIcon(globalThis.document, option.kind === 'hq' ? 'hq' : option.kind === 'squad' ? 'squad' : option.kind === 'beacon' ? 'beacon' : option.kind === 'vehicle' ? option.type || 'tank' : 'hq', 'cq-spawn-icon');
         if (option.kind === 'flag') el('span', 'cq-spawn-letter', b).textContent = option.id;
         else if (icon) b.appendChild(icon);
         const text = el('span', 'cq-spawn-text', b);

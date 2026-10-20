@@ -1,7 +1,7 @@
 /** Circular, heading-up minimap with a rotating compass ring (bottom left). */
 import { el } from '../hud-support.js';
 import { minimapPlacement } from '../conquest-hud-state.js';
-import { imageReady, overviewImage, paintFlag, paintUnit, paintVectorBase, sortItems } from './map-painter.js';
+import { imageReady, overviewImage, paintFlag, paintSensorRing, paintUnit, paintVectorBase, sortItems, toneColor } from './map-painter.js';
 
 export const MINIMAP_RANGE_M = 170;
 
@@ -69,6 +69,8 @@ export class Minimap {
         ctx.setLineDash([3 * scale, 3 * scale]); ctx.strokeStyle = '#7ef29acc'; ctx.lineWidth = 1.2 * scale; ctx.stroke(); ctx.setLineDash([]);
         continue;
       }
+      // A Recon motion sensor's reach, under its dot.
+      if (item.kind === 'sensor' && item.radius > 0) paintSensorRing(ctx, pos, item.radius * s, toneColor(item.rel), scale);
       if (item.kind === 'flag') {
         // Flags past the rim stay pinned to the edge so direction is always readable.
         const dist = Math.hypot(p.x, p.y), max = R - 12 * scale;

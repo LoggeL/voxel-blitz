@@ -1,5 +1,6 @@
 import { placeClaymore } from './claymore-rules.js';
 import { placeAtMine } from './at-mine-rules.js';
+import { RECON_GADGET_RULES, placeBeacon } from './recon-gadgets.js';
 import { molotovFireProfile } from './molotov-rules.js';
 import { smokeProfile } from './smoke-rules.js';
 /**
@@ -17,8 +18,12 @@ import { smokeProfile } from './smoke-rules.js';
  * - `atmine`  AT MINE          Conquest Engineer kit only (perLife 0 elsewhere): laid on the
  *                              floor, detonates under an enemy ground hull
  *                              (shared/at-mine-rules.js). Appended, so older slots keep their index.
+ * - `beacon`  SPAWN BEACON     Conquest Recon gadget 0 (kit only): laid on the floor like the AT
+ *                              MINE; its squad deploys on it (shared/recon-gadgets.js).
+ * - `sensor`  MOTION SENSOR    Conquest Recon gadget 1 (kit only): thrown, settles after its fuse
+ *                              and reveals moving enemies nearby to its team. Appended as well.
  */
-export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse', 'molotov', 'smoke', 'atmine']);
+export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse', 'molotov', 'smoke', 'atmine', 'beacon', 'sensor']);
 
 /** Hold time (ms) that reaches full throw strength. Cooking continues beyond it. */
 export const GRENADE_CHARGE_MS = 1200;
@@ -49,6 +54,7 @@ export const GRENADE_THROW_COOLDOWN_CLIENT_SLACK_MS = 100;
 /** HUD grouping, and the auto-ready fallback when the current type runs out. */
 export const GRENADE_ROLES = Object.freeze({
   frag: 'lethal', molotov: 'lethal', pulse: 'tactical', smoke: 'tactical', limpet: 'gadget', atmine: 'gadget',
+  beacon: 'gadget', sensor: 'tactical',
 });
 
 const FRAG_PHYSICS = Object.freeze({
@@ -202,6 +208,53 @@ export const GRENADE_TYPES = Object.freeze({
       radius: 0.14,
     }),
   }),
+  // Conquest Recon gadgets (shared/recon-gadgets.js): the authority hands both to the
+  // Conquest recon system instead of blasting them. Kit-only like the AT MINE.
+  beacon: Object.freeze({
+    id: 'beacon',
+    name: 'SPAWN BEACON',
+    short: 'BCN',
+    perLife: 0,
+    kitOnly: true,
+    reconGadget: 'beacon',
+    fuseMs: 0,
+    cook: false,
+    impact: false,
+    damage: 0,
+    damageRadius: 0,
+    selfDamage: 0,
+    knockback: 0,
+    terrainRadius: 0,
+    terrainPower: 0,
+    maxDestroyedBlocks: 0,
+    concussMs: 0,
+    concussPanic: 0,
+    color: '#7ef29a',
+    physics: Object.freeze({ gravity: 16, bounce: 0, floorFriction: 0, wallDamping: 0, radius: 0.14 }),
+  }),
+  sensor: Object.freeze({
+    id: 'sensor',
+    name: 'MOTION SENSOR',
+    short: 'MSN',
+    perLife: 0,
+    kitOnly: true,
+    reconGadget: 'sensor',
+    fuseMs: RECON_GADGET_RULES.sensor.fuseMs,
+    cook: false,
+    impact: false,
+    damage: 0,
+    // The landing preview ring shows the sensing reach.
+    damageRadius: RECON_GADGET_RULES.sensor.radius,
+    selfDamage: 0,
+    knockback: 0,
+    terrainRadius: 0,
+    terrainPower: 0,
+    maxDestroyedBlocks: 0,
+    concussMs: 0,
+    concussPanic: 0,
+    color: '#ff4b4b',
+    physics: Object.freeze({ ...FRAG_PHYSICS, bounce: 0.22, floorFriction: 0.6 }),
+  }),
 });
 
 /** Pouch types any roster may offer; kit-only types (the AT MINE) come from a Conquest kit alone. */
@@ -331,6 +384,7 @@ export function grenadeThrowProfile(value) {
 export function grenadeLaunch({ x, y, z, eyeY, vx = 0, vy = 0, vz = 0, dir, charge, type = 'frag', solidAt = null }) {
   if (type === 'limpet') return placeClaymore({ x, eyeY, z, dir }, solidAt);
   if (type === 'atmine') return placeAtMine({ x, eyeY, z, dir }, solidAt);
+  if (type === 'beacon') return placeBeacon({ x, eyeY, z, dir }, solidAt);
   const profile = grenadeThrowProfile(charge);
   const d = dir || { x: 0, y: 0, z: -1 };
   const typeId = GRENADE_TYPES[type] ? type : 'frag';
@@ -390,7 +444,7 @@ export function stepGrenade(grenade, dt, isSolid) {
   const physics = physicsFor(grenade);
   grenade.hitFloor = false;
   grenade.hitSolid = false;
-  if (grenade.type === 'limpet' || grenade.type === 'atmine' || grenade.stuck || duration === 0) return grenade;
+  if (grenade.type === 'limpet' || grenade.type === 'atmine' || grenade.type === 'beacon' || grenade.stuck || duration === 0) return grenade;
   // Small swept steps prevent fast throws from skipping thin voxel walls.
   const speed = Math.hypot(grenade.vx, grenade.vy, grenade.vz) + physics.gravity * duration;
   const count = Math.max(1, Math.ceil(Math.max(duration * 120, speed * duration / physics.radius)));

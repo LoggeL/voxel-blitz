@@ -57,7 +57,9 @@ let groups = 0;
   assert.equal(engineer.gadget, WEAPON_NAMES.rocket, 'the engineer gadget is the AT rocket');
   assert.deepEqual(engineer.gadgets.map(g => [g.weapon, g.role, g.selected]), [['rocket', 'AT', true], ['stinger', 'AA', false]],
     'the engineer card offers the AT launcher and the STINGER');
-  assert.deepEqual(model.kits.filter(k => k.id !== 'engineer').map(k => k.gadgets.length), [0, 0, 0, 0, 0, 0, 0, 0], 'other kits have no gadget choice');
+  assert.deepEqual(model.kits.find(k => k.id === 'recon').gadgets.map(g => [g.weapon, g.role, g.selected]), [['beacon', 'BCN', false], ['sensor', 'MSN', false]],
+    'the recon card offers the SPAWN BEACON and the MOTION SENSOR');
+  assert.deepEqual(model.kits.filter(k => k.id !== 'engineer' && k.id !== 'recon').map(k => k.gadgets.length), [0, 0, 0, 0, 0, 0, 0], 'other kits have no gadget choice');
   const aa = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
     nowMs: FIXTURE_NOW, selection: { ...deploy.selection, gadget: 1 } });
   assert.deepEqual(aa.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1 });
@@ -196,7 +198,8 @@ let groups = 0;
   // A change while readied is re-sent so the server holds the latest choice.
   screen.kits.querySelectorAll('.cq-kit-pick').find(b => b.textContent.startsWith('RECON')).click();
   update();
-  assert.deepEqual(sent.at(-1), { spawn: 'flag:A', kit: 'recon', variant: 1 });
+  assert.deepEqual(sent.at(-1), { spawn: 'flag:A', kit: 'recon', variant: 1, gadget: 1 }, 'the recon carries its gadget choice (the remembered second gadget: MOTION SENSOR)');
+  assert.deepEqual(screen.kits.querySelectorAll('.cq-kit-gadget').map(b => b.dataset.gadget), ['beacon', 'sensor'], 'the recon card shows the BEACON / SENSOR toggle');
   assert.equal(dom.storage.getItem('vb-conquest-kit'), 'recon', 'kit choice persists');
   screen.kits.querySelectorAll('.cq-kit-variant').find(b => b.textContent && b.parentNode.parentNode.dataset.kit === 'recon' && b.classList.contains('is-selected') === false).click();
   update();

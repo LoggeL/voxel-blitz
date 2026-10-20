@@ -11,6 +11,7 @@ import {
   VEHICLE_STATUS,
   VEHICLE_TOPOLOGY,
 } from './conquest-contract.js';
+import { RECON_GADGET_RULES, decodeReconGadgets } from './recon-gadgets.js';
 
 export { CONQUEST_TEAMS };
 
@@ -29,7 +30,7 @@ export const FLAG_DEPLOY_BLOCKING_STATES = Object.freeze(['neutralizing', 'conte
 const DEPLOY_BLOCKING = new Set(FLAG_DEPLOY_BLOCKING_STATES);
 
 /** Strict deploy spawn grammar shared by the frame parser and the policy. */
-export const SPAWN_CHOICE_PATTERN = /^(hq|flag:[A-E]|squad:[\w-]{1,64}|vehicle:[\w-]{1,64}(:[\w-]{1,32})?)$/;
+export const SPAWN_CHOICE_PATTERN = /^(hq|flag:[A-E]|squad:[\w-]{1,64}|vehicle:[\w-]{1,64}(:[\w-]{1,32})?|beacon:[\w-]{1,64})$/;
 
 export const isConquestTeam = team => TEAM_SET.has(team);
 export function oppositeTeam(team) { return team === 'alpha' ? 'bravo' : 'alpha'; }
@@ -227,6 +228,8 @@ export function decodeConquestMatch(matchConquest, metaConquest = null) {
     bases: metaConquest?.bases ?? {},
     combatArea: metaConquest?.combatArea ?? null,
     ticketGraph: Array.isArray(match.ticketGraph) ? match.ticketGraph : null,
+    // Recon gadgets (shared/recon-gadgets.js): beacons, sensors and what each team's sensors reveal.
+    recon: decodeReconGadgets(match.recon),
   };
 }
 
@@ -283,14 +286,18 @@ const insideZone = (flag, p, rules) => Number.isFinite(flag?.x) && Number.isFini
  *
  * view = { flags: [{id, x, y, z, radius, owner, state, alpha, bravo}],
  *          players: [{id, team, state, x, y, z, vehicleId, squad, bot?}],
- *          vehicles: [{id, type, team, hp, seatOccupants, st?, disabled?}] }
+ *          vehicles: [{id, type, team, hp, seatOccupants, st?, disabled?}],
+ *          beacons?: [{id, ownerId, team, x, y, z, cooldownMs}] }
  * self = { id, team, squad, bot? }
  *
  * Returns `[{spawn, kind, id, ok, reason, x, z, seats?, takeover?}]`. `reason`
  * is a deploy_refused reason or null. A vehicle lists its free `seats` and,
  * for a human, the `takeover` seats a friendly bot holds: deploying there puts
- * the bot out. The server adds checks the client cannot see (squad damage lock
- * and cooldown, a flag cell clear of enemy sight).
+ * the bot out. A Recon's spawn beacon is an option for its squad (the owner
+ * included): `enemy` while a living enemy stands within its block range,
+ * `cooldown` for a while after each spawn on it. The server adds checks the
+ * client cannot see (squad damage lock and cooldown, a flag cell clear of
+ * enemy sight, a free cell beside the mate or the beacon).
  */
 export function deployOptions(view, self, rules = CONQUEST_RULES) {
   const team = self?.team;
@@ -334,6 +341,22 @@ export function deployOptions(view, self, rules = CONQUEST_RULES) {
     options.push({ spawn: `vehicle:${hull.id}`, kind: 'vehicle', id: String(hull.id), ok: !reason, reason,
       x: coord(hull.x), z: coord(hull.z), type: hull.type, seats, ...(takeover.length ? { takeover } : {}) });
   }
+  if (squad > 0) {
+    const people = Array.isArray(view?.players) ? view.players : [];
+    const squadOf = new Map(people.filter(Boolean).map(p => [String(p.id), { team: p.team, squad: p.squad | 0 }]));
+    const block = RECON_GADGET_RULES.beacon.enemyBlockRange;
+    for (const beacon of Array.isArray(view?.beacons) ? view.beacons : []) {
+      if (!beacon || beacon.team !== team) continue;
+      const owner = squadOf.get(String(beacon.ownerId));
+      if (!owner || owner.team !== team || owner.squad !== squad) continue;
+      const enemyNear = people.some(p => p && p.team && p.team !== team && p.state === 'alive'
+        && Number.isFinite(p.x) && Math.hypot(p.x - beacon.x, p.z - beacon.z) <= block);
+      const reason = beacon.cooldownMs > 0 ? 'cooldown' : enemyNear ? 'enemy' : null;
+      options.push({ spawn: `beacon:${beacon.id}`, kind: 'beacon', id: String(beacon.id), ok: !reason, reason,
+        x: coord(beacon.x), z: coord(beacon.z), ownerId: String(beacon.ownerId),
+        ...(beacon.cooldownMs > 0 ? { cooldownMs: beacon.cooldownMs } : {}) });
+    }
+  }
   return options;
 }
 
@@ -366,5 +389,7 @@ export function deployViewFromSnapshot(decodedMatch, players = [], vehicles = []
       bot: p.bot === true || isBotId(String(p.id)) })),
     vehicles: (vehicles || []).map(v => ({ id: v.id, type: v.type, team: v.team, hp: v.hp, x: v.x, z: v.z,
       seatOccupants: v.seatOccupants, occupantId: v.occupantId, st: v.st, disabled: v.disabled })),
+    beacons: (decodedMatch?.recon?.beacons || []).map(b => ({ id: b.id, ownerId: b.ownerId, team: b.team,
+      x: b.x, y: b.y, z: b.z, cooldownMs: b.cooldownMs })),
   };
 }

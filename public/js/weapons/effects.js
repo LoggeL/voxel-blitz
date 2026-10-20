@@ -388,7 +388,8 @@ export class Effects {
     // A Foam-party mini pops at half scale (read before the record is released).
     const mini = event?.type === 'bubble' && !!this.projectiles.projectiles?.get(String(event.pid || ''))?.child;
     this.projectiles.explode(event);
-    if (event?.type === 'smoke' || (event?.type === 'leadwall' && !(Number(event.radius) > 0))) return;
+    // Smoke, a spent Leadwall pellet and a Recon MOTION SENSOR settling throw no blast.
+    if (event?.type === 'smoke' || event?.type === 'sensor' || (event?.type === 'leadwall' && !(Number(event.radius) > 0))) return;
     const style = BLAST_PARTICLES[event?.type] || BLAST_PARTICLES.frag;
     this.impacts.spawnParticles(
       Number(event.x), Number(event.y), Number(event.z),

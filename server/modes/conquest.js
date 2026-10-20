@@ -13,6 +13,7 @@ import { airspaceFor, airspaceRect } from '../../shared/world/airspace.js';
 import { createConquestRoles } from './conquest/roles.js';
 import { SquadOrders } from './conquest/orders.js';
 import { CommSystem } from './conquest/comms.js';
+import { ReconGadgets } from './conquest/recon-gadgets.js';
 import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
 import { evHit } from '../protocol/events.js';
@@ -56,6 +57,8 @@ export class ConquestPolicy extends TdmPolicy {
       onInfantryHit: (victim, attacker, weapon, amount) => this.roles?.onInfantryHit?.(victim, attacker, weapon, amount),
     });
     this.finalStats = new Map();
+    // Recon spawn beacons and motion sensors (docs/conquest.md "Recon gadgets").
+    this.reconGadgets = new ReconGadgets(this);
     this.roles = createConquestRoles({ policy: this, engine: this.engine, rules: this.rules });
     // Squad orders and the comm rose (shared/conquest-comms.js).
     this.squadOrders = new SquadOrders({
@@ -121,6 +124,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.roles.reset();
     this.squadOrders?.reset();
     this.comms?.reset();
+    this.reconGadgets.reset();
     // Stable per match: the bot flex kit of each squad (shared/conquest-kits.js botSquadKit).
     this.kitSeed = Math.floor(Math.random() * 2 ** 31);
     for (const state of this._players.values()) state.objectiveId = null;
@@ -183,6 +187,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.roles.tick(now, dt);
     this.squadOrders.sync();
     this.comms.tick(now);
+    this.reconGadgets.tick(now);
     this.score.tick(now);
     if (this.phase === 'live' && this.ledger.timeExpired(now)) this._finishMatch(this.ledger.timeLimitWinner(this.capture.held()));
   }
@@ -267,6 +272,7 @@ export class ConquestPolicy extends TdmPolicy {
   _finishMatch(winner) {
     if (this.phase !== 'live') return;
     this.ledger.finish(this.now);
+    this.reconGadgets.reset();
     this.finalStats = new Map([...this._players.keys()].map(id => [id, this.resultExtras(id)]));
     this.phase = 'post';
     this.phaseEndsAt = null; // ModeController sets it once the continuation vote passes
@@ -315,6 +321,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.score.remove(id);
     this.squadOrders.remove(id);
     this.comms.remove(id);
+    this.reconGadgets.removeOwner(id);
     if (entity) { this.score.detach(entity); this.roles.onRemove(entity); }
     return true;
   }
@@ -331,6 +338,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.roles.rename(priorId, id);
     this.squadOrders.rename(priorId, id);
     this.comms.rename(priorId, id);
+    this.reconGadgets.rename(priorId, id);
     return true;
   }
 
@@ -338,6 +346,7 @@ export class ConquestPolicy extends TdmPolicy {
     if (!super.setLobbyTeam(player, team)) return false;
     const entity = this._entity(player);
     this.squads.add(String(entity.id), this.teamFor(entity));
+    this.reconGadgets.removeOwner(entity.id);
     return true;
   }
 
@@ -528,7 +537,9 @@ export class ConquestPolicy extends TdmPolicy {
     // career level falls back to the default here (rematch, team change, any respawn).
     this.deploy.enforceKitGate(entity);
     const { kit, variant, gadget } = this.deploy.kitOf(entity.id);
-    this.roles.applyLoadout(entity, kit, variant, gadget);
+    const issued = this.roles.applyLoadout(entity, kit, variant, gadget);
+    // A Recon that comes back on another kit or gadget loses its beacon.
+    if (issued) this.reconGadgets.onLoadout(entity, issued.kit, issued.gadget);
     return true;
   }
 
@@ -587,6 +598,7 @@ export class ConquestPolicy extends TdmPolicy {
         vehicleId: typeof p.vehicleId === 'string' ? p.vehicleId : null, squad: this.squads.squadOf(p.id), bot: !!p.bot,
       })),
       vehicles: this.engine?.vehicles?.vehicles ? [...this.engine.vehicles.vehicles.values()] : [],
+      beacons: this.reconGadgets.deployRows(),
     };
   }
 
@@ -671,6 +683,7 @@ export class ConquestPolicy extends TdmPolicy {
 
   matchSnapshot() {
     const ledger = this.ledger;
+    const recon = this.phase === 'live' ? this.reconGadgets.snapshot() : null;
     return {
       ...super.matchSnapshot(),
       scores: { ...ledger.tickets },
@@ -686,6 +699,7 @@ export class ConquestPolicy extends TdmPolicy {
           const flag = this.squadOrders.flagFor(tuple[0], tuple[1]);
           return flag ? [...tuple, flag] : tuple;
         }),
+        ...(recon ? { recon } : {}),
         ...(this.phase === 'post' ? { ticketGraph: ledger.graph.map(row => row.slice()) } : {}),
       },
     };

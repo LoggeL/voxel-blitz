@@ -50,6 +50,7 @@ import { ConquestVehicleDriving } from './bot-vehicle-driving.js';
 import { BotCommander, createBotDirector } from './bot-commander.js';
 import { ConquestAircraftDriving } from './bot-aircraft.js';
 import { TitanfallBots } from './bot-titanfall.js';
+import { BotRecon } from './bot-recon.js';
 import { isTitanType } from '../shared/titan-contract.js';
 import { PILOT_AT_RULES } from './sim/titanfall/pilot-projectiles.js';
 import { applyConquestVehicleCombat, applyMountedCombat, ballisticAim, bestWeaponFor, clearFlight, infantryArmorEffect, pickBotThreat, vehicleHullRules, STINGER_ENGAGE_RANGE } from './bot-vehicle-combat.js';
@@ -386,6 +387,8 @@ class BotManager {
     this.aircraftDriving = new ConquestAircraftDriving(game, this);
     // Titanfall pilots and titans (inert in every other mode).
     this.titanfall = new TitanfallBots(game, this);
+    // Conquest Recon gadgets: lay the beacon, throw sensors, shoot enemy gadgets.
+    this.recon = new BotRecon(game);
     // Heightfield maps: build the 2.5D surface graph from the world now (spec:
     // at attach time, not inside the first tick). The change-log cursor lives
     // with the cached graph, so a later manager on the same world resumes it.
@@ -1215,7 +1218,7 @@ class BotManager {
     if (!combatAllowed) { br.resetCombat(); br.danger = null; }
     const enemy = !combatAllowed ? null : cq ? this.pickThreat(p, br, ownedSlots, now) : this.pickTarget(p, br);
     const hullTarget = enemy?.kind === 'hull';
-    if (cq && !tf && !enemy) this.layMine(br, p, goal, inp, now);
+    if (cq && !tf && !enemy && !this.layMine(br, p, goal, inp, now)) this.recon.use(br, p, goal, inp, now);
 
     if (enemy) {
       if (br.noticeId !== enemy.id) {
@@ -1866,6 +1869,14 @@ class BotManager {
     // Releasing an obscured charge would still shoot through cover. Discard
     // the capacitor through the combat system when visual fire permission ends.
     if (p.charging && !canShoot) cancelCharge(p);
+
+    // Conquest: with nobody to fight, an enemy spawn beacon or motion sensor in sight is shot.
+    if (cq && !tf && combatAllowed && !fightNow && !objectiveUrgent && !inp.throwGrenade
+        && this.recon.shoot(br, p, inp, now, dtS, ownedSlots, turnRate, pitchTurnRate)) {
+      moving = false; br.moveWish = null;
+      inp.keys.f = inp.keys.b = inp.keys.l = inp.keys.r = false;
+      inp.keys.sprint = false;
+    }
 
     // ----- shared locomotion steering ---------------------------------------
     if (moving) {

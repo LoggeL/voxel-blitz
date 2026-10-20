@@ -951,7 +951,8 @@ export class GameplayHud {
     const readiedVisible = alive && !emptyPouch && (held || now - readiedAt < GRENADE_READIED_MS || pinBack);
 
     // Placed mines (wall claymore, floor AT MINE) share the mount card; only the words differ.
-    const groundMine = !!type.groundMine;
+    // The Recon SPAWN BEACON is laid on the floor like the AT MINE.
+    const groundMine = !!type.groundMine || type.reconGadget === 'beacon';
     const wallMine = !!type.wallMine || groundMine;
     const power = wallMine ? 0 : clamp01(Number.isFinite(s.grenadePower) ? s.grenadePower : s.grenadeCharge);
     let powerIndex = Number.isInteger(s.grenadePowerIndex) ? s.grenadePowerIndex : -1;
@@ -992,7 +993,9 @@ export class GameplayHud {
       d.grenadeFlash.textContent = flash;
     }
     // A claymore let go off a wall is a pin back too, but it reads as the reason.
-    const pinBackNote = s.grenadePinBackReason === 'noWall' ? 'NO WALL' : s.grenadePinBackReason === 'noGround' ? 'NO GROUND' : 'PIN BACK';
+    // A Recon SPAWN BEACON aimed into an enemy HQ or out of the combat area reads RESTRICTED.
+    const pinBackNote = s.grenadePinBackReason === 'noWall' ? 'NO WALL' : s.grenadePinBackReason === 'noGround' ? 'NO GROUND'
+      : s.grenadePinBackReason === 'restricted' ? 'RESTRICTED' : 'PIN BACK';
     const note = pinBack && !held ? pinBackNote : advanced && !held ? `→ ${type.name}` : '';
     if (painted.grenadeReadiedNote !== note) {
       painted.grenadeReadiedNote = note;

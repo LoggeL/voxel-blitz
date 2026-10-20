@@ -7,7 +7,7 @@
  */
 import { bindingLabel, isTypingTarget, matchesBinding } from '../keybindings.js';
 import {
-  bannerForEvent, hijackBanner, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
+  bannerForEvent, hijackBanner, reconGadgetBanner, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
   killerCard, kitUnlockBanner, kitUnlockState, lockerModel, mapItems, matchEndBanner, nextFreeSeatIndex, ownKitUnlocks, readConquest,
   restrictedModel, reticleModel, scoreEntry, seatedVehicle, spreadEdgeMarkers, squadListModel, tankHitCallout, ticketModel, unitMarkerModels,
   vehicleHitMark, vehiclePanelModel,
@@ -755,6 +755,11 @@ export class ConquestHud {
         break;
       case 'vehicle_hijacked': {
         const banner = hijackBanner(ev, selfTeam, selfId);
+        if (banner) this.banners.push(banner, now);
+        break;
+      }
+      case 'recon_gadget': {
+        const banner = reconGadgetBanner(ev, selfId);
         if (banner) this.banners.push(banner, now);
         break;
       }

@@ -3,6 +3,7 @@ import { decodeConquestMatch } from '../../../shared/conquest.js';
 import { FLAG_STATES } from '../../../shared/conquest-contract.js';
 import { patchVoxelLitMaterial } from './voxel-light.js';
 import { disposeObjectTree } from './dispose.js';
+import { ReconGadgetView } from './recon-gadget-view.js';
 
 // Conquest objectives in the world, Battlefield style: a mast whose cloth is
 // hoisted and lowered with the authoritative control scalar, a slim tall beam
@@ -366,6 +367,9 @@ export class ConquestWorld {
     }
     if (this.order.length) this.build(lightUniforms, windYaw);
     scene?.add(this.group);
+    // Recon spawn beacons and motion sensors (match.conquest.recon).
+    this.recon = new ReconGadgetView(scene);
+    this.recon.group.visible = false;
   }
 
   build(lightUniforms, windYaw) {
@@ -521,6 +525,7 @@ export class ConquestWorld {
     const next = asTeam(team);
     if (next === this.viewerTeam) return;
     this.viewerTeam = next;
+    this.recon?.setViewerTeam(next);
     for (const flag of this.order) if (flag.label) flag.label.owner = undefined;
     this.applyAll();
   }
@@ -533,10 +538,12 @@ export class ConquestWorld {
 
   setMode(mode) {
     this.group.visible = !this.disposed && mode === 'conquest' && this.flags.size > 0;
+    if (this.recon) this.recon.group.visible = !this.disposed && mode === 'conquest';
   }
 
   sync(match) {
     if (this.disposed) return;
+    if (match?.mode === undefined || match.mode === 'conquest') this.recon?.sync(match?.conquest?.recon);
     const states = conquestFlagStates(match, this.layout);
     if (!states) return;
     for (const state of states) {
@@ -610,7 +617,9 @@ export class ConquestWorld {
 
   /** Ease the hoist toward authority, animate cloth and pulse, depth-test labels by distance. */
   update(dt = 0, camera = null) {
-    if (this.disposed || !this.cloths) return;
+    if (this.disposed) return;
+    this.recon?.update(dt);
+    if (!this.cloths) return;
     const step = Math.max(0, Number(dt) || 0);
     this.time.value += step;
     this.pulse = (this.pulse + step) % 1000;
@@ -650,6 +659,7 @@ export class ConquestWorld {
   dispose() {
     if (this.disposed) return;
     this.disposed = true; this.group.visible = false;
+    this.recon?.dispose();
     this.group.removeFromParent();
     for (const mesh of [this.masts, this.cloths, this.beams]) mesh?.dispose();
     disposeObjectTree(this.group);

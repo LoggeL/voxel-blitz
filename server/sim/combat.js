@@ -660,8 +660,16 @@ function walkRoundLeg(p, def, round, legLength, ctx) {
         round.flying ? round.viewAge : p.input?.viewAge);
       if (tgt && hull && tgt.t > hull.distance && tgt.victim.vehicleId !== hull.id) tgt = null;
       const mine = ctx.nearestClaymore?.(origin, d, tgt?.t ?? wallT, minT, shotProfile.hitRadius);
+      // An enemy Conquest Recon gadget (spawn beacon, motion sensor) nearer than both stops the round.
+      const gadget = ctx.nearestGadget?.(p, origin, d, mine?.t ?? tgt?.t ?? wallT, minT, shotProfile.hitRadius) ?? null;
       // Bullets pop the bubbles they cross without stopping (no soap shield).
-      ctx.popBubblesOnRay?.(p, origin, d, minT, mine ? mine.t : (tgt?.t ?? wallT), shotProfile.hitRadius);
+      ctx.popBubblesOnRay?.(p, origin, d, minT, gadget ? gadget.t : mine ? mine.t : (tgt?.t ?? wallT), shotProfile.hitRadius);
+      if (gadget) {
+        path.push({ o: round.segStart, end: along(origin, d, gadget.t) });
+        ctx.shootGadget(gadget, p, combatDamage(damageAtDistance(def, round.traveled + gadget.t) * round.damageScale));
+        stopped = true;
+        break;
+      }
       if (mine) {
         path.push({ o: round.segStart, end: along(origin, d, mine.t) });
         ctx.shootClaymore(mine.mine);

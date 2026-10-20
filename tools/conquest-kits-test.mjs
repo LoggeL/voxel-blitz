@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { CONQUEST_RULES, KITS, KIT_IDS, KIT_SIDEARM, VEHICLE_STATUS, decodeConquestPlayer } from '../shared/conquest-contract.js';
 import {
-  KIT_GADGET_AMMO, KIT_MELEE, KIT_MENU, KIT_ROLE_RULES, applyResupply, isUnsuppressedWeapon, kitGadget, kitIndex,
+  KIT_GADGET_AMMO, KIT_MELEE, KIT_MENU, KIT_POUCH_GADGETS, KIT_ROLE_RULES, applyResupply, isUnsuppressedWeapon, kitGadget, kitIndex,
   kitLoadout, kitMaxGrenades, kitMaxReserve, kitWeapons, normalizeGadget, normalizeKit, normalizeVariant, reserveUnitsPerMagazine,
 } from '../shared/conquest-kits.js';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
@@ -30,7 +30,7 @@ const TICK = 1000 / 60;
     for (const variant of [0, 1]) {
       const load = kitLoadout(kit, variant);
       const def = KITS[kit];
-      const expected = new Set([def.primaries[variant], KIT_SIDEARM, KIT_MELEE, ...(def.gadget ? [def.gadget] : [])]);
+      const expected = new Set([def.primaries[variant], KIT_SIDEARM, KIT_MELEE, ...(def.gadget && WEAPONS[def.gadget] ? [def.gadget] : [])]);
       assert.deepEqual(new Set(load.owned), expected, `${kit}/${variant} owns exactly its weapons`);
       assert.equal(load.weapon, slot(def.primaries[variant]), `${kit}/${variant} raises its primary`);
       for (const id of WEAPON_IDS) {
@@ -45,7 +45,9 @@ const TICK = 1000 / 60;
         assert.equal(load.reserve[i], ammo?.reserve ?? (WEAPONS[id].spareRounds ?? WEAPONS[id].spareMags), `${kit}/${variant} ${id} reserve`);
       }
       for (const type of GRENADE_TYPE_IDS) {
-        assert.equal(load.grenades[gslot(type)], def.grenades[type] ?? 0, `${kit} ${type} grenades`);
+        // A pouch gadget (the Recon's default beacon) adds to the kit grenades.
+        const pouch = KIT_POUCH_GADGETS[def.gadget]?.grenade === type ? KIT_POUCH_GADGETS[def.gadget].count : 0;
+        assert.equal(load.grenades[gslot(type)], (def.grenades[type] ?? 0) + pouch, `${kit} ${type} grenades`);
       }
       assert.deepEqual(kitMaxReserve(kit, variant), load.reserve);
       assert.deepEqual(kitMaxGrenades(kit), load.grenades);
@@ -93,7 +95,7 @@ const TICK = 1000 / 60;
 {
   assert.deepEqual(KITS.engineer.gadgets, ['rocket', 'stinger'], 'the engineer picks the AT launcher or the STINGER');
   assert.equal(KITS.engineer.gadget, 'rocket', 'the AT launcher stays the default gadget');
-  for (const kit of ['assault', 'support', 'recon']) {
+  for (const kit of ['assault', 'support', 'medic']) {
     assert.equal(normalizeGadget(kit, 1), 0, `${kit} has no gadget choice`);
     assert.equal(kitGadget(kit, 1), null);
   }

@@ -1,5 +1,6 @@
 import { isSolidBlock } from '../../../shared/world/blocks.js';
 import * as THREE from '../vendor/three.module.js';
+import { buildReconGadgetModel } from '../engine/recon-gadget-view.js';
 import { CLAYMORE_RULES, claymoreBeam } from '../../../shared/claymore-rules.js';
 import { AT_MINE_RULES } from '../../../shared/at-mine-rules.js';
 import {
@@ -462,6 +463,10 @@ export class ProjectileFX {
     this.atMinePreview = this._buildVisual('atmine');
     this.atMinePreview.group.visible = false;
     this.scene.add(this.atMinePreview.group);
+    // Recon SPAWN BEACON placement ghost (the beacon itself is a match.conquest.recon row).
+    this.beaconPreview = this._buildVisual('beacon');
+    this.beaconPreview.group.visible = false;
+    this.scene.add(this.beaconPreview.group);
   }
 
   _createRocketBatches(capacity) {
@@ -632,6 +637,12 @@ export class ProjectileFX {
       group.add(laser, dot);
       group.userData.laser = laser;
       group.userData.laserDot = dot;
+    } else if (type === 'beacon' || type === 'sensor') {
+      // Recon gadgets in flight and as the beacon ghost; the laid ones are drawn by ReconGadgetView.
+      const built = buildReconGadgetModel(type);
+      group.add(built.group);
+      capMaterial = built.lamp;
+      group.userData.disposables = built.disposables;
     } else if (type === 'atmine') {
       const body = new THREE.Mesh(this.atMineBodyGeometry, this.atMineMaterial);
       body.position.y = -0.01;
@@ -1179,6 +1190,7 @@ export class ProjectileFX {
   setPreview(launch) {
     this.minePreview.group.visible = false;
     this.atMinePreview.group.visible = false;
+    this.beaconPreview.group.visible = false;
     if (!launch) {
       if (this.preview) {
         this.preview = null;
@@ -1187,6 +1199,13 @@ export class ProjectileFX {
       return null;
     }
     const type = GRENADE_TYPES[launch.type] ? launch.type : 'frag';
+    if (type === 'beacon') {
+      this._hidePreviewArc();
+      this.beaconPreview.group.position.set(launch.x, launch.y, launch.z);
+      this.beaconPreview.group.visible = true;
+      this.preview = { rests: true, landing: [launch.x, launch.y, launch.z] };
+      return this.preview;
+    }
     if (isMineType(type)) {
       const ghost = type === 'atmine' ? this.atMinePreview : this.minePreview;
       this._hidePreviewArc();
@@ -1321,7 +1340,8 @@ export class ProjectileFX {
     this._removeProjectile(id);
     const x = Number(event?.x), y = Number(event?.y), z = Number(event?.z);
     if (![x, y, z].every(Number.isFinite)) return false;
-    if (type === 'smoke') return true;
+    // Smoke and a settled MOTION SENSOR (it lives on as a match.conquest.recon row) never blast.
+    if (type === 'smoke' || type === 'sensor') return true;
     // A Leadwall pellet that ran out of range in the air (radius 0) just ends.
     if (type === 'leadwall' && !(Number(event.radius) > 0)) return true;
     const style = styleFor(type);
@@ -1946,6 +1966,8 @@ export class ProjectileFX {
     this.minePreview.capMaterial.dispose();
     this.scene.remove(this.atMinePreview.group);
     this.atMinePreview.capMaterial.dispose();
+    this.scene.remove(this.beaconPreview.group);
+    this.beaconPreview.capMaterial?.dispose();
     for (const material of this.minePreview.group.userData.authoredMaterials || []) material.dispose();
     this.claymoreLaserGeometry.dispose();
     this.claymoreLaserMaterial.dispose();

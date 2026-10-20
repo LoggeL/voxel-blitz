@@ -65,6 +65,10 @@ export const ICON_PATHS = Object.freeze({
   attack: 'M3 3h3.5l9.8 9.8-2 2L4.5 5.1zM21 3h-3.5l-9.8 9.8 2 2 9.8-9.7zM5.6 14.3l4.1 4.1-1.5 1.5-1.1-1.1L4.5 21 3 19.5l2.2-2.6-1.1-1.1zM18.4 14.3l1.5 1.5-1.1 1.1 2.2 2.6-1.5 1.5-2.6-2.2-1.1 1.1-1.5-1.5z',
   defend: 'M12 2 20 5v6.2c0 5-3.4 9.3-8 10.8-4.6-1.5-8-5.8-8-10.8V5zm0 3.1-5 1.9v4.2c0 3.3 2 6.3 5 7.6z',
   comms: 'M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm3 5v2h2V9zm4 0v2h2V9zm4 0v2h2V9z',
+  // Recon SPAWN BEACON: a case with a mast and two radio arcs each side (docs/design/conquest/recon).
+  beacon: 'M8 15h8v6H8zM11.2 9.2h1.6V15h-1.6zM12 5.6a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2zM8.75 3.95A4.6 4.6 0 0 0 8.75 10.45L9.6 9.6A3.4 3.4 0 0 1 9.6 4.8zM7.33 2.53A6.6 6.6 0 0 0 7.33 11.87L8.18 11.02A5.4 5.4 0 0 1 8.18 3.38zM15.25 3.95A4.6 4.6 0 0 1 15.25 10.45L14.4 9.6A3.4 3.4 0 0 0 14.4 4.8zM16.67 2.53A6.6 6.6 0 0 1 16.67 11.87L15.82 11.02A5.4 5.4 0 0 0 15.82 3.38z',
+  // Recon MOTION SENSOR: a puck with its lens.
+  sensor: 'M12 7c4.4 0 8 1.6 8 3.5v3c0 1.9-3.6 3.5-8 3.5s-8-1.6-8-3.5v-3C4 8.6 7.6 7 12 7zm0 2c-3.3 0-5.6 .9-5.6 1.5S8.7 12 12 12s5.6-.9 5.6-1.5S15.3 9 12 9z',
 });
 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */

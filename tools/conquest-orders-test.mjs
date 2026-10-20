@@ -41,11 +41,12 @@ const aimAt = (eye, point) => {
 eq(COMM_KINDS, ['medic', 'ammo', 'repair', 'ride', 'yes', 'no', 'spot', 'order'], 'comm wire order');
 eq([...COMM_ROSE].sort(), [...COMM_KINDS].sort(), 'the rose shows every comm kind once');
 ok(['squad_order', 'comm', 'comm_answer'].every(k => CONQUEST_EVENT_KINDS.includes(k)), 'order and comm events are Conquest events');
-eq(CONQUEST_EVENT_KINDS.slice(-3), ['squad_order', 'comm', 'comm_answer'], 'new events are appended');
+// Appended right after the v5 kinds (later features append after them).
+eq(CONQUEST_EVENT_KINDS.slice(CONQUEST_EVENT_KINDS.indexOf('ejection') + 1).slice(0, 3), ['squad_order', 'comm', 'comm_answer'], 'new events are appended');
 ok(CONQUEST_INTENT_SHAPE.comm && CONQUEST_INTENT_SHAPE.order, 'comm and order intents are in the contract');
 eq([SCORE_POINTS.order_capture, SCORE_POINTS.order_defend], [100, 50], 'order bonus points');
 eq([SCORE_LABELS.order_capture, SCORE_LABELS.order_defend], ['ORDER CAPTURE', 'ORDER DEFEND']);
-eq(Object.keys(SCORE_POINTS).slice(-2), ['order_capture', 'order_defend'], 'score reasons are appended');
+eq(Object.keys(SCORE_POINTS).slice(Object.keys(SCORE_POINTS).indexOf('squad_spawn') + 1).slice(0, 2), ['order_capture', 'order_defend'], 'score reasons are appended');
 ok(['order_capture', 'order_defend'].every(r => CAREER_REWARDS.conquestObjective.major.includes(r)), 'order bonuses pay major career XP');
 ok(commAudience('medic', { kit: 'medic' }) && !commAudience('medic', { kit: 'assault' }), 'medics see NEED MEDIC');
 ok(commAudience('ammo', { kit: 'support' }) && commAudience('repair', { kit: 'engineer' }) && commAudience('ride', { driving: true })

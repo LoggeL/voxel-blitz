@@ -143,6 +143,24 @@ export function paintUnit(ctx, item, c, heading = 0, size = 1) {
       drawIcon(ctx, REQUEST_GLYPHS[item.comm] || 'revive', 0, 0, 10 * size, color);
       break;
     }
+    case 'beacon': {
+      // Recon SPAWN BEACON: the antenna glyph in a dark disc, ringed in its tone (a dimmed ring while cooling down).
+      const color = toneColor(item.rel);
+      ctx.beginPath(); ctx.arc(0, 0, 7.5 * size, 0, Math.PI * 2); ctx.fillStyle = '#0b1218e6'; ctx.fill();
+      ctx.lineWidth = 1.5 * size; ctx.strokeStyle = item.cooldownMs > 0 ? `${color}66` : color; ctx.stroke();
+      drawIcon(ctx, 'beacon', 0, 0, 12 * size, color);
+      break;
+    }
+    case 'sensor':
+      ctx.beginPath(); ctx.arc(0, 0, 3 * size, 0, Math.PI * 2);
+      ctx.fillStyle = toneColor(item.rel); ctx.strokeStyle = '#0b1218'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fill();
+      break;
+    case 'sensed':
+      // Revealed by a motion sensor: a red dot with a soft halo.
+      ctx.beginPath(); ctx.arc(0, 0, 6 * size, 0, Math.PI * 2); ctx.fillStyle = `${TONE.spotted}40`; ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, 3.2 * size, 0, Math.PI * 2);
+      ctx.fillStyle = TONE.spotted; ctx.strokeStyle = '#1a0606'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.fill();
+      break;
     case 'hq': {
       const color = toneColor(item.rel);
       ctx.fillStyle = '#0b1218e6'; ctx.fillRect(-9 * size, -9 * size, 18 * size, 18 * size);
@@ -155,5 +173,14 @@ export function paintUnit(ctx, item, c, heading = 0, size = 1) {
   ctx.restore();
 }
 
-const ORDER = Object.freeze({ hq: 0, flag: 1, aura: 2, vehicle: 2, team: 3, squad: 4, down: 5, request: 5, spotted: 6, self: 7 });
+const ORDER = Object.freeze({ hq: 0, flag: 1, aura: 2, vehicle: 2, beacon: 3, sensor: 3, team: 3, squad: 4, down: 5, request: 5, sensed: 6, spotted: 6, self: 7 });
+
+/** A motion sensor's sensing reach: a faint dashed ring (minimap and full map). */
+export function paintSensorRing(ctx, c, radiusPx, color, scale = 1) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(c.x, c.y, radiusPx, 0, Math.PI * 2);
+  ctx.fillStyle = `${color}12`; ctx.fill();
+  ctx.setLineDash([3 * scale, 3 * scale]); ctx.strokeStyle = `${color}b0`; ctx.lineWidth = 1.2 * scale; ctx.stroke();
+  ctx.restore();
+}
 export const sortItems = items => [...items].sort((a, b) => (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9));

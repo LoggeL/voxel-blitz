@@ -438,6 +438,30 @@ export function conquestHudFixtures() {
       match: deployMatch(), dead: true, killer: { name: 'Rourke', weaponName: 'ROCKET POD', distance: 96 },
       selection: { spawn: 'hq', kit: 'engineer', variant: 0, gadget: 1 }, camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
+  // 18f. Recon SPAWN BEACON: a squadmate's beacon offered as a spawn, a second one cooling down,
+  // the Recon picked with the beacon gadget (docs/design/conquest/recon).
+  {
+    const self = meAt(C.x, C.z, { hp: 0, state: 'dead', respawnAt: FIXTURE_NOW + 2600, cq: { squad: 1, kitId: 'recon' } });
+    const match = deployMatch();
+    match.conquest.recon = { b: [['rb1', 'sq1', 0, C.x - 34, GROUND, C.z + 52, 100, 0, -1], ['rb2', 'sq2', 0, B.x + 40, GROUND, B.z - 30, 100, 42, -1]], s: [], m: [[], []] };
+    out.push(state('recon-deploy', 'Deploy · squad SPAWN BEACON, one cooling down, Recon beacon gadget', { self, players: deployRoster(self), vehicles: [tankRow, heliRow],
+      match, dead: true, killer: { name: 'Rourke', weaponName: 'VK-77 RAPTOR', distance: 64 },
+      selection: { spawn: 'beacon:rb1', kit: 'recon', variant: 0, gadget: 0 }, camera: cam(C.x, 40, C.z, 0, -0.5) }));
+  }
+  // 18g. Recon in the field: own beacon behind, a MOTION SENSOR ahead revealing two moving enemies.
+  {
+    const at = { x: C.x - 30, z: C.z + 24 };
+    const self = meAt(at.x, at.z, { cq: { squad: 1, kitId: 'recon' }, grenades: [0, 0, 0, 0, 0, 0, 0, 1] });
+    const sensor = { x: at.x + 22, z: at.z - 16 };
+    const sensedA = player('en5', 'Kovac', 'bravo', sensor.x + 12, sensor.z - 6, { cq: { squad: 2 } });
+    const sensedB = player('en6', 'Lindqvist', 'bravo', sensor.x - 4, sensor.z - 18, { cq: { squad: 2 } });
+    const match = baseMatch();
+    match.conquest.recon = { b: [['rb1', 'me', 0, at.x - 10, GROUND, at.z + 12, 100, 0, -1]],
+      s: [['rs1', 'me', 0, sensor.x, GROUND, sensor.z, 160]], m: [['en5', 'en6'], []] };
+    out.push(state('recon-sensor', 'Recon · own beacon, motion sensor ring, sensed enemies', { self, players: roster(self, [sensedA, sensedB]), match,
+      events: [{ kind: 'recon_gadget', gadget: 'sensor', id: 'rs1', owner: 'me', team: 'alpha', state: 'placed', pos: [sensor.x, GROUND, sensor.z] }],
+      camera: cam(at.x, GROUND + 1.6, at.z, yawTo(at, sensor), -0.06) }));
+  }
   // 19. Scoreboard (squads, objective, vehicles, revives).
   {
     const self = meAt(C.x, C.z);

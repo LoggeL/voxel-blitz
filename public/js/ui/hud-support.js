@@ -91,6 +91,8 @@ export const THROWABLE_NAMES = Object.freeze({
   molotov: 'MOLOTOV COCKTAIL',
   smoke: 'M-18 SMOKE',
   atmine: 'AT MINE',
+  beacon: 'SPAWN BEACON',
+  sensor: 'MOTION SENSOR',
 });
 
 /** One icon per throwable for the Ready Card, pouch, shop and kill feed. */
@@ -101,6 +103,8 @@ export const GRENADE_HUD_ICONS = Object.freeze({
   molotov: './assets/grenades/hud/molotov.png',
   smoke: './assets/grenades/hud/smoke.svg',
   atmine: './assets/grenades/hud/atmine.svg',
+  beacon: './assets/grenades/hud/beacon.svg',
+  sensor: './assets/grenades/hud/sensor.svg',
 });
 
 export const WEAPON_CLASSES = Object.freeze({

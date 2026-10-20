@@ -5,6 +5,7 @@
 // real dispose(). Empty slots can never be hovered or picked.
 import { bindingLabel } from '../keybindings.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS, GRENADE_ROLES, grenadeEffectRadius } from '../../../shared/grenade-rules.js';
+import { RECON_GADGET_RULES } from '../../../shared/recon-gadgets.js';
 import { CLAYMORE_RULES } from '../../../shared/claymore-rules.js';
 import { GRENADE_HUD_ICONS, el } from './hud-support.js';
 import { WHEEL_DEAD_ZONE, wheelAngleForSlot, wheelSlotFromVector } from './weapon-wheel.js';
@@ -37,6 +38,12 @@ export function grenadeChaosLevel(chaos, typeId) {
 export function grenadeRoleLine(typeId, chaosLevel = 0) {
   const type = GRENADE_TYPES[typeId];
   if (!type) return '';
+  // Recon gadgets (shared/recon-gadgets.js): no blast, a role of their own.
+  if (type.reconGadget === 'beacon') return 'Floor beacon · squad spawn point';
+  if (type.reconGadget === 'sensor') {
+    const r = RECON_GADGET_RULES.sensor;
+    return `Thrown sensor · ${formatMetres(r.radius)} motion reveal · ${Math.round(r.lifeMs / 1000)} s`;
+  }
   const parts = [];
   if (type.wallMine) parts.push('Wall mount', `${formatMetres(CLAYMORE_RULES.placementRange)} reach`);
   else if (type.groundMine) parts.push('Floor mine', 'enemy vehicles only');

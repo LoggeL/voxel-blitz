@@ -294,7 +294,9 @@ export class ConquestRoles {
     const state = this._state(p);
     if (!p || !state) return false;
     const killerEntity = this._entity(killer);
-    this.spotting.onDeath(p, killerEntity ?? killer);
+    const spotPaid = this.spotting.onDeath(p, killerEntity ?? killer);
+    // A Recon motion sensor that revealed the victim earns its owner the assist the spot did not pay.
+    this.policy?.reconGadgets?.onDeath?.(p, killerEntity ?? killer, spotPaid);
     if (killerEntity && KITS[this.kitOf(killerEntity)]?.ability === 'adrenaline') this._adrenaline(killerEntity, p, context);
     state.session = null;
     state.down = null;
