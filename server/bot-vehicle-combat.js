@@ -110,7 +110,11 @@ export function seatedExposed(game, p) {
   return typeof shielded === 'function' ? shielded.call(game.vehicles, p) === false : false;
 }
 
-/** Hull observation uses actual vehicle volume; seated bodies are never targets here. */
+/**
+ * Hull observation uses actual vehicle volume; seated bodies are never targets here.
+ * `options.visionScale` / `options.recognitionScale` (Conquest weather, bot-weather.js)
+ * scale the sight range and the detection rate as in observeBotTarget.
+ */
 export function observeBotVehicle(observer, vehicle, solidAt, smoke, now, tracking = false, difficulty, options = null) {
   const def = vehicleHullRules(vehicle.type);
   if (!def || !(vehicle.hp > 0)) return null;
@@ -138,7 +142,7 @@ export function observeBotVehicle(observer, vehicle, solidAt, smoke, now, tracki
   const visibleArea = 2 * def.radius * def.height * exposure;
   const angularArea = visibleArea / Math.max(4, distance * distance);
   const detectionRate = Math.max(0.08, Math.min(5, 4 * Math.sqrt(angularArea / 0.001)))
-    * (1 - 0.55 * (offAxis / halfFov) ** 2) * profile.recognition;
+    * (1 - 0.55 * (offAxis / halfFov) ** 2) * profile.recognition * (options?.recognitionScale ?? 1);
   return { aimPoint, exposure, distance, visibleArea, angularArea, detectionRate,
     reactionMs: profile.reactionMs, recognitionMs: profile.reactionMs + 1000 / detectionRate };
 }
@@ -190,8 +194,10 @@ export function pickBotThreat(game, p, br, {
   // Titanfall: the cloak gate in observeBotTarget (docs/titanfall.md §9).
   const options = weatherSight(game, isTitanfall(game.mode.mode) ? { omniRange, sightRange, titanfall: true } : { omniRange, sightRange });
   // An AA-armed bot watches the sky farther out (airborne aircraft only); the
-  // weather already shortened that range with the lock range.
-  const airOptions = airSightRange ? { omniRange, sightRange: Math.max(airSightRange, sightRange ?? 0) } : options;
+  // weather already shortened that range with the lock range, and it still
+  // slows recognition there.
+  const airOptions = airSightRange ? { omniRange, sightRange: Math.max(airSightRange, sightRange ?? 0),
+    ...(options?.recognitionScale !== undefined ? { recognitionScale: options.recognitionScale } : {}) } : options;
   const lockScale = weatherLockScale(game);
   const smoke = game.projectiles?.smoke;
   const heldId = br.enemyId;

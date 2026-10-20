@@ -429,11 +429,11 @@ export class ConquestHud {
     const reticle = seated && projector ? reticleModel(seated, { projector, players, vehicles, selfTeam,
       raycast: this.shellRaycast, flightAim: this.vehicleController?.aimFlight === true, sight,
       viewYaw: angles?.yaw ?? null, hullYaw: presented?.id === seated.row.id ? presented.yaw : null,
-      view: periscope ? 'driver' : null, driverAim: aim }) : null;
+      view: periscope ? 'driver' : null, driverAim: aim, lockScale: cq?.weather?.lock ?? 1 }) : null;
     this._setSight(reticle?.sensor ? 'sensor' : reticle?.periscope ? 'periscope' : '');
     // A dive puts the bomb pipper below the aim, where phones keep the exit prompt: it steps above the aim then.
     this.root.dataset.bombSight = String(!!reticle && reticle.ccip !== undefined);
-    const locker = projector ? lockerModel(self, { projector, vehicles, selfTeam, seated,
+    const locker = projector ? lockerModel(self, { projector, vehicles, selfTeam, seated, lockScale: cq?.weather?.lock ?? 1,
       camera: angles && eye ? { ...eye, yaw: angles.yaw, pitch: angles.pitch } : null }) : null;
     this.reticles.draw(reticle, locker, width, height, { touch });
     // Markers after the reticles: edge-clamped flags keep clear of the panels, the crosshair and the drawn instruments.

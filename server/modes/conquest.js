@@ -11,7 +11,7 @@ import { ScoreLedger } from './conquest/score.js';
 import { BoundsSystem, RESTRICTED_WEAPON } from './conquest/bounds.js';
 import { airspaceFor, airspaceRect } from '../../shared/world/airspace.js';
 import { createConquestRoles } from './conquest/roles.js';
-import { ConquestWeather } from './conquest/weather.js';
+import { ConquestWeather, weatherOptionFromEnv } from './conquest/weather.js';
 import { kitUnlocked, unlockedKits } from '../../shared/conquest-kits.js';
 import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
 import { evHit } from '../protocol/events.js';
@@ -58,7 +58,7 @@ export class ConquestPolicy extends TdmPolicy {
     this.roles = createConquestRoles({ policy: this, engine: this.engine, rules: this.rules });
     // Dynamic weather (conquest/weather.js): the mode rule `weather`, else VB_CONQUEST_WEATHER
     // ('off', or a state id such as 'storm' to pin it), else a seeded timeline per match.
-    const envWeather = typeof process !== 'undefined' ? process.env?.VB_CONQUEST_WEATHER || undefined : undefined;
+    const envWeather = typeof process !== 'undefined' ? weatherOptionFromEnv(process.env?.VB_CONQUEST_WEATHER) : undefined;
     this.weather = new ConquestWeather({ option: context.rules?.weather ?? envWeather ?? true,
       durationMs: this.rules.timeLimitMs, area: this.mapMeta?.conquest?.combatArea ?? null });
     this._resetObjectives();

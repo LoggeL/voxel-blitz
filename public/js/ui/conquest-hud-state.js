@@ -556,7 +556,7 @@ function armament(w) {
  * `aimMark`, the projection of the mouse aim (`driverAim` { yaw, pitch }).
  */
 export function reticleModel(seated, { projector = null, players = [], vehicles = [], selfTeam = null, aimDistance = 150, registry = vehicleDefs, raycast = null,
-  flightAim = false, sight = null, viewYaw = null, hullYaw = null, view = null, driverAim = null } = {}) {
+  flightAim = false, sight = null, viewYaw = null, hullYaw = null, view = null, driverAim = null, lockScale = 1 } = {}) {
   if (!seated?.row || !projector) return null;
   const { row, seat } = seated;
   const weapons = seatWeapons(row, seat.id);
@@ -669,7 +669,9 @@ export function reticleModel(seated, { projector = null, players = [], vehicles 
       return { ...common, pipper: null, target: null,
         ccip: bombImpactCue(row, seat.id, selected, { registry, raycast, projector }) };
     }
-    const target = pickAirTarget(row, dir, nose, vehicles, selfTeam, selected.weapon === 'aaMissile' ? 350 : 600);
+    // The AA missile's box stays inside the server's lock range (weather `lock`, cq.weather).
+    const aaScale = Number.isFinite(lockScale) && lockScale > 0 ? lockScale : 1;
+    const target = pickAirTarget(row, dir, nose, vehicles, selfTeam, selected.weapon === 'aaMissile' ? 350 * aaScale : 600);
     let pipper = null, lockBox = null;
     if (target) {
       const velocity = [finite(target.vx), finite(target.vy), finite(target.vz)];
@@ -781,8 +783,11 @@ export function pickAirTarget(row, dir, from, vehicles, selfTeam, range, cone = 
  * box marks the enemy aircraft inside the server's lock cone and range for
  * the weapon in use (jet AA missile when flying the plane, else the Engineer's
  * AX-9 STINGER), with a little slack for the view moving between snapshots.
+ * `lockScale` is the weather's lock multiplier (cq.weather.lock): fog and storms
+ * shorten the server's lock range, so the box never marks an aircraft past it.
  */
-export function lockerModel(self, { projector = null, vehicles = [], selfTeam = null, camera = null, seated = null, registry = vehicleDefs } = {}) {
+export function lockerModel(self, { projector = null, vehicles = [], selfTeam = null, camera = null, seated = null, registry = vehicleDefs,
+  lockScale = 1 } = {}) {
   const progress = decodeConquestPlayer(self)?.lockProgress ?? 0;
   if (!(progress > 0)) return null;
   let target = null;
@@ -790,7 +795,8 @@ export function lockerModel(self, { projector = null, vehicles = [], selfTeam = 
     const rules = registry?.LOCK_RULES?.[seated?.row?.type === 'plane' ? 'aaMissile' : 'stinger'] ?? { range: 400, cone: 15 * Math.PI / 180 };
     const dir = forwardFromAngles(camera.yaw, camera.pitch);
     const from = [camera.x, camera.y, camera.z];
-    target = pickAirTarget({ id: seated?.row?.id ?? null }, dir, from, vehicles, selfTeam, rules.range * 1.1, rules.cone * 1.5);
+    const scale = Number.isFinite(lockScale) && lockScale > 0 ? lockScale : 1;
+    target = pickAirTarget({ id: seated?.row?.id ?? null }, dir, from, vehicles, selfTeam, rules.range * scale * 1.1, rules.cone * 1.5);
   }
   const screen = target && projector ? projector.project(target.x, target.y, target.z) : null;
   return { progress, locked: progress >= 1, label: progress >= 1 ? 'LOCKED' : `LOCKING ${Math.round(progress * 100)}%`,

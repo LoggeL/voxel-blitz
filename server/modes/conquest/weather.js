@@ -22,6 +22,21 @@ const drawSeed = () => {
 };
 
 /**
+ * The VB_CONQUEST_WEATHER value as a weather option: unset or empty is
+ * undefined (the default timeline), 'off' / 'false' / '0' / 'no' / 'none'
+ * turn weather off (an env var can only carry the boolean `false` as text),
+ * anything else (a state id such as 'storm', 'on') passes through.
+ */
+export function weatherOptionFromEnv(value) {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const text = value.trim().toLowerCase();
+  return ['off', 'false', '0', 'no', 'none'].includes(text) ? 'off' : text;
+}
+
+/** Longest timeline drawn when the match has no finite time limit (lightning is scheduled up front). */
+const OPEN_ENDED_MS = 60 * 60 * 1000;
+
+/**
  * `option` (the mode rule `weather`): false/'off' disables weather (calm, no
  * `wx`); a state id ('storm') pins that state for the whole match (captures,
  * tests); an object `{ seed?, script?, state? }` fixes the seed, the script or
@@ -31,7 +46,8 @@ export class ConquestWeather {
   constructor({ option = true, rules = WEATHER_RULES, durationMs = 20 * 60 * 1000, area = null, random = drawSeed } = {}) {
     this.option = option;
     this.rules = rules;
-    this.durationMs = durationMs;
+    // The strike schedule is drawn up front: a match without a finite time limit gets an hour of it.
+    this.durationMs = Number.isFinite(durationMs) && durationMs > 0 ? durationMs : OPEN_ENDED_MS;
     this.area = area;
     this.random = random;
     this.timeline = null;

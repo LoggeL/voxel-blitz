@@ -84,7 +84,9 @@ const MIX_KEYS = Object.freeze(['rain', 'wind', 'lightning', 'spot', 'lock', 'vi
  * windDeg, durationMs }`. Key i holds `state` from `at` to `until`, then blends into key i + 1
  * until that key's `at`. `area` is the map rectangle strikes land around ({minX, maxX, minZ, maxZ}).
  */
-export function weatherTimeline(seed, { durationMs = 20 * 60 * 1000, rules = WEATHER_RULES, area = null, script = null } = {}) {
+export function weatherTimeline(seed, { durationMs: wanted = 20 * 60 * 1000, rules = WEATHER_RULES, area = null, script = null } = {}) {
+  // The strike schedule is drawn up front, so the span must be finite (an open-ended match gets an hour).
+  const durationMs = Number.isFinite(wanted) && wanted > 0 ? wanted : 60 * 60 * 1000;
   const rng = mulberry32((seed >>> 0) ^ 0x57EA7E3);
   const scripts = rules.scripts;
   const chosen = Array.isArray(script) && script.every(id => WEATHER_STATES[id])

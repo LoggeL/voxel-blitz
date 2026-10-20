@@ -22,7 +22,7 @@ import { vehicleSeatOccupantId, vehicleSeats } from '../shared/vehicle-seats.js'
 import { VEHICLE_WEAPON_META, seatWeaponList } from '../shared/conquest-contract.js';
 import { botVehicleSeat, botVehicleDriver, botPassengerInput, boardingGoal, countermeasureReady, maxHullHp, transitRidersMissing } from './bot-vehicle-driving.js';
 import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
-import { weatherSight } from './bot-weather.js';
+import { weatherLockScale, weatherSight } from './bot-weather.js';
 import { observeBotVehicle, hullTarget, hullCrew, seatedExposed, mountSystem, seatWeapons, CQ_MOUNT_AIM } from './bot-vehicle-combat.js';
 import { AimSteering } from './bot-aim.js';
 import { botDifficulty, BOT_AIRCRAFT_SIGHT_RANGE } from '../shared/bot-difficulty.js';
@@ -153,7 +153,8 @@ function pilotWeapon(game, v, seatId = 'driver') {
     const meta = VEHICLE_WEAPON_META[entry.weapon];
     return { key: entry.weapon, mount: entry.mount, index, list, speed: meta.speed > 0 ? meta.speed : 2000, gravity: meta.gravity ?? 0,
       origin: game.vehicles.mountPose(v, seatId, entry.mount)?.origin ?? vehicleMuzzlePose(v).origin, kind: meta.kind,
-      range: entry.weapon === 'planeCannon' ? 340 : entry.weapon === 'aaMissile' ? 350 : BOT_AIRCRAFT_SIGHT_RANGE };
+      // The AA missile reaches as far as its lock: fog and storms shorten both (bot-weather.js).
+      range: entry.weapon === 'planeCannon' ? 340 : entry.weapon === 'aaMissile' ? 350 * weatherLockScale(game) : BOT_AIRCRAFT_SIGHT_RANGE };
   }
   const legacy = AIRCRAFT_PROJECTILE_WEAPONS?.[v.type === 'helicopter' ? 'helicopterRocket' : 'planeCannon'];
   return legacy ? { key: legacy.id, speed: legacy.speed, gravity: legacy.gravity ?? ROCKET_RULES.gravity, origin: vehicleMuzzlePose(v).origin,
@@ -518,7 +519,8 @@ export class ConquestAircraftDriving {
     const own = this.commander?.view?.bases?.[this.game.mode.teamFor?.(p) ?? p.team] ?? v.spawn ?? focus;
     // Air threats first: the AA missile once locked, else the cannon.
     const air = aircraftCombatIntent(this.game, br, p, v, state, now, dt, { airOnly: true });
-    if (air && air.distance < 360) this.selectPilotWeapon(v, 'aaMissile', inp, state, now);
+    // The missile only once the target is inside the (weather-scaled) lock range; the cannon covers the rest.
+    if (air && air.distance < 360 * weatherLockScale(this.game)) this.selectPilotWeapon(v, 'aaMissile', inp, state, now);
     else if (state.phase === 'dive') this.selectPilotWeapon(v, 'planeCannon', inp, state, now);
     // The VehicleSystem flight boundary hands a jet to its safety pilot when
     // its 2 s track leaves a speed-dependent interior box; every run point is

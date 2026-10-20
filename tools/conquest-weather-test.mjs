@@ -6,7 +6,8 @@
 // the HUD weather tab's ranges and the ConquestWeatherView blend on a fake world.
 import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
-import { ConquestWeather } from '../server/modes/conquest/weather.js';
+import { ConquestWeather, weatherOptionFromEnv } from '../server/modes/conquest/weather.js';
+import { observeBotVehicle } from '../server/bot-vehicle-combat.js';
 import { botWeather, weatherLockScale, weatherSight } from '../server/bot-weather.js';
 import { observeBotTarget } from '../server/bot-perception.js';
 import { PlayerEntity } from '../server/sim/player.js';
@@ -19,7 +20,7 @@ import { decodeConquestMatch } from '../shared/conquest.js';
 import { LOCK_RULES } from '../shared/vehicle-defs.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { PARACHUTE, stepChuteVelocity } from '../shared/parachute.js';
-import { weatherChipModel } from '../public/js/ui/conquest-hud-state.js';
+import { lockerModel, weatherChipModel } from '../public/js/ui/conquest-hud-state.js';
 
 let checks = 0;
 const ok = () => { checks++; };
@@ -302,6 +303,42 @@ ok();
   const jet = weatherChipModel({ weather: decodeConquestWeather([3, 3, 0, 0, 0, 0, -1]) }, { seatedType: 'plane' });
   assert.equal(jet.lock, Math.round(LOCK_RULES.aaMissile.range * WEATHER_STATES.storm.lock), 'the jet shows its AA missile range');
   assert.equal(weatherChipModel({ weather: null }), null);
+}
+ok();
+
+// Review fixes: the env switch, open-ended matches, hull recognition, the lock box.
+{
+  for (const text of ['off', 'false', 'FALSE', '0', 'no', 'none', ' off ']) {
+    assert.equal(weatherOptionFromEnv(text), 'off', `VB_CONQUEST_WEATHER=${text} turns weather off`);
+    assert.equal(new ConquestWeather({ option: weatherOptionFromEnv(text) }).enabled, false);
+  }
+  assert.equal(weatherOptionFromEnv(undefined), undefined); assert.equal(weatherOptionFromEnv(''), undefined, 'unset keeps the default');
+  assert.equal(weatherOptionFromEnv('Storm'), 'storm', 'a state id pins the state');
+  // A match without a finite time limit still gets a finite strike schedule (no endless loop).
+  const open = weatherTimeline(3, { durationMs: Infinity, area, script: ['storm'] });
+  assert(open.durationMs === 60 * MIN && open.strikes.length > 100, 'an open-ended storm gets an hour of lightning');
+  assert.equal(new ConquestWeather({ option: 'storm', durationMs: Infinity }).durationMs, 60 * MIN);
+  // Hull sightings slow down in a storm like body sightings (observeBotVehicle recognitionScale).
+  const f = fixture('storm');
+  const sight = weatherSight(f.game);
+  const observer = new PlayerEntity('o', 'o', { x: 20.5, y: 1, z: 120.5 });
+  observer.yaw = observer.pitch = 0;
+  const jeep = { id: 'j', type: 'jeep', x: 20.5, y: 1, z: 60.5, yaw: 0, hp: 300 };
+  const seenClear = observeBotVehicle(observer, jeep, () => false, { blocksSight: () => false }, 1000, false, undefined, null);
+  const seenStorm = observeBotVehicle(observer, jeep, () => false, { blocksSight: () => false }, 1000, false, undefined, sight);
+  assert(seenClear && seenStorm, 'a jeep at 60 m is seen either way');
+  assert(near(seenStorm.detectionRate, seenClear.detectionRate * WEATHER_STATES.storm.recognition, 1e-9), 'rain slows hull recognition too');
+  // The STINGER lock box never marks an aircraft beyond the server's weather-scaled lock range.
+  const { conquestHudFixtures } = await import('../public/js/capture/conquest-hud-fixtures.js');
+  const { cameraPose, createProjector } = await import('../public/js/ui/conquest/projection.js');
+  const fix = conquestHudFixtures().find(x => x.id === 'stinger-lock');
+  const cam = fix.camera, heli = fix.vehicles.find(v => v.id === 'bravo-helicopter');
+  const d = [heli.x - cam.x, heli.y - cam.y, heli.z - cam.z], len = Math.hypot(...d);
+  const far = { ...heli, x: cam.x + d[0] / len * 280, y: cam.y + d[1] / len * 280, z: cam.z + d[2] / len * 280 };
+  const projector = createProjector(cameraPose({ ...cam, aspect: 1440 / 900 }), 1440, 900);
+  const box = scale => lockerModel(fix.self, { projector, vehicles: [far], selfTeam: 'alpha', camera: cam, lockScale: scale }).targetId;
+  assert.equal(box(1), 'bravo-helicopter', 'clear weather: the box marks the helicopter at 280 m');
+  assert.equal(box(WEATHER_STATES.mist.lock), null, 'fog: 280 m is past the lock range, no box');
 }
 ok();
 
