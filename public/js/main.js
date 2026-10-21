@@ -1398,7 +1398,7 @@ class Game {
     const frozenCamera = !seated && fpvView?.camera === 'frozen' && this._fpvFrozen?.ok === true;
     const handsetUp = !!fpvView && fpvView.camera === 'body' && fpvView.handset > 0;
     // The own hold from the authoritative row; a released Interact key drops the hands at once.
-    const interactView = this.interactAnim?.update(now, { interaction: rt.rowInteraction(this.selfRow),
+    const interactView = this.interactAnim?.update(now, { interaction: this.rt.rowInteraction(this.selfRow),
       // Keyboard, pad and touch Interact, or a press held on the Conquest prompt itself.
       held: !!this.player?.keys?.interact || !!pad?.held.interact || this.conquestHud?.interact?.pressedAt != null,
       alive: this.player.alive && !seated && !piloting,
