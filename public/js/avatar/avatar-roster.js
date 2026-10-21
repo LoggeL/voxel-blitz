@@ -9,6 +9,8 @@ import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
 import { AvatarDebugView } from './debug-view.js';
 import { fpvPilotIds, poseAvatarHandset } from './avatar-handset.js';
+import { interactKneels, poseAvatarInteract, unposeAvatarInteract } from './avatar-interact.js';
+import { rowInteraction } from '../session/interact-anim.js';
 import { nowMs, smooth01 } from '../util/math.js';
 import { boundedMapSet } from '../util/bounded-map.js';
 import { hashInt } from '../util/hash.js';
@@ -393,6 +395,8 @@ export class AvatarRoster {
       // Chop clock: every swing event restarts one quick-melee window, so its
       // start is the expiry minus that window.
       avatar.weaponModel.meleeSwing = pickaxe ? (now - pickaxeUntil) / 1000 + QUICK_MELEE_SECONDS : null;
+      // A hold (plant, defuse, revive, repair) from the row: kneel, the hands at the work (avatar-interact.js).
+      const hold = rowInteraction(remote);
       updateAvatarWeaponPose(avatar, {
         attachments: remote.attachments,
         weapon: pickaxe ? WEAPON_IDS.indexOf('knife') : remote.weapon,
@@ -401,7 +405,7 @@ export class AvatarRoster {
         ads: !pickaxe && remote.ads,
         reloading: !pickaxe && remote.reloading,
         mag: pickaxe ? undefined : remote.mag?.[remote.weapon],
-        crouching: remote.crouch,
+        crouching: remote.crouch || interactKneels(hold),
         proneT: remote.proneT,
         leanT: remote.leanT,
         stride,
@@ -423,7 +427,9 @@ export class AvatarRoster {
       if (!persistentCorpses && Array.isArray(remote.owned) && remote.owned.length === 0) avatar.weaponModel.root.visible = false;
       // An operator flying his FPV drone holds the handset (setFpvPilots).
       poseAvatarHandset(avatar, this._fpvPilots.has(String(remote.id)));
+      unposeAvatarInteract(avatar);
       updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
+      poseAvatarInteract(avatar, hold, dt, now / 1000);
       avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch + (avatar.leanRoll || 0) - avatar.torso.rotation.z) * poseBlend;
       avatar.hips.rotation.z += (swing * stride * 0.045 - avatar.hips.rotation.z) * poseBlend;
       avatar.head.rotation.x += (remote.pitch * 0.7 - hit01 * 0.1 + (avatar.swimHeadTilt || 0) - avatar.head.rotation.x) * poseBlend;

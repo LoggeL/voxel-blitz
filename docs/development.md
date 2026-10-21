@@ -415,6 +415,13 @@ planted bomb explodes after **40000 ms**. Explosion, completed defuse,
 elimination, then unplanted time expiry is the outcome priority; a planted bomb
 keeps the round live after attacker elimination.
 
+The plant and the defuse are animated from the row's `interaction`, which is
+on every row (presentation only; see *Interaction animations* in
+docs/conquest.md). The holder kneels and works the bomb in first and third
+person, and the gun is stowed for the hold. The bomb lies where it was planted
+or dropped (`public/js/fx/interact-props.js`), and its red LED blinks faster
+as the fuse runs down (1 s, then 450 ms under 10 s, then 180 ms under 3 s).
+
 The S&D economy starts at **800 credits** and caps at **16000**. A kill awards
 300, a plant 300, and a round win 3250. Consecutive round losses award
 1400/1900/2400/2900/3400. Press **B** during prep while alive to buy; buying

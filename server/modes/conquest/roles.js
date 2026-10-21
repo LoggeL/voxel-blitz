@@ -921,6 +921,18 @@ export class ConquestRoles {
     return this.spotting.markVehicle(vehicle, { by: idOf(a), team, until: this.now + KIT_ROLE_RULES.overwatchTagMs });
   }
 
+  /**
+   * The running revive or repair as the row's `interaction` {kind, progress}
+   * (the hold animations, shared/interact-anim.js), or null. Only while the
+   * newest intent is fresh: a released key drops the pose at once.
+   */
+  actionInteraction(entity) {
+    const session = this._state(entity, false)?.session;
+    if (!session || (session.type !== 'revive' && session.type !== 'repair')) return null;
+    if (this.now - session.lastIntentAt > this.rules.supportIntentStaleMs) return null;
+    return { kind: session.type, site: null, progress: session.display ?? 0 };
+  }
+
   /** Session progress for `cq[6]` as a 0..1 fraction (revive hold, or hull HP while repairing). */
   actionProgress(entity) {
     const session = this._state(entity, false)?.session;

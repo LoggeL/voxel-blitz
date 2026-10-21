@@ -37,6 +37,8 @@ export { VehicleDestructionFX } from "../vehicles/vehicle-destruction-fx.js";
 export { VehicleController } from "../session/vehicle-controller.js";
 export { FpvPilot } from "../session/fpv-controller.js";
 export { FpvTransition } from "../session/fpv-transition.js";
+export { InteractAnim, rowInteraction } from "../session/interact-anim.js";
+export { InteractProps } from "../fx/interact-props.js";
 export { VehicleFx } from "../vehicles/vehicle-fx.js";
 export { ParticleField } from "../fx/particle-field.js";
 export { StructureFx } from "../fx/structure-fx.js";
