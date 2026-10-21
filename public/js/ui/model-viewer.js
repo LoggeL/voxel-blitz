@@ -33,7 +33,7 @@ export class ModelViewer {
     this.canvas.tabIndex = 0;
     this.canvas.setAttribute('role', 'img');
     this.stage.append(this.canvas);
-    element('span', this.stage, 'vb-model-hint', 'DRAG TO ROTATE · SCROLL / PINCH TO ZOOM');
+    element('span', this.stage, 'vb-model-hint', 'DRAG SIDEWAYS TO ROTATE · SCROLL / PINCH TO ZOOM');
     this.status = element('span', this.stage, 'vb-model-status');
     this.status.setAttribute('role', 'status');
     const toolbar = element('div', this.element, 'vb-model-toolbar');
@@ -65,6 +65,9 @@ export class ModelViewer {
       this.scene.add(light);
     }
     this.pointers = new Map();
+    // No idle spin or eased camera moves when the player asks for less motion.
+    this.reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    this.element.dataset.motion = this.reducedMotion ? 'reduced' : 'full';
     this.events = new AbortController();
     const on = (target, type, handler, options = {}) => target.addEventListener(type, handler, { ...options, signal: this.events.signal });
     on(this.canvas, 'pointerdown', event => {
@@ -80,9 +83,9 @@ export class ModelViewer {
       if (!previous) return;
       const oldDistance = this.pinchDistance();
       this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      // Horizontal drag orbits; vertical travel is left to the page (touch-action:pan-y).
       if (this.pointers.size === 1) {
         this.yaw -= (event.clientX - previous.x) * 0.01;
-        this.pitch = clamp(this.pitch - (event.clientY - previous.y) * 0.01, 0.12, Math.PI - 0.12);
         this.render();
       } else if (oldDistance > 0) this.zoomBy(this.pinchDistance() / oldDistance);
     });
@@ -141,7 +144,7 @@ export class ModelViewer {
     // pass through untouched everywhere else.
     const kills = weapon && config?.counter === 'stattrak' && !Number.isSafeInteger(rawKills) ? 0 : rawKills;
     const key = JSON.stringify([weapon, skin, config, kills]);
-    this.canvas.setAttribute('aria-label', `${label}. 3D preview. Drag or use arrow keys to rotate. Scroll, pinch or use plus and minus to zoom. Home resets the view.`);
+    this.canvas.setAttribute('aria-label', `${label}. 3D preview. Drag sideways or use arrow keys to rotate. Scroll, pinch or use plus and minus to zoom. Home resets the view.`);
     if (key === this.key) { this.render(); return; }
     const changedItem = weapon !== this.weapon || skin !== this.skin;
     Object.assign(this, { key, weapon, skin, config, cosmetics, mastery, previewKills: kills });
