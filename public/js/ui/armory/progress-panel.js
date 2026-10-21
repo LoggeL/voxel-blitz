@@ -5,6 +5,7 @@ import {
 import { KITS } from '../../../../shared/conquest-contract.js';
 import { KIT_ABILITY_LABELS, KIT_MENU_ORDER, kitUnlockLevel } from '../../../../shared/conquest-kits.js';
 import { LEVEL_BRANCHES, badgeName, branchLanes, format, journey, levelTrack, tileState } from './armory-model.js';
+import { classIcon, iconImage } from '../cosmetic-preview.js';
 import { art, bar, button, glyph, node } from './inspector.js';
 import { focusKey, restoreFocus, rovingSync, treeKeys } from './focus-nav.js';
 
@@ -103,10 +104,13 @@ export class ProgressPanel {
       const level = kitUnlockLevel(id), open = (profile?.level || 1) >= level;
       const row = node('li', list, '', `vb-career-class${open ? ' is-open' : ''}`);
       row.dataset.state = open ? 'unlocked' : 'locked';
-      glyph(row, open ? 'owned' : 'locked');
+      const icon = classIcon(id);
+      if (icon) iconImage(row, icon, 'vb-career-class-icon');
       node('strong', row, KITS[id].label);
       node('span', row, KIT_ABILITY_LABELS[KITS[id].ability] || '');
-      node('em', row, open ? 'UNLOCKED' : `LEVEL ${level}`);
+      const state = node('em', row);
+      glyph(state, open ? 'owned' : 'locked');
+      node('span', state, open ? 'UNLOCKED' : `LEVEL ${level}`);
     }
     node('p', this.classes, 'ASSAULT, MEDIC, ENGINEER, SUPPORT and RECON are always available. Unlocked classes appear on the Conquest deploy screen.', 'vb-armory-earn-note');
   }

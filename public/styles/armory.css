@@ -255,7 +255,19 @@
 .vb-mastery-name { overflow: hidden; font: 800 14px/1.25 Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .vb-mastery-pips { display: flex; gap: 4px; }
 .vb-mastery-pip { display: grid; place-items: center; min-width: 26px; height: 20px; padding: 0 4px; border: 1px solid #4d6378; color: #b8c7d2; font: 800 11px/1 var(--font-mono, monospace); }
-.vb-mastery-pip[data-reached=true] { border-color: var(--tier-color); background: var(--tier-color); color: #10161d; }
+.vb-mastery-pip[data-reached=true] { border-color: var(--tier-color); background: color-mix(in srgb, var(--tier-color) 26%, #10161d); color: #fff; }
+/* Generated tier badges (docs/design/armory-v2/icons): decoration beside the numeral. */
+.vb-mastery-pip[data-tier], .vb-bench-pip[data-tier] { display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
+.vb-mastery-pip[data-tier] { padding: 0 5px 0 2px; }
+:is(.vb-mastery-pip, .vb-bench-pip)[data-tier]::before, .vb-mastery-tier[data-tier] .vb-mastery-tier-head h4::before { content: ''; flex: none; width: 16px; height: 16px; background: var(--tier-icon) center / contain no-repeat; }
+.vb-mastery-pip[data-reached=false]::before { filter: grayscale(1) brightness(.7); }
+.vb-mastery-tier[data-tier] .vb-mastery-tier-head h4 { display: inline-flex; align-items: center; gap: 8px; }
+.vb-mastery-tier[data-tier] .vb-mastery-tier-head h4::before { width: 26px; height: 26px; }
+.vb-mastery-tier[data-reached=false] .vb-mastery-tier-head h4::before { filter: grayscale(1) brightness(.7); }
+:is(.vb-mastery-pip, .vb-bench-pip, .vb-mastery-tier)[data-tier=initiated] { --tier-icon: url('/assets/ui/armory/icons/tier-initiated.webp'); }
+:is(.vb-mastery-pip, .vb-bench-pip, .vb-mastery-tier)[data-tier=specialist] { --tier-icon: url('/assets/ui/armory/icons/tier-specialist.webp'); }
+:is(.vb-mastery-pip, .vb-bench-pip, .vb-mastery-tier)[data-tier=elite] { --tier-icon: url('/assets/ui/armory/icons/tier-elite.webp'); }
+:is(.vb-mastery-pip, .vb-bench-pip, .vb-mastery-tier)[data-tier=master] { --tier-icon: url('/assets/ui/armory/icons/tier-master.webp'); }
 .vb-mastery-score, .vb-mastery-next { color: var(--armory-muted); font: 600 11px/1.3 var(--font-mono, monospace); }
 .vb-mastery-next { color: #dbe5ec; }
 .vb-mastery-detail { padding: 16px; border: 1px solid #3a5064; background: #111b24; }
@@ -401,10 +413,12 @@
 .vb-career-classes { margin-top: 22px; }
 .vb-career-classes-title { margin: 0 0 10px; }
 .vb-career-classes-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.vb-career-class { display: grid; grid-template-columns: 16px 1fr; column-gap: 8px; row-gap: 2px; align-items: center; padding: 8px 10px; border: 1px dashed #4a6274; background: #0f1922; }
-.vb-career-class > .vb-glyph { grid-row: span 3; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; color: #9fb4c3; }
+.vb-career-class { display: grid; grid-template-columns: 44px 1fr; column-gap: 10px; row-gap: 2px; align-items: center; padding: 8px 10px; border: 1px dashed #4a6274; background: #0f1922; }
+.vb-career-class-icon { grid-row: span 3; width: 44px; height: 44px; object-fit: contain; filter: drop-shadow(0 2px 3px #000a); }
+.vb-career-class-icon[hidden] { display: none; }
+.vb-career-class em { display: inline-flex; align-items: center; gap: 4px; }
+.vb-career-class em > .vb-glyph { width: 12px; height: 12px; stroke-width: 2.2; }
 .vb-career-class.is-open { border-style: solid; border-color: #4cc3ff88; }
-.vb-career-class.is-open > .vb-glyph { color: #7ef29a; }
 .vb-career-class strong { font-size: 14px; letter-spacing: 1px; color: #f1f4f6; }
 .vb-career-class span { font-size: 11px; letter-spacing: 1px; color: #a9bccb; }
 .vb-career-class em { font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #ffd166; }

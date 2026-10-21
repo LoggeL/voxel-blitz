@@ -13,6 +13,13 @@
 .vb-cosmetic-reward-art[data-size=thumb] .vb-cosmetic-art-unavailable { padding:4px; font-size:0; }
 .vb-cosmetic-reward-art[data-size=thumb] .vb-cosmetic-art-unavailable::after { content:'?'; font-size:14px; color:var(--item-color); }
 
+/* generated icons (docs/design/armory-v2/icons): thumbs show the icon, the plate under it is the no-image fallback */
+.vb-armory-icon { position:absolute; inset:0; box-sizing:border-box; width:100%; height:100%; max-width:112px; max-height:112px; margin:auto; padding:6%; object-fit:contain; filter:drop-shadow(0 3px 4px #000a); pointer-events:none; user-select:none; }
+.vb-cosmetic-reward-art[data-icon] > :not(.vb-armory-icon) { display:none; }
+.vb-cosmetic-reward-art[data-icon]::before { inset:10%; background:radial-gradient(circle,color-mix(in srgb,var(--item-color) 24%,transparent),transparent 68%); }
+.vb-plate-icon { width:min(112px,42cqi); height:auto; aspect-ratio:1; object-fit:contain; filter:drop-shadow(0 8px 10px #000a); }
+:is(.vb-armory-icon,.vb-plate-icon)[hidden] { display:none; }
+
 /* signature */
 .vb-signature-preview { position:relative; box-sizing:border-box; width:84%; padding:20px 45px 17px 16px; border:1px solid color-mix(in srgb,var(--item-color) 65%,transparent); border-left:4px solid var(--item-color); background:linear-gradient(120deg,#101f2ef2,#0e162af2); box-shadow:0 13px 20px #0007,inset 0 0 26px color-mix(in srgb,var(--item-color) 7%,transparent); transform:perspective(500px) rotateY(-7deg) rotateZ(-3deg); }
 .vb-signature-preview::after { content:''; position:absolute; left:16px; bottom:8px; width:24px; height:2px; background:var(--item-color); box-shadow:29px 0 var(--item-color),58px 0 var(--item-color); }

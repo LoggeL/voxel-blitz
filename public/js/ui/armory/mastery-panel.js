@@ -109,6 +109,7 @@ export class MasteryPanel {
       for (const tier of card.tiers) {
         const pip = node('span', pips, tier.numeral, 'vb-mastery-pip');
         pip.dataset.reached = String(tier.reached);
+        pip.dataset.tier = tier.id;
         pip.style.setProperty('--tier-color', tier.color);
         pip.setAttribute('title', `${tier.name}${tier.reached ? ' reached' : ''}`);
       }

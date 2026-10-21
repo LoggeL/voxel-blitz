@@ -30,6 +30,55 @@ const KIND_WORDS = Object.freeze({ characterSkin: 'OPERATOR', signature: 'SIGNAT
   title: 'CALLSIGN', reticle: 'RETICLE', nameplate: 'NAMEPLATE', weaponSkin: 'WEAPON SKIN', attachment: 'ATTACHMENT' });
 const SLOT_WORDS = Object.freeze({ optic: 'OPTIC', grip: 'GRIP', counter: 'KILL COUNTER' });
 
+/** Generated ARMORY icons (docs/design/armory-v2/icons). Decoration only: the
+ * caller always prints the item's name and state next to them. */
+export const ARMORY_ICON_ROOT = '/assets/ui/armory/icons/';
+export const ARMORY_ICONS = Object.freeze([
+  'std-operator', 'std-signature', 'std-sound', 'std-nameplate',
+  'sound-arcade', 'sound-high-noon', 'sound-overdrive',
+  'title-armorer', 'title-armsmaster', 'title-tactician', 'title-operator', 'title-sentinel', 'title-warden',
+  'title-commander', 'title-legend', 'title-immortal', 'title-weapon-master',
+  'nameplate-ranger', 'nameplate-aegis', 'nameplate-eclipse', 'nameplate-bulwark', 'nameplate-onyx',
+  'nameplate-centurion', 'nameplate-zenith', 'nameplate-arsenal',
+  'part-reflex', 'part-angled', 'part-stattrak', 'part-scope2', 'part-vertical', 'part-scope4',
+  'part-precision', 'part-scope10', 'part-cyber',
+  'tier-initiated', 'tier-specialist', 'tier-elite', 'tier-master',
+  'class-pyro', 'class-grenadier', 'class-raider', 'class-marksman',
+]);
+const ICON_NAMES = new Set(ARMORY_ICONS);
+const STANDARD_ICONS = Object.freeze({ characterSkin: 'std-operator', signature: 'std-signature', sound: 'std-sound', nameplate: 'std-nameplate' });
+const iconUrl = name => ICON_NAMES.has(name) ? `${ARMORY_ICON_ROOT}${name}.webp` : null;
+
+/** The generated icon for a catalog item, a standard slot or nothing (legacy atlas, renders, mocks). */
+export function cosmeticIcon(item) {
+  if (!item) return null;
+  if (item.id === 'standard') return iconUrl(STANDARD_ICONS[item.kind]);
+  if (item.kind === 'title') return iconUrl(item.masteryTier === 'master' && item.weapon ? 'title-weapon-master' : `title-${item.id}`);
+  // Weapon mastery nameplates carry their tier's badge; the card around them names the weapon.
+  if (item.kind === 'nameplate') return iconUrl(item.masteryTier ? `tier-${item.masteryTier}` : `nameplate-${item.id.replace(/^nameplate-/, '')}`);
+  if (item.kind === 'sound') return iconUrl(`sound-${item.id}`);
+  if (item.kind === 'attachment') return iconUrl(`part-${item.part}`);
+  return null;
+}
+
+export const tierIcon = tierId => iconUrl(`tier-${tierId}`);
+export const classIcon = kitId => iconUrl(`class-${kitId}`);
+
+/** A decorative `img.vb-armory-icon`; a missing file hides itself and leaves the plate beside it. */
+export function iconImage(parent, src, className = 'vb-armory-icon') {
+  const image = append('img', parent, '', className);
+  image.src = src;
+  image.alt = '';
+  image.decoding = 'async';
+  image.draggable = false;
+  image.setAttribute('aria-hidden', 'true');
+  image.addEventListener?.('error', () => {
+    image.hidden = true;
+    image.parentNode?.removeAttribute?.('data-icon');
+  }, { once: true });
+  return image;
+}
+
 /** `div.vb-reticle-preview[data-reticle] > div.vb-reticle-crosshair > span.ch-arm ×4`,
  * styled by the same rules as the in-match `#crosshair`. */
 function reticlePreview(parent, reticle) {
@@ -85,9 +134,16 @@ export function cosmeticArtwork(parent, item, className = '', { size = 'stage' }
   art.dataset.design = item?.id || 'standard';
   art.dataset.size = size;
   art.style.setProperty('--item-color', item?.color || '#b0c6d6');
+  const icon = cosmeticIcon(standard ? { id: 'standard', kind: item?.kind } : item);
+  if (icon && size === 'thumb') {
+    // Thumbs show the icon over the plate; the plate stays as the no-image fallback.
+    art.dataset.icon = 'true';
+    iconImage(art, icon);
+  }
   if (standard && item?.kind !== 'reticle' && item?.kind !== 'nameplate') {
     const plate = append('div', art, '', 'vb-standard-plate');
     plate.setAttribute('aria-hidden', 'true');
+    if (icon && size !== 'thumb') iconImage(plate, icon, 'vb-plate-icon');
     append('strong', plate, 'STANDARD');
     append('span', plate, KIND_WORDS[item?.kind] || 'ISSUE');
   } else if (item.kind === 'weaponSkin' || item.kind === 'characterSkin') {
@@ -126,6 +182,7 @@ export function cosmeticArtwork(parent, item, className = '', { size = 'stage' }
   } else if (item.kind === 'title') {
     const plate = append('div', art, '', 'vb-title-plate');
     plate.setAttribute('aria-hidden', 'true');
+    if (icon && size !== 'thumb') iconImage(plate, icon, 'vb-plate-icon');
     append('span', plate, 'CALLSIGN', 'vb-title-plate-kicker');
     append('strong', plate, item.name);
   } else if (item.kind === 'attachment') {
@@ -133,7 +190,8 @@ export function cosmeticArtwork(parent, item, className = '', { size = 'stage' }
     plate.dataset.slot = item.slot || '';
     plate.dataset.part = item.part || '';
     plate.setAttribute('aria-hidden', 'true');
-    append('i', plate, '', 'vb-part-glyph');
+    if (icon && size !== 'thumb') iconImage(plate, icon, 'vb-plate-icon');
+    else append('i', plate, '', 'vb-part-glyph');
     append('span', plate, SLOT_WORDS[item.slot] || 'ATTACHMENT', 'vb-part-slot');
     append('strong', plate, item.name);
   } else {

@@ -205,6 +205,7 @@ export class WeaponBench {
       const track = tracks.find(t => t.weapon === id), tier = MASTERY_TIERS[track?.tier ?? -1];
       button.pip.textContent = tier ? tier.numeral : '';
       button.pip.hidden = !tier;
+      if (tier) button.pip.dataset.tier = tier.id; else button.pip.removeAttribute('data-tier');
       if (tier) {
         button.pip.style.setProperty('--tier-color', tier.color);
         button.pip.title = `Mastery ${tier.name}`;

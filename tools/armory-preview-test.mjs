@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { CAREER_CATALOG, LOADOUT_SLOTS, careerView, reconcileCareerUnlocks, xpForLevel, treeNode } from '../shared/career.js';
+import { readFileSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { CAREER_CATALOG, LOADOUT_SLOTS, MASTERY_TIERS, careerView, reconcileCareerUnlocks, xpForLevel, treeNode } from '../shared/career.js';
 import { emptyProfile } from '../server/persistence/career-profile.js';
 import { FREE_WEAPON_IDS } from '../shared/combatmath.js';
 
@@ -66,7 +68,7 @@ function matchChain(node, parts) {
 }
 globalThis.document = { activeElement: null, createElement: tag => new Node(tag), createElementNS: (_, tag) => new Node(tag) };
 
-const { cosmeticArtwork } = await import('../public/js/ui/cosmetic-preview.js');
+const { ARMORY_ICONS, ARMORY_ICON_ROOT, classIcon, cosmeticArtwork, cosmeticIcon, tierIcon } = await import('../public/js/ui/cosmetic-preview.js');
 const { WeaponBench, BENCH_SAVE_DELAY, benchLockText } = await import('../public/js/ui/armory/weapon-bench.js');
 
 // ---------- cosmeticArtwork: non-empty art for every item and every kind ----------
@@ -130,6 +132,37 @@ for (const item of CAREER_CATALOG.filter(n => n.kind === 'nameplate')) {
   assert.equal(badge.style.props['--item-color'], item.color);
 }
 assert.equal(cosmeticArtwork(new Node('div'), treeNode('ember')).querySelector('.vb-theme-mock-ammo')?.textContent, '30 / 90');
+
+// ---------- generated ARMORY icons: every placeholder slot maps onto a shipped file ----------
+{
+  const folder = new URL('../public/assets/ui/armory/icons/', import.meta.url);
+  const shipped = readdirSync(folder).filter(file => file.endsWith('.webp')).sort();
+  assert.deepEqual(shipped, ARMORY_ICONS.map(name => `${name}.webp`).sort(), 'icon list matches the shipped files');
+  const manifest = JSON.parse(readFileSync(new URL('sources.json', folder), 'utf8'));
+  let bytes = 0;
+  for (const file of shipped) {
+    const data = readFileSync(new URL(file, folder));
+    assert.equal(data.subarray(8, 12).toString(), 'WEBP', `${file} is WebP`);
+    assert.ok(data.length < 12 * 1024, `${file} stays small`);
+    assert.equal(manifest.icons.find(entry => entry.file === file)?.sha256, createHash('sha256').update(data).digest('hex'), `${file} provenance`);
+    bytes += data.length;
+  }
+  assert.ok(bytes < 300 * 1024, `icon set ${bytes} bytes stays under 300 KB`);
+  const legacy = new Set(['rookie', 'pathfinder', 'vanguard', 'veteran']);
+  const wanted = CAREER_CATALOG.filter(item => ['title', 'nameplate', 'sound', 'attachment'].includes(item.kind) && !legacy.has(item.id));
+  for (const item of [...wanted, ...['characterSkin', 'signature', 'sound', 'nameplate'].map(kind => ({ id: 'standard', kind }))]) {
+    const url = cosmeticIcon(item);
+    assert.ok(url?.startsWith(ARMORY_ICON_ROOT) && shipped.includes(url.slice(ARMORY_ICON_ROOT.length)), `${item.id} (${item.kind}) has an icon`);
+    const thumb = cosmeticArtwork(new Node('div'), item, '', { size: 'thumb' });
+    assert.equal(thumb.dataset.icon, 'true');
+    assert.equal(thumb.querySelector('img.vb-armory-icon')?.src, url, `${item.id} thumb shows its icon`);
+  }
+  for (const item of CAREER_CATALOG.filter(entry => ['weaponSkin', 'characterSkin', 'theme', 'reticle', 'signature'].includes(entry.kind) || legacy.has(entry.id))) {
+    assert.equal(cosmeticIcon(item), null, `${item.id} keeps its real art`);
+  }
+  for (const tier of MASTERY_TIERS) assert.ok(shipped.includes(tierIcon(tier.id)?.slice(ARMORY_ICON_ROOT.length)), `${tier.id} tier badge`);
+  for (const kit of ['pyro', 'grenadier', 'raider', 'marksman']) assert.ok(shipped.includes(classIcon(kit)?.slice(ARMORY_ICON_ROOT.length)), `${kit} class icon`);
+}
 assert.equal(cosmeticArtwork(new Node('div'), treeNode('warden')).querySelector('.vb-title-plate strong')?.textContent, 'Warden');
 assert.equal(cosmeticArtwork(new Node('div'), treeNode('grip-angled')).querySelector('.vb-part-plate')?.dataset.slot, 'grip');
 
@@ -357,4 +390,4 @@ try {
 } finally {
   globalThis.setTimeout = realTimeout; globalThis.clearTimeout = realClear;
 }
-console.log('Armory previews: artwork for every catalog item and kind, reticle and nameplate DOM contracts, bench save-on-select with latest-wins and rollback passed.');
+console.log(`Armory previews: artwork for every catalog item and kind, generated icon set (${ARMORY_ICONS.length} files), reticle and nameplate DOM contracts, bench save-on-select with latest-wins and rollback passed.`);

@@ -31,14 +31,24 @@ list, sticky selected-item bar with DETAILS) was taken.
   career view.
 - Locked options use dashed frames with the real gate ("AFTER IGNITION",
   "LV 12"), not invented level numbers. Option art comes from the shipped
-  previews and the model viewer, not painted emblems.
+  previews and the model viewer; slots without real art use the generated
+  icon set in `icons/` (see below).
 - The phone layout follows the mobile pattern: a scrolling slot list, the
   current item in a sticky bottom bar with DETAILS opening the sheet.
+
+## Icons
+
+`icons/README.md` covers the generated icon set (gpt-image-2.5-flare, 42 WebP
+files in `public/assets/ui/armory/icons/`) that replaced the dashed Standard
+plates, the flat title and nameplate thumbs, the CSS attachment glyphs, the
+text-only tier pips and the bare Conquest class rows.
 
 ## Captures
 
 `screenshots/` holds muted CDP captures from `npm run armory:browser`
 (`tools/armory-browser-test.mjs`): LOADOUT, WEAPONS, PROGRESS and MASTERY at
-1440x900 and 390x844, plus the phone details sheet. The full set (also
+1440x900 and 390x844, plus the phone details sheet. `icons-*.png` are extra
+captures of the icon slots those shots do not reach (nameplate and callsign
+options, the mastery ladder, the Conquest class rows). The full set (also
 1280x720 and 360x780, the option and signed-in states) is written to
 `.artifacts/armory/` on every run.
