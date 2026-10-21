@@ -41,9 +41,9 @@ try {
   await page.waitFor(`!!document.getElementById('account-recovery-code')`, { timeoutMs: 20000 });
   await page.evaluate(`document.getElementById('account-code-done').click(); document.getElementById('account-close').click(); document.getElementById('career-open').click()`);
   await page.waitFor(`document.querySelector('.vb-career-stats')?.textContent.includes('LEVEL 4')`);
-  await page.evaluate(`document.querySelector('[data-item="arctic"]').click()`);
+  await page.evaluate(`document.querySelector('[data-slot="theme"]').click(); document.querySelector('[data-option="arctic"]').click()`);
   await page.waitFor(`document.querySelector('.vb-career-status').textContent === 'Arctic equipped'`);
-  await page.evaluate(`document.querySelector('[data-item="pathfinder"]').click()`);
+  await page.evaluate(`document.querySelector('[data-slot="title"]').click(); document.querySelector('[data-option="pathfinder"]').click()`);
   await page.waitFor(`document.querySelector('.vb-career-status').textContent === 'Pathfinder equipped'`);
   assert.equal(await page.evaluate(`document.querySelector('.vb-career-stats').textContent.includes('LEVEL 4')`), true);
 

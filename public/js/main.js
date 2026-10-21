@@ -11,6 +11,7 @@ import { loadingScreen, formatBytes } from './ui/loading-screen.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
 import { ProgressionTree } from './ui/progression.js';
 import { AccountMenu } from './ui/account-menu.js';
+import { applyReticle, applyLocalPresentation, resetLocalPresentation } from './cosmetics/local-presentation.js';
 import { bastionRepairAvailable } from '../../shared/bastion.js';
 import { FrameRateController } from './engine/frame-rate.js';
 import { WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
@@ -67,6 +68,9 @@ class Game {
     // The WebGL renderer, camera, clock, post-process chain and local player
     // belong to the match runtime and are created by ensureRuntime().
     this.rt = null;
+    /** Reticle last applied from the authoritative self row; null outside a match. */
+    this._liveReticle = null;
+    this._menuReturn = false;
     this.renderer = null;
     this.post = null;
     this.camera = null;
@@ -239,7 +243,8 @@ class Game {
         },
         onGameplayInputEnabled: () => this.player?.setGameplayInputEnabled(true),
         onMenuBuilt: () => {
-          mountArmoryButton();
+          if (this._menuReturn) returnToMenuPresentation();
+          this._menuReturn = false;
           renderAssetStatus();
         },
         onResize: () => this.resize(),
@@ -884,6 +889,11 @@ class Game {
     if (match?.mode === 'bastion') this.bastionStragglers ??= new this.rt.BastionStragglers();
     this.tttControls?.sync(match,self,players);
     this.rig?.setCosmetics(self?.cosmetics);
+    // In a match the crosshair follows the server's loadout, not the menu's careerView.
+    if (self?.cosmetics && self.cosmetics.reticle !== this._liveReticle) {
+      this._liveReticle = self.cosmetics.reticle;
+      applyReticle(this._liveReticle);
+    }
     this.ownBody?.setCosmetics(self?.cosmetics);
     if (self?.state !== 'dead') this.killcam?.stop();
     this.playersCache = presented;
@@ -1777,6 +1787,8 @@ class Game {
     this._redeployCheck = 0;
     sfx.stopAnnouncer();
     sfx.stopCosmetics();
+    this._liveReticle = null;
+    this._menuReturn = true;
     this.muzzleLights?.dispose();
     this.muzzleLights = null;
     this._loopGeneration++;
@@ -2028,9 +2040,15 @@ if (debugMode) {
 
 const accountKeybindings = new AccountKeybindings();
 window.addEventListener('vb-account-change', event => accountKeybindings.setAccount(event.detail.user?.id || null));
-let customization = null;
-const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.dialog.close(); if (customization?.dialog.open) customization.dialog.close(); } });
+const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.close(); } });
 const career = new ProgressionTree({ accounts });
+
+/** Leaving a match: drop the snapshot-driven reticle, restore the menu loadout, then re-read the career. */
+function returnToMenuPresentation() {
+  resetLocalPresentation();
+  if (career.profile) applyLocalPresentation(career.profile.equipped);
+  Promise.resolve().then(() => career.refresh()).catch(() => {});
+}
 
 // Background tasks in the order a match needs them. Each loader reports the
 // real responses it observes; nothing is timed.
@@ -2044,11 +2062,9 @@ assets.define('runtime', { label: 'ARENA & COMBAT SYSTEMS', weight: 20,
   }) });
 assets.define('audio', { label: 'SOUND SAMPLES', weight: 10,
   load: (report) => observeResources(/\/assets\/audio\//, report, () => sfx.preloadSamples()) });
-assets.define('armory', { label: 'ARMORY', weight: 5, load: async () => {
-  const { WeaponCustomization } = await import('./ui/weapon-customization.js');
-  customization ??= new WeaponCustomization({ accounts });
-  return customization;
-} });
+// Prewarm only: the ARMORY dialog imports these itself when its WEAPONS tab opens.
+assets.define('armory', { label: 'ARMORY', weight: 5,
+  load: () => Promise.all([import('./ui/armory/weapon-bench.js'), import('./ui/model-viewer.js')]) });
 assets.define('art', { label: 'SKYBOXES & HUD ART', weight: 5, load: (report) => prefetchArt(report) });
 
 /** Count matching resource responses while `run` is pending; detail is files and bytes. */
@@ -2117,36 +2133,6 @@ function renderAssetStatus() {
     fraction: assets.fraction(MATCH_ASSETS),
     label: blocked && status.active ? `LOADING ${status.active.label}…` : '',
   });
-}
-
-// The ARMORY entry is part of the menu from the first paint; its dialog module
-// (weapon previews need three.js and the Blender library) opens once loaded.
-function mountArmoryButton() {
-  const nav = document.querySelector('#menu .vb-main-nav');
-  if (!nav || document.getElementById('workshop-open')) return;
-  const open = document.createElement('button');
-  open.type = 'button';
-  open.id = 'workshop-open';
-  open.className = 'vb-main-nav-button';
-  open.textContent = 'ARMORY';
-  open.setAttribute('aria-haspopup', 'dialog');
-  let failed = false;
-  open.addEventListener('click', () => {
-    if (open.getAttribute('aria-busy') === 'true') return;
-    open.setAttribute('aria-busy', 'true');
-    assets.require(['armory']).then(({ armory }) => {
-      if (failed && open.isConnected) hudRef?.showJoinState?.('');
-      failed = false;
-      if (open.isConnected && document.getElementById('hud')?.classList.contains('hidden')) armory.open();
-    }).catch(() => {
-      // The scheduler drops a failed task, so the next click retries it.
-      failed = true;
-      if (open.isConnected) hudRef?.showJoinState?.('Armory could not load. Click ARMORY to retry.', 'err');
-    }).finally(() => open.removeAttribute('aria-busy'));
-  });
-  const careerButton = document.getElementById('career-open');
-  if (careerButton) nav.insertBefore(open, careerButton);
-  else nav.append(open);
 }
 
 window.__vbMapCache = Object.freeze({

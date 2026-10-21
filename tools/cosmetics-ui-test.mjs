@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { CAREER_CATALOG, careerView, defaultCosmeticLoadout, reconcileCareerUnlocks } from '../shared/career.js';
-import { ProgressionTree, progressionActionState } from '../public/js/ui/progression.js';
+import { CAREER_CATALOG, careerView, defaultCosmeticLoadout, reconcileCareerUnlocks, xpForLevel } from '../shared/career.js';
+import { ProgressionTree, ArmoryScreen, progressionActionState, unlockSummary } from '../public/js/ui/progression.js';
+import { careerRequest, careerSaveAttachments } from '../public/js/ui/career-store.js';
 import { CosmeticAudition, cosmeticArtwork, cosmeticVolume } from '../public/js/ui/cosmetic-preview.js';
 
 const profile = (extra = {}) => careerView({
@@ -11,7 +12,15 @@ const profile = (extra = {}) => careerView({
 const rifle = CAREER_CATALOG.find(item => item.id === 'rifle-overdrive');
 const lowMastery = profile({ mastery: { rifle: { kills: 249 } } });
 assert.equal(progressionActionState(lowMastery, rifle).disabled, true, 'level alone cannot equip a mastery reward');
-assert.equal(progressionActionState(profile({ xp: 19599 }), rifle).disabled, true, 'mastery alone cannot bypass career level');
+assert.equal(progressionActionState(profile({ xp: xpForLevel(rifle.level) - 1 }), rifle).disabled, true, 'mastery alone cannot bypass career level');
+assert.equal(progressionActionState(profile({ xp: xpForLevel(rifle.level) - 1 }), rifle).label, 'UNLOCK VERTICAL FOREGRIP FIRST');
+const almost = profile({ xp: xpForLevel(18) - 1 });
+reconcileCareerUnlocks(almost);
+assert.equal(progressionActionState(almost, CAREER_CATALOG.find(item => item.id === 'optic-scope4')).label, 'LEVEL 18 · 1 XP TO GO');
+const grinding = profile({ mastery: { rifle: { kills: 249 } } });
+reconcileCareerUnlocks(grinding);
+assert.equal(progressionActionState(grinding, rifle).label, 'RAPTOR MASTERY · SPECIALIST · 249 / 250');
+assert.equal(ArmoryScreen, ProgressionTree, 'ArmoryScreen aliases ProgressionTree');
 const unlocked = profile();
 reconcileCareerUnlocks(unlocked);
 assert.equal(progressionActionState(unlocked, rifle).disabled, false, 'a completed node equips at no cost');
@@ -20,6 +29,15 @@ unlocked.equipped.weaponSkins.rifle = rifle.id;
 assert.equal(progressionActionState(unlocked, rifle).equipped, true, 'weapon skins use their weapon-specific slot');
 assert.equal(progressionActionState(unlocked, CAREER_CATALOG.find(item => item.id === 'arctic')).disabled, false, 'HUD themes open by level like every other node');
 assert.doesNotMatch(progressionActionState(unlocked, CAREER_CATALOG.find(item => item.id === 'arctic')).label, /credit/i, 'no label mentions a currency');
+for (const level of [1, 12, 40, 100]) {
+  for (const item of CAREER_CATALOG) {
+    const state = progressionActionState(profile({ xp: xpForLevel(level) }), item);
+    assert.doesNotMatch(state.label, /credit|buy|purchase|price|shop/i, `${item.id} action label at level ${level}`);
+    if (!state.owned || state.locked) assert.equal(state.label, unlockSummary(state, item));
+  }
+}
+assert.equal(progressionActionState(unlocked, CAREER_CATALOG.find(item => item.id === 'optic-reflex')).label, 'FIT ON WEAPON', 'attachments fit on the WEAPONS tab');
+assert.equal(progressionActionState(unlocked, CAREER_CATALOG.find(item => item.id === 'optic-reflex')).disabled, true);
 
 const saved = Object.fromEntries(['fetch', 'window', 'localStorage', 'Audio', 'document'].map(name => [name, globalThis[name]]));
 const events = [];
@@ -61,6 +79,50 @@ try {
   const changed = { ...shop, accounts: { user: { id: 'old' }, async refresh() { this.user = { id: 'new' }; } } };
   await assert.rejects(ProgressionTree.prototype.request.call(changed, rifle.id), /session changed/);
   assert.equal(pending.length, 4, 'account switch is detected before an equip POST');
+
+  // saveAttachments: same header, identity and latest-wins discipline as equip.
+  globalThis.fetch = async (url, options) => { sent = { url, options }; return result(unlocked); };
+  const bench = { requestVersion: 0, profile: null, render() { this.rendered = (this.rendered || 0) + 1; } };
+  const setup = { optic: 'reflex', grip: 'standard', counter: 'standard' };
+  assert.equal(await ProgressionTree.prototype.saveAttachments.call(bench, 'rifle', setup), unlocked);
+  assert.equal(sent.url, '/api/career/attachments');
+  assert.equal(sent.options.method, 'POST');
+  assert.equal(sent.options.credentials, 'same-origin');
+  assert.equal(sent.options.headers['X-VB-Career'], '1');
+  assert.equal(sent.options.headers['Content-Type'], 'application/json');
+  assert.deepEqual(JSON.parse(sent.options.body), { weapon: 'rifle', attachments: setup });
+  assert.equal(bench.profile, unlocked);
+  assert.equal(bench.rendered, 1);
+  assert.equal(events.at(-1).detail, unlocked, 'a saved setup reaches runtime');
+  const queued = [];
+  globalThis.fetch = () => new Promise(resolve => queued.push(resolve));
+  const staleSave = careerSaveAttachments(bench, 'rifle', setup);
+  await Promise.resolve();
+  const poll = careerRequest(bench);
+  queued[1](result(lowMastery)); await poll;
+  const settled = events.length;
+  queued[0](result(unlocked));
+  assert.equal(await staleSave, null, 'a save answered after a newer request is stale');
+  assert.equal(bench.profile, lowMastery);
+  assert.equal(events.length, settled, 'a stale save never emits a cosmetic change');
+  const rejected = careerSaveAttachments(bench, 'rifle', setup);
+  await Promise.resolve();
+  queued[2]({ ok: false, json: async () => ({ error: 'Unlock this part first' }) });
+  await assert.rejects(rejected, /Unlock this part first/);
+  assert.equal(events.length, settled, 'a rejected save never changes runtime cosmetics');
+  const switched = { ...bench, accounts: { user: { id: 'old' }, async refresh() { this.user = { id: 'new' }; } } };
+  await assert.rejects(careerSaveAttachments(switched, 'rifle', setup), /session changed/);
+  assert.equal(queued.length, 3, 'account switch is detected before an attachment POST');
+  const closed = { ...bench, disposed: true };
+  const late = careerSaveAttachments(closed, 'rifle', setup);
+  await Promise.resolve();
+  queued[3](result(unlocked));
+  assert.equal(await late, null, 'a disposed armory ignores late answers');
+  // The ProgressionTree method delegates to the store with the same body.
+  let delegated;
+  globalThis.fetch = async (url, options) => { delegated = JSON.parse(options.body); return result(unlocked); };
+  await ProgressionTree.prototype.request.call({ requestVersion: 0, render() {} }, 'arctic', true);
+  assert.deepEqual(delegated, { item: 'arctic', equipOnly: true });
 
   const storage = new Map();
   globalThis.localStorage = { getItem: key => storage.get(key) ?? null };
@@ -116,7 +178,7 @@ try {
   assert.equal(preview.style.backgroundPosition, undefined, 'missing new artwork never maps onto the legacy atlas');
   const veteran = cosmeticArtwork(container, CAREER_CATALOG.find(item => item.id === 'veteran'));
   assert.equal(veteran.style.backgroundPosition, '100% 100%', 'legacy atlas artwork remains attached to its original ID');
-  console.log('Progression UI: dual unlock gates, free equip, per-weapon reset, session authority, stale response isolation, volume persistence and non-overlapping audio previews passed.');
+  console.log('Progression UI: dual unlock gates, free equip, per-weapon reset, attachment saves, session authority, stale response isolation, volume persistence and non-overlapping audio previews passed.');
 } finally {
   for (const [key, value] of Object.entries(saved)) {
     if (value === undefined) delete globalThis[key];

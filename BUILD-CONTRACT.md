@@ -24,57 +24,108 @@ room/client interfaces below; do not fork their logic into a second convention.
 ## Career progression
 
 - `shared/career.js` owns one unlock tree, imported unchanged by client and
-  server. A node opens automatically when its own requirements are complete and
-  its parent is already open; nothing is bought and there is no currency.
-  `CAREER_CATALOG` stays exported as the flat pre-order view of the same frozen
-  array. Branches are `weapons`, `character` and `presentation`. Branch spines
-  carry only level gates, so every node with a mastery or PvP gate is a leaf and
-  can never dead-end the nodes behind it.
-- Nodes are declared parent-before-child, which lets `reconcileCareerUnlocks`
-  grant a whole chain in one forward pass; module load throws on an out-of-order
-  node, a child below its parent's level, or a child outside its parent's branch.
-  Grants are permanent: ownership is never revoked, while the requirement gates
-  still apply to owned nodes so a forged `owned` entry cannot equip an unearned
-  reward. Weapon skins are keyed by weapon ID; character skin, death signature,
-  sound kit, reticle and nameplate each have one slot, and a standard reset
-  clears that slot. All Gun Game weapons keep their handling, damage and hitboxes.
-- Career credits are removed from rewards, counters, profiles, HTTP and UI;
-  rewards pay XP only. A legacy `credits` field is accepted on read and dropped.
-  The PostgreSQL `credits` column stays in the schema and is never read or
-  written again, so no new migration is required. In-match economies (S&D, TTT,
-  Chaos, Bastion, `WEAPON_PRICES`) are a separate system and are untouched.
+  server; `shared/career-mastery.js` owns the mastery tiers, badges, score
+  formulas and `MASTERY_WEAPON_IDS` and is re-exported through it. A node opens
+  automatically when its own requirements are complete and its parent is already
+  open; nothing is bought and there is no currency. `CAREER_CATALOG ===
+  PROGRESSION_TREE` (122 frozen nodes). Branches are `weapons`, `character` and
+  `presentation` (track `level`, 59 nodes) and `mastery` (track `mastery`, 63
+  level-1 roots: four tiers for each of the 15 mastery weapons plus three arsenal
+  rewards).
+- `MASTERY_WEAPON_IDS` is explicit and append-only: rifle, smg, shotgun, sniper,
+  lmg, revolver, longarc, rocket, lance, knife, minigun, flamethrower, glaive,
+  bubble, mgl. Module load throws unless each id is in `WEAPON_IDS` and not
+  `gadgetOnly`. The kit-only weapons (stinger, chargerifle, archer, thunderbolt,
+  kraber) still record kills but carry no tiers. Arsenal counts are literals
+  (`armorer` 5 SPECIALIST, `nameplate-arsenal` 15 ELITE, `armsmaster` 15 MASTER),
+  so appending a weapon never raises an earned gate.
+- XP curve: `xpForLevel(L) = L <= 51 ? (L-1)^2*100 : 250000 + (L-51)*9900`, no cap,
+  a display-only service star every 5 levels after 100 (`careerLevelXp` aliases
+  it). `careerLevel(xp) >= legacyCareerLevel(xp)` for every xp, so levels only
+  move up (980,100 XP: level 100 before, 124 now); nothing changes below
+  250,000 XP, so the Conquest kit levels (3/5/7/9) are unaffected.
+- Gate kinds: every node has a `level` gate and at most one extra gate:
+  `masteryTier` (+ `weapon`), `combatScore` or `arsenal {tier, count}`.
+  `masteryKills`/`pvpKills` are gone. Module load throws unless a gated node is a
+  leaf whose level equals its parent's (1 for a root), tiers and weapons exist,
+  per-kind data is present, `amber`/`rookie` stay level-1 roots and mastery nodes
+  are level-1 roots; the parent-first, same-branch, non-decreasing-level topology
+  checks still apply.
+- Monotonic-gate rule: a gate may only go down. The 40 `LEGACY_NODE_IDS` (34
+  original plus the six IRON PICK Blockworks skins) keep id, kind, branch, parent
+  and weapon; every legacy level gate is at or below its old value;
+  `masteryScore >= kills` and `combatScore >= pvpKills`. Gates are still
+  re-checked on owned nodes (a forged `owned` entry reads `status: 'locked'`),
+  and because gates only go down this can never re-lock a legitimate reward.
+  `career-gates-test` pins the old gates and brute-forces seeded legacy profiles.
+  `CATALOG_ALIASES` is resolved before `validateProfile`'s unknown-id check.
+- Grants are permanent and come from one forward `reconcileCareerUnlocks` pass.
+  `LOADOUT_SLOTS` is the slot table; `EQUIPPABLE_SLOTS` is derived from its wire
+  slots and keeps the same five ids in order, `PROFILE_SLOTS` from its local
+  slots. A standard reset clears a slot; `theme` resets to `amber` and `title` to
+  `rookie`. All Gun Game weapons keep their handling, damage and hitboxes.
+- Rewards pay XP only. Human kills feed `mastery[w].kills` and `pvpKills`;
+  non-team bot and Bastion NPC kills feed `mastery[w].botKills` (counted 1/4
+  toward mastery score, at most 40 per weapon per match per profile, kept across
+  reconnects, reset when the post phase ends or every 10 minutes in Fun/FFA and
+  Chaos). Training, self, teammate, TTT same-side and Titanfall NPC kills pay
+  nothing. Conquest teamplay (`CAREER_REWARDS.conquestObjective`) pays 15 XP per
+  major award, now including `vehicle_destroyed` and `vehicle_disabled`, and 3 XP
+  per minor award, now including `vehicle_damage` (minor capped at 30 XP per
+  minute); ribbons 20, medals 50. `CAREER_REWARD_RULES` rows carry their `xp`.
+  A legacy `credits` field is accepted on read and dropped; the PostgreSQL
+  `credits` column is never read or written. Migrations are unchanged.
+  In-match economies (S&D, TTT, Chaos, Bastion, `WEAPON_PRICES`) are untouched.
 - Optics, grips and the StatTrak counter are tree nodes. Ownership stays out of
-  `shared/weapon-attachments.js` so server sim and client prediction keep
-  deriving identical definitions and the catalog cache stays finite;
-  `assertUnlockedAttachments` gates the save path and `allowedWeaponLoadout`
-  filters once at admission, feeding `welcome.weaponLoadout` and the server
-  entity from one value. Stored selections are never rewritten on read, and
-  `validateProfile` does not gate attachments.
-- Authority records PvP kills and per-weapon mastery from accepted kill events,
-  using the weapon that made the kill before Gun Game advances. Bot, training,
-  self and teammate kills cannot advance mastery. Existing XP is preserved;
-  historical mastery starts at zero. PostgreSQL migration 2 adds the profile
-  fields while preserving the original migration checksum.
+  `shared/weapon-attachments.js`; `assertUnlockedAttachments` gates the save path
+  and `allowedWeaponLoadout` filters once at admission, feeding
+  `welcome.weaponLoadout` and the server entity from one value. Stored selections
+  are never rewritten on read, and `validateProfile` does not gate attachments.
 - Player snapshots carry
   `cosmetics:{weaponSkins,characterSkin,signature,sound,reticle,nameplate}` with
   server-validated catalog IDs; kill events carry the killer's cosmetics.
-  Reticles are local presentation and never cross the wire. Online equipment
-  refreshes after profile reads, rewards, equip/reset and session revocation.
-  Local weapons, remote avatars and killcam snapshots use the same reversible
-  skin modules and retain team identification.
-- `POST /api/career/equip` equips an owned, unlocked node or resets a slot;
-  `POST /api/career/purchase` stays routed as a compatibility alias for cached
-  client bundles and is removable after one release. An `equipOnly` body field is
-  accepted and ignored. `careerView` carries `unlockedParts` for the armory.
+  `:root[data-reticle]` follows `careerView.equipped` in the menu and the self
+  snapshot row in a match; theme and callsign are local only. Local weapons,
+  remote avatars and killcam snapshots use the same reversible skin modules.
+- HTTP: one `CAREER_ROUTES` table for `GET /api/career`, `POST /api/career/equip`,
+  `POST /api/career/attachments` and the compatibility alias
+  `POST /api/career/purchase`; `equipOnly` is accepted and ignored,
+  `X-VB-Career: 1`, 2,048-byte cap, `no-store`. `careerView` carries
+  `unlockedParts` and `mastery[w].botKills`.
+- UI: one ARMORY dialog, `dialog#career-shop`, owned by `ProgressionTree`
+  (`public/js/ui/progression.js`, alias `ArmoryScreen`) with LOADOUT, WEAPONS,
+  PROGRESS and MASTERY tabs and one inspector (`#armory-inspector`,
+  `#armory-action`, `#armory-status`) holding a single lazy `ModelViewer`
+  disposed on close. `#career-open` (label ARMORY) and `#career-menu-preview` open
+  it; there is no `#workshop-open` and no `dialog#weapon-customization`. Escape
+  goes through the dialog's `cancel` event and `close()`, and the close handler
+  is idempotent, so teardown never waits for a native `close` event. Focus is kept
+  across rebuilds and a filtered PROGRESS jump clears the filter first. PROGRESS
+  lists the Conquest classes as display-only level rewards (`KITS`,
+  `kitUnlockLevel`). The WEAPONS tab body is the lazy `WeaponBench`, saving
+  attachments on select (250 ms debounce, latest wins, rollback on rejection).
+  Network calls live in `public/js/ui/career-store.js` (through `careerFetch`,
+  friendly messages on transport errors); NEW flags are per viewer in
+  localStorage (`vb-armory-seen:v1:<user|guest>`), seeded on first run with the
+  owned legacy ids except the six lowered-gate rewards (overdrive, high noon,
+  foundry, revenant, ashforged, runebound pickaxes) the old gates had not yet
+  granted, so those read NEW. The idle poll (15 s) never re-renders the closed
+  dialog. `[data-cosmetic]` exists only inside `#progression-tree`, one per
+  level-track node. Store words (credit, buy, purchase, price, shop) never appear
+  inside `#career-shop`.
 - Cosmetic kill, death and victory audio has separate saved volume controls,
   bounded cue lengths and no delayed replay after a loading miss. The match
   winner's kit supplies victory music; team wins use the highest-kill human
   winner, with player ID breaking ties. Late death feedback preserves it.
-- `npm run career:test` covers tree invariants, single-pass grants, permanent
-  ownership, forgery rejection, attachment gating, career authority, persistence,
-  UI state, material isolation, audio lifecycle and shipped asset provenance.
-  `node tools/cosmetics-career-test.mjs --postgres` checks migration/restart in
-  isolated PostgreSQL. See `docs/progression.md` for the full node table.
+- `npm run career:test` covers tree invariants and gate rules, legacy gates and
+  no re-lock (`career-gates-test`), career authority and the bot mastery cap,
+  persistence, UI state (`career-armory-ui-test`), the ARMORY model, DOM contract
+  and previews (`armory-model-test`, `armory-dom-contract-test`,
+  `armory-preview-test`), material isolation, audio lifecycle and shipped asset
+  provenance. `node tools/cosmetics-career-test.mjs --postgres` checks
+  migration/restart in isolated PostgreSQL. Browser checks (muted CDP):
+  `armory:browser`, `career:browser`, `models:browser`. See
+  `docs/progression.md` for the full node table.
 
 ## Run and contract harnesses
 - `npm start` runs `node server/index.js` on `PORT` or `8070`.
