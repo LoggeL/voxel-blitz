@@ -18,6 +18,9 @@ const SX = 200, SY = 96, SZ = 160, FLOOR = 2;
 // A pool 3 blocks deep at x 120..129, z 20..29 (water surface at y = FLOOR).
 const pool = (x, z) => x >= 120 && x < 130 && z >= 20 && z < 30;
 const spot = (x, z) => ({ x: x + 0.5, y: FLOOR, z: z + 0.5 });
+// Calm air: each match draws a random weather seed, and its canopy drift would skew the glide checks.
+process.env.VB_CONQUEST_WEATHER = 'off';
+
 function fixture({ vehicles = [] } = {}) {
   const hq = (team, x) => ({ id: team, name: `${team} HQ`, ...spot(x, 80), radius: 12, spawns: [spot(x, 76), spot(x, 80), spot(x, 84)] });
   const bases = { alpha: hq('alpha', 8), bravo: hq('bravo', SX - 9) };
