@@ -9,6 +9,7 @@ import { AccountService } from './accounts.js';
 import { PostgresStore } from './persistence/postgres.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
+import { buildInfo } from './version.js';
 import { LobbyManager } from './lobby.js';
 import { ServerDiagnostics } from './diagnostics.js';
 import { createMapState, getMapDimensions } from '../shared/worlddata.js';
@@ -171,6 +172,8 @@ async function main() {
     tickMs: TICK_MS,
   });
 
+  const build = buildInfo();
+  console.log(`[voxel-blitz] build ${build.label}`);
   const server = http.createServer(async (req, res) => {
     try {
       try {
@@ -187,7 +190,12 @@ async function main() {
         const healthy = !store || store.healthy;
         const status = healthy ? 'ok' : store.rewardError ? 'saving failed' : store.active ? 'saving delayed' : 'unavailable';
         res.writeHead(healthy ? 200 : 503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-        res.end(JSON.stringify({ status, persistence }));
+        res.end(JSON.stringify({ status, persistence, version: build.version, build: build.build }));
+        return;
+      }
+      if ((req.url || '').split('?')[0] === '/api/version' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify(build));
         return;
       }
       if ((req.url || '').split('?')[0] === '/api/lobbies' && req.method === 'GET') {

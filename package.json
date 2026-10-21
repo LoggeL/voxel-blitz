@@ -1,6 +1,6 @@
 {
   "name": "voxel-blitz",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Browser multiplayer voxel arena shooter with a three.js client, authoritative ws server, fifteen weapons, five throwables, and a full feedback stack.",
@@ -34,7 +34,7 @@
     "bench:network": "node tools/network-latency-bench.mjs",
     "bench:load": "node tools/load-spike-bench.mjs",
     "preload:build": "node tools/build-module-preload.mjs",
-    "static:test": "node tools/static-server-test.mjs && node tools/build-module-preload.mjs --check && node tools/loading-screen-test.mjs && node tools/fluid-material-test.mjs",
+    "static:test": "node tools/static-server-test.mjs && node tools/build-version-test.mjs && node tools/build-module-preload.mjs --check && node tools/loading-screen-test.mjs && node tools/fluid-material-test.mjs",
     "weapons:capture": "node tools/render-weapon-scenes.mjs",
     "weapons:icons": "node tools/render-hud-icon.mjs --all",
     "sniper:test": "node tools/sniper-test.mjs && node tools/sniper-ballistics-test.mjs && node tools/discrete-shot-network-test.mjs",

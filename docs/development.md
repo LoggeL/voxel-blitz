@@ -1105,6 +1105,15 @@ it does not isolate Cloudflare, the ISP, TLS, or another individual hop.
 
 ## Container deployment
 
+### Version tag
+
+The main menu and the lobby show `v<version> · <build>` in the corner (on phones at
+the end of the page). `server/version.js` reads the version from package.json (bump it
+for a release) and takes the build id from `GIT_SHA` / `SOURCE_COMMIT` when the deploy
+sets one, else from a 7-hex hash of server/, shared/, public/js, public/styles and
+index.html, so every code deploy shows a new id. `/api/version` and `/healthz` report
+both; `tools/build-version-test.mjs` (in `static:test`) pins them.
+
 The recommended stack is one Node.js game container and one PostgreSQL 18
 container. `compose.yaml` connects PostgreSQL only to an internal network, exposes
 only the game port, waits for database health, and retains database files in the

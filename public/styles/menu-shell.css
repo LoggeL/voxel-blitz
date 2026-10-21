@@ -32,6 +32,10 @@
 .vb-brand-voxel { color: #ecede7; }
 .vb-brand-blitz { color: #ffb04b; }
 .vb-brand-context { font: 500 10px/1 var(--font-mono); letter-spacing: 0.16em; color: #99a6ad; }
+.vb-build-version { position: absolute; right: 12px; bottom: 8px; z-index: 1; font: 500 10px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: none; color: #99a6ad; opacity: .7; pointer-events: none; }
+.vb-build-version:empty { display: none; }
+/* Phones scroll the menu: the tag closes the page instead of floating over a card. */
+@media (max-width: 760px) { .vb-build-version { position: static; align-self: flex-end; padding: 4px 16px 12px; } }
 .vb-menu-stage { display: flex; flex: 1; align-items: center; min-width: 0; padding: clamp(22px, 4vw, 60px); }
 .vb-main-menu-panel, .vb-lobby-panel {
   width: min(1280px, 100%);

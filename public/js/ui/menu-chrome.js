@@ -57,10 +57,27 @@ function buildBrandRail(parent, { context = 'DEPLOYMENT', titleId = '' } = {}) {
   return rail;
 }
 
+// One /api/version request per page; the tag stays empty when it fails.
+let buildLabel = null;
+function fetchBuildLabel() {
+  buildLabel ??= fetch('/api/version', { cache: 'no-store' })
+    .then(res => (res.ok ? res.json() : null))
+    .then(info => (typeof info?.label === 'string' ? info.label : ''))
+    .catch(() => '');
+  return buildLabel;
+}
+
+function mountBuildVersion(shell) {
+  const tag = el('span', 'vb-build-version', shell);
+  tag.setAttribute('aria-label', 'Game version');
+  fetchBuildLabel().then(label => { tag.textContent = label; });
+}
+
 export function buildMenuShell(root, options = {}) {
   const shell = el('div', 'vb-menu-shell', root);
   const rail = buildBrandRail(shell, options);
   mountMusicControl(rail);
   const stage = el('main', 'vb-menu-stage', shell);
+  mountBuildVersion(shell);
   return { shell, rail, stage };
 }
