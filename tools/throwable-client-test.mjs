@@ -181,7 +181,10 @@ function effectFacade(scene) {
       game.frameRate.begin(i * 1000 / 60); game.frameRate.end(2);
     }
     assert.equal(game.frameRate.snapshot.ready, true);
-    game.disposeLiveResources();
+    // Teardown clears the FPV handset flag on the body: a bare document stub carries it.
+    const savedDocument = globalThis.document;
+    globalThis.document = savedDocument ?? { body: { dataset: {} } };
+    try { game.disposeLiveResources(); } finally { globalThis.document = savedDocument; }
     assert.equal(game.frameRate.snapshot.ready, false, 'teardown discards the previous match frame timings');
     assert.equal(oldFx.fields.size, 0); assert.equal(oldFx.mesh.parent, null);
     assert.equal(geometryDisposals, 1); assert.equal(materialDisposals, 1);
