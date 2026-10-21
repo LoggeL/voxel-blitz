@@ -16,6 +16,9 @@
 //   anchor(id)                  the event's marker point on this map
 //   scene()                     the world scene, for an event's own meshes (an
 //                               airdrop's transport and crate); null in tests
+//   tier / selfTeam / reducedMotion  the graphics tier (fixed at map load), the
+//                               viewer's side and the display setting, for
+//                               hooks that scale or colour their meshes
 //
 // Without a hook an event gets the generic strike: as a `levolution` or
 // `callin` event goes active, a shake, a ring of dust and the structure
@@ -50,9 +53,11 @@ export class MapEventFx {
    * @param {object|null} [options.scene]      THREE.Scene for an event's own meshes
    * @param {object} [options.hooks]           id -> FX hook (default: the registry)
    * @param {Array} [options.defs]             event definitions (default: the registry)
+   * @param {string} [options.tier]            graphics tier ('low' .. 'ultra')
    */
-  constructor({ audio = null, cameraShake = null, getCamera = () => null, fx = null, scene = null, hooks = MAP_EVENT_FX, defs = MAP_EVENT_DEFS } = {}) {
+  constructor({ audio = null, cameraShake = null, getCamera = () => null, fx = null, scene = null, hooks = MAP_EVENT_FX, defs = MAP_EVENT_DEFS, tier = 'medium' } = {}) {
     this.audio = audio; this.cameraShake = cameraShake; this.getCamera = getCamera; this.fx = fx; this._scene = scene;
+    this.tier = tier; this.selfTeam = null; this.reducedMotion = false;
     this.hooks = hooks ?? {}; this.defs = defs;
     this.mapId = null;
     this.emitters = new Map();
@@ -144,8 +149,10 @@ export class MapEventFx {
    * Per frame: the snapshot's event rows (decoded when the `ev` array
    * changes) to the hooks' `sync`, then their `update`.
    */
-  update(dt, { match = null, mapId = null } = {}) {
+  update(dt, { match = null, mapId = null, selfTeam, reducedMotion } = {}) {
     if (mapId && mapId !== this.mapId) { this.clear(); this.mapId = mapId; }
+    if (selfTeam !== undefined) this.selfTeam = selfTeam ?? null;
+    if (reducedMotion !== undefined) this.reducedMotion = !!reducedMotion;
     const ev = match?.conquest?.ev ?? null;
     if (ev !== this._ev) { this._ev = ev; this.events = ev ? decodeMapEvents(ev, null, this.mapId, this.defs).events : []; }
     for (const event of this.events) {

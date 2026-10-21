@@ -11,7 +11,7 @@ import { performance } from 'node:perf_hooks';
 import { isSolidBlock } from '../shared/world/blocks.js';
 import { ladderContact } from '../shared/world/state.js';
 import { MAP_EVENT_DEFS, decodeMapEvents, mapEventsFor } from '../shared/conquest-map-events.js';
-import { RADAR_EVENTS, RADAR_SITES, RADAR_TUNING as T, radarPartCells } from '../shared/map-events/radar.js';
+import { RADAR_EVENTS, RADAR_SITES, RADAR_TUNING as T, radarMountPart, radarPartCells } from '../shared/map-events/radar.js';
 import { RADAR_CONTROLLERS } from '../server/modes/conquest/map-events/radar.js';
 import { MAP_EVENT_CONTROLLERS } from '../server/modes/conquest/map-events/registry.js';
 import { MapEventSystem } from '../server/modes/conquest/map-events/system.js';
@@ -21,12 +21,23 @@ import { eventFlagWeights } from '../server/bot-commander.js';
 import { mapEventBanner, paintMapEvents } from '../public/js/ui/conquest/map-events.js';
 import { RADAR_PRESENTER, radarChipModel, radarSweepAngle, resetRadarHud } from '../public/js/ui/conquest/map-events/radar.js';
 import { MapEventFx } from '../public/js/fx/map-event-fx.js';
+import { RADAR_HEAD_FX } from '../public/js/fx/map-events/radar.js';
+import { RADAR_COLORS } from '../public/js/ui/conquest/map-events/radar.js';
 import { TICK_MS, eventFixture, groundY, mapEventWireBytes } from './lib/map-event-fixtures.mjs';
 
 const ids = map => mapEventsFor(map).map(d => d.id);
 for (const def of RADAR_EVENTS) assert(MAP_EVENT_DEFS.includes(def) && MAP_EVENT_CONTROLLERS[def.id] === RADAR_CONTROLLERS[def.id], `${def.id} in both slots`);
 assert.deepEqual(ids('frontier').filter(id => id.startsWith('radar')), ['radar-aldric', 'radar-ridge'], 'Frontier B and D');
 assert.deepEqual(ids('redrock').filter(id => id.startsWith('radar')), ['radar-mesa', 'radar-palmera'], 'Redrock D and A');
+
+/** The antenna's mount (a three.js head, never voxels) sits on the structure's top voxel, in air, on the part it falls with. */
+function checkMounts(world, map, parts) {
+  for (const [id, site] of Object.entries(RADAR_SITES).filter(([, s]) => s.map === map)) {
+    const m = site.mount, x = Math.floor(m.x), y = Math.floor(m.y), z = Math.floor(m.z);
+    assert(isSolidBlock(world.getBlock(x, y - 1, z)) && !isSolidBlock(world.getBlock(x, y, z)) && !isSolidBlock(world.getBlock(x, y + 1, z)), `${id}: the antenna stands on the top voxel`);
+    assert.equal(radarMountPart(site)?.id, parts[id], `${id}: it falls with the ${parts[id]}`);
+  }
+}
 
 const solidOf = world => (x, y, z) => isSolidBlock(world.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)));
 const setFlag = (policy, id, owner) => Object.assign(policy.flags.find(f => f.id === id), { owner, control: owner === 'alpha' ? 1 : owner === 'bravo' ? -1 : 0, state: 'idle', mover: null });
@@ -72,6 +83,7 @@ const crew = (p, id, x, z) => {
 };
 
 // ---------------------------------------------------------------- climbs (the belfry, the observation tower)
+checkMounts(world, 'frontier', { 'radar-ridge': 'dome', 'radar-aldric': 'tower' });
 const ladders = meta.ladders.filter(l => l.support);
 const belfry = ladders.find(l => l.minX < 300), tower = ladders.find(l => l.minX > 500);
 {
@@ -99,6 +111,7 @@ assert(!swept.has(jeep.id) && !swept.has(empty.id), 'a jeep at 260 m and an empt
 assert(spotting.isVehicleSpotted(tank.id) && tank.spotted.bravo > game.now && !spotting.isVehicleSpotted(jeep.id), 'through the ordinary spot marks');
 assert(!spotting.isSpotted(a4) && !spotting.isSpotted(a), 'never infantry, not even the crew');
 assert(F.kinds().some(e => e.event === 'radar-ridge' && e.note === 'sweep' && e.data.team === 'bravo' && e.data.ids.length === 2), 'one `sweep` note');
+assert(Math.abs(F.decoded().events.find(e => e.id === 'radar-ridge').leftMs - T.everyMs) <= TICK_MS * 2 + 100, 'the row\'s countdown wraps to 15 s as it fires (the wave\'s clock)');
 
 // ---------------------------------------------------------------- bots: demolish an enemy radar that swept two hulls
 policy._view = null;
@@ -233,6 +246,35 @@ assert(!eventFlagWeights(game).has('D'), 'and D weighs as any flag again');
     getCamera: () => ({ position: { x: 510, y: 40, z: 230 } }) });
   fx.mapId = 'frontier';
   assert(fx.handleEvent({ kind: 'map_event', event: 'radar-ridge', phase: 'done', pos: [512, 40, 232] }) && shakes.length === 1, 'the fall shakes the camera');
+
+  // The antenna and the wave from the row alone (no scene: the pose only).
+  const wfx = new MapEventFx({ fx: { emit: () => 1 }, audio: {}, tier: 'low' });
+  const head = wfx.hook('radar-ridge');
+  assert(head !== wfx.hook('radar-aldric') && head.update, 'one antenna hook per radar');
+  head.clear();
+  const frames = (ev, s, opts = {}) => { const match = { conquest: { ev } }; for (let i = 0; i < Math.round(s * 30); i++) wfx.update(1 / 30, { match, mapId: 'frontier', selfTeam: 'alpha', ...opts }); return head.pose; };
+  let pose = frames(null, 0.5);
+  assert(pose.visible && head.state.speed === 0 && pose.accent !== RADAR_COLORS.enemy && !pose.wave, 'neutral: parked, grey, no wave');
+  pose = frames([[at('radar-ridge'), 3, 0, 1, 10]], 0.5);
+  assert(head.state.speed > 0.5 && !pose.wave && pose.accent === RADAR_COLORS.enemy, 'bravo\'s radar spins up in the enemy colour, no wave before its sweep');
+  pose = frames([[at('radar-ridge'), 3, 0, 1, 149]], 1 / 30);
+  assert(pose.wave && pose.waveAge <= 150 && pose.wave.color === RADAR_COLORS.enemy && pose.wave.shellAlpha === 0, 'the wrap starts the wave (the low tier: ring only)');
+  const r0 = pose.wave.r;
+  pose = frames([[at('radar-ridge'), 3, 0, 1, 149]], 1);
+  assert(pose.wave.r > r0 + 100 && Math.abs(pose.waveAge - 1100) <= 60, `the ring runs out on the local clock between rows (${pose.wave.r.toFixed(0)} m)`);
+  pose = frames([[at('radar-ridge'), 3, 0, 1, 149]], 1 / 30, { selfTeam: 'bravo' });
+  assert.equal(pose.wave.color, RADAR_COLORS.own, 'the owner sees it in its own colour');
+  pose = frames([[at('radar-ridge'), 3, 0, 1, 149]], RADAR_HEAD_FX.wave.ms / 1000);
+  assert(!pose.wave, 'and it fades out');
+  wfx.tier = 'medium';
+  assert(frames([[at('radar-ridge'), 3, 0, 1, 150]], 0.1).wave.shellAlpha > 0, 'the medium tier adds the shell');
+  assert.equal(frames([[at('radar-ridge'), 3, 0, 1, 150]], 0.1, { reducedMotion: true }).wave.shellAlpha, 0, 'reduced motion drops it');
+  pose = frames([[at('radar-ridge'), 4, 100, 1]], 1);
+  assert(pose.visible && pose.fall?.drop > 0 && !pose.wave, 'a fall takes the antenna down with the dome');
+  assert(!frames([[at('radar-ridge'), 4, 100, 1]], 3).visible, 'then it is gone');
+  head.clear();
+  assert(!frames([[at('radar-ridge'), 4, 100, 1]], 1 / 30).visible, 'a joiner sees no antenna on a fallen radar');
+  assert(frames([[at('radar-ridge'), 3, 0, 0, 50]], 1 / 30).visible, 'a rematch stands it up again');
 }
 
 // ---------------------------------------------------------------- rematch and Breakthrough
@@ -255,6 +297,7 @@ assert(bt.instance('radar-ridge') && bt.instance('radar-aldric'), 'Breakthrough 
   assert(d.grounded && Math.abs(d.y - (dish.maxY - 0.2)) < 0.05, `the dish ladder reaches the catwalk (y ${d.y.toFixed(2)})`);
   const w = climb(R.world, R.meta, water);
   assert(w.top >= water.maxY - 0.3, `the water tower ladder reaches the rim (top ${w.top.toFixed(2)})`);
+  checkMounts(R.world, 'redrock', { 'radar-mesa': 'dome', 'radar-palmera': 'tower' });
   R.run(TICK_MS * 2);
   const mesa = R.system.instance('radar-mesa'), palmera = R.system.instance('radar-palmera');
   assert.deepEqual([mesa.team, palmera.team], ['bravo', 'alpha'], 'D and A own theirs');
@@ -270,5 +313,5 @@ assert(bt.instance('radar-ridge') && bt.instance('radar-aldric'), 'Breakthrough 
   console.log(`radar mesa: ${mesa.controller.cells} cells down`);
 }
 
-console.log('conquest map event radar: registry, climbs, sweep, bots, ownership, wire, destruction, fall, wreck, ladders, B head room, rematch, Breakthrough, Redrock passed');
+console.log('conquest map event radar: registry, climbs, sweep, bots, ownership, wire, antenna and wave, destruction, fall, wreck, ladders, B head room, rematch, Breakthrough, Redrock passed');
 process.exit(0);

@@ -71,6 +71,9 @@ const box = (x0, y0, z0, x1, y1, z1) => Object.freeze({ x0, y0, z0, x1, y1, z1 }
  * `chunkCap` its structural chunks, `integrity: false` for a part blasts on
  * it do not count against (it only comes down with the radar). A part listed
  * first comes down first (a nave roof before the tower that falls onto it).
+ * `mount` {x, y, z, scale} is where the client's rotating antenna stands (the
+ * floor of the air cell over the dome's or the mast's top voxel: a three.js
+ * model, never map voxels, public/js/fx/map-events/radar-head.js).
  */
 export const RADAR_SITES = Object.freeze({
   // Frontier D, Ridge Bunkers: the dome collapses on its drum, the observation
@@ -78,6 +81,7 @@ export const RADAR_SITES = Object.freeze({
   // zone's north-east edge passes 20 m from the tower).
   'radar-ridge': Object.freeze({
     map: 'frontier', flag: 'D', name: 'Ridge Radar', anchor: Object.freeze({ x: 528.5, y: 44, z: 226.5 }),
+    mount: Object.freeze({ x: 528.5, y: 44, z: 226.5, scale: 1 }),
     parts: Object.freeze([
       Object.freeze({ id: 'dome', boxes: Object.freeze([box(523, 35, 221, 534, 44, 232)]), blocks: Object.freeze([CONCRETE, PALE, METAL]), chunkCap: 6 }),
       Object.freeze({ id: 'tower', boxes: Object.freeze([box(509, 34, 229, 515, 60, 235)]),
@@ -91,6 +95,7 @@ export const RADAR_SITES = Object.freeze({
   // (20 m round the square) ends at the nave's north wall.
   'radar-aldric': Object.freeze({
     map: 'frontier', flag: 'B', name: 'St. Aldric Radar', anchor: Object.freeze({ x: 266.5, y: 71, z: 541.5 }),
+    mount: Object.freeze({ x: 266.5, y: 72, z: 541.5, scale: 0.8 }),
     parts: Object.freeze([
       Object.freeze({ id: 'roof', boxes: Object.freeze([box(265, 43, 539, 287, 50, 553)]), blocks: Object.freeze([TERRACOTTA_ROOF, WHITE_PLASTER]),
         exclude: Object.freeze([box(258, 0, 542, 265, 99, 550)]), chunkCap: 10, integrity: false }),
@@ -102,6 +107,7 @@ export const RADAR_SITES = Object.freeze({
   // topples east, away from the flag.
   'radar-mesa': Object.freeze({
     map: 'redrock', flag: 'D', name: 'Mesa Radar', anchor: Object.freeze({ x: 564.5, y: 47, z: 249.5 }),
+    mount: Object.freeze({ x: 564.5, y: 46, z: 249.5, scale: 1.3 }),
     parts: Object.freeze([
       Object.freeze({ id: 'dome', boxes: Object.freeze([box(556, 34, 241, 573, 47, 258)]), blocks: Object.freeze([CONCRETE, PALE, PLANK, METAL, RUST]), chunkCap: 8 }),
       Object.freeze({ id: 'dish', boxes: Object.freeze([box(563, 32, 258, 572, 58, 268)]), blocks: Object.freeze([METAL, RUST, PALE, TRUCK_RED]), chunkCap: 10,
@@ -113,6 +119,7 @@ export const RADAR_SITES = Object.freeze({
   // from the flag.
   'radar-palmera': Object.freeze({
     map: 'redrock', flag: 'A', name: 'Palmera Radar', anchor: Object.freeze({ x: 266.5, y: 57, z: 247.5 }),
+    mount: Object.freeze({ x: 266.5, y: 58, z: 247.5, scale: 0.8 }),
     parts: Object.freeze([
       Object.freeze({ id: 'tower', boxes: Object.freeze([box(262, 33, 245, 267, 58, 249), box(262, 38, 250, 267, 58, 250)]), blocks: null, chunkCap: 10,
         topple: Object.freeze({ hinge: Object.freeze([264.5, 33, 245]), dir: Object.freeze([0, -1]), minRise: 3 }) }),
@@ -125,6 +132,14 @@ const PLANS = Object.freeze({ frontier: FRONTIER_PLAN, redrock: REDROCK_PLAN });
 export function radarCentre(site) {
   const f = PLANS[site?.map]?.flags?.find(flag => flag.id === site.flag);
   return f ? { x: f.x, z: f.z } : null;
+}
+
+/** The part the antenna's mount stands on (the one whose boxes hold the voxel under it): it falls with that part. */
+export function radarMountPart(site) {
+  const m = site?.mount;
+  if (!m) return null;
+  const x = Math.floor(m.x), y = Math.floor(m.y) - 1, z = Math.floor(m.z);
+  return site.parts.find(p => p.boxes.some(b => inBox(b, x, y, z))) ?? null;
 }
 
 /** Every radar id on a map. */

@@ -25,7 +25,9 @@ import { RADAR_TUNING as T, radarCentre, radarOnline, radarSweepSeconds } from '
 import { el } from '../../hud-support.js';
 import { svgIcon } from '../icons.js';
 
-const COLORS = Object.freeze({ own: '#4cc3ff', enemy: '#ff8a3d', neutral: '#d8d8d8' });
+/** The radar's colours, from the viewer's side (the world FX's antenna accent and sweep wave reuse them). */
+export const RADAR_COLORS = Object.freeze({ own: '#4cc3ff', enemy: '#ff8a3d', neutral: '#d8d8d8' });
+const COLORS = RADAR_COLORS;
 /** The flash round the ring after a sweep fires (presentation only). */
 const FLASH_MS = 1200;
 /** The sweep line's trailing wedge (radians). */

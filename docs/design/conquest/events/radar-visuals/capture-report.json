@@ -1,0 +1,194 @@
+[
+  {
+    "id": "desktop-ridge-dish-a",
+    "map": "frontier",
+    "shot": "trenches",
+    "radar": "radar-ridge",
+    "team": 1,
+    "self": "alpha",
+    "spin": 1.2,
+    "wave": null,
+    "pos": [
+      536,
+      48.5,
+      234
+    ],
+    "at": [
+      528.5,
+      45.6,
+      226.5
+    ],
+    "fov": 50,
+    "staged": {
+      "angle": 1.0219252680319095,
+      "speed": 1.6755160819145563,
+      "wave": null,
+      "waveAge": 7183.333333333333
+    },
+    "renderMs": 183.5,
+    "errors": []
+  },
+  {
+    "id": "desktop-ridge-dish-b",
+    "map": "frontier",
+    "shot": "trenches",
+    "radar": "radar-ridge",
+    "team": 1,
+    "self": "alpha",
+    "spin": 2.15,
+    "wave": null,
+    "pos": [
+      536,
+      48.5,
+      234
+    ],
+    "at": [
+      528.5,
+      45.6,
+      226.5
+    ],
+    "fov": 50,
+    "staged": {
+      "angle": 2.6136655458507403,
+      "speed": 1.6755160819145563,
+      "wave": null,
+      "waveAge": 8133.333333333336
+    },
+    "renderMs": 179.29999995231628,
+    "errors": []
+  },
+  {
+    "id": "desktop-ridge-wave-enemy",
+    "map": "frontier",
+    "shot": "trenches",
+    "radar": "radar-ridge",
+    "team": 1,
+    "self": "alpha",
+    "spin": 2,
+    "wave": 600,
+    "pos": [
+      640,
+      82,
+      330
+    ],
+    "at": [
+      528,
+      38,
+      226
+    ],
+    "fov": 60,
+    "staged": {
+      "angle": 3.3676477827122917,
+      "speed": 1.6755160819145563,
+      "wave": {
+        "r": 132.54123263888903,
+        "color": "#ff8a3d",
+        "alpha": 0.5658470506657238,
+        "shellAlpha": 0.15089254684419304,
+        "shellM": 34
+      },
+      "waveAge": 583.3333333333339
+    },
+    "renderMs": 149.5,
+    "errors": []
+  },
+  {
+    "id": "desktop-aldric-dish-own",
+    "map": "frontier",
+    "shot": "village-street",
+    "radar": "radar-aldric",
+    "team": 0,
+    "self": "alpha",
+    "spin": 2,
+    "wave": null,
+    "pos": [
+      281,
+      77,
+      531
+    ],
+    "at": [
+      266.5,
+      72.5,
+      541.5
+    ],
+    "fov": 50,
+    "staged": {
+      "angle": 2.3623381335635565,
+      "speed": 1.6755160819145563,
+      "wave": null,
+      "waveAge": 7983.333333333337
+    },
+    "renderMs": 44.699999928474426,
+    "errors": []
+  },
+  {
+    "id": "desktop-aldric-wave-own",
+    "map": "frontier",
+    "shot": "village-street",
+    "radar": "radar-aldric",
+    "team": 0,
+    "self": "alpha",
+    "spin": 2,
+    "wave": 900,
+    "pos": [
+      330,
+      95,
+      430
+    ],
+    "at": [
+      266,
+      50,
+      541
+    ],
+    "fov": 60,
+    "staged": {
+      "angle": 3.8703026072866593,
+      "speed": 1.6755160819145563,
+      "wave": {
+        "r": 190.35373263888866,
+        "color": "#4cc3ff",
+        "alpha": 0.47715586192451637,
+        "shellAlpha": 0.12724156317987104,
+        "shellM": 34
+      },
+      "waveAge": 883.3333333333321
+    },
+    "renderMs": 44.39999997615814,
+    "errors": []
+  },
+  {
+    "id": "desktop-mesa-wave-own",
+    "map": "redrock",
+    "shot": "radar",
+    "radar": "radar-mesa",
+    "team": 1,
+    "self": "bravo",
+    "spin": 2,
+    "wave": 450,
+    "pos": [
+      480,
+      70,
+      160
+    ],
+    "at": [
+      564,
+      40,
+      249
+    ],
+    "fov": 60,
+    "staged": {
+      "angle": 3.116320370425108,
+      "speed": 1.6755160819145563,
+      "wave": {
+        "r": 100.99826388888901,
+        "color": "#4cc3ff",
+        "alpha": 0.6117737896263032,
+        "shellAlpha": 0.16313967723368086,
+        "shellM": 34
+      },
+      "waveAge": 433.33333333333394
+    },
+    "renderMs": 42.10000002384186,
+    "errors": []
+  }
+]
