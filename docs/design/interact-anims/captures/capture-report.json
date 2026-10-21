@@ -1,0 +1,180 @@
+{
+  "generated": "2026-10-21T11:16:19.707Z",
+  "shots": [
+    {
+      "size": "desktop",
+      "name": "plant-1-work",
+      "file": "docs/design/interact-anims/captures/desktop-plant-1-work.jpg",
+      "phase": "work",
+      "level": 1,
+      "progress": 0.4944444444444456,
+      "dip": 0.42,
+      "weaponHidden": true,
+      "draws": 43
+    },
+    {
+      "size": "desktop",
+      "name": "plant-2-armed",
+      "file": "docs/design/interact-anims/captures/desktop-plant-2-armed.jpg",
+      "phase": "finish",
+      "level": 1,
+      "progress": 1,
+      "dip": 0.42,
+      "weaponHidden": true,
+      "draws": 47
+    },
+    {
+      "size": "desktop",
+      "name": "defuse-1-work",
+      "file": "docs/design/interact-anims/captures/desktop-defuse-1-work.jpg",
+      "phase": "work",
+      "level": 1,
+      "progress": 0.5199999999999988,
+      "dip": 0.42,
+      "weaponHidden": true,
+      "draws": 46
+    },
+    {
+      "size": "desktop",
+      "name": "defuse-2-done",
+      "file": "docs/design/interact-anims/captures/desktop-defuse-2-done.jpg",
+      "phase": "finish",
+      "level": 1,
+      "progress": 1,
+      "dip": 0.42,
+      "weaponHidden": true,
+      "draws": 48
+    },
+    {
+      "size": "desktop",
+      "name": "revive-1-press",
+      "file": "docs/design/interact-anims/captures/desktop-revive-1-press.jpg",
+      "phase": "work",
+      "level": 1,
+      "progress": 0.6805555555555558,
+      "dip": 0.46,
+      "weaponHidden": true,
+      "draws": 111
+    },
+    {
+      "size": "desktop",
+      "name": "revive-2-pulse",
+      "file": "docs/design/interact-anims/captures/desktop-revive-2-pulse.jpg",
+      "phase": "finish",
+      "level": 1,
+      "progress": 1,
+      "dip": 0.46,
+      "weaponHidden": true,
+      "draws": 113
+    },
+    {
+      "size": "desktop",
+      "name": "repair-1-sparks",
+      "file": "docs/design/interact-anims/captures/desktop-repair-1-sparks.jpg",
+      "phase": "work",
+      "level": 1,
+      "progress": 0.3541666666666674,
+      "dip": 0.2,
+      "weaponHidden": true,
+      "draws": 35
+    },
+    {
+      "size": "desktop",
+      "name": "hack-1-typing",
+      "file": "docs/design/interact-anims/captures/desktop-hack-1-typing.jpg",
+      "phase": "work",
+      "level": 1,
+      "progress": 0.4708333333333335,
+      "dip": 0,
+      "weaponHidden": true,
+      "draws": 35
+    },
+    {
+      "size": "desktop",
+      "name": "hack-2-done",
+      "file": "docs/design/interact-anims/captures/desktop-hack-2-done.jpg",
+      "phase": "finish",
+      "level": 1,
+      "progress": 1,
+      "dip": 0,
+      "weaponHidden": true,
+      "draws": 35
+    },
+    {
+      "size": "desktop",
+      "name": "cancel-plant-90ms",
+      "file": "docs/design/interact-anims/captures/desktop-cancel-plant-90ms.jpg",
+      "phase": "exit",
+      "level": 0.41700960219478356,
+      "progress": 0.3277777777777781,
+      "dip": 0.15819618378520783,
+      "weaponHidden": true,
+      "draws": 6
+    },
+    {
+      "size": "desktop",
+      "name": "third-plant",
+      "file": "docs/design/interact-anims/captures/third-plant.jpg",
+      "level": 0.9998955358561682,
+      "draws": 92
+    },
+    {
+      "size": "desktop",
+      "name": "third-defuse",
+      "file": "docs/design/interact-anims/captures/third-defuse.jpg",
+      "level": 0.9999999890872426,
+      "draws": 94
+    },
+    {
+      "size": "desktop",
+      "name": "third-revive",
+      "file": "docs/design/interact-anims/captures/third-revive.jpg",
+      "level": 0.99999999999886,
+      "draws": 154
+    },
+    {
+      "size": "desktop",
+      "name": "third-repair",
+      "file": "docs/design/interact-anims/captures/third-repair.jpg",
+      "level": 0.9999999999999997,
+      "draws": 81
+    },
+    {
+      "size": "desktop",
+      "name": "third-hack",
+      "file": "docs/design/interact-anims/captures/third-hack.jpg",
+      "level": 0.9999999999999997,
+      "draws": 79
+    },
+    {
+      "size": "desktop",
+      "name": "world-charge",
+      "file": "docs/design/interact-anims/captures/world-charge.jpg",
+      "level": 0,
+      "draws": 32
+    },
+    {
+      "size": "portrait",
+      "name": "plant-1-work",
+      "file": "docs/design/interact-anims/captures/portrait-plant-1-work.jpg",
+      "phase": "work",
+      "level": 1,
+      "progress": 0.4944444444444456,
+      "dip": 0.42,
+      "weaponHidden": true,
+      "draws": 34
+    },
+    {
+      "size": "portrait",
+      "name": "revive-1-press",
+      "file": "docs/design/interact-anims/captures/portrait-revive-1-press.jpg",
+      "phase": "work",
+      "level": 1,
+      "progress": 0.6805555555555558,
+      "dip": 0.46,
+      "weaponHidden": true,
+      "draws": 63
+    }
+  ],
+  "errors": []
+}

@@ -1,6 +1,7 @@
 import { normalizeCosmeticLoadout } from '../../shared/career.js';
 import { normalizeAttachments } from '../../shared/weapon-attachments.js';
 import { WEAPON_IDS } from '../../shared/combatmath.js';
+import { INTERACT_KINDS } from '../../shared/interact-anim.js';
 import { medkitRemaining } from '../../shared/medkit.js';
 import { medkitRulesOf } from '../sim/medkit.js';
 import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
@@ -63,7 +64,9 @@ export function ownedWeapons(values) {
 }
 
 function interactionCopy(value) {
-  if (!isRecord(value) || !['plant', 'defuse', 'repair'].includes(value.kind)) return null;
+  // The hold kinds the client animates (shared/interact-anim.js): S&D plant / defuse,
+  // Bastion repair, Conquest revive / repair and map-event points.
+  if (!isRecord(value) || !INTERACT_KINDS.includes(value.kind)) return null;
   return {
     kind: value.kind,
     site: typeof value.site === 'string' ? value.site : null,

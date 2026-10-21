@@ -29,6 +29,7 @@ import { fpvField, fpvIntent, fpvLoadout, fpvOperating, fpvRemoveOwner, fpvRenam
 import { IronBridge } from './conquest/bridge.js';
 import { MapEventSystem, mapEventsOptionFromEnv } from './conquest/map-events/system.js';
 import { MAP_EVENT_SUPPORT } from '../../shared/conquest-map-events.js';
+import { interactKindOfVerb } from '../../shared/interact-anim.js';
 
 /** Kill key of a fall death (kill feed "FELL"); see shared/conquest-contract.js DEATH_KEYS. */
 export const FALL_KILL_KEY = 'fall';
@@ -818,7 +819,18 @@ export class ConquestPolicy extends TdmPolicy {
     const base = super.playerSnapshot(player);
     if (!entity || !this._state(entity)) return base;
     return { ...base, owned: Array.isArray(entity.owned) ? entity.owned.slice() : WEAPON_IDS.slice(),
-      conquest: this.conquestFields(entity) };
+      conquest: this.conquestFields(entity), interaction: this.interactionOf(entity) };
+  }
+
+  /**
+   * The row's `interaction` {kind, site, progress} while a hold runs (the
+   * hold animations, shared/interact-anim.js): a map-event point (its verb
+   * names the kind: plant, defuse, else hack), else a revive or a repair.
+   */
+  interactionOf(entity) {
+    const point = this.mapEvents.instances?.length ? this.mapEvents.points.heldBy(entity.id) : null;
+    if (point) return { kind: interactKindOfVerb(point.verb), site: null, progress: point.progress };
+    return this.roles.actionInteraction?.(entity) ?? null;
   }
 
   /** `p.conquest`: {kit, squad, down, spotted, restrictedMs, actionProgress, stats, comm?}; snapshot.js encodes cq/cqs/cqc. */

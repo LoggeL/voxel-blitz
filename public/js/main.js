@@ -518,6 +518,8 @@ class Game {
     // Launch and link-loss presentation of the own drone: the handset up, static, SIGNAL LOST, the handset down.
     this.fpvTransition = new rt.FpvTransition();
     this._fpvFrozen = { position: new rt.THREE.Vector3(), quaternion: new rt.THREE.Quaternion(), fov: 75, ok: false };
+    // Hold-to-use interaction animations (plant, defuse, revive, repair): the own hands, and the charges in the world.
+    this.interactAnim = new rt.InteractAnim();
     this.conquestHud = new rt.ConquestHud(document.body, {
       mapId: this.mapMeta?.id ?? welcome.map,
       onInteract: () => this.session.gameplayInputEnabled && this.vehicleController?.queueInteract(),
@@ -596,6 +598,7 @@ class Game {
     // Conquest map events (docs/conquest.md "Map events"): each event's world effects and the generic strike.
     if (welcome.gameMode === 'conquest') this.mapEventFx = new rt.MapEventFx({ audio: sfx, cameraShake: this.cameraShake,
       getCamera: () => this.camera, fx: this.particleField, scene: this.worldview.scene });
+    this.interactProps = new rt.InteractProps({ scene: this.worldview.scene });
     this.worldview.scene.add(this.camera);
     this.ownBody = rt.makeFirstPersonBody();
     this.worldview.scene.add(this.ownBody.group);
@@ -1004,6 +1007,8 @@ class Game {
   isAuthoritativeFireAllowed(grenade = false, options = {}) {
     // The handset is up or coming down after a drone (FpvTransition): the gun is stowed.
     if (this.fpvTransition?.frame.weaponHidden === true && this.fpvPilot?.active !== true) return false;
+    // The hands are busy with a hold (plant, defuse, revive, repair): the gun is stowed.
+    if (this.interactAnim?.frame.weaponHidden === true) return false;
     if (this.vehicleController?.active || !this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.grenadePouch?.open ||
         (this.player.physics.vault && !options.ignoreVault) || this.player.physics.chute > 0) return false;
@@ -1382,6 +1387,13 @@ class Game {
     const droneCamera = piloting && (!fpvView || fpvView.camera === 'drone');
     const frozenCamera = !seated && fpvView?.camera === 'frozen' && this._fpvFrozen?.ok === true;
     const handsetUp = !!fpvView && fpvView.camera === 'body' && fpvView.handset > 0;
+    // The own hold from the authoritative row; a released Interact key drops the hands at once.
+    const interactView = this.interactAnim?.update(now, { interaction: rt.rowInteraction(this.selfRow),
+      // Keyboard, pad and touch Interact, or a press held on the Conquest prompt itself.
+      held: !!this.player?.keys?.interact || !!pad?.held.interact || this.conquestHud?.interact?.pressedAt != null,
+      alive: this.player.alive && !seated && !piloting,
+      crouched: !!this.player.crouchBool || (this.player.physics.proneT || 0) > 0.2,
+      reducedMotion: displaySettings().reducedMotion }) ?? null;
     if (document.body.dataset.fpvHandset !== String(handsetUp)) document.body.dataset.fpvHandset = String(handsetUp);
     if (this._battlefieldFog && this.worldview?.scene.fog) {
       const row = this.vehicleController?.vehicle;
@@ -1541,6 +1553,8 @@ class Game {
       }
     } else {
       this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov, this.weapon.scopeActive);
+      // A kneel for the hold (InteractAnim): presentation only, the body stays where the server has it.
+      if (interactView?.dip > 0) this.camera.position.y -= interactView.dip;
       const blastShake = this.effects.currentShakeXY;
       this.camera.rotation.x += blastShake.y * (displaySettings().reducedMotion ? 0.15 : 1);
       this.camera.rotation.y += blastShake.x * (displaySettings().reducedMotion ? 0.15 : 1);
@@ -1587,6 +1601,8 @@ class Game {
         viewRoll: this.player.leanViewRoll,
         fpvHandset: fpvView ? { level: fpvView.handset, weaponHidden: fpvView.weaponHidden,
           screen: fpvView.phase === 'lower' ? 'lost' : 'static', reducedMotion: displaySettings().reducedMotion } : null,
+        interact: interactView,
+        nowMs: now,
       });
       this.weapon.syncRigAds();
       const flameDirection = fwdFromAngles(this.player.shotYaw, this.player.shotPitch);
@@ -1610,6 +1626,8 @@ class Game {
       this.structureFx?.update(frameDt, this.net?.presentedServerTime?.(performance.now()) ?? null);
       this.bridgeFx?.update(frameDt);
       this.mapEventFx?.update(frameDt, { match: this.matchState, mapId: this.mapMeta?.id ?? null });
+      this.interactProps?.update({ match: this.matchState, mapId: this.mapMeta?.id ?? null, nowMs: now,
+        serverNow: Number.isFinite(this.serverNow) ? this.serverNow + Math.max(0, now - (this.smokeObservedAt || now)) : null });
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
       if (this.build) {
@@ -1804,6 +1822,7 @@ class Game {
     this.structureFx?.dispose(); this.structureFx = null;
     this.bridgeFx?.clear(); this.bridgeFx = null;
     this.mapEventFx?.clear(); this.mapEventFx = null;
+    this.interactProps?.clear(); this.interactProps = null; this.interactAnim = null;
     this.particleField?.dispose(); this.particleField = null;
     this.cameraShake = null;
     this.vehicleAudio?.dispose(); this.vehicleAudio = null;
