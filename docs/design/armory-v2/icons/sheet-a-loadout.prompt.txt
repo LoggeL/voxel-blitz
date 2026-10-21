@@ -1,0 +1,19 @@
+Use case: production game UI icon sprite sheet for the Voxel Blitz ARMORY menu (a three.js voxel shooter with dark navy panels and amber/cyan accents).
+Asset type: one square image holding EXACTLY 3 columns and 3 rows of equal square cells (9 icons). NO grid lines, NO cell borders, NO frames, NO text, NO letters, NO numbers, NO labels, NO interface. The sheet is sliced into equal thirds by a script, so every icon must sit fully inside its own cell, centred, with at least 16% empty background padding on every side, never touching or crossing a cell boundary. All 9 icons share the same camera, lighting and visual scale.
+
+Background: the whole canvas is ONE perfectly flat, uniform pure magenta #FF00FF. No gradient, no vignette, no texture, no floor, no cast shadows, no glow or light spill onto the background. Every icon has a crisp thin very dark navy (#0b1117) outline separating it from the magenta. Never use magenta or hot pink inside any icon.
+
+Style: the same family as the game's existing callsign badges: chunky voxel geometry built from small cubes, physically shaded bevelled brushed gunmetal and steel, crisp hard pixel-like edges, small controlled emissive accent cores. Premium collectible game icon quality, front view with a slight three-quarter tilt. Bold, simple, instantly readable silhouette that still reads when shrunk to 40 pixels: no fine detail, no thin lines, strong contrast between the dark metal body and one bright accent colour.
+
+Row 1, left to right:
+(1) STANDARD OPERATOR: a blocky voxel combat helmet with a dark visor slit and a small cool-grey accent light, plain factory gunmetal, no face.
+(2) STANDARD DEATH SIGNATURE: a plain steel military dog tag on a short chunky ball chain, with a small cool-grey crosshair notch stamped in it.
+(3) STANDARD SOUND KIT: a blocky steel loudspeaker cone with three short stepped sound bars beside it, cool-grey accent.
+Row 2, left to right:
+(4) STANDARD NAMEPLATE: a blank wide steel plaque with four corner rivets and a bevelled edge, no writing, cool-grey accent stripe.
+(5) ARCADE SOUND KIT: a voxel retro arcade joystick with two round buttons, glowing teal #65E8D5 accents.
+(6) HIGH NOON SOUND KIT: a voxel cowboy hat in tan leather with a glowing warm gold #EDBC68 hat band.
+Row 3, left to right:
+(7) OVERDRIVE SOUND KIT: a violet #BA82FF voxel lightning bolt striking across three tall equalizer bars, emissive violet core.
+(8) ARMORER CALLSIGN: a voxel blacksmith anvil with a crossed hammer and wrench, brushed silver #C8D2DC.
+(9) ARMSMASTER CALLSIGN: an ornate angular voxel crest shield with a small crown on top and five upright blade bars inside, violet #B98CFF emissive core with dark gold trim.

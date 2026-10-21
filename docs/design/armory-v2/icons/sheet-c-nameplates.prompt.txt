@@ -1,0 +1,21 @@
+Use case: production game UI icon sprite sheet for the Voxel Blitz ARMORY menu (a three.js voxel shooter with dark navy panels and amber/cyan accents).
+Asset type: one square image holding EXACTLY 3 columns and 3 rows of equal square cells (9 icons). NO grid lines, NO cell borders, NO frames, NO text, NO letters, NO numbers, NO labels, NO interface. The sheet is sliced into equal thirds by a script, so every icon must sit fully inside its own cell, centred, with at least 16% empty background padding on every side, never touching or crossing a cell boundary. All 9 icons share the same camera, lighting and visual scale.
+
+Background: the whole canvas is ONE perfectly flat, uniform pure magenta #FF00FF. No gradient, no vignette, no texture, no floor, no cast shadows, no glow or light spill onto the background. Every icon has a crisp thin very dark navy (#0b1117) outline separating it from the magenta. Never use magenta or hot pink inside any icon.
+
+Style: the same family as the game's existing callsign badges: chunky voxel geometry built from small cubes, physically shaded bevelled brushed gunmetal and steel, crisp hard pixel-like edges, small controlled emissive accent cores. Premium collectible game icon quality, front view with a slight three-quarter tilt. Bold, simple, instantly readable silhouette that still reads when shrunk to 40 pixels: no fine detail, no thin lines, strong contrast between the dark metal body and one bright accent colour.
+
+
+These are NAMEPLATE emblems: the small badge a player shows beside their name on the scoreboard. Each is a bold symmetric front-facing emblem.
+Row 1, left to right:
+(1) RANGER: a green #7FD4A0 voxel arrowhead pointing up over a small pine tree, dark steel backing.
+(2) AEGIS: a round voxel buckler shield in dark steel with a glowing blue #77B6FF ring and boss.
+(3) ECLIPSE: a dark voxel disc eclipsing a sun, with a glowing violet #C69BFF corona ring around it.
+Row 2, left to right:
+(4) BULWARK: a short steel fortress wall of stacked blocks with battlements, cool steel blue #A0B8D0 accent lights.
+(5) ONYX: a faceted black onyx gemstone with grey #8A8F9C highlights in a chunky dark steel setting.
+(6) CENTURION: a voxel Roman centurion helmet with a transverse crest, pale gold #E0C080 metal.
+Row 3, left to right:
+(7) ZENITH: a bright pale-gold #FFF1A8 four-point star blazing above a small voxel mountain peak.
+(8) ARSENAL: a sturdy gunmetal crate with three upright glowing gold #FFD23F bars standing in it like a rack.
+(9) ARSENAL, alternative design: a gold #FFD23F angular plate with three stacked gold chevrons and a small star, dark steel border.

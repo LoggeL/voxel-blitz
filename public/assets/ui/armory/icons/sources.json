@@ -1,0 +1,302 @@
+{
+  "tool": "tools/slice-armory-icons.py",
+  "model": "gpt-image-2.5-flare",
+  "size": 128,
+  "prompts": "docs/design/armory-v2/icons/",
+  "icons": [
+    {
+      "file": "std-operator.webp",
+      "sheet": "compare-sheet-a-gpt-image-2.5-flare.webp",
+      "cell": 1,
+      "bytes": 5066,
+      "sha256": "4fda7c0c206f691ea928d7484e3001eef905562d3e1d11d3c8631982bfeb9c43"
+    },
+    {
+      "file": "std-signature.webp",
+      "sheet": "compare-sheet-a-gpt-image-2.5-flare.webp",
+      "cell": 2,
+      "bytes": 4208,
+      "sha256": "d6be19eea163bef2af14959cf90ae4efc6137acd6d3d193ba786a1d49dfec9a2"
+    },
+    {
+      "file": "std-sound.webp",
+      "sheet": "compare-sheet-a-gpt-image-2.5-flare.webp",
+      "cell": 3,
+      "bytes": 4554,
+      "sha256": "28305b43f49d84c8123a5d5be57c8f98ee0ca9307ab52600755946e9c7bfba2b"
+    },
+    {
+      "file": "std-nameplate.webp",
+      "sheet": "compare-sheet-a-gpt-image-2.5-flare.webp",
+      "cell": 4,
+      "bytes": 3212,
+      "sha256": "23d3665fda66813f36ac80d15a8e66812fe2b3bd6d7d85491ac27cf32a897773"
+    },
+    {
+      "file": "sound-arcade.webp",
+      "sheet": "compare-sheet-a-gpt-image-2.5-flare.webp",
+      "cell": 5,
+      "bytes": 4978,
+      "sha256": "216d9c2a8e421805209dbfba4f4e51e617c36beea47a9645f65bb473f14d89b8"
+    },
+    {
+      "file": "sound-high-noon.webp",
+      "sheet": "compare-sheet-a-gpt-image-2.5-flare.webp",
+      "cell": 6,
+      "bytes": 4616,
+      "sha256": "59caaaaa6fd9ee84a5e38392f5d0a3b0a032d0cd230f0d365a5d7d719e5aa703"
+    },
+    {
+      "file": "sound-overdrive.webp",
+      "sheet": "compare-sheet-a-gpt-image-2.5-flare.webp",
+      "cell": 7,
+      "bytes": 5210,
+      "sha256": "d625213f06565a9e11f980fe2d5eba37d8039e6f95f64efe91deb79ca0e7d31a"
+    },
+    {
+      "file": "title-armorer.webp",
+      "sheet": "compare-sheet-a-gpt-image-2.5-flare.webp",
+      "cell": 8,
+      "bytes": 5536,
+      "sha256": "ad88adf911c3a2271145379f87a3cc6d6e9326cdcf16e17bdf045e0197abe877"
+    },
+    {
+      "file": "title-armsmaster.webp",
+      "sheet": "compare-sheet-a-gpt-image-2.5-flare.webp",
+      "cell": 9,
+      "bytes": 5200,
+      "sha256": "9d39273df9b353134d09cbbe3080d4be359cd5a6f7cd2bcae6626a3b999d593c"
+    },
+    {
+      "file": "title-tactician.webp",
+      "sheet": "sheet-b-callsigns.webp",
+      "cell": 1,
+      "bytes": 5164,
+      "sha256": "5ed519db59233bc4f567c1ab9d3dd042055e179cc55690935d60987f5f325103"
+    },
+    {
+      "file": "title-operator.webp",
+      "sheet": "sheet-b-callsigns.webp",
+      "cell": 2,
+      "bytes": 4904,
+      "sha256": "7a48ab17873706df286a40926abf9782781a1ec712eefcc50547d2e7a3f43cdc"
+    },
+    {
+      "file": "title-sentinel.webp",
+      "sheet": "sheet-b-callsigns.webp",
+      "cell": 3,
+      "bytes": 5226,
+      "sha256": "1ec34f0d8c5ccd1a22c10cd41b97a78aaa663c34eecbdf9c7f9888035a90de57"
+    },
+    {
+      "file": "title-warden.webp",
+      "sheet": "sheet-b-callsigns.webp",
+      "cell": 4,
+      "bytes": 6640,
+      "sha256": "861f77153a5b334d89e9f5134a0adfd484e720227e8034071ed9ffb62e54d6e9"
+    },
+    {
+      "file": "title-commander.webp",
+      "sheet": "sheet-b-callsigns.webp",
+      "cell": 5,
+      "bytes": 4926,
+      "sha256": "3ef5c29e543f8583a57b85eed8042b7c9e5d63ce6563323fd5e44708dea77fb9"
+    },
+    {
+      "file": "title-legend.webp",
+      "sheet": "sheet-b-callsigns.webp",
+      "cell": 6,
+      "bytes": 6334,
+      "sha256": "bc23d917c036ca23d090468ec76ad2683884eb22c0832d57cfb2ceb1806f8cf0"
+    },
+    {
+      "file": "title-immortal.webp",
+      "sheet": "sheet-b-callsigns.webp",
+      "cell": 7,
+      "bytes": 7796,
+      "sha256": "fc5a8bc04e2649b4acfd829447e43d42b92cd440469bcf716b4453ea8f3c0cd7"
+    },
+    {
+      "file": "title-weapon-master.webp",
+      "sheet": "sheet-b-callsigns.webp",
+      "cell": 8,
+      "bytes": 4938,
+      "sha256": "dca30fb4af30861b7a328033d17fd0c3e7cbe49aa0b9bda7194274b1ffbc0c9e"
+    },
+    {
+      "file": "nameplate-ranger.webp",
+      "sheet": "sheet-c-nameplates.webp",
+      "cell": 1,
+      "bytes": 4750,
+      "sha256": "9716973f6d6b0830b1e2f6ace57a74de872c9f4b154d18a2aa1762ae5ef4446e"
+    },
+    {
+      "file": "nameplate-aegis.webp",
+      "sheet": "sheet-c-nameplates.webp",
+      "cell": 2,
+      "bytes": 6210,
+      "sha256": "dad0ce7f086ec5314fcdf0be081225314b4ae8bc87d3601d551ba7db8ce7c43a"
+    },
+    {
+      "file": "nameplate-eclipse.webp",
+      "sheet": "sheet-c-nameplates.webp",
+      "cell": 3,
+      "bytes": 5940,
+      "sha256": "c86775b60c3aa5fda98cb1ccbbf38b8d131160ba2fc15b62b9234b3165000549"
+    },
+    {
+      "file": "nameplate-bulwark.webp",
+      "sheet": "sheet-c-nameplates.webp",
+      "cell": 4,
+      "bytes": 5062,
+      "sha256": "5ba3ca49301e3dbbd62fe8754539b4cf30e7068f4b0e12a9f8b1800764fea25d"
+    },
+    {
+      "file": "nameplate-onyx.webp",
+      "sheet": "sheet-c-nameplates.webp",
+      "cell": 5,
+      "bytes": 4820,
+      "sha256": "168d45ac0505f23e13efe0e7f914426cd2f2574bbc28d30ebe4a713b55f1f86c"
+    },
+    {
+      "file": "nameplate-centurion.webp",
+      "sheet": "sheet-c-nameplates.webp",
+      "cell": 6,
+      "bytes": 6582,
+      "sha256": "759a39fcfacb02e672a7b41a4d43ede6cfb29d42406dbf51b363726ee1142633"
+    },
+    {
+      "file": "nameplate-zenith.webp",
+      "sheet": "sheet-c-nameplates.webp",
+      "cell": 7,
+      "bytes": 5118,
+      "sha256": "c9ee01acc12fb1bef14be23655c0753d5d3a314ef5b8150dfb592f6856a1bdd8"
+    },
+    {
+      "file": "nameplate-arsenal.webp",
+      "sheet": "sheet-c-nameplates.webp",
+      "cell": 8,
+      "bytes": 6480,
+      "sha256": "3db1ebc4f5c32f36653c27acdec4a7aa48f44ccb1ccd6a05c7efa975366d57b2"
+    },
+    {
+      "file": "part-reflex.webp",
+      "sheet": "sheet-d-attachments.webp",
+      "cell": 1,
+      "bytes": 5760,
+      "sha256": "31145fc3c62ad3288fceedc8b2cf2405f2d9aaec674e578ef08a973863db5b06"
+    },
+    {
+      "file": "part-angled.webp",
+      "sheet": "sheet-d-attachments.webp",
+      "cell": 2,
+      "bytes": 5312,
+      "sha256": "11e80fc63db62c286cdcda9b3613d04a3ce3238242c238a11ca2c96f6b389d40"
+    },
+    {
+      "file": "part-stattrak.webp",
+      "sheet": "sheet-d-attachments.webp",
+      "cell": 3,
+      "bytes": 4766,
+      "sha256": "517fab61f148dc45a9388b7280ae9f631da12177500a74f7cda8c785622adbc5"
+    },
+    {
+      "file": "part-scope2.webp",
+      "sheet": "sheet-d-attachments.webp",
+      "cell": 4,
+      "bytes": 4756,
+      "sha256": "03c21e34ef56f401791f2655aeafd19199d0afec924f67aed2fe97b9e4585551"
+    },
+    {
+      "file": "part-vertical.webp",
+      "sheet": "sheet-d-attachments.webp",
+      "cell": 5,
+      "bytes": 3610,
+      "sha256": "88d430f79c4ff314997a86c73a445545641f5922dd8049827aa9838a3001d3d3"
+    },
+    {
+      "file": "part-scope4.webp",
+      "sheet": "sheet-d-attachments.webp",
+      "cell": 6,
+      "bytes": 4904,
+      "sha256": "90407b73650dfad166bb9e1975a82b13b4604f45957978cee8cb73d71fad5008"
+    },
+    {
+      "file": "part-precision.webp",
+      "sheet": "sheet-d-attachments.webp",
+      "cell": 7,
+      "bytes": 4248,
+      "sha256": "619dcea930f22863e758241b02e512ff105bb61644366cea0004f3fc20391c71"
+    },
+    {
+      "file": "part-scope10.webp",
+      "sheet": "sheet-d-attachments.webp",
+      "cell": 8,
+      "bytes": 3966,
+      "sha256": "3e538d3dbd2ea9b3d0b7a019e12fbd5b2e9aa97b5a46eb6941f0a6db7fee19d7"
+    },
+    {
+      "file": "part-cyber.webp",
+      "sheet": "sheet-d-attachments.webp",
+      "cell": 9,
+      "bytes": 6882,
+      "sha256": "3bc6bab443854c638c16125d726b31e6bd0f85c4964e413876cb8e47f8b9eef3"
+    },
+    {
+      "file": "tier-initiated.webp",
+      "sheet": "sheet-e-tiers-classes.webp",
+      "cell": 1,
+      "bytes": 5474,
+      "sha256": "3f2f720db9170ed02492d936598af88f3b6df7fbc6bfb19fe68229dfb83e093a"
+    },
+    {
+      "file": "tier-specialist.webp",
+      "sheet": "sheet-e-tiers-classes.webp",
+      "cell": 2,
+      "bytes": 5298,
+      "sha256": "0d000bc8e07ad576dfc642d32ea8f2c25e3339197bb0d199f970fb8bc2cfe84e"
+    },
+    {
+      "file": "tier-elite.webp",
+      "sheet": "sheet-e-tiers-classes.webp",
+      "cell": 3,
+      "bytes": 5320,
+      "sha256": "9bb41d67da77888fa69bf264f0d0345fe5c3448c08a84101641a3edd753127d6"
+    },
+    {
+      "file": "tier-master.webp",
+      "sheet": "sheet-e-tiers-classes.webp",
+      "cell": 4,
+      "bytes": 5062,
+      "sha256": "3a968baeb0418b4f10149fa86b95d6b4ee160c30204c156c716e1646fab08b1e"
+    },
+    {
+      "file": "class-pyro.webp",
+      "sheet": "sheet-e-tiers-classes.webp",
+      "cell": 5,
+      "bytes": 4456,
+      "sha256": "31a143c49dfe56953fe895e48da0de9af4c92fcb62061dad504df5a8f9ead8a2"
+    },
+    {
+      "file": "class-grenadier.webp",
+      "sheet": "sheet-e-tiers-classes.webp",
+      "cell": 6,
+      "bytes": 5636,
+      "sha256": "ebef1476d3a2b86743ac1963228be33c0bff980bb14d447bb2c5b3cf9d0c6679"
+    },
+    {
+      "file": "class-raider.webp",
+      "sheet": "sheet-e-tiers-classes.webp",
+      "cell": 7,
+      "bytes": 4740,
+      "sha256": "9978b6d320bf09bc7e59974a13b90353839029b4a3cb464db01a6e88a745db2d"
+    },
+    {
+      "file": "class-marksman.webp",
+      "sheet": "sheet-e-tiers-classes.webp",
+      "cell": 8,
+      "bytes": 4918,
+      "sha256": "d6ed309dd2402431a8df9958fe6960f64bd466126dd5182b0478cf38e5f61a33"
+    }
+  ]
+}

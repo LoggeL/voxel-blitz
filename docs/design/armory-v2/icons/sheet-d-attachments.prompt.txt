@@ -1,0 +1,21 @@
+Use case: production game UI icon sprite sheet for the Voxel Blitz ARMORY menu (a three.js voxel shooter with dark navy panels and amber/cyan accents).
+Asset type: one square image holding EXACTLY 3 columns and 3 rows of equal square cells (9 icons). NO grid lines, NO cell borders, NO frames, NO text, NO letters, NO numbers, NO labels, NO interface. The sheet is sliced into equal thirds by a script, so every icon must sit fully inside its own cell, centred, with at least 16% empty background padding on every side, never touching or crossing a cell boundary. All 9 icons share the same camera, lighting and visual scale.
+
+Background: the whole canvas is ONE perfectly flat, uniform pure magenta #FF00FF. No gradient, no vignette, no texture, no floor, no cast shadows, no glow or light spill onto the background. Every icon has a crisp thin very dark navy (#0b1117) outline separating it from the magenta. Never use magenta or hot pink inside any icon.
+
+Style: the same family as the game's existing callsign badges: chunky voxel geometry built from small cubes, physically shaded bevelled brushed gunmetal and steel, crisp hard pixel-like edges, small controlled emissive accent cores. Premium collectible game icon quality, front view with a slight three-quarter tilt. Bold, simple, instantly readable silhouette that still reads when shrunk to 40 pixels: no fine detail, no thin lines, strong contrast between the dark metal body and one bright accent colour.
+
+
+These are WEAPON ATTACHMENT parts (parts only, never a whole firearm), each shown in clean side view on a short dark rail segment, all at the same scale so the scopes read longer than the sights.
+Row 1, left to right:
+(1) REFLEX SIGHT: a small open-frame reflex sight with a tilted glass pane and one glowing red dot.
+(2) ANGLED FOREGRIP: a short angled foregrip sloping forward, dark polymer with an amber #FFB347 grip stripe.
+(3) KILL COUNTER: a small rugged box with a row of glowing red-orange segmented LED bars on its face (bars only, no digits).
+Row 2, left to right:
+(4) 2x TUBE SIGHT: a short thick tube sight with a glowing cyan #72E6FF lens.
+(5) VERTICAL FOREGRIP: a straight vertical foregrip with ridged sides, dark polymer and an amber band.
+(6) 4x COMBAT SCOPE: a medium scope with turrets on top and a glowing cyan lens.
+Row 3, left to right:
+(7) PRECISION GRIP: an ergonomic grip with finger grooves and a thumb shelf, steel with an amber accent.
+(8) 10x SNIPER SCOPE: a long scope with a wide objective bell, large turrets and a glowing cyan lens.
+(9) CYBER OPTIC: a futuristic angular optic with a floating holographic glass pane glowing cyan and violet.

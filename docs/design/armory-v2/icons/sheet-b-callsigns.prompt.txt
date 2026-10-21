@@ -1,0 +1,21 @@
+Use case: production game UI icon sprite sheet for the Voxel Blitz ARMORY menu (a three.js voxel shooter with dark navy panels and amber/cyan accents).
+Asset type: one square image holding EXACTLY 3 columns and 3 rows of equal square cells (9 icons). NO grid lines, NO cell borders, NO frames, NO text, NO letters, NO numbers, NO labels, NO interface. The sheet is sliced into equal thirds by a script, so every icon must sit fully inside its own cell, centred, with at least 16% empty background padding on every side, never touching or crossing a cell boundary. All 9 icons share the same camera, lighting and visual scale.
+
+Background: the whole canvas is ONE perfectly flat, uniform pure magenta #FF00FF. No gradient, no vignette, no texture, no floor, no cast shadows, no glow or light spill onto the background. Every icon has a crisp thin very dark navy (#0b1117) outline separating it from the magenta. Never use magenta or hot pink inside any icon.
+
+Style: the same family as the game's existing callsign badges: chunky voxel geometry built from small cubes, physically shaded bevelled brushed gunmetal and steel, crisp hard pixel-like edges, small controlled emissive accent cores. Premium collectible game icon quality, front view with a slight three-quarter tilt. Bold, simple, instantly readable silhouette that still reads when shrunk to 40 pixels: no fine detail, no thin lines, strong contrast between the dark metal body and one bright accent colour.
+
+
+These are CALLSIGN rank badges that continue an existing ladder (a steel double chevron, then a winged hexagonal shield, a winged shield with one gold star, a gold winged shield with a star and three chevrons). Each badge is a symmetric front-facing emblem; complexity and preciousness rise from cell 1 to cell 7.
+Row 1, left to right:
+(1) TACTICIAN: a dark steel hexagonal badge with a blue-grey #9FB4C8 compass rose core.
+(2) OPERATOR: an angular dark steel shield with a glowing light-cyan #8FD0FF horizontal visor bar and a small crosshair notch above it.
+(3) SENTINEL: a tall steel tower shield with short angular side wings and a glowing blue #77B6FF eye-shaped core.
+Row 2, left to right:
+(4) WARDEN: a steel kite shield framed by two voxel laurel branches, with a glowing green #7FD4A0 key emblem in the centre.
+(5) COMMANDER: a gunmetal shield with wide angular wings, two stacked glowing amber #FFB347 stars and two chevrons below.
+(6) LEGEND: a large winged crest in dark steel and gold with three glowing orchid-violet #DCA0FF stars in an arc.
+Row 3, left to right:
+(7) IMMORTAL: the most elaborate badge: a gold voxel phoenix with spread wings above a small crowned shield, warm gold #F4D77A emissive core.
+(8) WEAPON MASTER: a violet #B98CFF diamond-shaped medal with one upright voxel blade in the centre and a small gold star at the top.
+(9) WEAPON MASTER, alternative design: a round violet #B98CFF medal with a gold laurel ring and a single glowing violet star in the centre.
