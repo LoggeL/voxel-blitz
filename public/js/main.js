@@ -600,7 +600,7 @@ class Game {
       getCamera: () => this.camera, fx: this.particleField });
     // Conquest map events (docs/conquest.md "Map events"): each event's world effects and the generic strike.
     if (welcome.gameMode === 'conquest') this.mapEventFx = new rt.MapEventFx({ audio: sfx, cameraShake: this.cameraShake,
-      getCamera: () => this.camera, fx: this.particleField, scene: this.worldview.scene });
+      getCamera: () => this.camera, fx: this.particleField, scene: this.worldview.scene, tier: graphics.tier });
     this.worldview.scene.add(this.camera);
     this.ownBody = rt.makeFirstPersonBody();
     this.worldview.scene.add(this.ownBody.group);
@@ -1619,7 +1619,8 @@ class Game {
       // After the terrain rebuild budget: proxies swap in the frame their chunk rebuilt.
       this.structureFx?.update(frameDt, this.net?.presentedServerTime?.(performance.now()) ?? null);
       this.bridgeFx?.update(frameDt);
-      this.mapEventFx?.update(frameDt, { match: this.matchState, mapId: this.mapMeta?.id ?? null });
+      this.mapEventFx?.update(frameDt, { match: this.matchState, mapId: this.mapMeta?.id ?? null, selfTeam: this.selfRow?.team ?? null,
+        reducedMotion: displaySettings().reducedMotion });
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
       if (this.build) {
