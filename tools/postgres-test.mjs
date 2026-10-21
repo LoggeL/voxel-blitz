@@ -178,18 +178,18 @@ try {
   await admin.query('ALTER TABLE vb_sessions DROP CONSTRAINT test_reject_sessions');
 
   const beforeFailure = await owner.ok('/api/career');
-  await admin.query("ALTER TABLE vb_careers ADD CONSTRAINT test_reject_purchase CHECK (equipped->>'theme' <> 'amber') NOT VALID");
-  const failedPurchase = await owner.request('/api/career/purchase', { item: 'amber', equipOnly: true });
-  assert.notEqual(failedPurchase.status, 200);
+  await admin.query("ALTER TABLE vb_careers ADD CONSTRAINT test_reject_equip CHECK (equipped->>'theme' <> 'amber') NOT VALID");
+  const failedEquip = await owner.request('/api/career/purchase', { item: 'amber', equipOnly: true });
+  assert.notEqual(failedEquip.status, 200);
   assert.deepEqual(await owner.ok('/api/career'), beforeFailure, 'a failed career write cannot equip an item');
-  await admin.query('ALTER TABLE vb_careers DROP CONSTRAINT test_reject_purchase');
+  await admin.query('ALTER TABLE vb_careers DROP CONSTRAINT test_reject_equip');
   await admin.query('UPDATE vb_careers SET owned=$2 WHERE id=$1', [ownerId, '[]']);
   assert.equal((await owner.request('/api/career')).status, 503, 'damaged database profile returns unavailable instead of zero XP');
   assert.equal((await admin.query('SELECT xp FROM vb_careers WHERE id=$1', [ownerId])).rows[0].xp, '925');
   await admin.query('UPDATE vb_careers SET owned=$2 WHERE id=$1', [ownerId, JSON.stringify(beforeFailure.owned)]);
   await admin.end(); admin = null;
   await assert.rejects(access(runtimeDirectory), { code: 'ENOENT' }, 'PostgreSQL runtime creates no JSON primary store');
-  console.log('PostgreSQL: actual HTTP registration/login, two-device careers, atomic guest claim, parallel purchases and rollback/error boundaries passed.');
+  console.log('PostgreSQL: actual HTTP registration/login, two-device careers, atomic guest claim, parallel equips and rollback/error boundaries passed.');
 
   const afterWrites = await owner.ok('/api/career');
   server.stopping = true;

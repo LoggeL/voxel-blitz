@@ -460,6 +460,11 @@ function fixture() {
     eq(service.profile(id).xp, minor.majorXp + minor.minorCapPerMinute, 'heal XP is capped per minute');
     tick(62000, [{ kind: 'score', id: 'p1', pts: 10, reason: 'repair' }]);
     eq(service.profile(id).xp, minor.majorXp + minor.minorCapPerMinute + minor.minorXp, 'the cap resets after a minute');
+    // Anti-vehicle work pays career XP; crew kills already pay kill XP and gadget kills pay none.
+    const beforeVehicles = service.profile(id).xp;
+    tick(62050, ['vehicle_destroyed', 'vehicle_disabled', 'vehicle_damage', 'vehicle_crew', 'gadget_destroyed']
+      .map(reason => ({ kind: 'score', id: 'p1', pts: 50, reason })));
+    eq(service.profile(id).xp - beforeVehicles, 2 * minor.majorXp + minor.minorXp, 'vehicle destroyed/disabled pay major XP, vehicle damage minor XP');
     // Level-ups reach the live entity through the mode policy.
     const capture = Array.from({ length: 30 }, () => ({ kind: 'score', id: 'p1', pts: 250, reason: 'capture' }));
     tick(62100, capture);

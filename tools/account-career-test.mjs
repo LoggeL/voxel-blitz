@@ -245,20 +245,20 @@ try {
   await stolenGuest.post('/api/account/register', { username: 'OtherScout', password: 'Other-account-password!8' });
   assert.equal((await stolenGuest.career()).xp, 0, 'another account cannot claim the same guest snapshot');
 
-  const bought = await primary.post('/api/career/equip', { item: 'orchid' });
-  assert.equal(bought.credits, undefined, 'the career view carries no currency');
-  assert.ok(bought.owned.includes('orchid'), 'the tree granted orchid by level');
-  assert.equal(bought.equipped.theme, 'orchid');
+  const equipped = await primary.post('/api/career/equip', { item: 'orchid' });
+  assert.equal(equipped.credits, undefined, 'the career view carries no currency');
+  assert.ok(equipped.owned.includes('orchid'), 'the tree granted orchid by level');
+  assert.equal(equipped.equipped.theme, 'orchid');
   await observer.post('/api/account/login', { username: user.toLowerCase(), password });
   assert.equal((await observer.account()).user.id, accountId, 'independent device resolves the same account');
-  assert.deepEqual(await observer.career(), bought, 'XP, unlocks and equipment travel across devices');
+  assert.deepEqual(await observer.career(), equipped, 'XP, unlocks and equipment travel across devices');
 
   const extraGuestToken = randomBytes(32).toString('hex');
   writeFileSync(path.join(directory, extraGuestToken + '.json'), JSON.stringify({ ...seed, xp: 3600, credits: 2500 }));
   const extraGuest = new Browser(`vb-career=${extraGuestToken}`);
   assert.equal((await extraGuest.career()).xp, 3600);
   await extraGuest.post('/api/account/login', { username: user, password });
-  assert.deepEqual(await extraGuest.career(), bought, 'logging into an existing account never merges a second guest career');
+  assert.deepEqual(await extraGuest.career(), equipped, 'logging into an existing account never merges a second guest career');
 
   const noHeader = await new Browser().request('/api/account/login', { method: 'POST',
     headers: { 'X-VB-Account': '' }, body: { username: user, password } });
@@ -269,7 +269,7 @@ try {
   const forged = await primary.request('/api/career/purchase', { method: 'POST',
     body: { item: 'veteran', credits: 999999, xp: 999999, price: 0 } });
   assert.ok(forged.status >= 400 && forged.status < 500);
-  assert.deepEqual(await primary.career(), bought, 'account progression stays server-owned');
+  assert.deepEqual(await primary.career(), equipped, 'account progression stays server-owned');
   assert.equal('passwordHash' in (await primary.account()).user, false);
   assert.equal('recoveryCode' in await primary.account(), false, 'recovery secret is never repeated by account reads');
 
@@ -336,11 +336,11 @@ try {
   const afterRestart = new Browser();
   await afterRestart.post('/api/account/login', { username: user, password });
   assert.equal((await afterRestart.account()).user.id, accountId);
-  assert.deepEqual(await afterRestart.career(), saved, 'account identity, password, XP, purchases and equipment survive restart');
+  assert.deepEqual(await afterRestart.career(), saved, 'account identity, password, XP, unlocks and equipment survive restart');
   const reclaimAfterRestart = new Browser(`vb-career=${token}`);
   await reclaimAfterRestart.post('/api/account/register', { username: 'RestartScout', password: 'Restart-voxel-password!6' });
   assert.equal((await reclaimAfterRestart.career()).xp, 0, 'guest claim ownership survives restart');
-  console.log('Account career: optional guest play, one-time adoption, isolated devices, no merge/reclaim, purchases, authorization, credential revocation and restart persistence passed.');
+  console.log('Account career: optional guest play, one-time adoption, isolated devices, no merge/reclaim, tree equips, authorization, credential revocation and restart persistence passed.');
 } finally {
   await Promise.all([...sockets].map(closePlayer));
   await stopServer(server);
