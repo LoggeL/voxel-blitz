@@ -1,0 +1,604 @@
+{
+  "passed": true,
+  "asset": "vanguard",
+  "source_parts": 90,
+  "draws": 13,
+  "triangles": 14100,
+  "geometry_bytes": 802384,
+  "source_blend": "docs/design/blender/vanguard/vanguard.blend",
+  "runtime": "public/assets/blender/vanguard.gltf",
+  "portable": "docs/design/blender/vanguard/vanguard.glb",
+  "portable_geometry_matches_runtime": true,
+  "geometry_sha256": "28f84ced0720d8283b664cff83dd7c4b5ec08f07aaa2b5ccdaf452a479432c02",
+  "zero_area_source_triangles_omitted": 0,
+  "uv_transform": "Blender (u, v) -> glTF (u, 1-v)",
+  "source_parts_per_group": {
+    "body": 63,
+    "bolt": 6,
+    "trigger": 1,
+    "mag": 6,
+    "optic": 14
+  },
+  "part_bounds": {
+    "body": {
+      "min": [
+        -0.0423,
+        -0.10927535,
+        -0.64099997
+      ],
+      "max": [
+        0.0423,
+        0.116,
+        0.384
+      ]
+    },
+    "bolt": {
+      "min": [
+        -0.035,
+        0.031,
+        -0.055
+      ],
+      "max": [
+        0.035,
+        0.068,
+        0.1935
+      ]
+    },
+    "trigger": {
+      "min": [
+        -0.0032,
+        -0.00857307,
+        -0.09902923
+      ],
+      "max": [
+        0.0032,
+        0.01824543,
+        -0.08180942
+      ]
+    },
+    "mag": {
+      "min": [
+        -0.01643657,
+        -0.16463888,
+        -0.075
+      ],
+      "max": [
+        0.028,
+        0.03661383,
+        0.0225
+      ]
+    },
+    "optic": {
+      "min": [
+        -0.035,
+        0.109,
+        -0.14749999
+      ],
+      "max": [
+        0.027,
+        0.1865,
+        0.13249999
+      ]
+    }
+  },
+  "bounds": {
+    "min": [
+      -0.0423,
+      -0.16463888,
+      -0.64099997
+    ],
+    "max": [
+      0.0423,
+      0.1865,
+      0.384
+    ]
+  },
+  "contract": {
+    "muzzle": [
+      0.0,
+      0.041,
+      -0.63999999
+    ],
+    "sightHeight": 0.15000001,
+    "sight": [
+      0.0,
+      0.15000001,
+      -0.01
+    ],
+    "grip": [
+      0.0,
+      -0.03,
+      -0.03
+    ],
+    "support": [
+      0.0,
+      -0.03,
+      -0.40000001
+    ]
+  },
+  "materials": 4,
+  "textures": [
+    "textures/palette/pebbled-rubber.jpg",
+    "textures/vanguard-graphite.jpg",
+    "textures/palette/machined-steel.jpg",
+    "textures/vanguard-polymer.jpg"
+  ],
+  "textured_fraction": 1.0,
+  "material_surfaces": {
+    "VANGUARD | rubber": {
+      "baseColorFactor": [
+        0.12,
+        0.13,
+        0.14,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "VANGUARD | rubber",
+        "textureLibrary": "pebbled-rubber",
+        "textureBumpScale": 0.0008
+      }
+    },
+    "VANGUARD | graphite": {
+      "baseColorFactor": [
+        0.42,
+        0.44,
+        0.48,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "VANGUARD | graphite",
+        "textureLibrary": "vanguard-graphite",
+        "textureBumpScale": 0.0002
+      }
+    },
+    "VANGUARD | steel": {
+      "baseColorFactor": [
+        0.85,
+        0.88,
+        0.95,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "VANGUARD | steel",
+        "textureLibrary": "machined-steel",
+        "textureBumpScale": 0.00018
+      }
+    },
+    "VANGUARD | polymer": {
+      "baseColorFactor": [
+        0.2,
+        0.19,
+        0.18,
+        1.0
+      ],
+      "extras": {
+        "partMaterial": "VANGUARD | polymer",
+        "textureLibrary": "vanguard-polymer",
+        "textureBumpScale": 0.00055
+      }
+    }
+  },
+  "primitives": {
+    "body | VANGUARD | graphite": {
+      "triangles": 5792,
+      "vertices": 7152,
+      "bounds": {
+        "min": [
+          -0.0423,
+          -0.02593825,
+          -0.64099997
+        ],
+        "max": [
+          0.0423,
+          0.116,
+          0.26499999
+        ]
+      },
+      "uv_triangles": 5792,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          2.55999994,
+          0.18000001
+        ]
+      },
+      "uv_min": [
+        -1.05999994,
+        -1.56399989
+      ],
+      "uv_max": [
+        2.56399989,
+        2.05999994
+      ]
+    },
+    "body | VANGUARD | polymer": {
+      "triangles": 1752,
+      "vertices": 2774,
+      "bounds": {
+        "min": [
+          -0.026,
+          -0.10927535,
+          -0.14
+        ],
+        "max": [
+          0.026,
+          0.08750082,
+          0.36500001
+        ]
+      },
+      "uv_triangles": 1736,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.12149789,
+          -0.07758819
+        ]
+      },
+      "uv_min": [
+        -1.82500005,
+        0.29999995
+      ],
+      "uv_max": [
+        0.70000005,
+        2.82500005
+      ]
+    },
+    "body | VANGUARD | rubber": {
+      "triangles": 1500,
+      "vertices": 2616,
+      "bounds": {
+        "min": [
+          -0.0295,
+          -0.09583435,
+          -0.63300002
+        ],
+        "max": [
+          0.03,
+          0.1015,
+          0.384
+        ]
+      },
+      "uv_triangles": 1500,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          2.625,
+          0.23957315
+        ]
+      },
+      "uv_min": [
+        -1.92000008,
+        -2.16499996
+      ],
+      "uv_max": [
+        3.16499996,
+        2.92000008
+      ]
+    },
+    "body | VANGUARD | steel": {
+      "triangles": 760,
+      "vertices": 920,
+      "bounds": {
+        "min": [
+          -0.041,
+          0.004,
+          -0.639
+        ],
+        "max": [
+          0.041,
+          0.089,
+          0.079
+        ]
+      },
+      "uv_triangles": 760,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.104,
+          0.34999999
+        ]
+      },
+      "uv_min": [
+        -0.31436875,
+        -1.55600023
+      ],
+      "uv_max": [
+        2.55600023,
+        1.30545583
+      ]
+    },
+    "bolt | VANGUARD | graphite": {
+      "triangles": 632,
+      "vertices": 1216,
+      "bounds": {
+        "min": [
+          -0.028,
+          0.031,
+          -0.04
+        ],
+        "max": [
+          0.028,
+          0.068,
+          0.1935
+        ]
+      },
+      "uv_triangles": 632,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.05159062,
+          0.21592943
+        ]
+      },
+      "uv_min": [
+        -0.77400005,
+        0.72801396
+      ],
+      "uv_max": [
+        0.16,
+        1.77400005
+      ]
+    },
+    "bolt | VANGUARD | rubber": {
+      "triangles": 280,
+      "vertices": 324,
+      "bounds": {
+        "min": [
+          -0.035,
+          0.05610353,
+          0.18110353
+        ],
+        "max": [
+          0.035,
+          0.06789648,
+          0.19289647
+        ]
+      },
+      "uv_triangles": 280,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.17299999,
+          0.30806816
+        ]
+      },
+      "uv_min": [
+        -0.96292955,
+        0.66207045
+      ],
+      "uv_max": [
+        0.175,
+        1.94999999
+      ]
+    },
+    "bolt | VANGUARD | steel": {
+      "triangles": 200,
+      "vertices": 240,
+      "bounds": {
+        "min": [
+          -0.013,
+          0.032,
+          -0.055
+        ],
+        "max": [
+          0.013,
+          0.066,
+          0.19
+        ]
+      },
+      "uv_triangles": 200,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.22,
+          0.18000001
+        ]
+      },
+      "uv_min": [
+        -0.75999999,
+        0.736
+      ],
+      "uv_max": [
+        0.22000001,
+        1.75999999
+      ]
+    },
+    "trigger | VANGUARD | steel": {
+      "triangles": 44,
+      "vertices": 58,
+      "bounds": {
+        "min": [
+          -0.0032,
+          -0.00857307,
+          -0.09902923
+        ],
+        "max": [
+          0.0032,
+          0.01824543,
+          -0.08180942
+        ]
+      },
+      "uv_triangles": 42,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.0,
+          0.07101828
+        ]
+      },
+      "uv_min": [
+        -0.0128,
+        0.60388309
+      ],
+      "uv_max": [
+        0.39611691,
+        1.03429228
+      ]
+    },
+    "mag | VANGUARD | polymer": {
+      "triangles": 480,
+      "vertices": 575,
+      "bounds": {
+        "min": [
+          -0.015,
+          -0.16463888,
+          -0.075
+        ],
+        "max": [
+          0.015,
+          0.03661383,
+          0.0
+        ]
+      },
+      "uv_triangles": 479,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.05026712,
+          0.02645898
+        ]
+      },
+      "uv_min": [
+        -0.075,
+        0.815018
+      ],
+      "uv_max": [
+        0.375,
+        1.8249836
+      ]
+    },
+    "mag | VANGUARD | rubber": {
+      "triangles": 444,
+      "vertices": 776,
+      "bounds": {
+        "min": [
+          -0.01643657,
+          -0.156,
+          -0.06374626
+        ],
+        "max": [
+          0.028,
+          -0.01644115,
+          0.0225
+        ]
+      },
+      "uv_triangles": 444,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.13060132,
+          -0.71810591
+        ]
+      },
+      "uv_min": [
+        -0.1125,
+        0.6854068
+      ],
+      "uv_max": [
+        0.31873131,
+        1.77997011
+      ]
+    },
+    "optic | VANGUARD | graphite": {
+      "triangles": 1756,
+      "vertices": 2560,
+      "bounds": {
+        "min": [
+          -0.035,
+          0.109,
+          -0.145
+        ],
+        "max": [
+          0.023,
+          0.183,
+          0.12
+        ]
+      },
+      "uv_triangles": 1756,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.04,
+          0.64599997
+        ]
+      },
+      "uv_min": [
+        -0.47999999,
+        0.26999998
+      ],
+      "uv_max": [
+        0.57999998,
+        1.48000002
+      ]
+    },
+    "optic | VANGUARD | rubber": {
+      "triangles": 280,
+      "vertices": 336,
+      "bounds": {
+        "min": [
+          -0.016,
+          0.132,
+          0.063
+        ],
+        "max": [
+          0.027,
+          0.164,
+          0.13249999
+        ]
+      },
+      "uv_triangles": 280,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.58749998,
+          0.74000013
+        ]
+      },
+      "uv_min": [
+        -0.66250002,
+        0.182531
+      ],
+      "uv_max": [
+        0.13500001,
+        1.66249996
+      ]
+    },
+    "optic | VANGUARD | steel": {
+      "triangles": 180,
+      "vertices": 240,
+      "bounds": {
+        "min": [
+          -0.022,
+          0.12899999,
+          -0.14749999
+        ],
+        "max": [
+          0.019,
+          0.1865,
+          0.076
+        ]
+      },
+      "uv_triangles": 180,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          -0.04,
+          0.72600001
+        ]
+      },
+      "uv_min": [
+        -0.30399999,
+        0.25400001
+      ],
+      "uv_max": [
+        0.58999997,
+        1.30399999
+      ]
+    }
+  },
+  "budgets": {
+    "triangles": 30000,
+    "draws": 25,
+    "within_target": true
+  }
+}

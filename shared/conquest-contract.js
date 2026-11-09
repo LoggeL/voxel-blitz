@@ -125,7 +125,7 @@ const KIT = (label, ability, primaries, gadgets, grenades, unlockLevel, extra = 
   grenades: Object.freeze(grenades), unlockLevel, ...extra,
 });
 export const KITS = Object.freeze({
-  assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'shotgun'],       [],                    { frag: 2, pulse: 1 },    1),
+  assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'vanguard'],       [],                    { frag: 2, pulse: 1 },    1),
   engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger', 'fpv'], { smoke: 1, frag: 1, atmine: 3 }, 1),
   support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         ['ammocrate', 'mortar'], { frag: 2, molotov: 1 }, 1),
   recon:     KIT('RECON',     'spot',       ['sniper', 'longarc'],      ['beacon', 'sensor'],  { limpet: 2, pulse: 1 },  1),

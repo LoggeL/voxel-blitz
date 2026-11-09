@@ -58,8 +58,8 @@ const HULL_HUNK = COMBAT_SOURCE.includes('def.hullDamage');
 
 /* ================================================================ ids and per-id tables */
 {
-  eq(WEAPON_IDS.slice(WEAPON_IDS.indexOf('stinger') + 1), NEW_IDS, 'the four AT ids follow stinger in order');
-  eq(WEAPON_IDS.length, 20, '20 weapon ids');
+  eq(WEAPON_IDS.slice(WEAPON_IDS.indexOf('stinger') + 1, WEAPON_IDS.indexOf('kraber') + 1), NEW_IDS, 'the four AT ids follow stinger in order');
+  eq(WEAPON_IDS.length, 21, '21 weapon ids');
   for (const id of NEW_IDS) {
     const def = WEAPONS[id];
     ok(def?.id === id && def.gadgetOnly === true, `${id}: gadgetOnly`);
@@ -69,7 +69,7 @@ const HULL_HUNK = COMBAT_SOURCE.includes('def.hullDamage');
     ok(HANDS[id]?.grip, `${id}: hands`);
     ok(Number.isFinite(SIGHT_HEIGHT[id]), `${id}: sight height`);
   }
-  eq(FREE_WEAPON_IDS.length, 15, 'free roster unchanged (15)');
+  eq(FREE_WEAPON_IDS.length, 16, 'free roster unchanged (16)');
   eq(infantryDamageClass(WEAPONS.chargerifle), 'at', 'charge rifle deals at');
   eq(infantryDamageClass(WEAPONS.kraber), 'hmg', 'kraber deals hmg');
   near(WEAPONS.kraber.damage[0] * armorMultiplier('hmg', 'titan'), 40, 1e-9, 'kraber: 200 × hmg 0.2 = 40 to a titan');
