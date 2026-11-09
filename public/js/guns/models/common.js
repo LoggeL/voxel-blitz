@@ -26,6 +26,7 @@ export const BREACH_Z = {
   archer: -0.70,   // exposed launch-tube mouth
   thunderbolt: -0.40,
   kraber: -0.30,
+  vanguard: -0.20,
 };
 
 // Heat-sleeve radii include the existing tiny clearance that prevents z-fighting.
@@ -50,6 +51,7 @@ export const BARREL_R = {
   archer: 0.0605,
   thunderbolt: 0.0465,
   kraber: 0.0235,
+  vanguard: 0.019,
 };
 
 export const BOLT_HOME = {
@@ -73,6 +75,7 @@ export const BOLT_HOME = {
   archer: -0.040,
   thunderbolt: -0.040,
   kraber: -0.010,
+  vanguard: -0.030,
 };
 
 export const PUMP_REST = new THREE.Vector3(0, 0.038, -0.30);
@@ -98,6 +101,7 @@ export const TRIGGER_Z = {
   archer: -0.11,
   thunderbolt: -0.12,
   kraber: -0.13,
+  vanguard: -0.125,
 };
 
 // Camera-space hip carry; +x is true screen-right.

@@ -1,0 +1,59 @@
+{
+  "source": "docs/design/blender/vanguard/vanguard.blend",
+  "meshes": 90,
+  "triangles": 14100,
+  "materialGroupBatches": 13,
+  "parts": {
+    "body": 9804,
+    "bolt": 1112,
+    "trigger": 44,
+    "mag": 924,
+    "optic": 2216
+  },
+  "materials": {
+    "graphite": {
+      "textureFile": "textures/vanguard-graphite.jpg",
+      "textureBumpScale": 0.0002,
+      "textureTint": [
+        0.42,
+        0.44,
+        0.48,
+        1.0
+      ],
+      "textureLibrary": "vanguard-graphite"
+    },
+    "polymer": {
+      "textureFile": "textures/vanguard-polymer.jpg",
+      "textureBumpScale": 0.00055,
+      "textureTint": [
+        0.2,
+        0.19,
+        0.18,
+        1.0
+      ],
+      "textureLibrary": "vanguard-polymer"
+    },
+    "steel": {
+      "textureFile": "textures/palette/machined-steel.jpg",
+      "textureBumpScale": 0.00018,
+      "textureTint": [
+        0.85,
+        0.88,
+        0.95,
+        1.0
+      ],
+      "textureLibrary": "machined-steel"
+    },
+    "rubber": {
+      "textureFile": "textures/palette/pebbled-rubber.jpg",
+      "textureBumpScale": 0.0008,
+      "textureTint": [
+        0.12,
+        0.13,
+        0.14,
+        1.0
+      ],
+      "textureLibrary": "pebbled-rubber"
+    }
+  }
+}

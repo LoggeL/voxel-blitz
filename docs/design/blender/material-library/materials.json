@@ -13,6 +13,7 @@
     "skua",
     "skipjack",
     "torch",
+    "vanguard",
     "wasp"
   ],
   "assignment": {
@@ -143,6 +144,16 @@
       "metal": 0.12,
       "rough": 0.44,
       "bump": 0.00025
+    },
+    "vanguard-graphite": {
+      "metal": 0.45,
+      "rough": 0.42,
+      "bump": 0.0002
+    },
+    "vanguard-polymer": {
+      "metal": 0.02,
+      "rough": 0.72,
+      "bump": 0.00055
     }
   }
 }

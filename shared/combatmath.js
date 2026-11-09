@@ -561,6 +561,28 @@ export const WEAPONS = {
     sfx: 'sniper',
     damageClass: 'hmg',
   },
+  vanguard: {
+    // KV-9 VANGUARD: semi-auto precision battle rifle. Three-shot body taps at mid
+    // range, 2-head kill, and `hmg` vehicle class so light hulls take full damage
+    // and aircraft take 0.6 — the first primary that carries its own vehicle tax.
+    id: 'vanguard', penetration: 260, name: 'KV-9 VANGUARD', mode: 'semi',
+    weightKg: 4.6,
+    rpm: 255, magSize: 20, spareMags: 5,
+    damage: [48, 36, 80], falloffStart: 30, headMult: 2.0, pellets: 1,
+    spreadDeg: { hip: 1.6, ads: 0.12 }, bloomDeg: 0.12, bloomMaxDeg: 1.2,
+    bloomRecover: 5.0, moveSpreadDeg: 1.8,
+    crouchSpreadMult: 0.65,
+    recoil: {
+      pitch: 1.15, pitchRamp: 0.03, maxPitchRamp: 0.3,
+      yaw: 0.42, yawPattern: [-0.35, 0.28, 0.45, -0.3],
+      jitter: 0.07, resetMs: 400, adsMult: 0.65, recovery: 0.6,
+    },
+    adsFov: 48, zoom: 1.6, adsTime: 0.18,
+    reloadTime: 2.3, tacTime: 1.8, deployTime: 0.5,
+    tracer: { color: '#9fd0ff', width: 1.4, len: 34 },
+    sfx: 'rifle',
+    damageClass: 'hmg',
+  },
 };
 
 // Attach immutable handling profiles without duplicating the baseline recoil numbers.
@@ -568,7 +590,7 @@ for (const [id, def] of Object.entries(WEAPONS)) WEAPONS[id] = withWeaponHandlin
 
 export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger',
   // Titanfall AT weapons (append-only; slots are wire indices).
-  'chargerifle', 'archer', 'thunderbolt', 'kraber'];
+  'chargerifle', 'archer', 'thunderbolt', 'kraber', 'vanguard'];
 
 /** Kit-only gadgets: never part of a free roster, a weapon wheel or a shop. */
 export const GADGET_ONLY_WEAPON_IDS = Object.freeze(WEAPON_IDS.filter(id => WEAPONS[id]?.gadgetOnly === true));

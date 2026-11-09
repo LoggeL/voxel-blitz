@@ -149,14 +149,15 @@ function runDirectContracts() {
   ok(stateEvents[0]?.kind === 'die' && stateEvents[1]?.kind === 'respawn',
     'embedded die and respawn events are dispatchable by kind');
 
-  // Fifteen free slots, then the kit-only Conquest STINGER (slot 16) and the four Titanfall
-  // AT pilot weapons (slots 17-20); none of the kit-only ids is ever in a free roster.
+  // Sixteen free slots, then the kit-only Conquest STINGER (slot 16) and the four Titanfall
+  // AT pilot weapons (slots 17-20), then the free KV-9 VANGUARD (slot 21);
+  // none of the kit-only ids is ever in a free roster.
   const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger',
-    'chargerifle', 'archer', 'thunderbolt', 'kraber'];
-  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8, 3.1, 2.6, 5.6, 10.4, 4.4, 7.2, 6.8, 7.6];
+    'chargerifle', 'archer', 'thunderbolt', 'kraber', 'vanguard'];
+  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8, 3.1, 2.6, 5.6, 10.4, 4.4, 7.2, 6.8, 7.6, 4.6];
   ok(JSON.stringify(WEAPON_IDS) === JSON.stringify(expectedWeaponIds)
-    && JSON.stringify(FREE_WEAPON_IDS) === JSON.stringify(expectedWeaponIds.slice(0, 15)),
-    'weapon roster exposes the exact fifteen free slots plus the kit-only STINGER and Titanfall AT ids');
+    && JSON.stringify(FREE_WEAPON_IDS) === JSON.stringify(expectedWeaponIds.filter(id => !['stinger', 'chargerifle', 'archer', 'thunderbolt', 'kraber'].includes(id))),
+    'weapon roster exposes the exact sixteen free slots plus the kit-only STINGER and Titanfall AT ids');
   const definitionsComplete = WEAPON_IDS.every((id, slot) => {
     const def = WEAPONS[id];
     return def?.id === id && typeof def.name === 'string' && def.name.length > 0
@@ -190,7 +191,7 @@ function runDirectContracts() {
       && typeof def.sfx === 'string'
       && def.weightKg === expectedWeights[slot];
   });
-  ok(definitionsComplete, 'all twenty weapon definitions carry the complete shared contract');
+  ok(definitionsComplete, 'all twenty-one weapon definitions carry the complete shared contract');
   const recoilSignatures = WEAPON_IDS.map((id) => WEAPONS[id].recoil.yawPattern.join(','));
   const rifleKick0 = computeRecoilKickDeg(WEAPONS.rifle, 0, 0, 0.5);
   const rifleKick5 = computeRecoilKickDeg(WEAPONS.rifle, 5, 0, 0.5);
@@ -844,18 +845,18 @@ function runDirectContracts() {
   slotEngine.addBot('slots', 'Slots');
   const slotter = slotEngine.entities.get('slots');
   slotter.deployT = 0;
-  // 999 clamps to the last slot, the kit-only STINGER, which a free-for-all refuses.
-  slotEngine.applyInput('slots', { ...tapInput, seq: 1, weapon: 999 });
+  // STINGER target clamps to the kit-only slot, which a free-for-all refuses.
+  slotEngine.applyInput('slots', { ...tapInput, seq: 1, weapon: WEAPON_IDS.indexOf('stinger') });
   slotEngine.step(TICK_MS);
   const gadgetSlot = slotter.weapon;
   slotter.deployT = 0;
-  slotEngine.applyInput('slots', { ...tapInput, seq: 2, weapon: FREE_WEAPON_IDS.length - 1 });
+  slotEngine.applyInput('slots', { ...tapInput, seq: 2, weapon: WEAPON_IDS.indexOf('vanguard') });
   slotEngine.step(TICK_MS);
   const highSlot = slotter.weapon;
   slotter.deployT = 0;
   slotEngine.applyInput('slots', { ...tapInput, seq: 3, weapon: -999 });
   slotEngine.step(TICK_MS);
-  ok(gadgetSlot === 0 && highSlot === FREE_WEAPON_IDS.length - 1 && slotter.weapon === 0,
+  ok(gadgetSlot === 0 && highSlot === WEAPON_IDS.indexOf('vanguard') && slotter.weapon === 0,
     'authoritative slot selection clamps dynamically across the roster and refuses kit-only gadgets');
 
   const botEngine = new GameEngine();
@@ -867,7 +868,7 @@ function runDirectContracts() {
   botEngine.step(TICK_MS);
   const botSlots = [...botEngine.entities.values()].map((player) => player.weapon).sort((a, b) => a - b);
   ok(botSlots.length === FREE_WEAPON_IDS.length
-    && JSON.stringify(botSlots) === JSON.stringify(FREE_WEAPON_IDS.map((_, i) => i)),
+    && JSON.stringify(botSlots) === JSON.stringify(FREE_WEAPON_IDS.map(id => WEAPON_IDS.indexOf(id)).sort((a, b) => a - b)),
     'authoritative bots deploy across distinct roster slots');
   botManager.dispose();
 

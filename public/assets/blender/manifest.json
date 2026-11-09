@@ -120,6 +120,13 @@
       "geometry_bytes": 1487840
     },
     {
+      "asset": "vanguard",
+      "source_parts": 90,
+      "draws": 13,
+      "triangles": 14100,
+      "geometry_bytes": 802384
+    },
+    {
       "asset": "wasp",
       "source_parts": 79,
       "draws": 15,

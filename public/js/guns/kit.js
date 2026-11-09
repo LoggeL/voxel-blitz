@@ -18,6 +18,7 @@ export const GLOW_ACCENT = {
   lance: 0xc9a2ff, knife: 0xb8c4d4, flamethrower: 0xff7518, glaive: 0xff3fd0,
   bubble: 0x9fe9ff, mgl: 0xffa63a, stinger: 0x9cff6b,
   chargerifle: 0xff5a3c, archer: 0x4ee6ff, thunderbolt: 0x7aa8ff, kraber: 0xffc04a,
+  vanguard: 0x9fd0ff,
 };
 
 // Materials are shared across every rig, while each MaterialCache instance represents one rig's
