@@ -195,7 +195,9 @@ if (state.startsWith('reload-')) {
   // belt gun's cover-open / box-drop / lead-laid / handle-rack beats for the LMG,
   // and the rocket's gate-swing and tube-mouth shove for the RX-8 rear load.
   const belt = weapon === 'lmg';
-  rig.reload(1, belt ? 'magswap' : 'cylinder');
+  const doppler = weapon === 'doppler';
+  if (doppler) rig.setDoppler({ mag: 4, magSize: WEAPONS.doppler.magSize });
+  rig.reload(1, belt || doppler ? 'magswap' : 'cylinder');
   const fraction = weapon === 'stinger'
     ? { 'reload-open': 0.2, 'reload-eject': 0.45, 'reload-load': 0.73, 'reload-charge': 0.90 }[state]
     : weapon === 'rocket'
@@ -204,6 +206,8 @@ if (state.startsWith('reload-')) {
       ? { 'reload-open': 0.25, 'reload-eject': 0.40, 'reload-load': 0.68,
           'reload-charge': 0.905, 'reload-incoming': 0.62, 'reload-lift': 0.86,
           'reload-slide': 0.89, 'reload-seated': 0.955 }[state]
+    : doppler
+      ? { 'reload-eject': 0.36, 'reload-load': 0.66, 'reload-charge': 0.93 }[state]
     : belt
       ? { 'reload-open': 0.14, 'reload-eject': 0.28, 'reload-load': 0.875, 'reload-charge': 0.965 }[state]
       : { 'reload-open': 0.26, 'reload-eject': 0.40, 'reload-load': 0.64 }[state];

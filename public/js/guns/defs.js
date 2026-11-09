@@ -487,6 +487,33 @@ TIMERS.kraber = {
   kick: { stiffness: 150, damping: 17, yawWobble: 0.45 },
 };
 
+TIMERS.doppler = {
+  // SP-2 DOPPLER: shifted-pulse battle rifle. The barrel and receiver (the "unit") recoil
+  // `unitTravel` inside the fixed carrier while both rounds of a doublet leave `doubletGap`
+  // apart; the felt kick lands when the unit meets its buffer (doppler-presentation.js).
+  rof: WEAPONS.doppler.rpm,
+  adsTime: WEAPONS.doppler.adsTime,
+  deployTime: WEAPONS.doppler.deployTime,
+  weightKg: WEAPONS.doppler.weightKg,
+  viewKick: { pitchDeg: WEAPONS.doppler.recoil.pitch, yawDeg: WEAPONS.doppler.recoil.yaw },
+  muzzle: [0.0, 0.050, -0.660],
+  portY: 0.16,
+  ejectRight: -0.075,
+  barrelLen: 0.36,        // receiver trunnion -0.30 -> brake crown.
+  heatLen: [0.70, 0.80],  // the plain barrel between the fore-end cap and the brake.
+  boltTravel: 0.085,
+  rechargeDur: 0.05,
+  pumpMag: 0,
+  cycleBack: false,
+  cycleKind: null,
+  ejectOnFire: true,
+  unitTravel: 0.016,
+  doubletGap: WEAPONS.doppler.doublet.gapMs / 1000,
+  magTimeline: { start: 0.22, home: 0.78, clickAt: 0.90, type: 'mag' },
+  adsOffset: { x: 0.0, y: -0.142, z: -0.60 },
+  kick: { stiffness: 235, damping: 25, yawWobble: 0.85 },
+};
+
 /**
  * Walk / sprint / idle procedural-motion profile. Frequencies Hz, amplitudes meters, tilts radians.
  * figure-8: x = sin(pi*p), y = cos(2*pi*p) traces the classic lazy infinity loop.

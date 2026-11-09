@@ -70,6 +70,10 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   thunderbolt: Object.freeze({
     lifetime: 0.85, sampleGain: 1, sampleRate: 1, layerGain: 0.3,
   }),
+  // SP-2 DOPPLER: the recording already holds both reports of the doublet.
+  doppler: Object.freeze({
+    lifetime: 0.82, sampleGain: 0.82, sampleRate: 1, layerGain: 0.2,
+  }),
 });
 
 export function fireReportProfile(key) {
@@ -84,6 +88,33 @@ export function fireSampleProfile(key, charge = 1) {
   const strength = key === 'longarc' ? 0.16 + 0.84 * held * held
     : key === 'lance' ? 0.45 + 0.55 * held : 1;
   return { gain: profile.sampleGain * strength, rate: profile.sampleRate };
+}
+
+/** Gap between the two reports of an SP-2 doublet (WEAPONS.doppler.doublet.gapMs). */
+const DOPPLER_GAP_S = 0.033;
+
+/**
+ * SP-2 DOPPLER: two hard, dry reports `DOPPLER_GAP_S` apart (the second a shade lower,
+ * fired with the unit already moving), then the unit meeting its buffer and running home.
+ * `rounds` 1 is the magazine's last odd round: one report, a short stroke.
+ */
+export function shotDoppler(out, primitives, rounds = 2, includeMechanics = true) {
+  const t0 = primitives.nowT();
+  const reports = rounds >= 2 ? 2 : 1;
+  const sat = primitives.shaper(3.4);
+  sat.connect(out);
+  for (let index = 0; index < reports; index++) {
+    const at = t0 + index * DOPPLER_GAP_S;
+    const drop = index ? 0.93 : 1;
+    primitives.tone(out, { t0: at, type: 'square', f0: 168 * drop, f1: 64 * drop, dec: 0.07, g: 0.24 });
+    primitives.hiss(out, { t0: at, filter: 'highpass', f: 2400, q: 0.8, dec: 0.055, g: 0.46 });
+    primitives.tone(sat, { t0: at, type: 'sine', f0: 62 * drop, f1: 44, dec: 0.11, g: 0.44, att: 0.001 });
+  }
+  if (!includeMechanics) return;
+  const buffer = t0 + (reports === 2 ? 0.047 : 0.018);
+  primitives.tone(out, { t0: buffer, type: 'triangle', f0: 310, f1: 150, dec: 0.045, g: 0.12 });
+  primitives.hiss(out, { t0: buffer, filter: 'bandpass', f: 1500, q: 2.2, dec: 0.03, g: 0.14 });
+  primitives.hiss(out, { t0: buffer + 0.11, filter: 'bandpass', f: 3400, q: 3, dec: 0.018, g: 0.1 });
 }
 
 export function shotRifleSmg(out, primitives, params) {
@@ -495,7 +526,7 @@ export function renderFireReport(
   echoIn,
   addCleanup,
   cleanupOwner = out,
-  { includeMechanics = true, charge = 1 } = {},
+  { includeMechanics = true, charge = 1, rounds = 2 } = {},
 ) {
   if (key === 'flamethrower') {
     primitives.hiss(out, { filter: 'lowpass', f: 1800, sweepTo: 450, sweepMs: 0.3, dec: 0.32, att: 0.025, g: 0.6 });
@@ -513,5 +544,6 @@ export function renderFireReport(
   else if (key === 'thunderbolt') shotThunderbolt(out, primitives, includeMechanics);
   else if (key === 'glaive') shotGlaive(out, primitives);
   else if (key === 'bubble') shotBubble(out, primitives, charge);
+  else if (key === 'doppler') shotDoppler(out, primitives, rounds, includeMechanics);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);
 }

@@ -673,3 +673,14 @@ outward normals, the muzzle tip and the budgets (fail above 32 draws / 26,000
 triangles / 10 materials). `skipjack/build-report.md` has the design
 rebuild notes and the measured counts; the poses are `pose-home`, `pose-open`,
 `pose-lift`, `pose-exchange`, `pose-insert`, `pose-seated` and `pose-rack`.
+
+## DOPPLER (doppler slot) and the baked-atlas pipeline
+
+The SP-2 DOPPLER is the first weapon that does not use the shared planar
+material scans. `tools/blender/lib/` holds a hard-surface modelling kit
+(`hardsurface.py`), a layered surface library with a one-atlas PBR bake
+(`pbr_bake.py`) and a small runtime glTF writer (`runtime_gltf.py`); the asset
+ships one base colour / normal / ORM atlas, 13 draws and a reduced world model
+for remote players. Its record, part contract and commands are in
+[doppler/README.md](doppler/README.md); `tools/render-gun-views.mjs` renders
+any built gun under the game's daylight for material work.

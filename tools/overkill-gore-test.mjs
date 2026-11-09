@@ -11,7 +11,9 @@ import { DeathHeadCam } from '../public/js/player/death-head-cam.js';
 import { AvatarRoster } from '../public/js/avatar/avatar-roster.js';
 
 const spawn = { x: 0, y: 2, z: 0, index: 0 };
-const deathEngine = () => ({ tickEvents: [], now: 0, killAnnouncer: new KillAnnouncer(), mode: { onPlayerDeath() {} } });
+// killPlayer asks the engine for the killcam focus (a hull or titan); the bare stand-in borrows the real method.
+const deathEngine = () => ({ tickEvents: [], now: 0, killAnnouncer: new KillAnnouncer(), mode: { onPlayerDeath() {} },
+  killcamFocus: GameEngine.prototype.killcamFocus });
 const target = (health = 100, armor = 0) => Object.assign(new PlayerEntity('victim', 'Victim', spawn, false), { hp: health, armor });
 for (const [hp, armor, incoming, healthDamage, excess, lethal] of [
   [100, 0, 100, 100, 0, true],

@@ -45,6 +45,7 @@
   --w-glaive:   #ff3fd0;
   --w-bubble:   #9fe9ff;
   --w-mgl:      #d3ba58;
+  --w-doppler:  #39cfc0;
   --w-stinger:  #9cff6b;
   --w-chargerifle: #ff5a3c;
   --w-archer:   #4ee6ff;
@@ -2419,6 +2420,7 @@ h1.vb-title::after {
 .vb-w-glaive   { --gun-tint: var(--w-glaive); }
 .vb-w-bubble   { --gun-tint: var(--w-bubble); }
 .vb-w-mgl      { --gun-tint: var(--w-mgl); }
+.vb-w-doppler  { --gun-tint: var(--w-doppler); }
 .vb-w-stinger  { --gun-tint: var(--w-stinger); }
 .vb-w-chargerifle { --gun-tint: var(--w-chargerifle); }
 .vb-w-archer   { --gun-tint: var(--w-archer); }
@@ -2440,6 +2442,7 @@ h1.vb-title::after {
 #ammo.vb-w-glaive #weaponname, #weaponname.vb-w-glaive     { color: var(--w-glaive); }
 #ammo.vb-w-bubble #weaponname, #weaponname.vb-w-bubble     { color: var(--w-bubble); }
 #ammo.vb-w-mgl #weaponname, #weaponname.vb-w-mgl             { color: var(--w-mgl); }
+#ammo.vb-w-doppler #weaponname, #weaponname.vb-w-doppler     { color: var(--w-doppler); }
 #ammo.vb-w-stinger #weaponname, #weaponname.vb-w-stinger     { color: var(--w-stinger); }
 #ammo.vb-w-chargerifle #weaponname, #weaponname.vb-w-chargerifle { color: var(--w-chargerifle); }
 #ammo.vb-w-archer #weaponname, #weaponname.vb-w-archer       { color: var(--w-archer); }

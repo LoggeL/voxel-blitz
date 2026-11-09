@@ -54,13 +54,13 @@ const eq = (a, b, message) => { assert.deepEqual(a, b, message); checks++; };
   eq(KITS.assault.ability, 'adrenaline', 'the Assault lost revive');
   eq(KITS.medic.ability, 'revive'); eq(KITS.medic.aura, 'heal');
   eq(Object.entries(KITS).filter(([, k]) => k.ability === 'revive').map(([id]) => id), ['medic'], 'only the Medic revives');
-  eq(KITS.assault.primaries, ['rifle', 'shotgun']); eq(KITS.assault.grenades, { frag: 2, pulse: 1 });
+  eq(KITS.assault.primaries, ['rifle', 'doppler']); eq(KITS.assault.grenades, { frag: 2, pulse: 1 });
   eq(KITS.medic.primaries, ['smg', 'longarc']); eq(KITS.medic.grenades, { smoke: 2, frag: 1 });
   eq(KITS.pyro.primaries, ['flamethrower', 'shotgun']); eq(KITS.pyro.grenades, { molotov: 2, smoke: 1 });
   eq(KITS.grenadier.primaries, ['mgl', 'bubble']); eq(KITS.grenadier.grenades, { frag: 2, smoke: 1 });
   eq(KITS.raider.primaries, ['glaive', 'smg']); eq(KITS.raider.grenades, { frag: 1, limpet: 1 });
   eq(KITS.engineer.grenades, { smoke: 1, frag: 1, atmine: 3 }, 'the Engineer lays AT mines');
-  eq(KITS.marksman.primaries, ['lance', 'longarc']); eq(KITS.marksman.grenades, { pulse: 1, smoke: 1 });
+  eq(KITS.marksman.primaries, ['lance', 'doppler']); eq(KITS.marksman.grenades, { pulse: 1, smoke: 1 });
   eq(Object.entries(KITS).filter(([, k]) => k.primaries.includes('rifle')).map(([id]) => id), ['assault'], 'the RAPTOR stays unique to the Assault');
   for (const id of KIT_IDS) {
     for (const p of KITS[id].primaries) ok(WEAPON_IDS.includes(p), `${id} primary ${p} is a real weapon`);
@@ -343,7 +343,7 @@ function fixture() {
   f.run(KIT_ROLE_RULES.overwatchTagMs + 100);
   eq(f.roles.spotting.isSpotted(foe), false, 'the tag expires after overwatchTagMs');
   // Spot assist when a teammate kills the tagged target.
-  f.roles.onInfantryHit(foe, marksman, 'longarc', 20);
+  f.roles.onInfantryHit(foe, marksman, 'doppler', 20);
   foe.hp = 0; foe.state = 'dead';
   f.roles.onDeath(foe, mate, { weapon: 'rifle' });
   ok(f.policy.awards.some(([id, reason]) => id === 'k' && reason === 'spot_assist'), 'a teammate kill on a tagged target pays spot_assist');

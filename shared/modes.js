@@ -21,6 +21,7 @@ export const GUN_GAME_WEAPON_ORDER = Object.freeze([
   'shotgun',
   'sniper',
   'lmg',
+  'doppler',
   'flamethrower',
   'rocket',
   'mgl',
@@ -56,6 +57,7 @@ export const WEAPON_PRICES = Object.freeze({
   glaive: 3000,
   bubble: 2200,
   mgl: 3900,
+  doppler: 3100,
 });
 
 export const MODE_RULES = Object.freeze({

@@ -56,7 +56,9 @@ export async function runWeaponWheelContracts(ok) {
   });
   const entries = controller.entries();
   ok(WEAPON_IDS.slice(0, 14).join() === 'rifle,smg,shotgun,sniper,lmg,revolver,longarc,rocket,lance,knife,minigun,flamethrower,glaive,bubble'
-      && WEAPON_IDS[14] === 'mgl' && entries.length === 15
+      && WEAPON_IDS[14] === 'mgl' && entries.length === 16
+      // The sixteenth free weapon sits behind the gadget block: wheel index 15, wire slot 20.
+      && entries[15].id === 'doppler' && entries[15].slot === WEAPON_IDS.indexOf('doppler') && entries[15].key === '[WHEEL]'
       && entries[9].key === '[0]' && entries[9].ammo === '∞'
       && entries[14].id === 'mgl' && entries[14].name === 'GL-3 SKIPJACK'
       && entries[14].key === '[WHEEL]' && entries[14].ammo === '—' && !entries[14].owned
@@ -153,12 +155,12 @@ export async function runWeaponWheelContracts(ok) {
       'conquest: a digit the kit lacks and the already equipped primary close without switching');
 
     kitContext.self.owned = undefined;
-    ok(kitWheel.entries().length === 15 && kitWheel.entries().every(e => !e.role),
+    ok(kitWheel.entries().length === 16 && kitWheel.entries().every(e => !e.role),
       'conquest before the first owned list falls back to the full wheel');
     for (const mode of ['snd', 'tdm', 'ttt']) {
       kitContext.match.mode = mode;
       kitContext.self.owned = ['rifle', 'revolver', 'knife'];
-      ok(kitWheel.entries().length === 15 && kitWheel.entries().every((e, i) => !e.role && e.slot === i)
+      ok(kitWheel.entries().length === 16 && kitWheel.entries().every((e, i) => !e.role && e.slot === (i < 15 ? i : WEAPON_IDS.indexOf('doppler')))
           && kitWheel.directIndex(4) === 4,
         `${mode}: the full roster wheel is unchanged (no kit roles, index == slot)`);
     }

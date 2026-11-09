@@ -215,14 +215,14 @@ export class CombatFeedback {
         if (local && !mounted && !unpredicted) this.effects.confirmShot?.(ev);
         if (unpredicted) {
           this.effects.shoot(ev);
-          this.sfx.fire(ev.w, { pos: ev.o });
+          this.sfx.fire(ev.w, { pos: ev.o, rounds: ev.paths?.length });
         }
         if (!local) {
           if (!mounted) {
             if (ev.w === 'knife') this.roster?.swingPickaxe?.(ev.id);
             this.effects.shoot(ev);
             this.sfx.fire(ev.w, ev.w === 'flamethrower'
-              ? { pos: ev.o, shooterId: ev.id } : { pos: ev.o });
+              ? { pos: ev.o, shooterId: ev.id } : { pos: ev.o, rounds: ev.paths?.length });
           }
           const definition = WEAPONS[ev.w];
           // Flying rounds have no path yet: their flyby comes with the `bullet` event.

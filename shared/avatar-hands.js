@@ -72,6 +72,10 @@ export const HANDS = {
     grip: { x: 0.045, y: -0.02, z: -0.08 },                 // pistol grip behind the drum.
     support: { x: -0.06, y: -0.03, z: -0.40, on: 'body' },  // handle under the coil barrel.
   },
+  doppler: {
+    grip: { x: 0.045, y: 0.015, z: -0.09 },                 // steep stippled grip under the carrier.
+    support: { x: -0.050, y: -0.020, z: -0.41, on: 'body' }, // palm under the truss fore-end, ahead of the hand stop.
+  },
   kraber: {
     grip: { x: 0.045, y: 0.020, z: -0.13 },                 // thumbhole grip behind the bolt.
     support: { x: -0.055, y: -0.010, z: -0.50, on: 'body' }, // palm under the long fore-end.

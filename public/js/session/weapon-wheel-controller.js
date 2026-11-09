@@ -83,8 +83,9 @@ export class WeaponWheelController {
     const authoritative = Array.isArray(context.self?.owned) && usesOwnedLoadout(mode);
     if (authoritative && mode === 'conquest') return this.kitEntries(context);
     if (authoritative && mode === 'titanfall') return this.kitEntries(context, 'titanfall');
-    // Kit-only gadgets (the STINGER) sit at the end of WEAPON_IDS and only appear
-    // when the authoritative kit owns them, so every listed index stays its slot.
+    // Kit-only gadgets (the STINGER) only appear when the authoritative kit owns them.
+    // The first fifteen entries keep index == slot (the digit keys); a free weapon appended
+    // behind the gadget block (SP-2 DOPPLER) carries its own wire slot, which commit() uses.
     const shown = WEAPON_IDS.filter(id => !WEAPONS[id].gadgetOnly || (authoritative && context.self.owned.includes(id)));
     return shown.map((id) => {
       const slot = WEAPON_IDS.indexOf(id);

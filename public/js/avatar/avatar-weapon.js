@@ -135,7 +135,8 @@ export class AvatarWeaponModel {
     const previousId = this._weaponId;
     this._disposeModel();
     this._cache = new MaterialCache();
-    this._model = buildGun(nextId, this._cache);
+    // Remote players hold the reduced world mesh where a weapon ships one.
+    this._model = buildGun(nextId, this._cache, { lod: 'world' });
     this._weaponId = nextId;
     applyGunCosmetics(this._model, nextId, this._cosmetics);
     this._model.root.traverse((object) => {

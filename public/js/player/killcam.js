@@ -76,7 +76,7 @@ export function playKillcamShot(event, { audio = null, tracers = null, rig = nul
   }
   tracers?.shoot(event);
   if (event.id === killer) rig?.fire();
-  audio?.fire(event.w, { pos: event.o });
+  audio?.fire(event.w, { pos: event.o, rounds: event.paths?.length });
   return 'fire';
 }
 

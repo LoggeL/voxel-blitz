@@ -1,0 +1,38 @@
+{
+  "weapon": "doppler",
+  "source": "Original procedural synthesis (numpy); no recordings or generated-audio services.",
+  "generator": "tools/generate-doppler-audio.py",
+  "seed": 20261109,
+  "doublet_gap_seconds": 0.033,
+  "buffer_seconds": 0.047,
+  "peak_target": 0.78,
+  "encoding": "Ogg Opus, mono 48 kHz, 96 kbit/s (local ffmpeg has no libvorbis)",
+  "files": {
+    "fire.ogg": {
+      "rounds": 2,
+      "normalization_gain": 0.78642,
+      "metrics": {
+        "sample_peak": 0.8219,
+        "rms": 0.1533,
+        "seconds": 0.46,
+        "clipped_samples": 0
+      },
+      "sha256": "4674bff45c7c17dc75863c62383837ac153296df13f4f8ef1bb63b1c1f100623"
+    },
+    "fire-single.ogg": {
+      "rounds": 1,
+      "normalization_gain": 0.78628,
+      "metrics": {
+        "sample_peak": 0.769,
+        "rms": 0.121,
+        "seconds": 0.4,
+        "clipped_samples": 0
+      },
+      "sha256": "3df2539fba624399a56a6a9ddfd4e223d3f2927f68dda8955037d4da1ee9d452"
+    }
+  },
+  "qa": {
+    "listening_audition": false,
+    "note": "Synthesized and level-checked only; not auditioned by ear."
+  }
+}

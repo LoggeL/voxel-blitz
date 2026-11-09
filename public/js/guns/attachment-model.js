@@ -93,7 +93,8 @@ export function applyAttachmentModel(model, id, value) {
   }
   if (config.grip !== 'standard') {
     const z = HANDS[id]?.support?.z || -0.35;
-    const y = id === 'lmg' ? -0.1 : -0.045;
+    // The SP-2's truss fore-end hangs lower than a handguard: seat the grip clamp on its belly.
+    const y = id === 'lmg' ? -0.1 : id === 'doppler' ? -0.0245 : -0.045;
     box(0.075,0.025,0.09,0,y,z);
     const angled = config.grip === 'angled';
     box(0.052,angled ? 0.105 : 0.155,0.047,0,y-0.076,z,rubber,angled ? -0.6 : 0);

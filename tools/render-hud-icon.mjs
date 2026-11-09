@@ -29,7 +29,7 @@ const BLENDER_HUD_ASSETS = Object.freeze({
   rifle: 'kestrel', smg: 'wasp', shotgun: 'mastiff', sniper: 'peregrine',
   lmg: 'bison', revolver: 'fang', rocket: 'torch', longarc: 'halo',
   lance: 'pike', flamethrower: 'ifrit', minigun: 'hydra', glaive: 'skua',
-  mgl: 'skipjack', thunderbolt: 'thunderbolt',
+  mgl: 'skipjack', thunderbolt: 'thunderbolt', doppler: 'doppler',
 });
 const SUPERSAMPLE = 3;
 const MARGIN = 1.06;

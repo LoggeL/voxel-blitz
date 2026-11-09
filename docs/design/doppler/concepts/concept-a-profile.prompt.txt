@@ -1,0 +1,12 @@
+Use case: stylized-concept. Asset type: hard-surface prop concept illustration for a fictional video game (arena shooter), used as a 3D modelling and texture reference. Subject: the "SP-2 DOPPLER", an original fictional game carbine prop with a mechanical gimmick: an inner barrel-and-receiver unit slides on rails inside a fixed outer carrier frame. Purely a game art asset, original design.
+View: strict orthographic RIGHT side profile, front end pointing right, the whole prop fills the frame horizontally, neutral dark slate studio backdrop, soft top key light with a crisp rim light. One single object, no hands, no people, no captions, no collage, no HUD.
+Design, rear to front:
+- skeletal side-folding stock in charcoal polymer with an adjustable cheek riser and a ribbed rubber butt pad;
+- tall slab-sided outer carrier frame in tungsten-grey coated aluminium with chamfered edges and visible machining; a long window in the frame wall exposes the inner black steel unit and its polished guide rails; a small round glass inspection port with a steel cable pulley wheel behind it;
+- steep stippled grip;
+- a smoke-tinted translucent polymer magazine, visibly canted and slightly curved, brass contents visible through it, bright orange follower;
+- open ventilated fore-end cradle with long lightening slots; inside it the fluted barrel, a gas block and a guide rod with a coil buffer spring are visible; modular slots and a small angled hand stop underneath;
+- medium fluted barrel ending in a distinctive two-chamber "figure-eight" front compensator in bare titanium with straw, purple and blue heat tint;
+- low compact prism optic with a petrol-teal housing on the top rail, a folded backup sight behind it.
+Materials: detailed PBR game-art look, restrained edge wear, oily dark crevices, tiny white engraved markings "SP-2", one small orange selector dot. Colour identity: tungsten grey, charcoal, black steel, a little petrol-teal and orange, heat-tinted titanium at the front.
+Style: grounded near-future industrial design, modern, compact, elegant; rounded and chamfered forms, NOT blocky, NOT voxel, NOT an energy weapon.

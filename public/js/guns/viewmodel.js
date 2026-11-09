@@ -14,6 +14,7 @@ import { glaivePresentationFor } from './glaive-presentation.js';
 import { bubblePresentationFor } from './bubble-presentation.js';
 import { stingerPresentationFor } from './stinger-presentation.js';
 import { thunderboltAnimationFor } from './thunderbolt-animation.js';
+import { DOPPLER_BUFFER_S, dopplerPresentationFor } from './doppler-presentation.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
 import { buildGun, disposeGunModels } from './assemble.js';
 import { WeaponActions, syncArcherAmmo, syncSkipjackAmmo } from './actions.js';
@@ -104,6 +105,8 @@ export class ViewmodelRig {
     this._stingerState = null;         // frame-authoritative {mag, lockProgress, reloading}
     this._thunderbolt = null;          // four-orb drum and electric discharge presentation
     this._thunderboltState = null;     // ammunition/reload state, never filled by an animation
+    this._doppler = null;              // recoiling unit, sheaves and cartridge stack of the drawn SP-2
+    this._dopplerState = null;         // {mag, magSize} from WeaponState
     this._skipjackState = null;        // total chambered + cassette rounds from WeaponState
     this._archerState = null;          // chambered missile count from WeaponState
     this._rocketState = null;          // chambered warhead count from WeaponState
@@ -247,6 +250,8 @@ export class ViewmodelRig {
     this._thunderbolt = key === 'thunderbolt'
       ? thunderboltAnimationFor(next, (step) => this.onBoltClack?.(step)) : null;
     this._thunderbolt?.reset(this._thunderboltState);
+    this._doppler = key === 'doppler' ? dopplerPresentationFor(next) : null;
+    this._doppler?.reset(this._dopplerState?.mag, this._dopplerState?.magSize);
     this._restoreSkipjack();
     if (this._archerState) this.setArcher(this._archerState);
     if (this._rocketState) this.setRocket(this._rocketState);
@@ -347,9 +352,19 @@ export class ViewmodelRig {
     // Velocity kicks scaled by sqrt(k): a light gun snaps up and back fast, a heavy one
     // lifts less but on a slower spring, so the muzzle is still climbing when the next
     // round leaves and sustained fire visibly wallows instead of buzzing.
-    this._spr.pitch.v += pr * wn * 0.9;
-    this._spr.yaw.v += yr * wn * 0.9;
-    this._spr.push.v += ((this._id === 'minigun' ? 0.10 : 0.35) + pr * 1.1) * Math.sqrt(mass);
+    // SP-2 DOPPLER, shifted pulse: both rounds of a doublet are gone before the recoiling
+    // unit meets its buffer, so the gun kicks late and once. A last single round kicks at once.
+    const doublet = this._doppler ? Math.max(1, Math.min(2, this._dopplerState?.mag ?? 2)) : 0;
+    const kick = () => {
+      this._spr.pitch.v += pr * wn * 0.9;
+      this._spr.yaw.v += yr * wn * 0.9;
+      this._spr.push.v += ((this._id === 'minigun' ? 0.10 : 0.35) + pr * 1.1) * Math.sqrt(mass);
+    };
+    if (doublet === 2) {
+      // The first round only nudges the hold; the buffer delivers the rest.
+      this._spr.push.v += 0.12 * Math.sqrt(mass);
+      this._enqueue(DOPPLER_BUFFER_S, kick);
+    } else kick();
 
     this._uniSet(1, Math.min(1, cur.uni.uHeat.value + 0.5)); // burst heat accumulator, capped
     // The disc leaves a pneumatic spindle: no muzzle flash, the presentation plays the throw.
@@ -357,6 +372,10 @@ export class ViewmodelRig {
     else if (this._bubble) this._bubble.fire();   // soap, not powder: the film releases, no flash
     else if (this._thunderbolt) this._thunderbolt.fire();
     else this.revealFlash();
+    if (this._doppler) {
+      this._doppler.fire(doublet, T.doubletGap);
+      if (doublet === 2) this._enqueue(T.doubletGap, () => { if (this._id === 'doppler') this.revealFlash(); });
+    }
     this._stinger?.fire();
 
     const cycMs = 60000 / T.rof;          // rpm-referenced gate — literally the fire-cap definition
@@ -378,6 +397,17 @@ export class ViewmodelRig {
     } else if (this._stinger) {
       // The uncaging switch settles after launch; a launcher has no rifle bolt.
       this._enqueue(0.014, () => this._actions.startJerk(this._id, this._cur, T.boltTravel, 0.18));
+    } else if (this._doppler) {
+      // The carrier cycles once per round inside the sliding unit; the second case
+      // leaves while the first is still in the air, then the unit clacks back into battery.
+      const cycle = at => {
+        this._enqueue(at + 0.006, () => { if (this._id === 'doppler') this._actions.startJerk(this._id, this._cur, T.boltTravel, 0.026); });
+        this._enqueue(at + 0.020, () => { if (this._id === 'doppler') this._emitShell(); });
+      };
+      cycle(0);
+      if (doublet === 2) cycle(T.doubletGap);
+      this._enqueue(0.010, () => { if (this.onBoltClack) this.onBoltClack(1); });
+      this._enqueue(DOPPLER_BUFFER_S + 0.10, () => { if (this.onBoltClack) this.onBoltClack(2); });
     } else {
       this._enqueue(0.010, () => { if (this.onBoltClack) this.onBoltClack(1); }); // rack back
       this._enqueue(0.014, () => {
@@ -498,6 +528,12 @@ export class ViewmodelRig {
     syncSkipjackAmmo(skipjack, state.mag);
   }
 
+  /** SP-2 cartridge stack follows the accepted/predicted magazine. */
+  setDoppler(state) {
+    this._dopplerState = state ? { mag: state.mag, magSize: state.magSize } : null;
+    if (this._doppler && state) this._doppler.setMag(state.mag, state.magSize);
+  }
+
   /** TB-4 orbs follow the same accepted/predicted ammunition as the HUD. */
   setThunderbolt(state) {
     this._thunderboltState = state ? { mag: state.mag, magSize: state.magSize,
@@ -561,6 +597,7 @@ export class ViewmodelRig {
       this._actions.update(this._now, 0, this._cur, this._cur.T);
     }
     this._bubble?.reload(dur, this._cur.T.magTimeline, elapsed);
+    this._doppler?.reload(dur, elapsed);
     this._stinger?.setState({ ...this._stingerState, lockProgress: 0, reloading: true });
     this._thunderbolt?.reload();
   }
@@ -569,6 +606,7 @@ export class ViewmodelRig {
   cancelReload() {
     if (!this._cur) return false;
     this._bubble?.cancelReload();
+    this._doppler?.cancelReload();
     this._thunderbolt?.cancelReload();
     if (this._thunderbolt && this._thunderboltState) this._thunderboltState.reloading = false;
     const cancelled = this._actions.cancelReload(this._cur, { smooth: true });
@@ -919,6 +957,8 @@ export class ViewmodelRig {
     this._bubble?.update(elapsed, { speed01: this._sprint, leanX: this._lean.p * cosmeticMotion, adsT: adsE });
     this._stinger?.update(elapsed, { reloading: this._actions.reloading });
     this._thunderbolt?.update(elapsed, { reducedMotion: ctx.reducedMotion });
+    // The unit slide runs after the reload/jerk layer: the carrier rides it.
+    this._doppler?.update(elapsed);
 
     /* grenade wind-up + throw lunge (mass-scaled: a heavy gun is slower to pull aside) */
     const windRate = 9 * Math.sqrt(mass);

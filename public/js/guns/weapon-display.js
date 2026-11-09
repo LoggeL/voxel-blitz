@@ -25,7 +25,7 @@ export const WEAPON_TINT = Object.freeze({
   rifle: 0xff9f1c, smg: 0xffcf5c, shotgun: 0xff7a45, sniper: 0x8fc7ff, lmg: 0x5ce6b0, longarc: 0x48e8ff, rocket: 0xe5ff4f,
   minigun: 0xa8b0ff, flamethrower: 0xff6a1a, revolver: 0xff5277, lance: 0xc9a2ff, knife: 0xb9c6cf, glaive: 0xff3fd0,
   bubble: 0x9fe9ff, mgl: 0xd3ba58, stinger: 0x9cff6b, chargerifle: 0xff5a3c, archer: 0x4ee6ff, thunderbolt: 0x7aa8ff,
-  kraber: 0xffc04a,
+  kraber: 0xffc04a, doppler: 0x39cfc0,
 });
 /** The weapon's own state the ring shows while it runs (instead of the magazine). */
 export const DISPLAY_EXTRAS = Object.freeze({ chargerifle: 'charge', archer: 'lock', thunderbolt: 'arc', kraber: 'bolt',

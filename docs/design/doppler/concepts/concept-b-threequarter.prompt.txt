@@ -1,0 +1,11 @@
+Use case: stylized-concept. Asset type: hard-surface prop concept illustration for a fictional video game (arena shooter), used as a 3D modelling and texture reference. Subject: the "SP-2 DOPPLER", an original fictional game carbine prop with a mechanical gimmick: an inner barrel-and-receiver unit slides on rails inside a fixed outer carrier frame. Purely a game art asset, original design.
+View: single large front-left three-quarter product view seen slightly from above, front end toward the lower left, neutral dark slate studio backdrop, soft key light, crisp rim light. One object, no hands, no people, no captions, no collage.
+Design:
+- distinctive two-chamber "figure-eight" front compensator in bare titanium with straw, purple and blue heat tint, on a medium fluted black barrel;
+- open ventilated fore-end cradle in tungsten-grey coated aluminium with long lightening slots through which the barrel, a gas block and a guide rod with coil buffer spring are visible; modular slots, a small angled hand stop;
+- tall slab-sided outer carrier frame with chamfers and machining marks; on the LEFT wall a round glass inspection port showing a steel cable and pulley wheel; an inner black steel unit riding on polished rails;
+- smoke-tinted translucent polymer magazine, canted and slightly curved, brass contents visible, orange follower;
+- steep stippled grip; skeletal side-folding stock with cheek riser and rubber pad in charcoal polymer;
+- low compact prism optic with a petrol-teal housing on the top rail.
+Materials: detailed PBR game-art surfaces, fine coating speckle, restrained edge wear to bare aluminium, oily dark crevices, polymer stipple, tiny white engraved markings "SP-2", small orange selector dot.
+Style: grounded near-future industrial design, modern and compact, rounded chamfered forms; NOT blocky, NOT voxel, NOT an energy weapon.

@@ -1167,7 +1167,10 @@ export const sfx = {
         renderFireReport(key, output, primitives, engine.echoIn, addCleanup, output);
         return;
       }
-      const sampled = samples.play(`weapons.${key}.fire`, output, fireSampleProfile(key, charge));
+      // SP-2 DOPPLER: `rounds` 1 is a magazine's last odd round (one report instead of the doublet).
+      const rounds = deferred && !Array.isArray(deferred) && deferred.rounds === 1 ? 1 : 2;
+      const slot = key === 'doppler' && rounds === 1 ? 'weapons.doppler.fire.2' : `weapons.${key}.fire`;
+      const sampled = samples.play(slot, output, fireSampleProfile(key, charge));
       const reportOutput = sampled
         ? createReportLayer(output, profile.layerGain)
         : output;
@@ -1176,6 +1179,7 @@ export const sfx = {
         // reports have no rig, so their matching contacts stay scheduled here.
         includeMechanics: !!positionOf(deferred),
         charge,
+        rounds,
       });
     });
   },

@@ -31,6 +31,7 @@ export const GLYPH = Object.freeze({
   archer: 'AR',
   thunderbolt: 'TB',
   kraber: 'KR',
+  doppler: 'SP2',
 });
 
 export const WEAPON_NAMES = Object.freeze({
@@ -55,6 +56,7 @@ export const WEAPON_NAMES = Object.freeze({
   archer: 'AT-12 ARCHER',
   thunderbolt: 'TB-4 THUNDERBOLT',
   kraber: 'KR-50 KRABER',
+  doppler: 'SP-2 DOPPLER',
   // Conquest kill keys: mounted vehicle weapons, roadkills and the restricted-area timer.
   ...Object.fromEntries(Object.entries(VEHICLE_WEAPON_META).map(([key, meta]) => [key, meta.label])),
   // Titanfall (docs/titanfall.md §2.3, WP0 region): titan mounts and the titan kill keys.
@@ -148,6 +150,7 @@ export const WEAPON_CLASSES = Object.freeze({
   archer: 'AT LAUNCHER · LOCK ON TITANS · DUMB-FIRE',
   thunderbolt: 'ARC LAUNCHER · ZAPS 3 IN 6m · BURSTS ON CONTACT',
   kraber: 'ANTI-MATERIEL RIFLE · BOLT · ONE SHOT',
+  doppler: 'BATTLE RIFLE · 2-ROUND HYPERBURST',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
@@ -156,6 +159,7 @@ export const WEAPON_BUY_ORDER = Object.freeze([
   'shotgun',
   'bubble',
   'rifle',
+  'doppler',
   'lmg',
   'sniper',
   'longarc',

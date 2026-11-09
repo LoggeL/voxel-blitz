@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import WebSocket from 'ws';
 import { ConnectionDiagnostics, connectionFindings, formatConnectionReport, summarize } from '../public/js/engine/connection-diagnostics.js';
@@ -228,7 +229,8 @@ try {
   assert.ok(report.metrics.serverRtt?.count >= 1);
   assert.ok(report.metrics.serverTickP95?.count >= 2);
   assert.ok(report.metrics.serverEventLoopP95?.count >= 2);
-  assert.equal(report.serverVersion, '0.1.0');
+  // The server reports the package version (0.2.0 since the version tag); never pin the number here.
+  assert.equal(report.serverVersion, JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version);
   assert.equal(report.metrics.clientQueuedBytes.min, 0);
   assert.ok(report.snapshotTiming.samples.length > 50);
   assert.ok(Math.abs(report.snapshotTiming.expectedIntervalMs - TICK_MS) < 0.01);

@@ -19,6 +19,7 @@ import {
   computeSpreadConeDeg,
   reloadPlan,
   samplePelletDirection,
+  shotRounds,
   chargeProfile,
   chargeFromHold,
   chargeAfterRelease,
@@ -657,6 +658,7 @@ export class WeaponState {
     if (def.id === 'rocket') {
       this._rig.setRocket?.({ mag: this._ammo.rocket?.mag ?? 0 });
     }
+    if (def.id === 'doppler') this._rig.setDoppler?.({ mag: this._ammo.doppler?.mag ?? 0, magSize: def.magSize });
     this._syncThunderbolt();
   }
 
@@ -867,7 +869,9 @@ export class WeaponState {
     if (!this._rig.fire(def)) return false;
 
     if (weaponId === 'minigun') heatMinigun(this._minigun);
-    ammo.mag -= 1;
+    // A hyperburst (SP-2 DOPPLER) spends two rounds per pull; its last odd round fires alone.
+    const rounds = shotRounds(def, ammo.mag);
+    ammo.mag -= rounds.spend;
     if (weaponId === 'stinger') this._syncStinger();
     if (weaponId === 'archer') this._rig.setArcher?.({ mag: ammo.mag });
     if (weaponId === 'rocket') this._rig.setRocket?.({ mag: ammo.mag });
@@ -891,8 +895,8 @@ export class WeaponState {
       this._pain,
     );
     const pellets = [];
-    for (let index = 0; index < def.pellets; index++) {
-      pellets.push(samplePelletDirection(def, fwd, this._random, spreadCone, index));
+    for (let index = 0; index < rounds.pellets; index++) {
+      pellets.push(samplePelletDirection(def, fwd, this._random, spreadCone, index, pellets[0]));
     }
 
     this._bloomDeg = Math.min(def.bloomMaxDeg, this._bloomDeg + def.bloomDeg);
@@ -917,7 +921,7 @@ export class WeaponState {
       this._flameActive = true; this._flameLastShotAt = now;
       this._rig.setFlame?.(true, ammo.mag / def.magSize);
     }
-    this._audio.fire(weaponId, mode === 'charge' ? { charge } : undefined);
+    this._audio.fire(weaponId, mode === 'charge' ? { charge } : weaponId === 'doppler' ? { rounds: rounds.spend } : undefined);
     this.shakeView(def, now, mode === 'charge' ? 0.45 + 0.55 * charge : 1);
     if (mode === 'pump') this._rig.pumpAnim();
     if (mode === 'bolt') this._rig.boltAnim();

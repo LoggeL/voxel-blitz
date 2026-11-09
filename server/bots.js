@@ -87,7 +87,7 @@ const STUCK_WINDOW_MS = 1000;     // displacement sample window
 const STUCK_DIST = 0.35;          // less than this over the window == wedged
 const BOT_SEED = 0x00B0755;
 const DEFAULT_WEAPON_SLOT = WEAPON_IDS.indexOf(DEFAULT_WEAPON_ID);
-const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'rocket', 'longarc', 'lance', 'glaive', 'rifle', 'shotgun', 'smg']);
+const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'rocket', 'longarc', 'lance', 'doppler', 'glaive', 'rifle', 'shotgun', 'smg']);
 // Capturing a flag is not urgent: bots inside a zone keep hearing, retreating
 // and, above all, shooting while they hold it (Conquest P0).
 const URGENT_GOALS = new Set(['plant', 'recoverBomb', 'defuse']);

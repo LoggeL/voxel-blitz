@@ -32,6 +32,7 @@ import { build as buildChargerifle } from './models/chargerifle.js';
 import { build as buildArcher } from './models/archer.js';
 import { build as buildThunderbolt } from './models/thunderbolt.js';
 import { build as buildKraber } from './models/kraber.js';
+import { build as buildDoppler } from './models/doppler.js';
 
 const MODELS = Object.freeze({
   rifle: buildRifle,
@@ -54,6 +55,7 @@ const MODELS = Object.freeze({
   archer: buildArcher,
   thunderbolt: buildThunderbolt,
   kraber: buildKraber,
+  doppler: buildDoppler,
 });
 
 /**
@@ -69,8 +71,10 @@ function makeMeleeFlash() {
 /**
  * Assemble one model bundle. MaterialCache is rig-owned; registering the completed hierarchy
  * preserves one shared-material reference per rig even when every model is built lazily.
+ * `lod: 'world'` asks a builder for its reduced third-person mesh where it ships one
+ * (the SP-2 DOPPLER); every other builder ignores it.
  */
-export function buildGun(id, cache) {
+export function buildGun(id, cache, { lod = null } = {}) {
   const buildModel = MODELS[id];
   if (!buildModel) throw new RangeError(`Unknown gun model: ${id}`);
   if (!cache || typeof cache.refModel !== 'function') {
@@ -101,6 +105,7 @@ export function buildGun(id, cache) {
     kit,
     T,
     groups: { body, mag, bolt, pump, trigger, extra },
+    lod,
   });
 
   const muzzleMarker = new THREE.Object3D();
@@ -122,7 +127,8 @@ export function buildGun(id, cache) {
   // ARCHER opens the receiver during loading; a generic cap would fill its trough.
   // FURNACE's open stock likewise exposes it; heat belongs to its six barrels.
   // VOLTLANCE uses its fitted induction strips; the cap floats beside PIKE's open rail.
-  if (!melee && id !== 'revolver' && id !== 'glaive' && id !== 'bubble' && id !== 'mgl' && id !== 'thunderbolt' && id !== 'archer' && id !== 'stinger' && id !== 'minigun' && id !== 'lance' && id !== 'rocket') {
+  // DOPPLER's carrier is seen through its ejection window; a cap would hang in the open frame.
+  if (!melee && id !== 'doppler' && id !== 'revolver' && id !== 'glaive' && id !== 'bubble' && id !== 'mgl' && id !== 'thunderbolt' && id !== 'archer' && id !== 'stinger' && id !== 'minigun' && id !== 'lance' && id !== 'rocket') {
     const capZ = BOLT_HOME[id];
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), glow);
     cap.position.set(-0.02, 0.07, capZ + 0.052);

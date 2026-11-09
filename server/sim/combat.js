@@ -24,6 +24,7 @@ import {
   PLAYER_HALF,
   damageAtDistance,
   samplePelletDirection,
+  shotRounds,
   computeSpreadConeDeg,
   chargeProfile,
   chargeFromHold,
@@ -521,7 +522,9 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
   if (def.projectile === 'glaive' && !(ctx.canThrowGlaive?.(p) ?? true)) return;
   p.spawnProtectedUntil = 0;
   p.spawnProtected = false;
-  p.mag[p.weapon]--;
+  // A hyperburst (SP-2 DOPPLER) spends two rounds per pull; its last odd round fires alone.
+  const rounds = shotRounds(def, p.mag[p.weapon]);
+  p.mag[p.weapon] -= rounds.spend;
   p.cooldown += 60 / def.rpm;
   p.shotSeq++;
   p.firing = true;
@@ -603,8 +606,8 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
   }
   // Publish the resolved polyline with the shot so clients never guess a bounce.
   shootEvent.paths = [];
-  for (let pellet = 0; pellet < def.pellets; pellet++) {
-    const d = pellet === 0 ? { ...firstDir } : samplePelletDirection(def, fwd, rng, coneDeg, pellet);
+  for (let pellet = 0; pellet < rounds.pellets; pellet++) {
+    const d = pellet === 0 ? { ...firstDir } : samplePelletDirection(def, fwd, rng, coneDeg, pellet, firstDir);
     const round = createRound(def, shot, oEye, d, charge01, chargeMult);
     shootEvent.paths.push(round.path);
     walkRoundLeg(p, def, round, Infinity, ctx);

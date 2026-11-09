@@ -39,7 +39,7 @@ const wrap = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const HALF_FOV = 55 * Math.PI / 180;
 const TRACK_FOV = 65 * Math.PI / 180;
 const HALF_VERTICAL_FOV = 50 * Math.PI / 180;
-const RANGED_PRIORITY = ['rocket', 'lance', 'sniper', 'lmg', 'rifle', 'minigun', 'revolver', 'smg', 'shotgun'];
+const RANGED_PRIORITY = ['rocket', 'lance', 'sniper', 'lmg', 'doppler', 'rifle', 'minigun', 'revolver', 'smg', 'shotgun'];
 /**
  * The STINGER only answers airborne aircraft inside its lock range (it cannot fire unlocked);
  * a hull target carries the weather's `lockScale` (fog and storms shorten the lock range).

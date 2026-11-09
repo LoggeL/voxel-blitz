@@ -8,6 +8,20 @@
       "geometry_bytes": 1267168
     },
     {
+      "asset": "doppler",
+      "source_parts": 96,
+      "draws": 13,
+      "triangles": 46867,
+      "geometry_bytes": 1901204
+    },
+    {
+      "asset": "doppler-world",
+      "source_parts": 51,
+      "draws": 12,
+      "triangles": 17666,
+      "geometry_bytes": 723696
+    },
+    {
       "asset": "fang",
       "source_parts": 117,
       "draws": 18,

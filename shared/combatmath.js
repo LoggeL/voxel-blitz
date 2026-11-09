@@ -37,7 +37,7 @@ export const CONDITION_RULES = Object.freeze({
 
 /**
  * @typedef {Object} WeaponDef
- * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble'|'mgl'|'stinger'|'chargerifle'|'archer'|'thunderbolt'|'kraber')
+ * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble'|'mgl'|'stinger'|'chargerifle'|'archer'|'thunderbolt'|'kraber'|'doppler')
  * @property {string} name          display name
  * @property {'auto'|'semi'|'pump'|'bolt'|'charge'|'melee'} mode trigger behavior; `charge` fires on
  *                                  trigger release and scales with the hold (see `charge`); `melee`
@@ -54,6 +54,10 @@ export const CONDITION_RULES = Object.freeze({
  * @property {number} headMult      headshot damage multiplier
  * @property {number} pellets       projectiles per shot (1 except shotgun)
  * @property {boolean} [centerPellet=false] keep pellet zero exactly on the aim ray
+ * @property {number} [roundsPerShot=1] rounds one trigger pull spends; above 1 the pull launches one
+ *                                  projectile per spent round (see `shotRounds`), so a last odd round fires alone
+ * @property {{spreadDeg:number,gapMs:number}} [doublet] hyperburst profile: every round after the first
+ *                                  leaves `gapMs` later (presentation) and lands within `spreadDeg` of the first
  * @property {{hip:number, ads:number}} spreadDeg base cone half-angle, degrees
  * @property {number} bloomDeg      spread added per shot, degrees
  * @property {number} bloomMaxDeg   bloom ceiling, degrees
@@ -88,7 +92,7 @@ export const CONDITION_RULES = Object.freeze({
  *                              discs instead of reloading, so reloadTime/tacTime are unused
  */
 
-/** The weapon roster (fifteen free weapons plus kit-only gadgets). Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
+/** The weapon roster (sixteen free weapons plus kit-only gadgets). Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
 export const WEAPONS = {
   rifle: {
     id: 'rifle', penetration: 55, name: 'VK-77 RAPTOR', mode: 'auto',
@@ -561,6 +565,30 @@ export const WEAPONS = {
     sfx: 'sniper',
     damageClass: 'hmg',
   },
+  doppler: {
+    // SP-2 DOPPLER: shifted-pulse battle rifle (docs/weapon-design/doppler.md). One trigger
+    // pull is a two-round hyperburst: the barrel and receiver recoil together inside the
+    // carrier, so both rounds are gone before the unit reaches its buffer and the shooter
+    // feels one late kick. The pair lands `doublet.spreadDeg` apart; `rpm` counts pulls, a
+    // held trigger repeats doublets, and a last odd round fires alone.
+    id: 'doppler', penetration: 80, name: 'SP-2 DOPPLER', mode: 'auto',
+    weightKg: 4.3,
+    rpm: 190, magSize: 30, spareMags: 5,
+    roundsPerShot: 2, pellets: 2, doublet: Object.freeze({ spreadDeg: 0.07, gapMs: 33 }),
+    damage: [32, 23, 110], falloffStart: 35, headMult: 1.7,
+    spreadDeg: { hip: 2.1, ads: 0.10 }, bloomDeg: 0.42, bloomMaxDeg: 2.6,
+    bloomRecover: 4.6, moveSpreadDeg: 2.6,
+    crouchSpreadMult: 0.66,
+    recoil: {
+      pitch: 1.35, pitchRamp: 0.05, maxPitchRamp: 0.30,
+      yaw: 0.36, yawPattern: [0.30, -0.45, 0.20, 0.55, -0.35, -0.50, 0.40, 0.15],
+      jitter: 0.08, resetMs: 420, adsMult: 0.66, recovery: 0.66,
+    },
+    adsFov: 46, zoom: 1.5, adsTime: 0.20,
+    reloadTime: 2.5, tacTime: 1.9, deployTime: 0.5,
+    tracer: { color: '#ffe6b0', width: 1.25, len: 30 },
+    sfx: 'doppler',
+  },
 };
 
 // Attach immutable handling profiles without duplicating the baseline recoil numbers.
@@ -568,7 +596,10 @@ for (const [id, def] of Object.entries(WEAPONS)) WEAPONS[id] = withWeaponHandlin
 
 export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger',
   // Titanfall AT weapons (append-only; slots are wire indices).
-  'chargerifle', 'archer', 'thunderbolt', 'kraber'];
+  'chargerifle', 'archer', 'thunderbolt', 'kraber',
+  // Free weapons added after the gadget block keep their wire index too: FREE_WEAPON_IDS
+  // is no longer one contiguous slot range (the SP-2 DOPPLER is slot 20).
+  'doppler'];
 
 /** Kit-only gadgets: never part of a free roster, a weapon wheel or a shop. */
 export const GADGET_ONLY_WEAPON_IDS = Object.freeze(WEAPON_IDS.filter(id => WEAPONS[id]?.gadgetOnly === true));
@@ -761,10 +792,34 @@ export function sampleSpreadDir(fwd, rng, halfAngleDeg) {
   return { x: cx / l, y: cy / l, z: cz / l };
 }
 
-/** Shared per-pellet policy so prediction and authority cannot drift. */
-export function samplePelletDirection(def, fwd, rng, halfAngleDeg, pelletIndex) {
+/**
+ * Shared per-pellet policy so prediction and authority cannot drift. `first` is the
+ * direction pellet zero took: a hyperburst (`def.doublet`) keeps its later rounds
+ * within `doublet.spreadDeg` of it instead of resampling the whole cone.
+ */
+export function samplePelletDirection(def, fwd, rng, halfAngleDeg, pelletIndex, first = null) {
   if (def.centerPellet === true && pelletIndex === 0) {
     return { x: fwd.x, y: fwd.y, z: fwd.z };
   }
+  if (pelletIndex > 0 && first && def.doublet) return sampleSpreadDir(first, rng, def.doublet.spreadDeg);
   return sampleSpreadDir(fwd, rng, halfAngleDeg);
+}
+
+/** Rounds one trigger pull spends (1 for every weapon but a hyperburst). */
+export function roundsPerShot(def) {
+  return Math.max(1, Math.trunc(Number(def?.roundsPerShot) || 1));
+}
+
+/**
+ * What the next accepted shot of `def` does with `mag` rounds left: `spend` rounds
+ * leave the magazine and `pellets` projectiles fly. A hyperburst launches one
+ * projectile per spent round, so its last odd round fires alone.
+ */
+export function shotRounds(def, mag) {
+  const perShot = roundsPerShot(def);
+  if (perShot <= 1) return { spend: 1, pellets: def.pellets };
+  const left = Number.isFinite(mag) ? Math.max(0, Math.trunc(mag)) : perShot;
+  const spend = Math.max(1, Math.min(perShot, left));
+  // Chaos TRIPLET rides a free extra projectile on every pull (`bonusRounds`).
+  return { spend, pellets: spend + Math.max(0, Math.trunc(Number(def.bonusRounds) || 0)) };
 }

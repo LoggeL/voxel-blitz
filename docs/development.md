@@ -71,7 +71,7 @@ Run `npm run powerups:test` for simulation and protocol checks, and
 
 Create a lobby, select **CHAOS LAB**, ready up and start. The full weapon roster is available.
 Start with $600, earn $300 per kill, and open the upgrade shop with **B** (or the touch
-BUY button / gamepad D-pad right). All fifteen weapons and five throwables each have
+BUY button / gamepad D-pad right). All sixteen weapons and five throwables each have
 three cumulative upgrades costing $300, $600 and $900. Money and upgrades survive
 respawns for the current match; joining a new room starts fresh. Kills also restore
 one grenade of each type, up to five. The shop does not pause combat. Bots buy upgrades too.
@@ -376,13 +376,13 @@ Run `npm run bastion:test` for directed simulation on both maps and real WebSock
 ### Fun
 
 Fun is a free-for-all with no teams, no score-limit reset, the complete
-fifteen-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
+sixteen-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
 rooms with join in progress and no ready gate.
 
 ### Team Deathmatch
 
 Team Deathmatch assigns each player to the lower-population `alpha` or `bravo`
-team, disables friendly fire, provides the complete fifteen-weapon loadout, and
+team, disables friendly fire, provides the complete sixteen-weapon loadout, and
 uses team-specific spawn pools. Enemy kills increment the team score. The first
 team to **40** wins; the result approval phase follows, then team and player
 scores reset and everyone respawns. Deaths respawn after **3000 ms** during the
@@ -947,7 +947,7 @@ Everything else loads through the asset scheduler (`js/boot/asset-scheduler.js`)
 after the menu has painted, one task at a time, in the order a match needs it:
 
 1. `models`: `engine/blender-assets.js`, which brings three.js, the glTF loader
-   and the fifteen Blender templates with their shared textures (most of the
+   and the Blender templates with their shared textures (most of the
    bytes).
 2. `runtime`: `boot/match-runtime.js`, the world view and chunk mesher, combat
    effects and post-process, weapon and avatar factories, killcam, spectator

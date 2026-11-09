@@ -16,7 +16,7 @@ const ids = PROGRESSION_TREE.map(node => node.id);
 assert.equal(new Set(ids).size, ids.length, 'node IDs are unique');
 assert.deepEqual(PROGRESSION_BRANCHES.map(branch => branch.id), ['weapons', 'character', 'presentation', 'mastery']);
 for (const branch of PROGRESSION_BRANCHES) assert.ok(['level', 'mastery'].includes(branch.track), `${branch.id} names its track`);
-assert.equal(MASTERY_WEAPON_IDS.length, 15, 'every free-pick weapon has mastery tiers');
+assert.equal(MASTERY_WEAPON_IDS.length, 16, 'every free-pick weapon has mastery tiers');
 assert.equal(PROGRESSION_TREE.length, 59 + MASTERY_WEAPON_IDS.length * 4 + 3, 'the catalog holds 59 level-track nodes, 4 tier rewards per mastery weapon and 3 arsenal rewards');
 assert.equal(PROGRESSION_TREE.filter(node => node.branch === 'mastery').length, MASTERY_WEAPON_IDS.length * 4 + 3);
 assert.equal(LEGACY_NODE_IDS.length, 40);

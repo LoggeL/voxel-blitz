@@ -249,7 +249,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       teams: false,
       friendlyFire: true,
       respawnMs: 1500,
-      weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'flamethrower', 'rocket', 'mgl', 'longarc', 'glaive', 'bubble', 'lance', 'revolver', 'minigun', 'knife'],
+      weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'doppler', 'flamethrower', 'rocket', 'mgl', 'longarc', 'glaive', 'bubble', 'lance', 'revolver', 'minigun', 'knife'],
     },
     snd: {
       teams: true,
@@ -309,6 +309,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     glaive: 3000,
     bubble: 2200,
     mgl: 3900,
+    doppler: 3100,
   };
   ok(sameValue(WEAPON_PRICES, expectedPrices)
     && deeplyFrozen(WEAPON_PRICES)

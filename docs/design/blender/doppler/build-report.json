@@ -1,0 +1,60 @@
+{
+  "asset": "doppler",
+  "source_parts": 96,
+  "source_triangles": 47539,
+  "atlas_triangles": 44947,
+  "atlas_size": 2048,
+  "uv_coverage": 0.4272,
+  "parts": [
+    "body",
+    "unit",
+    "bolt",
+    "trigger",
+    "mag",
+    "rounds",
+    "follower",
+    "pulley",
+    "spring",
+    "factory-optic"
+  ],
+  "markers": {
+    "muzzle": [
+      0.0,
+      0.05,
+      -0.66
+    ],
+    "sight": [
+      0.0,
+      0.142,
+      -0.18
+    ],
+    "grip": [
+      0.045,
+      0.015,
+      -0.09
+    ],
+    "support": [
+      -0.05,
+      -0.02,
+      -0.41
+    ],
+    "pulley": [
+      0.0,
+      0.05,
+      -0.028
+    ],
+    "spring": [
+      0.0,
+      0.012,
+      -0.352
+    ],
+    "eject": [
+      0.03,
+      0.062,
+      -0.198
+    ]
+  },
+  "unit_travel": 0.016,
+  "mag_rounds": 30,
+  "seconds": 3621.7
+}

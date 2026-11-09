@@ -14,7 +14,7 @@ Fast rounds. Destructible arenas. Straight into your browser.
 
 ![VOXEL BLITZ main menu with Quick Play, account creation and a career preview](docs/screenshots/main-menu.png)
 
-A multiplayer voxel arena shooter with destructible cover, fifteen weapons and bots that keep the action moving. Jump into Quick Play, invite friends to a custom lobby, or work on your aim in the Killhouse.
+A multiplayer voxel arena shooter with destructible cover, sixteen weapons and bots that keep the action moving. Jump into Quick Play, invite friends to a custom lobby, or work on your aim in the Killhouse.
 
 ## Inside the arena
 
@@ -30,7 +30,7 @@ Combat attacks deal 20% less damage than the original balance. A close rifle bod
 | Mode | What you play |
 | --- | --- |
 | Fun | Free-for-all with the full arsenal and fast respawns. Quick Play drops you into a live room. |
-| Chaos Lab | Kills and hidden $300 cash bundles earn credits for 60 cumulative upgrades across all fifteen weapons and five throwables. Open the lab with B; upgrades survive death. |
+| Chaos Lab | Kills and hidden $300 cash bundles earn credits for 63 cumulative upgrades across all sixteen weapons and five throwables. Open the lab with B; upgrades survive death. |
 | Team Deathmatch | Two teams race to 40 kills. |
 | Search and Destroy | Plant or defuse the bomb, buy your loadout and make each life count. |
 | Gun Game | Every kill advances your weapon. Finish the ladder to win. |

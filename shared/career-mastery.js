@@ -18,12 +18,13 @@ export const COMBAT_SCORE_BOT_DIVISOR = 4;
  * explicit and append-only, so a new weapon is a deliberate choice and the
  * arsenal counts below never move under an earned reward. */
 export const MASTERY_WEAPON_IDS = Object.freeze(['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket',
-  'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl']);
+  'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'doppler']);
 for (const weapon of MASTERY_WEAPON_IDS) if (!WEAPON_IDS.includes(weapon) || WEAPONS[weapon]?.gadgetOnly)
   throw new Error(`Mastery weapon ${weapon} must be a free-pick weapon`);
 export const MASTERY_BADGES = Object.freeze({ rifle: 'RAPTOR', smg: 'HORNET', shotgun: 'M-DOCK', sniper: 'LONGSHOT', lmg: 'BASTION',
   revolver: 'IRONCLAD', longarc: 'LONGARC', rocket: 'HAVOC', lance: 'VOLTLANCE', knife: 'PICK',
-  minigun: 'FURNACE', flamethrower: 'FIRESTORM', glaive: 'RIPTIDE', bubble: 'SUDSBLASTER', mgl: 'SKIPJACK' });
+  minigun: 'FURNACE', flamethrower: 'FIRESTORM', glaive: 'RIPTIDE', bubble: 'SUDSBLASTER', mgl: 'SKIPJACK',
+  doppler: 'DOPPLER' });
 
 const count = value => Number.isSafeInteger(value) && value > 0 ? value : 0;
 export const masteryTier = id => MASTERY_TIERS.find(tier => tier.id === id) || null;

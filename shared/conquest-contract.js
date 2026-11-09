@@ -125,7 +125,7 @@ const KIT = (label, ability, primaries, gadgets, grenades, unlockLevel, extra = 
   grenades: Object.freeze(grenades), unlockLevel, ...extra,
 });
 export const KITS = Object.freeze({
-  assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'shotgun'],       [],                    { frag: 2, pulse: 1 },    1),
+  assault:   KIT('ASSAULT',   'adrenaline', ['rifle', 'doppler'],       [],                    { frag: 2, pulse: 1 },    1),
   engineer:  KIT('ENGINEER',  'repair',     ['smg', 'shotgun'],         ['rocket', 'stinger', 'fpv'], { smoke: 1, frag: 1, atmine: 3 }, 1),
   support:   KIT('SUPPORT',   'resupply',   ['lmg', 'minigun'],         ['ammocrate', 'mortar'], { frag: 2, molotov: 1 }, 1),
   recon:     KIT('RECON',     'spot',       ['sniper', 'longarc'],      ['beacon', 'sensor'],  { limpet: 2, pulse: 1 },  1),
@@ -133,7 +133,7 @@ export const KITS = Object.freeze({
   pyro:      KIT('PYRO',      'fireproof',  ['flamethrower', 'shotgun'], [],                   { molotov: 2, smoke: 1 }, 3),
   grenadier: KIT('GRENADIER', 'ordnance',   ['mgl', 'bubble'],          [],                    { frag: 2, smoke: 1 },    5),
   raider:    KIT('RAIDER',    'ghost',      ['glaive', 'smg'],          [],                    { frag: 1, limpet: 1 },   7),
-  marksman:  KIT('MARKSMAN',  'overwatch',  ['lance', 'longarc'],       [],                    { pulse: 1, smoke: 1 },   9),
+  marksman:  KIT('MARKSMAN',  'overwatch',  ['lance', 'doppler'],       [],                    { pulse: 1, smoke: 1 },   9),
 });
 export const KIT_SIDEARM = 'revolver';
 

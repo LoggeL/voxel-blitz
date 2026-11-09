@@ -62,6 +62,10 @@ export function chaosShot(p, ctx, dir, def = p.def) {
     }
     if (level >= 3 && p.shotSeq % 20 === 0) fan(p, id, ctx, dir, 1, true);
   }
+  if (id === 'doppler') {
+    if (level >= 2) fan(p, id, ctx, dir, 2);
+    if (level >= 3 && p.shotSeq % 3 === 0) ctx.chaosBlast?.(p, [p.x + dir.x * 5, p.eyeY + dir.y * 5, p.z + dir.z * 5], 'pulse', 5, 25, 25, id);
+  }
   if (id === 'revolver' && level >= 3) fan(p, id, ctx, dir, 6, false, true);
   if (id === 'lance' && level >= 3) fan(p, id, ctx, dir, 8, false, true);
   if (id === 'knife') {

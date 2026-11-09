@@ -9,7 +9,7 @@ combat stats, and nobody loses anything they own.
 and the server; the mastery tiers, badges and score formulas live in
 `shared/career-mastery.js` and are re-exported through it. `CAREER_CATALOG`
 remains the flat, pre-order view of the same frozen array (`=== PROGRESSION_TREE`,
-122 nodes), so every consumer that only asks "does this ID exist" keeps working.
+126 nodes), so every consumer that only asks "does this ID exist" keeps working.
 Every number the ARMORY shows comes from `careerView` plus these shared modules.
 
 ## XP curve
@@ -93,7 +93,7 @@ kills are stored beside it as `mastery[w].botKills` (only when above 0).
 
 ### Mastery weapons
 
-`MASTERY_WEAPON_IDS` (`shared/career-mastery.js`) lists the 15 weapons with tiers
+`MASTERY_WEAPON_IDS` (`shared/career-mastery.js`) lists the 16 weapons with tiers
 and tier rewards: every free-pick weapon (`FREE_WEAPON_IDS`). The five
 gadget-only entries of `WEAPON_IDS` (STINGER, LONGBOW, ARCHER, THUNDERBOLT,
 KRABER: Conquest kit and Titanfall gadgets nobody picks freely) still record
@@ -116,8 +116,8 @@ SKIPJACK):
 | `mastery-<w>-3` | nameplate | ELITE | `<BADGE> III` badge |
 | `mastery-<w>-master` | callsign | MASTER | `<Badge> Master` |
 | `armorer` | callsign | 5 weapons at SPECIALIST | Armorer |
-| `nameplate-arsenal` | nameplate | 15 weapons at ELITE | ARSENAL badge |
-| `armsmaster` | callsign | 15 weapons at MASTER | Armsmaster |
+| `nameplate-arsenal` | nameplate | 16 weapons at ELITE | ARSENAL badge |
+| `armsmaster` | callsign | 16 weapons at MASTER | Armsmaster |
 
 That is 60 per-weapon and 3 arsenal nodes: 63 in the mastery branch. Five
 weapon skins on the WEAPONS branch are also mastery rewards (Overdrive, High

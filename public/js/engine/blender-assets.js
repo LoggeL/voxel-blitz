@@ -2,17 +2,25 @@ import * as THREE from '../vendor/three.module.js';
 import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
 import { loadingScreen } from '../ui/loading-screen.js';
 
-const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'thunderbolt', 'hands', 'grenades']);
+const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'thunderbolt', 'doppler', 'doppler-world', 'hands', 'grenades']);
 const STANDALONE_MAPS = Object.freeze(['archer-olive', 'archer-tan']);
 
 // Geometry and decoded ImageGen maps belong to the page, not to a player or a
 // preview. Only materials are cloned, so one skin/fade cannot affect another rig.
 const templates = new Map();
 const textures = new Map();
+const contracts = new Map();
+// Every map slot a baked-atlas asset (DOPPLER) ships besides the base colour.
+const DATA_MAPS = Object.freeze(['normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']);
 let loading;
 
 export function imagegenMap(name) {
   return textures.get(`textures/${name}.jpg`) || null;
+}
+
+/** Authoring contract the exporter wrote into `asset.extras.contract` (markers, travel, paths), or null. */
+export function blenderContract(id) {
+  return contracts.get(id) || null;
 }
 
 export function loadBlenderAssets() {
@@ -47,6 +55,14 @@ export function loadBlenderAssets() {
         if (object.geometry) object.geometry.userData.pageOwned = true;
         for (const material of [].concat(object.material || [])) {
           if (material.userData.glass) material.depthWrite = false;
+          // Baked maps are page-owned like the base colour: a disposed rig must not
+          // release a texture every other instance of the template still samples.
+          for (const slot of DATA_MAPS) {
+            const data = material[slot];
+            if (!data) continue;
+            data.userData.pageOwned = true;
+            data.anisotropy = 4;
+          }
           const map = material.map;
           if (!map) continue;
           const key = map.name;
@@ -66,6 +82,7 @@ export function loadBlenderAssets() {
         }
       });
       templates.set(id, gltf.scene);
+      if (gltf.asset?.extras?.contract) contracts.set(id, gltf.asset.extras.contract);
     }));
     const [results, mapResults] = await Promise.all([modelLoads, mapLoads]);
     let missing = 0;
@@ -85,6 +102,11 @@ export function loadBlenderAssets() {
 function report(loaded, total) {
   if (!Number.isFinite(total) || total <= 0) return;
   loadingScreen?.step('models', { done: loaded, total, detail: `${loaded} / ${total} FILES` });
+}
+
+/** True once the template of `id` is loaded (a world-model variant may be missing while its full model is not). */
+export function hasBlenderAsset(id) {
+  return templates.has(id);
 }
 
 /** Select rigid parts in gameplay joint coordinates; every returned material has one owner. */

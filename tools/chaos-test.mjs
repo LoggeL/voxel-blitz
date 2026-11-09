@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { parseBuyFrame } from '../server/protocol/admission.js';
-import { FREE_WEAPON_IDS, WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
+import { FREE_WEAPON_IDS, WEAPONS, WEAPON_IDS, shotRounds } from '../shared/combatmath.js';
 import { FREE_GRENADE_TYPE_IDS, GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 import { FLAME_RULES } from '../shared/flame-rules.js';
 import { MOLOTOV_FIRE, molotovFireProfile } from '../shared/molotov-rules.js';
@@ -24,7 +24,14 @@ for (const id of FREE_WEAPON_IDS) {
   assert.deepEqual(parseChaosPurchase(`chaos:${id}:1`), { item: id, level: 1 });
   assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);
 }
-assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 60);
+assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 63);
+// SP-2 DOPPLER ladder: Triplet rides a free third projectile on every pull and spends no extra round.
+{
+  const triplet = chaosWeaponDef({ chaosUpgrades: { doppler: 1 } }, WEAPONS.doppler);
+  assert.deepEqual(shotRounds(triplet, 30), { spend: 2, pellets: 3 });
+  assert.deepEqual(shotRounds(triplet, 1), { spend: 1, pellets: 2 });
+  assert.deepEqual(shotRounds(WEAPONS.doppler, 30), { spend: 2, pellets: 2 });
+}
 // RIPTIDE ladder: Third plate seats a third disc, Long tether lengthens the out leg and pierce.
 {
   const glaive = (level) => chaosWeaponDef({ chaosUpgrades: { glaive: level } }, WEAPONS.glaive);

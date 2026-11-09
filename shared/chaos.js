@@ -19,6 +19,7 @@ export const CHAOS_UPGRADES = Object.freeze({
   glaive: ladder(['Third plate', 'Carry a third disc.'], ['Razor wake', 'Every wall contact and every catch emits a shockwave.'], ['Long tether', 'Discs fly out 27 metres and pierce 5 bodies.']),
   bubble: ladder(['Double bubble', 'Every trigger pull blows a free second bubble off to the side.'], ['Clingfilm', 'Bubbles that touch a wall or ceiling stick for 5 seconds as proximity mines.'], ['Foam party', 'Every pop scatters five mini bubbles.']),
   mgl: ladder(['Long skip', 'Rounds can bounce two extra times.'], ['Wide burst', 'Blasts gain 10% damage and 0.3 metres of radius.'], ['Spare chamber', 'Carry one additional SKIPJACK round.']),
+  doppler: ladder(['Triplet', 'Every pull fires a third round.'], ['Echo', 'Every pull is answered by two ricocheting bolts.'], ['Sonic boom', 'Every third pull detonates a forward shockwave.']),
   frag: ladder(['Kinder surprise', 'Detonation scatters 6 live mini-frags.'], ['Extended family', '12 mini-frags scatter over a wider area.'], ['Popcorn ceiling', 'Mini-frags erupt with extra launch force and larger craters.']),
   limpet: ladder(['Long wire', 'The wall mine laser reaches 7 metres.'], ['Quick setup', 'The mine arms in 0.45 seconds.'], ['Heavy charge', 'A stronger blast reaches farther and hits harder.']),
   pulse: ladder(['Reverse sneeze', 'The grenade pulls nearby enemies inward before impact.'], ['Space programme', 'Impact launches players high into the air.'], ['Afterparty', 'Impact scatters 8 bouncing pulse bombs with a delayed second launch.']),
@@ -49,5 +50,6 @@ export function chaosWeaponDef(p, base) {
   if (base.id === 'glaive') return { ...base, magSize: 3,
     glaive: level >= 3 ? Object.freeze({ ...base.glaive, outMs: 800, pierce: 5 }) : base.glaive };
   if (base.id === 'mgl' && level >= 3) return { ...base, magSize: base.magSize + 1 };
+  if (base.id === 'doppler') return { ...base, bonusRounds: 1 };
   return base;
 }

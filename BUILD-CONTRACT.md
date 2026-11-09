@@ -497,7 +497,7 @@ ARCHER, guided missile, `projectile:'archer'`), 18 `thunderbolt` (TB-4
 THUNDERBOLT, arc orb, `projectile:'thunderbolt'`) and 19 `kraber` (KR-50
 KRABER, scoped bolt rifle, `damageClass:'hmg'`). Those five kit ids carry
 `gadgetOnly` and are listed in `GADGET_ONLY_WEAPON_IDS`; `FREE_WEAPON_IDS` is
-every other id (the 15 free slots), so no gadget id reaches a free roster,
+every other id (the 16 free weapons: slots 0-14 and the SP-2 DOPPLER at slot 20), so no gadget id reaches a free roster,
 Bastion's armory or the default wheel. Appending ids grows every player row's
 `mag`/`reserve` arrays (one entry per `WEAPON_IDS` slot) in every mode.
 
@@ -1029,12 +1029,12 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   and `server/sim/powerups.js` owns collection and scheduling. `PowerupView`
   renders depth-tested symbols; `PowerupHud` shows armor and collection feedback.
 - **Fun (`fun`):** free-for-all target eligibility, complete
-  fifteen-weapon loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
+  sixteen-weapon loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
   `1500 ms` respawn. Shared quick rooms allow join in progress with no ready
   gate.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
-  the complete fifteen-weapon loadout. Enemy kills increment the killer's team
+  the complete sixteen-weapon loadout. Enemy kills increment the killer's team
   score. First to `40` enters `post` (40% human approval + `5000 ms`), then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.

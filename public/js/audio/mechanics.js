@@ -4,6 +4,7 @@
 // Per-weapon brightness applied to mechanical click and ping filters.
 export const WEP_TONE = {
   rifle: 1,
+  doppler: 0.94,
   smg: 1.16,
   shotgun: 0.86,
   sniper: 1.05,
