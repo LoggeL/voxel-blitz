@@ -23,6 +23,12 @@ def assignment(name):
         finish=re.sub(r'\.\d+$','',name.split(' | ')[-1]).strip().lower()
         if finish=='olive drab':return 'skipjack-olive-armor'
         if finish=='gunmetal':return 'skipjack-dark-steel'
+    if name.split(' | ')[0] == 'VANGUARD':
+        finish=re.sub(r'\.\d+$','',name.split(' | ')[-1]).strip().lower()
+        if finish=='graphite':return 'vanguard-graphite'
+        if finish=='polymer':return 'vanguard-polymer'
+        if finish=='steel':return 'machined-steel'
+        if finish=='rubber':return 'pebbled-rubber'
     label=re.sub(r'\.\d+$','',name.split(' | ')[-1]).strip().lower()
     return CONFIG['assignment'].get(label)
 
@@ -34,6 +40,8 @@ def backup(path):
 
 
 def source_image(key):
+    if key.startswith('vanguard-'):
+        return ROOT/'public/assets/blender/textures'/f'{key}.jpg'
     return ROOT/'public/assets/blender/textures/palette'/f'{key}.jpg'
 
 

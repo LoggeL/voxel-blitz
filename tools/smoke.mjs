@@ -149,14 +149,15 @@ function runDirectContracts() {
   ok(stateEvents[0]?.kind === 'die' && stateEvents[1]?.kind === 'respawn',
     'embedded die and respawn events are dispatchable by kind');
 
-  // Fifteen free slots, then the kit-only Conquest STINGER (slot 16) and the four Titanfall
+  // Sixteen free slots, then the kit-only Conquest STINGER (slot 16) and the four Titanfall
   // AT pilot weapons (slots 17-20); none of the kit-only ids is ever in a free roster. The
-  // wire order is append-only, so the sixteenth free weapon (SP-2 DOPPLER) follows them at slot 21.
+  // wire order is append-only, so the free weapons SP-2 DOPPLER (slot 21) and KV-9 VANGUARD
+  // (slot 22) follow them.
   const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger',
-    'chargerifle', 'archer', 'thunderbolt', 'kraber', 'doppler'];
-  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8, 3.1, 2.6, 5.6, 10.4, 4.4, 7.2, 6.8, 7.6, 4.3];
+    'chargerifle', 'archer', 'thunderbolt', 'kraber', 'doppler', 'vanguard'];
+  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8, 3.1, 2.6, 5.6, 10.4, 4.4, 7.2, 6.8, 7.6, 4.3, 4.6];
   ok(JSON.stringify(WEAPON_IDS) === JSON.stringify(expectedWeaponIds)
-    && JSON.stringify(FREE_WEAPON_IDS) === JSON.stringify([...expectedWeaponIds.slice(0, 15), 'doppler']),
+    && JSON.stringify(FREE_WEAPON_IDS) === JSON.stringify(expectedWeaponIds.filter(id => !['stinger', 'chargerifle', 'archer', 'thunderbolt', 'kraber'].includes(id))),
     'weapon roster exposes the exact sixteen free slots plus the kit-only STINGER and Titanfall AT ids');
   const definitionsComplete = WEAPON_IDS.every((id, slot) => {
     const def = WEAPONS[id];
@@ -845,8 +846,7 @@ function runDirectContracts() {
   slotEngine.addBot('slots', 'Slots');
   const slotter = slotEngine.entities.get('slots');
   slotter.deployT = 0;
-  // A free-for-all refuses the kit-only STINGER slot; 999 clamps to the last slot, which is
-  // the free SP-2 DOPPLER behind the gadget block.
+  // STINGER target clamps to the kit-only slot, which a free-for-all refuses.
   slotEngine.applyInput('slots', { ...tapInput, seq: 1, weapon: WEAPON_IDS.indexOf('stinger') });
   slotEngine.step(TICK_MS);
   const gadgetSlot = slotter.weapon;
@@ -857,7 +857,7 @@ function runDirectContracts() {
   slotter.deployT = 0;
   slotEngine.applyInput('slots', { ...tapInput, seq: 3, weapon: -999 });
   slotEngine.step(TICK_MS);
-  ok(gadgetSlot === 0 && highSlot === WEAPON_IDS.length - 1 && WEAPON_IDS[highSlot] === 'doppler' && slotter.weapon === 0,
+  ok(gadgetSlot === 0 && highSlot === WEAPON_IDS.length - 1 && WEAPON_IDS[highSlot] === 'vanguard' && slotter.weapon === 0,
     'authoritative slot selection clamps dynamically across the roster and refuses kit-only gadgets');
 
   const botEngine = new GameEngine();

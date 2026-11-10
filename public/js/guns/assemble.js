@@ -33,6 +33,7 @@ import { build as buildArcher } from './models/archer.js';
 import { build as buildThunderbolt } from './models/thunderbolt.js';
 import { build as buildKraber } from './models/kraber.js';
 import { build as buildDoppler } from './models/doppler.js';
+import { build as buildVanguard } from './models/vanguard.js';
 
 const MODELS = Object.freeze({
   rifle: buildRifle,
@@ -56,6 +57,7 @@ const MODELS = Object.freeze({
   thunderbolt: buildThunderbolt,
   kraber: buildKraber,
   doppler: buildDoppler,
+  vanguard: buildVanguard,
 });
 
 /**

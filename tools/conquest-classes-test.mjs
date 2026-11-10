@@ -56,6 +56,7 @@ const eq = (a, b, message) => { assert.deepEqual(a, b, message); checks++; };
   eq(Object.entries(KITS).filter(([, k]) => k.ability === 'revive').map(([id]) => id), ['medic'], 'only the Medic revives');
   eq(KITS.assault.primaries, ['rifle', 'doppler']); eq(KITS.assault.grenades, { frag: 2, pulse: 1 });
   eq(KITS.medic.primaries, ['smg', 'longarc']); eq(KITS.medic.grenades, { smoke: 2, frag: 1 });
+  eq(KITS.recon.primaries, ['sniper', 'vanguard']); eq(KITS.recon.grenades, { limpet: 2, pulse: 1 });
   eq(KITS.pyro.primaries, ['flamethrower', 'shotgun']); eq(KITS.pyro.grenades, { molotov: 2, smoke: 1 });
   eq(KITS.grenadier.primaries, ['mgl', 'bubble']); eq(KITS.grenadier.grenades, { frag: 2, smoke: 1 });
   eq(KITS.raider.primaries, ['glaive', 'smg']); eq(KITS.raider.grenades, { frag: 1, limpet: 1 });

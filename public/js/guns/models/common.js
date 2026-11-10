@@ -27,6 +27,7 @@ export const BREACH_Z = {
   thunderbolt: -0.40,
   kraber: -0.30,
   doppler: -0.30,   // barrel leaves the recoiling receiver here
+  vanguard: -0.20,
 };
 
 // Heat-sleeve radii include the existing tiny clearance that prevents z-fighting.
@@ -52,6 +53,7 @@ export const BARREL_R = {
   thunderbolt: 0.0465,
   kraber: 0.0235,
   doppler: 0.0107,  // plain barrel between the fore-end cap and the brake
+  vanguard: 0.019,
 };
 
 export const BOLT_HOME = {
@@ -76,6 +78,7 @@ export const BOLT_HOME = {
   thunderbolt: -0.040,
   kraber: -0.010,
   doppler: -0.210,  // charging handle home in the left mechanism window
+  vanguard: -0.030,
 };
 
 export const PUMP_REST = new THREE.Vector3(0, 0.038, -0.30);
@@ -102,6 +105,7 @@ export const TRIGGER_Z = {
   thunderbolt: -0.12,
   kraber: -0.13,
   doppler: -0.130,
+  vanguard: -0.125,
 };
 
 // Camera-space hip carry; +x is true screen-right.

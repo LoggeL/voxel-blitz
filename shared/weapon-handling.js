@@ -22,6 +22,7 @@ export const WEAPON_HANDLING_PROFILES = Object.freeze({
   chargerifle: profile(36, 0.15, 0.15), archer: profile(14, 0.21, 0.13),
   thunderbolt: profile(30, 0.19, 0.16), kraber: profile(26, 0.2, 0.1),
   doppler: profile(54, 0.15, 0.19),
+  vanguard: profile(52, 0.14, 0.15),
 });
 const DEFAULT_HANDLING = Object.freeze({
   ...WEAPON_HANDLING_PROFILES.rifle, verticalRecoil: 0.68, horizontalRecoil: 0.32,

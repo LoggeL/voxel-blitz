@@ -32,6 +32,10 @@ export const HANDS = {
     grip: { x: 0.045, y: 0.015, z: -0.10 },                // dominant palm wraps pistol grip.
     support: { x: -0.055, y: 0.005, z: -0.42, on: 'body' }, // foregrip cup under the rail shroud.
   },
+  vanguard: {
+    grip:   { x: 0.045, y: 0.015, z: -0.10 },               // dominant palm wraps pistol grip.
+    support: { x: -0.055, y: 0.005, z: -0.42, on: 'body' }, // foregrip cup under the rail shroud.
+  },
   flamethrower: {
     grip: { x: 0.045, y: -0.02, z: -0.08 },
     support: { x: -0.06, y: -0.03, z: -0.40, on: 'body' },

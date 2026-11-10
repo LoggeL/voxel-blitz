@@ -2,7 +2,7 @@ import * as THREE from '../vendor/three.module.js';
 import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
 import { loadingScreen } from '../ui/loading-screen.js';
 
-const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'thunderbolt', 'doppler', 'doppler-world', 'hands', 'grenades']);
+const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'thunderbolt', 'doppler', 'doppler-world', 'vanguard', 'hands', 'grenades']);
 const STANDALONE_MAPS = Object.freeze(['archer-olive', 'archer-tan']);
 
 // Geometry and decoded ImageGen maps belong to the page, not to a player or a
