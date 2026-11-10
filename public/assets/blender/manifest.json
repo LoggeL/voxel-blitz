@@ -135,10 +135,10 @@
     },
     {
       "asset": "vanguard",
-      "source_parts": 90,
-      "draws": 13,
-      "triangles": 14100,
-      "geometry_bytes": 802384
+      "source_parts": 91,
+      "draws": 14,
+      "triangles": 14176,
+      "geometry_bytes": 806112
     },
     {
       "asset": "wasp",

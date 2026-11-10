@@ -1,15 +1,15 @@
 {
   "passed": true,
   "asset": "vanguard",
-  "source_parts": 90,
-  "draws": 13,
-  "triangles": 14100,
-  "geometry_bytes": 802384,
+  "source_parts": 91,
+  "draws": 14,
+  "triangles": 14176,
+  "geometry_bytes": 806112,
   "source_blend": "docs/design/blender/vanguard/vanguard.blend",
   "runtime": "public/assets/blender/vanguard.gltf",
   "portable": "docs/design/blender/vanguard/vanguard.glb",
   "portable_geometry_matches_runtime": true,
-  "geometry_sha256": "28f84ced0720d8283b664cff83dd7c4b5ec08f07aaa2b5ccdaf452a479432c02",
+  "geometry_sha256": "4a0b40b73bc2a7fb1ffa42ecbe03139c6870f14c1960d12fd938a704c7896fce",
   "zero_area_source_triangles_omitted": 0,
   "uv_transform": "Blender (u, v) -> glTF (u, 1-v)",
   "source_parts_per_group": {
@@ -17,7 +17,7 @@
     "bolt": 6,
     "trigger": 1,
     "mag": 6,
-    "optic": 14
+    "optic": 15
   },
   "part_bounds": {
     "body": {
@@ -77,7 +77,7 @@
       "max": [
         0.027,
         0.1865,
-        0.13249999
+        0.13500001
       ]
     }
   },
@@ -116,7 +116,7 @@
       -0.40000001
     ]
   },
-  "materials": 4,
+  "materials": 5,
   "textures": [
     "textures/palette/pebbled-rubber.jpg",
     "textures/vanguard-graphite.jpg",
@@ -175,6 +175,20 @@
         "partMaterial": "VANGUARD | polymer",
         "textureLibrary": "vanguard-polymer",
         "textureBumpScale": 0.00055
+      }
+    },
+    "VANGUARD | lens": {
+      "baseColorFactor": [
+        0.25,
+        0.45,
+        0.8,
+        0.30000001192092896
+      ],
+      "extras": {
+        "partMaterial": "VANGUARD | lens",
+        "textureLibrary": "vanguard-graphite",
+        "textureBumpScale": 0.0002,
+        "glass": true
       }
     }
   },
@@ -531,6 +545,38 @@
         1.48000002
       ]
     },
+    "optic | VANGUARD | lens": {
+      "triangles": 152,
+      "vertices": 176,
+      "bounds": {
+        "min": [
+          -0.019,
+          0.12899999,
+          -0.14749999
+        ],
+        "max": [
+          0.019,
+          0.167,
+          0.13500001
+        ]
+      },
+      "uv_triangles": 152,
+      "uv_source_sample": {
+        "vertex": 0,
+        "blender_uv": [
+          0.58999997,
+          0.59200001
+        ]
+      },
+      "uv_min": [
+        -0.54000002,
+        0.33200002
+      ],
+      "uv_max": [
+        0.58999997,
+        1.54000002
+      ]
+    },
     "optic | VANGUARD | rubber": {
       "triangles": 280,
       "vertices": 336,
@@ -564,21 +610,21 @@
       ]
     },
     "optic | VANGUARD | steel": {
-      "triangles": 180,
-      "vertices": 240,
+      "triangles": 104,
+      "vertices": 152,
       "bounds": {
         "min": [
           -0.022,
-          0.12899999,
-          -0.14749999
+          0.15800001,
+          0.002
         ],
         "max": [
-          0.019,
+          0.008,
           0.1865,
           0.076
         ]
       },
-      "uv_triangles": 180,
+      "uv_triangles": 104,
       "uv_source_sample": {
         "vertex": 0,
         "blender_uv": [
@@ -591,7 +637,7 @@
         0.25400001
       ],
       "uv_max": [
-        0.58999997,
+        0.032,
         1.30399999
       ]
     }

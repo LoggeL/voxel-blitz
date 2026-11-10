@@ -146,6 +146,7 @@ def run():
             pbr['baseColorFactor'][3] = alpha
             entry['alphaMode'] = 'BLEND'
             extras['glass'] = True
+        exported_materials.append(entry)
 
     contract = dict(CONTRACT)
     for name in ['muzzle', 'sight', 'grip', 'support']:

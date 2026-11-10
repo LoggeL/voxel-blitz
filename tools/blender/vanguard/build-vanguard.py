@@ -256,6 +256,7 @@ cyl('LPVO objective bell', 'optic', 'graphite', 0.023, 0.05, (0, 0.148, -0.12), 
 cyl('LPVO objective lens', 'optic', 'lens', 0.019, 0.003, (0, 0.148, -0.146), 20, bevel=0)
 cyl('LPVO ocular bell', 'optic', 'graphite', 0.020, 0.04, (0, 0.148, 0.10), 24, bevel=0.0007)
 cyl('LPVO eyepiece', 'optic', 'rubber', 0.016, 0.015, (0, 0.148, 0.125), 20, bevel=0.0005)
+cyl('LPVO ocular glass', 'optic', 'lens', 0.013, 0.003, (0, 0.148, 0.1335), 20, bevel=0)
 cyl('LPVO elevation turret', 'optic', 'graphite', 0.011, 0.022, (0, 0.172, 0.01), 16, axis='y', bevel=0.0005)
 cyl('LPVO elevation cap', 'optic', 'steel', 0.008, 0.005, (0, 0.184, 0.01), 12, axis='y', bevel=0)
 cyl('LPVO windage turret', 'optic', 'graphite', 0.011, 0.022, (-0.024, 0.148, 0.01), 16, axis='x', bevel=0.0005)
