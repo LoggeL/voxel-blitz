@@ -1,14 +1,14 @@
 {
   "source": "docs/design/blender/vanguard/vanguard.blend",
   "meshes": 91,
-  "triangles": 14176,
+  "triangles": 14404,
   "materialGroupBatches": 14,
   "parts": {
     "body": 9804,
     "bolt": 1112,
     "trigger": 44,
     "mag": 924,
-    "optic": 2292
+    "optic": 2520
   },
   "materials": {
     "graphite": {

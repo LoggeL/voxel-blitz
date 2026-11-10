@@ -3,13 +3,13 @@
   "asset": "vanguard",
   "source_parts": 91,
   "draws": 14,
-  "triangles": 14176,
-  "geometry_bytes": 806112,
+  "triangles": 14404,
+  "geometry_bytes": 812944,
   "source_blend": "docs/design/blender/vanguard/vanguard.blend",
   "runtime": "public/assets/blender/vanguard.gltf",
   "portable": "docs/design/blender/vanguard/vanguard.glb",
   "portable_geometry_matches_runtime": true,
-  "geometry_sha256": "4a0b40b73bc2a7fb1ffa42ecbe03139c6870f14c1960d12fd938a704c7896fce",
+  "geometry_sha256": "3e819a2cb71ccd29d1adea3bde25f9085465f1669d10f0d06356d2c574278782",
   "zero_area_source_triangles_omitted": 0,
   "uv_transform": "Blender (u, v) -> glTF (u, 1-v)",
   "source_parts_per_group": {
@@ -578,35 +578,35 @@
       ]
     },
     "optic | VANGUARD | rubber": {
-      "triangles": 280,
-      "vertices": 336,
+      "triangles": 508,
+      "vertices": 464,
       "bounds": {
         "min": [
-          -0.016,
-          0.132,
+          -0.018,
+          0.13,
           0.063
         ],
         "max": [
           0.027,
-          0.164,
-          0.13249999
+          0.16599999,
+          0.1295
         ]
       },
-      "uv_triangles": 280,
+      "uv_triangles": 508,
       "uv_source_sample": {
         "vertex": 0,
         "blender_uv": [
-          -0.58749998,
-          0.74000013
+          -0.625,
+          0.74000001
         ]
       },
       "uv_min": [
-        -0.66250002,
-        0.182531
+        -0.64090991,
+        0.17659009
       ],
       "uv_max": [
         0.13500001,
-        1.66249996
+        1.64090991
       ]
     },
     "optic | VANGUARD | steel": {

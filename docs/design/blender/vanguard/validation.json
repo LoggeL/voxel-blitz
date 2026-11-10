@@ -6,7 +6,7 @@
   "failures": [],
   "advisory": [],
   "measured": {
-    "glb:file": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/vanguard/vanguard.glb (1458076 bytes)",
+    "glb:file": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/vanguard/vanguard.glb (1464908 bytes)",
     "glb:node_names_unique": "19 nodes: ['body', 'body_0', 'body_1', 'body_2', 'body_3', 'bolt', 'bolt_0', 'bolt_1', 'bolt_2', 'mag', 'mag_0', 'mag_1', 'optic', 'optic_0', 'optic_1', 'optic_2', 'optic_3', 'trigger', 'trigger_0']",
     "glb:node:body": "present",
     "glb:blenderAsset:body": "extras.blenderAsset='vanguard'",
@@ -29,10 +29,10 @@
     "glb:uv_references": "missing=[] mismatched=[]",
     "glb:accessor_bounds_finite": "[]",
     "glb:draw_budget": "14 draws (budget 25)",
-    "glb:triangle_budget": "14176 tris (budget 30000)",
+    "glb:triangle_budget": "14404 tris (budget 30000)",
     "glb:textured_fraction": 1.0,
     "glb:draws": 14,
-    "glb:triangles": 14176,
+    "glb:triangles": 14404,
     "glb:texture_library_keys": "libraries=['machined-steel', 'pebbled-rubber', 'vanguard-graphite', 'vanguard-polymer'] for 5 textured materials",
     "glb:images_present": "4 images ['machined-steel', 'pebbled-rubber', 'vanguard-graphite', 'vanguard-polymer']",
     "glb:images_embedded": "4/4 embedded",
@@ -63,7 +63,7 @@
       "trigger_0"
     ],
     "glb:nonfinite_coordinates": "[]",
-    "glb:import_triangles": 14176,
+    "glb:import_triangles": 14404,
     "glb:import_bounds": [
       [
         -0.0423,
@@ -78,14 +78,14 @@
         0.1865
       ]
     ],
-    "glb:import_triangles_budget": "14176 tris (budget 30000)",
+    "glb:import_triangles_budget": "14404 tris (budget 30000)",
     "glb:import_part:body": "present",
     "glb:import_part:bolt": "present",
     "glb:import_part:trigger": "present",
     "glb:import_part:mag": "present",
     "glb:import_part:optic": "present",
     "glb:material_budget": "5 materials: ['VANGUARD | graphite', 'VANGUARD | lens', 'VANGUARD | polymer', 'VANGUARD | rubber', 'VANGUARD | steel']",
-    "gltf:file": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/vanguard.gltf (14021 bytes)",
+    "gltf:file": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/vanguard.gltf (14022 bytes)",
     "gltf:node_names_unique": "19 nodes: ['body', 'body_0', 'body_1', 'body_2', 'body_3', 'bolt', 'bolt_0', 'bolt_1', 'bolt_2', 'mag', 'mag_0', 'mag_1', 'optic', 'optic_0', 'optic_1', 'optic_2', 'optic_3', 'trigger', 'trigger_0']",
     "gltf:node:body": "present",
     "gltf:blenderAsset:body": "extras.blenderAsset='vanguard'",
@@ -108,10 +108,10 @@
     "gltf:uv_references": "missing=[] mismatched=[]",
     "gltf:accessor_bounds_finite": "[]",
     "gltf:draw_budget": "14 draws (budget 25)",
-    "gltf:triangle_budget": "14176 tris (budget 30000)",
+    "gltf:triangle_budget": "14404 tris (budget 30000)",
     "gltf:textured_fraction": 1.0,
     "gltf:draws": 14,
-    "gltf:triangles": 14176,
+    "gltf:triangles": 14404,
     "gltf:texture_library_keys": "libraries=['machined-steel', 'pebbled-rubber', 'vanguard-graphite', 'vanguard-polymer'] for 5 textured materials",
     "gltf:images_present": "4 images ['machined-steel', 'pebbled-rubber', 'vanguard-graphite', 'vanguard-polymer']",
     "gltf:images_uri": "4 uri images",
@@ -142,7 +142,7 @@
       "trigger_0"
     ],
     "gltf:nonfinite_coordinates": "[]",
-    "gltf:import_triangles": 14176,
+    "gltf:import_triangles": 14404,
     "gltf:import_bounds": [
       [
         -0.0423,
@@ -157,7 +157,7 @@
         0.1865
       ]
     ],
-    "gltf:import_triangles_budget": "14176 tris (budget 30000)",
+    "gltf:import_triangles_budget": "14404 tris (budget 30000)",
     "gltf:import_part:body": "present",
     "gltf:import_part:bolt": "present",
     "gltf:import_part:trigger": "present",
