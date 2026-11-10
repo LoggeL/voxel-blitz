@@ -26,7 +26,7 @@ const ok = (value, message) => { assert.ok(value, message); checks++; };
 const eq = (actual, expected, message) => { assert.deepEqual(actual, expected, message); checks++; };
 
 // ---------------------------------------------------------------- definition and tables
-eq(slot, WEAPON_IDS.length - 1, 'appended behind the gadget block (wire slots never move)');
+eq(slot, 20, 'slot 20 behind the gadget block (wire slots never move; VANGUARD follows)');
 ok(FREE_WEAPON_IDS.includes('doppler') && !def.gadgetOnly, 'a free weapon');
 eq([def.mode, def.roundsPerShot, def.pellets, roundsPerShot(def)], ['auto', 2, 2, 2], 'two rounds per pull');
 ok(def.magSize % 2 === 0 && def.doublet.spreadDeg < def.spreadDeg.ads, 'even magazine; the pair is tighter than the ADS cone');
