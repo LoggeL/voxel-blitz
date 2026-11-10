@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { access, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { WEAPON_IDS } from '../shared/combatmath.js';
+import { FREE_WEAPON_IDS } from '../shared/combatmath.js';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 
@@ -40,7 +40,8 @@ async function startMatch(page, url) {
   await page.send('Page.navigate', { url });
   await page.waitFor(`location.href === ${JSON.stringify(url)} && document.readyState === 'complete' &&
     window.__vb && !window.__vb.stats.running &&
-    document.getElementById('menu')?.getAttribute('aria-hidden') === 'false'`, {
+    document.getElementById('menu')?.getAttribute('aria-hidden') === 'false' &&
+    document.getElementById('create-lobby-btn')?.disabled === false`, {
     label: 'new document and main menu are ready',
   });
   await page.evaluate(`document.getElementById('create-lobby-btn').click()`);
@@ -65,7 +66,8 @@ async function startMatch(page, url) {
 async function openWheel(page) {
   await key(page, 'keyDown');
   await page.waitFor(`window.__vb.wheelOpen &&
-    document.querySelectorAll('#weapon-wheel .vb-wheel-slot').length === ${WEAPON_IDS.length}`, {
+    document.getElementById('weapon-wheel')?.getAttribute('aria-hidden') === 'false' &&
+    document.querySelectorAll('#weapon-wheel .vb-wheel-slot').length === ${FREE_WEAPON_IDS.length}`, {
     label: 'held K opens the complete weapon wheel',
   });
 }
@@ -114,7 +116,10 @@ try {
     'K repeat and an ordinary movement key do not cancel the wheel');
   console.log('ok - K repeat and movement keys keep the wheel open');
 
-  const knifeSlot = WEAPON_IDS.indexOf('knife');
+  const knifeSlot = FREE_WEAPON_IDS.indexOf('knife');
+  const rightWeapon = FREE_WEAPON_IDS[Math.round(FREE_WEAPON_IDS.length / 4)];
+  const leftSlot = Math.round(3 * FREE_WEAPON_IDS.length / 4);
+  const leftWeapon = FREE_WEAPON_IDS[leftSlot];
   let wheel = await geometry(page, knifeSlot);
   await mouse(page, wheel.card);
   await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${knifeSlot}].classList.contains('is-hl')`, {
@@ -131,28 +136,35 @@ try {
   await expectSelection(page, 'knife', 'K release equips the visibly highlighted card');
 
   await openWheel(page);
-  wheel = await geometry(page, WEAPON_IDS.indexOf('sniper'));
+  const vanguardSlot = FREE_WEAPON_IDS.indexOf('vanguard');
+  wheel = await geometry(page, vanguardSlot);
+  await mouse(page, wheel.card);
+  await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${vanguardSlot}].classList.contains('is-hl')`);
+  await key(page, 'keyUp');
+  await expectSelection(page, 'vanguard', 'K release equips the VANGUARD from the expanded wheel');
+
+  await openWheel(page);
   await mouse(page, { x: wheel.center.x + wheel.radius * 1.55, y: wheel.center.y });
-  await expectSelection(page, 'sniper', 'outward radial mouse movement equips before K release');
+  await expectSelection(page, rightWeapon, 'outward radial mouse movement equips before K release');
   for (let i = 0; i < 3; i++) await key(page, 'keyDown', 'KeyK', true);
   await frames(page);
   assert.equal(await page.evaluate('window.__vb.wheelOpen'), false,
     'a continued K hold does not reopen after radial selection');
   await key(page, 'keyUp');
   await frames(page);
-  assert.equal(await page.evaluate('window.__vb.stats.weapon'), 'sniper');
+  assert.equal(await page.evaluate('window.__vb.stats.weapon'), rightWeapon);
   console.log('ok - radial selection stays closed until the held K is released');
 
   await openWheel(page);
   wheel = await geometry(page, knifeSlot);
   await mouse(page, wheel.center);
   await key(page, 'keyUp');
-  await expectSelection(page, 'sniper', 'releasing K in the center keeps the current weapon');
+  await expectSelection(page, rightWeapon, 'releasing K in the center keeps the current weapon');
   await openWheel(page);
   await key(page, 'keyDown', 'Escape');
   await key(page, 'keyUp', 'Escape');
   await key(page, 'keyUp');
-  await expectSelection(page, 'sniper', 'Escape cancels selection without changing the weapon');
+  await expectSelection(page, rightWeapon, 'Escape cancels selection without changing the weapon');
   assert.equal(await page.evaluate('window.__vb.stats.settingsOpen'), false,
     'wheel Escape does not also open the pause menu');
   await openWheel(page);
@@ -189,21 +201,21 @@ try {
   await frames(page);
   const aim = await page.evaluate('({ yaw: window.__vb.stats.yaw, pitch: window.__vb.stats.pitch })');
   await openWheel(page);
-  wheel = await geometry(page, knifeSlot);
+  wheel = await geometry(page, leftSlot);
   await mouse(page, { x: center.x - wheel.radius, y: center.y });
-  await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${knifeSlot}].classList.contains('is-hl')`, {
-    label: 'locked movement highlights the knife at its visible radius',
+  await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${leftSlot}].classList.contains('is-hl')`, {
+    label: 'locked movement highlights the left card at its visible radius',
   });
   assert.equal(await page.evaluate('window.__vb.wheelOpen'), true,
     'locked movement to the card waits for release');
   await key(page, 'keyUp');
-  await expectSelection(page, 'knife', 'locked pointer hover and K release equip the knife');
+  await expectSelection(page, leftWeapon, 'locked pointer hover and K release equip the left card');
   const aimAfter = await page.evaluate('({ yaw: window.__vb.stats.yaw, pitch: window.__vb.stats.pitch })');
   assert.deepEqual(aimAfter, aim, 'steering the locked wheel does not turn the player view');
 
   await openWheel(page);
   await mouse(page, { x: center.x + wheel.radius * 0.55, y: center.y });
-  await expectSelection(page, 'sniper', 'one fast locked radial motion keeps its full distance and equips');
+  await expectSelection(page, rightWeapon, 'one fast locked radial motion keeps its full distance and equips');
   await key(page, 'keyDown', 'KeyK', true);
   await frames(page);
   assert.equal(await page.evaluate('window.__vb.wheelOpen'), false);
@@ -216,14 +228,14 @@ try {
     document.dispatchEvent(new MouseEvent('mousemove', { movementX: ${-wheel.radius}, movementY: 0, bubbles: true }));
     window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyK', key: 'k', bubbles: true }));
   })()`);
-  await expectSelection(page, 'knife', 'a K press, move and release in one frame equips the intended weapon');
+  await expectSelection(page, leftWeapon, 'a K press, move and release in one frame equips the intended weapon');
   await page.evaluate(`(() => {
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyK', key: 'k', bubbles: true }));
     document.dispatchEvent(new MouseEvent('mousemove', { movementX: ${wheel.radius}, movementY: 0, bubbles: true }));
     window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyK', key: 'k', bubbles: true }));
     document.dispatchEvent(new MouseEvent('mousemove', { movementX: ${-wheel.radius * 3}, movementY: 0, bubbles: true }));
   })()`);
-  await expectSelection(page, 'sniper', 'movement after K release cannot overwrite the released selection');
+  await expectSelection(page, rightWeapon, 'movement after K release cannot overwrite the released selection');
   assert.equal(await page.evaluate(`document.pointerLockElement === document.getElementById('game')`), true);
   assert.deepEqual(page.errors, [], 'no browser runtime or resource errors');
   console.log('Weapon wheel browser: unlocked and locked hover/release, radial selection, K repeat, cancel, dead zone and fast input verified.');

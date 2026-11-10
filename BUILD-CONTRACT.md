@@ -488,8 +488,7 @@ Damage is flat to 20 world units by default; the shotgun starts falloff at 12
 and the lance at 45. It then falls linearly to the table's far value at the
 listed end.
 
-`WEAPON_IDS` continues past the table: 14 `mgl` (GL-3 SKIPJACK, the last free
-slot), 15 `stinger` (AX-9 STINGER, Conquest Engineer kit only), then the four
+`WEAPON_IDS` continues past the table: 14 `mgl` (GL-3 SKIPJACK), 15 `stinger` (AX-9 STINGER, Conquest Engineer kit only), then the four
 Titanfall anti-titan pilot weapons (`docs/titanfall.md` §6): 16 `chargerifle`
 (CR-6 LONGBOW, `charge`, fires only at full charge — `chargeReleaseFires(def,
 charge01)` — 50 to a pilot, `hullDamage` 300 to a titan), 17 `archer` (AT-12
@@ -497,7 +496,7 @@ ARCHER, guided missile, `projectile:'archer'`), 18 `thunderbolt` (TB-4
 THUNDERBOLT, arc orb, `projectile:'thunderbolt'`) and 19 `kraber` (KR-50
 KRABER, scoped bolt rifle, `damageClass:'hmg'`). Those five kit ids carry
 `gadgetOnly` and are listed in `GADGET_ONLY_WEAPON_IDS`; `FREE_WEAPON_IDS` is
-every other id (the 16 free weapons: slots 0-14 and the SP-2 DOPPLER at slot 20), so no gadget id reaches a free roster,
+every other id, including SP-2 DOPPLER at slot 20 and KV-9 VANGUARD at slot 21. Kit-only gadgets stay out of the free roster,
 Bastion's armory or the default wheel. Appending ids grows every player row's
 `mag`/`reserve` arrays (one entry per `WEAPON_IDS` slot) in every mode.
 
@@ -711,8 +710,8 @@ and exposes `quickPlay(meta,name,bots?)`,
   pointerInteractive})`, `isWeaponWheelOpen()`, `requestWheelCancel()` (a
   guarded onCancel), and `weaponWheelHighlight()` own the
   radial weapon wheel. Entries are `{id,name,cls,icon,key,ammo,owned,current}`
-  with wheel index == weapon slot; every roster entry renders, unowned entries render
-  locked, and `pointerInteractive` enables the touch pointer-capture path
+  with a `slot` for the weapon’s wire index. The wheel renders the full roster for
+  the current mode. Unowned entries appear locked. `pointerInteractive` enables the touch pointer-capture path
   (drag to highlight, release to pick). Setup or the first entries update
   creates the wheel's DOM.
 - `setMatchState(match,selfRow,players,serverNow)` renders mode/map, team scores,

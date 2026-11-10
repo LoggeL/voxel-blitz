@@ -12,7 +12,7 @@ installFakeDom({ width: 1440, height: 900 });
 const storage = new Map();
 globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
 
-const { WEAPON_IDS } = await import('../shared/combatmath.js');
+const { FREE_WEAPON_IDS, WEAPON_IDS } = await import('../shared/combatmath.js');
 const { KIT_IDS } = await import('../shared/conquest-contract.js');
 const { KIT_DIGIT_ROLES, kitDigitWeapon, kitWeaponDigit, kitWeapons } = await import('../shared/conquest-kits.js');
 const { WeaponState } = await import('../public/js/guns/weapon-state.js');
@@ -94,12 +94,12 @@ for (const l of loadouts) {
   const rig = weaponState();
   const at = kitWeapons('engineer', 0, 0).owned;
   const aa = kitWeapons('engineer', 1, 1).owned;
-  const recon = kitWeapons('recon', 1).owned;
+  const recon = kitWeapons('recon', 1);
   check(() => assert.equal(press(rig, 'Digit3', 'conquest', at), 'rocket'));
   check(() => assert.equal(press(rig, 'Digit1', 'conquest', aa), 'shotgun', 'redeploy: 1 is the new primary'));
   check(() => assert.equal(press(rig, 'Digit3', 'conquest', aa), 'stinger', 'redeploy AT -> AA: 3 is the STINGER'));
-  check(() => assert.equal(press(rig, 'Digit1', 'conquest', recon), 'longarc', 'redeploy to Recon: 1 is the LONGARC'));
-  check(() => assert.equal(press(rig, 'Digit3', 'conquest', recon), 'longarc', 'redeploy to Recon: 3 does nothing'));
+  check(() => assert.equal(press(rig, 'Digit1', 'conquest', recon.owned), recon.primary, 'redeploy to Recon: 1 is the new primary'));
+  check(() => assert.equal(press(rig, 'Digit3', 'conquest', recon.owned), recon.primary, 'redeploy to Recon: 3 does nothing'));
   // Before the first owned list the keys do nothing (the server would refuse anyway).
   const fresh = weaponState();
   const before = WEAPON_IDS[fresh.state.slot];
@@ -186,7 +186,10 @@ for (const mode of ['tdm', 'fun', 'snd', 'gungame', 'ttt']) {
   }
   context.match.mode = 'tdm';
   context.self.owned = undefined;
-  overlay.open(controller.entries());
+  overlay.setState({ open: true, entries: controller.entries() });
+  check(() => assert.equal(overlay.isOpen(), true, 'tdm: the full wheel opens'));
+  check(() => assert.deepEqual(overlay.dom.slots.map(item => item.icon.dataset.weaponId), FREE_WEAPON_IDS,
+    'tdm: the overlay renders every free weapon in wheel order'));
   check(() => assert.deepEqual(overlay.dom.slots.slice(0, 10).map(item => item.key.textContent),
     ['[1]', '[2]', '[3]', '[4]', '[5]', '[6]', '[7]', '[8]', '[9]', '[0]'], 'tdm: the full wheel keeps the global digits'));
   overlay.dispose?.();

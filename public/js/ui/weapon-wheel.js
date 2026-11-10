@@ -17,7 +17,7 @@ export const WHEEL_COMMIT_RADIUS = 1.4;
  * clockwise. Normalized to [0, 360).
  *
  * @param {number} index Zero-based slot index.
- * @param {number} count Total slot count (2..16).
+ * @param {number} count Total slot count.
  * @returns {number} Normalized angle in [0, 360).
  */
 export function wheelAngleForSlot(index, count) {
@@ -161,11 +161,8 @@ export class WeaponWheelController {
   }
 
   /**
- * Opens the wheel with 2..16 slot entries. Any other count is ignored and
- * the wheel stays closed. Entries carry display strings only:
- * {id, name, cls, icon, key, ammo, owned, current, role?}. When every entry
- * has a `role` (the Conquest kit wheel) the big-segment layout is used and
- * `key` is shown as given.
+   * Opens the wheel with at least two entries. When every entry has a role
+   * (the kit wheel), the big-segment layout displays its kit-relative key.
    *
    * @param {Array<{id: string, name: string, cls: string, icon: string,
    *   key: string, ammo: string, owned: boolean, current: boolean}>} entries
@@ -174,7 +171,7 @@ export class WeaponWheelController {
    * @returns {boolean} True when the wheel opened.
    */
   open(entries, { pointerInteractive = false } = {}) {
-    if (!Array.isArray(entries) || entries.length < 2 || entries.length > 16) return false;
+    if (!Array.isArray(entries) || entries.length < 2) return false;
     this.ensure();
     this._entriesSig = _entriesSignature(entries);
     this.setEntries(entries);
@@ -223,14 +220,14 @@ export class WeaponWheelController {
   /**
    * Refreshes the slot set in place: rebuilds the slot nodes only when the
    * count changes, otherwise patches text, icon, classes, and angles cheaply.
-   * Counts outside 2..16 are ignored.
+   * Lists with fewer than two entries are ignored.
    *
    * @param {Array<{id: string, name: string, cls: string, icon: string,
    *   key: string, ammo: string, owned: boolean, current: boolean}>} entries
    */
   setEntries(entries) {
     const list = Array.isArray(entries) ? entries : [];
-    if (list.length < 2 || list.length > 16) return;
+    if (list.length < 2) return;
     this._entries = list;
     const kit = isKitLayout(list);
     this.dom.root?.classList.toggle('is-kit', kit);
@@ -407,7 +404,7 @@ export class WeaponWheelController {
   /**
    * Builds fresh slot + tick nodes for the entry list (count changed).
    *
-   * @param {Array<object>} list Validated 2..16 entries.
+   * @param {Array<object>} list Validated wheel entries.
    * @private
    */
   _buildSlots(list) {
@@ -449,7 +446,7 @@ export class WeaponWheelController {
   /**
    * Cheap per-slot refresh: text, icon source, angle, and state classes.
    *
-   * @param {Array<object>} list Validated 2..16 entries.
+   * @param {Array<object>} list Validated wheel entries.
    * @private
    */
   _patchSlots(list) {

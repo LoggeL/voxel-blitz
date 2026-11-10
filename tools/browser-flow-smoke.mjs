@@ -1,6 +1,6 @@
 import path from 'node:path';
 import jsQR from 'jsqr';
-import { WEAPON_IDS } from '../shared/combatmath.js';
+import { FREE_WEAPON_IDS, WEAPON_IDS } from '../shared/combatmath.js';
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
@@ -647,7 +647,7 @@ async function main() {
     await page.waitFor('window.__vb.wheelOpen', { label: 'held K reopens wheel for selection' });
     requireCondition(await page.evaluate(`(() => {
       const keys = [...document.querySelectorAll('#weapon-wheel .vb-wheel-key')];
-      return keys.length === ${WEAPON_IDS.length} && keys[9].textContent === '[0]';
+      return keys.length === ${FREE_WEAPON_IDS.length} && keys[9].textContent === '[0]';
     })()`), 'live weapon wheel shows the full roster with the correct zero key for the knife');
     const wheelPick = await page.evaluate(`(() => {
       const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[9].getBoundingClientRect();
@@ -672,11 +672,11 @@ async function main() {
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'k', code: 'KeyK' });
     await page.waitFor('window.__vb.wheelOpen', { label: 'flamethrower wheel selection' });
     const flamePick = await page.evaluate(`(() => {
-      const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('flamethrower')}].getBoundingClientRect();
+      const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${FREE_WEAPON_IDS.indexOf('flamethrower')}].getBoundingClientRect();
       return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })()`);
     await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...flamePick });
-    await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('flamethrower')}].classList.contains('is-hl')`,
+    await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${FREE_WEAPON_IDS.indexOf('flamethrower')}].classList.contains('is-hl')`,
       { label: 'flamethrower highlighted' });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'k', code: 'KeyK' });
     await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'flamethrower'`,
@@ -754,11 +754,11 @@ async function main() {
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'k', code: 'KeyK' });
     await page.waitFor('window.__vb.wheelOpen', { label: 'minigun wheel selection' });
     const minigunPick = await page.evaluate(`(() => {
-      const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('minigun')}].getBoundingClientRect();
+      const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${FREE_WEAPON_IDS.indexOf('minigun')}].getBoundingClientRect();
       return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })()`);
     await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...minigunPick });
-    await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('minigun')}].classList.contains('is-hl')`,
+    await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${FREE_WEAPON_IDS.indexOf('minigun')}].classList.contains('is-hl')`,
       { label: 'minigun highlighted' });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'k', code: 'KeyK' });
     await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'minigun' &&

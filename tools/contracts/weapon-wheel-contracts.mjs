@@ -42,7 +42,7 @@ export async function runWeaponWheelContracts(ok) {
   ok(wheelSlotFromVector(-Math.sin(Math.PI / 8), -Math.cos(Math.PI / 8), 8) === 0,
     'a vector on the last half-up boundary wraps around into slot 0');
   const { WeaponWheelController } = await import('../../public/js/session/weapon-wheel-controller.js');
-  const { WEAPON_IDS } = await import('../../shared/combatmath.js');
+  const { FREE_WEAPON_IDS, WEAPON_IDS } = await import('../../shared/combatmath.js');
   const picks = [];
   const context = {
     match: { mode: 'snd' }, self: { owned: ['revolver', 'knife'], state: 'alive' },
@@ -56,7 +56,7 @@ export async function runWeaponWheelContracts(ok) {
   });
   const entries = controller.entries();
   ok(WEAPON_IDS.slice(0, 14).join() === 'rifle,smg,shotgun,sniper,lmg,revolver,longarc,rocket,lance,knife,minigun,flamethrower,glaive,bubble'
-      && WEAPON_IDS[14] === 'mgl' && entries.length === 16
+      && WEAPON_IDS[14] === 'mgl' && entries.map(entry => entry.id).join() === FREE_WEAPON_IDS.join()
       // The sixteenth free weapon sits behind the gadget block: wheel index 15, wire slot 20.
       && entries[15].id === 'doppler' && entries[15].slot === WEAPON_IDS.indexOf('doppler') && entries[15].key === '[WHEEL]'
       && entries[9].key === '[0]' && entries[9].ammo === '∞'
@@ -155,14 +155,14 @@ export async function runWeaponWheelContracts(ok) {
       'conquest: a digit the kit lacks and the already equipped primary close without switching');
 
     kitContext.self.owned = undefined;
-    ok(kitWheel.entries().length === 16 && kitWheel.entries().every(e => !e.role),
+    ok(kitWheel.entries().length === FREE_WEAPON_IDS.length && kitWheel.entries().every(e => !e.role),
       'conquest before the first owned list falls back to the full wheel');
     for (const mode of ['snd', 'tdm', 'ttt']) {
       kitContext.match.mode = mode;
       kitContext.self.owned = ['rifle', 'revolver', 'knife'];
-      ok(kitWheel.entries().length === 16 && kitWheel.entries().every((e, i) => !e.role && e.slot === (i < 15 ? i : WEAPON_IDS.indexOf('doppler')))
+      ok(kitWheel.entries().length === FREE_WEAPON_IDS.length && kitWheel.entries().every((e, i) => !e.role && e.id === FREE_WEAPON_IDS[i] && e.slot === WEAPON_IDS.indexOf(e.id))
           && kitWheel.directIndex(4) === 4,
-        `${mode}: the full roster wheel is unchanged (no kit roles, index == slot)`);
+        `${mode}: the full wheel maps each free weapon to its wire slot`);
     }
   }
 
