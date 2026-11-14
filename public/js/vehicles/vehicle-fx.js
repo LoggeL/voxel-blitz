@@ -51,10 +51,13 @@ const TRACERS = Object.freeze({
 });
 /** Sight-guided AT missiles (VEHICLE_WEAPONS `beam`): launch backblast, long trail, flight loop. */
 const GUIDED_MISSILES = new Set(['guidedMissile', 'towMissile']);
+/** The rocket truck's pod stores (shared/artillery-rules.js): a big launch, a long smoke trail, an incoming whistle. */
+const ARTILLERY_ROCKETS = new Set(['artyRocket', 'artyCluster']);
 /** Muzzle flash scale per vehicle weapon. */
 const MUZZLE_SCALE = Object.freeze({
   tankAP: 2.4, tankHE: 2.4, coaxMG: 0.55, hmg: 0.75, helicopterRocket: 1.1, chinCannon: 0.9, flak35: 1.15,
   doorMinigun: 0.6, planeCannon: 0.85, aaMissile: 1.2, jetBomb: 0, guidedMissile: 1.3, towMissile: 1.4, mortarHE: 0.9,
+  artyRocket: 1.7, artyCluster: 2.3,
   splitter: 1.1, t203: 1.6, railgun: 2.2, leadwall: 2.0, predatorClose: 1.0, predatorLong: 1.1, titanMelee: 0,
 });
 /** Energy and fire tints of the titan muzzles, impacts and light flashes (linear RGB, HDR). */
@@ -493,6 +496,20 @@ export class VehicleFx {
       if (self) this.shake?.add(flak ? 0.05 : 0.04);
       return true;
     }
+    if (ARTILLERY_ROCKETS.has(weapon)) {
+      // Rocket truck: the backblast out of the pod's rear, dust off the ground behind it, the pod's kick, the light.
+      const big = weapon === 'artyCluster', back = [-dir[0], -dir[1], -dir[2]];
+      this.fx?.emit('smoke', origin, { count: big ? 26 : 16, dir: back, speed: big ? 6 : 4.5, scale: big ? 1.4 : 1, spread: 0.5 });
+      this.fx?.emit('fire', origin, { count: big ? 8 : 5, dir: back, speed: 3, scale: 0.6, spread: 0.3 });
+      const behind = [origin[0] + back[0] * 5, origin[1], origin[2] + back[2] * 5];
+      const below = this.ground(behind[0], origin[1], behind[2], 6);
+      if (below && !below.fluid) this._ring(behind, below.y, big ? 16 : 10, big ? 6 : 4.5, blockDustTint(below.block));
+      this.view?.kick(ev.vehicleId, ev.mount, big ? 1 : 0.6);
+      this._flashLight(origin, big ? 1.2 : 0.8);
+      this.sfx?.vehicleMissileLaunch?.(origin, { self, kind: 'atgm' });
+      if (self) this.shake?.add(big ? 0.12 : 0.07);
+      return true;
+    }
     // Rocket pods and missiles: launch puff (the trail follows projectileLaunch).
     // A guided AT round (heli GUIDED MSL, the AT jeep's TOW) kicks a big backblast.
     const guided = GUIDED_MISSILES.has(weapon);
@@ -642,7 +659,7 @@ export class VehicleFx {
     this._count('launch');
     if (weapon === 'tankAP' || weapon === 'tankHE') this._shellPass(ev, o, v, weapon);
     // Bombs and mortar rounds whistle in on whoever stands near the impact.
-    if (meta.kind === 'bomb' || weapon === 'mortarHE') this._bombWhistle(ev, o, v);
+    if (meta.kind === 'bomb' || weapon === 'mortarHE' || ARTILLERY_ROCKETS.has(weapon)) this._bombWhistle(ev, o, v);
     // Shells only flash at the muzzle (ProjectileFX draws their tracer); rockets and missiles carry a smoke trail.
     if (meta.kind !== 'rocket' && meta.kind !== 'missile') return true;
     if (this.missiles.size >= VEHICLE_FX.maxMissileTrails) {
@@ -650,8 +667,8 @@ export class VehicleFx {
       this._endTrail(oldest);
     }
     // Guided AT missiles fly up to 9 s (VEHICLE_WEAPONS lifetimeMs) with a thick white trail the target can follow back.
-    const guided = GUIDED_MISSILES.has(weapon), heavy = weapon === 'aaMissile' || guided;
-    const trail = { id: String(ev.pid), weapon, o, v, g: finite(ev.g) || 0, age: 0, life: weapon === 'aaMissile' ? 6 : guided ? 9 : 5, pos: [...o], emitter: null };
+    const arty = ARTILLERY_ROCKETS.has(weapon), guided = GUIDED_MISSILES.has(weapon) || arty, heavy = weapon === 'aaMissile' || guided;
+    const trail = { id: String(ev.pid), weapon, o, v, g: finite(ev.g) || 0, age: 0, life: weapon === 'aaMissile' ? 6 : arty ? 16 : guided ? 9 : 5, pos: [...o], emitter: null };
     trail.emitter = this.fx?.addEmitter({ kind: 'smoke', pos: () => trail.pos, rate: heavy ? 70 : 45,
       params: { speed: 0.2, scale: guided ? 0.5 : heavy ? 0.45 : 0.35, life: guided ? 1.1 : 0.7, spread: Math.PI } }) || null;
     trail.glow = this.fx?.addEmitter({ kind: 'fire', pos: () => trail.pos, rate: 40, params: { speed: 0.1, scale: 0.35, life: 0.25 } }) || null;
@@ -677,13 +694,21 @@ export class VehicleFx {
     if (typeof ev.vehicleWeapon !== 'string') return ended;
     // A shell that bursts short of its pass point takes its pending whistle or crack with it.
     if (ev.pid != null && (ev.vehicleWeapon === 'tankAP' || ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'jetBomb'
-      || ev.vehicleWeapon === 'mortarHE')) this.sfx?.cancelShellFlyby?.(ev.pid);
+      || ev.vehicleWeapon === 'mortarHE' || ARTILLERY_ROCKETS.has(ev.vehicleWeapon))) this.sfx?.cancelShellFlyby?.(ev.pid);
     const pos = [ev.x, ev.y, ev.z];
     if (!pos.every(Number.isFinite)) return ended;
     this._count('explode');
-    const bomb = ev.vehicleWeapon === 'jetBomb', mortar = ev.vehicleWeapon === 'mortarHE';
-    const heavy = bomb || mortar || ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'tankAP';
-    const radius = bomb ? 9 : mortar ? 5.5 : heavy ? (ev.vehicleWeapon === 'tankHE' ? 5.5 : 2.5) : ev.vehicleWeapon === 'helicopterRocket' ? 4 : GUIDED_MISSILES.has(ev.vehicleWeapon) ? 3 : 2;
+    if (ev.burst) {
+      // A cluster carrier opening over the target: a flash and a dark puff where the bomblets leave it.
+      this.fx?.emit('smoke', pos, { count: 14, dir: [0, -0.3, 0], speed: 3, scale: 1.6, spread: 1, color0: [0.1, 0.1, 0.1], color1: [0.24, 0.22, 0.2] });
+      this.fx?.emit('spark', pos, { count: 18, dir: [0, -1, 0], speed: 7, spread: 1.1 });
+      this._flashLight(pos, 1.1);
+      return true;
+    }
+    const bomb = ev.vehicleWeapon === 'jetBomb', mortar = ev.vehicleWeapon === 'mortarHE' || ev.vehicleWeapon === 'artyBomblet';
+    const arty = ARTILLERY_ROCKETS.has(ev.vehicleWeapon);
+    const heavy = arty || bomb || mortar || ev.vehicleWeapon === 'tankHE' || ev.vehicleWeapon === 'tankAP';
+    const radius = bomb ? 9 : arty ? 8 : mortar ? 5.5 : heavy ? (ev.vehicleWeapon === 'tankHE' ? 5.5 : 2.5) : ev.vehicleWeapon === 'helicopterRocket' ? 4 : GUIDED_MISSILES.has(ev.vehicleWeapon) ? 3 : 2;
     const below = this.ground(pos[0], pos[1] + 0.5, pos[2], 3);
     if (below && !below.fluid) {
       const tint = blockDustTint(below.block);

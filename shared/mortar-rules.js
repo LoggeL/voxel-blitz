@@ -79,7 +79,7 @@ export function mortarFlatTime(pitch, { speed = META.speed, gravity = META.gravi
 
 /** Flat-ground range envelope { min, max } of the elevation limits. */
 export function mortarRangeEnvelope(rules = MORTAR_RULES) {
-  return { min: mortarFlatRange(rules.maxPitch), max: mortarFlatRange(rules.minPitch) };
+  return { min: mortarFlatRange(rules.maxPitch, rules), max: mortarFlatRange(rules.minPitch, rules) };
 }
 
 /** Elevation that lands at flat range `range` on the high arc, clamped to the limits. */

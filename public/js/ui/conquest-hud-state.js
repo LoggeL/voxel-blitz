@@ -40,7 +40,7 @@ export const CQ_COLORS = Object.freeze({
   spotted: '#ff4b4b', down: '#ff6b6b', contested: '#ffd166',
 });
 export const VEHICLE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET', jeep_at: 'AT JEEP',
-  aa: 'MOBILE AA', mortar: 'MORTAR', boat: 'PATROL BOAT', fpv: 'FPV DRONE' });
+  aa: 'MOBILE AA', mortar: 'MORTAR', boat: 'PATROL BOAT', fpv: 'FPV DRONE', artillery: 'ROCKET TRUCK' });
 const ROLE_LABELS = Object.freeze({ driver: 'DRIVER', pilot: 'PILOT', gunner: 'GUNNER', passenger: 'PASSENGER' });
 const SEAT_LABELS = Object.freeze({
   driver: 'DRIVER', gunner: 'GUNNER', commander: 'COMMANDER', 'front-passenger': 'PASSENGER', 'rear-left': 'REAR LEFT',
@@ -437,10 +437,12 @@ export function seatWeapons(row, seatId) {
   return list.map(({ mount, weapon }, index) => {
     const meta = VEHICLE_WEAPON_META[weapon] || {};
     const state = mountState(row, seatId, mount);
-    const heat = state?.heat ?? 0, reload = state?.reload ?? 0;
+    // A store that shares its mount's magazine with the loaded one (the rocket truck's pod) shows no rounds of its own.
+    const unloaded = index !== selected && state?.ammo >= 0 && list[selected]?.mount === mount;
+    const heat = state?.heat ?? 0, reload = unloaded ? 0 : state?.reload ?? 0;
     return {
       index, mount, weapon, label: meta.label || weapon, kind: meta.kind || null, cls: meta.cls || null,
-      selected: index === selected, ammo: state?.ammo ?? null, heat, overheated: heat >= 0.999,
+      selected: index === selected, ammo: unloaded ? null : state?.ammo ?? null, heat, overheated: heat >= 0.999,
       reload, ready: reload <= 0 && heat < 0.999 && (state?.ammo == null || state.ammo !== 0),
       key: `${index + 1}`,
     };
@@ -566,7 +568,7 @@ export function nextFreeSeatIndex(row, seatId) {
 
 /** Tank gunner range ladder: horizontal ranges (m) marked along the shell's arc. */
 export const TANK_RANGE_TICKS = Object.freeze([100, 200, 300, 400, 500]);
-const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1, jeep_at: 2.15, mortar: 0.4, aa: 2.3, boat: 1.95 });
+const MOUNT_DEFAULT_HEIGHT = Object.freeze({ jeep: 2.15, tank: 2.3, helicopter: 1.1, transport: 1.5, plane: 1, jeep_at: 2.15, mortar: 0.4, aa: 2.3, boat: 1.95, artillery: 2.6 });
 
 /** Muzzle pose from the shared vehicle registry (mountPose), else from the row mount angles at the hull. */
 export function mountPoseOf(row, seatId, mountId, registry = vehicleDefs) {

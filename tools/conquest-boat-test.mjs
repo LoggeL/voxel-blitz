@@ -54,8 +54,8 @@ const run = (vehicles, seconds, each = null) => { for (let i = 0; i < Math.round
 
 // ------------------------------------------------------------------ contract v6
 {
-  eq(CONQUEST_CONTRACT_VERSION, 8, 'contract v6 adds the patrol boat');
-  eq(VEHICLE_TYPE_IDS.at(-1), 'boat', 'the boat is appended to the hull list');
+  eq(CONQUEST_CONTRACT_VERSION, 9, 'contract v6 adds the patrol boat');
+  eq(VEHICLE_TYPE_IDS.at(-2), 'boat', 'the boat is appended to the hull list (the v9 rocket truck follows it)');
   eq(VEHICLE_TOPOLOGY.boat.map(s => [s.id, s.role, s.drives, s.exposed, s.personalWeapons]), [
     ['driver', 'driver', true, true, false], ['gunner', 'gunner', false, true, false],
     ['rear-left', 'passenger', false, true, true], ['rear-right', 'passenger', false, true, true]]);

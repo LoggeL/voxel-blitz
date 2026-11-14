@@ -32,6 +32,8 @@ const BASE_PATHS = {
   jeep: 'M3 11l2-4h8l2 4h5a1 1 0 0 1 1 1v3h-2.2a2.5 2.5 0 0 0-4.6 0H9.8a2.5 2.5 0 0 0-4.6 0H3zM7 8.2L5.9 11H9V8.2zM10.5 8.2V11h3l-1.2-2.8zM7.5 14.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM16.5 14.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z',
   // AT jeep: the jeep with the TOW tube over the bed.
   jeep_at: 'M3 11l2-4h8l2 4h5a1 1 0 0 1 1 1v3h-2.2a2.5 2.5 0 0 0-4.6 0H9.8a2.5 2.5 0 0 0-4.6 0H3zM7 8.2L5.9 11H9V8.2zM10.5 8.2V11h3l-1.2-2.8zM7.5 14.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM16.5 14.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM8 3.6h11v2.2H8zM12.3 5.8h1.4V7h-1.4z',
+  // Rocket artillery truck: cab at the front (right), three axles, the pod raised over the bed.
+  artillery: 'M15 8.5h4.2l2.3 3v3.3h-1.2a2 2 0 0 0-3.8 0h-.9a2 2 0 0 0-3.8 0h-1.4a2 2 0 0 0-3.8 0H2.5V12H15zM16.3 9.7v2.1h3.3l-1.5-2.1zM5.5 14.3a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8zM13.7 14.3a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8zM18.4 14.3a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8zM3 9.6l9.6-5.2 1.3 2.4-9.6 5.2z',
   tank: 'M7 8h7l1 2h7v1.6h-7.2L14 13H6zM2 13h19l-2 4.5H4zM5 14.6a1 1 0 1 0 0 .1zM8.5 14.5h1v1h-1zM12 14.5h1v1h-1zM15.5 14.5h1v1h-1z',
   // Mobile AA: tracked hull, boxy turret, twin guns raised, the search radar on its mast.
   aa: 'M7 8h8v5H7zM2 13h19l-2 4.5H4zM5 14.6a1 1 0 1 0 0 .1zM8.5 14.5h1v1h-1zM12 14.5h1v1h-1zM15.5 14.5h1v1h-1zM14.6 8.4l6-4.6.9 1.1-6 4.6zM14.6 11l6-4.6.9 1.1-6 4.6zM6.6 3.4h4.8v1.6H6.6zM8.3 5h1.4v3H8.3z',
@@ -104,7 +106,7 @@ export const ICON_PATHS = Object.freeze({ ...BASE_PATHS, fire: BASE_PATHS.pyro, 
 /** Kill-feed glyph per kill key; unknown keys return null (caller decides). */
 export const KILL_KEY_ICONS = Object.freeze({
   tankAP: 'shell', tankHE: 'shell', coaxMG: 'mg', hmg: 'mg', doorMinigun: 'mg', planeCannon: 'autocannon',
-  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', guidedMissile: 'missile', towMissile: 'missile', jetBomb: 'bomb', mortarHE: 'mortar', fpv: 'fpv', flak35: 'autocannon', vehicle: 'roadkill', restricted: 'restricted',
+  chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', guidedMissile: 'missile', towMissile: 'missile', jetBomb: 'bomb', mortarHE: 'mortar', artyRocket: 'rocket', artyCluster: 'bomb', artyBomblet: 'bomb', fpv: 'fpv', flak35: 'autocannon', vehicle: 'roadkill', restricted: 'restricted',
   fall: 'fall', crash: 'crash', redeploy: 'redeploy', collapse: 'collapse',
   // Titanfall kill keys (docs/titanfall.md §2.3) on existing glyphs; WP5 may add titan glyphs later.
   splitter: 'mg', predatorClose: 'mg', predatorLong: 'mg', railgun: 'autocannon', t203: 'shell', leadwall: 'shell',

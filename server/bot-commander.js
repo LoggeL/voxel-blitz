@@ -22,6 +22,7 @@
 // deployFor(player). Everything it reads is authoritative mode, entity and
 // vehicle state plus what the team's own bots have seen or heard.
 
+import { indirectFireRules } from '../shared/artillery-rules.js';
 import { BREAKTHROUGH_RULES, CONQUEST_RULES, CONQUEST_TEAMS, KIT_IDS, KITS, VEHICLE_TOPOLOGY } from '../shared/conquest-contract.js';
 import { outsideFront } from '../shared/breakthrough.js';
 import { KIT_ROLE_RULES, botSquadKit } from '../shared/conquest-kits.js';
@@ -939,7 +940,8 @@ export class BotCommander {
       if (!hullStopped(v, HITCH_BOARD_SPEED)) continue;
       const topology = VEHICLE_TOPOLOGY[v.type] ?? [];
       const role = seat => topology.find(t => t.id === seat.id)?.role;
-      const seats = vehicleSeats(v).filter(seat => !seat.drives && vehicleSeatOccupantId(v, seat.id) == null && !reserved.has(`${v.id}:${seat.id}`))
+      // Never an indirect-fire seat (the rocket truck's launcher): a bot has no fire mission for it.
+      const seats = vehicleSeats(v).filter(seat => !seat.drives && !indirectFireRules(v.type, seat.id) && vehicleSeatOccupantId(v, seat.id) == null && !reserved.has(`${v.id}:${seat.id}`))
         .sort((a, b) => (role(a) === 'gunner' ? 0 : 1) - (role(b) === 'gunner' ? 0 : 1));
       if (!seats.length) continue;
       const squad = squadOf(driver.id);

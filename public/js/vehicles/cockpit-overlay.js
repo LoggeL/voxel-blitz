@@ -146,6 +146,14 @@ const BUILDERS = {
     b.screen([0.02, 1.27, -0.375], [0.15, 0.15], TILE.gauge);
     b.screen([0.22, 1.27, -0.375], [0.15, 0.15], TILE.rpm);
   },
+  artillery(b) {
+    // Rocket truck cab: gauges before the driver, the fire-control displays before the launcher operator.
+    b.slab([-1.0, 1.5, -2.99], [1.0, 1.8, -2.95], PANEL);
+    b.screen([-0.62, 1.65, -2.945], [0.15, 0.15], TILE.gauge);
+    b.screen([-0.38, 1.65, -2.945], [0.15, 0.15], TILE.rpm);
+    b.screen([0.36, 1.65, -2.945], [0.22, 0.2], TILE.map);
+    b.screen([0.64, 1.65, -2.945], [0.2, 0.2], TILE.caution);
+  },
 };
 
 /** The hull frame of a titan model (its group), the overlay's reference instead of the swaying torso. */
@@ -229,8 +237,8 @@ function displayAtlas() {
 }
 
 /** True when a hull type has first-person cockpit dressing. */
-// A hull variant (the AT jeep) sits in its hull's cockpit.
-for (const [variant, hull] of Object.entries(VEHICLE_HULL_VARIANTS)) if (BUILDERS[hull]) BUILDERS[variant] = BUILDERS[hull];
+// A hull variant (the AT jeep) sits in its hull's cockpit, unless it has its own (the rocket truck's cab).
+for (const [variant, hull] of Object.entries(VEHICLE_HULL_VARIANTS)) if (BUILDERS[hull] && !BUILDERS[variant]) BUILDERS[variant] = BUILDERS[hull];
 export const hasCockpitOverlay = type => Object.hasOwn(BUILDERS, type) || isTitanType(type);
 
 /**

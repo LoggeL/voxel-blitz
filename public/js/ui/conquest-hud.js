@@ -40,6 +40,7 @@ import {
   squadOrderModel, visibleRequests, withOrderRing,
 } from './conquest/comms-state.js';
 import { MortarSight, mortarBanner, mortarSightModel } from './conquest/mortar-sight.js';
+import { indirectFireRules } from '../../../shared/artillery-rules.js';
 import { FpvFeed, fpvBanner, fpvFeedModel } from './conquest/fpv-feed.js';
 import { RibbonToast, ribbonToastEntry } from './conquest/ribbons.js';
 import { WeatherChip } from './conquest/weather-chip.js';
@@ -691,9 +692,9 @@ export class ConquestHud {
     setData(this.root, 'vehicleView', periscope ? 'driver' : '');
     const aim = periscope && Number.isFinite(this.vehicleController?.yaw) ? { yaw: this.vehicleController.yaw, pitch: this.vehicleController.pitch } : null;
     // The mortar operator gets the fire-control panel and the ground ring instead of a reticle.
-    const mortar = seated && seated.row.type === 'mortar' ? mortarSightModel(seated, { items, raycast: this.shellRaycast, projector,
+    const mortar = seated && indirectFireRules(seated.row.type, seated.seat?.id) ? mortarSightModel(seated, { items, raycast: this.shellRaycast, projector,
       aim: Number.isFinite(this.vehicleController?.yaw) ? { yaw: this.vehicleController.yaw, pitch: this.vehicleController.pitch } : null,
-      snap: this.vehicleController?.mortarSnap ?? null, nowMs: clockNow() }) : null;
+      snap: this.vehicleController?.mortarSnap ?? null, nowMs: clockNow(), meta: cq.meta }) : null;
     this.mortarSight.update(mortar, { items, meta: cq.meta, size: cq.size, viewYaw: angles?.yaw ?? null, nowMs: now, clockMs: clockNow() });
     const reticle = !mortar && seated && projector ? reticleModel(seated, { projector, players, vehicles, selfTeam,
       raycast: this.shellRaycast, flightAim: this.vehicleController?.aimFlight === true, sight,

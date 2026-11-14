@@ -41,7 +41,7 @@ const q = (value, scale) => Math.round(finite(value) * scale) / scale;
  * jeep rules scaled by the upgrade tune.
  */
 const GROUND_STEPPERS = Object.freeze({
-  wheeled: (v, input, dt, rules, tune) => stepJeepDrive(v, input, dt, tune),
+  wheeled: (v, input, dt, rules, tune) => stepJeepDrive(v, input, dt, tune, rules),
   tracked: (v, input, dt, rules) => stepTankDrive(v, input, dt, rules),
 });
 /** Drive tuning of a hull's upgrade (a jeep's turbo); the tracked stepper ignores it (the boat's waterjet: server/sim/boat.js). */

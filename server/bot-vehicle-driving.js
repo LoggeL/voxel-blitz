@@ -40,7 +40,8 @@ const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
 const bearing = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
-const GROUND = new Set(['jeep', 'tank', 'jeep_at', 'aa', 'boat']);
+// The rocket truck: bots only ride its top gunner seat with a human driver (planHitches), never crew it.
+const GROUND = new Set(['jeep', 'tank', 'jeep_at', 'aa', 'boat', 'artillery']);
 /** Armour that holds an overwatch spot on the focus flag (the AT jeep stands off like a tank destroyer, the AA over its cover flag). */
 const OVERWATCH = new Set(['tank', 'jeep_at', 'aa']);
 /** Tracked hulls: pivot in place instead of reversing out of a wrong heading. */

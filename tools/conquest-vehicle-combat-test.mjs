@@ -76,7 +76,7 @@ const near = (a, b, tolerance, message) => assert(Math.abs(a - b) <= tolerance, 
   assert.equal(armorEffective(armorMultiplier('hmg', 'heavy')), false, 'eff = multiplier >= 0.1');
   assert.equal(armorEffective(armorMultiplier('autocannon', 'heavy')), true);
   assert.equal(armorMultiplier('bogus', 'light'), 0);
-  for (const type of VEHICLE_TYPE_IDS) assert.equal(vehicleMaxHp({ type }), { jeep: 320, tank: 1000, helicopter: 650, transport: 600, plane: 450, jeep_at: 320, aa: 600, boat: 360 }[type]);
+  for (const type of VEHICLE_TYPE_IDS) assert.equal(vehicleMaxHp({ type }), { jeep: 320, tank: 1000, helicopter: 650, transport: 600, plane: 450, jeep_at: 320, aa: 600, boat: 360, artillery: 520 }[type]);
 }
 
 // ------------------------------------------- a rifle magazine into the tank: 0 damage, eff:0
@@ -310,7 +310,9 @@ for (const type of VEHICLE_TYPE_IDS) {
       const look = lookAt([p.x, p.y, p.z], vehicleLocalPoint(f.vehicle('v'), seat.position[0] * 10, 1.5, -12));
       f.aim(p, { ...look, wantFire: true });
       let shot = null;
-      for (let i = 0; i < 400 && !shot; i++) {
+      // The rocket truck's store swap is a full reload of the new store (swapReload): wait it out.
+      const wait = VEHICLE_WEAPONS[entry.weapon]?.swapReload ? Math.ceil(60 * (VEHICLE_WEAPONS[entry.weapon].reloadSeconds + 4)) : 400;
+      for (let i = 0; i < wait && !shot; i++) {
         f.tick();
         shot = f.events('shoot').find(event => event.id === p.id && event.mount === entry.mount && event.vehicleWeapon === entry.weapon);
       }

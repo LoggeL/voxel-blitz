@@ -6,6 +6,7 @@ import { groundAttitude } from '../../../shared/vehicle-attitude.js';
 import { makeJeepModel, makeAtJeepModel } from '../vehicles/models/jeep.js';
 import { makeTankModel } from '../vehicles/models/tank.js';
 import { makeAaModel } from '../vehicles/models/aa.js';
+import { makeArtilleryModel } from '../vehicles/models/artillery.js';
 import { makeHelicopterModel } from '../vehicles/models/helicopter.js';
 import { makeTransportModel } from '../vehicles/models/transport.js';
 import { makePlaneModel } from '../vehicles/models/plane.js';
@@ -38,7 +39,7 @@ const finite = value => Number.isFinite(value) ? value : 0;
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 export const VEHICLE_MODEL_FACTORIES = Object.freeze({
   jeep: makeJeepModel, tank: makeTankModel, helicopter: makeHelicopterModel, transport: makeTransportModel, plane: makePlaneModel,
-  jeep_at: makeAtJeepModel, aa: makeAaModel, boat: makeBoatModel,
+  jeep_at: makeAtJeepModel, aa: makeAaModel, boat: makeBoatModel, artillery: makeArtilleryModel,
   // Support mortar (deployable, shared/mortar-rules.js).
   mortar: makeMortarModel,
   // Engineer FPV drone (deployable, shared/fpv-rules.js).
@@ -50,8 +51,8 @@ export const VEHICLE_MODEL_FACTORIES = Object.freeze({
   }])),
 });
 const modelFactories = VEHICLE_MODEL_FACTORIES;
-/** Mounts whose loaded rounds the model shows (`railAmmo`): jet missile rails, heli wingtip missiles, the TOW tube. */
-const RAIL_MOUNTS = Object.freeze({ plane: 'rails', helicopter: 'atgm', jeep_at: 'pintle' });
+/** Mounts whose loaded rounds the model shows (`railAmmo`): jet missile rails, heli wingtip missiles, the TOW tube, the rocket pod. */
+const RAIL_MOUNTS = Object.freeze({ plane: 'rails', helicopter: 'atgm', jeep_at: 'pintle', artillery: 'pod' });
 /** The jet's bomb pylons (`bombAmmo`), shown beside the missiles. */
 const BOMB_MOUNTS = Object.freeze({ plane: 'bombs' });
 /** A row kind VehicleView can present now (walkers only once their presentation is installed). */

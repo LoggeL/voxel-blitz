@@ -48,6 +48,7 @@ import { VEHICLE_WEAPONS, CONQUEST_ROCKET_PROFILE, STINGER_RULES } from '../../s
 import { infantryDamageClass } from '../../shared/vehicle-armor.js';
 import { nearestHullPoint, vehicleHullParts } from '../../shared/vehicle-collision.js';
 import { flakFuse } from './flak-fuse.js';
+import { clusterFuse } from './cluster-fuse.js';
 import { occupantShielded, occupantExposed, occupantHitPose, occupantBodyCenter, occupantDamageScale } from './vehicle-damage.js';
 import { MGL_RULES, mglLaunch, stepMgl } from '../../shared/mgl-rules.js';
 import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
@@ -310,6 +311,7 @@ export class ProjectileSystem {
       if (!this.active.has(projectile.id)) continue;
       if (projectile.guidance && this._proximity(projectile, ctx)) continue;
       if (flakFrom && flakFuse(this, projectile, flakFrom, ctx)) continue;
+      if (projectile.cluster && clusterFuse(this, projectile, ctx)) continue;
       // Returning discs steer toward a live owner and seeking discs bend onto a
       // body, so remote presentation needs the same 100 ms correction stream that
       // Chaos projectiles already use. Bubbles never steer and the client runs the
@@ -1239,7 +1241,7 @@ export class ProjectileSystem {
    * event type is the weapon's presentation family, plus `vehicleId`,
    * `vehicleWeapon` and the shell gravity `g`.
    */
-  launchVehicleProjectile(owner, { weapon, origin, dir, velocity = null, vehicleId = null, targetId = null, beam = null } = {}, ctx) {
+  launchVehicleProjectile(owner, { weapon, origin, dir, velocity = null, vehicleId = null, targetId = null, beam = null, salvo = null } = {}, ctx) {
     const rules = typeof weapon === 'string' && Object.hasOwn(VEHICLE_WEAPONS, weapon) ? VEHICLE_WEAPONS[weapon] : null;
     if (!owner || !ctx || !rules || rules.kind === 'hitscan' || !Array.isArray(origin) || !Array.isArray(dir)
       || origin.length !== 3 || dir.length !== 3 || ![...origin, ...dir].every(Number.isFinite)
@@ -1263,6 +1265,9 @@ export class ProjectileSystem {
     };
     if (targetId) projectile.guidance = { targetId, turnRate: rules.turnRate, navConstant: rules.navConstant, proximity: rules.proximity };
     if (rules.infantrySplashScale != null) projectile.infantrySplashScale = rules.infantrySplashScale;
+    // A cluster carrier's burst fuse (cluster-fuse.js); its bomblets share one salvo.
+    if (rules.cluster) projectile.cluster = rules.cluster;
+    if (salvo != null) projectile.salvo = salvo;
     if (rules.flak) {
       // Radar proximity fuse (flak-fuse.js): armed past armDistance, blind to the firing team's aircraft.
       projectile.flak = rules.flak;

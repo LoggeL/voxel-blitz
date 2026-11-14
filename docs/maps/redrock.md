@@ -149,7 +149,7 @@ The waiting lobby with Conquest and Redrock picked is captured in `captures/lobb
 - the `mapMeta.conquest` v2 shape, with flags and HQs agreeing with the plan, and the mirror symmetry;
 - that every y comes from the terrain;
 - the crossings, the reservoir and the canyon;
-- the 19-hull fleet (Frontier's HQ fleet with the mobile AA, no boats), with point-mirrored HQ pads and the C tank's west and east pads;
+- the 21-hull fleet (Frontier's HQ fleet with the mobile AA and the rocket truck, no boats), with point-mirrored HQ pads and the C tank's west and east pads;
 - that the roads stay drivable;
 - the landmarks and named places;
 - standable, dry spawns with headroom in the generated voxels;

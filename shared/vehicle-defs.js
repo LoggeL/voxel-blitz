@@ -18,6 +18,7 @@ import { HELICOPTER_RULES } from './vehicle-handling/helicopter.js';
 import { TRANSPORT_RULES } from './vehicle-handling/transport.js';
 import { PLANE_RULES } from './vehicle-handling/plane.js';
 import { BOAT_RULES } from './vehicle-handling/boat.js';
+import { ARTILLERY_TRUCK_RULES } from './vehicle-handling/artillery.js';
 import { FPV_RULES } from './fpv-rules.js';
 
 const freeze = value => {
@@ -51,7 +52,7 @@ export const VEHICLE_LIFECYCLE = freeze({
 });
 
 /** Hull mass in tonnes: momentum transfer when a hull shoves a wreck. */
-export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, mortar: 0.12, aa: 30, boat: 3.5, fpv: 0.002,
+export const VEHICLE_MASS = freeze({ jeep: 2.5, tank: 45, helicopter: 6, transport: 8, plane: 9, jeep_at: 2.7, mortar: 0.12, aa: 30, boat: 3.5, fpv: 0.002, artillery: 14,
   ...Object.fromEntries(TITAN_TYPE_IDS.map(type => [type, TITAN_DEFS_INPUT[type].mass])) });
 
 /**
@@ -73,6 +74,8 @@ export const WRECK_PUSH_RULES = freeze({ friction: 1.2, gravity: 9.81, maxSpeed:
 export const VEHICLE_RAM = freeze({
   jeep: { pushForce: 0, maxPushMass: 3, classes: { brush: 2, wood: 8 }, armor: 12, perTick: 4, burst: 12, refill: 6 },
   jeep_at: { pushForce: 0, maxPushMass: 3, classes: { brush: 2, wood: 8 }, armor: 12, perTick: 4, burst: 12, refill: 6 },
+  // The 14 t rocket truck: brush, fences and sheds give way, masonry stops it.
+  artillery: { pushForce: 120, maxPushMass: 16, classes: { brush: 1, wood: 4, thin: 9 }, armor: 22, perTick: 5, burst: 18, refill: 8 },
   tank: { pushForce: 600, maxPushMass: 60, classes: { brush: 1, wood: 2, thin: 3, masonry: 7 }, armor: 55, perTick: 8, burst: 40, refill: 16 },
   // The 30 t AA: flattens brush, fences and thin sheet, but no masonry.
   aa: { pushForce: 360, maxPushMass: 40, classes: { brush: 1, wood: 3, thin: 5 }, armor: 35, perTick: 6, burst: 28, refill: 12 },
@@ -101,7 +104,7 @@ export const WALL_CRASH_RULES = freeze({ tank: { maxShare: 0.1, bounce: 0.3 }, a
  * metres over a ford (a washed-out ford, a flood) stall them all. Boats float
  * (server/sim/boat.js), aircraft and titans keep their own rules.
  */
-export const WADE_RULES = freeze({ depth: freeze({ jeep: 1.4, jeep_at: 1.4, aa: 1.7, tank: 1.9 }), crawl: 1 });
+export const WADE_RULES = freeze({ depth: freeze({ jeep: 1.4, jeep_at: 1.4, aa: 1.7, tank: 1.9, artillery: 1.6 }), crawl: 1 });
 
 /**
  * A ground hull driving into another hull. The contact is perfectly inelastic
@@ -207,6 +210,21 @@ export const VEHICLE_WEAPONS = freeze({
   flak35: weapon('flak35', { cooldown: 1 / 8, damage: 12, splash: 16, splashRadius: 4, splashCls: 'aa',
     heatPerShot: 0.07, coolPerSecond: 0.25, overheatSeconds: 3.5, terrainRadius: 0.8, terrainPower: 40, maxDestroyedBlocks: 2,
     lifetimeMs: 1500, knockback: 3, infantrySplashScale: 0.5, flak: { proximity: 3, armDistance: 25 } }),
+  // Rocket artillery truck (shared/artillery-rules.js): six HE rockets on a high arc, then the pod
+  // reloads. One rocket kills infantry inside ~4 m and hurts out to 8 m, a jeep in two direct hits;
+  // armour takes the HE class (heavy x0.35). Picking the other store swaps the pod (`swapReload`,
+  // server/sim/vehicle-mounts.js): the pod is empty for the new store's full reload, so swapping never beats reloading.
+  artyRocket: weapon('artyRocket', { cooldown: 0.7, magazine: 6, reloadSeconds: 14, swapReload: true, damage: 220, splash: 180, splashRadius: 8,
+    splashCls: 'he', terrainRadius: 3.2, terrainPower: 200, maxDestroyedBlocks: 90, lifetimeMs: 16000, knockback: 24, spreadDeg: 0.5 }),
+  // The cluster carrier: one round, a long reload. `cluster` is its fuse (server/sim/cluster-fuse.js):
+  // on the way down, `height` m over the ground, it bursts into `count` bomblets (`weapon`) thrown
+  // sideways at up to `spread` m/s, so they cover a ~20 m circle. A carrier that hits something
+  // before the burst goes off as one warhead.
+  artyCluster: weapon('artyCluster', { cooldown: 1, magazine: 1, reloadSeconds: 22, swapReload: true, damage: 250, splash: 150, splashRadius: 6,
+    splashCls: 'he', terrainRadius: 2.5, terrainPower: 160, maxDestroyedBlocks: 50, lifetimeMs: 16000, knockback: 20,
+    cluster: { height: 30, count: 14, weapon: 'artyBomblet', spread: 9, sink: 6 } }),
+  artyBomblet: weapon('artyBomblet', { cooldown: 1, damage: 90, splash: 110, splashRadius: 5, splashCls: 'he',
+    terrainRadius: 1.8, terrainPower: 100, maxDestroyedBlocks: 16, lifetimeMs: 8000, knockback: 12 }),
   // Titan mount weapons (shared/vehicle-handling/titan-weapons.js, WP3 numbers).
   ...TITAN_WEAPONS,
 });
@@ -255,6 +273,8 @@ const seatHips = {
   helicopter: { driver: [-0.36, 1.4, -0.95], gunner: [0.36, 1.4, -0.95] },
   transport: { driver: [-0.36, 1.4, -0.95], 'door-left': [-0.95, 1.35, 0.4], 'door-right': [0.95, 1.35, 0.4], 'rear-left': [-0.45, 1.4, 1.2], 'rear-right': [0.45, 1.4, 1.2] },
   plane: { driver: [0, 1.4, -1.17] },
+  // Rocket truck: driver and launcher operator side by side in the cab, the hatch gunner standing behind them.
+  artillery: { driver: [-0.5, 1.7, -2.5], launcher: [0.5, 1.7, -2.5], 'top-gunner': [0, 2.4, -1.9] },
   // The mortar operator crouches behind the baseplate (hip 0.45 m above the ground).
   mortar: { operator: [0.25, 0.45, 0.62] },
   // Helm console amidships, the bow tub gunner standing, two benches in the aft cockpit.
@@ -263,7 +283,7 @@ const seatHips = {
 /** Seats whose hip anchor rides the turret ring (rotates with turretYaw). */
 const turretSeats = { tank: ['commander'] };
 const seatLabels = { driver: 'DRIVER', pilot: 'PILOT', gunner: 'GUNNER', passenger: 'PASSENGER' };
-const seatNames = { operator: 'MORTAR', commander: 'COMMANDER', 'door-left': 'LEFT DOOR', 'door-right': 'RIGHT DOOR', 'front-passenger': 'PASSENGER',
+const seatNames = { operator: 'MORTAR', launcher: 'LAUNCHER', 'top-gunner': 'TOP GUNNER', commander: 'COMMANDER', 'door-left': 'LEFT DOOR', 'door-right': 'RIGHT DOOR', 'front-passenger': 'PASSENGER',
   'rear-left': 'REAR LEFT', 'rear-right': 'REAR RIGHT' };
 /**
  * Per-seat camera profile (WP6 reads it). optic = RMB zoom factor. `views` is
@@ -301,6 +321,10 @@ const seatCameras = {
     'door-left': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.38, 0.45], eyeFrame: 'mount' },
     'door-right': { mode: 'mount', distance: 2.5, height: 0.9, optic: 1.5, views: ['cockpit', 'mount'], eye: [0.22, 0.38, 0.45], eyeFrame: 'mount' } },
   plane: { driver: { mode: 'chase', distance: 17, height: 4.4, views: FLY_VIEWS } },
+  // Rocket truck: the launcher operator gets the indirect-fire view (the mortar's, shared/artillery-rules.js).
+  artillery: { driver: { mode: 'chase', distance: 10.5, height: 3.8, views: DRIVE_VIEWS, eye: [-0.5, 2.4, -2.55] },
+    launcher: { mode: 'mortar', distance: 11, height: 6, views: ['mortar'], eye: [0.5, 2.4, -2.55] },
+    'top-gunner': { mode: 'mount', distance: 4.5, height: 1.6, optic: 1.5, views: ['cockpit', 'mount'], eye: [-0.22, 0.6, 0.6], eyeFrame: 'mount' } },
   // The mortar's own view (public/js/session/vehicle-camera.js): raised behind the tube, toward the aimed impact.
   mortar: { operator: { mode: 'mortar', distance: 5.5, height: 3.2, views: ['mortar'], eye: [0.25, 1.0, 0.55] } },
   boat: { driver: { mode: 'chase', distance: 9, height: 3, views: DRIVE_VIEWS, eye: [-0.35, 2.1, -0.4] },
@@ -355,6 +379,13 @@ const mountAnchors = {
     // Inner wing pylons between the gear and the missile rails: one bomb each.
     bombs: { fixed: true, sides: [[-1.8, 0.8, 0.4], [1.8, 0.8, 0.4]], pivot: [0, 0.8, 0.4], muzzle: 0, yawRate: 0, pitchRate: 0 },
   },
+  // Rocket truck: the six-tube pod on the bed pivots at its rear trunnion (full traverse, elevation
+  // 45..80 degrees, shared/artillery-rules.js). `stow`: unmanned, the pod lies flat along the hull and
+  // fires only once it is raised into its limits (server/sim/vehicle-mounts.js). The .50 rides a ring on the cab roof.
+  artillery: {
+    pod: { pivot: [0, 2.15, 2.35], muzzle: 3.5, yawLimit: null, pitchLimit: [Math.PI / 4, 80 * Math.PI / 180], yawRate: 0.7, pitchRate: 0.55, stow: true },
+    ring: { pivot: [0, 3.2, -2.5], muzzle: 1, yawLimit: null, pitchLimit: [-0.3, 0.8], yawRate: 3, pitchRate: 2.4 },
+  },
   // The tube on its bipod: full traverse, elevation 45..85 degrees (shared/mortar-rules.js).
   mortar: { tube: { pivot: [0, 0.22, 0.12], muzzle: 1.05, yawLimit: null, pitchLimit: [Math.PI / 4, 85 * Math.PI / 180], yawRate: 0.9, pitchRate: 0.5 } },
   // The bow tub's .50 on its ring: 270 degrees ahead and abeam (the helm console is behind it).
@@ -391,6 +422,7 @@ const handlingRules = {
   helicopter: { ...HELICOPTER_RULES, hp: 650, respawnSeconds: 35, enterDistance: 5.5 },
   transport: { ...TRANSPORT_RULES, hp: 600, respawnSeconds: 35, enterDistance: 6 },
   plane: { ...PLANE_RULES, hp: 450, respawnSeconds: 40, enterDistance: 7.5 },
+  artillery: { ...ARTILLERY_TRUCK_RULES, hp: 520, respawnSeconds: 45, enterDistance: 5 },
   // Deployed, never respawned at a pad (server/sim/mortars.js removes the wreck).
   mortar: { hp: 150, respawnSeconds: Infinity, enterDistance: 2.6, radius: 0.75, height: 1.15, maxStep: 0.5, maxSlope: 0.6, speed: 0 },
   boat: { ...BOAT_RULES, hp: 360, respawnSeconds: 20, enterDistance: 5 },
@@ -412,6 +444,8 @@ const shapes = {
   helicopter: { handling: 'rotor', armor: 'air', openCrew: false, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   transport: { handling: 'rotor', armor: 'air', openCrew: true, collider: { halfWidth: 1.5, halfLength: 3.5 }, hullBoxes: HELICOPTER_BOXES },
   plane: { handling: 'fixedwing', armor: 'air', openCrew: false, collider: { halfWidth: 4.5, halfLength: 5 }, hullBoxes: PLANE_BOXES, gearBoxes: [7, 8] },
+  // The rocket truck: a closed cab (only the hatch gunner is exposed), light armour.
+  artillery: { handling: 'wheeled', armor: 'light', openCrew: false, collider: { halfWidth: 1.35, halfLength: 3.6 } },
   // An emplacement: static, crushed by hulls rather than blocking them, and its
   // operator survives its loss (crewSurvives: he is put beside it).
   mortar: { handling: 'emplacement', armor: 'light', openCrew: true, crewSurvives: true, deployable: true, collider: { halfWidth: 0.45, halfLength: 0.55 } },
@@ -430,6 +464,7 @@ const destruction = {
   transport: { radius: 9, damage: 190, damageFalloffExponent: 1.22 },
   plane: { radius: 10, damage: 200, damageFalloffExponent: 1.22 },
   mortar: { radius: 3, damage: 40, damageFalloffExponent: 1.22 },
+  artillery: { radius: 9, damage: 200, damageFalloffExponent: 1.22 },
   boat: { radius: 7, damage: 140, damageFalloffExponent: 1.22 },
   // A drone shot down only pops: the shaped charge fires on impact or the trigger (shared/fpv-rules.js).
   fpv: { radius: 1.5, damage: 20, damageFalloffExponent: 1.22 },

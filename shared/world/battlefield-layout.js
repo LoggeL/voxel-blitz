@@ -95,12 +95,13 @@ export function battlefieldLayoutKit({ dimensions, topY, waterY = () => 0, walkT
     const p = (x, z) => ({ ...feet(x, z) });
     const b = p(base.x, base.z);
     const [heli, transport] = HQ_LAYOUT.helipads;
-    const jeep = HQ_LAYOUT.jeep, tank = HQ_LAYOUT.tank, jeepAt = HQ_LAYOUT.jeep_at, aa = HQ_LAYOUT.aaVehicle, r = HQ_LAYOUT.runway;
+    const jeep = HQ_LAYOUT.jeep, tank = HQ_LAYOUT.tank, jeepAt = HQ_LAYOUT.jeep_at, aa = HQ_LAYOUT.aaVehicle, arty = HQ_LAYOUT.artillery, r = HQ_LAYOUT.runway;
     return {
       jeep: [b, p(110.5, base.z), p(110.5, jeep.z), p(jeep.x - 3.2, jeep.z)],
       tank: [b, p(110.5, base.z), p(110.5, tank.z), p(tank.x - 4.1, tank.z)],
       jeep_at: [b, p(110.5, base.z), p(110.5, jeepAt.z), p(jeepAt.x - 3.2, jeepAt.z)],
       aa: [b, p(110.5, base.z), p(110.5, aa.z), p(aa.x - 4.1, aa.z)],
+      artillery: [b, p(110.5, base.z), p(110.5, arty.z), p(arty.x - 4.6, arty.z)],
       helicopter: [b, p(110.5, base.z), p(110.5, heli.z + 14), p(heli.x, heli.z + 5)],
       transport: [b, p(110.5, base.z), p(110.5, transport.z - 14), p(transport.x, transport.z - 5.5)],
       plane: [b, p(62.5, base.z), p(62.5, r.takeoffStartZ), p(r.x + 6.5, r.takeoffStartZ)],
@@ -156,10 +157,11 @@ export function battlefieldLayoutKit({ dimensions, topY, waterY = () => 0, walkT
       const team = field.team, routes = field.routesByVehicle;
       const hqPos = (alphaPos) => (team === 'alpha' ? feet(alphaPos.x, alphaPos.z) : mirrorFeet(alphaPos));
       // The mobile AA parks in the motor pool's south bay (HQ_LAYOUT.aaVehicle).
-      for (const type of ['jeep', 'tank', 'jeep_at', 'aa']) {
+      for (const type of ['jeep', 'tank', 'jeep_at', 'aa', 'artillery']) {
         const pad = type === 'aa' ? HQ_LAYOUT.aaVehicle : HQ_LAYOUT[type], at = hqPos(pad);
         // Drive east out of the motor pool, then north onto the paved axis.
-        const out = hqPos({ x: pad.x + 12, z: pad.z }), road = hqPos({ x: pad.x + 12, z: HQ_LAYOUT.base.z });
+        const lane = HQ_LAYOUT.jeep.x + 12;
+        const out = hqPos({ x: lane, z: pad.z }), road = hqPos({ x: lane, z: HQ_LAYOUT.base.z });
         spawns.push({ id: `${team}-${type}`, team, type, ...at, yaw: yawFor(team, pad.yaw),
           walkingRoute: routes[type], exitRoute: [at, out, road] });
       }
@@ -268,7 +270,7 @@ export function battlefieldReservedCells(conquest) {
   for (const f of conquest.flags) for (const s of f.spawns) around(s, 1, 3, `spawn ${f.id}`);
   for (const b of Object.values(conquest.bases)) for (const s of b.spawns) around(s, 1, 4, `spawn ${b.id}`);
   for (const v of conquest.vehicleSpawns) {
-    const r = v.type === 'tank' || v.type === 'aa' ? 4.5 : v.type === 'jeep' || v.type === 'jeep_at' ? 3.5 : 0;
+    const r = v.type === 'tank' || v.type === 'aa' || v.type === 'artillery' ? 4.5 : v.type === 'jeep' || v.type === 'jeep_at' ? 3.5 : 0;
     if (!r) continue;
     around(v, r, 5, v.id);
     if (Number.isFinite(v.altX)) around({ x: v.altX, z: v.altZ }, r, 5, `${v.id} alt`);

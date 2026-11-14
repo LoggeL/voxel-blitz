@@ -18,7 +18,7 @@ import { CONQUEST_POUCH_BUDGET_BYTES, conquestMatchBytes, CONQUEST_MATCH_BUDGET_
 const R = AMMO_POUCH_RULES;
 
 // ---------------------------------------------------------------- contract and codec
-assert.equal(CONQUEST_CONTRACT_VERSION, 8, 'the pouches are contract v8');
+assert.equal(CONQUEST_CONTRACT_VERSION, 9, 'the pouches are contract v8');
 assert.equal(CONQUEST_EVENT_KINDS[CONQUEST_EVENT_KINDS.indexOf('fpv') + 1], 'ammo_pouch', 'ammo_pouch is appended after fpv');
 assert.deepEqual([R.lifetimeMs, R.maxActive, R.radius, R.grant.mags, R.grant.grenades], [30000, 32, 1.6, 1, 0]);
 assert.deepEqual(encodeAmmoPouches([{ id: 7, x: 10.04, y: 2, z: -3.26 }]), [[7, 10, 2, -3.3]]);

@@ -37,6 +37,7 @@ import * as THREE from '../vendor/three.module.js';
 import { vehicleDef, mountPose, vehicleDirection, vehicleLocalPoint, turretLocal } from '../../../shared/vehicle-defs.js';
 import { vehicleSeatPose } from '../../../shared/vehicles.js';
 import { mortarFlatRange } from '../../../shared/mortar-rules.js';
+import { indirectFireRules } from '../../../shared/artillery-rules.js';
 
 /** Camera tuning (presentation only). */
 export const VEHICLE_CAMERA = Object.freeze({
@@ -620,7 +621,8 @@ export class VehicleCamera {
     const pose = seat?.mounts?.length ? mountPose(row, seatId, seat.mounts[0]) : null;
     const pivot = pose?.pivot || [finite(row.x), finite(row.y) + 0.4, finite(row.z)];
     const yaw = wrap(aimYaw + this._freeYaw);
-    const range = Math.max(0, mortarFlatRange(aimPitch));
+    // The seat's own ballistics (the mortar's bomb, the rocket truck's rocket).
+    const range = Math.max(0, mortarFlatRange(aimPitch, indirectFireRules(row.type ?? row.kind, seatId) ?? undefined));
     const forward = [-Math.sin(yaw), -Math.cos(yaw)];
     const impact = [pivot[0] + forward[0] * range, finite(row.y), pivot[2] + forward[1] * range];
     this.mortarImpact = impact;

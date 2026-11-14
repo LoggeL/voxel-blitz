@@ -112,6 +112,8 @@ export const DEPOT_SUPPORT_DAMAGE = Object.freeze({
   rocket: 100, guidedMissile: 100, towMissile: 100, tankHE: 115, tankAP: 60, jetBomb: 420, atmine: 150,
   helicopterRocket: 40, mortarHE: 75, mgl: 40, frag: 30, limpet: 60, flak35: 3,
   chinCannon: 5, hmg: 1.5, planeCannon: 2,
+  // The rocket truck (shared/artillery-rules.js): nine HE rockets, a bomblet a little over half a mortar round.
+  artyRocket: 100, artyCluster: 100, artyBomblet: 40,
 });
 
 /**
@@ -150,7 +152,7 @@ export function depotColumnRadius(column, ageMs, leftMs) {
 }
 
 /** Hull types the forecourt services (ground hulls, and the rotor craft hovering or landed over it). */
-export const DEPOT_SERVICE_TYPES = Object.freeze(['jeep', 'jeep_at', 'tank', 'aa', 'mortar', 'helicopter', 'transport']);
+export const DEPOT_SERVICE_TYPES = Object.freeze(['jeep', 'jeep_at', 'tank', 'aa', 'mortar', 'helicopter', 'transport', 'artillery']);
 export const DEPOT_AIR_TYPES = Object.freeze(['helicopter', 'transport']);
 
 /** The shared tuning of both definitions (each adds its `side` and `sites`). */

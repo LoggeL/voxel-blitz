@@ -1,7 +1,7 @@
 /** Frozen cross-package contract for Conquest v2. Edit only through the integrator (WP9). */
 // Titanfall additive helpers (docs/titanfall.md §2.3): conquest types resolve first, titan types second.
 import { TITAN_TOPOLOGY, TITAN_WEAPON_META } from './titan-contract.js';
-export const CONQUEST_CONTRACT_VERSION = 8;
+export const CONQUEST_CONTRACT_VERSION = 9;
 export const CONQUEST_TEAMS = Object.freeze(['alpha', 'bravo']);
 export const TEAM_DISPLAY = Object.freeze({ alpha: 'WEST', bravo: 'EAST' });
 
@@ -295,7 +295,7 @@ export const DAMAGE_CLASSES = Object.freeze(['small', 'mg', 'hmg', 'autocannon',
 export const ARMOR_CLASSES = Object.freeze(['light', 'heavy', 'air', 'medium', 'drone']);
 export const HIT_ZONES = Object.freeze(['front', 'side', 'rear', 'top', 'bottom']);
 
-export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa', 'boat']);
+export const VEHICLE_TYPE_IDS = Object.freeze(['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa', 'boat', 'artillery']);
 /**
  * Hull variants: a type that shares another type's hull (handling, collider,
  * seats, model and sounds) but arms it differently. The AT jeep is the jeep
@@ -320,7 +320,9 @@ export const isDeployableType = type => typeof type === 'string' && DEPLOYABLE_T
  */
 export const CRATE_TYPE_IDS = Object.freeze(['ammocrate', 'medcrate']);
 export const isCrateType = type => typeof type === 'string' && CRATE_TYPE_IDS.includes(type);
-export const VEHICLE_HULL_VARIANTS = Object.freeze({ jeep_at: 'jeep', aa: 'tank' });
+// The rocket artillery truck (`artillery`, v9) drives on the jeep's wheeled gear (drive stepper, engine
+// and tyre sounds) and fills every per-hull table of its own (shared/vehicle-defs.js).
+export const VEHICLE_HULL_VARIANTS = Object.freeze({ jeep_at: 'jeep', aa: 'tank', artillery: 'jeep' });
 export const vehicleHullType = type => VEHICLE_HULL_VARIANTS[type] ?? type;
 export const VEHICLE_WEAPON_META = Object.freeze({
   // Tank main gun: real cannon shells (`shell` presentation: tracer streak, no rocket
@@ -349,8 +351,14 @@ export const VEHICLE_WEAPON_META = Object.freeze({
   // Mobile AA twin 35 mm: radar-proximity-fused flak shells (VEHICLE_WEAPONS.flak35.flak),
   // `aa` class (strong on aircraft, weak on ground armour), the left and right gun in turn.
   flak35:           Object.freeze({ label: '35MM FLAK',  kind: 'shell',   cls: 'aa',         speed: 320, gravity: 4, rate: 8,       presentation: 'mgl' }),
+  // Rocket artillery truck (v9, shared/artillery-rules.js): the pod's HE rocket and its cluster
+  // carrier fly one ballistic arc (same speed and gravity, so one sight solves both). The carrier
+  // bursts over the ground into `artyBomblet`s (VEHICLE_WEAPONS.artyCluster.cluster), which no seat fires.
+  artyRocket:       Object.freeze({ label: 'HE ROCKET',  kind: 'rocket',  cls: 'he',         speed: 75,  gravity: 14, rate: 1 / 0.7, presentation: 'rocket' }),
+  artyCluster:      Object.freeze({ label: 'CLUSTER',    kind: 'rocket',  cls: 'he',         speed: 75,  gravity: 14, rate: 1,       presentation: 'rocket' }),
+  artyBomblet:      Object.freeze({ label: 'BOMBLET',    kind: 'shell',   cls: 'he',         speed: 0,   gravity: 14, rate: 1,       presentation: 'bomb' }),
 });
-export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, mortar: null, aa: 'smoke', boat: null, fpv: null });
+export const COUNTERMEASURES = Object.freeze({ tank: 'smoke', helicopter: 'flares', transport: 'flares', plane: 'flares', jeep: null, jeep_at: null, mortar: null, aa: 'smoke', boat: null, fpv: null, artillery: null });
 
 /** Seat and mount topology. Order is significant (F1..F5, mounts[] in snapshot rows). Positions/anchors live in shared/vehicle-defs.js. */
 const S = (id, role, drives, exposed, personalWeapons, mounts) => Object.freeze({ id, role, drives, exposed, personalWeapons, mounts: Object.freeze(mounts) });
@@ -407,6 +415,13 @@ export const VEHICLE_TOPOLOGY = Object.freeze({
     S('gunner', 'gunner', false, true, false, [M('bow', ['hmg'])]),
     S('rear-left', 'passenger', false, true, true, []),
     S('rear-right', 'passenger', false, true, true, []),
+  ]),
+  // Rocket artillery truck (v9): a driver and a launcher operator in the closed cab (the operator
+  // lays the pod and cycles HE rockets and the cluster carrier), a .50 in the cab roof hatch.
+  artillery: Object.freeze([
+    S('driver', 'driver', true, false, false, []),
+    S('launcher', 'gunner', false, false, false, [M('pod', ['artyRocket', 'artyCluster'])]),
+    S('top-gunner', 'gunner', false, true, false, [M('ring', ['hmg'])]),
   ]),
   // Deployable (v7): the Engineer's FPV drone. No seat: its operator flies it
   // from where he crouches (server/sim/fpv-drones.js), so nobody boards it.

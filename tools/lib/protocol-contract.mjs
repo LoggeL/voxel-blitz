@@ -61,7 +61,9 @@ export function conquestMatchBytes(matchConquest) {
 // v7: the map events (shared/conquest-map-events.js): `match.conquest.ev` / `evp` rows, the `map_event` event and score reason, the `use` support intent; and the Engineer's FPV drone (deploy `gadget` 2, `fpv` intent and event, deployable `fpv` hull rows with `own` and `fpv`, `drone` armour class, `fpv` kill key, `cqf` player field).
 // v8: Conquest infantry supply: the ammo pouches of the fallen (`match.conquest.pch` rows `[id, x, y, z]` on change and keyframe ticks, the `ammo_pouch` event).
 // v8: infantry supply; the supply crates (shared/supply-crates.js): Support gadget 0 `ammocrate`, Medic gadget 0 `medcrate`, the `crate` intent, the `supply_crate` event, `match.conquest.crates` rows.
-export const CONQUEST_CONTRACT = Object.freeze({ version: 8 });
+// v9: the rocket artillery truck: vehicle type `artillery` (appended to VEHICLE_TYPE_IDS), weapons artyRocket / artyCluster / artyBomblet,
+// the `burst` flag on the cluster carrier's explode event.
+export const CONQUEST_CONTRACT = Object.freeze({ version: 9 });
 export const CONQUEST_KIT_IDS = 'assault,engineer,support,recon,medic,pyro,grenadier,raider,marksman';
 /** Event kinds added by the classes update: the Medic aura `heal {id, by, hp}` and `kit_unlocks {id, level, unlocked, newly}`. */
 export const CONQUEST_CLASS_EVENT_KINDS = 'heal,kit_unlocks';

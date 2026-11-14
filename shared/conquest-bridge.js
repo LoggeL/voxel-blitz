@@ -75,6 +75,8 @@ export const IRON_BRIDGE_RULES = Object.freeze({
     // rounds, five magazines) and the mobile AA's 35 mm flak (a small fused
     // shell at 8 rounds/s: 250 hits, half a minute of fire on one support).
     mortarHE: 40, flak35: 4,
+    // The rocket truck: an HE rocket like an RX-8 (a full pod of six takes 600 at most), a bomblet a small charge.
+    artyRocket: 100, artyCluster: 100, artyBomblet: 25,
   }),
   /** Bodies standing on the span when it goes: infantry damage and hull share of max HP (kill key `collapse`). */
   spanCrush: Object.freeze({ infantry: 45, hullFraction: 0.2, above: 4 }),

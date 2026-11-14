@@ -5,8 +5,9 @@ import { isBotId } from '../../../shared/conquest.js';
 import { isTypingTarget, matchesBinding } from '../keybindings.js';
 import { VehicleCamera, VEHICLE_CAMERA } from './vehicle-camera.js';
 import { isTitanType } from '../../../shared/titan-contract.js';
-import { MORTAR_RULES, mortarAim, mortarSnapTargets } from '../../../shared/mortar-rules.js';
-import { VEHICLE_DEFS, vehicleDef } from '../../../shared/vehicle-defs.js';
+import { mortarAim, mortarSnapTargets } from '../../../shared/mortar-rules.js';
+import { indirectFireRules } from '../../../shared/artillery-rules.js';
+import { VEHICLE_DEFS, vehicleDef, clampMountAim } from '../../../shared/vehicle-defs.js';
 /**
  * Upper look limit of a ground seat: `floor` (a driver 0.65 rad, a gunner
  * 0.9), or higher when the seat lays a gun that elevates further: a driver's
@@ -133,8 +134,8 @@ export class VehicleController {
     this._keyUp = event => this._keyRelease(event);
     this._mouseDown = event => {
       if (event.button !== 2) return;
-      // The mortar's RMB lays the tube on the spotted enemy nearest the aimed impact.
-      if (this.active && this.type === MORTAR_RULES.type) { this.snapMortar(); return; }
+      // An indirect-fire seat's RMB (the mortar, the rocket truck's launcher) lays the tube on the spotted enemy nearest the aimed impact.
+      if (this.indirect) { this.snapMortar(); return; }
       this._setOptic(true);
     };
     /**
@@ -184,6 +185,8 @@ export class VehicleController {
   get seatId() { return this.seat?.id ?? null; }
   get role() { return this.seat?.role ?? null; }
   get isDriver() { return !!this.seat?.drives; }
+  /** Fire-control rules of an indirect-fire seat (shared/artillery-rules.js: the mortar, the rocket truck's launcher), else null. */
+  get indirect() { return this.active ? indirectFireRules(this.type, this.seatId) : null; }
   get type() { return this.vehicle ? this.vehicle.type ?? this.vehicle.kind : null; }
   /** True while seated in a titanfall walker. */
   get titan() { return isTitanType(this.type); }
@@ -466,13 +469,17 @@ export class VehicleController {
     const type = this.type, flying = aircraft(type);
     const dx = finite(look?.dx), dy = finite(look?.dy);
     const wantsFire = this.canFire && !!fire && !this.freeLook;
-    if (!this.isDriver && type === MORTAR_RULES.type) {
-      // Mortar: mouse X traverses, mouse forward lowers the tube toward 45 degrees
-      // (farther), back raises it (nearer), at half the look rate for fine laying.
+    const indirect = this.isDriver ? null : this.indirect;
+    if (indirect) {
+      // Mortar and rocket pod: mouse X traverses, mouse forward lowers the tube toward
+      // 45 degrees (farther), back raises it (nearer), at a reduced look rate for fine laying.
       if (this.freeLook) this.view.addFreeLook(dx, dy);
       else {
         this.yaw = wrap(finite(this.yaw) - dx);
-        this.pitch = clamp(finite(this.pitch, MORTAR_RULES.restPitch) + dy * 0.5, MORTAR_RULES.minPitch, MORTAR_RULES.maxPitch);
+        const pitch = finite(this.pitch, indirect.restPitch);
+        this.pitch = clamp((pitch < indirect.minPitch ? indirect.restPitch : pitch) + dy * indirect.lookScale, indirect.minPitch, indirect.maxPitch);
+        // On a slope the mount's limits tilt with the hull: hold the aim where the server's clamp will put the tube.
+        this.pitch = clampMountAim(this.vehicle, indirect.mount, this.yaw, this.pitch).pitch;
       }
       return { yaw: this.yaw, pitch: this.pitch, wantFire: wantsFire };
     }
@@ -605,7 +612,8 @@ export class VehicleController {
    * arc solve (mortarAim). Returns the snap { target, at } or null.
    */
   snapMortar() {
-    if (!this.active || this.type !== MORTAR_RULES.type) return null;
+    const rules = this.indirect;
+    if (!rules) return null;
     const impact = this.view.mortarImpact;
     let targets = [];
     try {
@@ -613,17 +621,17 @@ export class VehicleController {
         : mortarSnapTargets({ players: this.players, vehicles: this.rows, team: this.self?.team ?? null });
     } catch (_) { targets = []; }
     if (!impact || !targets.length) return null;
-    let best = null, bestDistance = MORTAR_RULES.snapRadius;
+    let best = null, bestDistance = rules.snapRadius;
     for (const target of targets) {
       if (!Array.isArray(target) || !target.every(Number.isFinite)) continue;
       const distance = Math.hypot(target[0] - impact[0], target[2] - impact[2]);
       if (distance > bestDistance) continue;
-      const aim = mortarAim(this.vehicle, VEHICLE_DEFS.mortar.mounts[MORTAR_RULES.mount], target);
+      const aim = mortarAim(this.vehicle, VEHICLE_DEFS[rules.type].mounts[rules.mount], target, rules);
       if (!Number.isFinite(aim?.pitch)) continue;
       best = { target, aim }; bestDistance = distance;
     }
     if (!best) return null;
-    this.yaw = wrap(best.aim.yaw); this.pitch = best.aim.pitch;
+    this.yaw = wrap(best.aim.yaw); this.pitch = clampMountAim(this.vehicle, rules.mount, this.yaw, best.aim.pitch).pitch;
     this.mortarSnap = { target: [...best.target], at: this.now() };
     return this.mortarSnap;
   }

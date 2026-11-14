@@ -98,11 +98,11 @@ assert.ok(redrockWaterY(384, 300) >= plan.river.reservoir.surfaceY, 'the reservo
 assert.ok(redrockWaterY(Math.round(riverCentreX(450)), 450) === plan.river.surfaceY, 'the canyon river runs south of the dam');
 assert.ok(redrockTopY(330, 450) - redrockTopY(Math.round(riverCentreX(450)) - 8, 450) >= 6, 'the south canyon is walled');
 
-// --------------------------------------------------- fleet (19 hulls)
+// --------------------------------------------------- fleet (21 hulls)
 const fleet = c.vehicleSpawns;
-assert.equal(fleet.length, 19);
+assert.equal(fleet.length, 21);
 const expected = [
-  ...['alpha', 'bravo'].flatMap(team => ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa'].map(type => [`${team}-${type}`, team, type, undefined])),
+  ...['alpha', 'bravo'].flatMap(team => ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa', 'artillery'].map(type => [`${team}-${type}`, team, type, undefined])),
   ['flag-A-jeep', 'alpha', 'jeep', 'A'], ['flag-B-jeep', 'alpha', 'jeep', 'B'], ['flag-C-tank', null, 'tank', 'C'],
   ['flag-D-jeep', 'bravo', 'jeep', 'D'], ['flag-E-jeep', 'bravo', 'jeep', 'E'],
 ];
@@ -119,7 +119,7 @@ for (const v of fleet) {
 const cTank = fleet.find(v => v.id === 'flag-C-tank');
 assert.ok(cTank.x < 384 && cTank.altX > 384, 'C tank: west pad for alpha, east alt pad for bravo');
 assert.equal(cTank.altY, feetY(cTank.altX, cTank.altZ));
-for (const type of ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa']) {
+for (const type of ['jeep', 'tank', 'helicopter', 'transport', 'plane', 'jeep_at', 'aa', 'artillery']) {
   const a = fleet.find(v => v.id === `alpha-${type}`), b = fleet.find(v => v.id === `bravo-${type}`);
   assert.ok(Math.abs(a.x + b.x - 768) < 1e-9 && Math.abs(a.z + b.z - 768) < 1e-9, `${type} pads are point-mirrored`);
 }

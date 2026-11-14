@@ -26,13 +26,13 @@ const sample = (route, visit) => {
   }
 };
 
-assert.equal(hulls.length, 23, 'twenty-three hulls');
-assert.equal(new Set(hulls.map(v => v.id)).size, 23);
+assert.equal(hulls.length, 25, 'twenty-five hulls');
+assert.equal(new Set(hulls.map(v => v.id)).size, 25);
 const seats = {};
 for (const team of ['alpha', 'bravo']) {
   const fleet = hulls.filter(v => v.team === team);
-  assert.equal(fleet.length, 11, `${team}: HQ seven, two flag jeeps and two river boats`);
-  assert.deepEqual(fleet.map(v => v.type).sort(), ['aa', 'boat', 'boat', 'helicopter', 'jeep', 'jeep', 'jeep', 'jeep_at', 'plane', 'tank', 'transport']);
+  assert.equal(fleet.length, 12, `${team}: HQ eight, two flag jeeps and two river boats`);
+  assert.deepEqual(fleet.map(v => v.type).sort(), ['aa', 'artillery', 'boat', 'boat', 'helicopter', 'jeep', 'jeep', 'jeep', 'jeep_at', 'plane', 'tank', 'transport']);
   seats[team] = fleet.reduce((sum, v) => sum + vehicleSeats(v).length, 0);
 }
 const cTank = parked.vehicles.get('flag-C-tank');

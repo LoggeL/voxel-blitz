@@ -7,6 +7,7 @@
 import { VEHICLE_DAMAGE_RULES, VEHICLE_WEAPONS, vehicleDef, mountPose, clampMountAim, seatWeaponList, bombReleaseVelocity } from '../../shared/vehicle-defs.js';
 import { TANK_SUBSYSTEMS } from '../../shared/tank-armor.js';
 import { raycastVoxels } from '../../shared/raycast.js';
+import { artilleryFlatImpact, artilleryTargetRefusal } from '../../shared/artillery-rules.js';
 import { fireMountedRay } from './combat.js';
 import { evVehicleShoot } from '../protocol/events.js';
 import { isTitanType } from '../../shared/titan-contract.js';
@@ -35,6 +36,9 @@ function clampAim(vehicle, mountId, yaw, pitch) {
   if (entries.length > 2) entries.pop();
   return result;
 }
+
+/** A stowing mount counts as laid within this many radians of its operator's clamped aim. */
+const STOW_LAID = 0.012;
 
 /** Small deterministic spread generator per mount (xorshift on a seeded state). */
 function nextRandom(state) {
@@ -111,6 +115,8 @@ export class VehicleMounts {
       // Loading a different shell into the shared breech restarts its reload.
       const cooldown = VEHICLE_WEAPONS[weapon].cooldown;
       if (VEHICLE_WEAPONS[weapon].sharedCooldown) state.cooldown = Math.max(state.cooldown, Math.min(cooldown, 1));
+      // Swapping the store of a magazine mount (the rocket truck's pod): the pod is empty until the new store's full reload is done.
+      if (VEHICLE_WEAPONS[weapon].swapReload) { state.ammo = 0; state.rearm.length = 0; state.reloadT = mountSeconds(vehicle, state, 'reload'); }
     }
     return true;
   }
@@ -133,12 +139,15 @@ export class VehicleMounts {
         if (!state || mount.slavedTo) continue;
         if (mount.fixed) { state.yaw = finite(vehicle.yaw); state.pitch = finite(vehicle.pitch); continue; }
         const desired = input && Number.isFinite(input.yaw) ? { yaw: input.yaw, pitch: finite(input.pitch) } : { yaw: state.yaw, pitch: state.pitch };
-        const target = clampAim(vehicle, mountId, desired.yaw, desired.pitch);
+        // An unmanned stowing mount (the rocket truck's pod) lies down along the hull, outside its firing limits.
+        const stowed = mount.stow && !operator;
+        const target = stowed ? { yaw: finite(vehicle.yaw), pitch: finite(vehicle.pitch) } : clampAim(vehicle, mountId, desired.yaw, desired.pitch);
         const ring = mount.turret ? ringScale : 1;
         const yawStep = mount.yawRate * slewScale * ring * dt, pitchStep = mount.pitchRate * slewScale * ring * dt;
         state.yaw = wrap(state.yaw + clamp(wrap(target.yaw - state.yaw), -yawStep, yawStep));
         state.pitch = state.pitch + clamp(target.pitch - state.pitch, -pitchStep, pitchStep);
         // The hull may have turned under a limited mount: stay inside the arc.
+        if (mount.stow) continue;
         const held = clampAim(vehicle, mountId, state.yaw, state.pitch);
         state.yaw = held.yaw; state.pitch = held.pitch;
       }
@@ -199,8 +208,15 @@ export class VehicleMounts {
     const mount = vehicleDef(vehicle).mounts[mountId];
     // Bombs drop only from an airborne hull (never onto the runway under it).
     if (weapon.kind === 'bomb' && vehicle.grounded !== false) return false;
+    // A stowing mount (the rocket truck's pod) fires only once it is raised and laid on its operator's aim.
+    if (mount.stow) {
+      const input = operator?.input, laid = clampAim(vehicle, mountId, finite(input?.yaw, state.yaw), finite(input?.pitch, state.pitch));
+      if (Math.abs(wrap(laid.yaw - state.yaw)) > STOW_LAID || Math.abs(laid.pitch - state.pitch) > STOW_LAID) return false;
+    }
     const pose = mountPose(vehicle, seat.id, mountId, { side: state.side });
     if (!pose || this.obstructed(pose)) return false;
+    // The rocket truck never shells an HQ (shared/artillery-rules.js).
+    if (mount.stow && artilleryTargetRefusal(this.engine.mapMeta?.conquest, ...artilleryFlatImpact(pose.origin, state.yaw, state.pitch))) return false;
     const engine = this.engine;
     let result = null, dir = pose.dir;
     if (weapon.kind === 'bomb') {

@@ -33,6 +33,8 @@ export const HQ_LAYOUT = Object.freeze({
   // The mobile AA parks in the motor pool's south bay, past the tank (not the
   // static AA pits in `aa` below).
   aaVehicle: { x: 126.5, z: 433.5, yaw: -Math.PI / 2 },
+  // The rocket artillery truck parks on the pool's west apron, nose into the lane between the jeep and AT jeep bays.
+  artillery: { x: 117.5, z: 409.5, yaw: -Math.PI / 2 },
   aa: [{ x: 134, z: 226 }, { x: 134, z: 542 }],
   spawns: [[84.5, 374.5], [90.5, 374.5], [96.5, 374.5], [102.5, 374.5], [84.5, 393.5], [90.5, 393.5], [96.5, 393.5], [102.5, 393.5]],
   roundel: { x: 106, y: 9, z: 245 },

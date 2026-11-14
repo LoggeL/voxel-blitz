@@ -20,7 +20,7 @@ import { conquestTouchFields, crateMapItems, crateMarkerModels, kitCards, supply
 
 // ---------------------------------------------------------------- contract, kits, rules, codec
 {
-  assert.equal(CONQUEST_CONTRACT_VERSION, 8);
+  assert.equal(CONQUEST_CONTRACT_VERSION, 9);
   assert.deepEqual(KITS.support.gadgets, ['ammocrate', 'mortar'], 'the ammo crate is the Support default');
   assert.deepEqual(KITS.medic.gadgets, ['medcrate']);
   assert.deepEqual(CRATE_TYPE_IDS, ['ammocrate', 'medcrate']);

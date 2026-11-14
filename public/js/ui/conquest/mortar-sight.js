@@ -15,6 +15,7 @@
 import { VEHICLE_WEAPON_META } from '../../../../shared/conquest-contract.js';
 import * as vehicleDefs from '../../../../shared/vehicle-defs.js';
 import { MORTAR_RULES, mortarFlatRange, mortarFlatTime, mortarRangeEnvelope } from '../../../../shared/mortar-rules.js';
+import { indirectFireRules, artilleryTargetRefusal } from '../../../../shared/artillery-rules.js';
 import { mountPoseOf, mountState, seatWeapons, minimapPlacement } from '../conquest-hud-state.js';
 import { ballisticImpact } from './projection.js';
 import { el } from '../hud-support.js';
@@ -33,22 +34,27 @@ const AMBER = '#ffd166';
 export const MORTAR_HINT_MS = 10000;
 
 /**
- * Read model of the sight, or null when the seat is no mortar operator.
+ * Read model of the sight, or null when the seat is no indirect-fire seat
+ * (the mortar's operator or the rocket truck's launcher, shared/artillery-rules.js:
+ * the truck's sight follows the selected store, HE rockets or the cluster carrier).
  * `items`: mapItems(); `raycast(origin, dir, max)` the world picker (skips
  * water like the server's projectile cast); `aim` { yaw, pitch } the
  * operator's aim; `snap` the controller's last RMB snap { target, at };
  * `projector` for the in-world ring; `nowMs` a monotonic clock for the snap.
  */
-export function mortarSightModel(seated, { items = [], raycast = null, aim = null, snap = null, projector = null, nowMs = 0,
+export function mortarSightModel(seated, { items = [], raycast = null, aim = null, snap = null, projector = null, nowMs = 0, meta: mapMeta = null,
   registry = vehicleDefs } = {}) {
   const row = seated?.row, seat = seated?.seat;
-  if (row?.type !== MORTAR_RULES.type || seat?.id !== MORTAR_RULES.seat) return null;
-  const state = mountState(row, seat.id, MORTAR_RULES.mount);
+  const rules = indirectFireRules(row?.type, seat?.id);
+  if (!rules) return null;
+  const state = mountState(row, seat.id, rules.mount);
   if (!state) return null;
-  const weapon = seatWeapons(row, seat.id)[0] || null;
-  const meta = VEHICLE_WEAPON_META[MORTAR_RULES.weapon] || {};
-  const def = registry?.vehicleWeapon?.(MORTAR_RULES.weapon) ?? null;
-  const pose = mountPoseOf(row, seat.id, MORTAR_RULES.mount, registry);
+  const weapons = seatWeapons(row, seat.id);
+  const weapon = weapons.find(entry => entry.selected) || weapons[0] || null;
+  const weaponKey = weapon?.weapon ?? rules.weapon;
+  const meta = VEHICLE_WEAPON_META[weaponKey] || {};
+  const def = registry?.vehicleWeapon?.(weaponKey) ?? null;
+  const pose = mountPoseOf(row, seat.id, rules.mount, registry);
   const origin = pose?.origin ?? [finite(row.x), finite(row.y) + 1, finite(row.z)];
   const yaw = state.yaw, pitch = state.pitch;
   const forward = [-Math.sin(yaw), -Math.cos(yaw)];
@@ -56,21 +62,21 @@ export function mortarSightModel(seated, { items = [], raycast = null, aim = nul
   // no ground within the round's life) the flat-ground solution at the hull.
   const landed = pose && raycast ? ballisticImpact(pose.origin, pose.dir, meta.speed, meta.gravity, raycast,
     { maxSeconds: finite(def?.lifetimeMs, 14000) / 1000, step: 0.1 }) : null;
-  const flatRange = mortarFlatRange(pitch);
+  const flatRange = mortarFlatRange(pitch, rules);
   const impact = landed?.point ?? [origin[0] + forward[0] * flatRange, finite(row.y), origin[2] + forward[1] * flatRange];
   const range = landed ? landed.range : flatRange;
-  const tof = landed ? landed.time : mortarFlatTime(pitch);
+  const tof = landed ? landed.time : mortarFlatTime(pitch, rules);
   // The operator's aim while the tube still slews toward it.
   let laying = null;
   if (aim && Number.isFinite(aim.yaw) && Number.isFinite(aim.pitch)) {
     const off = Math.max(Math.abs(wrap(aim.yaw - yaw)), Math.abs(aim.pitch - pitch));
     if (off > LAID) {
-      const r = mortarFlatRange(aim.pitch);
+      const r = mortarFlatRange(aim.pitch, rules);
       laying = { x: origin[0] - Math.sin(aim.yaw) * r, z: origin[2] - Math.cos(aim.yaw) * r, range: Math.round(r) };
     }
   }
   const center = { x: finite(row.x), z: finite(row.z) };
-  const reach = MORTAR_RULES.sightRange;
+  const reach = rules.sightRange;
   const targets = items.filter(item => (item.kind === 'spotted' || (item.kind === 'vehicle' && item.rel === 'spotted'))
     && Math.hypot(item.x - center.x, item.z - center.z) <= reach)
     .map(item => ({ id: item.id, x: item.x, z: item.z, vehicleType: item.vehicleType ?? null }));
@@ -79,17 +85,22 @@ export function mortarSightModel(seated, { items = [], raycast = null, aim = nul
   const screen = projector ? projector.project(impact[0], impact[1], impact[2]) : null;
   const magazine = finite(def?.magazine, 5);
   const ammo = Number.isFinite(weapon?.ammo) && weapon.ammo >= 0 ? weapon.ammo : magazine;
-  const envelope = mortarRangeEnvelope();
+  const envelope = mortarRangeEnvelope(rules);
+  // A cluster carrier's footprint: its bomblets' throw over their fall (server/sim/cluster-fuse.js).
+  const cluster = def?.cluster ?? null;
+  const fall = cluster ? (-cluster.sink + Math.sqrt(cluster.sink ** 2 + 2 * finite(meta.gravity, 14) * cluster.height)) / finite(meta.gravity, 14) : 0;
   return {
     vehicleId: String(row.id), center, origin, yaw,
     azimuth: heading(yaw), elevation: Math.round(pitch * 1800 / Math.PI) / 10,
     range: Math.round(range), tof: Math.round(tof * 10) / 10,
-    impact, blastRadius: finite(def?.splashRadius, 5),
+    title: rules.title, icon: rules.icon, weaponLabel: meta.label || weaponKey,
+    impact, blastRadius: cluster ? cluster.spread * fall + 3 : finite(def?.splashRadius, 5),
     screen: screen && !screen.behind ? { x: screen.x, y: screen.y } : null,
     laying, laid: !laying, snapped, targets,
     envelope: { min: Math.round(envelope.min), max: Math.round(envelope.max) },
     rounds: { ammo, magazine, reload: finite(weapon?.reload), ready: !!weapon?.ready },
-    status: weapon?.reload > 0 && ammo === 0 ? 'RELOADING' : weapon?.reload > 0 ? 'LOADING' : laying ? 'LAYING' : 'READY',
+    status: rules.hqPad && artilleryTargetRefusal(mapMeta, origin[0] + forward[0] * flatRange, origin[2] + forward[1] * flatRange, rules) ? 'RESTRICTED'
+      : state.pitch < rules.minPitch - 0.02 ? 'RAISING' : weapon?.reload > 0 && ammo === 0 ? 'RELOADING' : weapon?.reload > 0 ? 'LOADING' : laying ? 'LAYING' : 'READY',
     reach,
   };
 }
@@ -101,7 +112,8 @@ export class MortarSight {
     this.root.hidden = true;
     this.root.setAttribute('aria-label', 'Mortar fire control');
     const head = el('header', 'cq-mortar-head', this.root);
-    el('span', 'cq-mortar-title', head).textContent = 'MORTAR FIRE-CONTROL';
+    this.title = el('span', 'cq-mortar-title', head);
+    this.title.textContent = 'MORTAR FIRE-CONTROL';
     this.status = el('span', 'cq-mortar-status', head);
     this.mapBox = el('div', 'cq-mortar-map', this.root);
     this.canvas = el('canvas', 'cq-mortar-canvas', this.mapBox);
@@ -114,7 +126,8 @@ export class MortarSight {
       this.values[key] = el('span', 'cq-mortar-value', cell);
     }
     const rounds = el('div', 'cq-mortar-rounds', this.root);
-    el('span', 'cq-mortar-weapon', rounds).textContent = VEHICLE_WEAPON_META[MORTAR_RULES.weapon]?.label || 'MORTAR HE';
+    this.weapon = el('span', 'cq-mortar-weapon', rounds);
+    this.weapon.textContent = VEHICLE_WEAPON_META[MORTAR_RULES.weapon]?.label || 'MORTAR HE';
     this.pips = el('span', 'cq-mortar-pips', rounds);
     this.count = el('span', 'cq-mortar-count', rounds);
     const bar = el('div', 'cq-mortar-reload', this.root);
@@ -143,6 +156,8 @@ export class MortarSight {
     if (this.hints.textContent !== hint) this.hints.textContent = hint;
     this.hints.hidden = !hint;
     if (!model) return;
+    if (this.title.textContent !== model.title) this.title.textContent = model.title;
+    if (this.weapon.textContent !== model.weaponLabel) this.weapon.textContent = model.weaponLabel;
     this.status.textContent = model.status;
     this.status.dataset.state = model.status.toLowerCase();
     this.values.az.textContent = `${String(model.azimuth).padStart(3, '0')}°`;
@@ -236,7 +251,7 @@ export class MortarSight {
     // The mortar itself at the bottom centre.
     ctx.beginPath(); ctx.arc(ox, oy, 9 * k, 0, Math.PI * 2); ctx.fillStyle = '#0b1218e6'; ctx.fill();
     ctx.strokeStyle = toneColor('own'); ctx.lineWidth = 1.5 * k; ctx.stroke();
-    drawIcon(ctx, 'mortar', ox, oy, 13 * k, toneColor('own'));
+    drawIcon(ctx, model.icon, ox, oy, 13 * k, toneColor('own'));
     ctx.restore();
   }
 
