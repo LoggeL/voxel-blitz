@@ -57,6 +57,9 @@ export const CONQUEST_SAMPLE_GROUPS = Object.freeze({
   'cq.pod': ['vehicles/rocket-pod-1.ogg', 'vehicles/rocket-pod-2.ogg', 'vehicles/rocket-pod-3.ogg'],
   'cq.aa.launch': ['vehicles/aa-missile-launch-1.ogg', 'vehicles/aa-missile-launch-2.ogg'],
   'cq.aa.flight': ['vehicles/aa-missile-flight.ogg'],
+  // Rocket artillery truck (shared/artillery-rules.js): an HE rocket leaving the pod, the heavier cluster carrier.
+  'cq.arty.launch': ['vehicles/arty-rocket-launch-1.ogg', 'vehicles/arty-rocket-launch-2.ogg', 'vehicles/arty-rocket-launch-3.ogg'],
+  'cq.arty.cluster': ['vehicles/arty-cluster-launch.ogg'],
   // Cockpit cues (project-original synthesis) keyed by sfx.vehicleLockTone / vehicleAlarm modes.
   'cq.cue.locking': ['vehicles/lock-hull-locking.ogg'],
   'cq.cue.locked': ['vehicles/lock-hull-locked.ogg'],

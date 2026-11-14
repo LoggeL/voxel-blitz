@@ -934,6 +934,9 @@ export function conquestBlastGroup(type, detail = null) {
   if (type === 'shell') return weapon === 'tankAP' || (!weapon && Number(detail?.radius) > 0 && Number(detail.radius) < 4)
     ? 'cq.blast.ap' : 'cq.blast.he';
   if (weapon === 'aaMissile' || type === 'stinger') return 'cq.blast.airburst';
+  // Rocket truck: a cluster carrier opening in the air (its burst event, radius 4) pops like an airburst; an HE rocket lands like an HE shell.
+  if (weapon === 'artyCluster' && Number(detail?.radius) <= 4) return 'cq.blast.airburst';
+  if (weapon === 'artyRocket' || weapon === 'artyCluster') return 'cq.blast.he';
   // The jet's bomb lands with the heaviest take the bank has: the HE shell's.
   if (type === 'bomb') return 'cq.blast.he';
   return { rocket: 'cq.blast.rocket', mgl: 'cq.blast.autocannon', frag: 'cq.blast.frag', limpet: 'cq.blast.limpet' }[type] || null;
@@ -2395,12 +2398,17 @@ export const sfx = {
 
   stopVehicleGun(id) { releaseLoop(gunLoops, String(id), gunLoops.get(String(id)), VEHICLE_SOUND.gunFade); },
 
-  /** Missile or rocket launch: an ignition crack and a tearing whoosh (kind 'aa', 'pod' or 'atgm': the slower, heavier guided AT round). */
+  /**
+   * Missile or rocket launch: an ignition crack and a tearing whoosh (kind 'aa', 'pod' or 'atgm': the slower, heavier guided AT round;
+   * 'arty' / 'cluster': the rocket truck's HE rocket and its cluster carrier, heard across the map).
+   */
   vehicleMissileLaunch(pos, { self = false, kind = 'aa' } = {}) {
     const at = positionFrom(pos);
     if (!self && listenerDistance(at) > VEHICLE_SOUND.farRange) return false;
-    const pod = kind === 'pod', atgm = kind === 'atgm';
+    const pod = kind === 'pod', atgm = kind === 'atgm', arty = kind === 'arty' || kind === 'cluster';
     run('vehicleMissileLaunch', () => {
+      if (arty && cqOneShot(kind === 'cluster' ? 'cq.arty.cluster' : 'cq.arty.launch', { pos: self ? null : at, priority: 3, range: 'far' }, {
+        gain: kind === 'cluster' ? 1.15 : 1, rate: 0.96 + Math.random() * 0.08, echo: 0.2 })) return;
       if (cqOneShot(pod ? 'cq.pod' : 'cq.aa.launch', { pos: self ? null : at, priority: 2, range: 'far' }, {
         gain: pod ? 0.85 : atgm ? 1 : 0.95, rate: (atgm ? 0.78 : 0.95) + Math.random() * 0.1, echo: pod ? 0.08 : 0.15 })) return;
       const output = pool.acquire({ pos: self ? null : at, priority: 2, range: 'far' }, pod ? 0.6 : 1.2);

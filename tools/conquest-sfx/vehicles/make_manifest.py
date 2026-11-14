@@ -6,7 +6,7 @@ OUT = ROOT / 'vehicles'; PARTS = ROOT / 'work-vehicles' / 'parts'
 order = ['tank_engine_loop','tank_tracks_loop','tank_turret_traverse','tank_cannon_fire','tank_breech_reload','vehicle_mg_fire',
  'door_minigun_and_jet_cannon','heli_chin_cannon_fire','tank_shell_flyby','jeep_engine_loop','jeep_tyres_offroad_loop','jeep_horn',
  'helicopter_rotor_loop','transport_rotor_loop','rotor_spool_up_down','jet_engine_loop','jet_afterburner','jet_flyby','rocket_pod_launch',
- 'aa_missile_launch_and_flight','lock_and_warning_tones','flares_countermeasure','tank_smoke_launcher','ejection_seat',
+ 'aa_missile_launch_and_flight','artillery_rocket_launch','lock_and_warning_tones','flares_countermeasure','tank_smoke_launcher','ejection_seat',
  'parachute_deploy_and_descent','vehicle_hatch_enter_exit','vehicle_damage_alarm','vehicle_burning_loop','vehicle_water_wade']
 def note_for(url):
     for d in DL.iterdir():

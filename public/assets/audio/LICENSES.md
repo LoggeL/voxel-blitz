@@ -215,7 +215,7 @@ origin and license of every bundled recording remain auditable.
 
 ## Conquest sound banks
 
-- Folders: `conquest/vehicles/` (80 files), `conquest/explosions/` (68) and
+- Folders: `conquest/vehicles/` (84 files), `conquest/explosions/` (68) and
   `conquest/atmosphere/` (35). They are loaded only for a Conquest match, except the nine
   structural-collapse takes below.
 - Structural collapses (every mode, `STRUCTURE_SAMPLE_MANIFEST` in
@@ -359,6 +359,7 @@ is served at `/assets/audio/conquest/CREDITS.txt`.
 - "car going through ford 1.mp3" by soundmary (https://freesound.org/people/soundmary/sounds/194967/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/vehicle-wade-splash.ogg.
 - "Live Claymore" by The U.S. Army (https://www.youtube.com/watch?v=KJiqP8hurLU), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: explosions/tank-he-3.ogg.
 - "Eurofighter Typhoon Flyby 005 – Close Proximity" by TimoSchmied (https://freesound.org/people/TimoSchmied/sounds/640505/), CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/jet-flyby-1.ogg.
+- "U.S. Marines fire High Mobility Artillery Rocket System (HIMARS) During RIMPAC" by U.S. Navy (https://www.youtube.com/watch?v=BUsdGZmJmTA), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/arty-cluster-launch.ogg, vehicles/arty-rocket-launch-1.ogg, vehicles/arty-rocket-launch-2.ogg, vehicles/arty-rocket-launch-3.ogg.
 - "CIWS Shoot Aboard GHWB" by U.S. Navy (https://www.youtube.com/watch?v=mlB5YtGP5LA), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/jet-cannon-burst.ogg.
 - "MK 38 25mm gun live fire exercise" by U.S. Navy (https://www.youtube.com/watch?v=hWjXYw9eHRM), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/chin-cannon-1.ogg, vehicles/chin-cannon-2.ogg, vehicles/chin-cannon-3.ogg.
 - "GAU-17 "Vulcan" Minigun Training From USS USS John P. Murtha" by U.S. Navy (https://www.youtube.com/watch?v=6tnUDX0WT8Q), CC BY 3.0 (YouTube Creative Commons Attribution license) (U.S. federal government work, public domain in the U.S.; YouTube license field CC BY) — https://creativecommons.org/licenses/by/3.0/. Cut, filtered, level-normalized, looped or layered and encoded as Opus. Used in: vehicles/transport-cabin.ogg.

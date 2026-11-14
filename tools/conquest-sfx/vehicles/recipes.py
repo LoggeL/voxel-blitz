@@ -295,6 +295,32 @@ def _(c): return rpg(c, 0.105, 'launcher firing 1')
 def _(c): return rpg(c, 3.95, 'launcher firing 2')
 @recipe('rocket-pod-3.ogg', 'rocket_pod_launch', processing=P_POD + '; pitched x1.08 for variety')
 def _(c): return rate(rpg(c, 7.865, 'launcher firing 3'), 1.08)
+# ---------------- rocket artillery truck (U.S. Navy video of Marine HIMARS fire at RIMPAC) ----------------
+P_ARTY = ('M142 HIMARS launch, close perspective (U.S. Navy video, U.S. federal work): ignition crack and the motor roar leaving the pod; '
+          'HP 30 Hz / LP 14 kHz; low shelf +3 dB below 160 Hz; onset trimmed; concussion layer under the ignition: a cannon shot '
+          'low-passed at 450 Hz plus an original synthesized 95->42 Hz sub thump')
+def himars(c, t0, t1, note, out=1.4, boom=0.45, pitch=1.0):
+    x = c.seg('yt-BUsdGZmJmTA', t0, t1, note)
+    x = shelf(lp(hp(declip(x), 30), 14000), 160, 3)
+    x = norm_peak(fade(trim_onset(x, 0.05), 0.001, out))
+    if pitch != 1.0: x = norm_peak(rate(x, pitch))
+    b = c.seg('fs-184275', 9.0, 10.7, 'concussion layer: cannon shot, LP 450 Hz, low shelf +4 dB')
+    b = norm_peak(fade(trim_onset(shelf(lp(declip(b), 450), 110, 4), 0.05, 0.0), 0.002, 0.8))
+    if pitch != 1.0: b = rate(b, pitch)
+    t = thump(0.6, 95, 42, 0.17)
+    n = max(len(x), len(b))
+    return place(n, [(0, x, 1), (0, b, boom), (0, t, boom * 0.8)])
+@recipe('arty-rocket-launch-1.ogg', 'artillery_rocket_launch', processing=P_ARTY + '; 1.4 s fade-out')
+def _(c): return himars(c, 152.40, 156.30, 'salvo 3, launch 1')
+@recipe('arty-rocket-launch-2.ogg', 'artillery_rocket_launch', processing=P_ARTY + '; 1.4 s fade-out')
+def _(c): return himars(c, 159.00, 162.70, 'salvo 3, launch 2')
+@recipe('arty-rocket-launch-3.ogg', 'artillery_rocket_launch', processing=P_ARTY + '; 1.4 s fade-out; pitched x0.93 for variety')
+def _(c): return himars(c, 152.40, 156.00, 'salvo 3, launch 1', pitch=0.93)
+@recipe('arty-cluster-launch.ogg', 'artillery_rocket_launch',
+        processing=P_ARTY + '; the heavy cluster carrier: pitched x0.78, a louder concussion layer, low shelf +4 dB below 120 Hz, tanh soft-limit; 2.6 s fade-out')
+def _(c):
+    x = himars(c, 152.40, 157.60, 'salvo 3, launch 1 with its full tail', out=2.6, boom=1.25, pitch=0.78)
+    return soft(norm_peak(shelf(x, 120, 4)), 1.8)
 @recipe('aa-missile-launch-1.ogg', 'aa_missile_launch_and_flight',
         processing='ignition bang and long rocket-motor whoosh (US government video, public domain); declipped; HP 35 Hz / LP 13 kHz; onset trimmed; 1.2 s fade-out')
 def _(c):

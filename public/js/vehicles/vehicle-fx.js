@@ -506,7 +506,7 @@ export class VehicleFx {
       if (below && !below.fluid) this._ring(behind, below.y, big ? 16 : 10, big ? 6 : 4.5, blockDustTint(below.block));
       this.view?.kick(ev.vehicleId, ev.mount, big ? 1 : 0.6);
       this._flashLight(origin, big ? 1.2 : 0.8);
-      this.sfx?.vehicleMissileLaunch?.(origin, { self, kind: 'atgm' });
+      this.sfx?.vehicleMissileLaunch?.(origin, { self, kind: big ? 'cluster' : 'arty' });
       if (self) this.shake?.add(big ? 0.12 : 0.07);
       return true;
     }

@@ -289,6 +289,8 @@ try {
     ['smoke', () => sfx.vehicleCountermeasure([0, 2, -20], 'smoke'), 'cq.smoke'],
     ['pods', () => sfx.vehicleMissileLaunch([0, 20, -20], { kind: 'pod' }), 'cq.pod'],
     ['AA launch', () => sfx.vehicleMissileLaunch([0, 20, -20], { kind: 'aa' }), 'cq.aa.launch'],
+    ['rocket truck launch', () => sfx.vehicleMissileLaunch([0, 3, -40], { kind: 'arty' }), 'cq.arty.launch'],
+    ['cluster carrier launch', () => sfx.vehicleMissileLaunch([0, 3, -40], { kind: 'cluster' }), 'cq.arty.cluster'],
     ['missile flight', () => sfx.missileFlight('m1', [0, 30, -50]), 'cq.aa.flight'],
     ['burning', () => sfx.vehicleBurning('b', [0, 2, -15], 1), 'cq.burning'],
     ['block debris', () => sfx.impact('stone', 0.8, [0, 2, -15]), 'cq.debris.stone'],

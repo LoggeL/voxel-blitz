@@ -255,7 +255,8 @@ Each team has a jeep, an AT jeep, a tank, a mobile AA, a rocket artillery truck,
 - **No fire into an HQ**: the pod does not fire while its aimed flat-ground impact lies within 25 m of either HQ circle (`artilleryTargetRefusal`, the comeback call-in's rule with a wider pad for the scatter); the sight reads RESTRICTED.
 - **Structures**: an HE rocket or a carrier's direct hit takes 100 off the Iron Bridge, a levolution target or a depot (like an RX-8), a bomblet 25 (40 on a depot).
 - **Bots** do not crew the truck. Riding with a human driver they take the top gunner's .50, never the launcher seat (`planHitches`). The depots service it.
-- **Not done**: no own launch or flight sounds (the guided missile's launch take), no vehicle upgrades, no bot fire missions, balance untested in a live match.
+- **Audio**: the launches are recut from a U.S. Navy video of Marine HIMARS fire (YouTube CC BY, a U.S. federal work; `cq.arty.launch` three takes, `cq.arty.cluster`, recipes in `tools/conquest-sfx/vehicles/recipes.py`, provenance in the bank's `sources.json` and `docs/audio/conquest-sfx.md`). Incoming rounds use the HE shell whistle, bomblets the mortar blast.
+- **Not done**: no flight loop on the rocket, no vehicle upgrades, no bot fire missions, balance untested in a live match.
 
 **Damage.** Damage depends on the weapon class and the armour class (`shared/vehicle-armor.js`). Small arms and MGs do nothing to the tank (its hitmarker is a white spark) but hurt jeeps. Other heavy hulls scale AT by the side that is hit (front ×0.75, side ×1, rear ×1.5, top ×1.3, bottom ×1.5); the tank uses its own armour model, see *Tank armour* below.
 
