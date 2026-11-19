@@ -167,7 +167,8 @@ assert(loop.indexOf('this.vehicleController.updateCamera(') < loop.indexOf('this
 assert(loop.indexOf('this.cameraShake?.apply(this.camera, dt)') < loop.indexOf('this.conquestHud?.refresh('));
 assert(main.includes('this.session.gameplayInputEnabled && this.vehicleController.canFire'), 'touch fire follows the seat weapons');
 assert(!/\['tank', 'helicopter', 'plane'\]\.includes\(ctx\.vehicleType\)/.test(main), 'no hard-coded firing hull list');
-assert(main.includes("['helicopter', 'transport', 'plane'].includes(row.type)"), 'the transport uses airborne fog');
+assert.match(loop, /const flying = seated && \['helicopter', 'transport', 'plane'\]\.includes\(row\??\.type\) && row\??\.grounded === false/,
+  'airborne fog applies to an occupied helicopter, transport or plane that has left the ground');
 assert(main.includes('...this.conquestHud.touchContextFields()') || main.includes('this.conquestHud.touchContextFields()'));
 assert(main.includes('rt.VEHICLE_WARMUP_MATERIALS') && main.includes('rt.WORLD_WARMUP_MATERIALS'), 'warm-up lists the Conquest programs');
 assert(main.indexOf('this.worldview.syncFarFog()') < main.indexOf("showStatus('warming up shaders…'"), 'far fog syncs before warm-up');

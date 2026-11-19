@@ -59,7 +59,7 @@ const TICK = 1000 / 60;
   const recon = kitLoadout('recon', 1);
   assert.equal(recon.grenades[gslot('limpet')], 2, 'recon carries two claymores (limpet id)');
   assert.equal(recon.grenades[gslot('pulse')], 1);
-  assert.equal(recon.primary, 'longarc');
+  assert.equal(recon.primary, 'vanguard');
   assert.equal(isUnsuppressedWeapon('rifle'), true);
   assert.equal(isUnsuppressedWeapon('knife'), false);
   assert.equal(isUnsuppressedWeapon(slot('knife')), false);
@@ -293,6 +293,7 @@ function fixture({ live = true } = {}) {
     const m = g.add('m', 'alpha', 'medic', 0, 20, 20);
     const v = g.add('v', 'alpha', 'recon', 1, 21, 20);
     g.step();
+    const equippedBeforeDown = v.weapon;
     g.kill(v, null, 'rifle');
     for (let i = 0; i < 90 && v.state === 'dead'; i++) {
       if (i % 12 === 0) g.roles.intent(m, { type: 'support', support: 'revive', targetId: 'v' });
@@ -301,7 +302,7 @@ function fixture({ live = true } = {}) {
     assert.equal(v.state, 'alive');
     assert.deepEqual(reviveCalls, [['v', 'm']], 'onRevived(entity, reviver) is called once');
     assert.equal(g.policy.respawnHooks, 0, 'the deploy respawn hook is not used for a revive');
-    assert.equal(WEAPON_IDS[v.weapon], 'longarc', 'kit and variant kept');
+    assert.equal(v.weapon, equippedBeforeDown, 'reviving preserves the equipped weapon');
   }
 
   // A revive after the player deployed is refused (deploy forfeits the body).
