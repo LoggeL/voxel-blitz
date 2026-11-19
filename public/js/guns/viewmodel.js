@@ -16,6 +16,7 @@ import { stingerPresentationFor } from './stinger-presentation.js';
 import { thunderboltAnimationFor } from './thunderbolt-animation.js';
 import { DOPPLER_BUFFER_S, dopplerPresentationFor } from './doppler-presentation.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
+import { FootstepCadence } from '../audio/footsteps.js';
 import { buildGun, disposeGunModels } from './assemble.js';
 import { WeaponActions, syncArcherAmmo, syncSkipjackAmmo } from './actions.js';
 import { syncRocketAmmo } from './rocket-presentation.js';
@@ -129,14 +130,12 @@ export class ViewmodelRig {
     this._lean = { p: 0, v: 0 };        // lagged lateral lean (m) from strafing, mass-scaled
     this._surge = { p: 0, v: 0 };       // lagged fore/aft surge (m) from acceleration
     this._wasGrounded = true;
-    this._fallSpeed = 0;
-    this._phase = 0;                   // walk bob figure-8 phase accumulator
+    this._landingLoad = 0;
     this._bobVal = 0;                  // public bobAmt readback for HUD/audio glue
     this._gait = 0;
     this._swim = 0;                    // 0..1 floating blend: the carried gun rides low and sways
     this._sprint = 0;
     this._crouchBlend = 0;
-    this._groundBlend = 1;
     this._yawFlip = 1;                 // alternating yaw kick sign (wobble seeds it)
     this._rngState = 0xB041;           // mulberry-lite seed, reseeded per magazine below
 
@@ -728,7 +727,7 @@ export class ViewmodelRig {
 
   /**
    * @param dt      elapsed seconds; action clocks advance while spring steps stay capped at 0.033
-   * @param ctx     {speed,grounded,verticalVelocity,lateralSpeed,forwardSpeed,isSprinting,crouch,
+   * @param ctx     {speed,grounded,groundContact,verticalVelocity,lateralSpeed,forwardSpeed,isSprinting,crouch,
    *                 panic,exhaustion,pain,aimSwayScale}
    *                Camera orientation is observed, never delayed or modified by this rig.
    */
@@ -820,17 +819,17 @@ export class ViewmodelRig {
     }
 
     /* vertical inertia: camera follows physics immediately, the carried gun trails on a damped spring */
-    if (airborne) this._fallSpeed = Math.max(this._fallSpeed, -verticalVelocity);
-    if (!airborne !== this._wasGrounded) {
-      if (airborne && verticalVelocity > 0.5) {
-        this._air.v -= BOB.jumpTakeoffImpulse;
-      } else if (!airborne && this._fallSpeed > 1.5 && !swimming) {
-        const impact = Math.max(0.35, Math.min(1, this._fallSpeed / 8));
-        this._air.v -= BOB.landImpactImpulse * impact;
-      }
-      if (!airborne) this._fallSpeed = 0;
-      this._wasGrounded = !airborne;
+    let contact = ctx.groundContact;
+    if (!contact) {
+      contact = this._previewContacts ??= new FootstepCadence();
+      contact.update(elapsed, ctx);
     }
+    if (airborne && this._wasGrounded && !vaulting && verticalVelocity > 0.5) this._air.v -= BOB.jumpTakeoffImpulse;
+    this._wasGrounded = !airborne;
+    this._air.v -= BOB.landImpactImpulse * contact.landing;
+    // A harder catch takes longer to settle back to ready.
+    this._landingLoad = Math.max(contact.landing, this._landingLoad * Math.exp(-5 * elapsed));
+    const recovery = 1 / (1 + this._landingLoad * 0.5);
     const airTarget = !airborne ? 0 : Math.max(
       -BOB.airOffsetClamp,
       Math.min(BOB.airOffsetClamp, -verticalVelocity * BOB.airVelocityLag),
@@ -839,8 +838,8 @@ export class ViewmodelRig {
       this._springTo(
         this._air,
         airTarget,
-        BOB.airSpringStiffness,
-        BOB.airSpringDamping,
+        BOB.airSpringStiffness * recovery ** 2,
+        BOB.airSpringDamping * recovery,
         h,
       );
     }
@@ -862,23 +861,19 @@ export class ViewmodelRig {
       this._springTo(this._surge, surgeTarget, bodyK, bodyC, h);
     }
 
-    /* walk bob figure-8 (freq scales with speed; sprint lifts freq+amp+cant; crouch dampens) */
+    /* The hold dips on either boot plant and shifts toward the supporting foot. */
     const follow = 1 - Math.exp(-12 * elapsed);
     this._swim += ((swimming ? 1 : 0) - this._swim) * follow;
-    this._gait += ((vaulting ? 0 : Math.min(1, speed / (swimming ? 2.6 : 4.4))) - this._gait) * follow;
+    this._gait += ((grounded && !vaulting ? Math.min(1, speed / 4.4) : 0) - this._gait) * follow;
     this._sprint += ((sprinting && grounded && !crouching && !vaulting ? 1 : 0) - this._sprint) * follow;
     this._crouchBlend += ((crouching ? 1 : 0) - this._crouchBlend) * follow;
-    this._groundBlend += ((airborne ? 0 : 1) - this._groundBlend) * follow;
     const spdN = this._gait;
     const ampMul = (1 + (BOB.sprintAmpMul - 1) * this._sprint)
-      * (BOB.airDampen + (1 - BOB.airDampen) * this._groundBlend)
       * (1 + (BOB.crouchDampen - 1) * this._crouchBlend) * (1 - vaultBlend);
-    // Swimming strokes run at about half the walking cadence.
-    const freq = (BOB.walkFreq + (BOB.sprintFreq - BOB.walkFreq) * this._sprint) * (1 - 0.5 * this._swim);
-    this._phase += elapsed * freq * spdN;
-    const bp = this._phase * Math.PI * 2;
-    const bobX = Math.sin(bp * 0.5) * BOB.walkHorz * ampMul * spdN * (ctx.reducedMotion ? 0.15 : 1);   // figure-8: lazy infinity loop
-    const bobY = Math.cos(bp) * BOB.walkVert * ampMul * spdN * (0.8 + this._sprint * 0.2) * (ctx.reducedMotion ? 0.15 : 1);
+    const carryMotion = (ctx.reducedMotion ? 0.15 : 1) * (1 - 0.8 * this._adsSmooth);
+    const bobX = -Math.sin(contact.phase) * BOB.walkHorz * ampMul * spdN * carryMotion;
+    const bobY = Math.cos(contact.phase * 2) * BOB.walkVert * ampMul * spdN * (0.8 + this._sprint * 0.2) * carryMotion;
+    const airOffset = this._air.p * carryMotion;
     this._bobVal = Math.min(1, Math.abs(bobY) / (BOB.walkVert * BOB.sprintAmpMul) +
                                 Math.abs(bobX) / (BOB.walkHorz * BOB.sprintAmpMul));
 
@@ -1025,7 +1020,7 @@ export class ViewmodelRig {
     /* ---------- compose transforms (condition offsets never touch the authoritative camera) ---------- */
     this.posG.position.set(
       turn.x + this._lean.p + bobX + tremorX + machineTremor + shiftX + fearX,
-      turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY + Math.sin(this._now * 43) * pressure * 0.0008 + shiftY + fearY,
+      turn.y + bobY + airOffset + breathe + exhaustedBreath + tremorY + Math.sin(this._now * 43) * pressure * 0.0008 + shiftY + fearY,
       this._spr.push.p + this._surge.p + pressure * 0.006
     );
     // World-space yaw/pitch offsets are not camera-local Euler offsets when the
@@ -1039,7 +1034,7 @@ export class ViewmodelRig {
     this._aimQ.setFromEuler(this._aimEuler.set(shotPitch, shotYaw, shotRoll, 'YXZ'));
     this._aimQ.premultiply(this._cameraQ.invert());
     this._cosmeticQ.setFromEuler(this._aimEuler.set(
-      this._spr.pitch.p + this._air.p * BOB.airPitchPerMeter + conditionPitch + fearPitch + glaivePitch,
+      this._spr.pitch.p + airOffset * BOB.airPitchPerMeter + conditionPitch + fearPitch + glaivePitch,
       this._spr.yaw.p + conditionYaw + fearYaw + glaiveYaw,
       roll + cant + nadeRz, 'YXZ'));
     this.pivot.quaternion.copy(this._aimQ).multiply(this._cosmeticQ);

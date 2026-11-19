@@ -45,7 +45,7 @@ function harness({ capacity = 8192 } = {}) {
   const sfx = recorder();
   const shake = new CameraShake();
   const spawned = [], walls = [];
-  const tracers = { spawnTracer: (...args) => spawned.push(args), onWallImpact: hit => walls.push(hit) };
+  const tracers = { spawnTracer: (...args) => spawned.push(args), onWallImpact: (hit, local, point) => walls.push({ hit, point }) };
   const muzzleLights = { lights: [new THREE.PointLight(0xffd080, 0, 6), new THREE.PointLight(0xffd080, 0, 6)] };
   const vfx = new VehicleFx({ fx, vehicleView: view, sfx, cameraShake: shake, getBlock, tracers, muzzleLights, scene });
   return { scene, camera, view, fx, sfx, shake, spawned, walls, muzzleLights, vfx };
@@ -129,7 +129,8 @@ const frames = (h, rows, count, dt = 1 / 60, players = []) => {
   check(() => assert.equal(h.spawned.length, 1, 'tracer for the tracer round'));
   check(() => assert.ok(h.spawned[0][2] > 10 && h.spawned[0][2] < 13, 'tracer length to the path end'));
   check(() => assert.ok(h.spawned[0][3].tracer.width > 1.5, 'HMG tracer definition'));
-  check(() => assert.equal(h.walls.length, 1, 'impact routed to the shared wall-impact feedback'));
+  check(() => assert.deepEqual(h.walls, [{ hit: shot.paths[0][0].hit, point: shot.paths[0][0].end }],
+    'the shared wall feedback receives both the struck cell and the precise endpoint'));
   const gun = calledWith(h.sfx, 'vehicleGun').at(-1);
   check(() => assert.equal(gun[1], 'jeep-1:pintle'));
   check(() => assert.equal(gun[3], 'hmg'));

@@ -648,7 +648,7 @@ export class VehicleFx {
     this._count('impact');
     this.fx?.emit('dust', at, { count: 3, dir: normal, speed: 0.8, scale: 0.35, color0: tint, color1: tint, spread: 0.7 });
     this.fx?.emit('debris', at, { count: 3, dir: normal, speed: 0.5, color0: tint.map(v => v * 0.7), color1: tint.map(v => v * 0.6) });
-    if (this.tracers?.onWallImpact) this.tracers.onWallImpact(hit, false);
+    if (this.tracers?.onWallImpact) this.tracers.onWallImpact(hit, false, end);
   }
 
   _launch(ev) {

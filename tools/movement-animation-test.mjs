@@ -8,6 +8,8 @@ import { PlayerEntity } from '../server/sim/player.js';
 import { stepMovement } from '../server/sim/movement.js';
 import { VAULT_SECONDS } from '../shared/player-movement.js';
 import { makeFirstPersonBody, updateFirstPersonBody, resetFirstPersonBody, disposeFirstPersonBody } from '../public/js/player/first-person-body.js';
+import { footstepSurfaceAt } from '../public/js/audio/footsteps.js';
+import { GRAVEL, METAL } from '../shared/world/blocks.js';
 
 const settle = (rig, seconds, ctx, hz = 60) => {
   for (let i = 0; i < Math.round(seconds * hz); i++) rig.update(1 / hz, ctx);
@@ -163,7 +165,8 @@ assert.ok(at30.distanceTo(at120) < 0.012 && at60.distanceTo(at120) < 0.006,
     resetFirstPersonBody(body);
     assert.equal(body.air, 0);
     assert.equal(body.land, 0);
-    assert.equal(body.wasGrounded, null, 'respawn clears airborne and landing history');
+    step({ grounded: true });
+    assert.equal(body.land, 0, 'the first grounded frame after a reset has no landing impulse');
     // Swimming: wading walks, floating blends into a lean with trailing legs,
     // treading keeps a gentle bob, and leaving the water recovers.
     step({ grounded: true, swimming: true }, 2, false, 60);
@@ -209,4 +212,57 @@ assert.ok(at30.distanceTo(at120) < 0.012 && at60.distanceTo(at120) < 0.006,
     assert.equal(body.swimPhase, 0, 'respawn clears the swim cycle');
   } finally { disposeFirstPersonBody(body); }
 }
-console.log('Movement animations passed: frame rates, sprint/ADS, scoped vault recovery, vault choreography and disposal, directional legs, landing, first-person swim, reset.');
+
+{
+  const rig = new ViewmodelRig(new THREE.PerspectiveCamera(75, 1, 0.01, 100));
+  const body = makeFirstPersonBody();
+  const player = new LocalPlayer({ body, input: {
+    consumeDelta: () => ({ dx: 0, dy: 0 }), getKeys: () => ({}), setGameplayEnabled() {},
+  } });
+  const pos = { x: 0.5, y: 3, z: 4.2 };
+  const plant = (phase, speed, landing = 0) => {
+    const groundContact = { phase, landing };
+    const ctx = { grounded: true, groundContact, speed, forwardSpeed: speed };
+    rig.update(1 / 60, ctx);
+    updateFirstPersonBody(body, 1 / 60, pos, 0, speed, false, true, 0, 1, false, 0, ctx);
+  };
+  try {
+    rig.setWeapon('rifle');
+    const soleY = () => {
+      body.group.updateMatrixWorld(true);
+      return new THREE.Box3().setFromObject(body.left.boot, true).min.y;
+    };
+    plant(0, 0);
+    const restY = soleY();
+    assert.ok(Math.abs(restY - pos.y) < 0.01, 'the fallback boot stands on the support plane');
+    for (let i = 0; i < 150; i++) plant(Math.PI / 2, 5);
+    const leftGun = rig.posG.position.clone();
+    assert.ok(body.left.leg.rotation.x > 0.4 && leftGun.x < -0.004,
+      'at the left footfall the left boot is forward and the hold has shifted left');
+    assert.ok(Math.abs(soleY() - restY) < 1e-5, 'the leading boot has reached the ground at its footfall');
+    const crossing = (_x, _y, z) => z < 4 ? GRAVEL : METAL;
+    assert.equal(footstepSurfaceAt(crossing, pos), 'metal');
+    assert.equal(footstepSurfaceAt(crossing, pos, player.plantedBootPosition()), 'gravel',
+      'the forward boot sounds on gravel while the body is still over metal');
+    plant(0, 5);
+    assert.ok(rig.posG.position.y > leftGun.y + 0.012, 'the weapon rises between footfalls');
+    assert.ok(soleY() - restY > 0.05, 'the same boot clears the floor during its swing');
+    plant(-Math.PI / 2, 5);
+    assert.ok(body.right.leg.rotation.x > 0.4 && rig.posG.position.x > 0.004,
+      'the right foot and the held weapon use the opposite side of the same phase');
+    for (let i = 0; i < 180; i++) plant(0, 0);
+    const restHips = body.hips.position.y;
+    plant(Math.PI / 2, 0, 0.25);
+    const lightDip = restHips - body.hips.position.y;
+    const lightKick = -rig._air.v;
+    for (let i = 0; i < 180; i++) plant(0, 0);
+    plant(Math.PI / 2, 0, 1);
+    assert.ok(restHips - body.hips.position.y > lightDip * 2 && -rig._air.v > lightKick * 2,
+      'a harder landing produces greater knee compression and weapon dip');
+    assert.ok(Math.abs(soleY() - restY) < 1e-5,
+      'compression preserves the height of the planted sole');
+    assert.deepEqual(rig.camera.rotation.toArray().slice(0, 3), [0, 0, 0],
+      'the footfalls and landing leave the horizon steady');
+  } finally { player.dispose(); disposeFirstPersonBody(body); rig.dispose(); }
+}
+console.log('Movement animations passed: frame rates, sprint/ADS, vaults, directional legs, shared foot plants, weighted landing, planted sole, first-person swim and reset.');

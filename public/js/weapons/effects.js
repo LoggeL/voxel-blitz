@@ -80,12 +80,17 @@ export class Effects {
     this.tracers = new TracerFX(
       scene,
       this.getBlockFn,
-      (hit, local) => {
-        this.impacts.wallDust(hit, local);
-        // Optional impact sound hook (Conquest bank): surface of the struck block and the face point.
+      (hit, local, contactPoint) => {
+        // Callers with only a voxel and normal can still place feedback on the struck face.
+        const point = contactPoint ?? [
+          hit.x + 0.5 + hit.nx * 0.5,
+          hit.y + 0.5 + hit.ny * 0.5,
+          hit.z + 0.5 + hit.nz * 0.5,
+        ];
+        const block = hit.type ?? this.getBlockFn(hit.x, hit.y, hit.z);
+        this.impacts.wallDust(block, hit, point);
         if (typeof onWallImpact === 'function') {
-          onWallImpact(bulletSurfaceFor(this.getBlockFn(hit.x, hit.y, hit.z)),
-            [hit.x + 0.5 + (hit.nx || 0) * 0.5, hit.y + 0.5 + (hit.ny || 0) * 0.5, hit.z + 0.5 + (hit.nz || 0) * 0.5], local);
+          onWallImpact(bulletSurfaceFor(block), point, local);
         }
       },
     );
@@ -309,8 +314,14 @@ export class Effects {
   }
 
   confirmShot(event) {
-    if (this._disposed || !Array.isArray(event.paths)) return;
-    this.tracers.resolvedShot(event, { continuationsOnly: true });
+    if (this._disposed) return;
+    if (event.roundId != null) { this.tracers.confirmRound(event); return; }
+    if (!Array.isArray(event.paths)) return;
+    // Prediction already drew the muzzle streak. The server resolves spread
+    // and cover, so the first puff must use the accepted pellet's contact.
+    const first = event.paths[0]?.[0];
+    if (first?.hit && WEAPONS[event.w]?.tracer) this.tracers.onWallImpact?.(first.hit, true, first.end);
+    this.tracers.resolvedShot(event, { continuationsOnly: true, local: true });
     if (event.w === 'lance') {
       // Replace the short-lived predicted rail with its authoritative terrain path.
       for (const beam of this.railBeams.pool) if (beam.local) beam.group.visible = false;

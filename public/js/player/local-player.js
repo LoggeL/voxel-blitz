@@ -4,6 +4,7 @@ import { stanceEye } from '../../../shared/player-stance.js';
 import { LEAN, leanBlocked, leanInput, leanPose } from '../../../shared/player-lean.js';
 import { canClimb, MOVEMENT_RULES } from '../../../shared/player-movement.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
+import { FootstepCadence } from '../audio/footsteps.js';
 import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
 import { adsLookScale } from '../input-settings.js';
@@ -135,6 +136,7 @@ export class LocalPlayer {
     }
 
     this.physics = physics;
+    this.groundContact = new FootstepCadence();
     this.input = input;
     this.body = body;
     this.baseFov = Number.isFinite(baseFov) ? baseFov : DEFAULT_FOV;
@@ -279,6 +281,14 @@ export class LocalPlayer {
     return this;
   }
 
+  /** World-space boot on this plant, after the current leg and pilot poses. */
+  plantedBootPosition() {
+    if (!this.body || this.body.disposed) return null;
+    const boot = (this.groundContact.side < 0 ? this.body.left : this.body.right)?.boot;
+    if (!boot) return null;
+    return boot.getWorldPosition(this._bootPosition ??= boot.position.clone());
+  }
+
   setBaseFov(baseFov) {
     if (Number.isFinite(baseFov)) this.baseFov = baseFov;
   }
@@ -319,6 +329,7 @@ export class LocalPlayer {
 
   spawnAt(x, y, z) {
     if (![x, y, z].every(Number.isFinite)) return false;
+    this.groundContact.reset();
     this.physics.pos.x = x;
     this.physics.pos.y = y;
     this.physics.pos.z = z;
@@ -349,6 +360,7 @@ export class LocalPlayer {
       throw new TypeError('resetForMenu requires a PlayerPhysics-compatible adapter');
     }
     this.physics = physics;
+    this.groundContact.reset();
     this._cameraCrouch = 0;
     this.setGameplayInputEnabled(false);
     this.body = body;
@@ -441,6 +453,7 @@ export class LocalPlayer {
     killerPos = null,
   } = {}) {
     if (!this._alive) return null;
+    this.groundContact.reset();
     const resolvedImpact = impact || this._lastLocalImpact;
     const resolvedHeadshot = !!(headshot || resolvedImpact?.hs);
     this._alive = false;
@@ -1052,7 +1065,16 @@ export class LocalPlayer {
     // it when handling is allowed, so sprint prediction reads the same gate.
     this._movementAds = this.wantAds && this._gameplayInputEnabled && isAllowed(intents.fireAllowed) &&
       !intents.weapon?.isDeploying && !intents.weapon?.quickMeleeActive;
+    const physics = this.physics;
+    physics.landingSpeed = null;
     const jumped = this._stepPrediction(dt, now);
+    this.groundContact.update(dt, {
+      active: this._alive && movementAllowed && !this.pilotRiding && !physics.chute && !physics.slide &&
+        !physics.pilot?.wall && !physics.pilot?.slideT,
+      speed: this.currentSpeedXZ, grounded: physics.grounded, crouch: physics._crouching, prone: physics.proneT > 0,
+      swimming: physics.swimming, vaulting: !!physics.vault,
+      verticalVelocity: physics.vel.y, landingSpeed: physics.landingSpeed,
+    });
     this._frame.jumped = jumped;
     this._aim = this.aimSway.update(dt, {
       alive: this._alive,
@@ -1204,6 +1226,7 @@ export class LocalPlayer {
       if (error > RECONCILE_SNAP_DISTANCE) {
         cx = dx; cy = dy; cz = dz;
         decay = RECONCILE_SNAP_DECAY;
+        this.groundContact.reset();
       } else if (error > RECONCILE_DEAD_ZONE) {
         cx = dx * RECONCILE_CORRECTION;
         cy = dy * RECONCILE_CORRECTION;
@@ -1269,7 +1292,7 @@ export class LocalPlayer {
   }
 
   /** Update camera, scope visibility and the first-person body in that order. */
-  updateCamera(dt, camera, weaponDef, adsT = this.adsT, baseFov = this.baseFov, scopeActive = null) {
+  updateCamera(dt, camera, weaponDef, adsT = this.adsT, baseFov = this.baseFov, scopeActive = null, reducedMotion = false) {
     if (!camera || !weaponDef) return this.scopeActive;
     this.adsT = Number.isFinite(adsT) ? adsT : 0;
     this._stepReconcileOffset(dt);
@@ -1358,7 +1381,7 @@ export class LocalPlayer {
       this.deathSide,
       this.scopeActive,
       this.physics.proneT,
-      { grounded: this.physics.grounded, verticalVelocity: this.physics.vel.y,
+      { groundContact: this.groundContact, reducedMotion, grounded: this.physics.grounded, verticalVelocity: this.physics.vel.y,
         vaulting: !!this.physics.vault, swimming: !!this.physics.swimming, leanT: this.physics.leanT,
         forwardSpeed: -(this.physics.vel.x * Math.sin(this.view.yaw) + this.physics.vel.z * Math.cos(this.view.yaw)),
         lateralSpeed: this.physics.vel.x * Math.cos(this.view.yaw) - this.physics.vel.z * Math.sin(this.view.yaw) },

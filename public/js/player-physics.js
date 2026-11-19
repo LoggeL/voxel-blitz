@@ -29,6 +29,7 @@ export class PlayerPhysics {
     this.pos = { x: 64.5, y: 30, z: 48.5 };
     this.vel = { x: 0, y: 0, z: 0 };
     this.grounded = false;
+    this.landingSpeed = null;
     this.vault = null;
     this.lastImpulseSeq = 0;
     this.jumpGroundY = null;
@@ -413,6 +414,8 @@ export class PlayerPhysics {
     const canStepTerrain = this.grounded && !wantJump && !this.vault && !ladderDirected && this.vel.y <= 0.01;
     const hitX = this.moveAxis('x', this.vel.x * dt, canStepTerrain);
     const hitZ = this.moveAxis('z', this.vel.z * dt, canStepTerrain);
+    const wasGrounded = this.grounded;
+    const incomingVy = this.vel.y;
     const dy = this.vel.y * dt;
     const descending = this.vel.y < 0;
     let hitY = false;
@@ -437,6 +440,11 @@ export class PlayerPhysics {
     } else {
       if (this.grounded) this.coyote = COYOTE_S;
       this.grounded = false;
+    }
+    if (!wasGrounded && this.grounded) {
+      // Collision zeroes vel.y. Keep the actual contact speed across pilot
+      // substeps until LocalPlayer presents this frame.
+      this.landingSpeed = ladderDirected || swimming ? 0 : Math.max(0, -incomingVy);
     }
     if (pilotBody) {
       pilotPostCollide(this.pilot, pilotBody, this._pilotCtx, { x: hitX, z: hitZ, y: hitY, dy }, dt);

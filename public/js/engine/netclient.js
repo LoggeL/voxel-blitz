@@ -32,6 +32,8 @@ import {
 
 const INTERP_SPAN = 65536;        // events-per-snapshot domain for composite ids
 const SEEN_SOFT_CAP = 8192;       // dedupe set size before pruning oldest half
+const MAX_EVICTED_CONFIRMATIONS = 128;
+const CONFIRMATION_MAX_AGE_MS = 10_000;
 export const RING_LEN = 32;
 export const CONNECTION_TIMEOUT_MS = 30_000;
 
@@ -143,7 +145,7 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
       if (!ev || typeof ev !== 'object') continue;
       const hasEventSeq = Number.isFinite(ev.seq);
       const mono = hasEventSeq ? ev.seq : baseId + ei;
-      const key = (hasEventSeq ? 's' : 'f') + mono;
+      const key = eventKey(ev, baseId, ei);
       if (seen.has(key)) continue;
       seen.add(key);
       if (mono > watermark) watermark = mono;
@@ -169,23 +171,32 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
   return out;
 }
 
+function isOwnShotConfirmation(ev, selfId) {
+  if (ev.id !== selfId || ev.vehicleId != null || ev.chaosArc || ev.chaosFlame) return false;
+  if (ev.kind === 'bullet') return Array.isArray(ev.paths);
+  return ev.kind === 'shoot' && (Array.isArray(ev.paths) || ev.roundId != null);
+}
+
 /** Feedback the local player caused: it never has to wait for remote presentation. */
 export function isOwnFeedbackEvent(ev, selfId) {
   if (!ev || selfId == null) return false;
   if (ev.kind === 'hit') return ev.attacker === selfId && ev.victim !== selfId;
   if (ev.kind === 'kill') return ev.killer === selfId && ev.victim !== selfId;
-  return false;
+  return isOwnShotConfirmation(ev, selfId);
+}
+
+function eventKey(ev, baseId, index) {
+  return Number.isFinite(ev.seq) ? 's' + ev.seq : 'f' + (baseId + index);
 }
 
 /**
- * Drain the local player's own hit and kill feedback from every received
+ * Drain the local player's shot confirmations, hit and kill feedback from every received
  * snapshot immediately, ahead of the presentation delay the world view uses.
  * Shares the dedupe set with drainEventsWithDedupe (so each event is still
  * emitted exactly once) without touching its snapshot watermark, which keeps
  * the delayed pass free to deliver the remaining events of the same snapshots.
  */
-export function drainOwnEventsEarly(snapshotList, selfId, state) {
-  const out = [];
+export function drainOwnEventsEarly(snapshotList, selfId, state, out = []) {
   if (!Array.isArray(snapshotList) || !state || selfId == null) return out;
   const seen = state.seen instanceof Set ? state.seen : (state.seen = new Set());
   const snapWatermark = Number.isFinite(state.snapSeq) ? state.snapSeq : -1;
@@ -201,8 +212,7 @@ export function drainOwnEventsEarly(snapshotList, selfId, state) {
     for (let ei = 0; ei < events.length; ei++) {
       const ev = events[ei];
       if (!isOwnFeedbackEvent(ev, selfId)) continue;
-      const hasEventSeq = Number.isFinite(ev.seq);
-      const key = (hasEventSeq ? 's' : 'f') + (hasEventSeq ? ev.seq : baseId + ei);
+      const key = eventKey(ev, baseId, ei);
       if (seen.has(key)) continue;
       seen.add(key);
       out.push(ev);
@@ -241,6 +251,7 @@ export class NetClient {
 
     /** Newest-last ring buffer (max RING_LEN) of raw tick snapshots. */
     this.latestSnapshots = [];
+    this._evictedConfirmations = new Map();
     /** Immutable events returned by the most recent interpolate() call. */
     this.latestEvents = Object.freeze([]);
     /** Newest full waiting/live lobby replacement, or null outside a lobby. */
@@ -357,6 +368,7 @@ export class NetClient {
     this.blockDamage.clear();
     this.latestEvents = Object.freeze([]);
     this.latestSnapshots.length = 0;
+    this._evictedConfirmations.clear();
     this.latestTitanfallSelf = null;
     this.titanfallSelfFrames.length = 0;
     this._drainState.seen.clear();
@@ -571,6 +583,8 @@ export class NetClient {
       this._emit('close', { code: Number(event?.code) || 0, reason: String(event?.reason || '') });
     };
   }
+
+  get nextInputSeq() { return this._seq + 1; }
 
   /**
    * Send one input sample at the caller's cadence (~60/s per contract).
@@ -853,9 +867,19 @@ export class NetClient {
     }
 
     // Effect events have one authoritative source: their owning tick snapshot.
-    // The local player's own hit markers and kills surface the moment their
-    // snapshot arrives; everything else waits for the presentation delay.
-    const own = drainOwnEventsEarly(this.latestSnapshots, this.id, this._drainState);
+    // A stalled render can miss a whole ring. Deliver recent local confirmations
+    // preserved at eviction before draining newer shots and delayed world events.
+    const own = [];
+    if (this._evictedConfirmations.size) {
+      for (const [key, { event, at }] of this._evictedConfirmations) {
+        if (renderNowMs - at <= CONFIRMATION_MAX_AGE_MS && !this._drainState.seen.has(key)) {
+          this._drainState.seen.add(key);
+          own.push(event);
+        }
+      }
+      this._evictedConfirmations.clear();
+    }
+    drainOwnEventsEarly(snaps, this.id, this._drainState, own);
     const delayed = drainEventsWithDedupe(this.latestSnapshots, target, this._drainState);
     const events = Object.freeze(own.length ? own.concat(delayed) : delayed);
     this.latestEvents = events;
@@ -1015,10 +1039,24 @@ export class NetClient {
     this._applyBlockDamage(snapshot.blockDamage);
     this._playerIndexes.set(snapshot, indexById(snapshot.players));
     this.latestSnapshots.push(snapshot);
-    if (this.latestSnapshots.length > RING_LEN) this.latestSnapshots.shift();
+    if (this.latestSnapshots.length > RING_LEN) this._retainConfirmations(this.latestSnapshots.shift());
     this._emit('tick', snapshot);
   }
 
+  _retainConfirmations(snapshot) {
+    if (snapshot.snapSeq <= this._drainState.snapSeq || this.id == null || !Array.isArray(snapshot.events)) return;
+    const baseId = snapshot.snapSeq * INTERP_SPAN;
+    for (let i = 0; i < snapshot.events.length; i++) {
+      const event = snapshot.events[i];
+      if (!event || !isOwnShotConfirmation(event, this.id)) continue;
+      const key = eventKey(event, baseId, i);
+      if (this._drainState.seen.has(key)) continue;
+      this._evictedConfirmations.set(key, { event, at: snapshot.now });
+      if (this._evictedConfirmations.size > MAX_EVICTED_CONFIRMATIONS) {
+        this._evictedConfirmations.delete(this._evictedConfirmations.keys().next().value);
+      }
+    }
+  }
 
   _startPing(ws = this.ws, generation = this._sessionGeneration) {
     this._stopPing();

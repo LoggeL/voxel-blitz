@@ -307,32 +307,22 @@ export class ImpactFX {
     this.impactCrossMesh.setColorAt(idx, this._col);
   }
 
-  wallDust(hit, local) {
-    const blockType = this.getBlockFn(hit.x, hit.y, hit.z);
+  wallDust(blockType, hit, point) {
+    // Lift particles a centimetre out of the surface so the voxel doesn't hide their first frame.
+    const x = point[0] + hit.nx * 0.01;
+    const y = point[1] + hit.ny * 0.01;
+    const z = point[2] + hit.nz * 0.01;
     const tint = BLOCK_TINTS[blockType] || 0x999999;
     const kind = blockSoundFor(blockType);
     if (kind === 'metal') {
-      this.spawnParticles(
-        hit.x + 0.5 + hit.nx * 0.51,
-        hit.y + 0.5 + hit.ny * 0.51,
-        hit.z + 0.5 + hit.nz * 0.51,
-        6, 0xffd76a, METAL_PARTICLES,
-      );
+      this.spawnParticles(x, y, z, 6, 0xffd76a, METAL_PARTICLES);
       return;
     }
-    this.spawnParticles(
-      hit.x + 0.5 + hit.nx * 0.52,
-      hit.y + 0.5 + hit.ny * 0.52,
-      hit.z + 0.5 + hit.nz * 0.52,
-      kind === 'glass' ? 8 : 6,
-      tint,
-      kind === 'glass' ? GLASS_PARTICLES : DUST_PARTICLES,
-    );
     if (kind === 'glass') {
-      this.spawnParticles(
-        hit.x + 0.5, hit.y + 0.5, hit.z + 0.5,
-        2, 0xffffff, GLINT_PARTICLES,
-      );
+      this.spawnParticles(x, y, z, 8, tint, GLASS_PARTICLES);
+      this.spawnParticles(x, y, z, 2, 0xffffff, GLINT_PARTICLES);
+    } else {
+      this.spawnParticles(x, y, z, 6, tint, DUST_PARTICLES);
     }
   }
 

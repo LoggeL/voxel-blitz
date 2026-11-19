@@ -112,9 +112,9 @@ for (const held of [false, true]) {
   };
   const input = { keys: {}, weapon: shooter.weapon, wantAds: true,
     wantFire: true, yaw: -Math.PI / 2, pitch: 0 };
-  GameEngine.prototype.applyInput.call(host, shooter.id, input);
+  GameEngine.prototype.applyInput.call(host, shooter.id, { ...input, seq: 41 });
   GameEngine.prototype.applyInput.call(host, shooter.id,
-    { ...input, wantFire: held, yaw: -1.2, pitch: 0.12 });
+    { ...input, seq: 42, wantFire: held, yaw: -1.2, pitch: 0.12 });
   stepMovement(shooter, 1 / 60, { ...ctx, mapMeta: {}, onFall() {} });
   resolveWeaponIntent(shooter, 1 / 60, ctx);
   assert.ok(victim.hp < 10000, 'Queued sniper click hits its original target after a later aim packet');
@@ -122,6 +122,7 @@ for (const held of [false, true]) {
   assert.equal(shooter.pitch, 0.12);
   assert.equal(shooter.fireAimQueued, null, 'The queued aim is consumed with the trigger');
   assert.equal(events.filter(event => event.kind === 'shoot').length, 1);
+  assert.equal(events.find(event => event.kind === 'shoot').inputSeq, 41, 'the queued click keeps its original input sequence');
   // A subsequent click must use its own new direction, never the consumed ray.
   const hp = victim.hp;
   shooter.cooldown = 0;

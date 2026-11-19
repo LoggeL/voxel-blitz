@@ -5,6 +5,7 @@ import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { smooth01 } from '../util/math.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
+import { FootstepCadence } from '../audio/footsteps.js';
 
 // The chest reaches from the hips up to the shoulder line the first-person
 // arms hang from (viewmodel-arms.js), so looking down shows a whole upper body
@@ -21,6 +22,21 @@ const BODY_POSE = Object.freeze({
   legX: 0.13,
   legY: 0.66,
 });
+
+const ankle = new THREE.Vector3();
+const levelBoot = new THREE.Quaternion();
+
+// A swinging straight leg shortens its vertical reach. Keep the support
+// boot at its standing height while the other foot clears the floor.
+function placeWalkingBoot({ leg, knee, boot }, lift, weight) {
+  levelBoot.copy(leg.quaternion).multiply(knee.quaternion).invert();
+  boot.quaternion.slerp(levelBoot, weight);
+  ankle.copy(boot.position).applyQuaternion(knee.quaternion).add(knee.position).applyQuaternion(leg.quaternion);
+  const restY = BODY_POSE.legY + knee.position.y + boot.position.y;
+  const shift = (restY + lift - leg.position.y - ankle.y) * weight;
+  leg.position.y += shift;
+  return shift;
+}
 
 export function makeFirstPersonBody() {
   const group = new THREE.Group();
@@ -94,6 +110,12 @@ export function makeFirstPersonBody() {
     for (const geometry of oldGeometry) geometry.dispose();
     for (const material of oldMaterials) material.dispose();
     group.userData.blenderAsset = 'rivet';
+  } else {
+    // The fallback is a solid box centred at its origin. The authored boot
+    // already has its own ankle offset. Align the box sole with the floor.
+    for (const { knee, boot } of [left, right]) {
+      boot.position.y = -BODY_POSE.legY - knee.position.y + bootGeometry.parameters.height / 2;
+    }
   }
   const body = {
     group,
@@ -102,7 +124,6 @@ export function makeFirstPersonBody() {
     torso,
     left,
     right,
-    phase: 0,
     crouch: 0,
     disposed: false,
   };
@@ -112,13 +133,11 @@ export function makeFirstPersonBody() {
 
 export function resetFirstPersonBody(body) {
   if (!body || body.disposed) return;
-  body.phase = 0;
+  body.previewContacts?.reset();
   body.crouch = 0;
   body.stride = 0;
   body.air = 0;
   body.land = 0;
-  body.fallSpeed = 0;
-  body.wasGrounded = null;
   body.forward = 1;
   body.lateral = 0;
   body.clock = 0;
@@ -163,18 +182,15 @@ export function updateFirstPersonBody(
   const seconds = Math.max(0, Math.min(0.1, dt));
   const follow = 1 - Math.exp(-13 * seconds);
   const grounded = motion.grounded !== false && !motion.vaulting;
-  const vertical = Number(motion.verticalVelocity) || 0;
+  let contact = motion.groundContact;
+  if (!contact) {
+    contact = body.previewContacts ??= new FootstepCadence();
+    contact.update(seconds, { ...motion, speed, grounded, crouch: crouching, prone: proneT > 0 });
+  }
   body.clock += seconds;
   body.stride += ((alive && grounded ? Math.min(1, Math.max(0, speed) / 5.8) : 0) - body.stride) * follow;
   body.air += ((alive && !grounded ? 1 : 0) - body.air) * follow;
-  body.land *= Math.exp(-12 * seconds);
-  if (!grounded && !motion.vaulting) body.fallSpeed = Math.max(body.fallSpeed, -vertical);
-  if (grounded && body.wasGrounded === false) {
-    body.land = Math.min(1, body.fallSpeed / 9);
-    body.fallSpeed = 0;
-  }
-  if (motion.vaulting) body.fallSpeed = 0;
-  body.wasGrounded = grounded;
+  body.land = Math.max(contact.landing, body.land * Math.exp(-12 * seconds));
   // Floating (swimming, not touching the bottom) leans the body into the water;
   // wading in shallow water keeps the walk. The lean fades under crouch (the
   // dive input) and prone, which keep their own stances.
@@ -187,12 +203,21 @@ export function updateFirstPersonBody(
   body.forward += (forward - body.forward) * follow;
   body.lateral += (lateral - body.lateral) * follow;
   const stride = body.stride;
-  if (stride > 0.025) body.phase += seconds * (5.4 + speed * 1.15);
   body.crouch += ((crouching && alive ? 1 : 0) - body.crouch) * follow;
   const crouch = body.crouch;
-  const swing = Math.sin(body.phase) * stride;
-  const bounce = Math.abs(Math.sin(body.phase * 2)) * stride * 0.025;
-  const compression = body.land * 0.075;
+  // The left boot meets the floor at +π/2 and the right at -π/2. The hips
+  // rise once between contacts, as the planted leg passes under the torso.
+  const swing = Math.sin(contact.phase) * stride;
+  const liftPhase = Math.cos(contact.phase);
+  const leftLift = Math.max(0, liftPhase) * stride;
+  const rightLift = Math.max(0, -liftPhase) * stride;
+  const bounce = liftPhase ** 2 * stride * 0.025 * (motion.reducedMotion ? 0.15 : 1);
+  // Flex the thigh and shin equally around the knee. Lowering the hip by
+  // that shortening, and levelling the ankle, keeps the boot on its sole.
+  const bend = 0.48 * Math.sqrt(body.land);
+  const compression = -(body.left.knee.position.y + body.left.boot.position.y) * (1 - Math.cos(bend))
+    - body.left.boot.position.z * Math.sin(bend);
+  const tuck = grounded ? 0 : body.air;
   const breathing = Math.sin(body.clock * 2.3) * 0.004 * (1 - stride) * (1 - body.air);
 
   if (!alive) {
@@ -223,21 +248,29 @@ export function updateFirstPersonBody(
   body.torso.rotation.x = crouch * 0.12 + body.land * 0.08 - cycle.torsoPitch * 1.4;
   body.hips.rotation.x = -cycle.hipsPitch * 1.4;
   body.hips.rotation.z = swing * stride * 0.045 + cycle.sway * 0.03 * swim;
-  body.left.leg.position.y = BODY_POSE.legY - crouch * 0.24 + cycle.bob * 1.5;
-  body.right.leg.position.y = BODY_POSE.legY - crouch * 0.24 + cycle.bob * 1.5;
-  body.left.leg.rotation.x = swing * 0.72 * body.forward - crouch * 0.58 - (body.air * 0.42 + body.land * 0.2) * dry -
+  body.left.leg.position.y = BODY_POSE.legY - crouch * 0.24 + cycle.bob * 1.5 - compression;
+  body.right.leg.position.y = body.left.leg.position.y;
+  body.left.leg.rotation.x = swing * 0.52 * body.forward - crouch * 0.58 - (tuck * 0.42 + bend) * dry -
     (cycle.legTrail + cycle.kick) * 2;
-  body.right.leg.rotation.x = -swing * 0.72 * body.forward - crouch * 0.58 - (body.air * 0.28 + body.land * 0.2) * dry -
+  body.right.leg.rotation.x = -swing * 0.52 * body.forward - crouch * 0.58 - (tuck * 0.28 + bend) * dry -
     (cycle.legTrail - cycle.kick) * 2;
   body.left.leg.rotation.z = swing * 0.42 * body.lateral;
   body.right.leg.rotation.z = -swing * 0.42 * body.lateral;
-  body.left.knee.rotation.x = crouch * 1.02 + Math.max(0, -swing) * 0.32 + (body.air * 0.72 + body.land * 0.36) * dry -
+  body.left.knee.rotation.x = crouch * 1.02 + leftLift * 0.32 + (tuck * 0.72 + 2 * bend) * dry -
     (cycle.kneeFlex + Math.max(0, cycle.kick)) * 2.2;
-  body.right.knee.rotation.x = crouch * 1.02 + Math.max(0, swing) * 0.32 + (body.air * 0.55 + body.land * 0.36) * dry -
+  body.right.knee.rotation.x = crouch * 1.02 + rightLift * 0.32 + (tuck * 0.55 + 2 * bend) * dry -
     (cycle.kneeFlex + Math.max(0, -cycle.kick)) * 2.2;
-  body.left.boot.rotation.x = -body.air * 0.14 * dry - Math.max(0, swing) * 0.12 + cycle.kneeFlex * 2;
-  body.right.boot.rotation.x = -body.air * 0.10 * dry - Math.max(0, -swing) * 0.12 + cycle.kneeFlex * 2;
+  body.left.boot.rotation.set(-(tuck * 0.14 + bend) * dry - Math.max(0, swing) * 0.12 + cycle.kneeFlex * 2, 0, 0);
+  body.right.boot.rotation.set(-(tuck * 0.10 + bend) * dry - Math.max(0, -swing) * 0.12 + cycle.kneeFlex * 2, 0, 0);
   const prone = pronePose(proneT);
+  const plantWeight = grounded ? Math.min(1, stride * 3) * (1 - crouch) * (1 - prone) : 0;
+  if (plantWeight > 0) {
+    const leftShift = placeWalkingBoot(body.left, leftLift ** 2 * 0.11, plantWeight);
+    const rightShift = placeWalkingBoot(body.right, rightLift ** 2 * 0.11, plantWeight);
+    const hipShift = (leftShift + rightShift) * 0.5;
+    body.hips.position.y += hipShift;
+    body.torso.position.y += hipShift;
+  }
   for (const [part, y, z] of [[body.hips, 0.25, 0.8], [body.torso, 0.3, 0.4],
     [body.left.leg, 0.25, 0.85], [body.right.leg, 0.25, 0.85]]) {
     part.position.y += (y - part.position.y) * prone;

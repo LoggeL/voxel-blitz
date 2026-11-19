@@ -1,8 +1,9 @@
-// Own-feedback contract: the local player's hit markers and kills leave the
+// Own-feedback contract: local shot confirmations, hit markers and kills leave the
 // snapshot ring the frame they arrive, everything else waits for the
 // presentation delay, and every event is still delivered exactly once.
 import assert from 'node:assert/strict';
 import {
+  NetClient, RING_LEN,
   drainEventsWithDedupe,
   drainOwnEventsEarly,
   isOwnFeedbackEvent,
@@ -23,6 +24,14 @@ assert.equal(isOwnFeedbackEvent(onMe, me), false, 'damage taken keeps its snapsh
 assert.equal(isOwnFeedbackEvent(suicide, me), false, 'self kills keep their snapshot order');
 assert.equal(isOwnFeedbackEvent(death, me), false, 'deaths keep their snapshot order');
 assert.equal(isOwnFeedbackEvent(mine, null), false, 'no identity, nothing early');
+const shot = { kind: 'shoot', id: me, w: 'rifle', paths: [[{ o: [0, 2, 0], end: [0, 2, -3] }]] };
+const launch = { kind: 'shoot', id: me, w: 'sniper', roundId: 35 };
+const impact = { ...shot, kind: 'bullet', w: 'sniper', roundId: 35, seq: 350 };
+for (const event of [shot, launch, impact]) assert.ok(isOwnFeedbackEvent(event, me));
+for (const event of [{ ...shot, id: 'p2' }, { ...shot, vehicleId: 'tank' },
+  { ...shot, chaosArc: true }, { ...shot, chaosFlame: true }, { kind: 'shoot', id: me, w: 'rocket' }]) {
+  assert.equal(isOwnFeedbackEvent(event, me), false, 'remote, mounted, ability and projectile fire keep delayed presentation');
+}
 
 // Snapshot 3 just arrived at local time 300 while presentation sits at 220.
 const ring = [
@@ -49,4 +58,38 @@ ring.push({ now: 400, snapSeq: 4, events: [{ kind: 'kill', killer: me, victim: '
 assert.deepEqual(drainOwnEventsEarly(ring, me, state).map((event) => event.victim), ['p5'], 'later snapshots keep surfacing own kills early');
 assert.deepEqual(drainEventsWithDedupe(ring, 400, state), [theirs], 'and their remaining events arrive with the delayed pass');
 
-console.log('ok - own feedback: early hit/kill delivery, delayed world events, exactly-once across both passes');
+// Use the actual receipt and presentation paths. A late render loses most world
+// events in an evicted snapshot, but keeps the original event indices of our shots.
+const client = new NetClient();
+client.id = me;
+let tickNumber = 0;
+const tick = (events = []) => client._onTick({ t: 'tick', now: ++tickNumber * 17, events });
+const fillRing = () => { for (let i = 0; i < RING_LEN; i++) tick(); };
+const frame = (delay = 200) => client.interpolate(client.latestSnapshots.at(-1).now, delay).events;
+const dispatched = [];
+client.on('shoot', (event) => dispatched.push(event));
+tick([launch]);
+assert.deepEqual(frame(), [launch], 'accepting a launched round does not wait for interpolation');
+tick([theirs, shot, impact]);
+fillRing();
+const newer = { ...shot, seq: 351 };
+const mounted = { ...shot, seq: 352, vehicleId: 'tank' };
+tick([newer, impact, mounted]);
+assert.deepEqual(frame(), [shot, impact, newer], 'evicted and buffered confirmations arrive in order without repeats');
+assert.deepEqual(frame(), []);
+assert.deepEqual(frame(0), [mounted], 'the mounted shot is presented on the world clock');
+assert.deepEqual(dispatched, [launch, shot, newer, mounted], 'listeners receive each confirmation once');
+tick([shot]); fillRing();
+assert.deepEqual(client.interpolate(client.latestSnapshots.at(-1).now + 60_000, 0).events, [],
+  'a long suspension does not replay stale hit effects');
+tick([shot]); fillRing();
+client._resetSessionState(false);
+client.id = me; tick();
+assert.deepEqual(frame(), [], 'reusing the client clears the previous session backlog');
+for (let i = 0; i < 300; i++) tick([{ ...shot, seq: 1000 + i }]);
+const backlog = frame();
+assert.ok(backlog.length >= RING_LEN && backlog.length < 300, 'retention has a hard bound');
+assert.equal(backlog.at(-1).seq, 1299, 'the newest accepted shot wins on overflow');
+assert.equal(new Set(backlog.map((event) => event.seq)).size, backlog.length);
+assert.deepEqual(frame(0), []);
+console.log('ok - own feedback: early local confirmations, bounded overflow recovery, delayed world events and exactly-once delivery');

@@ -128,6 +128,9 @@ function fire(f, aim, { viewAge = 60, beforeTick = () => {}, maxTicks = 150 } = 
   const shot = fire(close, losAngles(eyeOf(close.shooter), zoneCenter(close.victim, 'torso')));
   assert.equal(shot.hitTick, 0, 'a 5 m round hits in the tick it was fired');
   assert.equal(shot.shoot.paths, undefined, 'a flying round publishes no instant path with the shot');
+  assert.equal(shot.shoot.inputSeq, 1000, 'the accepted launch identifies the input that fired it');
+  assert.ok(Number.isSafeInteger(shot.shoot.roundId));
+  assert.equal(shot.bullet.roundId, shot.shoot.roundId, 'the resolved path identifies the same round');
   assert.deepEqual(shot.bullet.hitVictims, ['victim'], 'the settled round names its victim');
 
   const f = arena(50);
@@ -240,9 +243,10 @@ let flightTicks250 = 0;
   try {
     const impacts = [];
     const wallX = 200;
-    const tracers = new TracerFX(new THREE.Scene(), x => x === wallX ? STONE : AIR, hit => impacts.push(hit));
+    const tracers = new TracerFX(new THREE.Scene(), x => x === wallX ? STONE : AIR,
+      (hit, local, point) => impacts.push({ hit, point }));
     try {
-      const eye = [0.5, 40, 0.5];
+      const eye = [0.5, 40, 0.85];
       tracers.shoot({ w: 'sniper', o: eye, d: [1, 0, 0], spread: [1, 0, 0] }, { local: true });
       assert.equal(tracers.rounds.length, 1, 'a sniper shot launches one flying round');
       assert.equal(impacts.length, 0, 'no wall feedback at the trigger');
@@ -252,12 +256,17 @@ let flightTicks250 = 0;
       let t = 0;
       while (tracers.rounds.length && t < 2) { tracers.update(1 / 120); t += 1 / 120; }
       assert.equal(impacts.length, 1, 'the wall is dusted once, on arrival');
-      assert.equal(impacts[0].x, wallX);
+      assert.equal(impacts[0].hit.x, wallX);
+      assert.equal(impacts[0].point[0], wallX);
+      assert.equal(impacts[0].point[2], eye[2], 'the round strikes off-centre on its flight line');
+      assert.ok(Math.abs(impacts[0].point[1] - ballisticPoint(profile, round.launch, round.end).y) < 0.001,
+        'the contact height follows the flight chord, including drop');
       assert.ok(Math.abs(t - expected) < 0.02, `arrival matches the flight time (${t.toFixed(3)} s)`);
       assert.ok(!tracers.tracers.some(tracer => tracer.round), 'the streak slot is released');
 
       // Remote round stopped by a body at 60 m: the streak ends there, with no wall dust.
-      tracers.shoot({ id: 'enemy', w: 'sniper', o: [0.5 + 0.25, eye[1] - 0.15, 0.5], d: [1, 0, 0], spread: [1, 0, 0] });
+      const networkShot = { id: 'enemy', w: 'sniper', o: [eye[0] + 0.25, eye[1] - 0.15, eye[2]], d: [1, 0, 0] };
+      tracers.shoot(networkShot);
       tracers.update(0.05);
       tracers.settleRound({ kind: 'bullet', id: 'enemy', w: 'sniper',
         paths: [[{ o: eye, end: [60.5, eye[1], 0.5] }]], hitVictims: ['me'] });
@@ -265,6 +274,59 @@ let flightTicks250 = 0;
       tracers.update(0.2);
       assert.equal(tracers.rounds.length, 0);
       assert.equal(impacts.length, 1, 'a body stop leaves no wall dust');
+
+      // Authority can also see through cover that the client still thinks is intact.
+      tracers.shoot({ w: 'sniper', o: eye, d: [1, 0, 0], inputSeq: 47 }, { local: true });
+      tracers.confirmRound({ ...networkShot, id: 'me', roundId: 11, inputSeq: 47, spread: [0.999, 0, 0.04] });
+      assert.ok(tracers.rounds[0].launch.vz > 10, 'the own tracer adopts the accepted spread');
+      const farPoint = [300, 37.25, 0.85];
+      tracers.settleRound({ id: 'me', roundId: 11, w: 'sniper', paths: [[{
+        o: eye, end: farPoint, hit: { x: 300, y: 37, z: 0, nx: -1, ny: 0, nz: 0 },
+      }]] }, { local: true });
+      tracers.update(expected + 0.04);
+      assert.equal(impacts.length, 1, 'no dust at the earlier predicted contact time');
+      tracers.update(0.3);
+      assert.deepEqual(impacts.at(-1).point, farPoint, 'the round arrives at the authoritative contact');
+
+      for (const local of [false, true]) {
+        tracers.reset();
+        impacts.length = 0;
+        const owner = local ? 'me' : 'enemy';
+        const shoot = (roundId, inputSeq) => {
+          const shot = { ...networkShot, id: owner, roundId, inputSeq };
+          if (local) {
+            tracers.shoot({ w: 'sniper', o: eye, d: [1, 0, 0], inputSeq }, { local });
+            tracers.confirmRound(shot);
+          } else tracers.shoot(shot);
+        };
+        const settle = (roundId, distance) => tracers.settleRound({ id: owner, w: 'sniper', roundId,
+          paths: [[{ o: eye, end: [distance, 40, 0.85], hit: { x: distance, y: 40, z: 0, nx: -1, ny: 0, nz: 0 } }]] }, { local });
+        shoot(51, 301);
+        tracers.update(0.1);
+        shoot(52, 345);
+        settle(52, 10);
+        tracers.update(0.05);
+        assert.deepEqual(tracers.rounds.map(r => r.roundId), [51], 'only the newer close round settled');
+        assert.deepEqual(impacts.map(i => i.point[0]), [10]);
+        tracers.update(1);
+        assert.equal(impacts.length, 1, 'live prediction never dusts an unconfirmed wall');
+        shoot(53, 413);
+        settle(51, 450);
+        assert.deepEqual(impacts.map(i => i.point[0]), [10, 450], 'a late result places the exact old hit');
+        assert.equal(tracers.rounds[0].roundId, 53);
+        assert.equal(tracers.rounds[0].settled, false, 'the surviving streak keeps its own flight');
+      }
+      tracers.reset();
+      impacts.length = 0;
+      tracers.shoot({ w: 'sniper', o: eye, d: [1, 0, 0], inputSeq: 14 }, { local: true });
+      tracers.confirmRound({ ...networkShot, id: 'me', roundId: 53, inputSeq: 15 });
+      assert.equal(tracers.rounds[0].roundId, undefined, 'an unrelated accepted click cannot adopt a rejected prediction');
+      tracers.update(2);
+      assert.equal(impacts.length, 0, 'a rejected live prediction leaves no terrain feedback');
+      tracers.reset();
+      tracers.shoot({ w: 'sniper', o: eye, d: [1, 0, 0], inputSeq: 14 }, { local: true });
+      tracers.confirmRound({ ...networkShot, id: 'new-player', roundId: 1, inputSeq: 14 });
+      assert.equal(tracers.rounds[0].ownerId, 'new-player', 'a reset starts a fresh input and shot sequence namespace');
     } finally { tracers.dispose(); }
   } finally {
     if (previousDocument === undefined) delete globalThis.document;

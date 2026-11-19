@@ -168,6 +168,11 @@ function directionInto(target, value) {
   return target.set(value.x, value.y, value.z);
 }
 
+function networkShotEye(event, scratch) {
+  const aim = directionInto(scratch, event.d).normalize();
+  return [event.o[0] - aim.x * 0.25, event.o[1] + 0.15 - aim.y * 0.25, event.o[2] - aim.z * 0.25];
+}
+
 /** Water-entry probe of a bullet path: radius (m) around the listener, minimum distance from the muzzle. */
 export const WATER_PROBE = Object.freeze({ radius: 50, minT: 0.5 });
 
@@ -289,6 +294,8 @@ export class TracerFX {
     this.stats = { shots: 0 };
     /** Flying rounds in presentation, oldest first (see launchRound). */
     this.rounds = [];
+    this._recentLegacyRounds = [];
+    this._flightClock = 0;
     this._disposed = false;
   }
 
@@ -334,30 +341,30 @@ export class TracerFX {
     const usePellets = pelletDirections && pelletDirections.length > 1;
     const directionCount = usePellets ? pelletDirections.length : 1;
     const limit = Math.min(directionCount, definition ? definition.pellets * (event.chaos && event.w === 'shotgun' ? 2 : 1) : 1);
-    let ox = event.o[0];
-    let oy = event.o[1];
-    let oz = event.o[2];
     const local = !!options.local;
+    let remoteMuzzle = null;
     if (!local && this.remoteMuzzleProvider) {
       const m = this.remoteMuzzleProvider(event.id, this._muzzle);
       // Sanity cap: a desynced avatar never drags a streak across the map.
-      if (m && Math.hypot(m.x - ox, m.y - oy, m.z - oz) < 3) {
-        ox = m.x; oy = m.y; oz = m.z;
-      }
+      if (m && Math.hypot(m.x - event.o[0], m.y - event.o[1], m.z - event.o[2]) < 3) remoteMuzzle = m;
     }
-
+    const visualOrigin = remoteMuzzle ? [remoteMuzzle.x, remoteMuzzle.y, remoteMuzzle.z] : event.o;
     // The SUDSBLASTER releases a soap film, never a powder flash.
-    if (!local && definition?.projectile !== 'bubble') this.spawnFlash([ox, oy, oz], event.d);
+    if (!local && definition?.projectile !== 'bubble') this.spawnFlash(visualOrigin, event.d);
     if (definition && !definition.tracer) return;
     const ballistic = ballisticProfile(definition);
-    if (ballistic) { this.launchRound(event, definition, ballistic, local, ox, oy, oz); return; }
-    if (Array.isArray(event.paths)) { this.resolvedShot(event, { pinned: !local }); return; }
+    if (!ballistic && Array.isArray(event.paths)) { this.resolvedShot(event, { pinned: !local }); return; }
+    // Local prediction gives us the eye. The network origin is a presentation
+    // muzzle: undo the server's offset along the unspread aim before raycasting.
+    const eye = local ? event.o : networkShotEye(event, this._direction);
+    if (ballistic) { this.launchRound(event, definition, ballistic, local, eye, visualOrigin); return; }
+    const [ox, oy, oz] = eye;
 
     for (let i = 0; i < limit; i++) {
       const rawDirection = usePellets
         ? pelletDirections[i]
         : (event.spread || event.d);
-      const direction = directionInto(this._direction, rawDirection);
+      const direction = directionInto(this._direction, rawDirection).normalize();
       let length = definition ? definition.tracer.len : 22;
       const hit = raycastVoxels(
         this.solidAt,
@@ -369,25 +376,24 @@ export class TracerFX {
         direction.z,
         HITSCAN_REACH,
       );
-      if (i === 0) this.probeWater([ox, oy, oz], direction, hit ? hit.t : HITSCAN_REACH, local);
+      const aimDistance = hit ? hit.t : 180;
+      const endpoint = [ox + direction.x * aimDistance, oy + direction.y * aimDistance, oz + direction.z * aimDistance];
+      if (i === 0) this.probeWater(eye, direction, hit ? hit.t : HITSCAN_REACH, local);
       if (hit) {
-        if (i === 0 && this.onWallImpact) this.onWallImpact(hit, local);
+        if (i === 0 && this.onWallImpact && !options.deferWallImpact) this.onWallImpact(hit, local, endpoint);
         // Prediction stops at the first contact; authority supplies continuation paths.
         length = Math.max(0.1, Math.min(length, hit.t) - 0.35);
       }
       // Local shots anchor to the live rig muzzle and converge on this eye-ray
       // endpoint; remote shots start at the shooter's rendered barrel tip when
       // the roster resolves one, else the server's presentation origin.
-      const aimDistance = hit ? hit.t : 180;
-      const endpoint = local && this.muzzleProvider
-        ? [ox + direction.x * aimDistance, oy + direction.y * aimDistance, oz + direction.z * aimDistance]
-        : null;
-      this.spawnTracer([ox, oy, oz], direction, length, definition, endpoint, event.charge ?? 1, 0.35, !local);
+      const muzzleTarget = (local && this.muzzleProvider) || remoteMuzzle ? endpoint : null;
+      this.spawnTracer(visualOrigin, direction, length, definition, muzzleTarget, event.charge ?? 1, 0.35, !local, remoteMuzzle);
     }
   }
 
   /** Server-resolved segments include penetration exits and reflected directions. */
-  resolvedShot(event, { continuationsOnly = false, pinned = false } = {}) {
+  resolvedShot(event, { continuationsOnly = false, pinned = false, local = false } = {}) {
     const definition = WEAPONS[event.w];
     if (!definition?.tracer) return;
     for (const path of event.paths || []) {
@@ -401,27 +407,23 @@ export class TracerFX {
           this.probeWater(segment.o, direction, distance, false);
           this.spawnTracer(segment.o, direction, Math.min(distance, definition.tracer.len), definition, null, event.charge ?? 1, 0, pinned);
         }
-        if (segment.hit && this.onWallImpact) this.onWallImpact(segment.hit, false);
+        if (segment.hit && this.onWallImpact) this.onWallImpact(segment.hit, local, segment.end);
       }
     }
   }
 
   /**
    * A flying round (`def.ballistic`): the streak rides the shared arc from the
-   * trigger until its first predicted voxel contact, where it leaves wall
-   * feedback. `event.o` is the eye for local shots and the server muzzle
-   * (eye − 0.15 m, 0.25 m forward) for remote ones; the visible start
-   * (`vx, vy, vz`: rig or avatar barrel) eases onto the true arc.
+   * trigger until its first predicted voxel contact. Live wall feedback waits
+   * for the server to resolve the round. Standalone previews use the predicted hit.
    */
-  launchRound(event, definition, profile, local, vx, vy, vz) {
+  launchRound(event, definition, profile, local, eye, visualOrigin) {
     const raw = event.spread || event.d;
     const direction = directionInto(this._direction, raw).normalize();
     const d = { x: direction.x, y: direction.y, z: direction.z };
-    const eye = local ? event.o
-      : [event.o[0] - d.x * 0.25, event.o[1] + 0.15 - d.y * 0.25, event.o[2] - d.z * 0.25];
     const launch = ballisticLaunch(profile, eye, d);
     const flight = traceBallistic(profile, launch, this.solidAt);
-    let sx = vx, sy = vy, sz = vz;
+    let [sx, sy, sz] = visualOrigin;
     if (local) {
       const m = this.muzzleProvider?.(this._muzzle);
       if (m) { sx = m.x; sy = m.y; sz = m.z; } else { sx = eye[0] + d.x * 0.35; sy = eye[1] + d.y * 0.35; sz = eye[2] + d.z * 0.35; }
@@ -437,7 +439,9 @@ export class TracerFX {
     tracer.color.set(definition.tracer.color);
     const round = {
       index, launch, profile, local, ownerId: String(event.id ?? ''), w: event.w,
-      t: 0, end: flight.t, hit: flight.hit,
+      roundId: event.roundId, inputSeq: event.inputSeq, settled: false,
+      t: 0, end: flight.t, hit: event.roundId == null && event.inputSeq == null ? flight.hit : null,
+      contactPoint: [flight.end.x, flight.end.y, flight.end.z],
       ox: sx - eye[0], oy: sy - eye[1], oz: sz - eye[2],
     };
     tracer.round = round;
@@ -447,12 +451,44 @@ export class TracerFX {
     this._placeRound(round);
   }
 
+  /** Bind a live local prediction to its accepted trigger and adopt the server's sampled spread. */
+  confirmRound(event) {
+    if (event.inputSeq == null) return;
+    const pending = this.rounds.filter(r => r.local && r.w === event.w && r.roundId == null && r.inputSeq === event.inputSeq);
+    if (pending.length !== 1) return;
+    const [round] = pending;
+    round.roundId = event.roundId;
+    round.ownerId = String(event.id);
+    const eye = networkShotEye(event, this._direction);
+    round.ox += round.launch.x - eye[0];
+    round.oy += round.launch.y - eye[1];
+    round.oz += round.launch.z - eye[2];
+    round.launch = ballisticLaunch(round.profile, eye, directionInto(this._direction, event.spread || event.d).normalize());
+    round.end = traceBallistic(round.profile, round.launch, this.solidAt).t;
+  }
+
+  /** Older captures lack round IDs. Only correct a streak when its launch is unambiguous. */
+  _legacyRound(event, local, leg) {
+    const [x, y, z] = leg.o;
+    const dx = leg.end[0] - x, dy = leg.end[1] - y, dz = leg.end[2] - z;
+    const length = Math.hypot(dx, dy, dz);
+    const matches = r => {
+      if (r.roundId != null || r.w !== event.w || !(local && r.local || r.ownerId === String(event.id))) return false;
+      const a = r.launch;
+      if (Math.hypot(x - a.x, y - a.y, z - a.z) > 0.15) return false;
+      return length < 0.02 || (dx * a.vx + dy * a.vy + dz * a.vz) / (length * r.profile.speed) > 0.995;
+    };
+    if (this._recentLegacyRounds.some(r => this._flightClock < r.expires && matches(r))) return null;
+    const candidates = this.rounds.filter(matches);
+    return candidates.length === 1 ? candidates[0] : null;
+  }
+
   /**
    * The server settled a flying round (`bullet` event). A round that stopped
    * before the predicted wall (a body, a hull, a mine) ends there; legs past
    * its first contact (penetration, ricochet) draw as resolved streaks.
-   * `local` marks the viewer's own round: its predicted launch carries no
-   * shooter id, so it matches the oldest local round of that weapon.
+   * Identified results never claim another round, including when the matching
+   * streak has already reached a locally predicted wall or left the tracer pool.
    */
   settleRound(event, { local = false } = {}) {
     const path = Array.isArray(event?.paths) ? event.paths[0] : null;
@@ -463,14 +499,16 @@ export class TracerFX {
       distance += Math.hypot(segment.end[0] - segment.o[0], segment.end[1] - segment.o[1], segment.end[2] - segment.o[2]);
       if (segment.hit) { stop = i; break; }
     }
-    const id = String(event.id);
-    const round = this.rounds.find(item => item.w === event.w && (local ? item.local || item.ownerId === id : item.ownerId === id));
+    const round = event.roundId == null ? this._legacyRound(event, local, path[0]) : this.rounds.find(item =>
+      item.roundId === event.roundId && item.ownerId === String(event.id) && item.w === event.w);
     if (round) {
       const stopT = distance / round.profile.speed;
-      if (round.end > stopT + 0.02) {
-        round.end = Math.max(round.t, stopT);
-        round.hit = path[stop].hit || null;
-      }
+      if (Math.abs(round.end - stopT) > 0.02) round.end = Math.max(round.t, stopT);
+      round.hit = path[stop].hit || null;
+      round.contactPoint = path[stop].end;
+      round.settled = true;
+    } else if (event.roundId != null && path[stop].hit) {
+      this.onWallImpact?.(path[stop].hit, local, path[stop].end);
     }
     const definition = WEAPONS[event.w];
     if (!definition?.tracer) return;
@@ -483,7 +521,7 @@ export class TracerFX {
         direction.multiplyScalar(1 / length);
         this.spawnTracer(segment.o, direction, Math.min(length, definition.tracer.len), definition, null, 1, 0, false);
       }
-      if (segment.hit && this.onWallImpact) this.onWallImpact(segment.hit, false);
+      if (segment.hit && this.onWallImpact) this.onWallImpact(segment.hit, local, segment.end);
     }
   }
 
@@ -501,6 +539,11 @@ export class TracerFX {
   _endRound(i, impact) {
     const round = this.rounds[i];
     this.rounds.splice(i, 1);
+    if (round.roundId == null && !round.settled) {
+      round.expires = this._flightClock + Math.max(0, round.profile.maxFlightS - round.t) + 0.5;
+      this._recentLegacyRounds.push(round);
+      if (this._recentLegacyRounds.length > MAX_ROUNDS) this._recentLegacyRounds.shift();
+    }
     const tracer = this.tracers[round.index];
     if (tracer.round === round) {
       tracer.round = null;
@@ -509,7 +552,7 @@ export class TracerFX {
       hideInstance(this.tracerMesh, round.index);
       this.tracerMesh.instanceMatrix.needsUpdate = true;
     }
-    if (impact && round.hit && this.onWallImpact) this.onWallImpact(round.hit, round.local);
+    if (impact && round.hit && this.onWallImpact) this.onWallImpact(round.hit, round.local, round.contactPoint);
   }
 
   /** Streak from the tail point to the head point of the arc at the round's age. */
@@ -536,6 +579,7 @@ export class TracerFX {
   }
 
   updateRounds(dt) {
+    this._flightClock += dt;
     for (let i = this.rounds.length - 1; i >= 0; i--) {
       const round = this.rounds[i];
       if (this.tracers[round.index].round !== round) { this.rounds.splice(i, 1); continue; }
@@ -546,7 +590,7 @@ export class TracerFX {
   }
 
   /** `pinned` (remote fire) keeps the streak's shooter end on the muzzle for its whole life. */
-  spawnTracer(origin, direction, length, definition, endpoint = null, charge = 1, muzzleOffset = 0.35, pinned = false) {
+  spawnTracer(origin, direction, length, definition, endpoint = null, charge = 1, muzzleOffset = 0.35, pinned = false, remoteMuzzle = null) {
     if (definition && !definition.tracer) return;
     let index = -1;
     for (let i = 0; i < this.tracers.length; i++) {
@@ -563,14 +607,14 @@ export class TracerFX {
     tracer.round = null;
     tracer.anchored = false;
     tracer.pinned = !!pinned;
-    // Local shots snapshot the rig muzzle and aim toward the
+    // Shots snapshot the rendered muzzle and aim toward the
     // eye-ray endpoint, so the streak starts at the visible barrel tip and converges
     // on the crosshair impact. A degenerate muzzle-on-target falls back to the eye ray.
     let dirX = direction.x;
     let dirY = direction.y;
     let dirZ = direction.z;
-    if (endpoint) {
-      const m = this.muzzleProvider(this._muzzle);
+    const m = endpoint ? remoteMuzzle ?? this.muzzleProvider?.(this._muzzle) : null;
+    if (m) {
       const ex = endpoint[0] - m.x;
       const ey = endpoint[1] - m.y;
       const ez = endpoint[2] - m.z;
@@ -590,9 +634,9 @@ export class TracerFX {
 
     this._position.set(dirX, dirY, dirZ).normalize();
     this._rotation.setFromUnitVectors(NEG_Z, this._position);
-    const px = tracer.anchored ? this._muzzle.x : origin[0] + direction.x * muzzleOffset;
-    const py = tracer.anchored ? this._muzzle.y : origin[1] + direction.y * muzzleOffset;
-    const pz = tracer.anchored ? this._muzzle.z : origin[2] + direction.z * muzzleOffset;
+    const px = tracer.anchored ? m.x : origin[0] + direction.x * muzzleOffset;
+    const py = tracer.anchored ? m.y : origin[1] + direction.y * muzzleOffset;
+    const pz = tracer.anchored ? m.z : origin[2] + direction.z * muzzleOffset;
     this._scale.set(tracer.w, tracer.w, length);
     this._matrix.compose(
       this._position.set(px, py, pz),
@@ -702,6 +746,8 @@ export class TracerFX {
 
   reset() {
     this.rounds.length = 0;
+    this._recentLegacyRounds.length = 0;
+    this._flightClock = 0;
     for (let i = 0; i < this.tracers.length; i++) {
       this.tracers[i].round = null;
       this.tracers[i].active = false;

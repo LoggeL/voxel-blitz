@@ -64,6 +64,7 @@ const bounce=fixture('rifle',[[2,3,1,METAL]],[Math.sqrt(.96),0,.2],[7.3,2.5,.12]
 bounce.fire();
 const path=bounce.events.find(e=>e.kind==='shoot').paths[0];
 assert.equal(path[0].action,'ricochet');
+assert.equal(path[0].hit.type, METAL, 'the resolved contact retains the material struck');
 assert.ok(path[1].end[2]<path[1].o[2],'reflected path travels away from the face');
 assert.ok(bounce.victim.hp<10000,'reflected bullet can damage a target');
 assert.ok(bounce.victim.hp>clear.victim.hp,'ricochet damage is reduced');

@@ -25,6 +25,13 @@ assert.equal(footstepSurfaceAt(getBlock, { x: 1.1, y: 4, z: .5 }), 'metal', 'flu
 cells.set('0,3,0', BLOCK.MC_SAND);
 assert.equal(footstepSurfaceAt(getBlock, { x: 1.1, y: 4, z: .5 }), 'sand', 'live terrain edits change material');
 assert.equal(footstepSurfaceAt(getBlock, { x: NaN, y: 4, z: .5 }), 'stone');
+const seam = (x, y) => y === 3 ? (x === 0 ? BLOCK.METAL : BLOCK.GRAVEL) : BLOCK.AIR;
+const atSeam = { x: 1, y: 4, z: .5 };
+assert.equal(footstepSurfaceAt(seam, atSeam, { x: .87, z: .5 }), 'metal');
+assert.equal(footstepSurfaceAt(seam, atSeam, { x: 1.13, z: .5 }), 'gravel');
+const catwalkEdge = (_x, y, z) => y === 3 && z === 4 ? BLOCK.METAL : BLOCK.AIR;
+assert.equal(footstepSurfaceAt(catwalkEdge, { x: 1, y: 4, z: 4.2 }, { x: .87, z: 3.74 }), 'metal',
+  'a boot extending over empty space uses the supporting ledge');
 {
   const variations = new FootstepVariations();
   const me = {}, other = {};
@@ -77,6 +84,63 @@ assert.ok(!strideCrossed(0.1, 1.2), 'no footfall between extremes');
   let walkSteps = 0;
   for (let i = 0; i < 120; i++) if (slow.update(dt, { speed: 4.4, grounded: true }) > 0) walkSteps++;
   assert.ok(walkSteps < steps, 'walking steps less often than sprinting');
+}
+
+// A drop and a stride are separate contacts, including when horizontal speed is zero.
+function landAt(cadence, dt, descentSpeed, horizontalSpeed = 0) {
+  cadence.update(dt, { grounded: true, speed: horizontalSpeed });
+  cadence.update(dt, { grounded: false, speed: horizontalSpeed, verticalVelocity: -descentSpeed });
+  assert.equal(cadence.landing, 0);
+  cadence.update(dt, { grounded: true, speed: horizontalSpeed, verticalVelocity: 0 });
+  assert.equal(cadence.stepVolume, 0, 'the landing replaces any step on that frame');
+  const intensity = cadence.landing;
+  cadence.update(dt, { grounded: true, speed: horizontalSpeed });
+  assert.equal(cadence.landing, 0, 'a single landing produces one sound');
+  return intensity;
+}
+for (const fps of [30, 60, 144]) {
+  const cadence = new FootstepCadence();
+  const dt = 1 / fps;
+  const hop = landAt(cadence, dt, 4);
+  const drop = landAt(cadence, dt, 10, SPRINT_SPEED);
+  assert.ok(hop > 0 && drop > hop && drop <= 1, 'descent speed controls the landing at ' + fps + ' fps');
+  cadence.update(dt, { grounded: false, speed: 0, verticalVelocity: -12 });
+  cadence.reset();
+  cadence.update(dt, { grounded: true, speed: 0 });
+  assert.equal(cadence.landing, 0, 'respawning discards the previous fall');
+
+  let lastSide = 0;
+  let plants = 0;
+  for (let frame = 0; frame < fps * 2; frame++) {
+    const before = cadence.phase;
+    cadence.update(dt, { grounded: true, speed: SPRINT_SPEED });
+    if (!cadence.stepVolume) continue;
+    assert.ok(strideCrossed(before, cadence.phase), 'a step sound lands on a boot plant');
+    assert.ok(Math.abs(cadence.side) === 1 && cadence.side !== lastSide, 'boots alternate');
+    lastSide = cadence.side;
+    plants++;
+  }
+  assert.ok(plants >= 2, 'the sprint produces alternating contacts');
+}
+{
+  const cadence = new FootstepCadence();
+  const frame = (motion) => cadence.update(1 / 60, { speed: 0, ...motion });
+  frame({ grounded: false, verticalVelocity: -12 });
+  frame({ grounded: false, verticalVelocity: 2 });
+  frame({ grounded: true, landingSpeed: 0.4 });
+  assert.equal(cadence.landing, 0, 'an arrested fall does not replay its earlier speed');
+  for (const interruption of [{ active: false }, { swimming: true }, { vaulting: true }]) {
+    frame({ grounded: false, verticalVelocity: -12 });
+    frame(interruption);
+    frame({ grounded: true });
+    assert.equal(cadence.landing, 0, 'an interrupted fall cannot produce a stale landing');
+  }
+  const beforeWading = cadence.phase;
+  for (let i = 0; i < 30; i++) {
+    frame({ speed: 2.4, grounded: true, swimming: true });
+    assert.equal(cadence.stepVolume, 0, 'wading does not play a dry footstep');
+  }
+  assert.notEqual(cadence.phase, beforeWading, 'boots keep moving on the bottom in shallow water');
 }
 
 // Remote footfalls route through world attenuation and direction; own steps do not.
@@ -140,6 +204,11 @@ try {
   const ownBefore = ctx.nodes.length;
   sfx.footstep(0.3);
   assert.ok(!ctx.nodes.slice(ownBefore).some((node) => node.kind === 'panner'), 'own footfalls are not positional');
+  const beforeFallback = ctx.nodes.length;
+  sfx.landing(0.5, { surface: 'metal' });
+  const fallback = ctx.nodes.slice(beforeFallback);
+  assert.ok(fallback.some((node) => node.kind === 'oscillator') && fallback.some((node) => node.kind === 'source'),
+    'a missing recording still produces a landing thud and scuff');
   ctx.allowSamples = true;
   const stepManifest = Object.fromEntries(Object.entries(BUILTIN_SAMPLE_MANIFEST)
     .filter(([slot]) => slot.startsWith('movement.footstep.')));
@@ -163,12 +232,36 @@ try {
       sfx.footstep(1, { surface, body: remoteBody, pos: [4, 1, 0] });
     }
   }
+  for (const side of [1, 1, -1]) {
+    const start = ctx.nodes.length;
+    sfx.footstep(.3, { surface: 'wood', body: ownBody, side });
+    assert.equal(Math.sign(ctx.nodes.slice(start).find((node) => node.kind === 'stereo').pan.value), side,
+      'local stereo follows the planted boot even if intervening steps were silent');
+  }
+  function landingSample(surface, weight) {
+    const start = ctx.nodes.length;
+    sfx.landing(weight, { surface, body: ownBody });
+    const nodes = ctx.nodes.slice(start);
+    const recordings = nodes.filter((node) => node.kind === 'source' && node.buffer?.url);
+    assert.equal(recordings.length, 1);
+    const [sample] = recordings;
+    assert.ok(FOOTSTEP_SLOTS[surface].some((slot) => stepManifest[slot] === sample.buffer.url));
+    assert.ok(nodes.some((node) => node.kind === 'oscillator'), 'the surface sound carries a low landing thud');
+    assert.ok(!nodes.some((node) => node.kind === 'panner'), 'the local landing stays centered');
+    return { rate: sample.playbackRate.value, gain: sample.connections[0].gain.value };
+  }
+  const light = landingSample('metal', .2);
+  const hard = landingSample('gravel', .95);
+  assert.ok(hard.gain > light.gain && hard.rate < light.rate, 'a harder landing is louder and deeper');
   const silentBefore = ctx.nodes.length;
-  for (const gain of [0, -1, NaN, Infinity]) sfx.footstep(gain, { surface: 'metal' });
+  for (const gain of [0, -1, NaN, Infinity]) {
+    sfx.footstep(gain, { surface: 'metal' });
+    sfx.landing(gain, { surface: 'metal' });
+  }
   assert.equal(ctx.nodes.length, silentBefore, 'silent and invalid gains allocate no voices');
 } finally {
   await sfx.dispose();
   if (originalWindow === undefined) delete globalThis.window;
   else globalThis.window = originalWindow;
 }
-console.log('ok: footstep cadence grades speed and stance, follows the gait phase, remote steps are positional');
+console.log('ok: foot plants drive local surface audio, landings respond to descent speed, remote steps are positional');

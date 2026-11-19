@@ -664,7 +664,6 @@ class Game {
       // Positional engine drone per alive vehicle row; stopped when the row dies or leaves.
       vehicle: (id, pos, kind) => (pos ? sfx.vehicleLoop?.(id, pos, kind) : sfx.stopVehicleLoop?.(id)),
     });
-    this.footsteps = new rt.FootstepCadence();
     // Bastion build mode: the ghost lives in the world scene, the purchase rides the buy path.
     this.build = rt.BuildController ? new rt.BuildController({
       input: this.input,
@@ -1338,6 +1337,7 @@ class Game {
     const position = this.camera.position;
     const lockProgress = this.titanfall ? this.titanfall.lockProgress() : decodeConquestPlayer(this.selfRow)?.lockProgress ?? 0;
     return {
+      nextInputSeq: this.net?.nextInputSeq,
       allowFire: this.isAuthoritativeFireAllowed(),
       allowMelee: this.isAuthoritativeFireAllowed('melee'),
       grenadeHandling: this.player.grenadeHandling || this.player.medkit.active,
@@ -1512,14 +1512,8 @@ class Game {
     }
     // No sights under a canopy either: the hands are on the risers.
     this.weapon.settleFrame(dt, { vaulting: !!this.player.physics.vault || this.player.physics.chute > 0 });
-    // Own footfalls: quiet, unpositioned, so the player knows how loud they are.
-    const ownStep = this.footsteps.update(dt, {
-      speed: this.player.speedXZ, grounded: !!this.player.physics.grounded,
-      crouch: this.player.crouchBool, swimming: !!this.player.physics.swimming,
-    });
-    if (ownStep > 0 && !this.spectator?.active) sfx.footstep(ownStep * 0.3, {
-      body: this.player.physics, surface: footstepSurfaceAt(getBlock, this.player.physics.pos),
-    });
+    const groundContact = this.player.groundContact;
+    if (seated || piloting || frozenCamera || this.spectator?.active) groundContact.reset();
     if (!seated) this.presentGrenadeHandling(now);
     const def = this.weapon.def;
     // Scope zoom steps (Z / R3) only while looking through the optic.
@@ -1562,7 +1556,14 @@ class Game {
         this.camera.updateProjectionMatrix();
       }
     } else {
-      this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov, this.weapon.scopeActive);
+      this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov, this.weapon.scopeActive, displaySettings().reducedMotion);
+      // The boot now has this frame's pose, including forward stride and strafe.
+      if (groundContact.landing || groundContact.stepVolume) {
+        const body = this.player.physics;
+        const surface = footstepSurfaceAt(getBlock, body.pos, this.player.plantedBootPosition());
+        if (groundContact.landing) sfx.landing(groundContact.landing, { body, surface });
+        else sfx.footstep(groundContact.stepVolume * 0.3, { body, surface, side: groundContact.side });
+      }
       // A kneel for the hold (InteractAnim): presentation only, the body stays where the server has it.
       if (interactView?.dip > 0) this.camera.position.y -= interactView.dip;
       const blastShake = this.effects.currentShakeXY;
@@ -1586,6 +1587,7 @@ class Game {
         medkitActive: this.player.alive && this.player.medkit.active,
         medkitProgress: this.player.medkit.progress,
         speed: this.player.speedXZ,
+        groundContact,
         lateralSpeed,
         forwardSpeed,
         grounded: this.player.physics.grounded,

@@ -20,7 +20,6 @@ export { LauncherRangefinder } from '../ui/launcher-rangefinder.js';
 export { TttControls } from '../ui/ttt-controls.js';
 export { BastionStragglers } from '../ui/bastion-stragglers.js';
 export { LocalPlayer } from '../player/local-player.js';
-export { FootstepCadence } from '../audio/footsteps.js';
 export { Killcam } from '../player/killcam.js';
 export { DEATH_HEAD, deathFadeOpacity } from '../player/death-head-cam.js';
 export { DeathFade } from '../ui/death-fade.js';

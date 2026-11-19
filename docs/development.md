@@ -673,9 +673,14 @@ server authority remain immediate. The procedural gun owns a separate angular
 orientation with weight-limited speed and acceleration, so heavier weapons trail
 farther during a turn and settle more slowly after the mouse has stopped.
 
-Sprinting has a stronger but deliberately slower leg-driven run cycle than
-ordinary walking. Jumping and landing move only the carried weapon through a
-damped vertical spring while aim stays immediate.
+In first person, the legs, carried weapon and footstep sound follow the same
+stride. Each boot samples the floor beneath it. On landing, the downward speed
+at contact sets the knee bend, weapon settle and strength of the surface sound.
+The horizon and aim stay steady.
+
+For infantry gunfire in a live match, the local firing animation starts on the
+trigger pull. Wall particles and their associated audio use the contact point
+and material from the server, including when a hit destroys the block.
 
 Swimming animates from the authoritative `swimming` snapshot flag plus
 `grounded` and `moveSpeed`: floating (swimming without touching the bottom)

@@ -519,14 +519,11 @@ TIMERS.doppler = {
  * figure-8: x = sin(pi*p), y = cos(2*pi*p) traces the classic lazy infinity loop.
  */
 export const BOB = {
-  walkFreq: 2.35,    // vertical steps/sec at the canonical 4.4 m/s walk speed.
   walkVert: 0.012,   // vertical head-of-hammer bounce.
   walkHorz: 0.006,   // half of vertical: figure-8 narrow waist.
-  sprintFreq: 3.1,   // purposeful run cadence without rapid vertical vibration.
   sprintAmpMul: 2.2, // and twice-plus-a-bit taller strokes.
   sprintTiltZ: 4 * (Math.PI / 180), // inward gun cant while sprinting — cute, cheap charm.
   crouchDampen: 0.65,// low crouch gait shortens the pendulum.
-  airDampen: 0.30,   // airborne legs stop driving the loop; float calm.
   airVelocityLag: 0.0028, // gun trails vertical body velocity rather than snapping with the camera.
   airOffsetClamp: 0.022,
   airSpringStiffness: 92,

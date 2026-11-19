@@ -911,11 +911,12 @@ export class WeaponState {
       o: origin,
       d: [fwd.x, fwd.y, fwd.z],
       w: weaponId,
+      ...(def.ballistic && this._nextInputSeq != null ? { inputSeq: this._nextInputSeq } : {}),
       spread: pellets[0],
       pellets,
       chaos: this._mode === 'chaos',
       charge: mode === 'charge' ? charge : undefined,
-    }, { local: true });
+    }, { local: true, deferWallImpact: !def.projectile });
 
     if (def.flame) {
       this._flameActive = true; this._flameLastShotAt = now;
@@ -1153,6 +1154,7 @@ export class WeaponState {
     cameraX = 0,
     cameraY = 0,
     cameraZ = 0,
+    nextInputSeq,
     generation = this._generation,
     lockReady = false,
     lockProgress = lockReady ? 1 : 0,
@@ -1174,6 +1176,7 @@ export class WeaponState {
     this._cameraX = Number.isFinite(cameraX) ? cameraX : 0;
     this._cameraY = Number.isFinite(cameraY) ? cameraY : 0;
     this._cameraZ = Number.isFinite(cameraZ) ? cameraZ : 0;
+    this._nextInputSeq = nextInputSeq;
     this._generation = generation;
     this._syncStinger();
   }

@@ -1,10 +1,5 @@
-// Footstep cadence shared by remote avatars and the local body.
-//
-// Remote avatars already animate a gait phase from their smoothed speed; a
-// footfall is the forward extreme of each leg swing, so the sound lands in
-// sync with the visible legs. The local body has no leg animation and runs
-// its own phase with the same rate. Loudness grades from a brisk walk to a
-// sprint; creeping, crouching, swimming and airborne bodies are silent, which
+// Every half gait cycle plants a boot. Avatars and the first-person body use
+// the same phase convention, with the left foot at +π/2. Walking loudness
 // mirrors what server bots can hear (server/bot-hearing.js).
 
 import * as BLOCK from '../../../shared/world/blocks.js';
@@ -32,15 +27,18 @@ export function footstepMaterial(block) {
   return MATERIALS.get(block) || 'stone';
 }
 
-/** Probe the actual support voxel, including a foot planted over a ledge.
- * Body coordinates are at the feet. The probe matches solidBelow's footprint;
- * fluids and decorative ghost blocks cannot conceal the supporting surface. */
-export function footstepSurfaceAt(getBlock, position) {
+/** Probe under the posed boot at physics floor height. When the boot hangs
+ * off a ledge (or no pose is available), use the supporting body footprint. */
+export function footstepSurfaceAt(getBlock, position, boot = null) {
   if (typeof getBlock !== 'function' || !position
     || ![position.x, position.y, position.z].every(Number.isFinite)) return 'stone';
   const { x, y, z } = position;
   const half = PHYSICS.halfW - 1e-4;
   const cellY = Math.floor(y - 0.06);
+  if (Number.isFinite(boot?.x) && Number.isFinite(boot.z)) {
+    const block = getBlock(Math.floor(boot.x), cellY, Math.floor(boot.z));
+    if (Number.isInteger(block) && block > 0 && BLOCK.isSolidBlock(block)) return footstepMaterial(block);
+  }
   for (const [dx, dz] of [[0, 0], [-half, -half], [-half, half], [half, -half], [half, half]]) {
     const block = getBlock(Math.floor(x + dx), cellY, Math.floor(z + dz));
     if (Number.isInteger(block) && block > 0 && BLOCK.isSolidBlock(block)) return footstepMaterial(block);
@@ -84,8 +82,8 @@ export function gaitPhaseRate(speed, air01 = 0) {
 }
 
 /** Loudness in [0, 1] of a footfall under these motion conditions, 0 for none. */
-export function footstepVolume({ speed = 0, grounded = true, crouch = false, swimming = false } = {}) {
-  if (!grounded || crouch || swimming || !(speed >= STEP_SPEED_MIN)) return 0;
+export function footstepVolume({ speed = 0, grounded = true, crouch = false, prone = false, swimming = false } = {}) {
+  if (!grounded || crouch || prone || swimming || !(speed >= STEP_SPEED_MIN)) return 0;
   const t = Math.max(0, Math.min(1, (speed - STEP_SPEED_MIN) / (SPRINT_SPEED - STEP_SPEED_MIN)));
   return WALK_VOLUME + (1 - WALK_VOLUME) * t;
 }
@@ -100,23 +98,65 @@ export function strideCrossed(before, after) {
   return strideIndex(before) !== strideIndex(after);
 }
 
-/** Self-contained cadence for a body without a leg animation (the local player). */
+// Ignore the small airborne corrections at seams. An ordinary jump (8.2 m/s
+// at takeoff) lands partway up the scale, leaving room for a drop off a ledge.
+const LANDING_MIN_SPEED = 1.5;
+const LANDING_FULL_SPEED = 13;
+
+/** Local ground contact, read by the legs, weapon and sound on the same frame. */
 export class FootstepCadence {
   constructor() {
-    this.phase = 0;
+    this.reset();
   }
 
-  /**
-   * Advance by `dt` seconds and return the loudness of a footfall that landed
-   * this frame, or 0.
-   */
-  update(dt, motion) {
-    const speed = Number.isFinite(motion?.speed) ? motion.speed : 0;
-    if (!(dt > 0) || speed < 0.2) return 0;
+  reset() {
+    this.phase = 0;
+    this.side = -1;
+    this.stepVolume = 0;
+    this.landing = 0;
+    this.wasGrounded = null;
+    this.descentSpeed = 0;
+  }
+
+  /** Returns walking volume for audio-only callers (e.g. pilot wallrunning). */
+  update(dt, motion = {}) {
+    // On a shallow bottom the feet still walk, without a dry boot sound.
+    if (motion.active === false || motion.vaulting || (motion.swimming && motion.grounded === false)) {
+      this.reset();
+      return 0;
+    }
+    this.stepVolume = this.landing = 0;
+    if (!(dt > 0)) return 0;
+    if (motion.grounded === false) {
+      this.wasGrounded = false;
+      // Standalone previews sample the last airborne speed. A cushion or
+      // upward impulse can arrest a fall before the boots touch down.
+      this.descentSpeed = Number.isFinite(motion.verticalVelocity) ? Math.max(0, -motion.verticalVelocity) : 0;
+      return 0;
+    }
+    if (this.wasGrounded === false && !motion.swimming && !motion.prone) {
+      const speed = motion.landingSpeed ?? this.descentSpeed;
+      this.landing = Math.max(0, Math.min(1, (speed - LANDING_MIN_SPEED) / (LANDING_FULL_SPEED - LANDING_MIN_SPEED)));
+    }
+    this.wasGrounded = true;
+    if (this.landing > 0) {
+      // Resume walking from the planted boot, with a full step before the
+      // other foot strikes. Landings get just one, centered, sound.
+      const plant = Math.round((this.phase - Math.PI / 2) / Math.PI);
+      this.phase = Math.PI / 2 + plant * Math.PI;
+      this.side = plant % 2 === 0 ? -1 : 1;
+      return 0;
+    }
+    const speed = Number.isFinite(motion.speed) ? motion.speed : 0;
+    if (speed < 0.2) return 0;
     // Wrap by a whole number of strides so precision holds over long sessions.
     if (this.phase > 1000 * Math.PI) this.phase -= 1000 * Math.PI;
     const before = this.phase;
-    this.phase += dt * gaitPhaseRate(speed, motion?.grounded === false ? 1 : 0);
-    return strideCrossed(before, this.phase) ? footstepVolume({ ...motion, speed }) : 0;
+    this.phase += dt * gaitPhaseRate(speed);
+    if (strideCrossed(before, this.phase)) {
+      this.side = strideIndex(this.phase) % 2 === 0 ? -1 : 1;
+      this.stepVolume = footstepVolume(motion);
+    }
+    return this.stepVolume;
   }
 }

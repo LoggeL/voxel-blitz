@@ -64,6 +64,9 @@ let builtInSamplesPromise = null;
 let menuMusic = null;
 let menuMusicVolume = 0.8;
 let footstepVariations = new FootstepVariations();
+const LANDING_SCUFF_HZ = Object.freeze({
+  metal: 2300, gravel: 1600, stone: 950, wood: 720, grass: 660, sand: 480, cloth: 380,
+});
 let heartbeatAt = -Infinity;
 const panicBreaths = new PanicBreathCadence();
 const painMoans = new PainMoanCadence();
@@ -555,6 +558,11 @@ function outputOptions(value) {
 
 function worldOutputOptions(value, acousticKind) {
   return { ...outputOptions(value), environment: true, acousticKind };
+}
+
+function footstepSample(choice) {
+  return [choice.slot, ...FOOTSTEP_SLOTS[choice.surface], 'movement.footstep']
+    .find((slot) => samples.getBuffer(slot));
 }
 
 function ensureAudioModules() {
@@ -1920,22 +1928,23 @@ export const sfx = {
     run('footstep', () => {
       const positional = !!positionOf(deferred);
       const choice = footstepVariations.next(deferred?.surface, deferred?.body);
-      const slot = [choice.slot, ...FOOTSTEP_SLOTS[choice.surface], 'movement.footstep']
-        .find((candidate) => samples.getBuffer(candidate));
+      const side = deferred?.side;
+      const bootPan = side === -1 || side === 1 ? side * 0.1 : choice.pan;
+      const pan = positional ? 0 : bootPan;
+      const slot = footstepSample(choice);
       const lifetime = slot ? samples.getBuffer(slot).duration / choice.rate : 0.3;
       const output = pool.acquire(worldOutputOptions(deferred, 'footstep'), lifetime);
       if (slot) {
         let target = output;
         if (!positional && engine.ctx.createStereoPanner) {
           target = engine.ctx.createStereoPanner();
-          target.pan.value = choice.pan;
+          target.pan.value = pan;
           target.connect(output);
           addCleanup(output, () => target.disconnect());
         }
         if (samples.play(slot, target, { gain: volume * choice.gain,
           rate: choice.rate, cleanupOwner: output })) return;
       }
-      const pan = positional ? 0 : choice.pan;
       // Heel thud plus a short sole scuff.
       primitives.tone(output, {
         type: 'sine', f0: primitives.rnd(120, 150), f1: 58,
@@ -1945,6 +1954,33 @@ export const sfx = {
         filter: 'lowpass', f: 420, q: 0.6,
         rate: primitives.rnd(0.85, 1.13), dec: 0.07,
         g: 0.2 * volume, pan,
+      });
+    });
+  },
+
+  /** The surface recording provides the sole contact; a short, centered thud
+   * grows deeper as the body absorbs a faster descent. */
+  landing(intensity, options = null) {
+    if (!Number.isFinite(intensity) || intensity <= 0) return;
+    const weight = Math.min(1, intensity);
+    const deferred = copyOptions(options);
+    run('footstep', () => {
+      const choice = footstepVariations.next(deferred?.surface, deferred?.body);
+      const slot = footstepSample(choice);
+      const rate = choice.rate * (1 - 0.19 * weight);
+      const gain = choice.gain * (0.22 + 0.48 * weight);
+      const lifetime = slot ? samples.getBuffer(slot).duration / rate : 0.3;
+      const output = pool.acquire(worldOutputOptions(deferred, 'footstep'), lifetime);
+      if (!slot || !samples.play(slot, output, { gain, rate })) {
+        // Keep harder soles bright and loose grit audible while samples load.
+        primitives.hiss(output, {
+          filter: 'bandpass', f: LANDING_SCUFF_HZ[choice.surface], q: 0.7,
+          dec: 0.07 + 0.06 * weight, g: 0.38 * gain,
+        });
+      }
+      primitives.tone(output, {
+        type: 'sine', f0: 130 - 30 * weight, f1: 65 - 20 * weight,
+        att: 0.004, dec: 0.055 + 0.07 * weight, g: 0.025 + 0.085 * weight * weight,
       });
     });
   },

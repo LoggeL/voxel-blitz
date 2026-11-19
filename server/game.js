@@ -613,7 +613,7 @@ export class GameEngine {
     if (input.wantFire && !(previous && previous.wantFire)) {
       player.fireEdgeQueued = true;
       // Later look/recoil packets must not redirect a click waiting for a tick.
-      player.fireAimQueued = { yaw: input.yaw, pitch: input.pitch };
+      player.fireAimQueued = { yaw: input.yaw, pitch: input.pitch, inputSeq: input.seq };
     }
     if (input.throwGrenade && !(previous && previous.throwGrenade)) {
       player.grenadeEdgeQueued = true;

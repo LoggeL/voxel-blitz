@@ -49,13 +49,14 @@ remote steps for listening.
 
 ## Playback
 
-The support probe reads live voxel data beneath the center and corners of the
-player footprint, matching the grounded probe. It handles ledges and ignores
-fluids and pass-through decorative blocks. Terrain changes take effect on the
-next footfall. Unknown support falls back to the stone bank.
+Local footsteps read the live voxel beneath the boot that just planted. At a
+ledge, the probe checks the center and corners of the footprint for support.
+A landing uses the support under the body and plays a centered surface sound.
+Faster descents give it a lower pitch and a heavier thud. Terrain changes take
+effect on the next contact. Unknown support falls back to the stone bank.
 
 Each persistent avatar has independent take selection. Consecutive takes do not
-repeat, pitch varies by at most 2.5%, and gain varies by at most 4%. New network
+repeat, with up to 2.5% pitch variation and 4% gain variation between takes. New network
 snapshot objects do not reset variation. Own steps alternate gently left/right;
 remote steps keep the world panner and distance attenuation. Existing gait,
 stance, swimming, speed and bot-hearing rules are unchanged. Missing samples

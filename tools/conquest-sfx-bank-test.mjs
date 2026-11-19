@@ -13,7 +13,7 @@ import { VehicleAudio, VEHICLE_AUDIO, closestApproach, polylineDistance } from '
 import { ConquestSoundscape, SOUNDSCAPE, soundscapeTargets, nearestOnPolyline } from '../public/js/audio/conquest-soundscape.js';
 import { createObjectiveCues, OBJECTIVE_SAMPLE_CUES, insideFlagZone, flagZonesFrom, initialFlagOwners } from '../public/js/audio/objective-cues.js';
 import { CONQUEST_RULES, FRONTIER_PLAN } from '../shared/conquest-contract.js';
-import { MC_STONE, MC_WATER } from '../shared/world/blocks.js';
+import { GLASS, MC_STONE, MC_WATER, METAL } from '../shared/world/blocks.js';
 import { installGlobals } from './lib/install-globals.mjs';
 
 let checks = 0;
@@ -561,11 +561,50 @@ const named = (sfx, name) => sfx.calls.filter(call => call[0] === name);
   const { Effects } = await import('../public/js/weapons/effects.js');
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 1000);
-  const getBlock = (x, y, z) => (x === 4 && y === 10 && z === -6 ? MC_STONE : 0);
+  let block = MC_STONE;
+  const getBlock = (x, y, z) => (x === 4 && y === 10 && z === -6 ? block : 0);
   const sounds = [];
   const effects = new Effects(scene, camera, getBlock, { onWallImpact: (surface, pos) => sounds.push([surface, pos]) });
   effects.tracers.onWallImpact({ x: 4, y: 10, z: -6, nx: 0, ny: 0, nz: 1 }, false);
   check(() => assert.deepEqual(sounds, [['stone', [4.5, 10.5, -5]]], 'a vehicle gun round into stone plays the stone impact at the struck face'));
+  block = METAL;
+  for (const x of [4.05, 4.95]) {
+    effects.impacts.update(1);
+    effects.tracers.shoot({ w: 'rifle', o: [x, 10.8, 0], d: [0, 0, -2] }, { local: true });
+    check(() => assert.deepEqual(sounds.at(-1), ['metal', [x, 10.8, -5]], 'a predicted shot locates sound at the contact on the face'));
+    const sparks = effects.impacts.parts.filter(p => p.active);
+    check(() => assert.ok(sparks.length === 6 && sparks.every(p => p.x === x && p.y === 10.8 && p.z === -4.99),
+      'all sparks originate at the same edge as the sound, just outside the hit face'));
+  }
+  // Seen from the offset barrel this ray would miss the block entirely.
+  effects.tracers.remoteMuzzleProvider = (_id, target) => target.set(3.85, 10.45, -0.6);
+  effects.tracers.shoot({ w: 'rifle', id: 'remote', o: [4.1, 10.65, -0.25], d: [0, 0, -1] });
+  check(() => assert.deepEqual(sounds.at(-1), ['metal', [4.1, 10.8, -5]], 'a rendered barrel offset cannot move the remote contact'));
+  const remoteTracer = effects.tracers.tracers.find(t => t.active && t.pinned);
+  check(() => assert.ok(remoteTracer.anchored && remoteTracer.px === 3.85, 'the remote streak still leaves the visible barrel'));
+  effects.impacts.update(1);
+  block = GLASS;
+  const end = [4.85, 10.1, -6];
+  effects.tracers.resolvedShot({ w: 'rifle', paths: [[{
+    o: [4.85, 10.1, -8], end, hit: { x: 4, y: 10, z: -6, nx: 0, ny: 0, nz: -1 },
+  }]] });
+  check(() => assert.deepEqual(sounds.at(-1), ['glass', end], 'a resolved contact uses the server endpoint'));
+  const glass = effects.impacts.parts.filter(p => p.active);
+  check(() => assert.ok(glass.length === 10 && glass.every(p => p.x === end[0] && p.y === end[1] && p.z === -6.01),
+    'glass splinters and glints both start at the reported point on the back face'));
+  effects.impacts.update(1);
+  sounds.length = 0;
+  effects.shoot({ w: 'rifle', o: [4.05, 10.8, 0], d: [0, 0, -1] }, { local: true, deferWallImpact: true });
+  check(() => assert.equal(sounds.length, 0, 'unconfirmed spread cannot place a wall sound'));
+  check(() => assert.ok(!effects.impacts.parts.some(p => p.active), 'unconfirmed spread cannot place wall particles'));
+  block = 0;
+  const accepted = [4.93, 10.72, -5];
+  const hit = { x: 4, y: 10, z: -6, nx: 0, ny: 0, nz: 1, type: METAL };
+  effects.confirmShot({ w: 'rifle', paths: [[{ o: [4.05, 10.8, 0], end: accepted, hit }]] });
+  check(() => assert.deepEqual(sounds, [['metal', accepted]], 'one sound uses the accepted point and original block material'));
+  const confirmed = effects.impacts.parts.filter(p => p.active);
+  check(() => assert.ok(confirmed.length === 6 && confirmed.every(p => p.x === accepted[0] && p.y === accepted[1]),
+    'metal sparks follow the confirmed spread even after the block breaks'));
   effects.dispose?.();
 }
 

@@ -26,8 +26,9 @@ export function evShoot(id, o, d, w, spread) {
  * the hitscan segment shape (`hit`, `action`); `hitVictims` lists the bodies it
  * struck. Clients take continuation streaks, wall feedback and flybys from it.
  */
-export function evBullet(id, w, path, hitVictims = []) {
+export function evBullet(id, w, path, hitVictims = [], roundId) {
   const event = { t: 'ev', kind: 'bullet', id: String(id), w: String(w), paths: [path] };
+  if (roundId != null) event.roundId = roundId;
   if (hitVictims.length) event.hitVictims = hitVictims.map(String);
   return event;
 }

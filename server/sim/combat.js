@@ -553,6 +553,12 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
     p.id, def.flame ? oEye : muzzle, [fwd.x, fwd.y, fwd.z], def.id,
     [firstDir.x, firstDir.y, firstDir.z],
   );
+  const ballistic = ballisticProfile(def);
+  if (ballistic) {
+    shootEvent.roundId = p.shotSeq;
+    const inputSeq = aim?.inputSeq ?? p.input?.seq;
+    if (Number.isSafeInteger(inputSeq) && inputSeq > 0) shootEvent.inputSeq = inputSeq;
+  }
   if (charged) shootEvent.charge = Math.round(charge01 * 1000) / 1000;
   ctx.pushEvent(shootEvent);
   chaosShot(p, ctx, fwd);
@@ -599,7 +605,6 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
     nearMisses: new Map(),
     hitVictims: new Set(),
   };
-  const ballistic = ballisticProfile(def);
   if (ballistic) {
     launchFlyingRound(p, def, ballistic, shot, oEye, firstDir, charge01, chargeMult, ctx);
     return;
@@ -752,6 +757,7 @@ function walkRoundLeg(p, def, round, legLength, ctx) {
     segment.hit = { x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz };
     if (hit.y <= 0) return true;
     const type = ctx.getBlock(hit.x, hit.y, hit.z);
+    segment.hit.type = type; // The block may already be gone when its impact reaches the client.
     const exit = voxelExitDistance(origin, d, hit);
     const dot = d.x * hit.nx + d.y * hit.ny + d.z * hit.nz;
     const result = bulletMaterialImpact({ type, power: round.power,
@@ -798,7 +804,7 @@ function launchFlyingRound(p, def, ballistic, shot, oEye, dir, charge01, chargeM
   const launch = ballisticLaunch(ballistic, oEye, dir);
   const round = createRound(def, shot, oEye, dir, charge01, chargeMult);
   Object.assign(round, {
-    owner: p, def, ballistic, flying: true,
+    owner: p, def, ballistic, flying: true, roundId: p.shotSeq,
     viewAge: p.bot ? undefined : p.input?.viewAge,
     vx: launch.vx, vy: launch.vy, vz: launch.vz,
     age: 0, segAge: 0,
@@ -857,7 +863,7 @@ function finishFlyingRound(round, ctx) {
   applyNearMisses(shot.nearMisses, shot.hitVictims, ctx);
   ctx.pushEvent(evBullet(round.owner.id, round.def.id,
     round.path.map((segment) => ({ ...segment, o: roundPoint(segment.o), end: roundPoint(segment.end) })),
-    [...shot.hitVictims].map((victim) => victim.id)));
+    [...shot.hitVictims].map((victim) => victim.id), round.roundId));
 }
 
 /**
