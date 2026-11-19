@@ -14,8 +14,8 @@ concurrency:
 jobs:
   contracts:
     runs-on: ubuntu-latest
-    # Full contract suite plus browser checks and asset checkout exceed 10 minutes.
-    timeout-minutes: 20
+    # The full Linux suite includes the Frontier simulation, browser checks and asset checkout.
+    timeout-minutes: 35
     env:
       VB_BROWSER: /usr/bin/google-chrome
     steps:
@@ -25,8 +25,43 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - uses: actions/checkout@v4
+        with:
+          ref: 7e722b61194a68b447d587d71f2686b887900953
+          path: .artifacts/conquest-baseline
+          sparse-checkout: |
+            server
+            shared
+            tools
+            public/js
+      - name: Measure the fixed Conquest baseline on this runner
+        working-directory: .artifacts/conquest-baseline
+        env:
+          VB_CONQUEST_WEATHER: clear
+        run: |
+          npm ci
+          node tools/conquest-action-test.mjs --no-gate --report "$RUNNER_TEMP/bot-baseline.json"
       - run: npm test
+        env:
+          VB_CONQUEST_BOT_BASELINE: ${{ runner.temp }}/bot-baseline.json
       - run: node tools/sniper-redesign-browser-test.mjs
+
+  conquest-bot-cpu:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            server
+            shared
+            tools
+            public/js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run conquest:action
 
   postgres:
     runs-on: ubuntu-latest

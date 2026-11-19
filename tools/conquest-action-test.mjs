@@ -11,7 +11,7 @@
 // Run it through .conquest-work/heavy.sh on a shared machine: ~10 800 ticks.
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
 import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
@@ -37,6 +37,8 @@ const GATE = !args.includes('--no-gate');
 // engine clock starts at a fixed epoch, so a run is reproducible bit for bit
 // and a behaviour regression shows up as a changed report. --seed n explores.
 const SEED = Number(option('seed', 1));
+// Weather draws a separate random seed. Compare repeated matches in the same conditions.
+process.env.VB_CONQUEST_WEATHER ??= 'clear';
 const MAP = option('map', 'frontier');
 const EPOCH = 1_800_000_000_000;
 Math.random = mulberry32(SEED);
@@ -343,7 +345,17 @@ if (GATE) {
   gate(report.stuckFraction < 0.05, `stuck < 5 % (${report.stuckFraction})`);
   gate(report.ticketLoss >= 40, `one team down >= 40 tickets (${report.ticketLoss})`);
   gate(report.tickP95Ms <= 10, `tick p95 <= 10 ms (${report.tickP95Ms})`);
-  gate(report.botMsPerTick <= 1.2, `bot CPU <= 1.2 ms/tick at ${BOTS} bots (${report.botMsPerTick})`);
+  // The reference job enforces 1.2 ms. Shared Linux runners also compare against
+  // a fixed revision on the same VM, allowing 5% run-to-run timing variation.
+  let botBudgetMs = 1.2;
+  if (process.env.VB_CONQUEST_BOT_BASELINE) {
+    const baseline = JSON.parse(readFileSync(process.env.VB_CONQUEST_BOT_BASELINE, 'utf8'));
+    for (const key of ['map', 'seed', 'seconds', 'bots', 'difficulty']) assert.equal(baseline[key], report[key], `baseline ${key}`);
+    assert(Number.isFinite(baseline.botMsPerTick) && baseline.botMsPerTick > 0, 'valid bot CPU baseline');
+    botBudgetMs = Math.max(botBudgetMs, baseline.botMsPerTick * 1.05);
+    console.log(`bot CPU: ${report.botMsPerTick} ms/tick, baseline ${baseline.botMsPerTick}, limit ${botBudgetMs.toFixed(3)}`);
+  }
+  gate(report.botMsPerTick <= botBudgetMs, `bot CPU <= ${botBudgetMs.toFixed(3)} ms/tick at ${BOTS} bots (${report.botMsPerTick})`);
   gate(report.avgSnapshotKB <= 27, `average snapshot <= 27 KB (${report.avgSnapshotKB})`);
   if (failures.length) {
     console.error(`conquest action gate: ${failures.length} failed\n - ${failures.join('\n - ')}`);
