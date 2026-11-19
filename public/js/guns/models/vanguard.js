@@ -34,9 +34,12 @@ export function build({ kit, T, groups }) {
   box(body, 0.036, 0.05, 0.10, 0, 0.06, 0.24, black); // cheek riser
   box(body, 0.034, 0.085, 0.035, 0, -0.035, 0.10, earth); // pistol grip angled
   box(body, 0.020, 0.008, 0.30, 0, 0.048, -0.02, black); // top rail
-  // LPVO optic block at sight height.
-  cylZ(body, 0.017, 0.11, 0, SIGHT_Y, -0.02, black);
-  box(body, 0.030, 0.018, 0.05, 0, SIGHT_Y - 0.022, -0.02, black);
+  // LPVO optic at sight height: four walls around an open bore, so the sight axis stays
+  // clear like the Blender tube (a solid cylinder here blocks the ADS line in Node rigs).
+  for (const [w, h, x, y] of [[0.034, 0.005, 0, 0.0145], [0.034, 0.005, 0, -0.0145], [0.005, 0.024, 0.0145, 0], [0.005, 0.024, -0.0145, 0]]) {
+    box(body, w, h, 0.11, x, SIGHT_Y + y, -0.02, black);
+  }
+  box(body, 0.030, 0.012, 0.05, 0, SIGHT_Y - 0.023, -0.02, black);
   box(body, 0.012, 0.008, 0.012, 0, SIGHT_Y - 0.008, -0.085, steel); // rear post
   box(body, 0.004, 0.010, 0.002, 0, SIGHT_Y - 0.010, -0.085, steel); // front blade
   // Bolt carrier + charging handle on the reciprocating group.

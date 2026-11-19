@@ -773,13 +773,16 @@ export async function runViewmodelContracts(ok, installGlobals) {
       camera.rotation.set(0, 0, 0);
       rig.setWeapon('lmg');
       rig.ads(0);
-      for (let frame = 0; frame < 60; frame++) rig.update(1 / 60, { grounded: true });
+      // Sway off: the slow grip-shift drift (periods of 11 s and 7.3 s on the rig clock) moves the hold up to
+      // 2.5 mm, so with it on this check depended on how many frames the weapon loops above had run.
+      const still = { grounded: true, aimSwayScale: 0 };
+      for (let frame = 0; frame < 60; frame++) rig.update(1 / 60, still);
       const restX = rig.posG.position.x;
       for (let frame = 0; frame < 30; frame++) {
-        rig.update(1 / 60, { grounded: true, speed: 6, lateralSpeed: 6 });
+        rig.update(1 / 60, { ...still, speed: 6, lateralSpeed: 6 });
       }
       const strafeLean = rig.posG.position.x - restX;
-      for (let frame = 0; frame < 90; frame++) rig.update(1 / 60, { grounded: true });
+      for (let frame = 0; frame < 90; frame++) rig.update(1 / 60, still);
       ok(strafeLean < -0.01 && Math.abs(rig.posG.position.x - restX) < 0.002,
         'strafing right swings the carried gun left on a lagged spring that settles when stopped');
 

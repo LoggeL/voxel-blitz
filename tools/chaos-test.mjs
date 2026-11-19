@@ -24,7 +24,13 @@ for (const id of FREE_WEAPON_IDS) {
   assert.deepEqual(parseChaosPurchase(`chaos:${id}:1`), { item: id, level: 1 });
   assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);
 }
-assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 63);
+assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 66);
+// KV-9 VANGUARD ladder: Can opener triples wall penetration and pierces three bodies.
+{
+  const opener = chaosWeaponDef({ chaosUpgrades: { vanguard: 1 } }, WEAPONS.vanguard);
+  assert.equal(opener.penetration, WEAPONS.vanguard.penetration * 3);
+  assert.deepEqual(opener.pierce, { players: 3, playerFalloff: 1 });
+}
 // SP-2 DOPPLER ladder: Triplet rides a free third projectile on every pull and spends no extra round.
 {
   const triplet = chaosWeaponDef({ chaosUpgrades: { doppler: 1 } }, WEAPONS.doppler);

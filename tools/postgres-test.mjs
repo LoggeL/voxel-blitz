@@ -52,7 +52,10 @@ async function launch() {
   server = startServer({ env: { DATABASE_URL: fixture.connectionString, VB_PERSISTENCE: 'postgres', VB_DATA_DIR: runtimeDirectory },
     failureContext: 'PostgreSQL HTTP runtime', stopTimeout: 15000 });
   base = `http://127.0.0.1:${await server.port}`;
-  assert.deepEqual(await (await fetch(base + '/healthz')).json(), { status: 'ok', persistence: 'postgres' });
+  const health = await fetch(base + '/healthz');
+  assert.equal(health.status, 200);
+  const { version, build } = await (await fetch(base + '/api/version')).json();
+  assert.deepEqual(await health.json(), { status: 'ok', persistence: 'postgres', version, build });
 }
 
 async function digestFiles(root) {
