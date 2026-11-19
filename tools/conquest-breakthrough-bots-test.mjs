@@ -5,7 +5,7 @@
 // behind the new line inside the grace instead of dying to the out-of-bounds
 // timer. Every position comes from mapMeta.
 //
-//   node tools/conquest-breakthrough-bots-test.mjs [--seconds 120] [--seed 1] [--bots 16]
+//   node tools/conquest-breakthrough-bots-test.mjs [--seconds 120] [--seed 3] [--bots 16]
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
@@ -20,7 +20,10 @@ const args = process.argv.slice(2);
 const option = (name, fallback) => { const i = args.indexOf(`--${name}`); return i >= 0 && i + 1 < args.length ? args[i + 1] : fallback; };
 const SECONDS = Number(option('seconds', 120));
 const BOTS = Number(option('bots', 16));
-Math.random = mulberry32(Number(option('seed', 1)));
+// This replay includes an infantry defender who retreats across the new front.
+const DEFAULT_SEED = 3;
+const seed = Number(option('seed', DEFAULT_SEED));
+Math.random = mulberry32(seed);
 const EPOCH = 1_800_000_000_000;
 const atEpoch = build => { const real = Date.now; Date.now = () => EPOCH; try { return build(); } finally { Date.now = real; } };
 
@@ -40,6 +43,8 @@ const game = atEpoch(() => new GameEngine({ mode: 'conquest', conquestVariant: '
     { const { recon = null, ev = null, evp = null, pch = null, crates = null, ...base } = snap.match?.conquest ?? {}; const text = JSON.stringify(base); if (text.length > matchMax) { matchMax = text.length; globalThis.maxText = text; } }
   } }));
 const policy = game.mode.policy;
+// Match weather has an independent seed and its wind affects the aircraft.
+policy.weather.reset(policy.ledger.startedAt, seed);
 const bots = attachBots(game, BOTS);
 const commander = bots.commander;
 ok(commander, 'the bot commander runs');
@@ -77,39 +82,53 @@ for (let i = 0; i < 20; i++) step();
 
 // --- the opening fight -----------------------------------------------------------------
 const opening = Math.round(SECONDS * 1000 / TICK_MS);
-let restrictedDeaths = 0;
 for (let t = 0; t < opening; t++) {
   step();
+  // Start observing the retreat on the tick the first sector falls.
+  if (policy.bt.sector > 0) break;
   if (t % 100 === 0) ordersOnActive(`t=${(t * TICK_MS / 1000).toFixed(0)} s`);
 }
 const kills = events.filter(e => e.kind === 'kill');
 const attackerDeaths = kills.filter(e => teamOf(e.victim) === attackers && game.entities.has(e.victim)).length;
-ok(kills.length >= 5, `bots fight (${kills.length} kills in ${SECONDS} s)`);
+ok(kills.length >= 5, `bots fight (${kills.length} kills in the opening fight)`);
 const flagTransitions = events.filter(e => e.kind === 'flag_neutralized' || e.kind === 'flag_captured');
 ok(flagTransitions.some(e => e.team === attackers), `attackers move sector-1 flags (${flagTransitions.map(e => `${e.kind.slice(5)} ${e.flag}`).join(', ') || 'none'})`);
 ok(policy.tickets[attackers] <= BREAKTHROUGH_RULES.tickets - Math.min(attackerDeaths, 5) + BREAKTHROUGH_RULES.refillPerSector, 'attacker deaths draw on the pool');
 eq(policy.tickets[attackers === 'alpha' ? 'bravo' : 'alpha'], 0, 'defenders have no pool');
-restrictedDeaths += kills.filter(e => e.w === 'restricted').length;
 
 // --- a sector falls: the defenders fall back inside the grace ------------------------------
 if (policy.btView().sector === 0) {
   for (const id of policy.sectors[0]) Object.assign(policy.flags.find(f => f.id === id), { owner: attackers, control: attackers === 'alpha' ? 1 : -1, state: 'idle', mover: null });
+  step();
 }
-step();
 ok(policy.btView().sector >= 1, 'sector 1 taken');
 const fallStart = events.length;
-const behind = () => [...game.entities.values()].filter(p => p.bot && p.state === 'alive' && !p.vehicleId && teamOf(p) !== attackers
+const infantry = [...game.entities.values()].filter(p => p.bot && p.state === 'alive' && !p.vehicleId && teamOf(p) !== attackers
   && outsideFront(policy.front, p, teamOf(p), attackers));
-const behindAtFall = behind().length;
-for (let t = 0; t < Math.round((BREAKTHROUGH_RULES.fallbackGraceMs + CONQUEST_RULES.outOfBoundsMs + 5000) / TICK_MS); t++) step();
-const fallKills = events.slice(fallStart).filter(e => e.kind === 'kill' && e.w === 'restricted' && teamOf(e.victim) !== attackers);
-ok(fallKills.length <= Math.max(1, Math.ceil(behindAtFall / 3)), `defender bots fall back (${behindAtFall} behind the line, ${fallKills.length} lost to the timer)`);
+const retreating = new Set(infantry.map(p => p.id));
+const behindAtFall = retreating.size;
+if (!behindAtFall) console.log('No infantry defender was behind the line at capture.');
+const deadline = policy.bt.graceEndsAt + CONQUEST_RULES.outOfBoundsMs + 5000;
+const newFront = policy.front;
+while (game.now < deadline) step();
+const fallEvents = events.slice(fallStart);
+// Count each defender's first death after the fall. Respawning starts a new life.
+let lostRetreating = 0;
+for (const e of fallEvents) {
+  if (e.kind !== 'kill' || !retreating.delete(e.victim)) continue;
+  if (e.w === 'restricted') lostRetreating++;
+}
+if (seed === DEFAULT_SEED) {
+  const reachedSafety = infantry.some(p => retreating.has(p.id) && p.state === 'alive' && !outsideFront(newFront, p, teamOf(p), attackers));
+  ok(reachedSafety, 'an infantry defender crosses the new front on its original life');
+}
+ok(lostRetreating <= Math.floor(behindAtFall / 3), `defender bots fall back (${behindAtFall} behind the line, ${lostRetreating} lost to the timer)`);
 ordersOnActive('after the fall');
-const attackerSpawns = events.slice(fallStart).filter(e => e.kind === 'respawn' && teamOf(e.id) === attackers);
+const attackerSpawns = fallEvents.filter(e => e.kind === 'respawn' && teamOf(e.id) === attackers);
 const forwardCells = policy.sectors[0].flatMap(id => policy.flags.find(f => f.id === id).spawns);
 const forward = attackerSpawns.filter(e => Number.isFinite(e.x) && forwardCells.some(c => Math.hypot(c.x - e.x, c.z - e.z) < 0.5)).length;
 console.log(`attacker respawns after the fall: ${attackerSpawns.length}, on the forward base: ${forward}`);
-restrictedDeaths += fallKills.length;
+const restrictedDeaths = events.filter(e => e.kind === 'kill' && e.w === 'restricted').length;
 
 if (matchMax > 440) console.log(globalThis.maxText);
 ok(matchMax <= 440, `match.conquest with the bt tuple stays in the 440 B budget, wx included, recon and map events aside (max ${matchMax} B)`);
