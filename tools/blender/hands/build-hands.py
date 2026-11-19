@@ -1,76 +1,30 @@
-"""Author HANDS, original first-person glove hands for Voxel Blitz (revision 3).
+"""Build the field operator's two first-person glove poses and three arm segments.
 
-Two right-hand poses in the glove-local frame the runtime consumes directly:
-palm at origin, fingers toward -z, back of the hand toward +y, thumb toward
--x, cuff and forearm toward +z, metres. `grip` (fist wrapped around a pistol
-grip, thumb laid over the fingers) and `support` (open cradle with relaxed
-fingers and an extended thumb). Both poses live in one study as the two
-top-level part nodes `grip` / `support`; no markers or rounds are needed.
-kit glove() mirrors the same geometry for the left hand.
-
-Revision 3 moves the sleeve off the glove and adds three rigid arm segments
-as their own top-level part nodes so the runtime can pose a two-bone arm from
-each glove back to the shoulder of the first-person body
-(`public/js/guns/viewmodel-arms.js`):
-
-    forearm   wrist joint at the origin, elbow at +z FOREARM_LEN
-              (suit sleeve, webbing strap, ivory bracer with orange inset,
-              leather elbow pad); +y is the back of the forearm and follows
-              the back of the hand
-    upperarm  elbow at the origin, shoulder joint at +z UPPER_LEN
-              (leather elbow cap, suit sleeve, webbing band, ivory plate with
-              orange inset); +y is the outer/upper side
-    shoulder  shoulder joint at the origin, same axes as the upper arm
-              (suit cap, orange pauldron on an ivory rim, gunmetal rivet)
-
-The glove itself ends at the sleeve hem (glove-local z <= 0.076); the forearm
-mounts at WRIST_Z on the glove's +z axis and is stretched along z by the
-runtime when the shoulder is out of reach.
-
-Frame note: gun studies author z-up and rotate into game space on export.
-Hands skip that rotation on purpose: the runtime places the glove group with
-an explicit basis (back-of-hand and knuckle directions per pose), so the
-Blender geometry is authored in the consumed axes and the runtime exporter
-bakes vertices verbatim (GAME = identity). The portable GLB is exported with
-export_yup=False so it agrees with the runtime files.
-
-Revision 2 replaces the first study, whose fingers left the palm straight
-(no flexion at the base knuckle), wore ball joints that read as warts, and
-whose cuff carried a 3.6 tiles/m weave that looked like wicker at first-person
-size. The hand now matches the RIVET operator: graphite half-finger gloves
-with exposed skin past the first knuckle, an orange knuckle plate and ivory
-finger armor, a sand webbing wrist strap, the petrol suit sleeve and the
-ivory forearm bracer with its orange inset. Every material carries its own
-texture density (`uv_scale` custom property, read by the exporter).
-
-Run headless (the repo's own convention for long Blender work):
-
-    blender --background --factory-startup --python tools/blender/hands/build-hands.py
-
-Geometry is closed convex primitives (no booleans, no negative scales),
-chamfered by a bevel modifier; winding is repaired with recalc_face_normals
-and UVs are an analytic per-face projection of the two non-dominant axes.
-Every joint overlaps volumetrically by >= 2 mm: butt-jointed flush faces
-z-fight once same-material parts merge into one draw call.
-
-Outputs (owned by this task):
-    docs/design/blender/hands/hands.blend   editable, textures packed
-    docs/design/blender/hands/hands.glb     portable GLB, images embedded
-    docs/design/blender/hands/manifest.json    machine-readable record
-    docs/design/blender/hands/validation.json  build-time checks record
-    docs/design/blender/hands/render-*.png  side + rear-quarter + game view per pose
+Run with blender --background --factory-startup --python tools/blender/hands/build-hands.py.
+Both gloves are right hands, with fingers pointing -Z, cuff +Z, back of hand +Y.
+The game mirrors one pose for the left hand. The articulated sleeves share the
+jacket geometry with the body model, rebased to first-person wrist and elbow
+frames. This script saves the Blender source, GLB and studio views and checks
+the palm anchors, fingertip separation, segment envelopes and garment joins.
 """
-import bmesh
 import bpy
 import json
 import math
 import struct
+import sys
 from pathlib import Path
-from mathutils import Euler, Matrix, Vector
+from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from field_sleeves import build_sleeves
+from glove import build_gloves, FINGERS, THUMB_BASE
+from rivet.model import MeshModel
+from rivet.materials import MATERIALS as FIELD_MATERIALS
+
 DOCS = ROOT / 'docs/design/blender/hands'
-INK = ROOT / 'public/assets/blender/textures'
+ASSET_ROOT = ROOT / 'public/assets/blender'
 DOCS.mkdir(parents=True, exist_ok=True)
 
 ASSET = 'HANDS'
@@ -88,27 +42,12 @@ SHOULDER_REACH = 0.16
 
 # --- glove-local frame contract (metres, y up, right hand) ------------------
 # Palm spans the origin; knuckles at z ~= -0.045 with fingers running toward
-# -z before they flex; wrist, strap, sleeve and bracer at z > 0. Nothing may
-# leave a 0.25 m radius: the longest reach is the sleeve flare (~0.245 m).
+# -Z before they flex. The wrist closure remains behind the palm and the
+# entire glove stays inside the 0.25 m reach envelope.
 PALM_Z0, PALM_Z1 = -0.046, 0.030   # knuckle edge .. wrist heel
 KNUCKLE_Y = 0.003                  # finger base height
 CUFF_MIN_Z = 0.018                 # every strap/sleeve part starts past this plane
 REACH = 0.25
-
-
-def srgb_to_linear(triplet):
-    """sRGB 0..1 triple to linear working space (matches THREE.Color)."""
-    out = []
-    for channel in triplet:
-        if channel <= 0.04045:
-            out.append(channel / 12.92)
-        else:
-            out.append(((channel + 0.055) / 1.055) ** 2.4)
-    return tuple(out)
-
-
-def hex_rgb(value):
-    return ((value >> 16 & 255) / 255, (value >> 8 & 255) / 255, (value & 255) / 255)
 
 
 # --- scene -----------------------------------------------------------------
@@ -142,10 +81,11 @@ STUDY = bpy.data.collections.new(f'{ASSET} study')
 scene.collection.children.link(STUDY)
 scene.unit_settings.system = 'METRIC'
 scene.render.engine = 'CYCLES'
-scene.cycles.samples = 32
+scene.cycles.samples = 20
+scene.render.film_transparent = False
 scene.cycles.use_denoising = True
 scene.cycles.seed = 20260914
-scene.render.resolution_x, scene.render.resolution_y = 1280, 800
+scene.render.resolution_x, scene.render.resolution_y = 1100, 700
 scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'PNG'
 scene.view_settings.view_transform = 'AgX'
@@ -155,53 +95,43 @@ scene.world.node_tree.nodes['Background'].inputs[0].default_value = (.14, .17, .
 scene.world.node_tree.nodes['Background'].inputs[1].default_value = .35
 
 # --- materials -------------------------------------------------------------
-# RIVET's kit, on the delivered ImageGen maps with multiply tints (no new
-# images). Tints are converted to linear space so the portable GLB and the
-# runtime agree through baseColorFactor. The maps are mid-grey to dark, so
-# the tints sit brighter than the intended on-screen colour: graphite leather
-# reads ~0x22252a after the worn-rubber map multiplies in. kit glove() keys
-# the character-skin palette on the material name, not on this tint.
-#   (name, texture stem, metallic, roughness, tint sRGB, tiles per metre)
-MATERIALS = [
-    ('glove leather', 'worn-rubber', 0.0, .80, hex_rgb(0x7a8088), 7.0),
-    ('ceramic armor', 'ivory-armor', .12, .40, hex_rgb(0xf4f2ea), 4.0),
-    ('knuckle plate', 'orange-painted-metal', .22, .38, hex_rgb(0xffffff), 4.0),
-    ('suit fabric', 'petrol-ballistic-fabric', 0.0, .88, hex_rgb(0xb4bec4), 9.0),
-    ('webbing', 'tan-webbing', 0.0, .90, hex_rgb(0xb09a72), 15.0),
-    ('hardware', 'worn-gunmetal', .70, .36, hex_rgb(0xd8dce0), 6.0),
-    ('skin', 'ivory-armor', 0.0, .62, hex_rgb(0xd9a07c), 5.0),
-]
+# The skin system addresses these finish names. The wrist adjuster, knuckle
+# padding and glove shell remain individually tintable across both hand poses.
+MATERIAL_SLOTS = {
+    'glove leather': ('leather', 8), 'ceramic armor': ('rubber', 34),
+    'knuckle plate': ('orange', 2.8), 'suit fabric': ('dark', 3.2),
+    'glove liner': ('cloth', 5.0), 'webbing': ('web', 4.5),
+    'hardware': ('metal', 4), 'patrol blue': ('suit', 3.2), 'transfer': ('ink', 1),
+}
 mats = {}
 UV_SCALES = {}
-for name, stem, metal, rough, srgb, uv_scale in MATERIALS:
-    tint = srgb_to_linear(srgb)
+for name, (key, density) in MATERIAL_SLOTS.items():
+    spec = FIELD_MATERIALS[key]
     material = bpy.data.materials.new(f'{ASSET} | {name}')
     material.use_nodes = True
     tree = material.node_tree
     bsdf = tree.nodes['Principled BSDF']
+    # The nubuck tile is brown. A cool graphite dye neutralizes its warm channels.
+    tint = (.56, .81, 1.) if name == 'glove leather' else spec['color']
     bsdf.inputs['Base Color'].default_value = (*tint, 1)
-    bsdf.inputs['Metallic'].default_value = metal
-    bsdf.inputs['Roughness'].default_value = rough
-    image = bpy.data.images.load(str(INK / f'{stem}.jpg'), check_existing=False)
-    image.name = f'textures/{stem}.jpg'
-    image.colorspace_settings.name = 'sRGB'
-    tex = tree.nodes.new('ShaderNodeTexImage')
-    tex.image = image
-    tex.location = (-420, 120)
-    tex.interpolation = 'Smart'
-    tint_node = tree.nodes.new('ShaderNodeMixRGB')
-    tint_node.blend_type = 'MULTIPLY'
-    tint_node.label = 'delivered map tint'
-    tint_node.location = (-180, 120)
-    tint_node.inputs['Factor'].default_value = 1.0
-    tint_node.inputs['Color2'].default_value = (*tint, 1)
-    tree.links.new(tex.outputs['Color'], tint_node.inputs['Color1'])
-    tree.links.new(tint_node.outputs['Color'], bsdf.inputs['Base Color'])
-    material['imagegen_texture'] = f'{stem}.jpg'
+    bsdf.inputs['Metallic'].default_value = spec['metalness']
+    bsdf.inputs['Roughness'].default_value = .74 if name == 'glove leather' else spec['roughness']
+    if spec.get('texture'):
+        image = bpy.data.images.load(str(ASSET_ROOT / spec['texture']), check_existing=True)
+        tex = tree.nodes.new('ShaderNodeTexImage')
+        tex.image = image
+        mix = tree.nodes.new('ShaderNodeMixRGB')
+        mix.blend_type = 'MULTIPLY'
+        mix.inputs[0].default_value = 1
+        mix.inputs[2].default_value = (*tint, 1)
+        tree.links.new(tex.outputs['Color'], mix.inputs[1])
+        tree.links.new(mix.outputs[0], bsdf.inputs['Base Color'])
+        material['texture_uri'] = spec['texture']
     material['gltf_tint'] = list(tint)
-    material['uv_scale'] = uv_scale
+    material['uv_scale'] = density
+    material.diffuse_color = (*tint, 1)
     mats[name] = material
-    UV_SCALES[name] = uv_scale
+    UV_SCALES[name] = density
 
 # --- primitive builders ----------------------------------------------------
 PARTS = []      # (object, part, material key)
@@ -212,54 +142,6 @@ for group in GROUPS:
     empty.empty_display_size = .05
     STUDY.objects.link(empty)
     PART_GROUP[group] = empty
-
-
-def boxv(size):
-    """Closed axis-aligned box of size (x, y, z) centred on the origin."""
-    (hx, hy, hz) = (size[0] / 2, size[1] / 2, size[2] / 2)
-    verts = [(-hx, -hy, -hz), (hx, -hy, -hz), (hx, hy, -hz), (-hx, hy, -hz),
-             (-hx, -hy, hz), (hx, -hy, hz), (hx, hy, hz), (-hx, hy, hz)]
-    faces = [(3, 2, 1, 0), (4, 5, 6, 7),
-             (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
-    return verts, faces
-
-
-def flared_box(hx0, hy0, hx1, hy1, z0, z1, y0=0.0, y1=0.0):
-    """Closed tapered box along Z: half-extents (hx0, hy0) at z0, (hx1, hy1) at z1.
-
-    `y0`/`y1` shift the section centres so a slab can climb or dip along its
-    length (the back of the hand rises toward the knuckles).
-    """
-    verts = [(-hx0, y0 - hy0, z0), (hx0, y0 - hy0, z0), (hx0, y0 + hy0, z0), (-hx0, y0 + hy0, z0),
-             (-hx1, y1 - hy1, z1), (hx1, y1 - hy1, z1), (hx1, y1 + hy1, z1), (-hx1, y1 + hy1, z1)]
-    faces = [(3, 2, 1, 0), (4, 5, 6, 7),
-             (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
-    return verts, faces
-
-
-def octagon_tube(rx, ry, length, z0, rx1=None, ry1=None):
-    """Closed eight-sided prism along +Z from z0 (rounded sleeve section).
-
-    `rx1`/`ry1` taper the far ring so a sleeve can widen toward the elbow.
-    """
-    rx1 = rx if rx1 is None else rx1
-    ry1 = ry if ry1 is None else ry1
-    ring, far = [], []
-    for i in range(8):
-        a = math.pi / 8 + i * math.pi / 4
-        ring.append((rx * math.cos(a), ry * math.sin(a)))
-        far.append((rx1 * math.cos(a), ry1 * math.sin(a)))
-    verts = [(x, y, z0) for (x, y) in ring] + [(x, y, z0 + length) for (x, y) in far]
-    faces = [tuple(range(7, -1, -1)), tuple(range(8, 16))]
-    for i in range(8):
-        j = (i + 1) % 8
-        faces.append((i, j, 8 + j, 8 + i))
-    return verts, faces
-
-
-def z_to(direction):
-    """Euler rotating local +Z onto `direction`."""
-    return tuple(Vector((0, 0, 1)).rotation_difference(Vector(direction)).to_euler())
 
 
 def project_uvs(mesh, uv_scale):
@@ -274,239 +156,29 @@ def project_uvs(mesh, uv_scale):
     return uv
 
 
-def add(name, part, material, shape, loc=(0, 0, 0), rot=(0, 0, 0), bevel=.003, segments=2):
-    """Create one chamfered, UV-mapped part."""
-    (base_verts, faces) = shape
-    mesh = bpy.data.meshes.new(f'{name} shell')
-    mesh.from_pydata(base_verts, [], faces)
-    mesh.validate()
-    matrix = Matrix.LocRotScale(Vector(loc), Euler(rot, 'XYZ'), None)
-    bm = bmesh.new()
-    bm.from_mesh(mesh)
-    bmesh.ops.transform(bm, matrix=matrix, verts=bm.verts)
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    bm.to_mesh(mesh)
-    bm.free()
-    obj = bpy.data.objects.new(name, mesh)
-    mesh.materials.append(mats[material])
-    obj['part'] = part
-    obj['hands_material'] = material
-    obj['uv_scale'] = UV_SCALES[material]
-    obj.parent = PART_GROUP[part]
+model = MeshModel()
+build_gloves(model)
+build_sleeves(model)
+for piece in model.pieces:
+    mesh = bpy.data.meshes.new(piece.name)
+    mesh.from_pydata(piece.verts, [], piece.faces)
+    mesh.update()
+    for polygon in mesh.polygons:
+        polygon.use_smooth = piece.smooth
+    if piece.normals:
+        mesh.normals_split_custom_set_from_vertices(piece.normals)
+    obj = bpy.data.objects.new(piece.name, mesh)
+    mesh.materials.append(mats[piece.mat])
+    obj['part'] = piece.part
+    obj['hands_material'] = piece.mat
+    obj['uv_scale'] = UV_SCALES[piece.mat]
+    obj.parent = PART_GROUP[piece.part]
     STUDY.objects.link(obj)
-    if bevel:
-        modifier = obj.modifiers.new('Edge chamfer', 'BEVEL')
-        modifier.width = bevel
-        modifier.segments = segments
-        modifier.limit_method = 'ANGLE'
-        modifier.angle_limit = math.radians(30)
-        modifier.use_clamp_overlap = True
-    project_uvs(mesh, UV_SCALES[material])
-    PARTS.append((obj, part, material))
-    return obj
+    project_uvs(mesh, UV_SCALES[piece.mat])
+    PARTS.append((obj, piece.part, piece.mat))
 
-
-def segment(name, part, material, start, direction, length, width, thick,
-            overlap=0.003, bevel=.004, segments=3, lift=0.0):
-    """One phalanx: a rounded box from `start` along `direction`.
-
-    The box runs `overlap` past both joints so neighbours share volume at the
-    knuckle; the bevel turns that overlap into a rounded joint. `lift`
-    offsets the box along its own +Y (the back of the finger).
-    """
-    d = Vector(direction).normalized()
-    rot = z_to(-d)  # boxes run along local Z; fingers run along -Z
-    frame = Euler(rot, 'XYZ').to_matrix()
-    centre = Vector(start) + d * (length / 2) + frame @ Vector((0, lift, 0))
-    return add(name, part, material, boxv((width, thick, length + 2 * overlap)),
-               loc=tuple(centre), rot=rot, bevel=bevel, segments=segments)
-
-
-# ===========================================================================
-# POSES: the same palm, plate, strap, sleeve and bracer; only the digits differ
-# ===========================================================================
-FINGERS = [
-    # (name, x, base z, (proximal, middle, distal), width, thick)
-    ('index', -0.030, -0.046, (0.031, 0.021, 0.017), 0.0165, 0.0150),
-    ('middle', -0.010, -0.049, (0.034, 0.024, 0.018), 0.0170, 0.0155),
-    ('ring', 0.010, -0.047, (0.032, 0.022, 0.017), 0.0165, 0.0150),
-    ('pinky', 0.030, -0.040, (0.025, 0.017, 0.014), 0.0145, 0.0135),
-]
-THUMB_BASE = (-0.036, -0.004, 0.012)
-
-
-def build_common(part, title):
-    """Palm, plates, strap, sleeve and bracer shared by both poses."""
-    palm = add(f'{title} palm', part, 'glove leather',
-               flared_box(0.041, 0.0135, 0.034, 0.0120, PALM_Z0, PALM_Z1, 0.0, -0.001),
-               bevel=.006, segments=3)
-    # Palm-side muscle pads: thumb mound on -x, hypothenar ridge on +x, heel.
-    add(f'{title} thumb mound', part, 'glove leather',
-        boxv((0.028, 0.016, 0.038)), loc=(-0.026, -0.010, 0.006), rot=(0, 0.12, 0), bevel=.006, segments=3)
-    add(f'{title} hypothenar pad', part, 'glove leather',
-        boxv((0.017, 0.013, 0.044)), loc=(0.031, -0.008, 0.002), bevel=.005, segments=3)
-    add(f'{title} heel pad', part, 'glove leather',
-        boxv((0.052, 0.008, 0.018)), loc=(0, -0.0135, 0.020), bevel=.003)
-    # Back of the hand: raised leather pad, orange knuckle plate over the
-    # metacarpal heads, ivory tendon plate behind it.
-    add(f'{title} backhand pad', part, 'glove leather',
-        flared_box(0.038, 0.0035, 0.031, 0.0035, -0.036, 0.024, 0.0130, 0.0115), bevel=.002)
-    add(f'{title} knuckle plate', part, 'knuckle plate',
-        flared_box(0.036, 0.0045, 0.039, 0.0045, -0.052, -0.026, 0.0165, 0.0180), bevel=.0025)
-    for number, x in enumerate((-0.0225, -0.0075, 0.0075, 0.0225)):
-        add(f'{title} knuckle rib {number + 1}', part, 'knuckle plate',
-            boxv((0.010, 0.004, 0.018)), loc=(x, 0.0215, -0.040), bevel=.0018)
-    add(f'{title} tendon plate', part, 'ceramic armor',
-        flared_box(0.024, 0.0040, 0.020, 0.0040, -0.024, 0.014, 0.0180, 0.0165), bevel=.0025)
-    # Wrist: strap with buckle, then the leather wrist and the suit sleeve.
-    add(f'{title} wrist', part, 'glove leather',
-        flared_box(0.034, 0.0125, 0.0345, 0.0155, 0.028, 0.070, -0.001, 0.0), bevel=.005, segments=3)
-    add(f'{title} wrist strap', part, 'webbing',
-        octagon_tube(0.0376, 0.0176, 0.016, 0.028), bevel=.002)
-    add(f'{title} strap buckle', part, 'hardware',
-        boxv((0.016, 0.005, 0.012)), loc=(-0.004, 0.0195, 0.036), bevel=.0012)
-    add(f'{title} strap keeper', part, 'hardware',
-        boxv((0.006, 0.006, 0.014)), loc=(0.030, 0.0165, 0.036), bevel=.0012)
-    # The hem hugs the wrist end (its flats cut the wrist box corners) so the
-    # glove stays one connected form now that the sleeve is its own part.
-    add(f'{title} sleeve hem', part, 'glove leather',
-        octagon_tube(0.0360, 0.0170, 0.012, 0.064), bevel=.003)
-    return palm
-
-
-def build_forearm(part='forearm', title='Forearm'):
-    """Wrist joint at the origin, elbow at +z FOREARM_LEN; +y = back of the forearm."""
-    # Leather cuff overlapping the glove's sleeve hem (glove-local 0.064..0.076
-    # = forearm-local -0.006..0.006) so the seam never opens under stretch.
-    add(f'{title} cuff', part, 'glove leather',
-        octagon_tube(0.0395, 0.0245, 0.022, -0.010), bevel=.003)
-    # Suit sleeve widening toward the elbow, a webbing strap at mid-length.
-    add(f'{title} sleeve', part, 'suit fabric',
-        octagon_tube(0.0385, 0.0235, 0.215, 0.008, 0.0470, 0.0330), bevel=.004, segments=3)
-    add(f'{title} strap', part, 'webbing',
-        octagon_tube(0.0445, 0.0295, 0.016, 0.118), bevel=.002)
-    add(f'{title} sleeve flare', part, 'suit fabric',
-        octagon_tube(0.0490, 0.0350, 0.060, 0.216, 0.0520, 0.0380), bevel=.004, segments=3)
-    # Rounded leather elbow pad spanning the joint; the upper arm's cap meets it.
-    add(f'{title} elbow pad', part, 'glove leather',
-        boxv((0.096, 0.076, 0.060)), loc=(0, 0.004, FOREARM_LEN - 0.008), bevel=.014, segments=3)
-    # Bracer: ivory plate along the back of the sleeve, orange inset.
-    add(f'{title} bracer', part, 'ceramic armor',
-        flared_box(0.026, 0.0065, 0.032, 0.0080, 0.030, 0.165, 0.0240, 0.0330), bevel=.004, segments=3)
-    add(f'{title} bracer inset', part, 'knuckle plate',
-        flared_box(0.012, 0.0030, 0.014, 0.0030, 0.046, 0.150, 0.0315, 0.0405), bevel=.0015)
-
-
-def build_upperarm(part='upperarm', title='Upper arm'):
-    """Elbow at the origin, shoulder joint at +z UPPER_LEN; +y = outer/upper side.
-
-    The sleeve runs a little past the shoulder joint so the shoulder part
-    always covers the seam, whatever the runtime stretches this segment to.
-    """
-    add(f'{title} elbow cap', part, 'glove leather',
-        octagon_tube(0.0500, 0.0460, 0.048, -0.024), bevel=.005, segments=3)
-    add(f'{title} sleeve', part, 'suit fabric',
-        octagon_tube(0.0470, 0.0430, 0.350, 0.016, 0.0540, 0.0520), bevel=.005, segments=3)
-    add(f'{title} band', part, 'webbing',
-        octagon_tube(0.0510, 0.0470, 0.018, 0.070), bevel=.002)
-    add(f'{title} plate', part, 'ceramic armor',
-        flared_box(0.030, 0.0070, 0.037, 0.0085, 0.100, 0.290, 0.0455, 0.0520), bevel=.004, segments=3)
-    add(f'{title} plate inset', part, 'knuckle plate',
-        flared_box(0.014, 0.0030, 0.017, 0.0030, 0.116, 0.274, 0.0535, 0.0599), bevel=.0015)
-
-
-def build_shoulder(part='shoulder', title='Shoulder'):
-    """Shoulder joint at the origin, axes as the upper arm; the pauldron sits on +y."""
-    add(f'{title} cap', part, 'suit fabric',
-        octagon_tube(0.0560, 0.0540, 0.120, -0.095, 0.0500, 0.0480), bevel=.005, segments=3)
-    add(f'{title} pauldron rim', part, 'ceramic armor',
-        flared_box(0.058, 0.0055, 0.068, 0.0060, -0.108, 0.046, 0.0470, 0.0505), bevel=.003, segments=2)
-    add(f'{title} pauldron', part, 'knuckle plate',
-        flared_box(0.046, 0.011, 0.058, 0.013, -0.100, 0.040, 0.0555, 0.0610), bevel=.006, segments=3)
-    add(f'{title} rivet', part, 'hardware',
-        boxv((0.022, 0.008, 0.022)), loc=(0, 0.070, -0.030), bevel=.0015)
-
-
-def build_finger(part, title, name, x, base_z, lengths, width, thick, angles, yaw):
-    """One finger: leather proximal stall with an ivory plate, bare middle and
-    distal phalanges. `angles` = (mcp, pip, dip) flexion in degrees toward the
-    palm; `yaw` fans the whole finger sideways (degrees, +x = toward pinky).
-    """
-    start = Vector((x, KNUCKLE_Y, base_z))
-    flex = 0.0
-    spread = math.radians(yaw)
-    for index, length in enumerate(lengths):
-        flex += math.radians(angles[index])
-        # Flexion rotates about the finger's own x axis; the fan is a yaw
-        # about y applied to the straight finger direction first.
-        direction = Vector((math.sin(spread) * math.cos(flex), -math.sin(flex), -math.cos(spread) * math.cos(flex)))
-        label = ('proximal', 'middle', 'distal')[index]
-        if index == 0:
-            segment(f'{title} {name} {label}', part, 'glove leather', start, direction, length,
-                    width, thick, overlap=0.004, bevel=.0045)
-            segment(f'{title} {name} armor', part, 'ceramic armor',
-                    Vector(start) + direction * 0.004, direction, length - 0.012,
-                    width - 0.004, 0.0040, overlap=0.0, bevel=.0015, segments=2, lift=thick / 2 + 0.0008)
-            # Stall hem: the leather ends in a raised ring at the first knuckle.
-            segment(f'{title} {name} hem', part, 'glove leather',
-                    Vector(start) + direction * (length - 0.006), direction, 0.006,
-                    width + 0.0018, thick + 0.0018, overlap=0.001, bevel=.0015)
-        elif index == 1:
-            segment(f'{title} {name} {label}', part, 'skin', start, direction, length,
-                    width - 0.0015, thick - 0.0015, overlap=0.0035, bevel=.0045)
-        else:
-            segment(f'{title} {name} {label}', part, 'skin', start, direction, length,
-                    width - 0.0030, thick - 0.0030, overlap=0.003, bevel=.0050)
-        start = start + direction * length
-
-
-def build_thumb(part, title, base, chain, girth=1.0):
-    """Metacarpal + proximal in leather, bare distal. `chain` = three
-    (direction, length) pairs. The metacarpal root is buried in the thumb
-    mound so the joint reads as one muscle."""
-    start = Vector(base)
-    sizes = [((0.021, 0.018), 'glove leather', 0.008), ((0.018, 0.016), 'glove leather', 0.004),
-             ((0.016, 0.014), 'skin', 0.003)]
-    for index, ((direction, length), ((w, t), material, overlap)) in enumerate(zip(chain, sizes)):
-        d = Vector(direction).normalized()
-        label = ('metacarpal', 'proximal', 'distal')[index]
-        segment(f'{title} thumb {label}', part, material, start, d, length, w * girth, t * girth,
-                overlap=overlap, bevel=.0045 if index < 2 else .005)
-        if index == 0:
-            segment(f'{title} thumb hem', part, 'glove leather', start + d * (length - 0.009), d, 0.005,
-                    w * girth + 0.0012, t * girth + 0.0012, overlap=0.001, bevel=.0015)
-        start = start + d * length
-
-
-def build_hand(part, title, angles, yaws, thumb):
-    build_common(part, title)
-    for (name, x, base_z, lengths, width, thick) in FINGERS:
-        build_finger(part, title, name, x, base_z, lengths, width, thick, angles[name], yaws[name])
-    build_thumb(part, title, THUMB_BASE, thumb)
-
-
-# Grip: fist around the pistol grip. The proximal phalanges drop away from the
-# knuckles at once, the middle phalanges run back under the palm and the
-# tips tuck toward the heel; the thumb lies across the index/middle stalls.
-build_hand('grip', 'Grip', {
-    'index': (72, 84, 42), 'middle': (76, 90, 46), 'ring': (78, 90, 46), 'pinky': (80, 86, 44),
-}, {
-    'index': -1.0, 'middle': 0.0, 'ring': 1.0, 'pinky': 2.5,
-}, [((-0.20, -0.56, -0.80), 0.036), ((0.55, -0.28, -0.79), 0.028), ((0.82, -0.08, -0.56), 0.022)])
-
-# Support: open cradle, fingers in a relaxed curl, thumb extended sideways.
-build_hand('support', 'Support', {
-    'index': (28, 42, 18), 'middle': (32, 46, 22), 'ring': (30, 46, 22), 'pinky': (36, 48, 24),
-}, {
-    'index': -6.0, 'middle': -2.0, 'ring': 2.0, 'pinky': 7.0,
-}, [((-0.72, 0.04, -0.69), 0.040), ((-0.48, 0.02, -0.88), 0.028), ((-0.32, 0.0, -0.95), 0.022)])
-
-build_forearm()
-build_upperarm()
-build_shoulder()
-
-for (key, value) in {'asset_id': 'hands', 'revision': 3}.items():
-    scene[key] = value
+scene['asset_id'] = 'hands'
+scene['revision'] = 4
 
 # --- contract assertions ---------------------------------------------------
 # Headless runs need an explicit view-layer sync before data-API-created
@@ -544,11 +216,11 @@ for part, title in (('grip', 'Grip'), ('support', 'Support')):
     CONTRACT.append((f'{part} cuff z>{CUFF_MIN_Z}', cuff_min > CUFF_MIN_Z, True))
     reach = max(p.length for (p, _n) in owned)
     CONTRACT.append((f'{part} reach within 0.25m', reach, REACH))
-    # Fingers must separate: neighbouring proximal stalls may not share x.
-    tip_pts = {name: [p for (p, n) in owned if n == f'{title} {name} distal']
+    # Every digit occupies a continuous shell across its three phalanges.
+    digit_pts = {name: [p for (p, n) in owned if n == f'{title} {name}']
                for (name, *_rest) in FINGERS}
     for (name, _x, _z, _l, _w, _t) in FINGERS:
-        CONTRACT.append((f'{part} {name} tip exists', bool(tip_pts[name]), True))
+        CONTRACT.append((f'{part} {name} digit exists', bool(digit_pts[name]), True))
 
 # Arm segments: each spans its own joint-to-joint length along +z (with a few
 # millimetres of overlap past both joints) and stays inside a slim radius so
@@ -598,7 +270,26 @@ else:
 bpy.ops.file.pack_all()
 BLEND = DOCS / 'hands.blend'
 bpy.context.preferences.filepaths.save_version = 0
-bpy.ops.wm.save_as_mainfile(filepath=str(BLEND), copy=True, check_existing=False)
+# Arrange the five editable groups as an assembled right arm and spare open
+# hand when the artist opens the file. The exporter reads mesh-local geometry.
+layout = {'grip': (-.04, 0, 0), 'support': (.13, 0, 0),
+          'forearm': (-.04, 0, WRIST_Z), 'upperarm': (-.04, 0, WRIST_Z + FOREARM_LEN),
+          'shoulder': (-.04, 0, WRIST_Z + FOREARM_LEN + UPPER_LEN)}
+for part, position in layout.items():
+    PART_GROUP[part].location = position
+for area in bpy.context.screen.areas:
+    if area.type == 'VIEW_3D':
+        space = area.spaces.active
+        space.region_3d.view_distance = 1.12
+        space.region_3d.view_location = (.02, 0, .29)
+        space.region_3d.view_rotation = Vector((-.58, -.77, -.22)).to_track_quat('-Z', 'Y')
+        space.shading.color_type = 'MATERIAL'
+        space.overlay.show_extras = False
+bpy.context.view_layer.update()
+bpy.ops.wm.save_as_mainfile(filepath=str(BLEND), copy=True, compress=True, check_existing=False)
+for group in PART_GROUP.values():
+    group.location = (0, 0, 0)
+bpy.context.view_layer.update()
 
 
 # --- studio lighting, camera, and per-pose renders -------------------------
@@ -723,11 +414,12 @@ def audit_finger_gaps():
     for part, title in (('grip', 'Grip'), ('support', 'Support')):
         boxes = {}
         for (obj, p, _m) in PARTS:
-            if p != part or not obj.name.endswith(' proximal') or 'thumb' in obj.name:
+            if p != part or obj.name not in [f'{title} {finger[0]}' for finger in FINGERS]:
                 continue
             evaluated = obj.evaluated_get(deps)
             mesh = evaluated.to_mesh()
-            xs = [(obj.matrix_world @ v.co).x for v in mesh.vertices]
+            # Four cross sections covering root to mid-proximal phalanx.
+            xs = [(obj.matrix_world @ v.co).x for v in list(mesh.vertices)[:4 * 16]]
             evaluated.to_mesh_clear()
             boxes[obj.name] = (min(xs), max(xs))
         ordered = sorted(boxes.items(), key=lambda kv: kv[1][0])
@@ -763,16 +455,25 @@ export_objects = list(PART_GROUP.values())
 triangles = 0
 per_primitive = {}
 for ((part, material), objects) in sorted(batches.items()):
-    bm = bmesh.new()
-    for obj in objects:
-        evaluated = obj.evaluated_get(depsgraph)
+    # Preserve authored normals at sewn material boundaries when batching the
+    # portable GLB, just as the runtime exporter preserves them per corner.
+    positions, faces, corner_normals = [], [], []
+    for source in objects:
+        evaluated = source.evaluated_get(depsgraph)
         mesh = evaluated.to_mesh()
-        bm.from_mesh(mesh)
+        mesh.calc_loop_triangles()
+        offset = len(positions)
+        positions.extend(tuple(v.co) for v in mesh.vertices)
+        for triangle in mesh.loop_triangles:
+            faces.append(tuple(offset + i for i in triangle.vertices))
+            corner_normals.extend(tuple(mesh.corner_normals[i].vector) for i in triangle.loops)
         evaluated.to_mesh_clear()
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
     merged = bpy.data.meshes.new(f'{part} | {material} shell')
-    bm.to_mesh(merged)
-    bm.free()
+    merged.from_pydata(positions, [], faces)
+    merged.update()
+    for polygon in merged.polygons:
+        polygon.use_smooth = True
+    merged.normals_split_custom_set(corner_normals)
     merged.materials.append(mats[material])
     obj = bpy.data.objects.new(f'{part} | {material}', merged)
     obj['part'] = part
@@ -837,7 +538,7 @@ _foreign = sorted({node.get('name', '') for node in _document['nodes']} - _expec
 if _foreign:
     raise RuntimeError(f'unexpected nodes in the GLB export: {_foreign}')
 
-STEMS = [m[1] for m in MATERIALS]
+TEXTURE_URIS = sorted({mat['texture_uri'] for mat in mats.values() if 'texture_uri' in mat})
 
 
 def normalize_glb(path):
@@ -861,8 +562,9 @@ def normalize_glb(path):
             stem = head
         if stem.endswith('.jpg'):
             stem = stem[:-4]
-        if stem in STEMS:
-            texture['name'] = f'textures/{stem}.jpg'
+        uri = next((uri for uri in TEXTURE_URIS if Path(uri).stem == stem), None)
+        if uri:
+            texture['name'] = uri
     contract_tints = {f'{ASSET} | {key}': list(material.get('gltf_tint', ()))
                       for (key, material) in mats.items()}
     for material in document.get('materials', []):
@@ -900,7 +602,7 @@ _node_names = sorted(normalize_glb(GLB))
 manifest = {
     'asset': 'HANDS',
     'asset_id': 'hands',
-    'revision': 3,
+    'revision': 4,
     'kind': 'original first-person glove hands, two poses, plus rigid arm segments (visual game asset)',
     'blender': bpy.app.version_string,
     'authoring_script': 'tools/blender/hands/build-hands.py',
@@ -911,12 +613,10 @@ manifest = {
     'round_nodes': [],
     'triangles': triangles,
     'triangles_per_primitive': per_primitive,
-    'materials': [m[0] for m in MATERIALS],
-    'material_textures': {m[0]: f'{m[1]}.jpg' for m in MATERIALS},
-    'material_uv_scale': {m[0]: m[5] for m in MATERIALS},
-    'imagegen_textures': sorted({f'{m[1]}.jpg' for m in MATERIALS}),
-    'texture_source': 'public/assets/blender/textures (the delivered 1024px JPEGs, '
-                      'reused byte-identical; originals untouched)',
+    'materials': list(mats),
+    'material_textures': {name: mat.get('texture_uri') for name,mat in mats.items()},
+    'material_uv_scale': UV_SCALES,
+    'textures': TEXTURE_URIS,
     'axes': {'authoring': 'glove-local: fingers -z, back of hand +y, thumb -x, cuff +z (consumed verbatim)',
              'after_gltf': 'glove-local (export_yup off)',
              'map': 'game_x = x, game_y = y, game_z = z (identity bake); kit glove() '
@@ -947,7 +647,7 @@ manifest = {
     'build_time_checks': {
         'anchor_contract': 'each palm spans the origin, every wrist/strap/sleeve/bracer part '
                            f'stays at z > {CUFF_MIN_Z}, no vertex leaves a 0.25 m radius, '
-                           'every finger has a bare distal phalanx',
+                           'every finger has a continuous full-length shell',
         'part_contact': 'every authored part must meet another part of its own group, '
                         'either by crossing its surface or by placing a vertex within 1 mm '
                         'of it; a part that only meets the model through empty space is '
@@ -955,24 +655,16 @@ manifest = {
         'finger_gaps': 'neighbouring proximal stalls keep >= 1.5 mm of air between them',
     },
     'geometry_audit': {'floating_parts': floaters, 'finger_gaps': finger_gaps},
-    'limitations': [
-        'Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.',
-        'Single LOD; no mobile GPU profiling.',
-        'Static poses: deliberately no rig or runtime IK.',
+    'notes': [
+        'The grip and support gloves use independent digit curls around the existing palm anchors.',
+        'The forearm and upper arm follow the field jacket pattern and retain the first-person IK joints.',
     ],
-    'notes': ['Revision 2: base-knuckle flexion, rounded phalanx joints without ball bumps, '
-              'half-finger glove with bare middle/distal phalanges, RIVET kit colours.',
-              'Revision 3: the sleeve leaves the glove; forearm, upperarm and shoulder are '
-              'separate rigid parts that viewmodel-arms.js poses with two-bone IK toward the '
-              'first-person body, so the hands connect to the character.',
-              'The runtime keeps these materials as delivered (no glove-map re-texture) and keys '
-              'the character-skin palette on the material name.'],
 }
 (DOCS / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 validation = {
     'asset': 'HANDS',
-    'revision': 3,
-    'glb': str(GLB),
+    'revision': 4,
+    'glb': str(GLB.relative_to(ROOT)),
     'passed': not (contract_failures or floaters or finger_gaps),
     'failures': contract_failures + [f'floating: {line}' for line in floaters]
     + [f'finger gap: {line}' for line in finger_gaps],

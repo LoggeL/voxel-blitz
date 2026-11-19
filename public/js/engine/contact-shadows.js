@@ -201,6 +201,8 @@ export class ContactShadows {
 }
 
 const cameraPosition = new THREE.Vector3();
+const detailView = { eye: cameraPosition, focalScale: 1 };
+const REFERENCE_TAN_HALF_FOV = Math.tan(35 * Math.PI / 180);
 
 /** Blobs under world pickups owned by a WorldView (powerups, TTT drops and supplies). */
 function addPickupBlobs(shadows, view, radius, strength) {
@@ -220,11 +222,16 @@ function addPickupBlobs(shadows, view, radius, strength) {
  * frame: { camera, dt, roster, vehicles, bodyPosition }
  */
 export function presentCharacterFrame(worldview, frame) {
-  const roots = worldview.characterRoots;
-  for (let i = 0; i < roots.length; i++) prepareCharacterTree(roots[i]);
-  setCharacterNearRoots(worldview.nearCharacterRoots);
   const camera = frame.camera;
-  if (camera) camera.getWorldPosition(cameraPosition);
+  if (camera) {
+    camera.getWorldPosition(cameraPosition);
+    // Projection includes both current ADS FOV and optical zoom.
+    detailView.focalScale = camera.isPerspectiveCamera
+      ? REFERENCE_TAN_HALF_FOV * camera.projectionMatrix.elements[5] : Infinity;
+  }
+  const roots = worldview.characterRoots;
+  for (let i = 0; i < roots.length; i++) prepareCharacterTree(roots[i], true, camera ? detailView : null);
+  setCharacterNearRoots(worldview.nearCharacterRoots);
   updateCharacterProbe(worldview.lightVolume, camera ? cameraPosition : null, frame.dt || 0);
   const shadows = worldview.contactShadows;
   if (!shadows) return;

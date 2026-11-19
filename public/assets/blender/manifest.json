@@ -44,10 +44,10 @@
     },
     {
       "asset": "hands",
-      "source_parts": 88,
-      "draws": 14,
-      "triangles": 14912,
-      "geometry_bytes": 1146112
+      "source_parts": 132,
+      "draws": 23,
+      "triangles": 31644,
+      "geometry_bytes": 1177104
     },
     {
       "asset": "hydra",
@@ -93,10 +93,12 @@
     },
     {
       "asset": "rivet",
-      "source_parts": 151,
-      "draws": 76,
-      "triangles": 19536,
-      "geometry_bytes": 784448
+      "source_parts": 425,
+      "draws": 86,
+      "triangles": 64285,
+      "distance_draws": 57,
+      "distance_triangles": 20931,
+      "geometry_bytes": 2583108
     },
     {
       "asset": "skipjack",

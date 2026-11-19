@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer } from './lib/server-process.mjs';
+import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 
 const server = startServer();
 let browser;
@@ -41,7 +42,10 @@ try {
       const hand=rig._throwableHands;
       const box=new THREE.Box3().setFromObject(hand.models[type]);
       const projected=box.getCenter(new THREE.Vector3()).project(camera);
+      const {l,r}=hand.root.userData.armAnchors;
       return {cues:cues.map(event=>event.cue),visible:hand.models[type].visible&&hand.grip.visible,
+        gloves:[l,r].map(wrist=>wrist.children.filter(glove=>glove.visible && glove.userData.blenderAsset==='hands').map(glove=>glove.name)),
+        sleeves:hand.arms.arms.map(arm=>arm.segments.forearm.visible&&arm.inner.forearm.userData.blenderAsset==='hands'),
         firearm:rig.content.visible,projected:projected.toArray(),pin:hand.pin.visible,
         lit:hand.wickFlame.visible,active:rig.grenadeActive};
     }
@@ -51,6 +55,8 @@ try {
   })()`);
   assert.equal(result.visible, true);
   assert.equal(result.firearm, false);
+  assert.deepEqual(result.gloves, [['grip'],['grip']]);
+  assert.deepEqual(result.sleeves, [false,true], 'left sleeve clears with the arming hand');
   assert.deepEqual(result.cues, ['draw', 'pin', 'ready']);
   assert.ok(result.projected.every(Number.isFinite));
   assert.ok(Math.abs(result.projected[0]) < 1 && Math.abs(result.projected[1]) < 1, 'held grenade stays inside viewport');
@@ -60,10 +66,12 @@ try {
     await writeFile(`.artifacts/${name}.png`, Buffer.from(image.data, 'base64'));
   }
   await capture('grenade-hold');
-  for (const type of ['frag', 'limpet', 'pulse', 'molotov', 'smoke']) {
+  for (const type of GRENADE_TYPE_IDS) {
     const pin = await page.evaluate(`window.throwableCheck.show('${type}',.32)`);
     assert.equal(pin.visible, true);
-    assert.ok(pin.cues.includes(type === 'molotov' ? 'ignite' : 'pin'));
+    const placed = ['limpet', 'atmine', 'beacon'].includes(type);
+    assert.deepEqual(pin.cues, placed ? ['draw'] : ['draw', type === 'molotov' ? 'ignite' : 'pin']);
+    assert.deepEqual(pin.sleeves, [true,true]);
     await capture(`${type}-prepare`);
   }
   const burning = await page.evaluate(`(() => {
@@ -84,13 +92,15 @@ try {
   const cleaned = await page.evaluate(`(() => {
     const {fire,rig}=window.throwableCheck;
     fire.update(10); rig.grenadeThrow(1,'molotov');
+    const released=rig._throwableHands.openHand.visible && !rig._throwableHands.closedHand.visible;
     for(let i=0;i<60;i++)rig.update(1/60,{grounded:true});
-    return {instances:fire.geometry.instanceCount,fields:fire.fields.size,active:rig.grenadeActive,gun:rig.content.visible};
+    return {instances:fire.geometry.instanceCount,fields:fire.fields.size,active:rig.grenadeActive,gun:rig.content.visible,released};
   })()`);
-  assert.deepEqual(cleaned, { instances: 0, fields: 0, active: false, gun: true });
+  assert.deepEqual(cleaned, { instances: 0, fields: 0, active: false, gun: true, released: true });
   assert.deepEqual(page.errors, []);
   await page.send('Page.navigate', { url: `http://127.0.0.1:${port}/?debug=1&headless=1` });
-  await page.waitFor(`window.__vb && document.getElementById('create-lobby-btn')`);
+  await page.waitFor(`window.__vbBoot?.readyMs > 0 && document.getElementById('create-lobby-btn')?.disabled === false`,
+    { timeoutMs: 120000, label: 'interactive menu with match assets ready' });
   await page.evaluate(`document.getElementById('create-lobby-btn').click()`);
   await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`);
   await page.evaluate(`(() => {
@@ -102,7 +112,7 @@ try {
   await page.evaluate(`document.getElementById('lobby-ready-btn').click()`);
   await page.waitFor(`!document.getElementById('lobby-start-btn').disabled`);
   await page.evaluate(`document.getElementById('lobby-start-btn').click()`);
-  await page.waitFor(`window.__vb.stats.running && window.__vb.stats.throwable.counts.length === 5`, { timeoutMs: 30000 });
+  await page.waitFor(`window.__vb.stats.running && window.__vb.stats.throwable.counts.length === ${GRENADE_TYPE_IDS.length}`, { timeoutMs: 30000 });
   async function key(type, name, code, keyCode) {
     await page.send('Input.dispatchKeyEvent', { type, key: name, code, windowsVirtualKeyCode: keyCode });
   }
@@ -122,7 +132,7 @@ try {
   await capture('molotov-live-impact');
   await page.waitFor(`window.__vb.stats.fireFields === 0`, { timeoutMs: 10000, label: 'live ground fire expires' });
   assert.deepEqual(page.errors, []);
-  console.log('Throwable WebGL: all four preparations, visible hold, pin/ignition cues, bottle, ground flames, shader compilation and expiry passed.');
+  console.log('Throwable WebGL: authored gloves and sleeves, all eight preparations, visible hold, pin/ignition cues, ground flames, shader compilation and expiry passed.');
 } finally {
   if (browser) await browser.close();
   await stopServer(server);

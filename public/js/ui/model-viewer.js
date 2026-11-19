@@ -6,7 +6,7 @@ import { MaterialCache } from '../guns/kit.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
 import { applyAttachmentModel } from '../guns/attachment-model.js';
 import { applyStattrakModule } from '../guns/stattrak-module.js';
-import { makeAvatar, disposeAvatar } from '../avatar/avatar.js';
+import { makeOperatorPreview, disposeAvatar } from '../avatar/avatar.js';
 import { applyGunCosmetics, applyAvatarCosmetics } from '../cosmetics/skins.js';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -171,12 +171,8 @@ export class ModelViewer {
       this.root.traverse(object => { if (object.name === 'hand_l' || object.name === 'hand_r') object.visible = false; });
       this.gun.flash.grp.visible = false;
     } else {
-      this.avatar = makeAvatar('cosmetic-preview', 'OPERATOR', null);
-      this.avatar.suitMaterial.color.setHex(0x465361);
-      this.avatar.darkMaterial.color.setHex(0x222c37);
+      this.avatar = makeOperatorPreview();
       applyAvatarCosmetics(this.avatar, loadout);
-      this.avatar.tag.visible = this.avatar.hpSpr.visible = false;
-      this.avatar.weaponModel.root.visible = false;
       this.root = this.avatar.group;
     }
     this.scene.add(this.root);

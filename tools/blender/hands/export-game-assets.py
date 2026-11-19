@@ -1,4 +1,4 @@
-"""Write the browser-facing runtime glTF for HANDS, plus .bin (no manifest).
+"""Write the browser-facing HANDS glTF, geometry buffer and asset statistics.
 
     blender --background --factory-startup --python tools/blender/hands/export-game-assets.py
     (opens docs/design/blender/hands/hands.blend itself), or equivalently:
@@ -16,20 +16,12 @@ game's loader (`public/js/engine/blender-assets.js`) expects.
       space (palm at origin, fingers -z, cuff +z, y up): the authoring frame
       is already the consumed frame, so GAME is the identity rotation and the
       flat normal matrix is the identity itself
-    * one node per pose (`grip`, `support`), one primitive per material
+    * five joint-local nodes, one primitive per material
     * analytic UVs at each material's own real-world density (`uv_scale`
       custom property written by build-hands.py), recomputed here on the
       final geometry so the GLB and the runtime file agree
 
-This script also performs one piece of file hygiene it owns: any scene that
-is not the HANDS study is removed here and the .blend is re-saved, so the
-delivered source holds exactly one scene. This runs in a background process
-and never touches the live session.
-
-This script NEVER writes public/assets/blender/manifest.json: parallel
-streams merge that file once, so it only prints its entry stats.
-
-No study texture is written, re-encoded or copied over.
+Only the selected HANDS scene's editable mesh parts are exported.
 """
 import bpy
 import json
@@ -47,8 +39,7 @@ SCENE_PREFIX = 'HANDS'
 
 GROUPS = ['grip', 'support', 'forearm', 'upperarm', 'shoulder']
 MARKERS = []
-TEXTURES = ['worn-gunmetal', 'orange-painted-metal', 'ivory-armor',
-            'petrol-ballistic-fabric', 'tan-webbing', 'worn-rubber']
+textures = []
 UV_SCALE = 3.6  # texture tiles per metre, fallback only: parts carry `uv_scale`
 
 # The glove-local authoring frame is consumed verbatim by kit glove(), so the
@@ -63,15 +54,7 @@ scene = next((s for s in bpy.data.scenes if s.name == f'{SCENE_PREFIX} | Voxel B
 if scene is None:
     raise SystemExit(f'no {SCENE_PREFIX} scene in {BLEND}')
 
-# --- drop foreign studies from the delivered source ------------------------
 source_parts = sum(1 for obj in scene.objects if obj.type == 'MESH' and obj.get('part') in GROUPS)
-removed = [s.name for s in bpy.data.scenes if s is not scene]
-for name in removed:
-    bpy.data.scenes.remove(bpy.data.scenes[name])
-bpy.data.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
-scene.name = f'{SCENE_PREFIX} | Voxel Blitz hands study'
-bpy.context.preferences.filepaths.save_version = 0
-bpy.ops.wm.save_as_mainfile(filepath=str(BLEND), check_existing=False)
 
 # --- gather authored parts -------------------------------------------------
 depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -139,24 +122,17 @@ for obj in sorted(scene.objects, key=lambda o: o.name):
 # --- material descriptors --------------------------------------------------
 def material_desc(name, material):
     shader = material.node_tree.nodes['Principled BSDF']
-    stem = material.get('imagegen_texture', '')
+    uri = material.get('texture_uri')
     tint = list(material.get('gltf_tint', (1, 1, 1)))
     pbr = {'baseColorFactor': tint + [1],
            'metallicFactor': float(shader.inputs['Metallic'].default_value),
            'roughnessFactor': float(shader.inputs['Roughness'].default_value)}
     extras = {'partMaterial': name}
-    if stem:
-        pbr['baseColorTexture'] = {'index': TEXTURES.index(stem.replace('.jpg', ''))}
-    else:
-        pbr['baseColorFactor'] = [round(v, 4) for v in shader.inputs['Base Color'].default_value]
-    result = {'name': f'HANDS | {name}', 'pbrMetallicRoughness': pbr, 'extras': extras}
-    if material.get('glass'):
-        pbr['baseColorFactor'] = [.18, .58, .65, .16]
-        pbr['metallicFactor'] = 0
-        result['alphaMode'] = 'BLEND'
-        result['doubleSided'] = True
-        extras['glass'] = True
-    return result
+    if uri:
+        if uri not in textures:
+            textures.append(uri)
+        pbr['baseColorTexture'] = {'index': textures.index(uri)}
+    return {'name': f'HANDS | {name}', 'pbrMetallicRoughness': pbr, 'extras': extras}
 
 
 materials = [material_desc(name, material_meta[index])
@@ -168,8 +144,8 @@ document = {
     'scene': 0,
     'scenes': [{'nodes': []}],
     'nodes': [], 'meshes': [], 'materials': materials,
-    'images': [{'uri': f'textures/{stem}.jpg'} for stem in TEXTURES],
-    'textures': [{'source': index, 'sampler': 0} for index in range(len(TEXTURES))],
+    'images': [{'uri': uri, 'name': uri} for uri in textures],
+    'textures': [{'source': index, 'sampler': 0, 'name': uri} for index, uri in enumerate(textures)],
     'samplers': [{'magFilter': 9729, 'minFilter': 9987, 'wrapS': 10497, 'wrapT': 10497}],
     'buffers': [], 'bufferViews': [], 'accessors': [],
 }
@@ -242,21 +218,29 @@ document['buffers'] = [{'uri': f'{SLUG}.bin', 'byteLength': len(binary)}]
 (OUT / f'{SLUG}.bin').write_bytes(binary)
 (OUT / f'{SLUG}.gltf').write_text(json.dumps(document, separators=(',', ':')) + '\n')
 
+stats = {'asset': SLUG, 'source_parts': source_parts, 'draws': draws,
+         'triangles': triangles, 'geometry_bytes': len(binary)}
+manifest_path = OUT / 'manifest.json'
+library = json.loads(manifest_path.read_text())
+for index, item in enumerate(library['assets']):
+    if item['asset'] == SLUG:
+        library['assets'][index] = stats
+        break
+else:
+    library['assets'].append(stats)
+manifest_path.write_text(json.dumps(library, indent=2) + '\n')
+
 print(json.dumps({
-    'asset': SLUG,
-    'source_parts': source_parts,
-    'draws': draws,
-    'triangles': triangles,
+    **stats,
     'triangles_per_primitive': part_triangles,
     'materials': [m['name'] for m in materials],
     'material_textures': {m['name']: m['pbrMetallicRoughness'].get('baseColorTexture', {}).get('index')
                           for m in materials},
     'images': [image['uri'] for image in document['images']],
-    'geometry_bytes': len(binary),
     'bin_bytes': len(binary),
     'blend_bytes': BLEND.stat().st_size,
     'gltf_bytes': (OUT / f'{SLUG}.gltf').stat().st_size,
     'nodes': [node['name'] for node in document['nodes']],
     'scene': scene.name,
-    'removed_scenes': removed,
+
 }, indent=2))

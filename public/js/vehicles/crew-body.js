@@ -5,8 +5,10 @@
 // imported panel (the RIVET body has ~50 rigid meshes). Joint groups stay in
 // place, empty, for cosmetic fittings and the first-person visibility switch.
 import * as THREE from '../vendor/three.module.js';
+import { bindRivetDetail, farRivetGeometry } from '../engine/rivet-detail.js';
 
 const local = new THREE.Matrix4(), carrierInverse = new THREE.Matrix4(), relative = new THREE.Matrix4();
+const omittedIndices = { array: [], count: 0 };
 
 /** `node`'s transform in `root`'s frame (local matrices refreshed on the way). */
 function matrixIn(root, node, out) {
@@ -31,7 +33,8 @@ function mergeBatch(entries) {
   const pieces = entries.map(entry => {
     const geometry = (indexed ? entry.geometry.clone() : entry.geometry.index ? entry.geometry.toNonIndexed() : entry.geometry.clone());
     geometry.applyMatrix4(entry.matrix);
-    return { geometry, upper: entry.upper };
+    const distant = farRivetGeometry(entry.geometry);
+    return { geometry, upper: entry.upper, farIndex: distant ? distant.index || omittedIndices : null };
   });
   const first = pieces[0].geometry;
   const merged = new THREE.BufferGeometry();
@@ -43,26 +46,40 @@ function mergeBatch(entries) {
     merged.setAttribute(name, new THREE.BufferAttribute(array, source.itemSize, source.normalized));
   }
   // Lower-body pieces come first: first person keeps that prefix only.
-  let lowerCount = 0;
+  let lowerCount = 0, fullCount = 0, farCount = 0, farLowerCount = 0;
+  const hasDistantIndices = indexed && pieces.some(piece => piece.farIndex);
   if (indexed) {
     const vertices = merged.attributes.position.count;
-    const index = new (vertices > 65535 ? Uint32Array : Uint16Array)(pieces.reduce((sum, piece) => sum + piece.geometry.index.count, 0));
-    let offset = 0, base = 0;
+    fullCount = pieces.reduce((sum, piece) => sum + piece.geometry.index.count, 0);
+    if (hasDistantIndices) farCount = pieces.reduce((sum, piece) => sum + (piece.farIndex || piece.geometry.index).count, 0);
+    const index = new (vertices > 65535 ? Uint32Array : Uint16Array)(fullCount + farCount);
+    let offset = 0, farOffset = fullCount, base = 0;
     for (const piece of pieces) {
       const source = piece.geometry.index.array;
       for (let i = 0; i < source.length; i++) index[offset + i] = source[i] + base;
+      if (hasDistantIndices) {
+        const distant = (piece.farIndex || piece.geometry.index).array;
+        for (let i = 0; i < distant.length; i++) index[farOffset + i] = distant[i] + base;
+        farOffset += distant.length;
+      }
       offset += source.length; base += piece.geometry.attributes.position.count;
-      if (!piece.upper) lowerCount = offset;
+      if (!piece.upper) {
+        lowerCount = offset;
+        farLowerCount = farOffset - fullCount;
+      }
     }
     merged.setIndex(new THREE.BufferAttribute(index, 1));
+    merged.setDrawRange(0, fullCount);
   } else {
-    let offset = 0;
-    for (const piece of pieces) { offset += piece.geometry.attributes.position.count; if (!piece.upper) lowerCount = offset; }
+    for (const piece of pieces) {
+      fullCount += piece.geometry.attributes.position.count;
+      if (!piece.upper) lowerCount = fullCount;
+    }
   }
   for (const piece of pieces) piece.geometry.dispose();
   merged.computeBoundingBox();
   merged.computeBoundingSphere();
-  return { geometry: merged, lowerCount };
+  return { geometry: merged, lowerCount, fullCount, farLowerCount, farCount, hasDistantIndices };
 }
 
 /**
@@ -91,17 +108,23 @@ export function batchSeatedCrewBody(avatar) {
     if (batch.entries.length < 2) continue;
     // Lower body first so the upper body is the draw-range suffix.
     batch.entries.sort((a, b) => Number(a.upper) - Number(b.upper));
-    const { geometry, lowerCount } = mergeBatch(batch.entries);
+    const { geometry, ...ranges } = mergeBatch(batch.entries);
     const mesh = new THREE.Mesh(geometry, batch.material);
     mesh.name = 'crew-body-batch';
     mesh.castShadow = batch.template.castShadow; mesh.receiveShadow = batch.template.receiveShadow;
     mesh.frustumCulled = batch.template.frustumCulled; mesh.layers.mask = batch.template.layers.mask;
     mesh.matrixAutoUpdate = false;
-    mesh.userData.lowerCount = lowerCount;
-    mesh.userData.upperOnly = lowerCount === 0;
-    mesh.userData.lowerOnly = batch.entries.every(entry => !entry.upper);
+    mesh.userData.crewRanges = ranges;
     for (const entry of batch.entries) entry.mesh.removeFromParent();
-    carrier.add(mesh);
+    // A batch can consist entirely of small fittings. Give its detail level
+    // separate visibility so cockpit and cosmetic visibility remain independent.
+    if (ranges.hasDistantIndices && (!ranges.farCount || (ranges.lowerCount && !ranges.farLowerCount))) {
+      const level = new THREE.Group();
+      level.name = 'crew-detail';
+      level.matrixAutoUpdate = false;
+      carrier.add(level);
+      level.add(mesh);
+    } else carrier.add(mesh);
     meshes.push(mesh);
   }
   // The rigid joints never move again: their local matrices are final.
@@ -110,17 +133,34 @@ export function batchSeatedCrewBody(avatar) {
     object.updateMatrix();
     object.matrixAutoUpdate = false;
   });
+  let showUpper = true, distant = false;
+  function setRanges() {
+    for (const mesh of meshes) {
+      const range = mesh.userData.crewRanges;
+      const far = distant && range.hasDistantIndices;
+      const count = far ? (showUpper ? range.farCount : range.farLowerCount)
+        : (showUpper ? range.fullCount : range.lowerCount);
+      mesh.geometry.setDrawRange(far ? range.fullCount : 0, count);
+      if (mesh.parent !== carrier) mesh.parent.visible = count > 0;
+    }
+  }
   const handle = {
     meshes,
+    hasDistantIndices: meshes.some(mesh => mesh.userData.crewRanges.hasDistantIndices),
     /** First person hides the head and chest: each batch keeps its lower-body prefix. */
     setUpperVisible(visible) {
+      showUpper = visible;
       for (const mesh of meshes) {
-        if (mesh.userData.lowerOnly) continue;
-        mesh.geometry.setDrawRange(0, visible ? Infinity : mesh.userData.lowerCount);
-        mesh.visible = visible || !mesh.userData.upperOnly;
+        if (!mesh.userData.crewRanges.lowerCount) mesh.visible = visible;
       }
+      setRanges();
+    },
+    setDistant(value) {
+      distant = value;
+      setRanges();
     },
   };
   avatar.crewBatch = handle;
+  if (avatar.group.updateCharacterDetail) bindRivetDetail(avatar);
   return handle;
 }

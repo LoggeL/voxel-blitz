@@ -1,87 +1,84 @@
 {
   "asset": "HANDS",
-  "revision": 3,
-  "glb": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/hands/hands.glb",
+  "revision": 4,
+  "glb": "docs/design/blender/hands/hands.glb",
   "passed": true,
   "failures": [],
   "advisory": [],
   "measured": {
     "extent": {
       "x": [
-        -0.092391,
-        0.067806
+        -0.090709,
+        0.064924
       ],
       "y": [
-        -0.059405,
-        0.074
+        -0.068289,
+        0.067549
       ],
       "z": [
-        -0.108,
-        0.366
+        -0.08906,
+        0.375274
       ]
     },
     "palm_bounds": {
       "grip": {
         "min": [
-          -0.04045,
-          -0.013461,
-          -0.046
+          -0.0429,
+          -0.0196,
+          -0.049
         ],
         "max": [
-          0.04045,
-          0.013303,
-          0.03
+          0.0419,
+          0.0167,
+          0.039
         ]
       },
       "support": {
         "min": [
-          -0.04045,
-          -0.013461,
-          -0.046
+          -0.0429,
+          -0.0196,
+          -0.049
         ],
         "max": [
-          0.04045,
-          0.013303,
-          0.03
+          0.0419,
+          0.0167,
+          0.039
         ]
       }
     },
     "cuff_min_z": {
-      "grip": 0.028,
-      "support": 0.028
+      "grip": 0.025,
+      "support": 0.025
     },
     "glb_nodes": [
       "forearm",
       "forearm | ceramic armor",
-      "forearm | glove leather",
+      "forearm | glove liner",
       "forearm | knuckle plate",
       "forearm | suit fabric",
-      "forearm | webbing",
       "grip",
       "grip | ceramic armor",
       "grip | glove leather",
+      "grip | glove liner",
       "grip | hardware",
       "grip | knuckle plate",
-      "grip | skin",
       "grip | webbing",
       "shoulder",
-      "shoulder | ceramic armor",
-      "shoulder | hardware",
-      "shoulder | knuckle plate",
+      "shoulder | glove liner",
       "shoulder | suit fabric",
       "support",
       "support | ceramic armor",
       "support | glove leather",
+      "support | glove liner",
       "support | hardware",
       "support | knuckle plate",
-      "support | skin",
       "support | webbing",
       "upperarm",
-      "upperarm | ceramic armor",
-      "upperarm | glove leather",
+      "upperarm | glove liner",
       "upperarm | knuckle plate",
+      "upperarm | patrol blue",
       "upperarm | suit fabric",
-      "upperarm | webbing"
+      "upperarm | transfer"
     ],
     "node:grip": "present",
     "node:support": "present",
@@ -91,54 +88,51 @@
     "arm_bounds": {
       "forearm": {
         "z": [
-          -0.01,
-          0.332
+          -0.011853,
+          0.372
         ],
-        "radius": 0.057899
+        "radius": 0.063368
       },
       "upperarm": {
         "z": [
-          -0.024,
-          0.366
+          -0.026,
+          0.375274
         ],
-        "radius": 0.06921
+        "radius": 0.070621
       },
       "shoulder": {
         "z": [
-          -0.108,
-          0.046
+          -0.077,
+          0.058
         ],
-        "radius": 0.090981
+        "radius": 0.059
       }
     },
-    "triangles": 16416,
+    "triangles": 31644,
     "triangles_per_primitive": {
-      "forearm | ceramic armor": 188,
-      "forearm | glove leather": 408,
-      "forearm | knuckle plate": 108,
-      "forearm | suit fabric": 760,
-      "forearm | webbing": 220,
-      "grip | ceramic armor": 540,
-      "grip | glove leather": 3192,
-      "grip | hardware": 216,
-      "grip | knuckle plate": 540,
-      "grip | skin": 1692,
-      "grip | webbing": 156,
-      "shoulder | ceramic armor": 108,
-      "shoulder | hardware": 108,
-      "shoulder | knuckle plate": 188,
-      "shoulder | suit fabric": 380,
-      "support | ceramic armor": 540,
-      "support | glove leather": 3192,
-      "support | hardware": 216,
-      "support | knuckle plate": 540,
-      "support | skin": 1692,
-      "support | webbing": 156,
-      "upperarm | ceramic armor": 188,
-      "upperarm | glove leather": 380,
-      "upperarm | knuckle plate": 108,
-      "upperarm | suit fabric": 380,
-      "upperarm | webbing": 220
+      "forearm | ceramic armor": 280,
+      "forearm | glove liner": 936,
+      "forearm | knuckle plate": 44,
+      "forearm | suit fabric": 3440,
+      "grip | ceramic armor": 864,
+      "grip | glove leather": 5064,
+      "grip | glove liner": 3936,
+      "grip | hardware": 44,
+      "grip | knuckle plate": 44,
+      "grip | webbing": 220,
+      "shoulder | glove liner": 288,
+      "shoulder | suit fabric": 428,
+      "support | ceramic armor": 864,
+      "support | glove leather": 5064,
+      "support | glove liner": 3936,
+      "support | hardware": 44,
+      "support | knuckle plate": 44,
+      "support | webbing": 220,
+      "upperarm | glove liner": 1276,
+      "upperarm | knuckle plate": 32,
+      "upperarm | patrol blue": 960,
+      "upperarm | suit fabric": 3524,
+      "upperarm | transfer": 92
     }
   }
 }

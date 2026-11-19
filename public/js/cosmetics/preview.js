@@ -3,7 +3,7 @@ import { CAREER_CATALOG } from '../../../shared/career.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
 import { MaterialCache } from '../guns/kit.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
-import { makeAvatar, disposeAvatar } from '../avatar/avatar.js';
+import { makeOperatorPreview, disposeAvatar } from '../avatar/avatar.js';
 import { applyGunCosmetics, applyAvatarCosmetics } from './skins.js';
 
 const canvas = document.getElementById('preview');
@@ -57,11 +57,8 @@ function render() {
     camera.position.set(width*(item.weapon === 'rifle' ? -1.35 : 1.35),width*.48,width*.68);camera.lookAt(0,0,0);
     pedestal.visible=false;
   } else {
-    avatar=makeAvatar('cosmetic-preview','OPERATOR',null);
-    // A fixed neutral undersuit makes standard/skin comparisons independent of ID color.
-    avatar.suitMaterial.color.setHex(0x465361);avatar.darkMaterial.color.setHex(0x222c37);
-    applyAvatarCosmetics(avatar,loadout);avatar.tag.visible=avatar.hpSpr.visible=false;
-    avatar.weaponModel.root.visible=false;
+    avatar=makeOperatorPreview();
+    applyAvatarCosmetics(avatar,loadout);
     if(firstPerson) {avatar.group.rotation.y=Math.PI;}
     scene.add(avatar.group);camera.position.set(2.5,1.8,-4);camera.lookAt(0,1.0,0);
     pedestal.visible=true;pedestal.position.set(0,-.04,0);pedestal.scale.set(1.3,1,1.3);

@@ -1,146 +1,78 @@
 import * as THREE from '../vendor/three.module.js';
-import { buildRivet } from './rivet-model.js';
 import { leanBodyPoint } from '../../../shared/player-lean.js';
+import { createRivetParts } from './rivet-model.js';
+import { createFallbackOperatorParts } from './operator-fallback.js';
 
 export const UPPER_ARM = 0.34;
 export const FOREARM = 0.34;
+const LEG_SEGMENT = 0.325;
+const SHOULDER_X = 0.32;
+const SHOULDER_Y = 1.43;
 
-// Small bevels catch the light while preserving the game's angular silhouettes.
-function plate(parent, material, size, position, bevel = 0.012) {
-  const [w, h, d] = size;
-  const b = Math.min(bevel, w / 4, h / 4, d / 4);
-  const shape = new THREE.Shape();
-  shape.moveTo(-w / 2 + b, -h / 2 + b);
-  shape.lineTo(w / 2 - b, -h / 2 + b);
-  shape.lineTo(w / 2 - b, h / 2 - b);
-  shape.lineTo(-w / 2 + b, h / 2 - b);
-  shape.closePath();
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: d - b * 2, bevelEnabled: true, bevelSegments: 1,
-    steps: 1, bevelSize: b, bevelThickness: b,
-  });
-  geometry.translate(0, 0, -d / 2 + b);
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(...position);
-  parent.add(mesh);
-  return mesh;
-}
-
-// Batch rigid panels by material within each joint to keep remote-player draw calls bounded.
-function batchPanels(group) {
-  const batches = new Map();
-  for (const child of [...group.children]) {
-    if (!child.isMesh) { batchPanels(child); continue; }
-    child.updateMatrix();
-    child.geometry.applyMatrix4(child.matrix);
-    const meshes = batches.get(child.material) || [];
-    meshes.push(child);
-    batches.set(child.material, meshes);
-  }
-  for (const [material, meshes] of batches) {
-    const geometry = new THREE.BufferGeometry();
-    for (const key of ['position', 'normal', 'uv']) {
-      const arrays = meshes.map(mesh => mesh.geometry.getAttribute(key));
-      const merged = new Float32Array(arrays.reduce((sum, attr) => sum + attr.array.length, 0));
-      let offset = 0;
-      for (const attr of arrays) { merged.set(attr.array, offset); offset += attr.array.length; }
-      geometry.setAttribute(key, new THREE.BufferAttribute(merged, arrays[0].itemSize));
-    }
-    for (const mesh of meshes) { group.remove(mesh); mesh.geometry.dispose(); }
-    group.add(new THREE.Mesh(geometry, material));
-  }
-}
-
-export function buildOperator({ suit, dark, armor, visor, skin, variant }) {
-  const rivet = buildRivet({ suit, dark, armor, visor, skin });
-  if (rivet) return rivet;
-  const torso = new THREE.Group();
-  plate(torso, dark, [0.48, 0.52, 0.29], [0, 0, 0]);
-  plate(torso, suit, [0.53, 0.24, 0.32], [0, 0.13, 0]);
-  plate(torso, armor, [0.40, 0.35, 0.10], [0, 0.015, -0.19]);
-  plate(torso, suit, [0.30, 0.045, 0.025], [0, 0.13, -0.252]);
-  const pouches = new THREE.Group();
-  pouches.name = 'operator_pouches';
-  pouches.position.set(0, -0.075, -0.19);
-  torso.add(pouches);
-  for (const x of [-0.14, 0, 0.14]) {
-    plate(pouches, dark, [0.115, 0.15, 0.085], [x, -0.075, -0.02]);
-    plate(pouches, armor, [0.10, 0.035, 0.02], [x, -0.025, -0.072]);
-  }
-  for (const x of [-0.19, 0.19]) plate(torso, dark, [0.065, 0.39, 0.04], [x, 0.045, -0.185]);
-  const pack = new THREE.Group();
-  pack.name = 'operator_pack';
-  pack.position.set(0, 0.20, 0.18);
-  torso.add(pack);
-  plate(pack, armor, [0.34, 0.37, 0.12], [0, -0.165, 0.02]);
-  plate(pack, suit, [0.24, 0.08, 0.025], [0, -0.08, 0.092]);
-  if (variant === 2) {
-    plate(pack, dark, [0.30, 0.32, 0.15], [0, -0.23, 0.10]);
-    plate(pack, armor, [0.03, 0.30, 0.03], [0.15, 0.08, 0.04]);
-  }
-  const hips = new THREE.Group();
-  plate(hips, dark, [0.45, 0.18, 0.29], [0, 0, 0]);
-  plate(hips, armor, [0.47, 0.055, 0.32], [0, 0.065, 0]);
-  plate(hips, suit, [0.065, 0.06, 0.03], [0, 0.065, -0.18]);
-  const head = new THREE.Group();
-  plate(head, dark, [0.16, 0.11, 0.17], [0, -0.17, 0]);
-  plate(head, skin, [0.27, 0.29, 0.27], [0, -0.01, -0.005], 0.035);
-  plate(head, suit, [0.34, 0.18, 0.34], [0, 0.095, 0.005], 0.038);
-  plate(head, armor, [0.32, 0.045, 0.06], [0, 0.03, -0.16]);
-  plate(head, visor, [0.255, variant === 1 ? 0.09 : 0.065, 0.025], [0, 0.005, -0.153]);
-  for (const x of [-0.168, 0.168]) plate(head, armor, [0.05, 0.12, 0.13], [x, -0.015, 0.02]);
-  if (variant !== 0) plate(head, dark, [0.24, 0.105, 0.06], [0, -0.09, -0.14]);
-  if (variant === 1) plate(head, armor, [0.12, 0.055, 0.08], [0, 0.20, -0.06]);
-  const legs = [-1, 1].map((side) => {
+/** Both sets of meshes are authored in these gameplay joint frames. */
+export function buildOperator(materials) {
+  const parts = createRivetParts(materials) || createFallbackOperatorParts(materials);
+  for (const side of ['l', 'r']) {
     const leg = new THREE.Group();
     const skeleton = new THREE.Group();
-    const thigh = new THREE.Group();
-    const knee = new THREE.Group();
-    const boot = new THREE.Group();
+    const thigh = parts[`${side}Thigh`];
+    const knee = parts[`${side}Knee`];
+    const boot = parts[`${side}Boot`];
     thigh.name = 'operator_thigh';
     knee.name = 'operator_knee';
     boot.name = 'operator_boot';
+    knee.position.y = boot.position.y = -LEG_SEGMENT;
     leg.add(skeleton);
     skeleton.add(thigh);
     thigh.add(knee);
     knee.add(boot);
-    knee.position.y = -0.325;
-    boot.position.y = -0.325;
-    plate(thigh, dark, [0.19, 0.35, 0.23], [0, -0.16, 0]);
-    plate(thigh, suit, [0.17, 0.20, 0.06], [0, -0.18, -0.13]);
-    plate(knee, dark, [0.16, 0.30, 0.19], [0, -0.155, 0]);
-    plate(knee, armor, [0.18, 0.145, 0.075], [0, -0.025, -0.12]);
-    plate(boot, armor, [0.21, 0.135, 0.32], [0, 0, -0.045]);
-    plate(thigh, armor, [0.07, 0.19, 0.19], [side * 0.12, -0.16, 0]);
     leg.userData.joints = { skeleton, thigh, knee, boot };
-    return leg;
-  });
-  const arms = [-1, 1].map(() => {
-    const arm = new THREE.Group();
-    plate(arm, suit, [0.16, 0.28, 0.18], [0, -0.14, 0]);
-    plate(arm, armor, [0.19, 0.12, 0.21], [0, -0.04, 0]);
-    plate(arm, suit, [0.195, 0.04, 0.215], [0, -0.06, 0]);
-    const elbow = new THREE.Group();
-    elbow.position.y = -UPPER_ARM;
-    arm.add(elbow);
-    plate(elbow, dark, [0.13, 0.27, 0.145], [0, -0.135, 0]);
-    plate(elbow, armor, [0.14, 0.15, 0.06], [0, -0.13, 0.065]);
-    const hand = new THREE.Group();
+    parts[`${side}Leg`] = leg;
+
+    const arm = parts[`${side}Arm`];
+    const elbow = parts[`${side}Elbow`];
+    const hand = parts[`${side}Hand`];
     hand.name = 'operator_hand';
-    hand.position.y = -FOREARM;
+    arm.add(elbow);
     elbow.add(hand);
-    // Palm and curled fingers straddle the grip rather than covering the receiver.
-    plate(hand, dark, [0.075, 0.10, 0.095], [0, 0, 0]);
-    for (const y of [-0.03, -0.007, 0.016]) {
-      plate(hand, armor, [0.082, 0.018, 0.045], [0, y, -0.045], 0.004);
-    }
-    return { arm, elbow, hand };
-  });
-  for (const part of [torso, hips, head, ...legs, ...arms.map(entry => entry.arm)]) batchPanels(part);
-  return { torso, hips, head, lLeg: legs[0], rLeg: legs[1],
-    lArm: arms[0].arm, rArm: arms[1].arm,
-    lElbow: arms[0].elbow, rElbow: arms[1].elbow,
-    lHand: arms[0].hand, rHand: arms[1].hand, pack, pouches };
+    elbow.position.y = -UPPER_ARM;
+    hand.position.y = -FOREARM;
+  }
+  parts.pack.name = 'operator_pack';
+  parts.pouches.name = 'operator_pouches';
+  parts.pack.position.set(0, 0.20, 0.18);
+  parts.pouches.position.set(0, -0.075, -0.19);
+  parts.torso.add(parts.pack, parts.pouches);
+  return parts;
+}
+
+function setSegmentLength(segment, length, restLength) {
+  const stretch = length / restLength;
+  for (const child of segment.children) {
+    // Fitted cuffs ride the same sleeve vertices when the hand reaches out.
+    // The elbow and wrist joints take their own solved translations below.
+    if (!child.isMesh && !child.userData.cosmetic) continue;
+    child.userData.restY ??= child.position.y;
+    child.userData.restScaleY ??= child.scale.y;
+    child.position.y = child.userData.restY * stretch;
+    child.scale.y = child.userData.restScaleY * stretch;
+  }
+}
+
+/** The armory displays this relaxed pose directly. Respawns also start here. */
+export function restOperatorArms(av) {
+  for (const [side, arm, elbow, hand] of [[-1, av.lArm, av.lElbow, av.lHand], [1, av.rArm, av.rElbow, av.rHand]]) {
+    arm.position.set(side * SHOULDER_X, SHOULDER_Y, 0);
+    arm.rotation.set(0, 0, side * 0.08);
+    arm.scale.set(1, 1, 1);
+    elbow.position.set(0, -UPPER_ARM, 0);
+    elbow.rotation.set(side < 0 ? 0.12 : 0.18, 0, 0);
+    elbow.scale.set(1, 1, 1);
+    hand.position.set(0, -FOREARM, 0);
+    hand.rotation.set(0, side * -0.12, 0);
+    setSegmentLength(arm, UPPER_ARM, UPPER_ARM);
+    setSegmentLength(elbow, FOREARM, FOREARM);
+  }
 }
 
 const down = new THREE.Vector3(0, -1, 0);
@@ -158,7 +90,7 @@ export function poseOperatorArm(av, side, anchor, reload = 0) {
   const arm = side < 0 ? av.lArm : av.rArm;
   const elbow = side < 0 ? av.lElbow : av.rElbow;
   const hand = side < 0 ? av.lHand : av.rHand;
-  arm.position.set(side * 0.32, 1.43 - av.crouchPose * 0.29 * (1 - (av.pronePose || 0)) - (av.pronePose || 0) * 1.08, (av.pronePose || 0) * 0.14);
+  arm.position.set(side * SHOULDER_X, SHOULDER_Y - av.crouchPose * 0.29 * (1 - (av.pronePose || 0)) - (av.pronePose || 0) * 1.08, (av.pronePose || 0) * 0.14);
   // The shoulders follow the pitched torso top while swimming, by half the
   // torso's lever so the upper arms stay inside their zone margins.
   const swimPitch = av.swimLean || 0;
@@ -192,14 +124,8 @@ export function poseOperatorArm(av, side, anchor, reload = 0) {
   direction.subVectors(joint, arm.position).normalize();
   arm.quaternion.setFromUnitVectors(down, direction);
   elbow.position.set(0, -length, 0);
-  for (const segment of [arm, elbow]) {
-    for (const mesh of segment.children) {
-      if (!mesh.isMesh) continue;
-      mesh.userData.restY ??= mesh.position.y;
-      mesh.position.y = mesh.userData.restY * length / UPPER_ARM;
-      mesh.scale.y = length / UPPER_ARM;
-    }
-  }
+  setSegmentLength(arm, length, UPPER_ARM);
+  setSegmentLength(elbow, length, FOREARM);
   foreDirection.subVectors(target, joint).normalize();
   foreRotation.setFromUnitVectors(down, foreDirection);
   elbow.quaternion.copy(arm.quaternion).invert().multiply(foreRotation);

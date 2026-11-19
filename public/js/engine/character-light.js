@@ -216,7 +216,9 @@ export function patchCharacterMaterial(material) {
 }
 
 let patchedThisPass = 0;
+let detailView = null;
 function patchObject(object) {
+  if (detailView && object.updateCharacterDetail) object.updateCharacterDetail(detailView);
   const material = object.material;
   if (!material) return;
   if (Array.isArray(material)) {
@@ -230,11 +232,13 @@ function patchObject(object) {
  * allocation), so cosmetics, role gear and weapon swaps are caught before
  * their first compile.
  */
-export function prepareCharacterTree(root, visibleOnly = true) {
+export function prepareCharacterTree(root, visibleOnly = true, view = null) {
   if (!root) return 0;
   patchedThisPass = 0;
+  detailView = view;
   if (visibleOnly) root.traverseVisible(patchObject);
   else root.traverse(patchObject);
+  detailView = null;
   return patchedThisPass;
 }
 

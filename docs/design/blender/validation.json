@@ -1,26 +1,26 @@
 [
   {
     "asset": "rivet",
-    "glb_bytes": 21113872,
+    "glb_bytes": 4314992,
     "imported_meshes": 1,
     "bones": 20,
-    "triangles": 19320,
-    "embedded_images": 6,
-    "weighted_vertices": 17276,
+    "triangles": 64285,
+    "embedded_images": 8,
+    "weighted_vertices": 57404,
     "animation_motion": {
       "Idle": {
         "frame_range": [
           1.0,
           73.0
         ],
-        "max_vertex_motion_m": 0.016904
+        "max_vertex_motion_m": 0.012774
       },
       "Walk": {
         "frame_range": [
           1.0,
           25.0
         ],
-        "max_vertex_motion_m": 0.449832
+        "max_vertex_motion_m": 0.362622
       }
     },
     "result": "PASS"

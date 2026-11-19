@@ -1,13 +1,13 @@
 {
   "asset": "RIVET",
-  "stage": "Blender authoring source with integrated gameplay export",
+  "design": "Alpine rescue operator",
   "blender": "5.2.1 LTS",
-  "meters": true,
-  "forward_after_gltf": "-Z",
-  "editable_parts": 151,
+  "authoring_source": "tools/blender/build-character.py",
+  "editable_parts": 425,
+  "runtime_joints": 17,
   "skin_meshes": 1,
-  "materials": 10,
-  "triangles": 19536,
+  "materials": 12,
+  "triangles": 64285,
   "bones": [
     "root",
     "pelvis",
@@ -19,13 +19,13 @@
     "upper_arm.R",
     "forearm.R",
     "hand.R",
-    "thigh.R",
-    "shin.R",
-    "foot.R",
     "clavicle.L",
     "upper_arm.L",
     "forearm.L",
     "hand.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R",
     "thigh.L",
     "shin.L",
     "foot.L"
@@ -34,25 +34,20 @@
     "Idle",
     "Walk"
   ],
-  "rigging": "Rigid armor weights, no facial or finger rig",
-  "authoring_source": "tools/blender/build-character.py",
-  "glb_bytes": 21126688,
-  "integration_remaining": [
-    "Optional distance LODs and wider mobile GPU profiling"
+  "embedded_textures": [
+    "copper-lens.jpg",
+    "field-webbing.jpg",
+    "ivory-ceramic.jpg",
+    "machined-steel.jpg",
+    "nubuck.jpg",
+    "orange-painted-metal.jpg",
+    "pebbled-rubber.jpg",
+    "ripstop.jpg"
   ],
-  "imagegen_textures": [
-    "ivory-armor.png",
-    "orange-painted-metal.png",
-    "petrol-ballistic-fabric.png",
-    "tan-webbing.png",
-    "worn-gunmetal.png",
-    "worn-rubber.png"
-  ],
-  "material_note": "ImageGen albedo embedded in GLB. Bump and image-driven roughness are Blender shader estimates; GLB uses scalar roughness.",
+  "glb_bytes": 4314992,
   "runtime": {
     "path": "public/assets/blender/rivet.gltf",
     "exporter": "tools/blender/export-game-assets.py",
-    "slot": "standard operator",
-    "animation": "Existing gameplay joint and animation controllers"
+    "animation": "Game stance and inverse kinematics"
   }
 }

@@ -13,7 +13,11 @@ reports=[]
 # The rifle (KESTREL) is a part rig without skin or clips: it is validated by
 # tools/blender/kestrel/validate-kestrel.py.
 FILES={}
-for slug,bone_count,clips,image_count in [('rivet',20,{'Idle','Walk'},6)]:
+for slug,bone_count,clips in [('rivet',20,{'Idle','Walk'})]:
+    manifest=json.loads((BASE/slug/'manifest.json').read_text())
+    images=manifest['embedded_textures']
+    assert images and len(images)==len(set(images)), 'Expected unique embedded texture filenames'
+    image_count=len(images)
     scene=bpy.data.scenes.new('Import validation '+slug)
     bpy.context.window.scene=scene
     path=BASE/slug/FILES.get(slug,slug+'.glb')
@@ -27,13 +31,24 @@ for slug,bone_count,clips,image_count in [('rivet',20,{'Idle','Walk'},6)]:
     assert {a['name'] for a in document['animations']}==clips
     assert len(document['images'])==image_count
     assert all('bufferView' in image for image in document['images']), 'External texture dependency'
+    # The skin must actually reference the declared maps. A packed but orphaned
+    # image (or a missing UV channel) can otherwise survive a container check.
+    used_images=set()
     for primitive in document['meshes'][0]['primitives']:
         material=document['materials'][primitive['material']]
-        texture=material.get('pbrMetallicRoughness',{}).get('baseColorTexture')
-        if texture:
+        pbr=material.get('pbrMetallicRoughness',{})
+        albedo=pbr.get('baseColorTexture')
+        normal=material.get('normalTexture')
+        texture_slots=[albedo, normal, pbr.get('metallicRoughnessTexture'),
+                       material.get('occlusionTexture'), material.get('emissiveTexture')]
+        for texture in filter(None, texture_slots):
             assert 'TEXCOORD_'+str(texture.get('texCoord',0)) in primitive['attributes']
+            used_images.add(document['textures'][texture['index']]['source'])
         assert 'JOINTS_0' in primitive['attributes'] and 'WEIGHTS_0' in primitive['attributes']
-        assert 'normalTexture' not in material, 'Albedo must not be interpreted as a normal map'
+        if albedo and normal:
+            assert document['textures'][albedo['index']]['source'] != document['textures'][normal['index']]['source'], \
+                'Albedo must not be interpreted as a normal map'
+    assert used_images==set(range(image_count)), 'Unused or missing embedded material image'
     old_actions=set(bpy.data.actions)
     old_objects=set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(path))
@@ -77,5 +92,9 @@ for slug,bone_count,clips,image_count in [('rivet',20,{'Idle','Walk'},6)]:
         'bones':len(rig.data.bones),'triangles':len(mesh.data.loop_triangles),
         'embedded_images':image_count,'weighted_vertices':len(mesh.data.vertices),
         'animation_motion':movement,'result':'PASS'})
-(BASE/'validation.json').write_text(json.dumps(reports,indent=2)+'\n')
+report_path=BASE/'validation.json'
+previous=json.loads(report_path.read_text()) if report_path.exists() else []
+updated={record['asset']:record for record in previous}
+updated.update({record['asset']:record for record in reports})
+report_path.write_text(json.dumps(list(updated.values()),indent=2)+'\n')
 print('BLENDER_IMPORT_VALIDATION',json.dumps(reports,indent=2))

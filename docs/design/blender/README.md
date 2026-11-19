@@ -6,8 +6,14 @@ modeled after that choice.
 
 ## Files
 
-- `rivet/rivet.blend`: editable operator, 149 named parts, 20-bone rig.
-- `rivet/rivet.glb`: merged skin mesh with Idle and Walk clips.
+- `rivet/rivet.blend` contains the editable operator and its 20-bone rig.
+- `rivet/rivet.glb` contains a weighted skin mesh with Idle and Walk clips.
+- `tools/blender/rivet/model.py` assembles the operator in the game's joint frames.
+- `public/assets/blender/rivet.gltf` and `rivet.bin` are the joint-local runtime export.
+- `rivet/rivet-front.png`, `rivet-detail.png` and `rivet-back.png` show the current
+  model. The two `viewport-*.png` images document the original blockout.
+- `rivet/field-study/` has the three concept options and the browser comparisons.
+  The left-hand alpine rescue scout is the reference for the rebuild.
 - `kestrel/kestrel.blend`: editable VK-77 RAPTOR carbine, revision 2 (part rig, see the
   KESTREL section below). The rigged first study was removed and lives only in git history.
 - `kestrel/kestrel.glb`: portable GLB with the KESTREL part rig and markers.
@@ -21,10 +27,11 @@ modeled after that choice.
 - `tools/blender/peregrine/`: the PEREGRINE authoring, export, validation and render scripts.
 - `textures/`: six original ImageGen material textures, the initial atlas, and all prompts.
 - Per-asset manifests record the original study mesh statistics.
-- `public/assets/blender/`: compact glTF runtime geometry and six shared JPEG maps.
+- `public/assets/blender/` contains runtime geometry and shared texture maps.
 
-RIVET now supplies the standard operator, including the visible first-person
-body. KESTREL supplies the existing `rifle` slot (VK-77 Raptor). PEREGRINE
+RIVET supplies the standard operator and the body visible when a player looks down.
+The alpine rescue gear includes a high-cut helmet, wraparound goggles, a fitted
+face covering, a field radio pack and lace-up boots. KESTREL supplies the existing `rifle` slot (VK-77 Raptor). PEREGRINE
 supplies the existing `sniper` slot (LONGSHOT MK-II): a long-spine precision
 rifle with a fully exposed fluted bore, an open skeletal stock and a wide
 benchrest fore-end. It replaces only the silhouette; the in-game display name,
@@ -49,8 +56,8 @@ which is the same `body.userData.sightHeight` value the procedural model set, so
 aim, ADS and avatar mounting are unaffected by the swap.
 
 The browser loads all three templates before constructing models. Meshes share
-geometry and the six decoded textures for the page lifetime; each owner gets
-its own materials, opacity and skin layers. Closing a viewer or removing a
+geometry and decoded textures for the page lifetime. Each owner gets its own
+materials, opacity and skin layers. Closing a viewer or removing a
 player cannot dispose another player's maps. A failed asset request logs the
 load failure: if `peregrine.gltf` cannot be fetched or has no template, the
 sniper slot builds nothing (the procedural fallback is removed) and warns,
@@ -58,20 +65,19 @@ never a half-populated mount.
 
 ## Material method
 
-The six final textures were generated individually with built-in ImageGen:
-chipped orange paint, worn ivory coating, petrol ballistic fabric, scratched
-gunmetal, tan webbing and rubbed rubber. Their original pixels are preserved.
-Each material samples the matching image through rest-space planar UVs.
-The original compact atlas is reference material only.
+The original material library includes six ImageGen surface images of orange paint, ivory
+coating, petrol ballistic fabric, gunmetal, webbing and rubber. Their source
+images and prompts are in `textures/`. RIVET pairs the existing surface maps
+with ripstop cloth, woven field webbing, brushed nubuck and a copper goggle lens.
+The cosmetic skins tint a silver version of the same reflection. Run
+`python3 tools/blender/rivet/textures.py` with NumPy and Pillow installed to
+regenerate these finishes. The portable GLB embeds the standard operator's
+textures listed in `rivet/manifest.json`.
 
-Blender derives restrained bump and roughness variation from the images. This
-is an artistic approximation, not a measured PBR scan. The portable GLB embeds
-base-color textures and uses scalar metallic/roughness values; it excludes the
-Blender-only bump chain. The browser uses 1024px JPEG delivery copies at quality
-84, approximately 1.76 MB for all six maps. Both runtime meshes together use
-approximately 1.47 MB of indexed vertex/index buffers. No stock 3D model or
-external asset library is used. Baked normal/roughness maps and distance LODs
-remain future art optimizations, not features of this integration.
+The game export bakes contact shading inside each rigid joint. At a distance,
+the renderer uses a second index buffer that drops fine stitching and simplifies
+the curved surfaces. Both meshes share the same vertex data. Zooming in restores
+the detailed silhouette as the operator fills more of the view.
 
 PEREGRINE reuses those same six maps under the same per-face planar projection.
 No new image was generated for it, and the delivered sources stay byte-identical.
@@ -106,41 +112,37 @@ MCP_PYTHON="$HOME/Library/Application Support/VoxelBlitz/blender-mcp/.venv/bin/p
 
 ## Rebuilding
 
-Run `tools/blender/build-character.py`, then `tools/blender/texture-and-export.py`
-inside Blender for RIVET; the rifle has its own scripts under `tools/blender/kestrel/`. Each build script
-creates its own scene and preserves existing scenes. For a clean rebuild, start
-in a fresh Blender file. These scripts expect `__file__` to point at the script:
+From the repository root, rebuild RIVET's editable scene and rigged GLB in
+Blender 5.2. The runtime exporter reads the editable mesh parts from the saved
+scene. Run it after editing the operator in Blender. The preview script renders
+the whole figure, head detail and rear equipment.
 
-```python
-from pathlib import Path
-p = Path('/absolute/path/to/voxel-blitz/tools/blender/build-character.py')
-exec(compile(p.read_text(), str(p), 'exec'), {'__file__': str(p)})
+For edits in the Python model source, `python3 -m tools.blender.rivet.export`
+builds the runtime mesh directly. Run the Blender build as well to refresh the
+editable scene and rigged GLB.
+
+```sh
+blender --background --factory-startup --python tools/blender/build-character.py
+blender --background docs/design/blender/rivet/rivet.blend \
+  --python tools/blender/export-game-assets.py
+blender --background docs/design/blender/rivet/rivet.blend \
+  --python tools/blender/render-previews.py
+blender --background --factory-startup --python tools/blender/validate-import.py
+node tools/hitbox-model-test.mjs
+npm run avatars:capture -- --weapon rifle --view front
 ```
 
-`render-previews.py` renders the character, character detail/back, or weapon.
-`STUDY` chooses the view; `FORCE_CPU=True` avoids initial Metal compilation.
-These are actual Blender renders, not ImageGen pictures of the finished models.
-
-Build the browser files from the packed study (Blender 5.2). The root
-`export-game-assets.py` exports the rigged RIVET study; the delivered `rifle`
-slot comes from `tools/blender/kestrel/export-game-assets.py` (see the KESTREL
-section):
+The KESTREL exporter delivers the rifle slot. The browser test and model viewer
+exercise both the rifle and the operator.
 
 ```sh
 blender --background docs/design/blender/kestrel/kestrel.blend \
   --python tools/blender/kestrel/export-game-assets.py
 node tools/blender-assets-browser-test.mjs
 npm run models:browser
-npm run avatars:capture -- --weapon rifle --view front
 npm run weapons:capture -- --weapon rifle --state scoped
 node tools/render-hud-icon.mjs --weapon rifle
 ```
-
-`export-game-assets.py` composes stored object transforms explicitly because
-Blender does not refresh `matrix_world` for the hidden authoring collection.
-It batches geometry by material and animated joint and writes ordinary glTF
-2.0. The vendored GLTFLoader and BufferGeometryUtils are from Three.js 0.180.0,
-matching the existing renderer, under the included MIT license.
 
 PEREGRINE has its own scripts under `tools/blender/peregrine/`.
 `build-peregrine.py` authors the model in a scene of its own, `render-views.py`
@@ -163,12 +165,13 @@ PEREGRINE); every other weapon still goes through the software rasterizer.
 
 ## Verification
 
-`validation.json` records a fresh Blender import of the RIVET GLB: one imported
-skin mesh, normalized vertex weights, embedded material images, valid UV
-references and actual evaluated mesh motion for each animation. RIVET has
-19,320 triangles, 20 bones and six embedded images, with the Idle/Walk clips
-isolated to the character. KESTREL revision 2 is validated by
-`tools/blender/kestrel/validate-kestrel.py` (see its section below).
+`validation.json` records a fresh Blender import of the RIVET GLB. The check
+verifies the rig, normalized skin weights, embedded material images, UV
+references and measured vertex motion in the Idle and Walk clips. The operator
+manifest records the authoring counts. The gameplay hitbox test reads the
+delivered glTF and checks vertex coverage across the operator's stances.
+KESTREL revision 2 is validated by `tools/blender/kestrel/validate-kestrel.py`.
+
 `peregrine/validation.json` records the same fresh-import evidence for the sniper,
 and `peregrine/manifest.json` its study mesh statistics.
 
@@ -331,83 +334,34 @@ contract (node names, `textures/` image URIs, one blend material, buffer URI).
 script were removed; the root `export-game-assets.py`, `render-previews.py`
 and `validate-import.py` now serve RIVET only.
 
-## HANDS (first-person gloves and arms), revision 3
+## HANDS (first-person gloves and arms)
 
-HANDS supplies the first-person glove hands that `kit.glove()` mounts on every
-weapon's `hand_r` / `hand_l` group (the procedural box mitt remains the offline
-fallback). Two right-hand poses, `grip` (fist wrapped around a pistol grip,
-thumb laid across the index and middle stalls) and `support` (open cradle with
-relaxed fingers and an extended thumb); the support glove is the same geometry
-mirrored in x. Revision 2 replaces the first study, whose fingers left the palm
-without flexing at the base knuckle, wore ball joints that read as warts and
-whose 3.6 tiles/m webbing cuff looked like wicker at first-person size. The hand
-matches RIVET: graphite half-finger gloves with bare middle and distal
-phalanges, an orange knuckle plate with four ribs, an ivory tendon plate and
-finger armor, and a sand webbing wrist strap with buckle.
+The camera-local operator wears full-finger field gloves with leather palms,
+stretch-knit finger gussets, knuckle pads and webbing wrist closures. The two
+glove meshes have different finger curls. `grip` closes around a pistol grip
+and `support` cradles a handguard. Their right-handed coordinate frame places
+the palm at the origin, the fingers toward -Z and the back of the hand toward
++Y. The game mirrors the support pose and sets its orientation per weapon.
 
-Revision 3 takes the sleeve off the glove and adds three rigid arm segments as
-their own nodes, so the first-person hands reach back to the player's own body
-instead of ending at a cut cuff: `forearm` (leather cuff over the glove hem,
-petrol suit sleeve widening toward the elbow, webbing strap, ivory bracer with
-its orange inset, rounded leather elbow pad), `upperarm` (leather elbow cap,
-sleeve, webbing band, ivory plate with orange inset) and `shoulder` (suit cap,
-orange pauldron on an ivory rim, gunmetal rivet). 96 authored parts,
-16,416 triangles, 26 runtime primitives (one per node and material), six
-shared ImageGen maps, each material at its own texture density (`uv_scale`, 4
-to 15 tiles/m).
+The `forearm`, `upperarm` and `shoulder` nodes mount on the two-bone chain in
+`public/js/guns/viewmodel-arms.js`. The first two use the field jacket's
+articulated sleeve pattern and surface finishes, adjusted to fit the camera's
+near plane. The forearm's wrist sits at glove-local Z +0.070 m. The elbow is
+0.31 m from the wrist, and the shoulder is 0.34 m from the elbow. Character
+skins can tint the glove, impact pad and cuff independently.
 
-Glove-local frame (consumed verbatim, `GAME` is the identity): palm centre at
-the origin, back of the hand +y, knuckles -z, thumb -x, wrist and strap at
-z > 0.018, nothing beyond a 0.25 m radius. Base knuckle line at z -0.040
-(pinky) to -0.049 (middle); thumb root at (-0.036, -0.004, 0.012).
+The editable Blender project, portable GLB, validation record and nine studio
+views live in `docs/design/blender/hands/`. To rebuild them and verify the
+in-game poses, run these commands from the repository root.
 
-Each arm segment is authored in its own joint frame: the proximal joint at the
-origin, the distal joint on +z, +y the back of the forearm and the outer side
-of the upper arm and shoulder. The forearm's wrist joint meets the glove at
-glove-local z 0.070, six millimetres inside the glove's own hem, so the seam
-cannot open. Forearm 0.31 m, upper arm 0.34 m, both inside a 0.08 m radius.
+```sh
+blender --background --factory-startup --python tools/blender/hands/build-hands.py
+blender --background --factory-startup --python tools/blender/hands/export-game-assets.py
+node tools/blender-assets-browser-test.mjs
+```
 
-Runtime placement (`public/js/guns/kit.js`, `BLENDER_HAND_FRAMES`): each pose
-takes a gun-space basis from a back-of-hand direction and a wrist-to-knuckle
-direction plus a palm-centre nudge from the shared anchor sheet. The fist sits
-0.085 m under the rifle-class grip anchor with its palm face on the grip's
-right side, so the fingertips and thumb come round the grip's left face; the
-support cradle sits under the handguard's left edge with the forearm running
-down and back. `BLENDER_HAND_OFFSETS` holds the revolver and knife nudges.
-The delivered materials are kept as exported: `assemble.js` skips its glove
-re-texture pass for `userData.blenderAsset === 'hands'`, and `glove()` attaches
-the character-skin palette key per material name (`glove leather` 0x22252a,
-`ceramic armor` 0x15171a, `webbing` 0xb09a72) so skins recolour exactly the
-parts the mitt exposed. Reload choreography moves `hand_l` by position and adds
-its small pitch on top of the pose quaternion, unchanged.
-
-The arms are posed by `public/js/guns/viewmodel-arms.js`, which hangs a group
-off the same camera-local, fov-counter-scaled rig root the gun uses, so they
-ride every bob, kick and aim move with it. Each frame it reads the final world
-transform of `hand_r` / `hand_l`, takes the wrist point from it and solves one
-analytic two-bone chain back to a shoulder fixed on the player's body (0.25 m
-out, 0.23 m below and 0.06 m behind the eye, rotating against 70 % of the
-camera pitch so the spine bends rather than the whole body). A viewmodel gun is
-carried further out than a real one, so an out-of-reach hand first pulls the
-shoulder up to 0.25 m toward itself and only then stretches the arm, the
-forearm by at most 1.25x. A hidden or absent support glove (revolver, SMG,
-knife) takes its whole arm with it, and holstering the gun for a grenade or the
-medkit hides both. Segment materials carry the same three palette keys as the
-gloves, so a character skin recolours hands and arms together.
-
-Rebuild (headless, about 30 s including nine Cycles stills):
-
-    blender --background --factory-startup --python tools/blender/hands/build-hands.py
-    blender --background --factory-startup --python tools/blender/hands/export-game-assets.py
-    node tools/blender-assets-browser-test.mjs
-
-Build gates: palm spans the origin, cuff parts stay past z 0.018, 0.25 m reach,
-every finger ends in a bare distal phalanx, each arm segment spans its own two
-joints inside the 0.08 m radius, every part meets its group (surfaces cross, or
-a vertex within 1 mm) and neighbouring proximal stalls keep >= 1.5 mm of air.
-`docs/design/blender/hands/render-{grip,support}-{side,rear-quarter,palm}.png`
-and `render-{forearm,upperarm,shoulder}-side.png` are the study stills; `.artifacts/blender-integration/hands-*.png` are the
-in-game captures (rifle, revolver and knife held, revolver cylinder open).
+The authoring checks measure palm and cuff alignment, sleeve radii, spacing
+between adjacent finger stalls and surface contact between garment pieces.
 
 ## GRENADES (throwables), revision 1
 

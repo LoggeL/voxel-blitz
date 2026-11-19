@@ -100,30 +100,16 @@ const glowMaterial = (layer, color) => {
   return material;
 };
 
-/**
- * The imported Rivet operator carries its palette in photo textures (petrol suit,
- * rescue-orange armour), which swallow a multiplied team colour. Minion bodies
- * are this module's own avatars, so their per-avatar suit/dark materials and the
- * cloned orange armour switch to the neutral ceramic scan and take the team
- * colours outright (the originals stay recorded in avatar._npcRivet).
- */
-function repaintRivet(avatar, look) {
+// The cloth's neutral ripstop map takes the role tint directly. The orange
+// enamel has pigment in its albedo, so repaint only that finish for NPCs.
+function repaintRivetAccent(avatar, color) {
   const neutral = imagegenMap('ivory-armor');
-  if (!neutral) return;
-  const saved = avatar._npcRivet ??= new Map();
-  const paint = (material, color) => {
-    if (!material?.color) return;
-    if (!saved.has(material)) saved.set(material, { map: material.map, color: material.color.getHex() });
+  avatar.group.traverse(object => {
+    const material = object.material;
+    if (material?.name !== 'Armor | rescue orange') return;
     material.map = neutral;
     material.color.setHex(color);
     material.needsUpdate = true;
-  };
-  if (avatar.suitMaterial?.map) paint(avatar.suitMaterial, look.suit);
-  if (avatar.darkMaterial?.map) paint(avatar.darkMaterial, look.dark);
-  avatar.group.traverse(object => {
-    if (!object.isMesh || Array.isArray(object.material)) return;
-    const material = object.material;
-    if (material?.name === 'Armor | rescue orange' && material !== avatar.suitMaterial) paint(material, look.accent);
   });
 }
 
@@ -144,7 +130,7 @@ export function applyNpcLook(avatar, kind, team) {
   avatar.suitMaterial.color.setHex(look.suit);
   avatar.darkMaterial.color.setHex(look.dark);
   avatar.armorMaterial?.color?.setHex(look.armor);
-  repaintRivet(avatar, look);
+  repaintRivetAccent(avatar, look.accent);
   const layer = avatar._roleLayer = new SkinLayer();
   const m = {
     suit: layer.material(look.suit, { roughness: 0.75, metalness: 0.1 }),

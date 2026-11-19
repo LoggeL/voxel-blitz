@@ -8,7 +8,9 @@ export function prepareDeathPart(part) {
   const box = new THREE.Box3();
   object.traverseVisible(node => {
     if (!node.isMesh) return;
-    node.geometry.computeBoundingBox();
+    // Page-owned body meshes have immutable rest bounds, also shared in shape
+    // by their distant counterparts. Keep those bounds for detached pieces.
+    if (!node.geometry.userData.pageOwned || !node.geometry.boundingBox) node.geometry.computeBoundingBox();
     box.union(node.geometry.boundingBox.clone().applyMatrix4(
       new THREE.Matrix4().multiplyMatrices(inverse, node.matrixWorld)));
   });

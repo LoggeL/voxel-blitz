@@ -36,9 +36,11 @@ export class SkinLayer {
           const mat = original.clone();
           const paint = palette[hex];
           mat.color.setHex(typeof paint === 'object' ? paint.color : paint);
-          // Use the neutral generated ceramic scan when repainting colored
-          // imported armor; multiplying cyan by an orange photograph turns brown.
-          if (original.userData.paletteColor && original.map && original.metalness > .1) {
+          // Repaint the optical reflection independently of its copper coating.
+          // Other pigmented hard surfaces use the shared neutral ceramic scan.
+          if (original.userData.repaintTexture && original.map) {
+            mat.map = imagegenMap(original.userData.repaintTexture) || original.map;
+          } else if (original.userData.paletteColor && original.map && original.metalness > .1) {
             mat.map = imagegenMap('ivory-armor') || original.map;
           }
           if (typeof paint === 'object') {

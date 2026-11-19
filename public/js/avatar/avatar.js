@@ -3,12 +3,13 @@ import { leanBodyPoint, leanRoll } from '../../../shared/player-lean.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { prepareCharacterTree } from '../engine/character-light.js';
+import { bindRivetDetail } from '../engine/rivet-detail.js';
 import { clamp01 } from '../util/math.js';
 import { hashHue, hashInt } from '../util/hash.js';
 import { AvatarWeaponModel } from './avatar-weapon.js';
 import { prepareDeathPart, stepDeathPart } from './death-physics.js';
 import { AvatarMotion } from './avatar-motion.js';
-import { buildOperator, poseOperatorArm, poseOperatorLeg } from './operator-model.js';
+import { buildOperator, poseOperatorArm, poseOperatorLeg, restOperatorArms } from './operator-model.js';
 
 const LEAN_AXIS = new THREE.Vector3(0, 0, 1);
 const LEAN_TURN = new THREE.Quaternion();
@@ -247,16 +248,7 @@ export function resetAvatarPose(av) {
   av.rLeg.rotation.set(0, 0, 0);
   poseOperatorLeg(av.lLeg, 0, 0, 0);
   poseOperatorLeg(av.rLeg, 0, 0, 0);
-  av.lArm.position.set(-0.41, 1.45, 0);
-  av.lArm.rotation.set(0, 0, -0.08);
-  av.rArm.position.set(0.41, 1.45, 0);
-  av.rArm.rotation.set(0, 0, 0.08);
-  av.lArm.scale.set(1, 1, 1);
-  av.rArm.scale.set(1, 1, 1);
-  av.lElbow.scale.set(1, 1, 1);
-  av.rElbow.scale.set(1, 1, 1);
-  av.lElbow.rotation.set(-0.34, 0, 0);
-  av.rElbow.rotation.set(-0.46, 0, 0);
+  restOperatorArms(av);
   av.weaponModel?.resetPose();
   if (av.tag) av.tag.visible = true;
   if (av.hpSpr) av.hpSpr.visible = true;
@@ -342,23 +334,19 @@ export function refreshAvatarMaterialLists(avatar) {
   avatar.fadeMaterials = [...fades]; avatar.flashMaterials = [...flashes];
 }
 
-export function makeAvatar(id, name, team = null) {
+function createOperator(id, name) {
   const group = new THREE.Group();
-  const hue = hashHue(id);
-  const suit = new THREE.MeshLambertMaterial({
-    color: new THREE.Color().setHSL(hue / 360, 0.32, 0.42),
-    transparent: true,
-  });
-  const dark = new THREE.MeshLambertMaterial({
-    color: new THREE.Color().setHSL(hue / 360, 0.25, 0.2),
-    transparent: true,
-  });
-  const armor = new THREE.MeshStandardMaterial({ color: 0x26323b, roughness: 0.7, metalness: 0.25, transparent: true });
-  const visorMat = new THREE.MeshStandardMaterial({ color: 0x6aa5af, roughness: 0.22, metalness: 0.75, transparent: true });
+  const suit = new THREE.MeshStandardMaterial({ color: 0x465361, roughness: 0.84, transparent: true });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x222c37, roughness: 0.9, transparent: true });
+  const armor = new THREE.MeshStandardMaterial({ color: 0xc1bdac, roughness: 0.62, metalness: 0.10, transparent: true });
+  const visorMat = new THREE.MeshStandardMaterial({ color: 0xb57134, roughness: 0.22, metalness: 0.35, transparent: true });
+  // Cosmetic slots stay stable when the operator's standard finishes change.
+  armor.userData.paletteColor = 0x26323b;
+  visorMat.userData.paletteColor = 0x6aa5af;
   const variant = hashInt(id) % 3;
   const skin = new THREE.MeshStandardMaterial({ color: [0xc68b67, 0x8c5b42, 0xe0ae87][variant], roughness: 0.92, transparent: true });
   const { torso, hips, head, lLeg, rLeg, lArm, rArm, lElbow, rElbow, lHand, rHand, pack, pouches } =
-    buildOperator({ suit, dark, armor, visor: visorMat, skin, variant });
+    buildOperator({ suit, dark, armor, visor: visorMat, skin });
   // Roll outermost, like the leaned hitbox zones: pitch first, then the lean.
   torso.rotation.order = head.rotation.order = 'ZYX';
 
@@ -491,8 +479,22 @@ export function makeAvatar(id, name, team = null) {
     velocity: new THREE.Vector3(),
     angular: new THREE.Vector3(),
   }));
-  setAvatarTeam(avatar, team);
   // Light-volume shading, light floor and rim, fixed before the first compile.
   prepareCharacterTree(group, false);
+  return avatar;
+}
+
+export function makeAvatar(id, name, team = null) {
+  const avatar = createOperator(id, name);
+  if (avatar.torso.userData.blenderAsset === 'rivet') bindRivetDetail(avatar);
+  setAvatarTeam(avatar, team);
+  return avatar;
+}
+
+/** Both armories display the authored standard colors under every cosmetic layer. */
+export function makeOperatorPreview() {
+  const avatar = createOperator('cosmetic-preview', 'OPERATOR');
+  avatar.tag.visible = avatar.hpSpr.visible = false;
+  avatar.weaponModel.root.visible = false;
   return avatar;
 }

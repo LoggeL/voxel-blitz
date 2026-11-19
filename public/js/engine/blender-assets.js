@@ -1,9 +1,16 @@
 import * as THREE from '../vendor/three.module.js';
 import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
+import { loadRivetDetail } from './rivet-detail.js';
 import { loadingScreen } from '../ui/loading-screen.js';
 
 const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'thunderbolt', 'doppler', 'doppler-world', 'vanguard', 'hands', 'grenades']);
-const STANDALONE_MAPS = Object.freeze(['archer-olive', 'archer-tan']);
+// Procedural models use Three's UV origin. The tintable mirror shares the
+// exported goggle's glTF UVs, which run top to bottom.
+const STANDALONE_MAPS = [
+  { name: 'archer-olive', flipY: true },
+  { name: 'archer-tan', flipY: true },
+  { name: 'rivet/silver-lens', flipY: false },
+];
 
 // Geometry and decoded ImageGen maps belong to the page, not to a player or a
 // preview. Only materials are cloned, so one skin/fade cannot affect another rig.
@@ -39,10 +46,11 @@ export function loadBlenderAssets() {
     loadingScreen?.step('models', { status: 'active', done: 0, total: 1, detail: 'REQUESTING MODEL LIBRARY' });
     // Procedural articulated models can use the same page-owned image library
     // without a glTF wrapper. Missing images retain their flat-color fallback.
-    const mapLoads = Promise.allSettled(STANDALONE_MAPS.map(async name => {
+    const mapLoads = Promise.allSettled(STANDALONE_MAPS.map(async ({ name, flipY }) => {
       const key = `textures/${name}.jpg`;
       const map = await textureLoader.loadAsync(new URL(`../../assets/blender/${key}`, import.meta.url).href);
       map.name = key;
+      map.flipY = flipY;
       map.colorSpace = THREE.SRGBColorSpace;
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
       map.anisotropy = 4;
@@ -51,6 +59,7 @@ export function loadBlenderAssets() {
     }));
     const modelLoads = Promise.allSettled(ASSET_IDS.map(async id => {
       const gltf = await loader.loadAsync(new URL(`../../assets/blender/${id}.gltf`, import.meta.url).href);
+      if (id === 'rivet') await loadRivetDetail(gltf);
       gltf.scene.traverse(object => {
         if (object.geometry) object.geometry.userData.pageOwned = true;
         for (const material of [].concat(object.material || [])) {

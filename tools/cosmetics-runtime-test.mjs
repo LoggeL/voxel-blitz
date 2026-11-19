@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { SkinLayer } from '../public/js/cosmetics/skin-layer.js';
+import { poseOperatorArm, FOREARM } from '../public/js/avatar/operator-model.js';
 import { CosmeticAudio, cosmeticSoundUrl } from '../public/js/audio/cosmetics.js';
 import { buildGun, disposeGunModels } from '../public/js/guns/assemble.js';
 import { MaterialCache } from '../public/js/guns/kit.js';
@@ -88,6 +89,12 @@ for (const id of ['salvager','revenant']) {
  applyAvatarCosmetics(avatar,{characterSkin:id});
  let added=0;avatar.group.traverse(o=>{if(o.isMesh&&!original.has(o))added++;});
  assert.ok(added>0 && added<=30,`${id} has bounded real detail geometry`);
+ const cuff = avatar.rElbow.children.find(child => child.userData.cosmetic);
+ const restScale = cuff.scale.y;
+ poseOperatorArm(avatar, 1, { x: 1.2, y: 0, z: -0.8 });
+ const stretch = -avatar.rHand.position.y / FOREARM;
+ assert.ok(stretch > 1.1 && Math.abs(cuff.scale.y - restScale * stretch) < 1e-6,
+   `${id} cuff follows the forearm when the hand reaches`);
  for(const [object,saved] of original)assert.equal(object.parent,saved.parent,'skin does not reparent animated joints');
  setAvatarTeam(avatar,'bravo');
  assert.equal(avatar.suitMaterial.color.getHex(),TEAM_AVATAR_COLORS.bravo.suit);

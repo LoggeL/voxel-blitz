@@ -44,7 +44,7 @@ try {
   }
   const checks = await page.evaluate(`(async () => {
     const T = await import('/js/vendor/three.module.js');
-    const { makeAvatar, disposeAvatar, updateAvatarWeaponPose, updateAvatarStancePose,
+    const { makeAvatar, makeOperatorPreview, disposeAvatar, updateAvatarWeaponPose, updateAvatarStancePose,
       setAvatarTeam, setAvatarOpacity, setAvatarFlash } = await import('/js/avatar/avatar.js');
     const { buildGun, disposeGunModels } = await import('/js/guns/assemble.js');
     const { MaterialCache } = await import('/js/guns/kit.js');
@@ -62,9 +62,82 @@ try {
       const bounds=new T.Box3().setFromObject(part);
       must([...bounds.min.toArray(),...bounds.max.toArray()].every(v=>Number.isFinite(v)&&Math.abs(v)<.65), 'local joint bounds '+name);
     }
+    const preview = makeOperatorPreview();
+    for (const slot of ['suit', 'dark']) {
+      const source = restParts.torso.children.find(mesh => mesh.material.userData.slot === slot).material;
+      const finish = preview[slot + 'Material'];
+      must(finish.isMeshStandardMaterial && finish.color.equals(source.color), 'authored preview tint: ' + slot);
+      must(finish.map === source.map && finish.bumpMap === source.bumpMap && finish.roughness === source.roughness,
+        'authored preview finish: ' + slot);
+    }
+    const lens = preview.head.children.find(mesh => mesh.material === preview.visorMaterial);
+    const copper = lens.material.map;
+    for (const skin of ['salvager', 'revenant']) {
+      applyAvatarCosmetics(preview, { characterSkin: skin });
+      must(lens.material.map.name === 'textures/rivet/silver-lens.jpg' && !lens.material.map.flipY,
+        'repainted goggles retain their reflected horizon: ' + skin);
+    }
+    applyAvatarCosmetics(preview, {});
+    must(lens.material === preview.visorMaterial && lens.material.map === copper, 'standard copper mirror restored');
+    disposeAvatar(preview);
     disposeObjectTrees(Object.values(restParts));
     const a = makeAvatar('blender-a','A'), b = makeAvatar('blender-b','B');
     must(a.torso.userData.blenderAsset === 'rivet', 'RIVET loaded, no fallback');
+    const { presentCharacterFrame } = await import('/js/engine/contact-shadows.js');
+    const camera = new T.PerspectiveCamera(70, 1, .01, 200), vehicle = new T.Group();
+    vehicle.add(a.group);
+    const farMesh = a.torso.children.find(m => m.geometry?.userData.rivetFarIndices >= 0);
+    const closeMesh = b.torso.children.find(m => m.geometry === farMesh.geometry);
+    const full = farMesh.geometry;
+    const view = { characterRoots: [vehicle, b.group], nearCharacterRoots: [] };
+    const frame = () => presentCharacterFrame(view, { camera, dt: 0 });
+    vehicle.position.z = -35;
+    frame();
+    const distant = farMesh.geometry;
+    must(distant.index.count < full.index.count && distant.attributes.position === full.attributes.position &&
+      distant.attributes.color === full.attributes.color, 'distant operator shares close vertex buffers');
+    const { prepareDeathPart } = await import('/js/avatar/death-physics.js');
+    const farTorso = { object: a.torso }, nearTorso = { object: b.torso };
+    prepareDeathPart(farTorso); prepareDeathPart(nearTorso);
+    must(farTorso.bounds.min.distanceTo(nearTorso.bounds.min) < 1e-6 &&
+      farTorso.bounds.max.distanceTo(nearTorso.bounds.max) < 1e-6, 'corpse collision bounds match both visual levels');
+    must(closeMesh.geometry === full, 'near dispatch is independent per operator');
+    vehicle.position.z = -20;
+    frame();
+    must(farMesh.geometry === distant, 'detail hysteresis at the crossover');
+    camera.fov = 25; camera.updateProjectionMatrix(); frame();
+    must(farMesh.geometry === full, 'optical zoom restores close detail');
+    camera.fov = 70; camera.updateProjectionMatrix(); vehicle.position.z = -35;
+    const { batchSeatedCrewBody } = await import('/js/vehicles/crew-body.js');
+    const crew = makeAvatar('lod-seat', 'Crew');
+    vehicle.add(crew.group);
+    const seat = batchSeatedCrewBody(crew);
+    const batch = seat.meshes.find(m => m.userData.crewRanges.hasDistantIndices && m.userData.crewRanges.lowerCount > 0);
+    const ranges = batch.userData.crewRanges;
+    frame();
+    must(batch.geometry.drawRange.start === ranges.fullCount && batch.geometry.drawRange.count === ranges.farCount,
+      'seated crew uses distant indices in vehicle world space');
+    const lodScene = new T.Scene(), lodRenderer = new T.WebGLRenderer();
+    lodRenderer.setSize(128, 128);
+    lodScene.add(vehicle, new T.HemisphereLight());
+    // Use the same render camera and framing for both levels. Only the
+    // camera passed to the normal character presentation pass changes.
+    const fixedCamera = camera.clone();
+    lodRenderer.render(lodScene, fixedCamera);
+    const distantCalls = lodRenderer.info.render.calls;
+    const distantTriangles = lodRenderer.info.render.triangles;
+    camera.fov = 20; camera.updateProjectionMatrix(); frame();
+    lodRenderer.render(lodScene, fixedCamera);
+    must(lodRenderer.info.render.calls > distantCalls && lodRenderer.info.render.triangles > distantTriangles,
+      'lower detail reduces real submitted draws and triangles for standing and seated operators');
+    lodRenderer.dispose();
+    camera.fov = 70; camera.updateProjectionMatrix(); frame();
+    seat.setUpperVisible(false);
+    vehicle.position.z = -2; frame();
+    must(batch.geometry.drawRange.start === 0 && batch.geometry.drawRange.count === ranges.lowerCount,
+      'close cockpit view keeps only the lower body');
+    must(farMesh.geometry === full, 'near return restores original per-joint geometry');
+    vehicle.remove(crew.group, a.group); disposeAvatar(crew);
     must(a.weaponModel._model.body.userData.blenderAsset === 'kestrel', 'KESTREL loaded, no fallback');
     updateAvatarWeaponPose(a,{weapon:'sniper',blend:1});
     must(a.weaponModel._model.body.userData.blenderAsset === 'peregrine', 'PEREGRINE loaded, no fallback');
@@ -104,14 +177,17 @@ try {
     must(gun.body.userData.blenderAsset==='kestrel','first person KESTREL');
     const handR = gun.root.getObjectByName('hand_r'), handL = gun.root.getObjectByName('hand_l');
     must(handR?.userData.blenderAsset==='hands' && handL?.userData.blenderAsset==='hands','first person HANDS gloves');
-    must(handR.children.length===6 && handL.children.length===6,'six material primitives per glove');
+    const materialSlots = hand => hand.children.map(mesh => mesh.material.userData.partMaterial).sort();
+    must(materialSlots(handR).join() === materialSlots(handL).join(), 'both glove poses share their material slots');
     must(handR.scale.x===1 && handL.scale.x===-1,'support glove is the mirrored right hand');
     const gloveMaterials = handR.children.map(m=>m.material);
     const leather = gloveMaterials.find(m=>m.userData.partMaterial==='glove leather');
-    must(leather?.map?.name==='textures/worn-rubber.jpg' && leather.userData.paletteColor===0x22252a,'glove leather keeps its delivered map and skin-palette key');
+    must(leather?.map?.name==='textures/rivet/nubuck.jpg' && leather.userData.paletteColor===0x22252a,'glove leather keeps its delivered map and skin-palette key');
     must(gloveMaterials.find(m=>m.userData.partMaterial==='webbing')?.userData.paletteColor===0xb09a72,'wrist strap keyed to the cuff palette');
-    const bare = gloveMaterials.find(m=>m.userData.partMaterial==='skin');
-    must(bare && bare.color.getHex()!==0xffffff && bare.map,'bare fingertips keep their tint and map');
+    must(gloveMaterials.some(m=>m.userData.partMaterial==='ceramic armor' && m.userData.paletteColor===0x15171a),
+      'impact pads retain the protective glove cosmetic slot');
+    must(gloveMaterials.some(m=>m.userData.partMaterial==='glove liner' && m.map) &&
+      !gloveMaterials.some(m=>m.userData.partMaterial==='skin'), 'lined full-finger field gloves');
     gun.root.updateMatrixWorld(true);
     const palm = handR.getWorldPosition(new T.Vector3());
     must(palm.y<-0.05 && palm.y>-0.12 && Math.abs(palm.x)<0.03 && palm.z<-0.05 && palm.z>-0.15,'fist wraps the pistol grip');
@@ -449,9 +525,11 @@ try {
     { timeoutMs: 30000, label: 'training with imported models' });
   checks.training = await page.evaluate(`({ targets:__assetRoster.size,
     allRivet:[...__assetRoster._avatars.values()].every(a=>a.torso.userData.blenderAsset==='rivet'),
+    distantOperators:[...__assetRoster._avatars.values()].filter(a=>a.torso.children.some(m=>m.geometry?.userData.distantOperator)).length,
     rifle:__assetRig._cur.body.userData.blenderAsset, textures:__vb.stats.textures,
     drawCalls:__vb.stats.drawCalls, ownBodyVisible:__vb.stats.ownBodyVisible })`);
   assert.equal(checks.training.allRivet, true);
+  assert.ok(checks.training.distantOperators > 0, 'match camera selects distant range targets');
   assert.equal(checks.training.rifle, 'kestrel');
   assert.equal(checks.training.ownBodyVisible, true);
   const match = await page.send('Page.captureScreenshot', { format: 'png' });

@@ -193,6 +193,7 @@ export class ViewmodelRig {
   setCosmetics(loadout) {
     this._cosmetics = loadout;
     this._vaultHands.setCosmetics(loadout);
+    this._throwableHands.setCosmetics(loadout);
     this._medkitHands.setCosmetics(loadout);
     this._fpvHandset.setCosmetics(loadout);
     this._interactHands.setCosmetics(loadout);
@@ -778,7 +779,7 @@ export class ViewmodelRig {
     this._aimEuler.setFromQuaternion(this._cameraQ, 'YXZ');
     const viewPitch = this._aimEuler.x;
     const vaultBlend = this._vaultHands.update(elapsed, vaulting, ctx.vaultProgress, viewPitch);
-    const throwableBlend = this._throwableHands.update(elapsed, { suppressed: vaulting });
+    const throwableBlend = this._throwableHands.update(elapsed, { suppressed: vaulting, pitch: viewPitch });
     const healing = !!ctx.medkitActive && !vaulting;
     const medkitBlend = this._medkitHands.update(elapsed, healing, ctx.medkitProgress, ctx.reducedMotion, viewPitch);
     // The FPV handset (FpvTransition frame): the gun stays stowed from the launch until the handset is down,

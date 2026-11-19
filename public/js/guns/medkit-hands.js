@@ -25,8 +25,8 @@ export const MEDKIT_POSE = Object.freeze({
   wraps: 6,
   wrapStartZ: 0.035,             // forearm-local z of the first turn (wrist at 0)
   wrapPitch: 0.026,              // spacing between turns along the forearm
-  wrapRadius: 0.05,              // just outside the Blender forearm sleeve
-  wrapBack: 1.3,                 // taller over the back of the forearm to cover its bracer
+  wrapRadius: 0.045,             // radius of the first turn at the wrist
+  wrapGrowth: 0.0041,            // the woven sleeve widens toward the elbow
   orbit: 0.115,                  // right palm distance from the forearm axis
   orbitHz: 1.5,                  // wraps per second
 });
@@ -121,15 +121,15 @@ export class MedkitHands {
     this.arms.pole = MEDKIT_POSE.pole;
     this._armModel = { root: this.root };
     // The turns ride the left forearm segment, so they follow its solved pose.
-    const turn = new THREE.CylinderGeometry(MEDKIT_POSE.wrapRadius, MEDKIT_POSE.wrapRadius,
-      MEDKIT_POSE.wrapPitch * 1.4, 16, 1, true);
+    const turn = new THREE.CylinderGeometry(1.045, 0.955, MEDKIT_POSE.wrapPitch * 1.4, 24, 1, true);
     turn.rotateX(Math.PI / 2);
-    turn.scale(1, MEDKIT_POSE.wrapBack, 1);
-    turn.translate(0, 0.006, 0);
     const forearm = this.arms.arms[0].segments.forearm;
     this.wraps = Array.from({ length: MEDKIT_POSE.wraps }, (_, i) => {
       const mesh = new THREE.Mesh(turn, i % 2 ? underlap : this.dressing);
       mesh.name = `medkit-wrap-${i}`;
+      const radius = MEDKIT_POSE.wrapRadius + MEDKIT_POSE.wrapGrowth * i;
+      mesh.scale.set(radius, radius, 1);
+      mesh.position.y = -0.002;
       mesh.position.z = MEDKIT_POSE.wrapStartZ + (i + 0.5) * MEDKIT_POSE.wrapPitch;
       // A slight alternating tilt reads as a spiral instead of stacked rings.
       mesh.rotation.x = (i % 2 ? 1 : -1) * 0.08;
@@ -243,7 +243,7 @@ export class MedkitHands {
     // The strip leaves the roll and meets the forearm surface under the fist.
     this.roll.getWorldPosition(_from).applyMatrix4(_inverse);
     _to.copy(this.right.position).sub(_center).normalize()
-      .multiplyScalar(MEDKIT_POSE.wrapRadius).add(_center);
+      .multiplyScalar(MEDKIT_POSE.wrapRadius + MEDKIT_POSE.wrapGrowth * laid).add(_center);
     const length = _from.distanceTo(_to);
     this.strip.visible = length > 0.005;
     this.strip.position.addVectors(_from, _to).multiplyScalar(0.5);

@@ -1,6 +1,11 @@
 import * as THREE from '../vendor/three.module.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
-import { disposeObjectTree } from '../engine/dispose.js';
+import { disposeObjectTree, disposeObjectTrees } from '../engine/dispose.js';
+import { SkinLayer } from '../cosmetics/skin-layer.js';
+import { normalizeCosmeticLoadout } from '../../../shared/career.js';
+import { palette as salvager } from '../cosmetics/skins/salvager.js';
+import { palette as revenant } from '../cosmetics/skins/revenant.js';
+import { ViewmodelArms } from './viewmodel-arms.js';
 import { GRENADE_PIN_MS, GRENADE_POWER_STEPS, GRENADE_TYPE_IDS as IDS } from '../../../shared/grenade-rules.js';
 
 /** Placed, never thrown: no pin, a planting motion and the clamp cue (wall claymore, AT MINE). */
@@ -17,6 +22,47 @@ const UNDERHAND_POWER = GRENADE_POWER_STEPS[0] + 1e-6;
 const clamp = value => Math.max(0, Math.min(1, Number(value) || 0));
 const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
 const typeId = type => IDS.includes(type) ? type : IDS[Math.max(0, Math.min(IDS.length - 1, Math.trunc(Number(type) || 0)))];
+
+const GLOVE_PALETTES = { salvager, revenant };
+const MATERIAL_KEYS = { 'glove leather': 0x22252a, 'ceramic armor': 0x15171a, webbing: 0xb09a72 };
+const ROUND_GRIP = [0.058, 0.032, 0.009];
+// The flat disc and the two compact gadgets have quite different sidewalls.
+const GADGET_GRIPS = { atmine: [0.096, 0.051, 0.009], beacon: [0.051, 0.064, 0],
+  sensor: [0.052, 0.064, 0] };
+
+function loadGloves() {
+  const parts = createBlenderParts('hands', {
+    names: ['grip', 'support'],
+    materialFor(original) {
+      const material = original.clone();
+      const key = MATERIAL_KEYS[material.userData.partMaterial];
+      if (key !== undefined) material.userData.paletteColor = key;
+      return material;
+    },
+  });
+  if (parts?.grip && parts.support) return parts;
+  if (parts) disposeObjectTrees(Object.values(parts));
+  return null;
+}
+
+// The outer groups carry the animated prop and contact sockets. Fit the glove
+// inside that frame so its cuff also gives the arm solver its true wrist axis.
+function fitGlove(glove, side) {
+  const right = side > 0;
+  const z = (right ? new THREE.Vector3(-0.50, 0.14, 0.85) : new THREE.Vector3(0.86, 0.45, -0.22)).normalize().negate();
+  const y = right ? new THREE.Vector3(0.83, -0.14, 0.53) : new THREE.Vector3(0, 0.40, 0.90);
+  y.addScaledVector(z, -y.dot(z)).normalize();
+  glove.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(y, z), y, z));
+  if (right) {
+    glove.position.fromArray(ROUND_GRIP);
+  } else {
+    glove.scale.x = -1;
+    // Align the mirrored thumb/index pinch with the animated ring and lighter.
+    const pinch = new THREE.Vector3(0.022, -0.043, -0.045).applyQuaternion(glove.quaternion);
+    glove.position.set(0.021, 0.055, -0.029).sub(pinch);
+  }
+  glove.name = right ? 'hand_r' : 'hand_l';
+}
 
 /** Independent camera-local hands. The firearm can be holstered without moving the aiming camera. */
 export class ThrowableHands {
@@ -44,9 +90,10 @@ export class ThrowableHands {
 
     const cube = new THREE.BoxGeometry(1, 1, 1);
     const mat = (color, props = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...props });
-    const sleeve = mat(0x44515e);
-    const glove = mat(0x202831);
-    const armor = mat(0x677786, { metalness: 0.3 });
+    const gloves = loadGloves();
+    const sleeve = gloves ? null : mat(0x44515e);
+    const glove = gloves ? null : mat(0x202831);
+    const armor = gloves ? null : mat(0x677786, { metalness: 0.3 });
     const steel = mat(0xadb8ba, { metalness: 0.75, roughness: 0.3 });
     const dark = mat(0x253039);
     const orange = mat(0xf1a74b);
@@ -62,6 +109,22 @@ export class ThrowableHands {
     const makeHand = (side) => {
       const hand = new THREE.Group();
       hand.name = side > 0 ? 'throwing-hand' : 'arming-hand';
+      this.root.add(hand);
+      if (gloves) {
+        const wrist = new THREE.Group();
+        fitGlove(wrist, side);
+        hand.add(wrist);
+        if (side > 0) {
+          // The thumb stays tucked around the prop until it leaves the palm.
+          this.closedHand = gloves.grip.clone();
+          this.openHand = gloves.support;
+          this.openHand.visible = false;
+          wrist.add(this.closedHand, this.openHand);
+        } else {
+          wrist.add(gloves.grip);
+        }
+        return hand;
+      }
       const sleeveMesh = box(hand, sleeve, [0.105, 0.115, 0.36], [side * 0.018, -0.10, 0.20]);
       sleeveMesh.rotation.x = 0.34;
       if (side < 0) {
@@ -79,11 +142,16 @@ export class ThrowableHands {
         finger.rotation.y = side * 0.20;
       }
       box(hand, glove, [0.030, 0.055, 0.055], [-side * 0.052, 0.035, 0.003]);
-      this.root.add(hand);
       return hand;
     };
     this.right = makeHand(1);
     this.left = makeHand(-1);
+    if (gloves) {
+      this.arms = new ViewmodelArms(this.root);
+      this.arms.root.name = 'throwable-arms';
+      this._armModel = { root: this.root };
+      this.root.userData.armAnchors = { l: this.left.getObjectByName('hand_l'), r: this.right.getObjectByName('hand_r') };
+    }
     this.grip = new THREE.Group();
     this.grip.name = 'held-throwable';
     this.grip.position.set(0, 0.062, -0.025);
@@ -211,6 +279,21 @@ export class ThrowableHands {
 
   _cue(cue) { this.onCue?.({ cue, type: this.type, charge: this.charge }); }
 
+  setCosmetics(loadout) {
+    if (!this.arms) return;
+    this.arms.setCosmetics(loadout);
+    const id = normalizeCosmeticLoadout(loadout).characterSkin;
+    if (id === this._gloveId) return;
+    this._gloveId = id;
+    this._skinLayer?.clear();
+    this._skinLayer = null;
+    const palette = GLOVE_PALETTES[id];
+    if (!palette) return;
+    this._skinLayer = new SkinLayer();
+    const tint = { [0x22252a]: palette.glove, [0x15171a]: palette.armor, [0xb09a72]: palette.cuff };
+    for (const hand of Object.values(this.root.userData.armAnchors)) this._skinLayer.tint(hand, tint, { includeHands: true });
+  }
+
   setCharge(charge, type = this.type, holdMs = null, active = Number(charge) > 0) {
     if (this._disposed) return;
     if (!active) {
@@ -233,6 +316,11 @@ export class ThrowableHands {
       this.reseatElapsed = null;
       this.held = true;
       this.grip.visible = true;
+      if (this.closedHand) {
+        this.closedHand.parent.position.fromArray(GADGET_GRIPS[id] || ROUND_GRIP);
+        this.closedHand.visible = true;
+        this.openHand.visible = false;
+      }
       for (const [name, model] of Object.entries(this.models)) model.visible = name === id;
       this._cue('draw');
     }
@@ -258,6 +346,7 @@ export class ThrowableHands {
     this.reseatElapsed = null;
     this.throwElapsed = 0;
     this.grip.visible = false;
+    if (this.closedHand) { this.closedHand.visible = false; this.openHand.visible = true; }
     this.root.visible = true;
     this.blend = 1;
     // A quick tap would otherwise land the pin and the whoosh in the same frame.
@@ -357,7 +446,7 @@ export class ThrowableHands {
     this.wickFlame.rotation.z = Math.sin(this._clock * 21) * 0.1;
   }
 
-  update(dt, { suppressed = false } = {}) {
+  update(dt, { suppressed = false, pitch = 0 } = {}) {
     if (this._disposed || !(dt > 0)) return this.blend;
     const seconds = Math.min(dt, 0.25);
     this._clock += seconds;
@@ -426,12 +515,15 @@ export class ThrowableHands {
       if (t >= 1) this._reset();
     }
     this.root.visible = this.blend > 0 && !suppressed;
+    if (this.root.visible) this.arms?.update(this._armModel, pitch, true, seconds);
     return this.blend;
   }
 
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+    this._skinLayer?.clear();
+    this.arms?.dispose();
     this.root.removeFromParent();
     disposeObjectTree(this.root);
     this.root.clear();
