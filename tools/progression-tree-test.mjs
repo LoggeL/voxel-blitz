@@ -4,7 +4,7 @@ import { PROGRESSION_TREE, PROGRESSION_BRANCHES, CAREER_CATALOG, CAREER_REWARDS,
   childrenOf, branchRoots, defaultCosmeticLoadout, EQUIPPABLE_SLOTS, LOADOUT_SLOTS, xpForLevel, MASTERY_TIERS,
   masteryTier, LEGACY_NODE_IDS, upcomingUnlocks, masteryTracks, nextGoals, cosmeticLoadout } from '../shared/career.js';
 import { OPTICS, GRIPS, COUNTERS, ATTACHMENT_SLOTS } from '../shared/weapon-attachments.js';
-import { WEAPON_IDS } from '../shared/combatmath.js';
+import { FREE_WEAPON_IDS, WEAPON_IDS } from '../shared/combatmath.js';
 import { MASTERY_WEAPON_IDS } from '../shared/career.js';
 import { emptyProfile, validateProfile, CAREER_COUNTERS } from '../server/persistence/career-profile.js';
 import { allowedWeaponLoadout, assertUnlockedAttachments } from '../server/weapon-loadouts.js';
@@ -16,7 +16,7 @@ const ids = PROGRESSION_TREE.map(node => node.id);
 assert.equal(new Set(ids).size, ids.length, 'node IDs are unique');
 assert.deepEqual(PROGRESSION_BRANCHES.map(branch => branch.id), ['weapons', 'character', 'presentation', 'mastery']);
 for (const branch of PROGRESSION_BRANCHES) assert.ok(['level', 'mastery'].includes(branch.track), `${branch.id} names its track`);
-assert.equal(MASTERY_WEAPON_IDS.length, 16, 'every free-pick weapon has mastery tiers');
+assert.deepEqual([...MASTERY_WEAPON_IDS].sort(), [...FREE_WEAPON_IDS].sort(), 'every free-pick weapon has mastery tiers');
 assert.equal(PROGRESSION_TREE.length, 59 + MASTERY_WEAPON_IDS.length * 4 + 3, 'the catalog holds 59 level-track nodes, 4 tier rewards per mastery weapon and 3 arsenal rewards');
 assert.equal(PROGRESSION_TREE.filter(node => node.branch === 'mastery').length, MASTERY_WEAPON_IDS.length * 4 + 3);
 assert.equal(LEGACY_NODE_IDS.length, 40);

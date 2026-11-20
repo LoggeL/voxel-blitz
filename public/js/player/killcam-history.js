@@ -12,7 +12,7 @@ const VEHICLE_LINEAR = ['x', 'y', 'z'];
 const VEHICLE_ANGLES = ['yaw', 'pitch', 'roll', 'legYaw', 'turretYaw'];
 /** A hull farther apart than this between two frames jumped (respawn, drop start): no path between. */
 const VEHICLE_JUMP_M = 40;
-const EVENT_KINDS = new Set(['shoot', 'bullet', 'hit', 'kill', 'mine', 'block', 'blockDamage',
+const EVENT_KINDS = new Set(['shoot', 'bullet', 'stitch', 'hit', 'kill', 'mine', 'block', 'blockDamage',
   'projectileLaunch', 'projectileUpdate', 'projectileStick', 'projectileExplode',
   // Structural collapses (docs/structural-physics.md): replays drop the same chunks.
   'creak', 'collapse', 'collapseLand', 'crumble']);
@@ -30,12 +30,13 @@ export class KillcamHistory {
     if (this.terrain && time <= this.terrain.time) return;
     if (this.frames.length && time <= this.frames.at(-1).time) return;
     let effects = 0;
-    this.frames.push({ time,
+    const previousStitches = this.frames.at(-1)?.stitchesAfter ?? [];
+    const frame = { time,
       players: (snapshot.players || []).filter(p => p && [p.x, p.y, p.z, p.yaw, p.pitch].every(Number.isFinite))
         .map(p => ({ ...Object.fromEntries(POSE_FIELDS.map(key => [key, p[key]])), cosmetics: normalizeCosmeticLoadout(p.cosmetics) })),
-      // Large explosions must not crowd out the killer's confirmed hits.
+      // Large explosions must not crowd out confirmed hits or the stitch that caused one.
       events: structuredClone((snapshot.events || []).filter(e => EVENT_KINDS.has(e?.kind)
-        && (e.kind === 'hit' || e.kind === 'kill' || effects++ < 256))),
+        && (e.kind === 'hit' || e.kind === 'kill' || e.kind === 'stitch' || effects++ < 256))),
       // Conquest hulls and Titanfall titans (VehicleView rows): a shallow copy per frame.
       vehicles: Array.isArray(snapshot.vehicles) ? snapshot.vehicles
         .filter(v => v && v.id != null && [v.x, v.y, v.z].every(Number.isFinite)).map(v => ({ ...v })) : [],
@@ -43,7 +44,23 @@ export class KillcamHistory {
       // Titanfall minions (compact `match.titanfall.npc` rows; a snapshot without them keeps the last list).
       npcs: Array.isArray(snapshot.match?.titanfall?.npc) ? snapshot.match.titanfall.npc.slice() : this.frames.at(-1)?.npcs ?? null,
       terrain: this.terrain?.record(snapshot) || [],
-    });
+      // Pins can outlive the entire replay window. Keep the still-visible origin
+      // events by reference so a clip may start with a correctly aged pin or sweep.
+      stitchesBefore: previousStitches,
+      stitchesAfter: previousStitches,
+    };
+    for (const event of frame.events) {
+      if (event.kind !== 'stitch') continue;
+      frame.stitchesAfter = frame.stitchesAfter.filter(row => {
+        if (row.time + row.event.ms <= time) return false;
+        if (row.event.id !== event.id) return true;
+        if (event.phase === 'pin' || event.part === 'pin') return row.event.phase === 'sew';
+        if (event.part === 'seam') return row.event.phase === 'pin';
+        return false;
+      });
+      if (event.phase === 'pin' || event.phase === 'sew') frame.stitchesAfter.push({ time, event });
+    }
+    this.frames.push(frame);
     const clip = this.activeClip;
     if (clip && time > clip.killTime && time <= clip.end && clipContinues(clip, clip.frames.at(-1))) {
       clip.frames.push(this.frames.at(-1));
@@ -125,7 +142,7 @@ export function sampleKillcam(clip, time, previousTime = -Infinity) {
     smokeFields: a.smokeFields,
     // The terrain copy already includes the first frame.
     terrain: crossed.filter(f => f.time > clip.start).flatMap(f => f.terrain),
-    events: crossed.flatMap(f => f.events),
+    eventFrames: crossed, events: crossed.flatMap(f => f.events),
     hitmark: sampleHitmark(clip, Math.max(clip.start, time)) };
 }
 

@@ -1,5 +1,6 @@
 // Public effects facade. Each bounded pool has exactly one owner and the
 // facade preserves the historic API consumed by the game composition root.
+import { Vector3 } from '../vendor/three.module.js';
 import { FlameFX } from './flame.js';
 import { FireFieldFX } from './fire-fields.js';
 import { TracerFX } from './ballistics.js';
@@ -8,6 +9,7 @@ import { GoreFX } from './gore.js';
 import { ImpactFX, blockSoundFor, bulletSurfaceFor } from './impacts.js';
 import { ProjectileFX } from './projectiles.js';
 import { RailBeamFX } from './rail-beam.js';
+import { SelvedgeFX } from './selvedge-fx.js';
 import { BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { rocketLaunch } from '../../../shared/rocket-rules.js';
@@ -68,7 +70,7 @@ const BUBBLE_TRAIL_RANGE = 30;
 export class Effects {
   constructor(scene, camera, worldGetBlockFn, {
     getEntityPosition = null, onBounce = null, onGlaiveFlip = null, onGlaiveFlight = null,
-    getGlaiveSeekBodies = null, onWallImpact = null, onMineArmed = null,
+    getGlaiveSeekBodies = null, onWallImpact = null, onMineArmed = null, onStitchArrival = null,
   } = {}) {
     this.scene = scene;
     this.camera = camera;
@@ -102,6 +104,9 @@ export class Effects {
     this.flames = new FlameFX(scene, this.getBlockFn);
     this.fireFields = new FireFieldFX(scene);
     this.railBeams = new RailBeamFX(scene, this.getBlockFn);
+    this.selvedge = null;
+    this._onStitchArrival = onStitchArrival;
+    this._stitchMuzzle = new Vector3();
     /** CR-6 LONGBOW beams, built on the first charge-rifle shot (Titanfall only). */
     this.longbowBeams = null;
     this.goreFx = new GoreFX(scene, camera, this.getBlockFn);
@@ -146,6 +151,16 @@ export class Effects {
 
   shoot(event, options = {}) {
     if (this._disposed) return;
+    if (event.w === 'selvedge') {
+      // Prediction plays the draw mechanism immediately. The cast-end and pin
+      // must agree with the actual surface or body the server accepted.
+      if (Array.isArray(event.end)) {
+        const origin = options.local ? this.muzzleProvider?.(this._stitchMuzzle)
+          : this.remoteMuzzleProvider?.(event.id, this._stitchMuzzle);
+        this._stitchFX().shot(event, origin);
+      }
+      return;
+    }
     if (event.w === 'flamethrower') { this.flames.shoot(event, options); return; }
     this.tracers.shoot(event, options);
     if (event.w === 'lance') this.railBeams.shoot(event, options);
@@ -313,8 +328,29 @@ export class Effects {
     if (!this._disposed) this.tracers.settleRound(event, options);
   }
 
+  _stitchFX() {
+    return this.selvedge ??= new SelvedgeFX(this.scene, this._onStitchArrival);
+  }
+
+  stitch(event) {
+    if (this._disposed || (event.phase === 'clear' && !this.selvedge)) return;
+    this._stitchFX().stitch(event);
+  }
+
+  stitchPinRemainingMs(ownerId) {
+    return this.selvedge?.pinRemainingMs(ownerId) ?? 0;
+  }
+
+  stitchPinReason(ownerId) {
+    return this.selvedge?.pinReason(ownerId) ?? null;
+  }
+
   confirmShot(event) {
     if (this._disposed) return;
+    if (event.w === 'selvedge') {
+      this.shoot(event, { local: true });
+      return;
+    }
     if (event.roundId != null) { this.tracers.confirmRound(event); return; }
     if (!Array.isArray(event.paths)) return;
     // Prediction already drew the muzzle streak. The server resolves spread
@@ -362,7 +398,9 @@ export class Effects {
   }
 
   impact(event) {
-    if (!this._disposed) this.impacts.impact(event);
+    if (this._disposed) return;
+    if (event.w === 'selvedge') this._stitchFX().tag([event.vx, event.vy, event.vz]);
+    else this.impacts.impact(event);
   }
 
   gore(event, options = {}) {
@@ -481,6 +519,7 @@ export class Effects {
     this._trauma = Math.max(0, this._trauma - dt * 1.8);
     this.tracers.update(dt);
     this.railBeams.update(dt);
+    this.selvedge?.update(elapsed);
     this.longbowBeams?.update(dt);
     this.flames.update(elapsed);
     this.fireFields.update(elapsed);
@@ -504,6 +543,7 @@ export class Effects {
 
   clearCombatHazards() {
     this.projectiles.clear();
+    this.selvedge?.clear();
     this._glaiveFabDue = [];
     this.flames.localActive = false; this.flames.localEvent = null;
     for (const puff of this.flames.puffs) puff.life = 0;
@@ -516,6 +556,7 @@ export class Effects {
     this._disposed = true;
     this.tracers.dispose();
     this.railBeams.dispose();
+    this.selvedge?.dispose();
     this.longbowBeams?.dispose();
     this.flames.dispose();
     this.fireFields.dispose();
@@ -528,9 +569,11 @@ export class Effects {
 
 /** Wire the rig's live muzzle transform into the local tracer anchor. */
 export function attachMuzzleBridge(effects, rig) {
-  if (effects.flames) effects.flames.muzzleProvider = (out) => rig.getMuzzleWorldPos(out);
-  if (effects.railBeams) effects.railBeams.muzzleProvider = (out) => rig.getMuzzleWorldPos(out);
-  effects.tracers.setMuzzleProvider((out) => rig.getMuzzleWorldPos(out));
+  const provider = (out) => rig.getMuzzleWorldPos(out);
+  effects.muzzleProvider = provider;
+  if (effects.flames) effects.flames.muzzleProvider = provider;
+  if (effects.railBeams) effects.railBeams.muzzleProvider = provider;
+  effects.tracers.setMuzzleProvider(provider);
 }
 
 /** Wire the avatar roster's barrel tips into remote shot presentation. Hits
@@ -538,6 +581,7 @@ export function attachMuzzleBridge(effects, rig) {
  *  rendered muzzle. Safe to call before the roster exists (lazy lookup). */
 export function attachRemoteMuzzleBridge(effects, getRoster) {
   const provider = (id, out) => getRoster()?.muzzleWorldPos?.(id, out) ?? null;
+  effects.remoteMuzzleProvider = provider;
   if (effects.flames) effects.flames.remoteMuzzleProvider = provider;
   if (effects.railBeams) effects.railBeams.remoteMuzzleProvider = provider;
   if (effects.tracers) effects.tracers.remoteMuzzleProvider = provider;

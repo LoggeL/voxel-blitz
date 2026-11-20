@@ -1,3 +1,4 @@
+import { stitchHit } from './selvedge.js';
 import { combatDamage } from '../../shared/combat-balance.js';
 import { collectNearMisses, applyNearMisses } from './suppression.js';
 import { beginReload, reloadPhase } from '../../shared/reload.js';
@@ -154,6 +155,7 @@ export function resolveWeaponIntent(p, dt, ctx) {
   if (inp.switchTo != null &&
       inp.switchTo !== p.weapon &&
       ctx.canUseWeapon(p, inp.switchTo)) {
+    ctx.selvedge?.cancel(p.id, ctx);
     switchWeapon(p, inp.switchTo);
   }
 
@@ -594,6 +596,28 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
   if (def.projectile === 'bubble') {
     // Refused launch (projectile budget) keeps the round, like the RIPTIDE disc.
     if (!ctx.launchBubble?.(p, firstDir, charge01)) p.mag[p.weapon]++;
+    return;
+  }
+  if (def.stitch) {
+    const reach = def.stitch.range;
+    const { x, y, z } = firstDir;
+    const direction = [x, y, z];
+    const wall = raycastVoxels(ctx.solidAt, ...oEye, x, y, z, reach);
+    const limit = wall?.t ?? reach;
+    const hull = ctx.vehicles?.rayHit(oEye, direction, limit, p.vehicleId ?? null);
+    const crewLimit = hull ? Math.min(limit, Math.max(hull.distance, hull.exit ?? hull.distance)) : limit;
+    const target = nearestVictim(p, oEye, firstDir, crewLimit, ctx);
+    const visible = target && (!hull || target.t <= hull.distance || target.victim.vehicleId === hull.id);
+    const distance = visible ? target.t : hull?.distance ?? limit;
+    const end = oEye.map((v, axis) => v + direction[axis] * distance);
+    shootEvent.end = roundPoint(end);
+    if (visible) {
+      const hs = target.zone === 'head';
+      stitchHit(p, target.victim, damageAtDistance(def, distance) * (hs ? def.headMult : 1), hs, end, ctx,
+        { longRange: distance >= LONG_RANGE_KILL_DISTANCE, dist: distance });
+    } else if (wall && !hull) {
+      ctx.selvedge?.pin(p, end, wall, ctx);
+    }
     return;
   }
   if (def.flame) { ctx.flames.launch(p, oEye, fwd, ctx); return; }

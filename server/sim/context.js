@@ -23,6 +23,7 @@ export function createSimulationContexts(engine) {
     get blockHp() { return engine.blockHp; },
     get blockMining() { return engine.blockMining; },
     get flames() { return engine.flames; },
+    get selvedge() { return engine.selvedge; },
     get flyingRounds() { return engine.flyingRounds; },
     get mapMeta() { return engine.mapMeta; },
     solidAt: engine.solidAt,

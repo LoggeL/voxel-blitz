@@ -272,6 +272,26 @@ async function main() {
     const result = await renderScenario(name, events); cues[name] = result.metrics;
     audible(result, name, onset); return result;
   };
+  const seamName = 'SELVEDGE surface pin, seam departure and arrival';
+  const seam = await cue(seamName, [
+    [0, () => sfx.stitch('pin', [-1, 0, -4])],
+    [0.5, () => sfx.stitch('sew', [-1, 0, -4])],
+    [0.9, () => sfx.stitch('hem', [4, 0, -4])],
+  ]);
+  check(seam.trace.acquisitions.length === 3 && seam.trace.acquisitions.every(entry => entry.positional),
+    'Selvedge plays each surface contact exactly once in the world');
+  check([[0, 0.23], [0.5, 0.79], [0.9, 1.13]].every(([start, end]) =>
+    regionRms(seam.data, start, end) > 0.001),
+    'Selvedge proof has a distinct audible cue at both pins and the travelling head arrival');
+  const reloadName = 'SELVEDGE keeper release, cassette seat and keeper close';
+  const cassette = await cue(reloadName, [
+    [0, () => sfx.reloadClick(1, 'selvedge')],
+    [0.7, () => sfx.reloadClick(2, 'selvedge')],
+    [1, () => sfx.reloadClick(3, 'selvedge')],
+  ]);
+  check([[0, 0.23], [0.7, 0.88], [1, 1.22]].every(([start, end]) =>
+    regionRms(cassette.data, start, end) > 0.001),
+    'Selvedge reload has separate audible contacts at release, seat and close');
   const moans = [];
   const sprintInterval = Math.PI / gaitPhaseRate(SPRINT_SPEED);
   for (const surface of FOOTSTEP_SURFACES) {

@@ -101,6 +101,20 @@
       "geometry_bytes": 2583108
     },
     {
+      "asset": "selvedge",
+      "source_parts": 223,
+      "draws": 44,
+      "triangles": 33393,
+      "geometry_bytes": 1809544
+    },
+    {
+      "asset": "selvedge-world",
+      "source_parts": 136,
+      "draws": 14,
+      "triangles": 10584,
+      "geometry_bytes": 613872
+    },
+    {
       "asset": "skipjack",
       "source_parts": 132,
       "draws": 21,
@@ -134,13 +148,6 @@
       "draws": 23,
       "triangles": 21848,
       "geometry_bytes": 1487840
-    },
-    {
-      "asset": "vanguard",
-      "source_parts": 91,
-      "draws": 14,
-      "triangles": 14404,
-      "geometry_bytes": 812944
     },
     {
       "asset": "wasp",

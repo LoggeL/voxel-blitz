@@ -58,6 +58,7 @@ export const WEAPON_PRICES = Object.freeze({
   bubble: 2200,
   mgl: 3900,
   doppler: 3100,
+  selvedge: 2900,
 });
 
 export const MODE_RULES = Object.freeze({

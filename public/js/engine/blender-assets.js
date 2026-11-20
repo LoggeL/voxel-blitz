@@ -3,7 +3,7 @@ import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
 import { loadRivetDetail } from './rivet-detail.js';
 import { loadingScreen } from '../ui/loading-screen.js';
 
-const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'thunderbolt', 'doppler', 'doppler-world', 'vanguard', 'hands', 'grenades']);
+const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'thunderbolt', 'doppler', 'doppler-world', 'selvedge', 'selvedge-world', 'hands', 'grenades']);
 // Procedural models use Three's UV origin. The tintable mirror shares the
 // exported goggle's glTF UVs, which run top to bottom.
 const STANDALONE_MAPS = [

@@ -980,7 +980,19 @@ export async function runHudContracts(ok, installGlobals) {
       hud.setState({ fuel01: null, flameFiring: false });
       ok(!document.getElementById('charge-meter').classList.contains('is-visible')
         && !document.getElementById('charge-meter').classList.contains('is-fuel'), 'switching away clears the tank meter');
+      hud.setState({ wid: 'selvedge', alive: true, stitchPinMs: 0, stitchHoldMs: 6000 });
+      ok(document.querySelector('.vb-charge-label').textContent === 'PIN FIRST SURFACE', 'unpaired SELVEDGE explains the first tap');
+      for (const [reason, label] of [['short', 'TOO CLOSE'], ['long', 'TOO FAR'], ['blocked', 'PATH BLOCKED']]) {
+        hud.setState({ stitchPinMs: 5500, stitchPinReason: reason });
+        ok(document.querySelector('.vb-charge-label').textContent === `${label} · PIN MOVED`,
+          `SELVEDGE explains a ${reason} pairing and identifies the replacement pin`);
+      }
+      hud.setState({ stitchPinMs: 3000, stitchPinReason: null });
+      ok(document.querySelector('.vb-charge-label').textContent === 'PIN SECOND SURFACE · 3s'
+        && document.querySelector('.vb-charge-track').children[0].style.transform === 'scaleX(0.5)',
+      'confirmed pin lifetime drives the second-surface hint and countdown');
       hud.setState({ wid: 'knife', wname: 'IRON PICK', mag: 0, reserve: 0 });
+      ok(!document.getElementById('charge-meter').classList.contains('is-visible'), 'switching weapons clears the pin prompt');
       const meleeAmmo = document.getElementById('ammocount').textContent === '∞'
         && document.getElementById('ammo').children[2].style.display === 'none'
         && document.getElementById('ammoreserve').style.display === 'none'

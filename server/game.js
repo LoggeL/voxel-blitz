@@ -1,3 +1,4 @@
+import { SelvedgeSystem } from './sim/selvedge.js';
 import { BASTION_LAYOUTS, bastionDefenderSolid } from '../shared/world/bastion-layouts.js';
 import { FlameSystem, extinguish, igniteFromLava, updateBurn } from './sim/fire.js';
 // Authoritative fixed-step simulation facade. Transport, room management and
@@ -168,6 +169,7 @@ export class GameEngine {
     // Sniper rounds in flight (shared/bullet-ballistics.js), stepped once per tick.
     this.flyingRounds = [];
     this.flames = new FlameSystem();
+    this.selvedge = new SelvedgeSystem();
     this.killAnnouncer = new KillAnnouncer();
 
     this.mode = new ModeController(this, { mode: callbacks.mode, mapMeta: this.mapMeta, variant: callbacks.conquestVariant });
@@ -239,6 +241,7 @@ export class GameEngine {
     this.projectiles.clear();
     this.flyingRounds.length = 0;
     this.flames.clear();
+    this.selvedge.clear();
     this.powerups.clear();
     this.cash.clear();
     if (this.timer !== null) {
@@ -301,6 +304,7 @@ export class GameEngine {
     const combat = this.contexts.combat;
     for (const player of this.combatants.values()) updateBurn(player, dt, combat);
     this.flames.step(dt, combat);
+    this.selvedge.step(dt, combat);
     this.projectiles.step(dt, this.contexts.projectiles);
     stepFlyingRounds(this.flyingRounds, dt, combat);
     for (const player of this.combatants.values()) {
@@ -317,6 +321,7 @@ export class GameEngine {
     phaseAt = endPhase(phases, 5, phaseAt);
     // Clear ended rounds before a policy can reset directly into live play.
     if (this.mode.phase !== 'live') {
+      this.selvedge.clear(combat);
       this.powerups.clear();
       this.cash.clear();
       this.projectiles.fire.clear();
@@ -324,7 +329,7 @@ export class GameEngine {
       this.projectiles.clearMines();
     }
     this.mode.tick();
-    if (this.mode.phase !== 'live') { this.projectiles.fire.clear(); this.projectiles.smoke.clear(); this.projectiles.clearMines(); }
+    if (this.mode.phase !== 'live') { this.selvedge.clear(combat); this.projectiles.fire.clear(); this.projectiles.smoke.clear(); this.projectiles.clearMines(); }
     this.processRespawns();
     for (const pickups of [this.powerups, this.cash]) pickups.step({
       now: this.now, mode: this.mode.mode, phase: this.mode.phase, round: this.mode.round,
@@ -395,6 +400,7 @@ export class GameEngine {
   }
 
   restoreWorld() {
+    this.selvedge.clear(this.contexts?.combat);
     const { sx: SX, sz: SZ } = worldDimensions(this.world);
     // Template-backed worlds read their pristine voxels in place; others copy
     // the map's pristine voxels, which is only worth it once something broke.
@@ -434,6 +440,7 @@ export class GameEngine {
     this.vehicles?.renameOccupant(priorId, pid);
     this.entities.delete(priorId);
     this.discardPendingEventsFor(priorId);
+    this.selvedge.cancel(priorId, this.contexts.combat);
     player.id = pid;
     player.name = String(name || '').trim().slice(0, 24) || 'Player-' + pid.slice(-4);
     player.bot = false;
@@ -461,6 +468,7 @@ export class GameEngine {
     const player = this.entities.get(pid);
     if (player) { this.vehicles?.release(player); this.mode.onPlayerRemove(player); }
     this.projectiles.clearMines(pid);
+    this.selvedge.cancel(pid, this.contexts.combat);
     if (player) this.projectiles.resetGlaive(player, this.contexts.projectiles);
     this.entities.delete(pid);
   }
@@ -772,6 +780,7 @@ export class GameEngine {
       victim.state = 'dead';
       return;
     }
+    this.selvedge?.cancel(victim.id, this.contexts?.combat);
     this.vehicles?.release(victim);
     const damage = victim.hp <= 0 && victim.lastDamage?.lethal ? victim.lastDamage : null;
     // TTT deliberately carries no kill-reward metadata across hidden roles.
@@ -858,6 +867,7 @@ export class GameEngine {
     if (!entity) return false;
     this.vehicles?.release(entity);
     this.killAnnouncer.reset(entity);
+    this.selvedge.cancel(entity.id, this.contexts.combat);
     const next = spawn || this.nextSpawnFor(entity, entity.lastSpawnIndex);
     entity.applySpawn(next);
     entity.chute = 0;

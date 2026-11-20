@@ -24,7 +24,7 @@ const angle = params.get('angle');
 const shot = findWeaponCaptureShot(weapon, state);
 
 if (!shot) throw new Error(`unknown weapon capture: ${weapon}/${state}`);
-if (angle && (!['mgl', 'stinger', 'rocket'].includes(weapon) || state !== 'held' ||
+if (angle && (!['mgl', 'stinger', 'rocket', 'selvedge'].includes(weapon) || state !== 'held' ||
   !['hero', 'front', 'left', 'right', 'rear', 'top'].includes(angle))) {
   throw new Error(`unknown weapon inspection angle: ${weapon}/${state}/${angle}`);
 }
@@ -190,7 +190,14 @@ if (state.startsWith('charge-')) {
   for (let frame = 0; frame < 30; frame++) rig.update(1 / 60, stablePose);
 }
 
-if (state.startsWith('reload-')) {
+if (weapon === 'selvedge' && state.startsWith('reload-')) {
+  const fraction = { 'reload-eject': 0.34, 'reload-load': 0.68, 'reload-charge': 0.86 }[state];
+  const duration = WEAPONS.selvedge.reloadTime;
+  rig.reload(duration, 'magswap');
+  // Keep the release, seating and keeper poses at the same phase of the real reload.
+  const frames = Math.ceil(duration * fraction * 200);
+  for (let frame = 0; frame < frames; frame++) rig.update(duration * fraction / frames, stablePose);
+} else if (state.startsWith('reload-')) {
   // Fractions of the one-second reload: cylinder work for the revolver, the
   // belt gun's cover-open / box-drop / lead-laid / handle-rack beats for the LMG,
   // and the rocket's gate-swing and tube-mouth shove for the RX-8 rear load.
@@ -220,7 +227,11 @@ if (state === 'firing') {
   if (!rig.fire()) throw new Error(`weapon capture could not fire: ${weapon}`);
   if (WEAPONS[weapon].mode === 'pump') rig.pumpAnim();
   if (WEAPONS[weapon].mode === 'bolt') rig.boltAnim();
-  rig.update(1 / 60, stablePose);
+  if (weapon === 'selvedge') {
+    for (let frame = 0; frame < 7; frame++) rig.update(0.005, stablePose);
+  } else {
+    rig.update(1 / 60, stablePose);
+  }
   if (weapon === 'flamethrower') {
     const flame = new FlameFX(scene, (_x, _y, z) => z <= -16 ? 3 : 0);
     flame.muzzleProvider = out => rig.getMuzzleWorldPos(out);
@@ -315,7 +326,7 @@ if (angle) {
   const size = bounds.getSize(new THREE.Vector3());
   inspectionBounds = { center: center.toArray(), size: size.toArray() };
   const direction = {
-    hero: weapon === 'stinger' ? [-1, 0.45, -0.55] : [-1, 0.6, -1], front: [0, 0.25, -1], left: [-1, 0.1, 0],
+    hero: ['stinger', 'selvedge'].includes(weapon) ? [-1, 0.45, -0.55] : [-1, 0.6, -1], front: [0, 0.25, -1], left: [-1, 0.1, 0],
     right: [1, 0.1, 0], rear: [0, 0.15, 1], top: [0, 1, 0],
   }[angle];
   renderScene = new THREE.Scene();
@@ -335,7 +346,7 @@ if (angle) {
   camera.far = 100;
   camera.up.set(0, 0, angle === 'top' ? -1 : 0);
   if (angle !== 'top') camera.up.set(0, 1, 0);
-  const distance = Math.max(size.length() * (weapon === 'stinger' ? 1.18 : 1.7), 0.8);
+  const distance = Math.max(size.length() * (['stinger', 'selvedge'].includes(weapon) ? 1.18 : 1.7), 0.8);
   camera.position.copy(center).add(new THREE.Vector3(...direction).normalize().multiplyScalar(distance));
   camera.lookAt(center);
   camera.updateProjectionMatrix();
@@ -370,7 +381,7 @@ window.__vbWeaponCapture = Object.freeze({ weapon, state,
       return finite; })() } : null,
   angle, inspectionBounds, inspectionVisibleReserve,
   ammo: weapon === 'mgl' && params.has('ammo') ? ammoPreview : null,
-  modelAsset: mglBody?.userData.blenderAsset ?? null,
+  modelAsset: rig._models[weapon]?.body.userData.blenderAsset ?? null,
   modelStructure: mglBody ? Object.freeze({
     originalOliveParts: originalOliveParts.length,
     visibleOriginalOliveParts: originalOliveParts.filter((part) => part.visible).length,

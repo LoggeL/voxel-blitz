@@ -1,0 +1,20 @@
+{
+  "weapon": "selvedge",
+  "source": "Original procedural synthesis using damped resonators and a plucked-string modal model.",
+  "generator": "tools/generate-selvedge-audio.py",
+  "seed": 26581,
+  "layers": {
+    "shuttle": "Frame contact and guide chatter at 0, 4, 8.5 and 14 ms",
+    "filament": "236 Hz strand, 18 damped partials, released at 11.5 ms",
+    "tines": "Paired 884 and 891 Hz resonances with two short upper modes",
+    "detent": "Bobbin catch at 130 ms, housing rebound at 139 ms"
+  },
+  "encoding": "Ogg Opus, mono 48 kHz, 96 kbit/s",
+  "output_sha256": "32f497329a7abe728e3c290ede8d15aea42ea5121954a70af52e5e9779c0f08a",
+  "metrics": {
+    "decoded_duration_seconds": 0.57,
+    "sample_peak": 0.787178,
+    "rms": 0.098834,
+    "clipped_samples": 0
+  }
+}

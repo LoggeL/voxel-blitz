@@ -226,10 +226,15 @@ export class CombatFeedback {
           }
           const definition = WEAPONS[ev.w];
           // Flying rounds have no path yet: their flyby comes with the `bullet` event.
-          if (definition && !definition.flame && !definition.projectile && definition.mode !== 'melee') {
+          if (definition && ev.w !== 'selvedge' && !definition.flame && !definition.projectile && definition.mode !== 'melee') {
             this.bulletFlyby(ev, myId);
           }
         }
+        break;
+      }
+      case 'stitch': {
+        this.effects.stitch?.(ev);
+        if (!ev.silent && !ev.restore && (ev.phase === 'pin' || ev.phase === 'sew')) this.sfx.stitch?.(ev.phase, ev.a);
         break;
       }
       case 'bullet': {

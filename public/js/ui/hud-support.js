@@ -32,7 +32,7 @@ export const GLYPH = Object.freeze({
   thunderbolt: 'TB',
   kraber: 'KR',
   doppler: 'SP2',
-  vanguard: 'VG',
+  selvedge: 'SL2',
 });
 
 export const WEAPON_NAMES = Object.freeze({
@@ -58,7 +58,7 @@ export const WEAPON_NAMES = Object.freeze({
   thunderbolt: 'TB-4 THUNDERBOLT',
   kraber: 'KR-50 KRABER',
   doppler: 'SP-2 DOPPLER',
-  vanguard: 'KV-9 VANGUARD',
+  selvedge: WEAPONS.selvedge.name,
   // Conquest kill keys: mounted vehicle weapons, roadkills and the restricted-area timer.
   ...Object.fromEntries(Object.entries(VEHICLE_WEAPON_META).map(([key, meta]) => [key, meta.label])),
   // Titanfall (docs/titanfall.md §2.3, WP0 region): titan mounts and the titan kill keys.
@@ -153,7 +153,7 @@ export const WEAPON_CLASSES = Object.freeze({
   thunderbolt: 'ARC LAUNCHER · ZAPS 3 IN 6m · BURSTS ON CONTACT',
   kraber: 'ANTI-MATERIEL RIFLE · BOLT · ONE SHOT',
   doppler: 'BATTLE RIFLE · 2-ROUND HYPERBURST',
-  vanguard: 'PRECISION BATTLE RIFLE · SEMI · ANTI-VEHICLE',
+  selvedge: 'PIN TWO SURFACES TO SEND A PULSE',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
@@ -164,7 +164,7 @@ export const WEAPON_BUY_ORDER = Object.freeze([
   'rifle',
   'doppler',
   'lmg',
-  'vanguard',
+  'selvedge',
   'sniper',
   'longarc',
   'glaive',
@@ -184,6 +184,11 @@ export const WEAPON_BUY_ORDER = Object.freeze([
  * is no reserve).
  */
 export function weaponCardStats(def) {
+  if (def.stitch) {
+    const tag = Number(combatDamage(def.damage[0]).toFixed(1));
+    const pulse = Number(combatDamage(def.stitch.damage).toFixed(1));
+    return `TAG ${tag} · PULSE ${pulse} · ${def.stitch.maxSpan} m SPAN · ${def.magSize} PINS`;
+  }
   if (def.glaive) {
     const leg = (value) => Number(combatDamage(value).toFixed(1));
     return `DMG ${leg(def.glaive.outDamage)}/${leg(def.glaive.backDamage)} · ${def.magSize || 0} DISCS · RETURNING`;

@@ -1,4 +1,5 @@
 import { Client } from 'pg';
+import { isDeepStrictEqual } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { AccountError } from '../account-security.js';
@@ -174,8 +175,10 @@ export class PostgresStore {
     }
     const rows = await client.query('SELECT * FROM vb_careers WHERE id=$1 FOR UPDATE', [id]);
     if (rows.rowCount) {
-      const profile = profileFromRow(rows.rows[0]);
-      if (profile.owned.length !== rows.rows[0].owned.length) await this.writeProfile(client, id, profile);
+      const row = rows.rows[0];
+      const profile = profileFromRow(row);
+      if (!isDeepStrictEqual(profile.owned, row.owned) || !isDeepStrictEqual(profile.mastery, row.mastery)
+        || !isDeepStrictEqual(profile.equipped, row.equipped)) await this.writeProfile(client, id, profile);
       return profile;
     }
     const profile = emptyProfile();

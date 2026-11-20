@@ -3,6 +3,9 @@ export const CHAOS_START_CREDITS = 600;
 export const CHAOS_KILL_CREDITS = 300;
 const CHAOS_PRICES = Object.freeze([300, 600, 900]);
 const ladder = (...rows) => Object.freeze(rows.map(([name, description], i) => Object.freeze({ name, description, price: CHAOS_PRICES[i] })));
+const HOLDFAST_MS = 10000;
+const LONG_STITCH_SPAN = 26;
+const BROAD_WEAVE_RADIUS_MULTIPLIER = 1.5;
 export const CHAOS_UPGRADES = Object.freeze({
   rifle: ladder(['Tesla rounds', 'Hits arc to 2 nearby enemies.'], ['Forklift lightning', 'Lightning forks to 4 enemies and kicks them into the air.'], ['Thunder tax', 'Every third shot also launches a ricocheting energy bolt.']),
   smg: ladder(['Pocket pinball', 'Every third shot spits out a bouncing energy bolt.'], ['Double trouble', 'Every third shot spits out two bolts in a fan.'], ['Bee problem', 'Every sixth shot also launches a homing rocket.']),
@@ -20,7 +23,10 @@ export const CHAOS_UPGRADES = Object.freeze({
   bubble: ladder(['Double bubble', 'Every trigger pull blows a free second bubble off to the side.'], ['Clingfilm', 'Bubbles that touch a wall or ceiling stick for 5 seconds as proximity mines.'], ['Foam party', 'Every pop scatters five mini bubbles.']),
   mgl: ladder(['Long skip', 'Rounds can bounce two extra times.'], ['Wide burst', 'Blasts gain 10% damage and 0.3 metres of radius.'], ['Spare chamber', 'Carry one additional SKIPJACK round.']),
   doppler: ladder(['Triplet', 'Every pull fires a third round.'], ['Echo', 'Every pull is answered by two ricocheting bolts.'], ['Sonic boom', 'Every third pull detonates a forward shockwave.']),
-  vanguard: ladder(['Can opener', 'Triple wall penetration and rounds pierce 3 bodies.'], ['High explosive', 'Body hits detonate an explosive charge.'], ['Tank hunter', 'Every third shot also launches a rocket.']),
+  selvedge: ladder(
+    ['Holdfast', `The first pin holds for ${HOLDFAST_MS / 1000} seconds.`],
+    ['Long stitch', `Stretch a seam across gaps up to ${LONG_STITCH_SPAN} metres wide.`],
+    ['Broad weave', `The pulse sweeps a ${BROAD_WEAVE_RADIUS_MULTIPLIER}× wider path along the seam.`]),
   frag: ladder(['Kinder surprise', 'Detonation scatters 6 live mini-frags.'], ['Extended family', '12 mini-frags scatter over a wider area.'], ['Popcorn ceiling', 'Mini-frags erupt with extra launch force and larger craters.']),
   limpet: ladder(['Long wire', 'The wall mine laser reaches 7 metres.'], ['Quick setup', 'The mine arms in 0.45 seconds.'], ['Heavy charge', 'A stronger blast reaches farther and hits harder.']),
   pulse: ladder(['Reverse sneeze', 'The grenade pulls nearby enemies inward before impact.'], ['Space programme', 'Impact launches players high into the air.'], ['Afterparty', 'Impact scatters 8 bouncing pulse bombs with a delayed second launch.']),
@@ -52,6 +58,10 @@ export function chaosWeaponDef(p, base) {
     glaive: level >= 3 ? Object.freeze({ ...base.glaive, outMs: 800, pierce: 5 }) : base.glaive };
   if (base.id === 'mgl' && level >= 3) return { ...base, magSize: base.magSize + 1 };
   if (base.id === 'doppler') return { ...base, bonusRounds: 1 };
-  if (base.id === 'vanguard') return { ...base, penetration: base.penetration * 3, pierce: { players: 3, playerFalloff: 1 } };
+  if (base.stitch) return { ...base, stitch: { ...base.stitch,
+    anchorMs: HOLDFAST_MS,
+    maxSpan: level >= 2 ? LONG_STITCH_SPAN : base.stitch.maxSpan,
+    radius: level >= 3 ? base.stitch.radius * BROAD_WEAVE_RADIUS_MULTIPLIER : base.stitch.radius,
+  } };
   return base;
 }

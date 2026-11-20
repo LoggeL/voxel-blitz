@@ -8,7 +8,9 @@ export const WEAPON_CAPTURE_STATES = Object.freeze(['pickaxe-lift', 'pickaxe-imp
 // cassette (tip-open, seated exchange, pawl rack); 'reload-charge' is the belt
 // gun's final handle rack; the rocket's final beat latches the venturi clamp.
 // The SP-2 DOPPLER stills show its canted smoke magazine leaving, the full one arriving and the handle rack.
-const RELOAD_CAPTURE_WEAPONS = Object.freeze({ revolver: ['reload-open', 'reload-eject', 'reload-load'], lmg: ['reload-open', 'reload-eject', 'reload-load', 'reload-charge'], rocket: ['reload-open', 'reload-load', 'reload-charge'], mgl: ['reload-open', 'reload-eject', 'reload-load', 'reload-charge', 'reload-incoming', 'reload-lift', 'reload-slide', 'reload-seated'], stinger: ['reload-open', 'reload-eject', 'reload-load', 'reload-charge'], doppler: ['reload-eject', 'reload-load', 'reload-charge'] });
+const RELOAD_CAPTURE_WEAPONS = Object.freeze({ revolver: ['reload-open', 'reload-eject', 'reload-load'], lmg: ['reload-open', 'reload-eject', 'reload-load', 'reload-charge'], rocket: ['reload-open', 'reload-load', 'reload-charge'], mgl: ['reload-open', 'reload-eject', 'reload-load', 'reload-charge', 'reload-incoming', 'reload-lift', 'reload-slide', 'reload-seated'], stinger: ['reload-open', 'reload-eject', 'reload-load', 'reload-charge'], doppler: ['reload-eject', 'reload-load', 'reload-charge'],
+  selvedge: ['reload-eject', 'reload-load', 'reload-charge'],
+});
 
 export const WEAPON_CAPTURE_SHOTS = Object.freeze(WEAPON_IDS.flatMap((weapon) =>
   WEAPON_CAPTURE_STATES.filter((state) => ((!state.startsWith('pickaxe-') && !state.startsWith('mining-')) || weapon === 'knife') && (!state.startsWith('charge-') || weapon === 'lance') && (!state.startsWith('shot-') && !state.startsWith('mgl-') || weapon === 'mgl') && (!(state.startsWith('lock-') || state === 'empty') || weapon === 'stinger') && (!state.startsWith('reload-') || RELOAD_CAPTURE_WEAPONS[weapon]?.includes(state))).map((state) => Object.freeze({ weapon, state }))));

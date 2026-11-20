@@ -67,7 +67,11 @@ for (const [id, old] of Object.entries(LEGACY_GATES)) {
 const declared = PROGRESSION_TREE.map(node => node.id);
 for (let at = 1; at < LEGACY_ORDER.length; at++) assert.ok(declared.indexOf(LEGACY_ORDER[at - 1]) < declared.indexOf(LEGACY_ORDER[at]),
   'legacy nodes keep their relative declaration order');
-assert.deepEqual(CATALOG_ALIASES, {}, 'no id has been retired');
+for (const [oldId, replacement] of Object.entries(CATALOG_ALIASES)) {
+  assert.equal(resolveCatalogId(oldId), replacement);
+  assert.ok(treeNode(replacement), `replacement reward ${replacement} exists`);
+}
+assert.equal(resolveCatalogId('vanguard'), 'vanguard', 'the original presentation callsign keeps its id');
 assert.equal(resolveCatalogId('arctic'), 'arctic');
 
 // ---------- the curve never drops a level ----------

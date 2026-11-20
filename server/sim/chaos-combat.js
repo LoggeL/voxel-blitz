@@ -66,7 +66,6 @@ export function chaosShot(p, ctx, dir, def = p.def) {
     if (level >= 2) fan(p, id, ctx, dir, 2);
     if (level >= 3 && p.shotSeq % 3 === 0) ctx.chaosBlast?.(p, [p.x + dir.x * 5, p.eyeY + dir.y * 5, p.z + dir.z * 5], 'pulse', 5, 25, 25, id);
   }
-  if (id === 'vanguard' && level >= 3 && p.shotSeq % 3 === 0) fan(p, id, ctx, dir, 1, true);
   if (id === 'revolver' && level >= 3) fan(p, id, ctx, dir, 6, false, true);
   if (id === 'lance' && level >= 3) fan(p, id, ctx, dir, 8, false, true);
   if (id === 'knife') {
@@ -78,7 +77,7 @@ export function chaosShot(p, ctx, dir, def = p.def) {
 export function chaosHit(p, victim, point, ctx) {
   const id = p.def.id, level = chaosLevel(p, id);
   if (!level) return;
-  if ((id === 'sniper' || id === 'revolver' || id === 'vanguard') && level >= 2) ctx.chaosBlast?.(p, point, 'frag', 3.5, 42, 10, id);
+  if ((id === 'sniper' || id === 'revolver') && level >= 2) ctx.chaosBlast?.(p, point, 'frag', 3.5, 42, 10, id);
   if (id === 'shotgun' && victim.state === 'alive') {
     const dx = victim.x - p.x, dz = victim.z - p.z, len = Math.hypot(dx, dz) || 1;
     victim.vx += dx / len * 3; victim.vz += dz / len * 3; victim.vy = Math.max(9, victim.vy);

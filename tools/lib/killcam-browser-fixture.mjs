@@ -28,7 +28,7 @@ export async function runKillcamBrowserFixture({ preview = false } = {}) {
   await new Promise((resolve, reject) => { style.onload = resolve; style.onerror = reject; });
   let time = 0;
   const sounds = [];
-  const audio = Object.fromEntries(['setListener', 'fire', 'hitmark', 'killConfirm', 'explosion', 'mine', 'impact']
+  const audio = Object.fromEntries(['setListener', 'fire', 'hitmark', 'killConfirm', 'explosion', 'mine', 'impact', 'stitch']
     .map(kind => [kind, (...args) => sounds.push({ kind, args })]));
   const killcam = new Killcam({ scene: view.scene, getBlock: live.getBlock.bind(live),
     worldview: view, mapBytes: bytes, audio, now: () => time });
@@ -46,6 +46,10 @@ export async function runKillcamBrowserFixture({ preview = false } = {}) {
       : serverNow === 1750 ? [{ ...impact }]
       : serverNow === 2300 ? [{ ...impact, hs: true }]
       : serverNow === 3000 ? [{ ...impact, hs: true, lethal: true }, death] : [];
+    if (serverNow === 250) events.push({ kind: 'stitch', id: 'weaver', phase: 'pin',
+      a: [13, 1.06, 18], n: [0, 1, 0], ms: 6000 });
+    if (serverNow === 1100) events.push({ kind: 'stitch', id: 'weaver', phase: 'sew',
+      a: [13, 1.06, 18], b: [18, 1.06, 18], ms: 800, radius: 0.9 });
     const snapshot = { serverNow, blocks, blockDamage, events,
       players: [killer, { ...victim, state: serverNow === 3000 ? 'dead' : 'alive', hp: serverNow === 3000 ? 0 : 100 }] };
     live.record(snapshot);
@@ -72,6 +76,7 @@ export async function runKillcamBrowserFixture({ preview = false } = {}) {
   check(killcam.start(death, 'fun'), 'Replay starts');
   const before = render(500);
   check(before.wall === PLANK && before.damage === 0, 'Wall rewinds before destruction');
+  check(killcam.stitchFx?.pinRemainingMs('weaver') === 5750, 'Recorded pin is already 250 ms old');
   check(live.getBlock(15, 2, 15) === 0, 'Live wall remains destroyed');
 
   // Mutate another chunk-border block while replay is active. Its terrain and
@@ -86,6 +91,9 @@ export async function runKillcamBrowserFixture({ preview = false } = {}) {
   check(damaged.geometry !== before.geometry, 'Erosion rebuilds visible geometry');
   const particlesAfterChip = killcam.impacts.particlesSpawned;
   const broken = render(1500);
+  const seamHead = killcam.stitchFx.seams.get('weaver').meshes[1];
+  check(Math.abs(seamHead.position.x - 15.5) < 0.001, 'Stitch is halfway across the recorded span');
+  check(killcam.stitchFx.pins.size === 0, 'The recorded stitch consumed its starting pin');
   check(broken.wall === 0 && broken.geometry !== damaged.geometry, 'Recorded destruction removes wall geometry');
   check(killcam.getBlock(16, 2, 15) === 0, 'Live replacement cannot leak into replay collision');
   check(killcam.impacts.particlesSpawned > particlesAfterChip, 'Destruction emits recorded debris');
@@ -93,6 +101,8 @@ export async function runKillcamBrowserFixture({ preview = false } = {}) {
   const body = render(1750); check(body.mark === 'body' && body.visible === 'visible' && body.opacity === '1',
     'Body hit is visible over hidden live HUD');
   check(render(1960).mark === '', 'Body marker expires');
+  check(sounds.filter(sound => sound.kind === 'stitch').map(sound => sound.args[0]).join() === 'pin,sew,hem',
+    'Pin, sweep and arrival sound once in replay order');
   const head = render(2300); check(head.mark === 'head' && head.opacity === '1', 'Head hit uses head marker');
   const lethal = render(3000); check(lethal.mark === 'killHead' && lethal.opacity === '1', 'Lethal headshot uses kill confirmation');
   const confirmations = sounds.filter(sound => ['hitmark', 'killConfirm'].includes(sound.kind));

@@ -1,6 +1,6 @@
 // Per-viewer NEW flags. Local only (D8): no route, no migration. Every storage
 // access is guarded; without storage there are simply no flags.
-import { LEGACY_NODE_IDS, legacyCareerLevel } from '../../../../shared/career.js';
+import { LEGACY_NODE_IDS, legacyCareerLevel, resolveCatalogId } from '../../../../shared/career.js';
 
 export const SEEN_PREFIX = 'vb-armory-seen:v1:';
 export const INTRO_KEY = 'vb-armory-intro:v1';
@@ -37,7 +37,7 @@ export class SeenStore {
     try {
       const value = JSON.parse(raw);
       if (!Array.isArray(value?.ids)) return;
-      this.ids = new Set(value.ids.filter(id => typeof id === 'string'));
+      this.ids = new Set(value.ids.filter(id => typeof id === 'string').map(resolveCatalogId));
       this.xp = Number.isFinite(value.xp) ? value.xp : null;
       this.intro = value.intro === true;
       this.available = true;

@@ -19,7 +19,7 @@ export const GLOW_ACCENT = {
   bubble: 0x9fe9ff, mgl: 0xffa63a, stinger: 0x9cff6b,
   chargerifle: 0xff5a3c, archer: 0x4ee6ff, thunderbolt: 0x7aa8ff, kraber: 0xffc04a,
   doppler: 0xffa54a,
-  vanguard: 0x9fd0ff,
+  selvedge: 0xff985b,
 };
 
 // Materials are shared across every rig, while each MaterialCache instance represents one rig's
@@ -48,6 +48,7 @@ const BLENDER_HAND_FRAMES = Object.freeze({
 // stick running through the curled fingers with a pixel of butt below them.
 const BLENDER_HAND_OFFSETS = Object.freeze({
   revolver: { grip: [-0.025, -0.045, 0.0] },
+  selvedge: { grip: [-0.010, -0.024, 0.005], support: [0.010, -0.012, 0] },
   knife: { grip: [-0.012, -0.100, 0.050] },
 });
 // Per-weapon glove scale: the one-handed pick reads as a big fist on a small item.

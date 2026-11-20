@@ -46,7 +46,7 @@
   --w-bubble:   #9fe9ff;
   --w-mgl:      #d3ba58;
   --w-doppler:  #39cfc0;
-  --w-vanguard: #9fd0ff;
+  --w-selvedge: #ffab70;
   --w-stinger:  #9cff6b;
   --w-chargerifle: #ff5a3c;
   --w-archer:   #4ee6ff;
@@ -2422,7 +2422,7 @@ h1.vb-title::after {
 .vb-w-bubble   { --gun-tint: var(--w-bubble); }
 .vb-w-mgl      { --gun-tint: var(--w-mgl); }
 .vb-w-doppler  { --gun-tint: var(--w-doppler); }
-.vb-w-vanguard { --gun-tint: var(--w-vanguard); }
+.vb-w-selvedge { --gun-tint: var(--w-selvedge); }
 .vb-w-stinger  { --gun-tint: var(--w-stinger); }
 .vb-w-chargerifle { --gun-tint: var(--w-chargerifle); }
 .vb-w-archer   { --gun-tint: var(--w-archer); }
@@ -2445,7 +2445,7 @@ h1.vb-title::after {
 #ammo.vb-w-bubble #weaponname, #weaponname.vb-w-bubble     { color: var(--w-bubble); }
 #ammo.vb-w-mgl #weaponname, #weaponname.vb-w-mgl             { color: var(--w-mgl); }
 #ammo.vb-w-doppler #weaponname, #weaponname.vb-w-doppler     { color: var(--w-doppler); }
-#ammo.vb-w-vanguard #weaponname, #weaponname.vb-w-vanguard   { color: var(--w-vanguard); }
+#ammo.vb-w-selvedge #weaponname, #weaponname.vb-w-selvedge   { color: var(--w-selvedge); }
 #ammo.vb-w-stinger #weaponname, #weaponname.vb-w-stinger     { color: var(--w-stinger); }
 #ammo.vb-w-chargerifle #weaponname, #weaponname.vb-w-chargerifle { color: var(--w-chargerifle); }
 #ammo.vb-w-archer #weaponname, #weaponname.vb-w-archer       { color: var(--w-archer); }
@@ -4516,6 +4516,10 @@ body.is-dying .vb-spectator { visibility: hidden; }
 #charge-meter.is-overheated .vb-charge-track { border-color: #ff6960; }
 #charge-meter.is-critical .vb-charge-label { color: #ff8170; }
 #charge-meter.is-critical .vb-charge-track { border-color: #ff8170; }
+#charge-meter.is-stitch .vb-charge-label { color: var(--w-selvedge); font-size: 9px; line-height: 1.3; text-shadow: none; }
+#charge-meter.is-stitch .vb-charge-track { border-color: #9b654a; box-shadow: none; }
+#charge-meter.is-stitch:not(.is-charging) .vb-charge-track { visibility: hidden; }
+#charge-meter.is-stitch .vb-charge-track i { background: var(--w-selvedge); box-shadow: none; }
 #charge-meter.is-fuel { width: 210px; }
 #charge-meter.is-fuel .vb-charge-label { color: #ffc18f; font-size: 9px; text-shadow: none; }
 #charge-meter.is-fuel .vb-charge-track { height: 7px; border-color: #a9693e; box-shadow: none; }

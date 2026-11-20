@@ -589,27 +589,25 @@ export const WEAPONS = {
     tracer: { color: '#ffe6b0', width: 1.25, len: 30 },
     sfx: 'doppler',
   },
-  vanguard: {
-    // KV-9 VANGUARD: semi-auto precision battle rifle. Three-shot body taps at mid
-    // range, 2-head kill, and `hmg` vehicle class so light hulls take full damage
-    // and aircraft take 0.6 — the first primary that carries its own vehicle tax.
-    id: 'vanguard', penetration: 260, name: 'KV-9 VANGUARD', mode: 'semi',
-    weightKg: 4.6,
-    rpm: 255, magSize: 20, spareMags: 5,
-    damage: [48, 36, 80], falloffStart: 30, headMult: 2.0, pellets: 1,
-    spreadDeg: { hip: 1.6, ads: 0.12 }, bloomDeg: 0.12, bloomMaxDeg: 1.2,
-    bloomRecover: 5.0, moveSpreadDeg: 1.8,
-    crouchSpreadMult: 0.65,
+  selvedge: {
+    // The first surface contact lays a pin. A second visible surface winds the
+    // filament between them. The travelling front does the work, once per body.
+    id: 'selvedge', name: 'SL-2 SELVEDGE', mode: 'semi',
+    stitch: Object.freeze({ range: 50, minSpan: 2, maxSpan: 18, speed: 16,
+      radius: 0.9, damage: 110, anchorMs: 6000 }),
+    weightKg: 3.4, rpm: 155, magSize: 8, spareMags: 6,
+    damage: [31, 22, 45], falloffStart: 15, headMult: 1.35, pellets: 1,
+    spreadDeg: { hip: 0.36, ads: 0.035 }, bloomDeg: 0.12, bloomMaxDeg: 0.7,
+    bloomRecover: 3.8, moveSpreadDeg: 0.8, crouchSpreadMult: 0.75,
     recoil: {
-      pitch: 1.15, pitchRamp: 0.03, maxPitchRamp: 0.3,
-      yaw: 0.42, yawPattern: [-0.35, 0.28, 0.45, -0.3],
-      jitter: 0.07, resetMs: 400, adsMult: 0.65, recovery: 0.6,
+      pitch: 0.46, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.15, yawPattern: [-0.35, 0.35],
+      jitter: 0.04, resetMs: 450, adsMult: 0.65, recovery: 0.68,
     },
-    adsFov: 48, zoom: 1.6, adsTime: 0.18,
-    reloadTime: 2.3, tacTime: 1.8, deployTime: 0.5,
-    tracer: { color: '#9fd0ff', width: 1.4, len: 34 },
-    sfx: 'rifle',
-    damageClass: 'hmg',
+    adsFov: 54, zoom: 1.35, adsTime: 0.20,
+    reloadTime: 2.45, tacTime: 2.05, deployTime: 0.55,
+    tracer: null,
+    sfx: 'selvedge',
   },
 };
 
@@ -621,7 +619,7 @@ export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver
   'chargerifle', 'archer', 'thunderbolt', 'kraber',
   // Free weapons added after the gadget block keep their wire index too: FREE_WEAPON_IDS
   // is no longer one contiguous slot range (the SP-2 DOPPLER is slot 20).
-  'doppler', 'vanguard'];
+  'doppler', 'selvedge'];
 
 /** Kit-only gadgets: never part of a free roster, a weapon wheel or a shop. */
 export const GADGET_ONLY_WEAPON_IDS = Object.freeze(WEAPON_IDS.filter(id => WEAPONS[id]?.gadgetOnly === true));

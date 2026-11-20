@@ -59,7 +59,7 @@ const TICK = 1000 / 60;
   const recon = kitLoadout('recon', 1);
   assert.equal(recon.grenades[gslot('limpet')], 2, 'recon carries two claymores (limpet id)');
   assert.equal(recon.grenades[gslot('pulse')], 1);
-  assert.equal(recon.primary, 'vanguard');
+  assert.equal(recon.primary, 'selvedge');
   assert.equal(isUnsuppressedWeapon('rifle'), true);
   assert.equal(isUnsuppressedWeapon('knife'), false);
   assert.equal(isUnsuppressedWeapon(slot('knife')), false);

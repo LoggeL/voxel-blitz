@@ -12,6 +12,7 @@ import { CHAOS_UPGRADES, CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, chaosPurchaseI
 import { chaosShot, chaosHit, chaosGlaiveContact } from '../server/sim/chaos-combat.js';
 import { MAX_ACTIVE_PROJECTILES, PRIMARY_PROJECTILE_RESERVE, ProjectileSystem } from '../server/sim/projectiles.js';
 import { MGL_RULES } from '../shared/mgl-rules.js';
+import { SelvedgeSystem } from '../server/sim/selvedge.js';
 
 const SECONDARY_PROJECTILE_CAP = MAX_ACTIVE_PROJECTILES - PRIMARY_PROJECTILE_RESERVE;
 
@@ -25,11 +26,24 @@ for (const id of FREE_WEAPON_IDS) {
   assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);
 }
 assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 66);
-// KV-9 VANGUARD ladder: Can opener triples wall penetration and pierces three bodies.
+// SELVEDGE keeps the pin alive, then spans longer gaps, then sweeps a wider seam.
 {
-  const opener = chaosWeaponDef({ chaosUpgrades: { vanguard: 1 } }, WEAPONS.vanguard);
-  assert.equal(opener.penetration, WEAPONS.vanguard.penetration * 3);
-  assert.deepEqual(opener.pierce, { players: 3, playerFalloff: 1 });
+  const base = WEAPONS.selvedge.stitch;
+  for (const level of [1, 2, 3]) {
+    const def = chaosWeaponDef({ chaosUpgrades: { selvedge: level } }, WEAPONS.selvedge);
+    assert.deepEqual(def.stitch, { ...base, anchorMs: 10000, maxSpan: level >= 2 ? 26 : base.maxSpan,
+      radius: level === 3 ? 1.5 * base.radius : base.radius });
+    const events = [], stitcher = new SelvedgeSystem();
+    const owner = { id: 'weaver', def };
+    const ctx = { now: 0, solidAt: (_x, y) => y === 0, pushEvent: ev => events.push(ev) };
+    const pinFloor = x => stitcher.pin(owner, [x + 0.5, 1, 0.5], { x, y: 0, z: 0, nx: 0, ny: 1, nz: 0 }, ctx);
+    pinFloor(0);
+    assert.equal(events.at(-1).ms, 10000);
+    ctx.now = 7000;
+    pinFloor(23);
+    assert.equal(events.at(-1).phase, level >= 2 ? 'sew' : 'pin');
+    if (level >= 2) assert.equal(events.at(-1).radius, def.stitch.radius);
+  }
 }
 // SP-2 DOPPLER ladder: Triplet rides a free third projectile on every pull and spends no extra round.
 {
@@ -131,7 +145,7 @@ const boughtUpgrades = { ...buyer.chaosUpgrades }, creditsBeforeRespawn = buyer.
 engine.killPlayer(buyer, buyer, 'rocket', false);
 engine.respawnPlayer(buyer);
 engine.mode.onPlayerRespawn(buyer);
-assert.deepEqual(buyer.chaosUpgrades, boughtUpgrades, 'all 60 purchases survive a fresh life');
+assert.deepEqual(buyer.chaosUpgrades, boughtUpgrades, 'all 66 purchases survive a fresh life');
 assert.equal(buyer.mag[WEAPON_IDS.indexOf('mgl')], WEAPONS.mgl.magSize + 1,
   'respawning with Spare chamber starts with all four rounds');
 assert.equal(buyer.credits, creditsBeforeRespawn);
@@ -208,7 +222,7 @@ for (const id of ['shotgun', 'rifle']) {
   assert.deepEqual([body.impulseSeq, body.grounded, body.coyote, body.vault, body.jumpGroundY], [1, false, 0, null, null],
     `${id} Chaos launch clears every state that could swallow it`);
 }
-console.log('Chaos: 60 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
+console.log('Chaos: 66 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
 
 // Empty-space projectile fixtures verify explosions and steering without map geometry noise.
 function projectileFixture(type, level) {

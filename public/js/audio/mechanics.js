@@ -31,6 +31,7 @@ export const DRAW_LEN = {
   glaive: 0.45,
   bubble: 0.12,
   thunderbolt: 0.25,
+  selvedge: 0.27,
 };
 
 const CYCLE_TONE = Object.freeze({
@@ -348,6 +349,18 @@ export function drawCloth(out, primitives, weapon, t0 = primitives.nowT()) {
     primitives.tone(out, {
       t0: t0 + duration * 0.88, type: 'square', f0: 1100, f1: 520,
       dec: 0.02, g: 0.14,
+    });
+  } else if (weapon === 'selvedge') {
+    // Padded sling against the frame, then one tooth takes up slack.
+    primitives.hiss(out, {
+      t0, filter: 'bandpass', f: 680, sweepTo: 1180, sweepMs: 0.105, q: 0.65,
+      att: 0.022, dec: 0.14, g: 0.22,
+    });
+    primitives.hiss(out, {
+      t0: t0 + 0.175, filter: 'bandpass', f: 1860, q: 2.1, dec: 0.025, g: 0.14,
+    });
+    primitives.tone(out, {
+      t0: t0 + 0.18, type: 'sine', f0: 267, f1: 236, dec: 0.105, g: 0.09,
     });
   } else if (weapon === 'glaive') {
     // Holster rustle, the flywheel spinning up, then the horns snapping ready.

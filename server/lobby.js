@@ -742,6 +742,8 @@ export class LobbyManager {
 
       if (this.sendJson(meta, welcome) === false) throw new Error('welcome send failed');
       if (this.sendFrame(meta, worldBytes) === false) throw new Error('world send failed');
+      const stitches = room.engine.selvedge?.activeEvents(room.engine.now);
+      if (stitches?.length) member.joinStitches = stitches;
       this._broadcastLobbyState(room);
       return true;
     } catch (err) {
@@ -926,7 +928,12 @@ export class LobbyManager {
         // Modes with secrets (TTT) build each recipient's view; rewards still
         // observe the authoritative tick passed alongside it.
         const view = obj.t === 'tick' ? room.engine?.mode.policy.viewFor?.(member.id, obj) : null;
-        this.sendJson(member.meta, view ?? obj, obj);
+        let outgoing = view ?? obj;
+        if (obj.t === 'tick' && member.joinStitches) {
+          outgoing = { ...outgoing, events: [...member.joinStitches, ...outgoing.events] };
+          delete member.joinStitches;
+        }
+        this.sendJson(member.meta, outgoing, obj);
         // Titanfall: a small self-only frame after each tick (§3.2); other modes return nothing.
         const self = obj.t === 'tick' ? room.engine?.mode.policy.selfFrame?.(member.id, obj) : null;
         if (self) this.sendJson(member.meta, self);

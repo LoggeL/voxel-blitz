@@ -33,7 +33,7 @@ import { build as buildArcher } from './models/archer.js';
 import { build as buildThunderbolt } from './models/thunderbolt.js';
 import { build as buildKraber } from './models/kraber.js';
 import { build as buildDoppler } from './models/doppler.js';
-import { build as buildVanguard } from './models/vanguard.js';
+import { build as buildSelvedge } from './models/selvedge.js';
 
 const MODELS = Object.freeze({
   rifle: buildRifle,
@@ -57,7 +57,7 @@ const MODELS = Object.freeze({
   thunderbolt: buildThunderbolt,
   kraber: buildKraber,
   doppler: buildDoppler,
-  vanguard: buildVanguard,
+  selvedge: buildSelvedge,
 });
 
 /**
@@ -66,7 +66,7 @@ const MODELS = Object.freeze({
  * dereference `flash.grp/mats/light` unconditionally. A stub with an empty group and an
  * inert light stand-in keeps every consumer honest while never rendering anything.
  */
-function makeMeleeFlash() {
+function makeInertFlash() {
   return { grp: new THREE.Group(), mats: [], light: { intensity: 0 } };
 }
 
@@ -116,7 +116,7 @@ export function buildGun(id, cache, { lod = null } = {}) {
   body.add(muzzleMarker);
 
   // TB-4 discharges through its arc cage; a powder-flash sprite hides the orb.
-  const flash = melee || id === 'thunderbolt' ? makeMeleeFlash() : makeFlash();
+  const flash = melee || id === 'thunderbolt' || id === 'selvedge' ? makeInertFlash() : makeFlash();
   flash.grp.position.copy(muzzleMarker.position).add(new THREE.Vector3(0, 0, -0.01));
   body.add(flash.grp);
 
@@ -130,7 +130,7 @@ export function buildGun(id, cache, { lod = null } = {}) {
   // FURNACE's open stock likewise exposes it; heat belongs to its six barrels.
   // VOLTLANCE uses its fitted induction strips; the cap floats beside PIKE's open rail.
   // DOPPLER's carrier is seen through its ejection window; a cap would hang in the open frame.
-  if (!melee && id !== 'doppler' && id !== 'revolver' && id !== 'glaive' && id !== 'bubble' && id !== 'mgl' && id !== 'thunderbolt' && id !== 'archer' && id !== 'stinger' && id !== 'minigun' && id !== 'lance' && id !== 'rocket') {
+  if (!melee && id !== 'selvedge' && id !== 'doppler' && id !== 'revolver' && id !== 'glaive' && id !== 'bubble' && id !== 'mgl' && id !== 'thunderbolt' && id !== 'archer' && id !== 'stinger' && id !== 'minigun' && id !== 'lance' && id !== 'rocket') {
     const capZ = BOLT_HOME[id];
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), glow);
     cap.position.set(-0.02, 0.07, capZ + 0.052);
@@ -139,7 +139,7 @@ export function buildGun(id, cache, { lod = null } = {}) {
 
   // The minigun heats its rotating barrels, and TB-4 pulses its open arc cage.
   // A central sleeve would fill either open mechanism with a glowing rod.
-  if (!melee && id !== 'minigun' && id !== 'thunderbolt') {
+  if (!melee && id !== 'minigun' && id !== 'thunderbolt' && id !== 'selvedge') {
     const span = (T.heatLen[1] - T.heatLen[0]) * T.barrelLen;
     const startZ = BREACH_Z[id] - T.heatLen[0] * T.barrelLen;
     const heatGeometry = new THREE.CylinderGeometry(

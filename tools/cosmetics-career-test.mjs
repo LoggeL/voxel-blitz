@@ -16,6 +16,12 @@ const id = () => randomBytes(32).toString('hex');
 let career = new CareerService({ directory });
 const legacy = { xp: 19600, credits: 87, kills: 1500, matches: 23,
   owned: ['amber', 'rookie', 'arctic'], equipped: { theme: 'arctic', title: 'rookie' } };
+const oldLoadout = { optic: 'scope2', grip: 'vertical', counter: 'stattrak' };
+const oldMastery = { kills: 2498, headshots: 91, botKills: 8 };
+const oldSlotProfile = { ...emptyProfile(), xp: xpForLevel(20), kills: 2506, pvpKills: 2498,
+  mastery: { vanguard: oldMastery }, owned: ['amber', 'rookie', 'vanguard', 'mastery-vanguard-3', 'mastery-vanguard-master'],
+  equipped: { theme: 'amber', title: 'vanguard', nameplate: 'mastery-vanguard-3',
+    weaponAttachments: { vanguard: oldLoadout }, weaponSkins: { vanguard: 'standard' } } };
 try {
   const guest = id();
   writeFileSync(path.join(directory, `${guest}.json`), JSON.stringify(legacy));
@@ -28,6 +34,29 @@ try {
   assert.equal(migrated.wins, 0);
   assert.ok(migrated.owned.includes('ignition') && migrated.owned.includes('arcade'), 'old profiles receive earned level rewards');
   assert.ok(!migrated.owned.includes('rifle-overdrive'), 'legacy level alone does not grant mastery rewards');
+
+  const veteran = id();
+  const veteranFile = path.join(directory, `${veteran}.json`);
+  writeFileSync(veteranFile, JSON.stringify(oldSlotProfile));
+  const carried = career.profile(veteran);
+  assert.deepEqual(carried.mastery, { selvedge: oldMastery });
+  assert.deepEqual(carried.equipped.weaponAttachments, { selvedge: oldLoadout });
+  assert.deepEqual(carried.equipped.weaponSkins, { selvedge: 'standard' });
+  assert.equal(carried.equipped.nameplate, 'mastery-selvedge-3');
+  assert.equal(carried.equipped.title, 'vanguard');
+  assert.ok(carried.owned.includes('mastery-selvedge-master'));
+  assert.deepEqual(validateProfile(carried), carried, 'reading a migrated profile twice never duplicates progress');
+  assert.equal(validateProfile({ ...oldSlotProfile, equipped: { ...oldSlotProfile.equipped, title: 'mastery-vanguard-master' } })
+    .equipped.title, 'mastery-selvedge-master');
+  const later = { kills: 2, headshots: 1, botKills: 3 };
+  const totals = { kills: 2500, headshots: 92, botKills: 11 };
+  assert.deepEqual(normalizeCareerProgress({ mastery: { vanguard: oldMastery, selvedge: later } }).mastery, { selvedge: totals });
+  assert.throws(() => validateProfile({ ...oldSlotProfile, mastery: { vanguard: oldMastery, selvedge: { kills: 0, headshots: 1 } } }), /mastery/);
+  assert.throws(() => normalizeCareerProgress({ mastery: { vanguard: { kills: Number.MAX_SAFE_INTEGER, headshots: 0 }, selvedge: later } }), /mastery/);
+  career.applyProgress(veteran, { mastery: { selvedge: later } });
+  career.flush();
+  assert.deepEqual(JSON.parse(readFileSync(veteranFile, 'utf8')).mastery, { selvedge: totals });
+  assert.deepEqual(masteryView(carried.mastery), { selvedge: { kills: 2500, headshots: 92 } });
 
   const complete = () => {
     const profile = emptyProfile();
@@ -236,6 +265,18 @@ try {
       store = await PostgresStore.open({ connectionString: fixture.connectionString });
       assert.deepEqual((await admin.query('SELECT version FROM vb_schema_migrations ORDER BY version')).rows.map(row => row.version), [1, 2, 3, 4]);
       assert.deepEqual(await store.readProfile(pgGuest), validateProfile(legacy), 'PostgreSQL upgrades preserve old profiles and grant level rewards');
+      // Replay an operation written by the earlier build against its original receipt.
+      const pgVeteran = id(), oldReceipt = randomUUID();
+      const raw = oldSlotProfile;
+      await admin.query('INSERT INTO vb_careers(id,xp,kills,matches,pvp_kills,wins,owned,equipped,mastery) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+        [pgVeteran, raw.xp, raw.kills, raw.matches, raw.pvpKills, raw.wins, JSON.stringify(raw.owned),
+          JSON.stringify(raw.equipped), JSON.stringify(raw.mastery)]);
+      await admin.query('INSERT INTO vb_reward_receipts(id,profile_id,delta) VALUES($1,$2,$3)',
+        [oldReceipt, pgVeteran, JSON.stringify({ mastery: { vanguard: later } })]);
+      const replay = await store.applyProgress(pgVeteran, { mastery: { selvedge: later } }, { operationId: oldReceipt });
+      assert.deepEqual(replay.mastery, { selvedge: oldMastery }, 'an old SQL receipt cannot pay twice under the replacement id');
+      assert.deepEqual((await admin.query('SELECT mastery FROM vb_careers WHERE id=$1', [pgVeteran])).rows[0].mastery, replay.mastery);
+      assert.deepEqual((await store.applyProgress(pgVeteran, { mastery: { selvedge: later } })).mastery, { selvedge: totals });
       const delta = { pvpKills: 250, mastery: { rifle: { kills: 250, headshots: 51 }, revolver: { kills: 5, headshots: 0, botKills: 9 } }, wins: 4 };
       const receipt = randomUUID();
       await store.applyProgress(pgGuest, delta, { operationId: receipt });

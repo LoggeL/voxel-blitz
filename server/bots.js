@@ -270,6 +270,36 @@ function projectileLead(target, dist, speed, skill = 1) {
   return [(target.vx || 0) * t, (target.vz || 0) * t];
 }
 
+function floorNearAim(solidAt, eye, direction, distance, tolerance) {
+  const hit = raycastVoxels(solidAt, ...eye, ...direction, distance + tolerance);
+  return hit?.ny === 1 && hit.y >= 0 && Math.abs(hit.t - distance) <= tolerance ? hit : null;
+}
+
+/** Pick a visible floor patch beside a recognised enemy. An existing pin moves the
+ * next tap to the opposite side so the travelling stitch crosses their feet. */
+function stitchGroundAim(game, solidAt, br, p, enemy, eye, now) {
+  if (br.noticeProgress < 1 || br.sighting.exposure < 0.65 || !enemy.grounded) return null;
+  const anchor = game.selvedge?.anchorFor(p);
+  if (p.mag[p.weapon] < (anchor ? 1 : 2)) return null;
+  const [x, , z] = br.sighting.aimPoint;
+  const dx = x - eye[0], dz = z - eye[2], flat = Math.hypot(dx, dz);
+  // At arm's length the head would turn away from the contact. Farther out,
+  // the shallow angle makes a floor stitch less useful than a direct tag.
+  if (flat < 7 || flat > Math.min(22, p.def.stitch.range)) return null;
+  const sideX = -dz / flat, sideZ = dx / flat;
+  let side = br.index % 2 ? 1 : -1;
+  if (anchor) side = (anchor[0] - x) * sideX + (anchor[2] - z) * sideZ > 0 ? -1 : 1;
+  const halfSpan = 2.7;
+  const lead = br.skill * (halfSpan / p.def.stitch.speed);
+  const point = [x + side * sideX * halfSpan + (enemy.vx || 0) * lead, enemy.y,
+    z + side * sideZ * halfSpan + (enemy.vz || 0) * lead];
+  const delta = point.map((n, i) => n - eye[i]);
+  const distance = Math.hypot(...delta);
+  const hit = floorNearAim(solidAt, eye, delta, distance, 1);
+  if (!hit || game.projectiles.smoke?.blocksSight(eye, point, now)) return null;
+  return eye.map((n, i) => n + delta[i] * hit.t / distance);
+}
+
 /** Low-arc launch angle for a stationary target at horizontal distance and height. */
 function mglAimPitch(horizontal, vertical) {
   const x = Math.max(0.35, horizontal);
@@ -1691,7 +1721,9 @@ class BotManager {
       // (less up close, where a strafe is easy to read and the slip would be wide).
       const leadSlip = cqAim && !stingerAim
         ? br.aim.biasLead * CQ_AIM.leadSigmaS * Math.min(1, enemyFlat / CQ_AIM.leadFullM) : 0;
-      const aim = [aimX + lead[0] + (enemy.vx || 0) * leadSlip,
+      const stitchAim = p.def.stitch && !hullTarget
+        ? stitchGroundAim(this.game, this.solidAt, br, p, enemy, eye, now) : null;
+      const aim = stitchAim || [aimX + lead[0] + (enemy.vx || 0) * leadSlip,
         (rocketAim ? rocketAim.point[1] : aimY) - (flight ? (flight.rise - BUBBLE_RULES.muzzleDrop) * br.skill : 0),
         aimZ + lead[1] + (enemy.vz || 0) * leadSlip];
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
@@ -1716,7 +1748,7 @@ class BotManager {
       const basePitch = br.aim.steer('pitch', p.pitch - recoil.prev.pitch, intendedPitch, pitchTurnRate, dtS);
       inp.yaw = wrapAngle(baseYaw + recoil.yaw);
       inp.pitch = Math.max(-1.5, Math.min(1.5, basePitch + recoil.pitch));
-      inp.wantAds = (flat > 28 && p.def.id === 'sniper') || (rocket && (enemy.armor === 'air' || flat > 20)) || stingerAim
+      inp.wantAds = !!stitchAim || (flat > 28 && p.def.id === 'sniper') || (rocket && (enemy.armor === 'air' || flat > 20)) || stingerAim
         // Conquest ranges: aim down sights with any hitscan gun whose sight tightens the cone.
         || (cq && !melee && !p.def.projectile && flat > ADS_RANGE && p.def.spreadDeg?.ads < p.def.spreadDeg?.hip * 0.7);
 
@@ -1750,7 +1782,8 @@ class BotManager {
       canShoot = br.noticeProgress >= 1 && !weaponPending
         && Math.abs(wrapAngle(baseYaw - intendedYaw)) < aimTolerance
         && Math.abs(basePitch - intendedPitch) < aimTolerance
-        && (rocket || stingerAim ? clearFlight(this.game, p, enemy, eye, aimDir, aimDistance)
+        && (stitchAim ? !!floorNearAim(this.solidAt, eye, aimDir, aimDistance, 1.5)
+          : rocket || stingerAim ? clearFlight(this.game, p, enemy, eye, aimDir, aimDistance)
           : hullTarget ? clearFlight(this.game, p, enemy, eye, aimDir, aimDistance, { explosive: false })
             : (mgl || !raycastVoxels(this.solidAt, ...eye, ...aimDir, aimDistance)));
       // The STINGER only releases on a complete lock (the server refuses it otherwise).

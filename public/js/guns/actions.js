@@ -5,6 +5,7 @@ import {
   PUMP_REST,
   SNIPER_BOLT_MIN_S,
 } from './models/common.js';
+import { poseSelvedgeReload } from './selvedge-presentation.js';
 import { handlingStress, handlingVariant, hesitantProgress, reloadGripBeat, addHandlingPose } from './stress-handling.js';
 import { RocketPresentation, resetRocketReload } from './rocket-presentation.js';
 
@@ -118,7 +119,7 @@ export class WeaponActions {
   }
 
   /** Start magazine, belt, tube, stripper, or cylinder choreography. */
-  startReload(now, dur, type, T, stages = null) {
+  startReload(now, dur, type, T, stages = null, elapsed = 0) {
     if (this._disposed || !(dur > 0) || !T || T.melee) return false;
     this._cycle = null;
     this._jerk = null;
@@ -131,7 +132,7 @@ export class WeaponActions {
       type: effectiveType,
       clicks: 0,
       thunks: 0,
-      lastFrac: 0,
+      lastFrac: Math.max(0, Math.min(1, elapsed / dur)),
       done: false,
       variant: handlingVariant(++this._actionSequence),
       // Staged tube loads thunk exactly when the authority seats each round.
@@ -245,6 +246,7 @@ export class WeaponActions {
     model.mag.rotation.y = 0;
     const revolver = model.extra.userData.revolver;
     if (!revolver) model.mag.rotation.z = 0;
+    if (model.extra.userData.selvedge) model.extra.userData.selvedge.latch.rotation.z = 0;
     const reloadHand = model.extra.userData.reloadHand;
     if (reloadHand) {
       reloadHand.hand.position.copy(reloadHand.position);
@@ -496,6 +498,17 @@ export class WeaponActions {
 
     if (reload.type === 'cylinder' && model.extra.userData.revolver) {
       this._updateCylinderReload(frac, model, out);
+      reload.lastFrac = frac;
+      if (frac >= 1) {
+        this._resetReloadPose(model);
+        this._reload = null;
+        this._clearMotion();
+      }
+      return;
+    }
+
+    if (model.extra.userData.selvedge) {
+      poseSelvedgeReload(this, model, frac, out);
       reload.lastFrac = frac;
       if (frac >= 1) {
         this._resetReloadPose(model);

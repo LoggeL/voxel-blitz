@@ -71,7 +71,7 @@ Run `npm run powerups:test` for simulation and protocol checks, and
 
 Create a lobby, select **CHAOS LAB**, ready up and start. The full weapon roster is available.
 Start with $600, earn $300 per kill, and open the upgrade shop with **B** (or the touch
-BUY button / gamepad D-pad right). All sixteen weapons and five throwables each have
+BUY button / gamepad D-pad right). All seventeen weapons and five throwables each have
 three cumulative upgrades costing $300, $600 and $900. Money and upgrades survive
 respawns for the current match; joining a new room starts fresh. Kills also restore
 one grenade of each type, up to five. The shop does not pause combat. Bots buy upgrades too.
@@ -80,8 +80,8 @@ Experiments include Tesla chain hits, shotgun bowling bolts, wall-piercing explo
 sniper rounds, rocket-fed LMG salvos, revolver pinball rings, eight-bounce LONGARC
 multiball with explosive bumpers, homing cluster rockets, tunnel rails, pickaxe
 shockwaves, frag offspring, long-wire claymores, vacuum-to-launch pulse bombs and the
-SKIPJACK's longer skips, wider bursts and spare chamber.
-The shop describes all 60 stages before purchase, with artwork for every weapon and
+SKIPJACK's longer skips, wider bursts and spare chamber. SELVEDGE upgrades keep its first pin in place longer, extend the span, and widen the pulse.
+The shop describes all 66 stages before purchase, with artwork for every weapon and
 grenade. Cluster children cannot reproduce;
 rooms cap live projectiles at 192 and clients retain at most 96 blast visuals.
 
@@ -376,13 +376,13 @@ Run `npm run bastion:test` for directed simulation on both maps and real WebSock
 ### Fun
 
 Fun is a free-for-all with no teams, no score-limit reset, the complete
-sixteen-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
+seventeen-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
 rooms with join in progress and no ready gate.
 
 ### Team Deathmatch
 
 Team Deathmatch assigns each player to the lower-population `alpha` or `bravo`
-team, disables friendly fire, provides the complete sixteen-weapon loadout, and
+team, disables friendly fire, provides the complete seventeen-weapon loadout, and
 uses team-specific spawn pools. Enemy kills increment the team score. The first
 team to **40** wins; the result approval phase follows, then team and player
 scores reset and everyone respawns. Deaths respawn after **3000 ms** during the
@@ -434,6 +434,7 @@ owns and refills the weapon:
 | SMG | 1250 |
 | shotgun | 1800 |
 | rifle | 2700 |
+| SL-2 SELVEDGE | 2900 |
 | lance | 3800 |
 | LMG | 4000 |
 | sniper | 4750 |
@@ -656,6 +657,7 @@ support portrait and landscape. Append `?touch=1` for desktop QA.
 | **IRON PICK** | melee | 120 rpm | no ammo — swings are free | iron pickaxe: material-dependent mining with cracks and block debris; hits deal 58 (46.4 after scale), Minecraft-style falling crits ×1.5 (69.6 — crit + hit kills), 2.5x backstabs (116, lethal), a ~1 m shove on every hit and a ~2.6 m sprint knockback (`shared/melee.js`); bots close in, sprint and hop for crits |
 | **GV-4 RIPTIDE** | semi-automatic throw | 150 rpm | 2 discs, reloaded by catching | disc launcher: a toothed magenta disc cuts out 34 m/s, bending gently onto a body just off its line, loops home at 30 m/s and pierces up to three bodies on each leg (out 43.2, back 57.6 after scale, head ×1.5); `R` turns discs home early; wall-stuck discs are picked up or fabricated after 4 s. No reach past about 20 m (`docs/weapon-design/glaive.md`) |
 | **SB-1 SUDSBLASTER** | charge (tap or hold/release) | 300 rpm | 12 + 4 tanks | bubble launcher: a tap fires a fast Soap Shot (35.2 after scale, three kill; 3.0 m forgiving splash), a 0.6 s hold blows a Big Bubble (68 direct, 4.2 m splash, strong upward shove) that pops on any enemy within 0.8 m of its film and lets go on its own at 1.5 s. Drag bleeds every bubble toward a terminal rise, so shots hook upward and nothing flies past about 27 m. Pops splash, shove upward and soak (×0.6 move speed, ×1.25 damage from the next bubble pop); they never damage terrain or their owner. Enemy bullets pop bubbles in flight; a Big Bubble takes two (`docs/weapon-design/bubble.md`) |
+| **SL-2 SELVEDGE** | semi-automatic stitcher | 155 rpm | 8 pins + 6 cassettes | Tap two voxel surfaces up to 18 m apart. A pulse sweeps between them at 16 m/s for 88 damage before armor. The first pin lasts 6 s. Direct tags deal up to 24.8 body damage before armor. |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
 ballistics/damage in `shared/combatmath.js`; the LONGARC's bouncing bolts in

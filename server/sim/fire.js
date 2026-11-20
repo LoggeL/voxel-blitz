@@ -2,25 +2,11 @@ import { combatDamage } from '../../shared/combat-balance.js';
 // Authoritative travelling fire packets. Every packet can hit one body once.
 import { WEAPONS, damageAtDistance } from '../../shared/combatmath.js';
 import { FLAME_RULES, flamePanicFloor } from '../../shared/flame-rules.js';
-import { combatHitboxes, rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
+import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evHit } from '../protocol/events.js';
+import { visibleBodyContact } from './body-contact.js';
 import { occupantShielded, occupantHitPose, occupantDamageScale } from './vehicle-damage.js';
-
-// Expanded body volumes must never pull damage across cover. Find a real body
-// point inside the packet and require an unobstructed line from its launch eye.
-function visibleContact(center, victim, radius, origin, solidAt) {
-  for (const box of combatHitboxes(victim)) {
-    const offset = center.map((v, i) => v - box.center[i]);
-    const local = box.basis.map(axis => axis.reduce((sum, v, i) => sum + v * offset[i], 0));
-    const clamped = local.map((v, i) => Math.max(-box.half[i], Math.min(box.half[i], v)));
-    const point = box.center.map((v, i) => v + clamped.reduce((sum, n, j) => sum + n * box.basis[j][i], 0));
-    if (Math.hypot(...point.map((v, i) => v - center[i])) > radius + 1e-6) continue;
-    const delta = point.map((v, i) => v - origin[i]);
-    if (!raycastVoxels(solidAt, ...origin, ...delta, Math.hypot(...delta))) return point;
-  }
-  return null;
-}
 
 export class FlameSystem {
   constructor() { this.active = []; }
@@ -61,7 +47,7 @@ export class FlameSystem {
           if (!hit || (nearest && hit.t >= nearest.t) || (wall && hit.t >= wall.t)
             || (hull && hit.t >= hull.distance && victim.vehicleId !== hull.id)) continue;
           const center = [origin[0] + dir.x * hit.t, origin[1] + dir.y * hit.t, origin[2] + dir.z * hit.t];
-          const point = visibleContact(center, pose, radius, packet.origin, ctx.solidAt);
+          const point = visibleBodyContact(center, pose, radius, packet.origin, ctx.solidAt);
           if (point) nearest = { victim, point, t: hit.t };
         }
         if (!nearest && hull) {

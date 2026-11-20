@@ -5,12 +5,13 @@ import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
 import { animateChargeRifle } from '../guns/chargerifle-animation.js';
 import { animateVoltlance } from '../guns/voltlance-animation.js';
+import { SelvedgeMotion } from '../guns/selvedge-presentation.js';
 import { glaivePresentationFor } from '../guns/glaive-presentation.js';
 import { bubblePresentationFor } from '../guns/bubble-presentation.js';
 import { thunderboltAnimationFor } from '../guns/thunderbolt-animation.js';
 import { WeaponActions, syncArcherAmmo } from '../guns/actions.js';
 import { syncRocketAmmo } from '../guns/rocket-presentation.js';
-import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
+import { WEAPONS, WEAPON_IDS, reloadPlan } from '../../../shared/combatmath.js';
 import { SWIM } from '../../../shared/player-stance.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
 import { HANDS } from '../guns/defs.js';
@@ -87,7 +88,7 @@ export class AvatarWeaponModel {
   }
 
   /** 0..1 reload pose weight (third-person mag work). */
-  get reloadT() { return (this._weaponId === 'archer' || this._weaponId === 'rocket') ? 0 : this._reload; }
+  get reloadT() { return this._launcherActions ? 0 : this._reload; }
   /** 0..1 draw progress; 1 once the new weapon is fully raised. */
   get deployT() {
     return this._deployDur > 0 ? 1 - this._deployT / this._deployDur : 1;
@@ -145,7 +146,8 @@ export class AvatarWeaponModel {
     this._model.root.scale.setScalar(MODEL_SCALE);
     const sightHeight = Number(this._model.body?.userData?.sightHeight);
     this._profile = mountProfile(nextId, Number.isFinite(sightHeight) ? sightHeight : 0.12);
-    if (nextId === 'archer' || nextId === 'rocket') {
+    if (nextId === 'selvedge') this._selvedge = new SelvedgeMotion(this._model.extra.userData.selvedge);
+    if (nextId === 'archer' || nextId === 'rocket' || this._selvedge) {
       this._launcherActions = new WeaponActions();
       this._launcherClock = 0;
       this._launcherReloadObserved = false;
@@ -174,6 +176,7 @@ export class AvatarWeaponModel {
     firing = false,
     ads = false,
     reloading = false,
+    panic = 0,
     mag,
     crouchT = 0,
     prone = 0,
@@ -211,7 +214,7 @@ export class AvatarWeaponModel {
     const blend = 1 - Math.exp(-frameDt * (firing ? 28 : 16 / Math.sqrt(kickScale)));
     this._recoil += ((firing && !melee ? continuous ? 0.12 : 1 : 0) - this._recoil) * blend;
     // The SUDSBLASTER blows soap, not powder: its film release replaces the flash.
-    this._flash = melee || continuous || bubble ? 0 : (firing ? 1 : Math.max(0, this._flash - frameDt / 0.065));
+    this._flash = melee || continuous || bubble || this._selvedge ? 0 : (firing ? 1 : Math.max(0, this._flash - frameDt / 0.065));
     const chop = melee ? pickaxeChopPitch(this.meleeSwing) : 0;
     const adsTime = Math.max(0.05, WEAPONS[this._weaponId]?.adsTime || 0.16);
     const adsBlend = 1 - Math.exp(-frameDt * 3 / adsTime);
@@ -229,7 +232,7 @@ export class AvatarWeaponModel {
     const aimPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, Number(pitch) || 0));
     const hip = this._profile.hip;
     const aimed = this._profile.ads;
-    const recoil = melee ? 0 : this._recoil * kickScale;
+    const recoil = melee ? 0 : this._recoil * kickScale * (this._selvedge ? 0.28 : 1);
     // Swimming carries the gun low and canted at the hip; aiming lifts it back
     // to the sight line, so the arm zones keep covering the settled mount.
     const carry = clamp01(swim) * (1 - this._ads) * (1 - prone);
@@ -257,9 +260,10 @@ export class AvatarWeaponModel {
     }
     this._model.root.position.y = -raise * 0.14;
     this._model.root.rotation.x = -raise * 0.5;
+    this._model.root.rotation.z = this._selvedge ? -raise * 0.58 : 0;
     this._model.bolt.position.z = continuous || this._weaponId === 'minigun' ? 0 : recoil * this._model.T.boltTravel * 0.55;
     this._model.triggerGroup.rotation.x = recoil * 0.18;
-    if (this._model.mag) {
+    if (this._model.mag && !this._selvedge) {
       this._model.mag.position.y = -0.05 * reloadPulse * this._reload;
       this._model.mag.rotation.x = 0.3 * reloadPulse * this._reload;
     }
@@ -275,8 +279,45 @@ export class AvatarWeaponModel {
     if (this._weaponId === 'lance') animateVoltlance(this._model.body, charge01, this._machineTime);
     const glow = this._model.uni.uGlow;
     glow.value = Math.max(charge01, glow.value * Math.exp(-frameDt / 0.05), this._flash);
+    if (this._selvedge) this._animateSelvedge(frameDt, !!firing, mag, !!reloading, panic);
     if (this._weaponId === 'archer') this._animateArcher(frameDt, mag, !!reloading);
     if (this._weaponId === 'rocket') this._animateRocket(frameDt, mag, !!reloading);
+  }
+
+  _animateSelvedge(dt, firing, mag, reloading, panic) {
+    const previousMag = this._selvedgeMag;
+    const hasCount = Number.isFinite(mag) && Number.isFinite(this._selvedgeMag);
+    if (!reloading && (hasCount ? mag < this._selvedgeMag : firing && !this._selvedgeFiring)) {
+      this._selvedge.release();
+    }
+    this._selvedgeMag = mag;
+    this._selvedgeFiring = firing;
+    this._selvedge.update(dt, this.deployT);
+    this._launcherClock += dt;
+    if (reloading && !this._launcherReloadObserved) {
+      // Public snapshots discard the cassette at reload start. The previous
+      // count determines tactical vs empty, using the same panic-scaled plan.
+      const plan = reloadPlan(WEAPONS.selvedge, previousMag ?? mag, Infinity, panic);
+      this._launcherActions.startReload(this._launcherClock, plan.seconds, null, this._model.T);
+    } else if (!reloading && this._launcherReloadObserved) {
+      this._launcherActions.cancelReload(this._model);
+    }
+    this._launcherReloadObserved = reloading;
+    this._launcherActions.update(this._launcherClock, dt, this._model, this._model.T);
+    const hand = this._model.extra.userData.reloadHand?.hand;
+    if (hand && this._launcherActions.reloading) {
+      this._launcherHandPose.support.copy(hand.position);
+      hand.visible = false;
+    }
+  }
+
+  _resetSelvedge() {
+    if (!this._selvedge) return;
+    this._selvedge.reset();
+    this._selvedgeMag = undefined;
+    this._selvedgeFiring = false;
+    this._launcherActions.reset(this._model);
+    this._launcherReloadObserved = false;
   }
 
   /** Snapshot edges start one reload; only authoritative ammunition fills the chamber. */
@@ -421,6 +462,7 @@ export class AvatarWeaponModel {
   resetPose() {
     this._resetArcher();
     this._resetRocket();
+    this._resetSelvedge();
     if (this._model && this._weaponId === 'glaive') glaivePresentationFor(this._model).reset();
     if (this._model && this._weaponId === 'bubble') bubblePresentationFor(this._model)?.reset();
     if (this._model && this._weaponId === 'thunderbolt') {
@@ -459,6 +501,7 @@ export class AvatarWeaponModel {
     if (!this._model) return;
     this._resetArcher();
     this._resetRocket();
+    this._resetSelvedge();
     if (this._weaponId === 'thunderbolt') {
       thunderboltAnimationFor(this._model)?.reset({ mag: this._thunderboltState?.mag ?? 0 });
     }
@@ -479,6 +522,7 @@ export class AvatarWeaponModel {
   _disposeModel() {
     this._launcherActions?.dispose(this._model);
     this._launcherActions = null;
+    this._selvedge = null;
     this._launcherHandPose = null;
     if (this._model) disposeGunModels([this._model], this._cache);
     this._model = null;

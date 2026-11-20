@@ -1,6 +1,7 @@
 // Procedural firearm report graphs. The caller owns output voice lifetime and
 // injects the primitive builders; this module never owns an AudioContext.
 
+import { pullFilament } from './selvedge.js';
 import { cycleActionClick } from './mechanics.js';
 import { MINIGUN_REPORT } from './minigun-motor.js';
 
@@ -69,6 +70,9 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   }),
   thunderbolt: Object.freeze({
     lifetime: 0.85, sampleGain: 1, sampleRate: 1, layerGain: 0.3,
+  }),
+  selvedge: Object.freeze({
+    lifetime: 0.65, sampleGain: 0.90, sampleRate: 1, layerGain: 0.35,
   }),
   // SP-2 DOPPLER: the recording already holds both reports of the doublet.
   doppler: Object.freeze({
@@ -526,7 +530,7 @@ export function renderFireReport(
   echoIn,
   addCleanup,
   cleanupOwner = out,
-  { includeMechanics = true, charge = 1, rounds = 2 } = {},
+  { includeMechanics = true, charge = 1, rounds = 2, sampled = false } = {},
 ) {
   if (key === 'flamethrower') {
     primitives.hiss(out, { filter: 'lowpass', f: 1800, sweepTo: 450, sweepMs: 0.3, dec: 0.32, att: 0.025, g: 0.6 });
@@ -544,6 +548,7 @@ export function renderFireReport(
   else if (key === 'thunderbolt') shotThunderbolt(out, primitives, includeMechanics);
   else if (key === 'glaive') shotGlaive(out, primitives);
   else if (key === 'bubble') shotBubble(out, primitives, charge);
+  else if (key === 'selvedge') pullFilament(out, primitives, sampled);
   else if (key === 'doppler') shotDoppler(out, primitives, rounds, includeMechanics);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);
 }

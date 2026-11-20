@@ -404,6 +404,7 @@ export class AvatarRoster {
         firing: pickaxe || remote.firing,
         ads: !pickaxe && remote.ads,
         reloading: !pickaxe && remote.reloading,
+        panic: remote.panic,
         mag: pickaxe ? undefined : remote.mag?.[remote.weapon],
         crouching: remote.crouch || interactKneels(hold),
         proneT: remote.proneT,

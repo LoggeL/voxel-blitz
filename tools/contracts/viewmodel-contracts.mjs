@@ -417,13 +417,25 @@ export async function runViewmodelContracts(ok, installGlobals) {
           && (isMelee
             ? (carried._model.flash.mats.length === 0
               && Math.abs(carried.root.rotation.x) < 1e-9)
-            : (carried._model.flash.grp.visible === !(carried._model.T.continuous || id === 'bubble')
+            : (carried._model.flash.grp.visible === !(carried._model.T.continuous || id === 'bubble' || id === 'selvedge')
               && Math.abs(standingSightY - 1.62) < 0.02));
       }
       ok(valid && hipMounts.size >= 4,
         'remote-avatar mounts preserve weapon-specific grips and align every ADS sight through firing and crouch');
       ok(carriedGeometryMismatch.length === 0,
         `carried weapons build body geometry except the Blender-only slots in Node (${carriedGeometryMismatch.join(', ')})`);
+      carried.update({ weapon: 'selvedge', mag: 4 });
+      carried.update({ weapon: 'selvedge', mag: 0, reloading: true, dt: 0.02 });
+      carried.update({ weapon: 'selvedge', mag: 0, reloading: true, dt: WEAPONS.selvedge.tacTime * 0.34 });
+      const reel = carried._model.mag;
+      ok(reel.position.x < -0.14 && carried.handPose.support.x < -0.20,
+        'remote support hand follows the side-mounted cassette on a tactical reload');
+      carried.update({ weapon: 'selvedge', mag: 0, reloading: true, dt: WEAPONS.selvedge.tacTime * 0.56 });
+      ok(carried._model.extra.userData.selvedge.latch.rotation.z === 0 && reel.position.x === 0,
+        'the keeper closes on the shorter tactical deadline');
+      carried.update({ weapon: 'selvedge', mag: 0, reloading: true, dt: 3 });
+      carried.update({ weapon: 'selvedge', mag: 0, reloading: true, dt: 3 });
+      ok(reel.position.length() === 0 && reel.visible, 'a held remote reload flag cannot restart the reel swap');
       for (let frame = 0; frame < 240; frame++) carried.update({ weapon: 'knife', ads: true, dt: 1 / 60 });
       const settled = chopFrame(null);
       const lifted = chopFrame(PICKAXE_LIFT_AT * PICKAXE_SWING_SECONDS);
@@ -580,6 +592,41 @@ export async function runViewmodelContracts(ok, installGlobals) {
     rig.setWeapon('rifle');
     ok(!rig._chargeOrb.visible,
       'weapon switching clears rail charging effects');
+
+    // A recovered reload seeks straight to the live cassette and skips old contacts.
+    rig.setWeapon('selvedge');
+    const stitcher = rig._cur;
+    const joints = stitcher.extra.userData.selvedge;
+    const hand = stitcher.root.getObjectByName('hand_l');
+    const rest = hand.position.clone();
+    const shuttleZ = joints.shuttle.position.z;
+    const indicatorY = joints.indicator.position.y;
+    const clicks = [];
+    rig.onReloadClick = step => clicks.push(step);
+    for (let frame = 0; frame < 60; frame++) rig.update(1 / 60);
+    rig.fire();
+    rig.update(0.035);
+    ok(joints.bobbin.rotation.x < 0 && joints.shuttle.position.z < shuttleZ - 0.025
+      && joints.leftTine.rotation.y > 0 && joints.rightTine.rotation.y < 0
+      && !stitcher.flash.grp.visible && stitcher.flash.light.intensity === 0,
+    'Selvedge pays out, throws its shuttle and flexes both tines on release');
+    for (let frame = 0; frame < 60; frame++) rig.update(1 / 60, { stitchPinMs: 1000 });
+    ok(Math.abs(joints.bobbin.rotation.x + Math.PI / 4) < 1e-6
+      && joints.indicator.position.y > indicatorY + 0.014 && joints.shuttle.position.z > shuttleZ,
+    'one bobbin detent per release, and the physical tension flag follows a live pin');
+    rig.reload(1, 'magswap', null, 0.34);
+    ok(joints.latch.rotation.z < -1.3 && stitcher.mag.position.x < -0.14
+      && Math.abs(stitcher.mag.position.y) < 0.005 && hand.position.x < -0.20 && !clicks.length,
+    'restoring a cassette change clears the axle sideways with the support hand and no stale sounds');
+    for (let frame = 0; frame < 50; frame++) rig.update(1 / 60);
+    ok(clicks.join() === '2,3' && stitcher.mag.position.length() === 0
+      && joints.latch.rotation.z === 0 && hand.position.equals(rest),
+    'seating and keeper contacts fire once and the empty hand returns to its grip');
+    rig.reload(1, 'magswap', null, 0.46);
+    rig.cancelReload();
+    ok(stitcher.mag.visible && joints.latch.rotation.z === 0 && hand.position.equals(rest),
+      'interrupting the cassette swap restores keeper, cassette and support grip');
+    rig.onReloadClick = null;
 
     const lagByWeapon = new Map();
     const maxSpeedByWeapon = new Map();

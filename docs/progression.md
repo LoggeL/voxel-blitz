@@ -9,7 +9,7 @@ combat stats, and nobody loses anything they own.
 and the server; the mastery tiers, badges and score formulas live in
 `shared/career-mastery.js` and are re-exported through it. `CAREER_CATALOG`
 remains the flat, pre-order view of the same frozen array (`=== PROGRESSION_TREE`,
-126 nodes), so every consumer that only asks "does this ID exist" keeps working.
+130 nodes), so every consumer that only asks "does this ID exist" keeps working.
 Every number the ARMORY shows comes from `careerView` plus these shared modules.
 
 ## XP curve
@@ -93,7 +93,7 @@ kills are stored beside it as `mastery[w].botKills` (only when above 0).
 
 ### Mastery weapons
 
-`MASTERY_WEAPON_IDS` (`shared/career-mastery.js`) lists the 16 weapons with tiers
+`MASTERY_WEAPON_IDS` (`shared/career-mastery.js`) lists the 17 weapons with tiers
 and tier rewards: every free-pick weapon (`FREE_WEAPON_IDS`). The five
 gadget-only entries of `WEAPON_IDS` (STINGER, LONGBOW, ARCHER, THUNDERBOLT,
 KRABER: Conquest kit and Titanfall gadgets nobody picks freely) still record
@@ -107,7 +107,7 @@ Every mastery weapon pays out at every tier. Badges come from `MASTERY_BADGES`
 (rifle RAPTOR, smg HORNET, shotgun M-DOCK, sniper LONGSHOT, lmg BASTION, revolver
 IRONCLAD, longarc LONGARC, rocket HAVOC, lance VOLTLANCE, knife PICK, minigun
 FURNACE, flamethrower FIRESTORM, glaive RIPTIDE, bubble SUDSBLASTER, mgl
-SKIPJACK):
+SKIPJACK, doppler DOPPLER, selvedge SELVEDGE):
 
 | id | Kind | Gate | Reward |
 | --- | --- | --- | --- |
@@ -116,10 +116,10 @@ SKIPJACK):
 | `mastery-<w>-3` | nameplate | ELITE | `<BADGE> III` badge |
 | `mastery-<w>-master` | callsign | MASTER | `<Badge> Master` |
 | `armorer` | callsign | 5 weapons at SPECIALIST | Armorer |
-| `nameplate-arsenal` | nameplate | 16 weapons at ELITE | ARSENAL badge |
-| `armsmaster` | callsign | 16 weapons at MASTER | Armsmaster |
+| `nameplate-arsenal` | nameplate | 15 weapons at ELITE | ARSENAL badge |
+| `armsmaster` | callsign | 15 weapons at MASTER | Armsmaster |
 
-That is 60 per-weapon and 3 arsenal nodes: 63 in the mastery branch. Five
+That is 68 per-weapon and 3 arsenal nodes: 71 in the mastery branch. Five
 weapon skins on the WEAPONS branch are also mastery rewards (Overdrive, High
 Noon, Foundry, Ashforged, Runebound) and appear on their weapon's ladder.
 
@@ -221,8 +221,10 @@ deploys on the same levels (see [Conquest](conquest.md)).
 
 All 40 pre-redesign ids (`LEGACY_NODE_IDS`: the 34 of the first tree plus the
 six Blockworks skins) keep their id, kind, branch, parent
-and weapon; no row maps to a new id. `CATALOG_ALIASES = {}` exists for future
-renames and `validateProfile` resolves aliases before its unknown-id check.
+and weapon. The four former Vanguard weapon mastery rewards now use
+`mastery-selvedge-1`, `-2`, `-3` and `-master`. Profiles carry their slot's kill
+counts, headshots, bot kills, equipped rewards and compatible attachments into
+SELVEDGE. The separate level 4 Vanguard callsign keeps its original id.
 
 | id | Old gate | New gate |
 | --- | --- | --- |

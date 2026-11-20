@@ -28,6 +28,7 @@ const sampleFileSlots = {
   'weapons.lance.fire': `${SLOT_ROOT}/weapons/lance/fire.ogg`,
   'weapons.rocket.fire': `${SLOT_ROOT}/weapons/rocket/fire.ogg`,
   'weapons.glaive.fire': `${SLOT_ROOT}/weapons/glaive/fire.ogg`,
+  'weapons.selvedge.fire': `${SLOT_ROOT}/weapons/selvedge/fire.ogg`,
   // SP-2 DOPPLER: the doublet, and the single report of a magazine's last odd round.
   'weapons.doppler.fire': `${SLOT_ROOT}/weapons/doppler/fire.ogg`,
   'weapons.doppler.fire.2': `${SLOT_ROOT}/weapons/doppler/fire-single.ogg`,
@@ -134,6 +135,7 @@ export const BUILTIN_SAMPLE_MANIFEST = Object.freeze({
   'weapons.lance.fire': SAMPLE_FILE_SLOTS['weapons.lance.fire'],
   'weapons.rocket.fire': SAMPLE_FILE_SLOTS['weapons.rocket.fire'],
   'weapons.glaive.fire': SAMPLE_FILE_SLOTS['weapons.glaive.fire'],
+  'weapons.selvedge.fire': SAMPLE_FILE_SLOTS['weapons.selvedge.fire'],
   'weapons.doppler.fire': SAMPLE_FILE_SLOTS['weapons.doppler.fire'],
   'weapons.doppler.fire.2': SAMPLE_FILE_SLOTS['weapons.doppler.fire.2'],
   'weapons.rifle.reload.2': SAMPLE_FILE_SLOTS['weapons.rifle.reload.2'],

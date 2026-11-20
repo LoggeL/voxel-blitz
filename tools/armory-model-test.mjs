@@ -150,6 +150,10 @@ const memory = () => {
 };
 const upgraded = view(40);
 const storage = memory();
+storage.setItem(`${SEEN_PREFIX}legacy`, JSON.stringify({ ids: ['vanguard', 'mastery-vanguard-1'] }));
+const veteranSeen = new SeenStore('legacy', storage);
+assert.equal(veteranSeen.isNew('mastery-selvedge-1'), false, 'a seen reward keeps its read state after replacement');
+assert.equal(veteranSeen.isNew('vanguard'), false, 'the separate callsign stays seen');
 const seen = new SeenStore(null, storage);
 assert.equal(seen.isNew('tactician'), false, 'no flags before the first sync');
 assert.deepEqual(seen.sync(upgraded), { firstRun: true });

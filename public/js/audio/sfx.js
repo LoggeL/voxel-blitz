@@ -8,6 +8,7 @@ import { renderBreath } from './breath.js';
 // master graph; VoicePool owns every bounded output graph; synthesis modules
 // are pure graph builders.
 import { AudioEngine } from './engine.js';
+import { reloadSelvedge, stitchContact } from './selvedge.js';
 import { VoicePool } from './voices.js';
 import { FlameLoops } from './flame-loop.js';
 import { MinigunMotor, MINIGUN_REPORT, minigunReportChoice, renderMinigunReport } from './minigun-motor.js';
@@ -1191,6 +1192,7 @@ export const sfx = {
         includeMechanics: !!positionOf(deferred),
         charge,
         rounds,
+        sampled,
       });
     });
   },
@@ -1255,6 +1257,16 @@ export const sfx = {
     const pulse = 1 + Math.sin(at * (18 + level * 30)) * level ** 3 * 0.22;
     loop.gain.gain.setTargetAtTime((0.03 + level * 0.11) * pulse, at, 0.015);
     return true;
+  },
+
+  stitch(phase, position) {
+    if (phase !== 'pin' && phase !== 'sew' && phase !== 'hem') return;
+    const pos = positionFrom(position);
+    if (!pos || pos.length !== 3 || !pos.every(Number.isFinite)) return;
+    run('stitch', () => {
+      const output = pool.acquire(worldOutputOptions(pos, 'impact'), 0.36);
+      stitchContact(output, primitives, phase);
+    });
   },
 
   /** Bolt wall-ricochet crackle at a world position (client-derived from the shared integrator). */
@@ -1712,6 +1724,7 @@ export const sfx = {
       if (samples.play(`weapons.${weapon}.reload.${step}`, output)) return;
       const at = primitives.nowT();
       if (weapon === 'lmg') reloadLmg(output, primitives, step, at, brightness);
+      else if (weapon === 'selvedge') reloadSelvedge(output, primitives, step, at);
       else if (weapon === 'longarc') reloadLongarc(output, primitives, step, at, brightness);
       else if (weapon === 'rocket') reloadRocket(output, primitives, step, at, brightness);
       else if (weapon === 'thunderbolt') reloadThunderbolt(output, primitives, step, at, brightness);

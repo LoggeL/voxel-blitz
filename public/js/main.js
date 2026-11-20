@@ -213,11 +213,12 @@ class Game {
             if (event.kind === 'bastion_lane') this.worldview?.bastion?.event?.(event.kind);
             return;
           }
-          if (this.killcam?.active && ['shoot', 'bullet', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
+          if (this.killcam?.active && ['shoot', 'bullet', 'stitch', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
             'projectileExplode', 'blockDamage', 'block', 'mine'].includes(event.kind)) {
-            // Live missile trails keep flying in the shared scene: they still take
-            // homing corrections and end (trail and flight loop) at impact.
-            if (event.kind === 'projectileUpdate') this.vehicleFx?.correctMissile(event);
+            // Keep the hidden live pins and missiles current for the return from replay.
+            // The replay's own audio and effects follow its recorded clock.
+            if (event.kind === 'stitch') this.effects?.stitch?.(event);
+            else if (event.kind === 'projectileUpdate') this.vehicleFx?.correctMissile(event);
             else if (event.kind === 'projectileExplode') this.vehicleFx?.endMissile(event.pid);
             return;
           }
@@ -570,6 +571,7 @@ class Game {
       getGlaiveSeekBodies: (disc) => this.glaiveSeekBodies(disc.own ? this.myId : disc.ownerId),
       // Bullet impact sounds per surface (silent unless the Conquest sound bank has decoded).
       onWallImpact: (surface, pos) => sfx.bulletImpact?.(surface, pos),
+      onStitchArrival: pos => { if (!this.killcam?.active) sfx.stitch?.('hem', pos); },
       // Bolt wall-ricochet zap / RIPTIDE bounce tink: client-derived from the shared
       // integrators' bounced flag.
       onBounce: (x, y, z, type) => (type === 'glaive'
@@ -1576,6 +1578,7 @@ class Game {
       interactDown: !!this.player?.keys?.interact, chute: this.player?.alive ? this.player.physics.chutePrompt?.() ?? null : null,
       fpv: this.fpvFeedTelemetry(droneCamera, fpvView) });
     this.titanfall?.frame(dt, { camera: this.camera, nowMs: (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now)) });
+    const stitchPinMs = this.weapon.def.stitch ? this.effects?.stitchPinRemainingMs?.(this.myId) ?? 0 : 0;
     try {
       // Body velocity in the camera frame: +x strafing right, +z backing up. The rig uses
       // it for a lagged lateral lean so the carried gun swings against direction changes.
@@ -1584,6 +1587,7 @@ class Game {
       const lateralSpeed = vel.x * Math.cos(yaw) - vel.z * Math.sin(yaw);
       const forwardSpeed = -(vel.x * Math.sin(yaw) + vel.z * Math.cos(yaw));
       this.rig.update(frameDt, {
+        stitchPinMs,
         medkitActive: this.player.alive && this.player.medkit.active,
         medkitProgress: this.player.medkit.progress,
         speed: this.player.speedXZ,
@@ -1691,6 +1695,11 @@ class Game {
     // disc presentation (server launch/explode/glaiveStock events); `mag` stays authoritative.
     if (weaponModel.glaive) {
       weaponModel.glaive = { ...weaponModel.glaive, ...(this.effects?.glaiveHudState?.() || {}) };
+    }
+    if (this.weapon.def.stitch) {
+      weaponModel.stitchPinMs = stitchPinMs;
+      weaponModel.stitchPinReason = this.effects?.stitchPinReason?.(this.myId) ?? null;
+      weaponModel.stitchHoldMs = this.weapon.def.stitch.anchorMs;
     }
     this.hud.setState({
       crosshairX: reticle.x,

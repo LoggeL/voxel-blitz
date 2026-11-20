@@ -10,6 +10,7 @@ import { KILLCAM } from '../../../shared/killcam-rules.js';
 import { KillcamTerrain } from './killcam-terrain.js';
 import { AvatarRoster } from '../avatar/avatar-roster.js';
 import { TracerFX } from '../weapons/ballistics.js';
+import { SelvedgeFX } from '../weapons/selvedge-fx.js';
 import { ProjectileFX } from '../weapons/projectiles.js';
 import { ImpactFX, blockSoundFor } from '../weapons/impacts.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
@@ -63,18 +64,17 @@ export function replaySubject(clip, sample) {
   return { kind: 'eye', target };
 }
 
-/** Recorded attacker view. Live simulation keeps running and owns respawn. */
-/**
- * One replayed `shoot` event. A tank main gun shot (w 'shell') is the cannon
- * report only (the shell itself arrives as a projectileLaunch); anything else
- * draws its tracer, kicks the killer's viewmodel and plays the weapon's fire.
- */
-export function playKillcamShot(event, { audio = null, tracers = null, rig = null, killer = null } = {}) {
+/** Replay the shooter's report and release using the weapon's recorded presentation. */
+export function playKillcamShot(event, { audio = null, tracers = null, stitchFx = null, roster = null, rig = null, killer = null } = {}) {
   if (event.w === 'shell') {
     audio?.vehicleCannon?.(event.o, { weapon: event.vehicleWeapon });
     return 'cannon';
   }
-  tracers?.shoot(event);
+  if (event.w === 'selvedge') {
+    const muzzle = event.id === killer && rig?.root?.visible
+      ? rig.getMuzzleWorldPos() : roster?.muzzleWorldPos?.(event.id);
+    stitchFx?.shot(event, muzzle ?? undefined);
+  } else tracers?.shoot(event);
   if (event.id === killer) rig?.fire();
   audio?.fire(event.w, { pos: event.o, rounds: event.paths?.length });
   return 'fire';
@@ -169,13 +169,25 @@ export class Killcam {
     this.onActivate?.();
     this.worldview?.setReplayTerrain(clip.terrain);
     this.previousTime = clip.start - 1;
+    let visibleStitches = clip.frames[0].stitchesBefore;
     if (this.replayStart > clip.start) {
-      // Skipped lead-in: its block edits still happened, its shots stay silent.
+      // Skipped lead-in: its block edits and active stitches still happened.
       const skipped = sampleKillcam(clip, this.replayStart, this.previousTime);
       clip.terrain?.apply(skipped.terrain);
       this.worldview?.updateReplayTerrain(skipped.terrain);
       this.previousTime = skipped.time;
+      visibleStitches = clip.frames.findLast(frame => frame.time <= skipped.time).stitchesAfter;
     }
+    // Reconstruct the opening frame silently, including pins older than the clip.
+    let stitchTime = null;
+    for (const { time, event } of visibleStitches) {
+      if (time + event.ms <= this.replayStart) continue;
+      if (stitchTime != null) this.stitchFx.update((time - stitchTime) / 1000);
+      this._stitches().stitch(event);
+      stitchTime = time;
+    }
+    if (stitchTime != null) this.stitchFx.update((this.replayStart - stitchTime) / 1000);
+    this.stitchTime = this.replayStart;
     this.sample = null;
     this.active = true;
     this.group.visible = true;
@@ -321,11 +333,23 @@ export class Killcam {
     this.vehicles?.setLocalView(null);
   }
 
-  /** Replayed events, hit marker, effects, bodies and the banner of one replay frame. */
-  _playEvents(dt, sample, duration, elapsed) {
-    for (const event of sample.events) {
-      if (event.kind === 'shoot') playKillcamShot(event, { audio: this.audio, tracers: this.tracers, rig: this.rig, killer: this.clip.killer });
-      else if (event.kind === 'bullet') this.tracers.settleRound?.(event);
+  _stitches() {
+    return this.stitchFx ??= new SelvedgeFX(this.group, pos => {
+      if (this.active) this.audio?.stitch?.('hem', pos);
+    });
+  }
+
+  _playFrameEvents(events) {
+    for (const event of events) {
+      if (event.kind === 'shoot') {
+        playKillcamShot(event, { audio: this.audio, tracers: this.tracers, rig: this.rig, killer: this.clip.killer,
+          stitchFx: event.w === 'selvedge' ? this._stitches() : null, roster: this.roster });
+      } else if (event.kind === 'stitch') {
+        this._stitches().stitch(event);
+        if (!event.restore && !event.silent && (event.phase === 'pin' || event.phase === 'sew')) {
+          this.audio?.stitch?.(event.phase, event.a);
+        }
+      } else if (event.kind === 'bullet') this.tracers.settleRound?.(event);
       else if (event.kind === 'projectileLaunch') this.projectiles.launch(event);
       else if (event.kind === 'projectileUpdate') this.projectiles.updateAuthority(event);
       else if (event.kind === 'projectileStick') this.projectiles.stick(event);
@@ -333,7 +357,8 @@ export class Killcam {
         this.projectiles.explode(event);
         this.audio?.explosion?.([event.x, event.y, event.z], event.type);
       } else if (event.kind === 'hit') {
-        this.impacts.impact(event);
+        if (event.w === 'selvedge') this._stitches().tag([event.vx, event.vy, event.vz]);
+        else this.impacts.impact(event);
         this.roster.hit(event.victim, event);
         if (event.w === 'knife') {
           // IRON PICK: the same attack cue per kind and crit/backstab stars as live play.
@@ -362,6 +387,22 @@ export class Killcam {
         }
       }
     }
+  }
+
+  _advanceStitches(time) {
+    this.stitchFx?.update(Math.max(0, time - this.stitchTime) / 1000);
+    this.stitchTime = time;
+  }
+
+  /** Replayed events, hit marker, effects, bodies and the banner of one replay frame. */
+  _playEvents(dt, sample, duration, elapsed) {
+    // A slow display may cross several server frames at once. The travelling
+    // stitch reaches each recorded contact at its replay timestamp.
+    for (const frame of sample.eventFrames) {
+      this._advanceStitches(frame.time);
+      this._playFrameEvents(frame.events);
+    }
+    this._advanceStitches(this.replayStart + elapsed);
     if (this.structure) {
       this.structure.receive(sample);
       this.structure.update(dt, sample.time);
@@ -402,6 +443,8 @@ export class Killcam {
     document.body.classList.remove('is-replaying');
     this.roster?.dispose(); this.tracers?.dispose(); this.projectiles?.dispose(); this.rig?.dispose(); this.impacts?.dispose();
     this.structure?.dispose(); this.particles?.dispose();
+    this.stitchFx?.dispose();
+    this.stitchFx = null;
     this.roster = this.tracers = this.projectiles = this.rig = this.impacts = this.structure = this.particles = null;
     this.hitmarker.classList.remove('vb-show', 'vb-kill', 'vb-hs');
     this.hitmarker.dataset.kind = '';

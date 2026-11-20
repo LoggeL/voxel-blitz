@@ -144,9 +144,9 @@ export const PROGRESSION_TREE = Object.freeze([
   node('mastery', { id: 'armorer', kind: 'title', level: 1, arsenal: Object.freeze({ tier: 'specialist', count: 5 }), color: '#c8d2dc',
     collection: 'Mastery', name: 'Armorer', detail: 'A callsign for reaching SPECIALIST with five weapons.' }),
   node('mastery', { id: 'nameplate-arsenal', kind: 'nameplate', level: 1, arsenal: Object.freeze({ tier: 'elite', count: 15 }), badge: 'ARSENAL',
-    color: '#ffd23f', collection: 'Mastery', name: 'Arsenal nameplate', detail: 'A gold badge beside your name for reaching ELITE with every weapon.' }),
+    color: '#ffd23f', collection: 'Mastery', name: 'Arsenal nameplate', detail: 'A gold badge beside your name for reaching ELITE with 15 weapons.' }),
   node('mastery', { id: 'armsmaster', kind: 'title', level: 1, arsenal: Object.freeze({ tier: 'master', count: 15 }), color: '#b98cff',
-    rarity: 'legendary', collection: 'Mastery', name: 'Armsmaster', detail: 'A callsign for reaching MASTER with every weapon.' }),
+    rarity: 'legendary', collection: 'Mastery', name: 'Armsmaster', detail: 'A callsign for reaching MASTER with 15 weapons.' }),
 ]);
 
 /** The 40 ids that shipped before the armory redesign (the 34 of the first tree
@@ -159,7 +159,12 @@ export const LEGACY_NODE_IDS = Object.freeze(['optic-reflex', 'grip-angled', 'co
   'pathfinder', 'vanguard', 'veteran', 'reticle-chevron', 'arcade', 'nameplate-ranger', 'nameplate-aegis', 'high-noon',
   'reticle-halo', 'overdrive', 'nameplate-eclipse']);
 /** retiredId -> successorId. Stored profiles are resolved through it before validation. */
-export const CATALOG_ALIASES = Object.freeze({});
+export const CATALOG_ALIASES = Object.freeze({
+  'mastery-vanguard-1': 'mastery-selvedge-1',
+  'mastery-vanguard-2': 'mastery-selvedge-2',
+  'mastery-vanguard-3': 'mastery-selvedge-3',
+  'mastery-vanguard-master': 'mastery-selvedge-master',
+});
 export const resolveCatalogId = id => Object.hasOwn(CATALOG_ALIASES, id) ? CATALOG_ALIASES[id] : id;
 
 /** The flat view every catalog consumer already expects. */

@@ -14,6 +14,7 @@ import { glaivePresentationFor } from './glaive-presentation.js';
 import { bubblePresentationFor } from './bubble-presentation.js';
 import { stingerPresentationFor } from './stinger-presentation.js';
 import { thunderboltAnimationFor } from './thunderbolt-animation.js';
+import { SelvedgeMotion, selvedgeDrawOffset } from './selvedge-presentation.js';
 import { DOPPLER_BUFFER_S, dopplerPresentationFor } from './doppler-presentation.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
 import { FootstepCadence } from '../audio/footsteps.js';
@@ -106,6 +107,7 @@ export class ViewmodelRig {
     this._stingerState = null;         // frame-authoritative {mag, lockProgress, reloading}
     this._thunderbolt = null;          // four-orb drum and electric discharge presentation
     this._thunderboltState = null;     // ammunition/reload state, never filled by an animation
+    this._selvedge = null;
     this._doppler = null;              // recoiling unit, sheaves and cartridge stack of the drawn SP-2
     this._dopplerState = null;         // {mag, magSize} from WeaponState
     this._skipjackState = null;        // total chambered + cassette rounds from WeaponState
@@ -250,6 +252,9 @@ export class ViewmodelRig {
     this._thunderbolt = key === 'thunderbolt'
       ? thunderboltAnimationFor(next, (step) => this.onBoltClack?.(step)) : null;
     this._thunderbolt?.reset(this._thunderboltState);
+    this._selvedge = key === 'selvedge'
+      ? next.selvedgeMotion ??= new SelvedgeMotion(next.extra.userData.selvedge) : null;
+    this._selvedge?.reset();
     this._doppler = key === 'doppler' ? dopplerPresentationFor(next) : null;
     this._doppler?.reset(this._dopplerState?.mag, this._dopplerState?.magSize);
     this._restoreSkipjack();
@@ -358,7 +363,7 @@ export class ViewmodelRig {
     const kick = () => {
       this._spr.pitch.v += pr * wn * 0.9;
       this._spr.yaw.v += yr * wn * 0.9;
-      this._spr.push.v += ((this._id === 'minigun' ? 0.10 : 0.35) + pr * 1.1) * Math.sqrt(mass);
+      this._spr.push.v += ((this._selvedge ? 0.075 : this._id === 'minigun' ? 0.10 : 0.35) + pr * 1.1) * Math.sqrt(mass);
     };
     if (doublet === 2) {
       // The first round only nudges the hold; the buffer delivers the rest.
@@ -370,6 +375,7 @@ export class ViewmodelRig {
     // The disc leaves a pneumatic spindle: no muzzle flash, the presentation plays the throw.
     if (this._glaive) this._glaive.throw(def?.glaive?.outMs);
     else if (this._bubble) this._bubble.fire();   // soap, not powder: the film releases, no flash
+    else if (this._selvedge) this._selvedge.release();
     else if (this._thunderbolt) this._thunderbolt.fire();
     else this.revealFlash();
     if (this._doppler) {
@@ -391,8 +397,8 @@ export class ViewmodelRig {
     } else if (this._thunderbolt) {
       // The drum presentation owns its latch/index/lock contacts at .06/.17/.30 s.
       this._enqueue(0.014, () => this._actions.startJerk(this._id, this._cur, T.boltTravel, 0.05));
-    } else if (this._id === 'minigun') {
-      // The rotary feed ejects steadily; it has no reciprocating rifle bolt.
+    } else if (this._selvedge || this._id === 'minigun') {
+      // The spool and rotary feed each use their own mechanical cycle.
       if (T.ejectOnFire) this._enqueue(0.025, () => this._emitShell());
     } else if (this._stinger) {
       // The uncaging switch settles after launch; a launcher has no rifle bolt.
@@ -419,7 +425,7 @@ export class ViewmodelRig {
       if (T.ejectOnFire) this._enqueue(0.045, () => this._emitShell());          // bolt-clear moment
     }
 
-    if (this.onMuzzleFlash) {
+    if (this.onMuzzleFlash && !this._selvedge) {
       cur.muzzleMarker.updateWorldMatrix(true, false);
       cur.muzzleMarker.getWorldPosition(this._tmpV);
       cur.muzzleMarker.getWorldQuaternion(this._tmpQ);
@@ -581,7 +587,11 @@ export class ViewmodelRig {
         fresh: Math.min(skipjack.rounds.length, magSize - (chambered ? 1 : 0)),
         chambered, fullLoad: magSize };
     }
-    const started = this._actions.startReload(this._now - elapsed, dur, type, this._cur.T, stages);
+    const started = this._actions.startReload(this._now - elapsed, dur, type, this._cur.T, stages,
+      this._selvedge ? elapsed : 0);
+    if (started && this._selvedge && elapsed > 0) {
+      this._actions.update(this._now, 0, this._cur, this._cur.T);
+    }
     const archer = this._cur.extra.userData.archer;
     if (started && archer?.round) {
       archer.reloading = true;
@@ -955,6 +965,7 @@ export class ViewmodelRig {
     this._thunderbolt?.update(elapsed, { reducedMotion: ctx.reducedMotion });
     // The unit slide runs after the reload/jerk layer: the carrier rides it.
     this._doppler?.update(elapsed);
+    this._selvedge?.update(elapsed, this._depT, ctx.reducedMotion, ctx.stitchPinMs > 0);
 
     /* grenade wind-up + throw lunge (mass-scaled: a heavy gun is slower to pull aside) */
     const windRate = 9 * Math.sqrt(mass);
@@ -1052,7 +1063,7 @@ export class ViewmodelRig {
     // The top-loaded missile needs horizontal room on a portrait phone. Move
     // the hip presentation inward and away; aiming returns to the same sight
     // line and scale as desktop, without changing the weapon's local anchors.
-    const launcherNarrow = this._id === 'archer' || this._id === 'rocket' ? narrowScreen * (1 - adsE) : 0;
+    const launcherNarrow = this._id === 'archer' || this._id === 'rocket' || this._selvedge ? narrowScreen * (1 - adsE) : 0;
     this.content.position.set(
       hip.x + (T.adsOffset.x - hip.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway - 0.10 * launcherNarrow,
       hip.y + (T.adsOffset.y - hip.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065 - swimCarry * 0.05 - stow * 0.34,
@@ -1256,6 +1267,7 @@ export class ViewmodelRig {
         rx: -0.65 * t, ry: 0.3 * t, rz: -0.65 * t };
     }
     const p = this._depT;
+    if (this._selvedge && p < 1) return selvedgeDrawOffset(p, this._swapDraw);
     if (this._swapDraw && p < 1) {
       const t = this._smooth01(Math.min(1, p / 0.86));
       const settle = Math.sin(Math.max(0, (p - 0.75) / 0.25) * Math.PI) * 0.014;

@@ -310,6 +310,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     bubble: 2200,
     mgl: 3900,
     doppler: 3100,
+    selvedge: 2900,
   };
   ok(sameValue(WEAPON_PRICES, expectedPrices)
     && deeplyFrozen(WEAPON_PRICES)

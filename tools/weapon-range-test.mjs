@@ -34,7 +34,7 @@ function shotAt(weapon, distance, wallX = null) {
   return { victim, events };
 }
 
-const firearms = Object.values(WEAPONS).filter(def => !def.projectile && !def.flame && !def.melee);
+const firearms = Object.values(WEAPONS).filter(def => !def.projectile && !def.flame && !def.melee && !def.stitch);
 for (const def of firearms) {
   for (const distance of [121, 301, 1250]) {
     const { victim, events } = shotAt(def.id, distance);

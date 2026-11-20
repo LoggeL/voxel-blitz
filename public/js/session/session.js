@@ -15,6 +15,7 @@ const DEFAULT_PERSIST = Object.freeze({
 
 const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'shoot',
+  'stitch',
   // A flying (ballistic) round settled: streak cut, continuation legs, flyby crack.
   'bullet',
   'hit',

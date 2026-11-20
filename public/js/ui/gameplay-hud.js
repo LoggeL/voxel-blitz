@@ -33,6 +33,12 @@ import { CLAYMORE_RULES } from '../../../shared/claymore-rules.js';
 import { GrenadePouchController } from './grenade-pouch.js';
 import { FLAME_RULES } from '../../../shared/flame-rules.js';
 
+const PIN_MOVED_LABEL = Object.freeze({
+  short: 'TOO CLOSE · PIN MOVED',
+  long: 'TOO FAR · PIN MOVED',
+  blocked: 'PATH BLOCKED · PIN MOVED',
+});
+
 const EMPTY_READ_MODEL = Object.freeze({ dead: false, painImpulse: 0 });
 // IRON PICK attack indicator: a 16-step pixel bar (Minecraft's 16-texel
 // cooldown bar) and a pixel pick that pops when the next swing is ready.
@@ -400,7 +406,8 @@ export class GameplayHud {
       }
       // Trigger mode from the weapon table (auto, semi, pump, bolt, charge, melee); the Conquest card shows it as a tag.
       d.ammo.dataset.fireMode = WEAPONS[key]?.mode ?? '';
-      d.res.title = WEAPONS[key]?.spareRounds != null ? 'Spare shells' : 'Spare magazines';
+      d.res.title = WEAPONS[key]?.stitch ? 'Spare filament cassettes'
+        : WEAPONS[key]?.spareRounds != null ? 'Spare shells' : 'Spare magazines';
       d.res.setAttribute('aria-label', d.res.title);
       const discs = !!WEAPONS[key]?.glaive;
       d.ammo.classList.toggle('is-discs', discs);
@@ -438,16 +445,20 @@ export class GameplayHud {
     if (s.charge01 !== undefined) {
       const thermal = Number.isFinite(s.heat01);
       const fuel = Number.isFinite(s.fuel01);
-      const chargeVisible = thermal || fuel || s.charge01 !== null && Number.isFinite(s.charge01);
-      const charge01 = clamp01(thermal ? s.heat01 : fuel ? s.fuel01 : s.charge01);
+      const stitch = key === 'selvedge' && alive;
+      const pinMs = stitch ? Math.max(0, s.stitchPinMs || 0) : 0;
+      const chargeVisible = stitch || thermal || fuel || s.charge01 !== null && Number.isFinite(s.charge01);
+      const charge01 = clamp01(stitch ? pinMs / (s.stitchHoldMs || WEAPONS.selvedge.stitch.anchorMs)
+        : thermal ? s.heat01 : fuel ? s.fuel01 : s.charge01);
       const chargeFlags = Number(thermal) | (Number(fuel) << 1) | (Number(chargeVisible) << 2)
         | (Number(thermal && s.heat01 >= 0.9 && !s.overheated) << 3)
         | (Number(thermal && !!s.overheated) << 4) | (Number(charge01 > 0) << 5)
-        | (Number(charge01 >= 1) << 6);
+        | (Number(charge01 >= 1) << 6) | (Number(stitch) << 7);
       if (chargeFlags !== painted.chargeFlags) {
         painted.chargeFlags = chargeFlags;
         d.chargeMeter.classList.toggle('is-thermal', thermal);
         d.chargeMeter.classList.toggle('is-fuel', fuel);
+        d.chargeMeter.classList.toggle('is-stitch', stitch);
         d.chargeMeter.classList.toggle('is-critical', thermal && s.heat01 >= 0.9 && !s.overheated);
         d.chargeMeter.classList.toggle('is-overheated', thermal && !!s.overheated);
         d.chargeMeter.classList.toggle('is-visible', chargeVisible);
@@ -465,7 +476,10 @@ export class GameplayHud {
           d.chargeMeterFill.style.transform = `scaleX(${charge01})`;
         }
         let label;
-        if (thermal) {
+        if (stitch) {
+          const moved = pinMs > 0 ? PIN_MOVED_LABEL[s.stitchPinReason] : null;
+          label = moved || (pinMs > 0 ? `PIN SECOND SURFACE · ${Math.ceil(pinMs / 1000)}s` : 'PIN FIRST SURFACE');
+        } else if (thermal) {
           if (s.overheated) label = 'OVERHEATED · COOLING';
           else if (s.minigunSpinningUp) label = `SPIN UP · ${Math.round(s.spin01 * 100)}%`;
           else if (s.heat01 >= 0.9) label = `HEAT ${Math.round(s.heat01 * 100)}% · RELEASE TO COOL`;

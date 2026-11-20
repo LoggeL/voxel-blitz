@@ -38,6 +38,26 @@ history.clear();
 assert.equal(clip.frames.at(-1).players[0].x, 5.05, 'history pruning leaves active playback intact');
 assert.equal(history.clip(death, 'fun'), null);
 
+// A field pin can predate the three seconds shown to the victim. The opening frame
+// remembers it, and later sew / repin / partial clear events still play just once.
+{
+  const stitches = new KillcamHistory();
+  const pin = { kind: 'stitch', phase: 'pin', id: 'killer', a: [3, 2, 1], n: [1, 0, 0], ms: 6000 };
+  const sew = { ...pin, phase: 'sew', b: [10, 2, 1], ms: 1000, radius: 0.9 };
+  const repin = { ...pin, a: [15, 2, 1] };
+  const clear = { kind: 'stitch', phase: 'clear', id: 'killer', part: 'seam' };
+  for (let time = 0; time <= 4000; time += 50) {
+    const events = time === 0 ? [pin] : time === 3400 ? [sew] : time === 3800 ? [repin, clear] : [];
+    stitches.record({ serverNow: time, players: [pose('killer', 1), pose('victim', 2)], events });
+  }
+  const replay = stitches.clip({ ...death, w: 'selvedge' }, 'fun');
+  assert.equal(replay.start, 1000);
+  assert.deepEqual(replay.frames[0].stitchesBefore, [{ time: 0, event: pin }]);
+  assert.deepEqual(sampleKillcam(replay, 3799, 3399).events, [sew]);
+  assert.deepEqual(sampleKillcam(replay, 3800, 3799).events, [repin, clear]);
+  assert.deepEqual(replay.frames.at(-1).stitchesAfter, [{ time: 3800, event: repin }]);
+}
+
 // Damage at admission, chipping, destruction, replacement and same-type repair
 // all have independent historical states, including on the larger arenas.
 for (const dimensions of [DEFAULT_DIMENSIONS, LARGE_DIMENSIONS]) {
@@ -138,6 +158,11 @@ for (const mode of ['fun', 'duel', 'chaos', 'tdm', 'gungame']) {
   calls.length = 0;
   assert.equal(playKillcamShot({ kind: 'shoot', id: 'killer', w: 'rocket', o: [1, 2, 3] }, deps), 'fire');
   assert.deepEqual(calls.map(c => c[0]), ['tracer', 'rig', 'fire'], 'infantry shots keep tracer, viewmodel kick and fire sound');
+  calls.length = 0;
+  const stitchShot = { kind: 'shoot', id: 'killer', w: 'selvedge', o: [0, 2, 0], end: [8, 1, 0] };
+  playKillcamShot(stitchShot, { ...deps, stitchFx: { shot: ev => calls.push(['thread', ev.end]) } });
+  assert.deepEqual(calls, [['thread', stitchShot.end], ['rig'], ['fire', 'selvedge', { pos: stitchShot.o, rounds: undefined }]],
+    'the emitter replays its recorded contact');
 }
 
 console.log('Killcam: bounded history, pose interpolation, frozen terrain, damage/destruction/repair timing, killer hitmarkers, exclusions and authoritative human respawn passed.');

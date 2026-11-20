@@ -136,12 +136,13 @@ try {
   await expectSelection(page, 'knife', 'K release equips the visibly highlighted card');
 
   await openWheel(page);
-  const vanguardSlot = FREE_WEAPON_IDS.indexOf('vanguard');
-  wheel = await geometry(page, vanguardSlot);
+  const selvedgeSlot = FREE_WEAPON_IDS.indexOf('selvedge');
+  wheel = await geometry(page, selvedgeSlot);
   await mouse(page, wheel.card);
-  await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${vanguardSlot}].classList.contains('is-hl')`);
+  await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${selvedgeSlot}].classList.contains('is-hl')`);
+  assert.equal(await page.evaluate("document.querySelector('#weapon-wheel .vb-wheel-hub-cls').textContent"), 'PIN TWO SURFACES TO SEND A PULSE');
   await key(page, 'keyUp');
-  await expectSelection(page, 'vanguard', 'K release equips the VANGUARD from the expanded wheel');
+  await expectSelection(page, 'selvedge', 'K release equips the SELVEDGE from the expanded wheel');
 
   await openWheel(page);
   await mouse(page, { x: wheel.center.x + wheel.radius * 1.55, y: wheel.center.y });

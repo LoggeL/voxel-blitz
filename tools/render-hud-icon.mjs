@@ -20,7 +20,7 @@ import { PICKAXE_TILT } from '../public/js/guns/models/iron-pickaxe.js';
 import { renderBlenderHud } from './blender/render-hud.mjs';
 
 // SKIPJACK is named for its left-flank cassette; show that side (mirrored, muzzle right).
-const HUD_SIDE = Object.freeze({ mgl: 'left', stinger: 'left', thunderbolt: 'left' });
+const HUD_SIDE = Object.freeze({ mgl: 'left', stinger: 'left', thunderbolt: 'left', selvedge: 'left' });
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, 'public', 'assets', 'weapons', 'hud');
@@ -29,7 +29,7 @@ const BLENDER_HUD_ASSETS = Object.freeze({
   rifle: 'kestrel', smg: 'wasp', shotgun: 'mastiff', sniper: 'peregrine',
   lmg: 'bison', revolver: 'fang', rocket: 'torch', longarc: 'halo',
   lance: 'pike', flamethrower: 'ifrit', minigun: 'hydra', glaive: 'skua',
-  mgl: 'skipjack', thunderbolt: 'thunderbolt', doppler: 'doppler',
+  mgl: 'skipjack', thunderbolt: 'thunderbolt', doppler: 'doppler', selvedge: 'selvedge',
 });
 const SUPERSAMPLE = 3;
 const MARGIN = 1.06;

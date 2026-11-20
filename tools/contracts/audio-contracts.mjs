@@ -376,6 +376,20 @@ export async function runAudioContracts(ok, installGlobals) {
         ok(startedBy(() => sfx.cycleClick(step, 'thunderbolt')) === 2,
           `thunderbolt indexing contact ${step} is available to the live rig`);
       }
+      const filamentMark = audio.nodes.length;
+      ok(startedBy(() => sfx.fire('selvedge')) >= 6
+        && audio.nodes.slice(filamentMark).some(node => node.kind === 'oscillator'
+          && node.frequency.events.some(event => event[1] >= 849 && event[1] <= 955)),
+        'Selvedge keeps its ringing tine and escapement when the sample is unavailable');
+      for (const phase of ['pin', 'sew', 'hem']) {
+        const mark = audio.nodes.length;
+        sfx.stitch(phase, [2, 1, -5]);
+        ok(audio.nodes.slice(mark).some(node => node.kind === 'panner'),
+          `Selvedge ${phase} is spatialized at the field contact`);
+      }
+      ok(startedBy(() => sfx.stitch('clear', [2, 1, -5])) === 0
+        && startedBy(() => sfx.stitch('pin', [NaN, 1, -5])) === 0,
+        'Cleared or malformed pins stay silent');
       const thunderboltDrawMark = audio.nodes.length;
       sfx.draw('thunderbolt');
       ok(!audio.nodes.slice(thunderboltDrawMark).some(node => node.kind === 'buffer-source' && node.buffer?.decoded),

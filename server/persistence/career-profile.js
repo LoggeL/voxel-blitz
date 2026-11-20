@@ -12,10 +12,19 @@ const record = value => !!value && typeof value === 'object' && !Array.isArray(v
 /** Rows carry human-only `kills`/`headshots` plus optional weighted-in `botKills`.
  * `botKills` is emitted only when positive, so legacy rows round-trip identically. */
 function validateMastery(value) {
-  if (!record(value) || Object.keys(value).some(key => !WEAPON_IDS.includes(key))
+  if (!record(value) || Object.keys(value).some(key => key !== 'vanguard' && !WEAPON_IDS.includes(key))
     || Object.values(value).some(row => !record(row) || !counter(row.kills) || !counter(row.headshots) || row.headshots > row.kills
       || (row.botKills !== undefined && !counter(row.botKills))))
     throw new Error('Invalid career mastery');
+  if (Object.hasOwn(value, 'vanguard')) {
+    const old = value.vanguard;
+    const current = value.selvedge;
+    const combined = { kills: old.kills + (current?.kills ?? 0),
+      headshots: old.headshots + (current?.headshots ?? 0),
+      botKills: (old.botKills ?? 0) + (current?.botKills ?? 0) };
+    if (!Object.values(combined).every(counter)) throw new Error('Invalid career mastery');
+    value = { ...value, selvedge: combined };
+  }
   return Object.fromEntries(WEAPON_IDS.filter(weapon => Object.hasOwn(value, weapon))
     .map(weapon => [weapon, { kills: value[weapon].kills, headshots: value[weapon].headshots,
       ...(value[weapon].botKills > 0 ? { botKills: value[weapon].botKills } : {}) }]));
@@ -35,12 +44,20 @@ export function masteryView(mastery) {
 
 const LOCAL_SLOTS = LOADOUT_SLOTS.filter(slot => !slot.wire).map(slot => slot.id);
 const catalogKind = (id, kind) => treeNode(id)?.kind === kind;
+// If both generations of equipment are present, the player's new selection wins.
+function replaceWeaponSlot(value) {
+  if (!record(value) || !Object.hasOwn(value, 'vanguard')) return value;
+  const { vanguard, ...slots } = value;
+  if (!Object.hasOwn(slots, 'selvedge')) slots.selvedge = vanguard;
+  return slots;
+}
+
 /** Retired catalog ids are renamed through CATALOG_ALIASES before the strict checks below. */
 function resolveAliases(profile) {
   if (!profile || !Array.isArray(profile.owned) || new Set(profile.owned).size !== profile.owned.length || !record(profile.equipped)) return profile;
   const equipped = { ...profile.equipped };
   for (const slot of [...LOCAL_SLOTS, ...EQUIPPABLE_SLOTS]) if (typeof equipped[slot] === 'string') equipped[slot] = resolveCatalogId(equipped[slot]);
-  if (record(equipped.weaponSkins)) equipped.weaponSkins = Object.fromEntries(Object.entries(equipped.weaponSkins)
+  if (record(equipped.weaponSkins)) equipped.weaponSkins = Object.fromEntries(Object.entries(replaceWeaponSlot(equipped.weaponSkins))
     .map(([weapon, id]) => [weapon, typeof id === 'string' ? resolveCatalogId(id) : id]));
   return { ...profile, owned: [...new Set(profile.owned.map(id => typeof id === 'string' ? resolveCatalogId(id) : id))], equipped };
 }
@@ -58,7 +75,7 @@ export function validateProfile(profile) {
     || !record(profile.equipped) || !LOCAL_SLOTS.every(kind =>
       profile.owned.includes(profile.equipped[kind]) && catalogKind(profile.equipped[kind], kind))) throw new Error('Invalid career data');
   const equipped = { ...defaultCosmeticLoadout(), ...profile.equipped, weaponSkins: { ...profile.equipped.weaponSkins } };
-  equipped.weaponAttachments = normalizeWeaponLoadout(profile.equipped.weaponAttachments);
+  equipped.weaponAttachments = normalizeWeaponLoadout(replaceWeaponSlot(profile.equipped.weaponAttachments));
   if (profile.equipped.weaponSkins !== undefined && !record(profile.equipped.weaponSkins)) throw new Error('Invalid career cosmetics');
   const validSlot = (id, kind, weapon) => id === 'standard' || profile.owned.includes(id)
     && catalogKind(id, kind) && (kind !== 'weaponSkin' || treeNode(id).weapon === weapon);

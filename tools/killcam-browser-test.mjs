@@ -8,10 +8,11 @@ let browser;
 try {
   const port = await server.port;
   browser = await launchCdpSession(`http://127.0.0.1:${port}/shared/worlddata.js`);
+  await browser.page.waitFor("location.pathname === '/shared/worlddata.js' && document.readyState === 'complete'");
   const result = await browser.page.evaluate(`(${runKillcamBrowserFixture.toString()})()`);
   assert.deepEqual(browser.page.errors, []);
   console.log(JSON.stringify(result));
-  console.log('Killcam WebGL: historical terrain, damage, debris, hitmarkers, isolated live updates, skip and completion passed.');
+  console.log('Killcam WebGL: historical terrain, damage, debris, timed stitch effects, hitmarkers, isolated live updates, skip and completion passed.');
 } finally {
   await browser?.close();
   await stopServer(server);

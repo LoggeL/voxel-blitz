@@ -496,9 +496,11 @@ ARCHER, guided missile, `projectile:'archer'`), 18 `thunderbolt` (TB-4
 THUNDERBOLT, arc orb, `projectile:'thunderbolt'`) and 19 `kraber` (KR-50
 KRABER, scoped bolt rifle, `damageClass:'hmg'`). Those five kit ids carry
 `gadgetOnly` and are listed in `GADGET_ONLY_WEAPON_IDS`; `FREE_WEAPON_IDS` is
-every other id, including SP-2 DOPPLER at slot 20 and KV-9 VANGUARD at slot 21. Kit-only gadgets stay out of the free roster,
+every other id, including SP-2 DOPPLER at slot 20 and SL-2 SELVEDGE at slot 21. Kit-only gadgets stay out of the free roster,
 Bastion's armory or the default wheel. Appending ids grows every player row's
 `mag`/`reserve` arrays (one entry per `WEAPON_IDS` slot) in every mode.
+
+SL-2 SELVEDGE uses `WEAPONS.selvedge.stitch` to pin two visible voxel surfaces and sweep a pulse from the first pin to the second. The server resolves each tap and swept contact. Clients use `stitch` events for pin placement, pulse travel, and early cancellation. See [SL-2 SELVEDGE](docs/weapon-design/selvedge.md).
 
 The LONGARC is `auto`: every bolt leaves at full power with no capacitor
 charge. The LONGARC is `projectile:'bolt'`: its
@@ -1028,12 +1030,12 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   and `server/sim/powerups.js` owns collection and scheduling. `PowerupView`
   renders depth-tested symbols; `PowerupHud` shows armor and collection feedback.
 - **Fun (`fun`):** free-for-all target eligibility, complete
-  sixteen-weapon loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
+  seventeen-weapon loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
   `1500 ms` respawn. Shared quick rooms allow join in progress with no ready
   gate.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
-  the complete sixteen-weapon loadout. Enemy kills increment the killer's team
+  the complete seventeen-weapon loadout. Enemy kills increment the killer's team
   score. First to `40` enters `post` (40% human approval + `5000 ms`), then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.

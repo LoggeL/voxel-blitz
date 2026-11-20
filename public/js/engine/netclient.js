@@ -1,3 +1,4 @@
+import { MAX_PLAYERS } from '../../../shared/lobby-limits.js';
 import { isTttRequest } from '../../../shared/ttt.js';
 import { parseBastionPurchase } from '../../../shared/bastion.js';
 import { parseChaosPurchase } from '../../../shared/chaos.js';
@@ -173,6 +174,8 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
 
 function isOwnShotConfirmation(ev, selfId) {
   if (ev.id !== selfId || ev.vehicleId != null || ev.chaosArc || ev.chaosFlame) return false;
+  if (ev.kind === 'stitch') return true;
+  if (ev.kind === 'shoot' && ev.w === 'selvedge') return Array.isArray(ev.end);
   if (ev.kind === 'bullet') return Array.isArray(ev.paths);
   return ev.kind === 'shoot' && (Array.isArray(ev.paths) || ev.roundId != null);
 }
@@ -252,6 +255,8 @@ export class NetClient {
     /** Newest-last ring buffer (max RING_LEN) of raw tick snapshots. */
     this.latestSnapshots = [];
     this._evictedConfirmations = new Map();
+    this._missedStitches = new Map();
+    this._stitchTimes = new WeakMap();
     /** Immutable events returned by the most recent interpolate() call. */
     this.latestEvents = Object.freeze([]);
     /** Newest full waiting/live lobby replacement, or null outside a lobby. */
@@ -369,6 +374,8 @@ export class NetClient {
     this.latestEvents = Object.freeze([]);
     this.latestSnapshots.length = 0;
     this._evictedConfirmations.clear();
+    this._missedStitches.clear();
+    this._stitchTimes = new WeakMap();
     this.latestTitanfallSelf = null;
     this.titanfallSelfFrames.length = 0;
     this._drainState.seen.clear();
@@ -881,7 +888,20 @@ export class NetClient {
     }
     drainOwnEventsEarly(snaps, this.id, this._drainState, own);
     const delayed = drainEventsWithDedupe(this.latestSnapshots, target, this._drainState);
-    const events = Object.freeze(own.length ? own.concat(delayed) : delayed);
+    let pending = own.length ? own.concat(delayed) : delayed;
+    if (this._missedStitches.size) {
+      const restored = [];
+      for (const [id, state] of this._missedStitches) {
+        // Sewing consumes an earlier pin; a later pin can coexist with that seam.
+        for (const part of ['seam', 'pin']) {
+          if (state[part] === null) restored.push(Object.freeze({ kind: 'stitch', id, phase: 'clear', part }));
+          else if (state[part]) restored.push(state[part]);
+        }
+      }
+      this._missedStitches.clear();
+      pending = restored.concat(pending);
+    }
+    const events = Object.freeze(this._ageStitches(pending, renderNowMs, delayMs));
     this.latestEvents = events;
     const generation = this._sessionGeneration;
     for (let i = 0; i < events.length; i++) {
@@ -1038,6 +1058,11 @@ export class NetClient {
     }
     this._applyBlockDamage(snapshot.blockDamage);
     this._playerIndexes.set(snapshot, indexById(snapshot.players));
+    for (const ev of Array.isArray(snapshot.events) ? snapshot.events : []) {
+      if (ev?.kind === 'stitch' || (ev?.kind === 'shoot' && ev.w === 'selvedge')) {
+        this._stitchTimes.set(ev, snapshot.serverNow);
+      }
+    }
     this.latestSnapshots.push(snapshot);
     if (this.latestSnapshots.length > RING_LEN) this._retainConfirmations(this.latestSnapshots.shift());
     this._emit('tick', snapshot);
@@ -1048,14 +1073,60 @@ export class NetClient {
     const baseId = snapshot.snapSeq * INTERP_SPAN;
     for (let i = 0; i < snapshot.events.length; i++) {
       const event = snapshot.events[i];
-      if (!event || !isOwnShotConfirmation(event, this.id)) continue;
+      if (!event || (event.kind !== 'stitch' && !isOwnShotConfirmation(event, this.id))) continue;
       const key = eventKey(event, baseId, i);
       if (this._drainState.seen.has(key)) continue;
+      if (event.kind === 'stitch') {
+        this._retainStitch(event, snapshot.serverNow);
+        continue;
+      }
       this._evictedConfirmations.set(key, { event, at: snapshot.now });
       if (this._evictedConfirmations.size > MAX_EVICTED_CONFIRMATIONS) {
         this._evictedConfirmations.delete(this._evictedConfirmations.keys().next().value);
       }
     }
+  }
+
+  // If map creation or a suspended tab outlasts the snapshot ring, retain
+  // the latest change for each of a player's two independent field effects.
+  _retainStitch(event, time) {
+    const state = this._missedStitches.get(event.id) || {};
+    if (event.phase === 'clear') {
+      if (event.part !== 'seam') state.pin = null;
+      if (event.part !== 'pin') state.seam = null;
+    } else {
+      const saved = Object.freeze({ ...event, silent: true });
+      this._stitchTimes.set(saved, time);
+      if (event.phase === 'pin') state.pin = saved;
+      else if (event.phase === 'sew') { state.seam = saved; state.pin = null; }
+    }
+    this._missedStitches.delete(event.id);
+    this._missedStitches.set(event.id, state);
+    if (this._missedStitches.size > MAX_PLAYERS * 2) this._missedStitches.delete(this._missedStitches.keys().next().value);
+  }
+
+  _ageStitches(pending, nowMs, delayMs) {
+    if (!pending.some(ev => this._stitchTimes.has(ev))) return pending;
+    const out = [];
+    for (const event of pending) {
+      const at = this._stitchTimes.get(event);
+      if (!Number.isFinite(at) || event.phase === 'clear') { out.push(event); continue; }
+      // The mapped page clock can compress a startup burst. Measure age on the
+      // server clock with the same presentation delay that positioned the players.
+      const t = this.presentedServerTime(nowMs, event.id === this.id ? 0 : delayMs);
+      const ageMs = Math.max(0, t - at);
+      // The cast has left the scene by this age. An active field still needs
+      // its correct position but a missed placement should no longer make noise.
+      if (event.kind === 'shoot') {
+        if (ageMs < 130) out.push(event);
+      } else if (ageMs >= event.ms) {
+        if (event.phase === 'sew') out.push(Object.freeze({ kind: 'stitch', phase: 'clear', id: event.id }));
+        else out.push(Object.freeze({ kind: 'stitch', phase: 'clear', part: 'pin', id: event.id }));
+      } else {
+        out.push(Object.freeze({ ...event, ageMs, silent: Boolean(event.restore || event.silent || ageMs >= 130) }));
+      }
+    }
+    return out;
   }
 
   _startPing(ws = this.ws, generation = this._sessionGeneration) {

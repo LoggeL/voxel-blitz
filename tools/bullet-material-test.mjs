@@ -8,9 +8,10 @@ import { fireOneShot } from '../server/sim/combat.js';
 for (let type = 1; type <= 28; type++) {
   assert.ok(BLOCK_HP[type] > 0 && BLOCK_HARDNESS[type] > 0, `material ${type} has HP and hardness`);
 }
-for (const def of Object.values(WEAPONS).filter(d => !d.projectile && !d.flame && !d.melee)) {
+for (const def of Object.values(WEAPONS).filter(d => !d.projectile && !d.flame && !d.melee && !d.stitch)) {
   assert.ok(bulletPower(def) > 0, `${def.id} has bullet penetration`);
 }
+assert.equal(bulletPower(WEAPONS.selvedge), 0, 'terrain pins have no bullet penetration');
 const impact = (extra = {}) => bulletMaterialImpact({type: STONE, power: 55, damage: 25, hp: 320, ...extra});
 assert.ok(impact().damage > 0, 'weak rounds chip hard blocks');
 assert.equal(impact().action, 'stop');

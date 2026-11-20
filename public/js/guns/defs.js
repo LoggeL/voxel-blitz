@@ -514,6 +514,24 @@ TIMERS.doppler = {
   kick: { stiffness: 235, damping: 25, yawWobble: 0.85 },
 };
 
+// The filament shuttle, keeper and bobbin have independent motion curves.
+TIMERS.selvedge = {
+  rof: WEAPONS.selvedge.rpm,
+  adsTime: WEAPONS.selvedge.adsTime,
+  deployTime: WEAPONS.selvedge.deployTime,
+  weightKg: WEAPONS.selvedge.weightKg,
+  viewKick: { pitchDeg: WEAPONS.selvedge.recoil.pitch, yawDeg: WEAPONS.selvedge.recoil.yaw },
+  muzzle: [0, 0.062, -0.61],
+  portY: 0, ejectRight: 0,
+  barrelLen: 0, heatLen: [0, 0], boltTravel: 0,
+  rechargeDur: 0.14,
+  pumpMag: 0, cycleBack: false, cycleKind: null, ejectOnFire: false,
+  magTimeline: { start: 0.17, home: 0.73, clickAt: 0.875, type: 'cassette' },
+  hipOffset: { x: 0.18, y: -0.195, z: -0.36 },
+  adsOffset: { x: 0, y: -0.144, z: -0.49 },
+  kick: { stiffness: 275, damping: 29, yawWobble: 0.35 },
+};
+
 /**
  * Walk / sprint / idle procedural-motion profile. Frequencies Hz, amplitudes meters, tilts radians.
  * figure-8: x = sin(pi*p), y = cos(2*pi*p) traces the classic lazy infinity loop.
@@ -578,27 +596,3 @@ export function timerFor(weaponId) {
   const t = TIMERS[weaponId];
   return t || TIMERS.rifle;
 }
-
-// KV-9 VANGUARD: semi-auto precision battle rifle. LPVO 1.6x, fluted barrel to
-// the suppressor; slow-tap cadence so the LPVO picture recovers between shots.
-TIMERS.vanguard = {
-  rof: WEAPONS.vanguard.rpm,
-  adsTime: WEAPONS.vanguard.adsTime,
-  deployTime: WEAPONS.vanguard.deployTime,
-  weightKg: WEAPONS.vanguard.weightKg,
-  viewKick: { pitchDeg: WEAPONS.vanguard.recoil.pitch, yawDeg: WEAPONS.vanguard.recoil.yaw },
-  muzzle: [0.0, 0.041, -0.640],
-  portY: 0.145,
-  ejectRight: -0.055,
-  barrelLen: 0.44,        // exposed fluted barrel breech -0.20 -> muzzle.
-  heatLen: [0.45, 0.95],  // heat creeps to the suppressor, gone before reload.
-  boltTravel: 0.09,       // piston carrier stroke.
-  rechargeDur: 0.06,      // crisp recoil decay for tap cadence.
-  pumpMag: 0,
-  cycleBack: false,
-  cycleKind: null,
-  ejectOnFire: true,
-  magTimeline: { start: 0.22, home: 0.78, clickAt: 0.90, type: 'mag' },
-  adsOffset: { x: 0.0, y: -0.150, z: -0.70 },              // LPVO line on camera axis.
-  kick: { stiffness: 200, damping: 22, yawWobble: 0.8 },   // decisive semi-auto shove.
-};

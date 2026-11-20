@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { attachBots } from '../server/bots.js';
 import { GameEngine } from '../server/game.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
+import { combatDamage } from '../shared/combat-balance.js';
 import { DEFAULT_WEAPON_ID, MODE_RULES, WEAPON_PRICES } from '../shared/modes.js';
 import {
   AIR,
@@ -791,6 +792,48 @@ function proveGlaiveBehavior() {
   }
 }
 
+function proveSelvedgeBehavior() {
+  const slot = WEAPON_IDS.indexOf('selvedge');
+  const events = [];
+  const engine = createEngine('fun', tick => events.push(...(tick.events || [])));
+  engine.addClient('human-0', 'Human');
+  const calls = captureInputs(engine);
+  const manager = attachBots(engine, 1);
+  try {
+    engine.step(TICK_MS);
+    const bot = [...engine.entities.values()].find(player => player.bot);
+    const human = engine.entities.get('human-0');
+    const brain = manager.brains.find(candidate => candidate.id === bot.id);
+    brain.spawnSwitchPending = false;
+    Object.assign(bot, { weapon: slot, cooldown: 0, deployT: 0 });
+    bot.mag[slot] = bot.def.magSize;
+    setPosition(bot, 20.5, 20.5);
+    setPosition(human, 20.5, 9.5);
+    human.hp = 1000;
+    for (let n = 0; n < 6000 / TICK_MS; n++) engine.step(TICK_MS);
+    const stitches = events.filter(e => e.kind === 'stitch' && e.id === bot.id);
+    assert.ok(stitches.some(e => e.phase === 'pin'), 'bot pins a visible floor patch');
+    const acrossTarget = stitches.find(e => e.phase === 'sew'
+      && (e.a[0] - human.x) * (e.b[0] - human.x) < 0);
+    assert.ok(acrossTarget, 'bot pairs a second floor patch across the observed contact');
+    const seamDamage = combatDamage(bot.def.stitch.damage);
+    assert.ok(events.some(e => e.kind === 'hit' && e.attacker === bot.id && e.victim === human.id
+      && e.w === 'selvedge' && e.dmg === seamDamage), 'the travelling front damages the target');
+    events.length = 0;
+    engine.selvedge.clear();
+    setPosition(human, 20.5, 16.5);
+    for (let n = 0; n < 2200 / TICK_MS; n++) {
+      // Hold the short-range encounter in place while the bot retains full aim control.
+      bot.x = 20.5; bot.z = 20.5;
+      engine.step(TICK_MS);
+    }
+    assert.ok(events.some(e => e.kind === 'hit' && e.attacker === bot.id && e.victim === human.id
+      && e.w === 'selvedge' && e.dmg < seamDamage), 'the bot directly tags a close contact');
+  } finally {
+    disposeAndProveUnhooked(engine, manager, calls);
+  }
+}
+
 console.log('bot mode smoke: deterministic direct behavior');
 proveTdmTargeting();
 proveAuthoritativeRowsAndProtection();
@@ -799,4 +842,5 @@ proveSndEconomyAndPrepSafety();
 provePlantAndDefuseBehavior();
 proveDroppedBombRecoveryAndGuard();
 proveGlaiveBehavior();
+proveSelvedgeBehavior();
 console.log('bot mode smoke: ok');
